@@ -801,10 +801,7 @@ void registerAllFunctions()
 void registerGlutenDisks()
 {
     registerDisks(true);
-
-#if USE_AWS_S3
     registerGlutenDisks(true);
-#endif
 }
 
 void BackendInitializerUtil::registerAllFactories()

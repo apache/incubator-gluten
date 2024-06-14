@@ -33,7 +33,7 @@ public:
             const String & hdfs_root_path_,
             SettingsPtr settings_,
             const Poco::Util::AbstractConfiguration & config_)
-        : HDFSObjectStorage(hdfs_root_path_, std::move(settings_), config_, /* lazy_initialize */false), config(config_)
+        : HDFSObjectStorage(hdfs_root_path_, std::move(settings_), config_, /* lazy_initialize */false)
     {
     }
     std::unique_ptr<DB::ReadBufferFromFileBase> readObject( /// NOLINT
@@ -43,8 +43,6 @@ public:
       std::optional<size_t> file_size = {}) const override;
     DB::ObjectStorageKey generateObjectKeyForPath(const std::string & path) const override;
     hdfsFS getHDFSFS() const { return hdfs_fs.get(); }
-private:
-    const Poco::Util::AbstractConfiguration & config;
 };
 #endif
 

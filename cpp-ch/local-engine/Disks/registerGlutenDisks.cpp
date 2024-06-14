@@ -40,6 +40,8 @@ void registerGlutenHDFSObjectStorage(DB::ObjectStorageFactory & factory);
 void registerGlutenDisks(bool global_skip_access_check)
 {
     auto & factory = DB::DiskFactory::instance();
+
+#if USE_AWS_S3
     auto creator = [global_skip_access_check](
                        const String & name,
                        const Poco::Util::AbstractConfiguration & config,
@@ -66,7 +68,7 @@ void registerGlutenDisks(bool global_skip_access_check)
     };
 
     auto & object_factory = DB::ObjectStorageFactory::instance();
-#if USE_AWS_S3
+
     registerGlutenS3ObjectStorage(object_factory);
     factory.registerDiskType("s3_gluten", creator); /// For compatibility
 #endif

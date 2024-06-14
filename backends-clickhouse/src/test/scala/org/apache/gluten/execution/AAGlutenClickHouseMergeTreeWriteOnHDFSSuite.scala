@@ -32,7 +32,7 @@ import java.io.File
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
 
-class GlutenClickHouseMergeTreeWriteOnHDFSSuite
+class AAGlutenClickHouseMergeTreeWriteOnHDFSSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
 
