@@ -72,9 +72,6 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
     }
 
     val out = transformDown(plan)
-    if (out.fastEquals(plan)) {
-      return plan
-    }
     out
   }
 
