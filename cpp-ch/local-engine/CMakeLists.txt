@@ -13,22 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-if (ENABLE_MULTITARGET_CODE)
-    add_definitions(-DENABLE_MULTITARGET_CODE=1)
+if(ENABLE_MULTITARGET_CODE)
+  add_definitions(-DENABLE_MULTITARGET_CODE=1)
 else()
-    add_definitions(-DENABLE_MULTITARGET_CODE=0)
+  add_definitions(-DENABLE_MULTITARGET_CODE=0)
 endif()
 
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w -ffunction-sections -fdata-sections")
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -ffunction-sections -fdata-sections")
-set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-export-dynamic -Wl,--gc-sections")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w -ffunction-sections -fdata-sections")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -ffunction-sections -fdata-sections")
+set(CMAKE_SHARED_LINKER_FLAGS
+    "${CMAKE_EXE_LINKER_FLAGS} -Wl,--no-export-dynamic -Wl,--gc-sections")
 
-if (COMPILER_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
-    set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} --ld-path=${LLD_WRAPPER}")
+if(COMPILER_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16)
+  set(CMAKE_SHARED_LINKER_FLAGS
+      "${CMAKE_SHARED_LINKER_FLAGS} --ld-path=${LLD_WRAPPER}")
 else()
-    set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} --ld-path=${LLD_PATH}")
-endif ()
+  set(CMAKE_SHARED_LINKER_FLAGS
+      "${CMAKE_SHARED_LINKER_FLAGS} --ld-path=${LLD_PATH}")
+endif()
 
 set(THRIFT_INCLUDE_DIR "${ClickHouse_SOURCE_DIR}/contrib/thrift/lib/cpp/src")
 
@@ -37,7 +39,7 @@ include(FindJava)
 include(UseJava)
 include(FindJNI)
 
-#set(JNI_NATIVE_SOURCES local_engine_jni.cpp)
+# set(JNI_NATIVE_SOURCES local_engine_jni.cpp)
 set(LOCALENGINE_SHARED_LIB _gluten_ch)
 
 add_subdirectory(proto)
@@ -61,116 +63,124 @@ add_headers_and_sources(disks Disks)
 add_headers_and_sources(disks Disks/ObjectStorages)
 
 include_directories(
-        ${JNI_INCLUDE_DIRS}
-        ${CMAKE_CURRENT_BINARY_DIR}/proto
-        ${THRIFT_INCLUDE_DIR}
-        ${CMAKE_BINARY_DIR}/contrib/thrift-cmake
-        ${CMAKE_BINARY_DIR}/contrib/llvm-project/llvm/include
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${ClickHouse_SOURCE_DIR}/src
-        ${ClickHouse_SOURCE_DIR}/base
-        ${ClickHouse_SOURCE_DIR}/contrib/orc/c++/include
-        ${ClickHouse_SOURCE_DIR}/contrib/arrow-cmake/cpp/src/orc/c++/include
-        ${CMAKE_BINARY_DIR}/contrib/orc/c++/include
-        ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-blobs/inc
-        ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/core/azure-core/inc
-        ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-common/inc
-        ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/llvm/include
-        ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/utils/bazel/llvm-project-overlay/llvm/include
+  ${JNI_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_BINARY_DIR}/proto
+  ${THRIFT_INCLUDE_DIR}
+  ${CMAKE_BINARY_DIR}/contrib/thrift-cmake
+  ${CMAKE_BINARY_DIR}/contrib/llvm-project/llvm/include
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${ClickHouse_SOURCE_DIR}/src
+  ${ClickHouse_SOURCE_DIR}/base
+  ${ClickHouse_SOURCE_DIR}/contrib/orc/c++/include
+  ${ClickHouse_SOURCE_DIR}/contrib/arrow-cmake/cpp/src/orc/c++/include
+  ${CMAKE_BINARY_DIR}/contrib/orc/c++/include
+  ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-blobs/inc
+  ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/core/azure-core/inc
+  ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-common/inc
+  ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/llvm/include
+  ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/utils/bazel/llvm-project-overlay/llvm/include
 )
 
 add_subdirectory(Storages/Parquet)
 add_subdirectory(Storages/SubstraitSource)
 add_subdirectory(Functions)
 
-add_library(gluten_clickhouse_backend_libs
-        ${builder_sources}
-        ${join_sources}
-        ${parser_sources}
-        ${rewriter_sources}
-        ${storages_sources}
-        ${common_sources}
-        ${external_sources}
-        ${shuffle_sources}
-        ${operator_sources}
-        ${aggregate_functions_sources}
-        ${jni_sources}
-        ${disks_sources}
-)
+add_library(
+  gluten_clickhouse_backend_libs
+  ${builder_sources}
+  ${join_sources}
+  ${parser_sources}
+  ${rewriter_sources}
+  ${storages_sources}
+  ${common_sources}
+  ${external_sources}
+  ${shuffle_sources}
+  ${operator_sources}
+  ${aggregate_functions_sources}
+  ${jni_sources}
+  ${disks_sources})
 
-target_link_libraries(gluten_clickhouse_backend_libs PUBLIC
-        substrait_source
-        clickhouse_aggregate_functions
-        clickhouse_functions
-        gluten_spark_functions
-        ch_contrib::xxHash
-)
+target_link_libraries(
+  gluten_clickhouse_backend_libs
+  PUBLIC substrait_source clickhouse_aggregate_functions clickhouse_functions
+         gluten_spark_functions ch_contrib::xxHash)
 
 # Add udf sources files in sub directories to functions_sources
-option(ENABLE_LOCAL_UDFS "Build UDFs in 'local-engine/Parser/*_udf' subdirectories" ON)
-if (ENABLE_LOCAL_UDFS)
-    file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} Parser/*_udf)
-    foreach(child ${children})
-        add_headers_and_sources(local_udfs ${child})
-    endforeach()
-endif ()
+option(ENABLE_LOCAL_UDFS
+       "Build UDFs in 'local-engine/Parser/*_udf' subdirectories" ON)
+if(ENABLE_LOCAL_UDFS)
+  file(
+    GLOB children CONFIGURE_DEPENDS
+    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+    Parser/*_udf)
+  foreach(child ${children})
+    add_headers_and_sources(local_udfs ${child})
+  endforeach()
+endif()
 
-file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} Parser/*_function_parser)
+file(
+  GLOB children CONFIGURE_DEPENDS
+  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+  Parser/*_function_parser)
 foreach(child ${children})
-    add_headers_and_sources(function_parsers ${child})
+  add_headers_and_sources(function_parsers ${child})
 endforeach()
 
-# Notice: soures files under Parser/*_udf subdirectories must be built into target ${LOCALENGINE_SHARED_LIB} directly
-#         to make sure all function parsers are registered successly.
-add_library(${LOCALENGINE_SHARED_LIB} SHARED
-        local_engine_jni.cpp
-        ${local_udfs_sources}
-        ${function_parsers_sources}
-        $<TARGET_OBJECTS:clickhouse_malloc>) # why add clickhouse_malloc? check clickhouse PR-8046
+# Notice: soures files under Parser/*_udf subdirectories must be built into
+# target ${LOCALENGINE_SHARED_LIB} directly to make sure all function parsers
+# are registered successly.
+add_library(
+  ${LOCALENGINE_SHARED_LIB} SHARED
+  local_engine_jni.cpp ${local_udfs_sources} ${function_parsers_sources}
+  $<TARGET_OBJECTS:clickhouse_malloc>) # why add clickhouse_malloc? check
+                                       # clickhouse PR-8046
 
 target_compile_options(${LOCALENGINE_SHARED_LIB} PUBLIC -fPIC
-        -Wno-shorten-64-to-32)
+                                                        -Wno-shorten-64-to-32)
 
-target_link_libraries(${LOCALENGINE_SHARED_LIB}
-PUBLIC
-        clickhouse_new_delete
-        clickhouse_common_config
-        clickhouse_common_io
-        clickhouse_parsers
-        clickhouse_storages_system
-        loggers
-        gluten_clickhouse_backend_libs
-        ch_contrib::protobuf
-PRIVATE
-        substrait
-)
+target_link_libraries(
+  ${LOCALENGINE_SHARED_LIB}
+  PUBLIC clickhouse_new_delete
+         clickhouse_common_config
+         clickhouse_common_io
+         clickhouse_parsers
+         clickhouse_storages_system
+         loggers
+         gluten_clickhouse_backend_libs
+         ch_contrib::protobuf
+  PRIVATE substrait)
 
 target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
 
-if (ENABLE_JEMALLOC)
-    target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
-        -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch.map -Wl,-Bsymbolic-functions)
+if(ENABLE_JEMALLOC)
+  target_link_options(
+    ${LOCALENGINE_SHARED_LIB} PRIVATE
+    -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch.map
+    -Wl,-Bsymbolic-functions)
 else()
-    target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE
-        -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch-hide-jemalloc.map)
+  target_link_options(
+    ${LOCALENGINE_SHARED_LIB} PRIVATE
+    -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch-hide-jemalloc.map)
 endif()
 
-if ("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
-    set(LOCALENGINE_SHARED_LIB_NAME "libchd.so")
-else ()
-    set(LOCALENGINE_SHARED_LIB_NAME "libch.so")
-endif ()
+if("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
+  set(LOCALENGINE_SHARED_LIB_NAME "libchd.so")
+else()
+  set(LOCALENGINE_SHARED_LIB_NAME "libch.so")
+endif()
 
 add_custom_command(
-        OUTPUT ${LOCALENGINE_SHARED_LIB_NAME}
-        COMMAND ${CMAKE_COMMAND} -E rename $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}> ${LOCALENGINE_SHARED_LIB_NAME}
-        COMMENT "Renaming $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}> to ${LOCALENGINE_SHARED_LIB_NAME}"
-        DEPENDS ${LOCALENGINE_SHARED_LIB})
+  OUTPUT ${LOCALENGINE_SHARED_LIB_NAME}
+  COMMAND ${CMAKE_COMMAND} -E rename $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}>
+          ${LOCALENGINE_SHARED_LIB_NAME}
+  COMMENT
+    "Renaming $<TARGET_FILE:${LOCALENGINE_SHARED_LIB}> to ${LOCALENGINE_SHARED_LIB_NAME}"
+  DEPENDS ${LOCALENGINE_SHARED_LIB})
 
 add_custom_target(libch ALL DEPENDS ${LOCALENGINE_SHARED_LIB_NAME})
 
 add_subdirectory(tests)
 
-if (ENABLE_EXAMPLES)
-    add_subdirectory(examples)
+if(ENABLE_EXAMPLES)
+  add_subdirectory(examples)
 endif()
