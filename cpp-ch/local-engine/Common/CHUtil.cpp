@@ -894,6 +894,9 @@ void BackendInitializerUtil::init(std::string * plan)
                 cleanup_threads,
                 0, // We don't need any threads one all the parts will be deleted
                 cleanup_threads);
+
+            // Avoid using LD_PRELOAD in child process
+            unsetenv("LD_PRELOAD");
         });
 }
 
