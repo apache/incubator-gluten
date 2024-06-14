@@ -90,7 +90,7 @@ class HeuristicApplier(session: SparkSession)
    * Rules to let planner create a suggested Gluten plan being sent to `fallbackPolicies` in which
    * the plan will be breakdown and decided to be fallen back or not.
    */
-  private def transformRules(outputsColumnar: Boolean): List[SparkSession => Rule[SparkPlan]] = {
+  private def transformRules(outputsColumnar: Boolean): Seq[SparkSession => Rule[SparkPlan]] = {
     List(
       (_: SparkSession) => RemoveTransitions,
       (spark: SparkSession) => FallbackOnANSIMode(spark),
@@ -122,7 +122,7 @@ class HeuristicApplier(session: SparkSession)
    * Rules to add wrapper `FallbackNode`s on top of the input plan, as hints to make planner fall
    * back the whole input plan to the original vanilla Spark plan.
    */
-  private def fallbackPolicies(): List[SparkSession => Rule[SparkPlan]] = {
+  private def fallbackPolicies(): Seq[SparkSession => Rule[SparkPlan]] = {
     List(
       (_: SparkSession) =>
         ExpandFallbackPolicy(adaptiveContext.isAdaptiveContext(), adaptiveContext.originalPlan()))
@@ -132,7 +132,7 @@ class HeuristicApplier(session: SparkSession)
    * Rules applying to non-fallen-back Gluten plans. To do some post cleanup works on the plan to
    * make sure it be able to run and be compatible with Spark's execution engine.
    */
-  private def postRules(): List[SparkSession => Rule[SparkPlan]] =
+  private def postRules(): Seq[SparkSession => Rule[SparkPlan]] =
     List(
       (s: SparkSession) => RemoveTopmostColumnarToRow(s, adaptiveContext.isAdaptiveContext())) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
@@ -143,7 +143,7 @@ class HeuristicApplier(session: SparkSession)
    * Rules consistently applying to all input plans after all other rules have been applied, despite
    * whether the input plan is fallen back or not.
    */
-  private def finalRules(): List[SparkSession => Rule[SparkPlan]] = {
+  private def finalRules(): Seq[SparkSession => Rule[SparkPlan]] = {
     List(
       // The rule is required despite whether the stage is fallen back or not. Since
       // ColumnarCachedBatchSerializer is statically registered to Spark without a columnar rule
