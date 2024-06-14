@@ -26,7 +26,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, DenseRank, Lag, Lead, Literal, NamedExpression, Rank, RowNumber}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, DenseRank, Expression, Lag, Lead, Literal, NamedExpression, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
@@ -225,19 +225,25 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         func => {
           val aliasExpr = func.asInstanceOf[Alias]
           val wExpression = WindowFunctionsBuilder.extractWindowExpression(aliasExpr.child)
+
+          def checkLagOrLead(third: Expression): Unit = {
+            third match {
+              case literal: Literal if literal.value == null =>
+                allSupported = allSupported
+              case _ =>
+                logInfo("Not support lag/lead function with default value not literal null")
+                allSupported = false
+                break
+            }
+          }
+
           wExpression.windowFunction match {
-            case _: RowNumber | _: AggregateExpression | _: Rank | _: Lead | _: DenseRank =>
+            case _: RowNumber | _: AggregateExpression | _: Rank | _: DenseRank =>
               allSupported = allSupported
             case l: Lag =>
-              l.third match {
-                // If the lag function has 2 parameters, the third will be set default as literal null
-                case literal: Literal if literal.value == null =>
-                  allSupported = allSupported
-                case _ =>
-                  logInfo("Not support lag function with default value not literal null")
-                  allSupported = false
-                  break
-              }
+              checkLagOrLead(l.third)
+            case l: Lead =>
+              checkLagOrLead(l.third)
             case _ =>
               logDebug(s"Not support window function: ${wExpression.getClass}")
               allSupported = false
