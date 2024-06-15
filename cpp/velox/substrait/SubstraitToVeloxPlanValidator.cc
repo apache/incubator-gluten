@@ -190,9 +190,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
     return validateRound(scalarFunction, inputType);
   } else if (name == "extract") {
     return validateExtractExpr(params);
-  } else if (name == "map_from_arrays") {
-    LOG_VALIDATION_MSG("map_from_arrays is not supported.");
-    return false;
   } else if (name == "concat") {
     for (const auto& type : types) {
       if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
