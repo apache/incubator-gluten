@@ -2074,6 +2074,28 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
   test("Deduplicate sorting keys") {
     runQueryAndCompare("select * from lineitem order by l_orderkey, l_orderkey") {
       checkGlutenOperatorMatch[SortExecTransformer]
+  }
+
+  test("test map_from_arrays") {
+    withTempView("t") {
+      Seq((Seq(1, 2, 1), Seq("a", "b", "c"))).toDF("k", "v").createOrReplaceTempView("t")
+      withSQLConf(SQLConf.MAP_KEY_DEDUP_POLICY.key -> SQLConf.MapKeyDedupPolicy.LAST_WIN.toString) {
+        runQueryAndCompare(
+          """
+            |select map_from_arrays(k, v) from t
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+      }
+
+      withSQLConf(
+        SQLConf.MAP_KEY_DEDUP_POLICY.key -> SQLConf.MapKeyDedupPolicy.EXCEPTION.toString) {
+        val msg = intercept[Exception] {
+          spark.sql("select map_from_arrays(k, v) from t").collect()
+        }.getMessage
+        assert(msg.contains("Duplicate map keys (1) are not allowed"))
+      }
     }
   }
 }

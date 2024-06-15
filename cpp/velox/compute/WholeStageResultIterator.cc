@@ -512,6 +512,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 
     configs[velox::core::QueryConfig::kSparkPartitionId] = std::to_string(taskInfo_.partitionId);
 
+    configs[velox::core::QueryConfig::kSparkMapKeyDedupPolicy] =
+        veloxCfg_->get<std::string>(kMapKeyDedupPolicy, "EXCEPTION");
+
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();
     throw std::runtime_error("Invalid conf arg: " + errDetails);
