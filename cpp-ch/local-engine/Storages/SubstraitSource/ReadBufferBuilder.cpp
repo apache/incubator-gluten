@@ -30,6 +30,7 @@
 #include <IO/ReadSettings.h>
 #include <IO/S3/getObjectInfo.h>
 #include <IO/S3Common.h>
+#include <IO/S3Settings.h>
 #include <IO/SeekableReadBuffer.h>
 #include <Interpreters/Cache/FileCache.h>
 #include <Interpreters/Cache/FileCacheFactory.h>
@@ -38,7 +39,6 @@
 #include <Storages/ObjectStorage/HDFS/AsynchronousReadBufferFromHDFS.h>
 #include <Storages/ObjectStorage/HDFS/HDFSCommon.h>
 #include <Storages/ObjectStorage/HDFS/ReadBufferFromHDFS.h>
-#include <Storages/StorageS3Settings.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <boost/compute/detail/lru_cache.hpp>
@@ -437,7 +437,7 @@ public:
                 bucket,
                 object.remote_path,
                 "",
-                DB::S3Settings::RequestSettings(),
+                DB::S3::RequestSettings(),
                 new_settings,
                 /* use_external_buffer */ true,
                 /* offset */ 0,
