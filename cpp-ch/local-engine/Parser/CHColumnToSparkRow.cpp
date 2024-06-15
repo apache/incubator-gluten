@@ -820,6 +820,11 @@ int64_t VariableLengthDataWriter::writeStruct(size_t row_idx, const DB::Tuple & 
                 auto v = field_value.get<Float64>();
                 writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
             }
+            else if (writer.getWhichDataType().isDecimal64() || writer.getWhichDataType().isDateTime64())
+            {
+                auto v = field_value.get<Decimal64>();
+                writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
+            }
             else
                 writer.unsafeWrite(
                     reinterpret_cast<const char *>(&field_value.get<char>()), buffer_address + offset + start + len_null_bitmap + i * 8);
