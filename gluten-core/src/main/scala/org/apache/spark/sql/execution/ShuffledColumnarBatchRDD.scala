@@ -139,7 +139,7 @@ class ShuffledColumnarBatchRDD(
     }
   }
 
-  override def clearDependencies() {
+  override def clearDependencies(): Unit = {
     super.clearDependencies()
     dependency = null
   }

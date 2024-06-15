@@ -73,7 +73,7 @@ object ConverterUtils extends Logging {
   }
 
   def collectAttributeTypeNodes(attributes: JList[Attribute]): JList[TypeNode] = {
-    collectAttributeTypeNodes(attributes.asScala)
+    collectAttributeTypeNodes(attributes.asScala.toSeq)
   }
 
   def collectAttributeTypeNodes(attributes: Seq[Attribute]): JList[TypeNode] = {
@@ -85,7 +85,7 @@ object ConverterUtils extends Logging {
   }
 
   def collectAttributeNamesWithExprId(attributes: JList[Attribute]): JList[String] = {
-    collectAttributeNamesWithExprId(attributes.asScala)
+    collectAttributeNamesWithExprId(attributes.asScala.toSeq)
   }
 
   def collectAttributeNamesWithExprId(attributes: Seq[Attribute]): JList[String] = {
@@ -197,7 +197,7 @@ object ConverterUtils extends Logging {
             val (field, nullable) = parseFromSubstraitType(typ)
             StructField("", field, nullable)
         }
-        (StructType(fields), isNullable(substraitType.getStruct.getNullability))
+        (StructType(fields.toSeq), isNullable(substraitType.getStruct.getNullability))
       case Type.KindCase.LIST =>
         val list = substraitType.getList
         val (elementType, containsNull) = parseFromSubstraitType(list.getType)
