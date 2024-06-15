@@ -761,6 +761,9 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
 
         /// Initialize a dummy query cache.
         global_context->setQueryCache(0, 0, 0, 0);
+
+        // We must set the application type to CLIENT to avoid ServerUUID::get() throw exception
+        global_context->setApplicationType(Context::ApplicationType::CLIENT);
     }
 }
 
