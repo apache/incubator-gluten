@@ -72,6 +72,7 @@ void registerFunctionOverwrite() {
   velox::functions::registerBinaryIntegral<velox::functions::CheckedMinusFunction>({"check_subtract"});
   velox::functions::registerBinaryIntegral<velox::functions::CheckedMultiplyFunction>({"check_multiply"});
   velox::functions::registerBinaryIntegral<velox::functions::CheckedDivideFunction>({"check_divide"});
+  velox::functions::prestosql::registerArrayFunctions("presto_");
 }
 } // namespace
 

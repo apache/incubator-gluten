@@ -248,6 +248,7 @@ object ExpressionNames {
   final val ARRAY_MIN = "array_min"
   final val ARRAY_JOIN = "array_join"
   final val SORT_ARRAY = "sort_array"
+  final val ARRAY_SORT = "presto_array_sort"
   final val ARRAYS_OVERLAP = "arrays_overlap"
   final val ARRAY_POSITION = "array_position"
   final val ARRAY_DISTINCT = "array_distinct"

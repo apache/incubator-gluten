@@ -1872,4 +1872,17 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
         }
     }
   }
+
+  test("array_sort") {
+    runQueryAndCompare("""
+                         |select array_sort(collect_list(l_orderkey))
+                         |from lineitem
+                         |where l_partkey in (1552, 674, 1062)
+                         |group by l_partkey
+                         |""".stripMargin) {
+      df =>
+        val op = collect(df.queryExecution.executedPlan) { case p: ProjectExecTransformer => p }
+        assert(op.size == 2)
+    }
+  }
 }

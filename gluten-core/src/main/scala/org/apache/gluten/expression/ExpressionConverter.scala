@@ -656,6 +656,25 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           Seq(replaceWithExpressionTransformerInternal(c.child, attributeSeq, expressionsMap)),
           c
         )
+      case ArraySort(argument, function, _) if BackendsApiManager.getBackendName == "velox" =>
+        // scalastyle:off
+        // We use a special expressions mapping here to translate function name
+        // of LessThan/GreaterThan/EqualTo to lt/gt/eq, instead of lessthan/greaterthan/equalto.
+        // Refer to https://github.com/facebookincubator/velox/blob/main/velox/functions/prestosql/SimpleComparisonMatcher.cpp#L79
+        // scalastyle:on
+        val specialExpressionsMap = expressionsMap ++ Map(
+          (Sig[LessThan]("")).expClass -> "presto_lt",
+          (Sig[GreaterThan]("")).expClass -> "presto_gt",
+          (Sig[EqualTo]("")).expClass -> "presto_eq"
+        )
+        GenericExpressionTransformer(
+          substraitExprName,
+          Seq(
+            replaceWithExpressionTransformerInternal(argument, attributeSeq, expressionsMap),
+            replaceWithExpressionTransformerInternal(function, attributeSeq, specialExpressionsMap)
+          ),
+          expr
+        )
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
