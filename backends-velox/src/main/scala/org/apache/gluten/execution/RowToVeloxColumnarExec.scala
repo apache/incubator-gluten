@@ -144,7 +144,7 @@ object RowToVeloxColumnarExec {
           it.hasNext
         }
       }
-      
+
       def convertToUnsafeRow(row: InternalRow): UnsafeRow = {
         row match {
           case unsafeRow: UnsafeRow => unsafeRow
