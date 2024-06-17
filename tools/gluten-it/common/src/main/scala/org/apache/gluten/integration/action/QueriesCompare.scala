@@ -17,11 +17,13 @@
 package org.apache.gluten.integration.action
 
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.gluten.integration.QueryRunner.QueryResult
 import org.apache.gluten.integration.action.Actions.QuerySelector
+import org.apache.gluten.integration.action.QueriesCompare.TestResultLine
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 import org.apache.gluten.integration.stat.RamStat
 import org.apache.gluten.integration.{QueryRunner, Suite, TableCreator}
-import org.apache.spark.sql.{SparkSessionSwitcher, TestUtils}
+import org.apache.spark.sql.{RunResult, SparkSession, SparkSessionSwitcher, TestUtils}
 
 case class QueriesCompare(
     scale: Double,
@@ -35,18 +37,32 @@ case class QueriesCompare(
     val runner: QueryRunner =
       new QueryRunner(suite.queryResource(), suite.dataWritePath(scale, genPartitionedData))
     val runQueryIds = queries.select(suite)
-    val results = (0 until iterations).flatMap { iteration =>
-      println(s"Running tests (iteration $iteration)...")
+    val sessionSwitcher = suite.sessionSwitcher
+
+    sessionSwitcher.useSession("baseline", "Run Baseline Queries")
+    runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+    val baselineResults = (0 until iterations).flatMap { iteration =>
       runQueryIds.map { queryId =>
-        QueriesCompare.runQuery(
-          suite.tableCreator(),
-          queryId,
-          explain,
-          suite.desc(),
-          suite.sessionSwitcher,
-          runner)
+        println(s"Running baseline query $queryId (iteration $iteration)...")
+        QueriesCompare.runBaselineQuery(runner, sessionSwitcher.spark(), suite.desc(), queryId, explain)
       }
     }.toList
+
+    sessionSwitcher.useSession("test", "Run Test Queries")
+    runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+    val testResults = (0 until iterations).flatMap { iteration =>
+      runQueryIds.map { queryId =>
+        println(s"Running test query $queryId (iteration $iteration)...")
+        QueriesCompare.runTestQuery(runner, sessionSwitcher.spark(), suite.desc(), queryId, explain)
+      }
+    }.toList
+
+    assert(baselineResults.size == testResults.size)
+
+    val results: Seq[TestResultLine] = baselineResults.zip(testResults).map { case (b, t) =>
+      assert(b.caseId() == t.caseId())
+      TestResultLine(b.caseId(), b, t)
+    }
 
     val passedCount = results.count(l => l.testPassed)
     val count = results.count(_ => true)
@@ -66,8 +82,15 @@ case class QueriesCompare(
     println("")
     printf("Summary: %d out of %d queries passed. \n", passedCount, count)
     println("")
-    val succeed = results.filter(_.testPassed)
-    QueriesCompare.printResults(succeed)
+    val succeeded = results.filter(_.testPassed)
+    val all = succeeded match {
+      case Nil => None
+      case several =>
+        val allExpected = several.map(_.expected).asSuccesses().agg("all expected").get
+        val allActual = several.map(_.actual).asSuccesses().agg("all actual").get
+        Some(TestResultLine("all", allExpected, allActual))
+    }
+    QueriesCompare.printResults(succeeded ++ all)
     println("")
 
     if (passedCount == count) {
@@ -81,17 +104,6 @@ case class QueriesCompare(
       println("")
     }
 
-    var all = QueriesCompare.aggregate("all", results)
-
-    if (passedCount != count) {
-      all = QueriesCompare.aggregate("succeeded", succeed) ::: all
-    }
-
-    println("Overall: ")
-    println("")
-    QueriesCompare.printResults(all)
-    println("")
-
     if (passedCount != count) {
       return false
     }
@@ -100,41 +112,46 @@ case class QueriesCompare(
 }
 
 object QueriesCompare {
-  case class TestResultLine(
-      queryId: String,
-      testPassed: Boolean,
-      expectedRowCount: Option[Long],
-      actualRowCount: Option[Long],
-      expectedPlanningTimeMillis: Option[Long],
-      actualPlanningTimeMillis: Option[Long],
-      expectedExecutionTimeMillis: Option[Long],
-      actualExecutionTimeMillis: Option[Long],
-      errorMessage: Option[String])
+  case class TestResultLine(queryId: String, expected: QueryResult, actual: QueryResult) {
+    val testPassed: Boolean = {
+      expected.succeeded() && actual.succeeded() &&
+      TestUtils
+        .compareAnswers(
+          expected.asSuccess().runResult.rows,
+          actual.asSuccess().runResult.rows,
+          sort = true)
+        .isEmpty
+    }
+  }
 
   object TestResultLine {
     implicit object Parser extends TableRender.RowParser[TestResultLine] {
       override def parse(rowAppender: RowAppender, line: TestResultLine): Unit = {
         val inc = rowAppender.incremental()
-        val speedUp =
-          if (line.expectedExecutionTimeMillis.nonEmpty && line.actualExecutionTimeMillis.nonEmpty) {
-            Some(
-              ((line.expectedExecutionTimeMillis.get - line.actualExecutionTimeMillis.get).toDouble
-                / line.actualExecutionTimeMillis.get.toDouble) * 100)
-          } else None
         inc.next().write(line.queryId)
         inc.next().write(line.testPassed)
-        inc.next().write(line.expectedRowCount)
-        inc.next().write(line.actualRowCount)
-        inc.next().write(line.expectedPlanningTimeMillis)
-        inc.next().write(line.actualPlanningTimeMillis)
-        inc.next().write(line.expectedExecutionTimeMillis)
-        inc.next().write(line.actualExecutionTimeMillis)
+        inc.next().write(line.expected.asSuccessOption().map(_.runResult.rows.size))
+        inc.next().write(line.actual.asSuccessOption().map(_.runResult.rows.size))
+        inc.next().write(line.expected.asSuccessOption().map(_.runResult.planningTimeMillis))
+        inc.next().write(line.actual.asSuccessOption().map(_.runResult.planningTimeMillis))
+        inc.next().write(line.expected.asSuccessOption().map(_.runResult.executionTimeMillis))
+        inc.next().write(line.actual.asSuccessOption().map(_.runResult.executionTimeMillis))
+
+        val speedUp =
+          if (line.expected.succeeded() && line.actual.succeeded()) {
+            Some(
+              ((line.expected.asSuccess().runResult.executionTimeMillis - line.actual
+                .asSuccess()
+                .runResult
+                .executionTimeMillis).toDouble
+                / line.actual.asSuccess().runResult.executionTimeMillis) * 100)
+          } else None
         inc.next().write(speedUp.map("%.2f%%".format(_)))
       }
     }
   }
 
-  private def printResults(results: List[TestResultLine]): Unit = {
+  private def printResults(results: Seq[TestResultLine]): Unit = {
     import org.apache.gluten.integration.action.TableRender.Field._
 
     val render = TableRender.create[TestResultLine](
@@ -152,79 +169,25 @@ object QueriesCompare {
     render.print(System.out)
   }
 
-  private def aggregate(name: String, succeed: List[TestResultLine]): List[TestResultLine] = {
-    if (succeed.isEmpty) {
-      return Nil
-    }
-    List(
-      succeed.reduce((r1, r2) =>
-        TestResultLine(
-          name,
-          r1.testPassed && r2.testPassed,
-          (r1.expectedRowCount, r2.expectedRowCount).onBothProvided(_ + _),
-          (r1.actualRowCount, r2.actualRowCount).onBothProvided(_ + _),
-          (r1.expectedPlanningTimeMillis, r2.expectedPlanningTimeMillis).onBothProvided(_ + _),
-          (r1.actualPlanningTimeMillis, r2.actualPlanningTimeMillis).onBothProvided(_ + _),
-          (r1.expectedExecutionTimeMillis, r2.expectedExecutionTimeMillis).onBothProvided(_ + _),
-          (r1.actualExecutionTimeMillis, r2.actualExecutionTimeMillis).onBothProvided(_ + _),
-          None)))
+  private def runBaselineQuery(
+      runner: QueryRunner,
+      session: SparkSession,
+      desc: String,
+      id: String,
+      explain: Boolean): QueryResult = {
+    val testDesc = "Baseline %s [%s]".format(desc, id)
+    val result = runner.runQuery(session, testDesc, id, explain = explain)
+    result
   }
 
-  private[integration] def runQuery(
-      creator: TableCreator,
-      id: String,
-      explain: Boolean,
+  private def runTestQuery(
+      runner: QueryRunner,
+      session: SparkSession,
       desc: String,
-      sessionSwitcher: SparkSessionSwitcher,
-      runner: QueryRunner): TestResultLine = {
-    println(s"Running query: $id...")
-    try {
-      val baseLineDesc = "Vanilla Spark %s %s".format(desc, id)
-      sessionSwitcher.useSession("baseline", baseLineDesc)
-      runner.createTables(creator, sessionSwitcher.spark())
-      val expected =
-        runner.runQuery(sessionSwitcher.spark(), baseLineDesc, id, explain = explain)
-      val expectedRows = expected.rows
-      val testDesc = "Gluten Spark %s %s".format(desc, id)
-      sessionSwitcher.useSession("test", testDesc)
-      runner.createTables(creator, sessionSwitcher.spark())
-      val result = runner.runQuery(sessionSwitcher.spark(), testDesc, id, explain = explain)
-      val resultRows = result.rows
-      val error = TestUtils.compareAnswers(resultRows, expectedRows, sort = true)
-      if (error.isEmpty) {
-        println(
-          s"Successfully ran query $id, result check was passed. " +
-            s"Returned row count: ${resultRows.length}, expected: ${expectedRows.length}")
-        return TestResultLine(
-          id,
-          testPassed = true,
-          Some(expectedRows.length),
-          Some(resultRows.length),
-          Some(expected.planningTimeMillis),
-          Some(result.planningTimeMillis),
-          Some(expected.executionTimeMillis),
-          Some(result.executionTimeMillis),
-          None)
-      }
-      println(s"Error running query $id, result check was not passed. " +
-        s"Returned row count: ${resultRows.length}, expected: ${expectedRows.length}, error: ${error.get}")
-      TestResultLine(
-        id,
-        testPassed = false,
-        Some(expectedRows.length),
-        Some(resultRows.length),
-        Some(expected.planningTimeMillis),
-        Some(result.planningTimeMillis),
-        Some(expected.executionTimeMillis),
-        Some(result.executionTimeMillis),
-        error)
-    } catch {
-      case e: Exception =>
-        val error = Some(s"FATAL: ${ExceptionUtils.getStackTrace(e)}")
-        println(
-          s"Error running query $id. " +
-            s" Error: ${error.get}")
-        TestResultLine(id, testPassed = false, None, None, None, None, None, None, error)
-    }
+      id: String,
+      explain: Boolean): QueryResult = {
+    val testDesc = "Query %s [%s]".format(desc, id)
+    val result = runner.runQuery(session, testDesc, id, explain = explain)
+    result
   }
 }

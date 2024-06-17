@@ -17,10 +17,10 @@
 package org.apache.gluten.integration.action
 
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.gluten.integration.QueryRunner.QueryResult
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.TableRender.Field
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
-import org.apache.gluten.integration.action.TestResultLine.CoordMark
 import org.apache.gluten.integration.stat.RamStat
 import org.apache.gluten.integration.{QueryRunner, Suite}
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
@@ -37,10 +37,11 @@ class Parameterized(
     explain: Boolean,
     iterations: Int,
     warmupIterations: Int,
-    configDimensions: Seq[Dim],
-    excludedCombinations: Seq[Set[DimKv]],
+    configDimensions: Seq[Parameterized.Dim],
+    excludedCombinations: Seq[Set[Parameterized.DimKv]],
     metrics: Array[String])
     extends Action {
+  import Parameterized._
 
   validateDims(configDimensions)
 
@@ -120,7 +121,7 @@ class Parameterized(
 
     val runQueryIds = queries.select(suite)
 
-    val marks: Seq[CoordMark] = coordinates.flatMap { entry =>
+    val marks: Seq[TestResultLine.CoordMark] = coordinates.flatMap { entry =>
       val coordinate = entry._1
       sessionSwitcher.useSession(coordinate.toString, "Parameterized %s".format(coordinate))
       runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
@@ -143,8 +144,7 @@ class Parameterized(
             suite.desc(),
             explain,
             metrics)
-          println(s"Successfully ran query $queryId. Returned row count: ${r.rowCount}")
-          CoordMark(iteration, queryId, r)
+          TestResultLine.CoordMark(iteration, queryId, r)
         }
       }
     }.toSeq
@@ -186,11 +186,24 @@ class Parameterized(
     coordinates.foreach(coord => println(s"${coord._1.id}. ${coord._1}"))
     println("")
     val succeeded = results.filter(_.succeeded())
-    TestResultLines(
-      coordinates.size,
-      configDimensions,
-      metrics,
-      succeeded ++ TestResultLine.aggregate("all", succeeded))
+    val all = succeeded match {
+      case Nil => None
+      case several =>
+        Some(
+          TestResultLine(
+            "all",
+            coordinates.keys.zipWithIndex.map { case (k, i) =>
+              TestResultLine.Coord(
+                k,
+                several
+                  .map(_.coordinates(i))
+                  .map(_.queryResult)
+                  .asSuccesses()
+                  .agg(s"all coordinate $k")
+                  .get)
+            }.toSeq))
+    }
+    TestResultLines(coordinates.size, configDimensions, metrics, succeeded ++ all)
       .print()
     println("")
 
@@ -212,98 +225,77 @@ class Parameterized(
   }
 }
 
-case class DimKv(k: String, v: String)
-case class Dim(name: String, dimValues: Seq[DimValue])
-case class DimValue(name: String, conf: Seq[(String, String)])
-// coordinate: [dim, dim value]
-case class Coordinate(id: Int, coordinate: Map[String, String]) {
-  override def toString: String = coordinate.mkString(", ")
-}
-
-case class TestResultLine(queryId: String, coordinates: Seq[TestResultLine.Coord]) {
-  def succeeded(): Boolean = {
-    coordinates.forall(_.succeeded)
-  }
-}
-
-object TestResultLine {
-  case class Coord(
-      coordinate: Coordinate,
-      succeeded: Boolean,
-      rowCount: Option[Long],
-      planningTimeMillis: Option[Long],
-      executionTimeMillis: Option[Long],
-      metrics: Map[String, Long],
-      errorMessage: Option[String])
-
-  case class CoordMark(iteration: Int, queryId: String, coord: Coord)
-
-  class Parser(metricNames: Seq[String]) extends TableRender.RowParser[TestResultLine] {
-    override def parse(rowAppender: RowAppender, line: TestResultLine): Unit = {
-      val inc = rowAppender.incremental()
-      inc.next().write(line.queryId)
-      val coords = line.coordinates
-      coords.foreach(coord => inc.next().write(coord.succeeded))
-      coords.foreach(coord => inc.next().write(coord.rowCount))
-      metricNames.foreach(metricName =>
-        coords.foreach(coord => inc.next().write(coord.metrics(metricName))))
-      coords.foreach(coord => inc.next().write(coord.planningTimeMillis))
-      coords.foreach(coord => inc.next().write(coord.executionTimeMillis))
-    }
-  }
-
-  def aggregate(name: String, lines: Iterable[TestResultLine]): Iterable[TestResultLine] = {
-    if (lines.isEmpty) {
-      return Nil
-    }
-
-    if (lines.size == 1) {
-      return Nil
-    }
-
-    List(lines.reduce { (left, right) =>
-      TestResultLine(
-        name,
-        left.coordinates.zip(right.coordinates).map { case (leftCoord, rightCoord) =>
-          assert(leftCoord.coordinate == rightCoord.coordinate)
-          Coord(
-            leftCoord.coordinate,
-            leftCoord.succeeded && rightCoord.succeeded,
-            (leftCoord.rowCount, rightCoord.rowCount).onBothProvided(_ + _),
-            (leftCoord.planningTimeMillis, rightCoord.planningTimeMillis).onBothProvided(_ + _),
-            (leftCoord.executionTimeMillis, rightCoord.executionTimeMillis).onBothProvided(_ + _),
-            (leftCoord.metrics, rightCoord.metrics).sumUp,
-            (leftCoord.errorMessage ++ rightCoord.errorMessage).reduceOption(_ + ", " + _))
-        })
-    })
-  }
-}
-
-case class TestResultLines(
-    coordCount: Int,
-    configDimensions: Seq[Dim],
-    metricNames: Seq[String],
-    lines: Iterable[TestResultLine]) {
-  def print(): Unit = {
-    val fields = ListBuffer[Field](Field.Leaf("Query ID"))
-    val coordFields = (1 to coordCount).map(id => Field.Leaf(id.toString))
-
-    fields.append(Field.Branch("Succeeded", coordFields))
-    fields.append(Field.Branch("Row Count", coordFields))
-    metricNames.foreach(metricName => fields.append(Field.Branch(metricName, coordFields)))
-    fields.append(Field.Branch("Planning Time (Millis)", coordFields))
-    fields.append(Field.Branch("Query Time (Millis)", coordFields))
-
-    val render =
-      TableRender.create[TestResultLine](fields: _*)(new TestResultLine.Parser(metricNames))
-
-    lines.foreach(line => render.appendRow(line))
-
-    render.print(System.out)
-  }
-}
-
 object Parameterized {
+  case class DimKv(k: String, v: String)
+
+  case class Dim(name: String, dimValues: Seq[DimValue])
+
+  case class DimValue(name: String, conf: Seq[(String, String)])
+
+  // coordinate: [dim, dim value]
+  case class Coordinate(id: Int, coordinate: Map[String, String]) {
+    override def toString: String = coordinate.mkString(", ")
+  }
+
+  case class TestResultLine(queryId: String, coordinates: Seq[TestResultLine.Coord]) {
+    def succeeded(): Boolean = {
+      coordinates.forall(_.queryResult.succeeded())
+    }
+  }
+
+  object TestResultLine {
+    case class Coord(coordinate: Coordinate, queryResult: QueryResult)
+    case class CoordMark(iteration: Int, queryId: String, coord: Coord)
+
+    class Parser(metricNames: Seq[String]) extends TableRender.RowParser[TestResultLine] {
+      override def parse(rowAppender: RowAppender, line: TestResultLine): Unit = {
+        val inc = rowAppender.incremental()
+        inc.next().write(line.queryId)
+        val coords = line.coordinates
+        coords.foreach(coord => inc.next().write(coord.queryResult.succeeded()))
+        coords.foreach(coord =>
+          inc.next().write(coord.queryResult.asSuccessOption().map(_.runResult.rows.size)))
+        metricNames.foreach(metricName =>
+          coords.foreach(coord =>
+            inc
+              .next()
+              .write(coord.queryResult.asSuccessOption().map(_.runResult.metrics(metricName)))))
+        coords.foreach(coord =>
+          inc
+            .next()
+            .write(coord.queryResult.asSuccessOption().map(_.runResult.planningTimeMillis)))
+        coords.foreach(coord =>
+          inc
+            .next()
+            .write(coord.queryResult.asSuccessOption().map(_.runResult.executionTimeMillis)))
+      }
+    }
+  }
+
+  case class TestResultLines(
+      coordCount: Int,
+      configDimensions: Seq[Dim],
+      metricNames: Seq[String],
+      lines: Iterable[TestResultLine]) {
+    def print(): Unit = {
+      val fields = ListBuffer[Field](Field.Leaf("Query ID"))
+      val coordFields = (1 to coordCount).map(id => Field.Leaf(id.toString))
+
+      fields.append(Field.Branch("Succeeded", coordFields))
+      fields.append(Field.Branch("Row Count", coordFields))
+      metricNames.foreach(metricName => fields.append(Field.Branch(metricName, coordFields)))
+      fields.append(Field.Branch("Planning Time (Millis)", coordFields))
+      fields.append(Field.Branch("Query Time (Millis)", coordFields))
+
+      val render =
+        TableRender.create[TestResultLine](fields: _*)(new TestResultLine.Parser(metricNames))
+
+      lines.foreach(line => render.appendRow(line))
+
+      render.print(System.out)
+    }
+  }
+
   private def runQuery(
       runner: QueryRunner,
       spark: SparkSession,
@@ -312,27 +304,9 @@ object Parameterized {
       desc: String,
       explain: Boolean,
       metrics: Array[String]): TestResultLine.Coord = {
-    try {
-      val testDesc = "Gluten Spark %s [%s] %s".format(desc, id, coordinate)
-      val result =
-        runner.runQuery(spark, testDesc, id, explain, metrics)
-      val resultRows = result.rows
-      TestResultLine.Coord(
-        coordinate,
-        succeeded = true,
-        Some(resultRows.length),
-        Some(result.planningTimeMillis),
-        Some(result.executionTimeMillis),
-        result.metrics,
-        None)
-    } catch {
-      case e: Exception =>
-        val error = Some(s"FATAL: ${ExceptionUtils.getStackTrace(e)}")
-        println(
-          s"Error running query $id. " +
-            s" Error: ${error.get}")
-        TestResultLine.Coord(coordinate, succeeded = false, None, None, None, Map.empty, error)
-    }
+    val testDesc = "Query %s [%s] %s".format(desc, id, coordinate)
+    val result = runner.runQuery(spark, testDesc, id, explain, metrics)
+    TestResultLine.Coord(coordinate, result)
   }
 
   private def warmUp(

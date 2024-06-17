@@ -18,9 +18,6 @@ package org.apache.gluten.integration.command;
 
 import com.google.common.base.Preconditions;
 import org.apache.gluten.integration.BaseMixin;
-import org.apache.gluten.integration.action.Dim;
-import org.apache.gluten.integration.action.DimKv;
-import org.apache.gluten.integration.action.DimValue;
 import org.apache.commons.lang3.ArrayUtils;
 import picocli.CommandLine;
 import scala.Tuple2;
@@ -67,17 +64,17 @@ public class Parameterized implements Callable<Integer> {
   public Integer call() throws Exception {
     final Map<String, Map<String, List<Map.Entry<String, String>>>> parsed = new LinkedHashMap<>();
 
-    final Seq<scala.collection.immutable.Set<DimKv>> excludedCombinations = JavaConverters.asScalaBufferConverter(Arrays.stream(excludedDims).map(d -> {
+    final Seq<scala.collection.immutable.Set<org.apache.gluten.integration.action.Parameterized.DimKv>> excludedCombinations = JavaConverters.asScalaBufferConverter(Arrays.stream(excludedDims).map(d -> {
       final Matcher m = excludedDimsPattern.matcher(d);
       Preconditions.checkArgument(m.matches(), "Unrecognizable excluded dims: " + d);
-      Set<DimKv> out = new HashSet<>();
+      Set<org.apache.gluten.integration.action.Parameterized.DimKv> out = new HashSet<>();
       final String[] dims = d.split(",");
       for (String dim : dims) {
         final String[] kv = dim.split(":");
         Preconditions.checkArgument(kv.length == 2, "Unrecognizable excluded dims: " + d);
-        out.add(new DimKv(kv[0], kv[1]));
+        out.add(new org.apache.gluten.integration.action.Parameterized.DimKv(kv[0], kv[1]));
       }
-      return JavaConverters.asScalaSetConverter(out).asScala().<DimKv>toSet();
+      return JavaConverters.asScalaSetConverter(out).asScala().<org.apache.gluten.integration.action.Parameterized.DimKv>toSet();
     }).collect(Collectors.toList())).asScala();
 
     // parse dims
@@ -121,11 +118,11 @@ public class Parameterized implements Callable<Integer> {
     }
 
     // Convert Map<String, Map<String, List<Map.Entry<String, String>>>> to List<Dim>
-    Seq<Dim> parsedDims = JavaConverters.asScalaBufferConverter(
+    Seq<org.apache.gluten.integration.action.Parameterized.Dim> parsedDims = JavaConverters.asScalaBufferConverter(
         parsed.entrySet().stream().map(e ->
-            new Dim(e.getKey(), JavaConverters.asScalaBufferConverter(
+            new org.apache.gluten.integration.action.Parameterized.Dim(e.getKey(), JavaConverters.asScalaBufferConverter(
                 e.getValue().entrySet().stream().map(e2 ->
-                    new DimValue(e2.getKey(), JavaConverters.asScalaBufferConverter(
+                    new org.apache.gluten.integration.action.Parameterized.DimValue(e2.getKey(), JavaConverters.asScalaBufferConverter(
                         e2.getValue().stream().map(e3 -> new Tuple2<>(e3.getKey(), e3.getValue()))
                             .collect(Collectors.toList())).asScala())).collect(Collectors.toList())).asScala()
             )).collect(Collectors.toList())).asScala();
