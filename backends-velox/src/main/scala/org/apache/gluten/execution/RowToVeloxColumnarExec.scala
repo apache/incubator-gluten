@@ -144,11 +144,21 @@ object RowToVeloxColumnarExec {
           it.hasNext
         }
       }
+      
+      def convertToUnsafeRow(row: InternalRow): UnsafeRow = {
+        row match {
+          case unsafeRow: UnsafeRow => unsafeRow
+          case _ =>
+            converter.apply(row)
+        }
+      }
 
-      def nativeConvert(row: UnsafeRow): ColumnarBatch = {
+      override def next(): ColumnarBatch = {
+        val firstRow = it.next()
+        val start = System.currentTimeMillis()
+        val row = convertToUnsafeRow(firstRow)
         var arrowBuf: ArrowBuf = null
         TaskResources.addRecycler("RowToColumnar_arrowBuf", 100) {
-          // Remind, remove isOpen here
           if (arrowBuf != null && arrowBuf.refCnt() != 0) {
             arrowBuf.close()
           }
@@ -175,12 +185,14 @@ object RowToVeloxColumnarExec {
         rowLength += sizeInBytes.toLong
         rowCount += 1
 
+        convertTime += System.currentTimeMillis() - start
         while (rowCount < columnBatchSize && !finished) {
           val iterHasNext = it.hasNext
           if (!iterHasNext) {
             finished = true
           } else {
             val row = it.next()
+            val start2 = System.currentTimeMillis()
             val unsafeRow = convertToUnsafeRow(row)
             val sizeInBytes = unsafeRow.getSizeInBytes
             if ((offset + sizeInBytes) > arrowBuf.capacity()) {
@@ -198,35 +210,22 @@ object RowToVeloxColumnarExec {
             offset += sizeInBytes
             rowLength += sizeInBytes.toLong
             rowCount += 1
+            convertTime += System.currentTimeMillis() - start2
           }
         }
         numInputRows += rowCount
+        numOutputBatches += 1
+        val startNative = System.currentTimeMillis()
         try {
           val handle = jniWrapper
             .nativeConvertRowToColumnar(r2cHandle, rowLength.toArray, arrowBuf.memoryAddress())
-          ColumnarBatches.create(Runtimes.contextInstance(), handle)
+          val cb = ColumnarBatches.create(Runtimes.contextInstance(), handle)
+          convertTime += System.currentTimeMillis() - startNative
+          cb
         } finally {
           arrowBuf.close()
           arrowBuf = null
         }
-      }
-
-      def convertToUnsafeRow(row: InternalRow): UnsafeRow = {
-        row match {
-          case unsafeRow: UnsafeRow => unsafeRow
-          case _ =>
-            converter.apply(row)
-        }
-      }
-
-      override def next(): ColumnarBatch = {
-        val firstRow = it.next()
-        val start = System.currentTimeMillis()
-        val unsafeRow = convertToUnsafeRow(firstRow)
-        val cb = nativeConvert(unsafeRow)
-        numOutputBatches += 1
-        convertTime += System.currentTimeMillis() - start
-        cb
       }
     }
     Iterators
