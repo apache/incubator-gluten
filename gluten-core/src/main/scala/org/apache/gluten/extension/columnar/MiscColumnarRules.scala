@@ -66,18 +66,7 @@ object MiscColumnarRules {
   // columnar child plan so is always functional.
   case class RewriteSubqueryBroadcast() extends Rule[SparkPlan] {
     override def apply(plan: SparkPlan): SparkPlan = {
-      val out = plan.transformWithSubqueries {
-        case p =>
-          // Since https://github.com/apache/incubator-gluten/pull/1851.
-          //
-          // When AQE is on, the AQE sub-query cache should already be filled with
-          // row-based SubqueryBroadcastExec for reusing. Thus we are doing the same
-          // memorize-and-reuse work here for the replaced columnar version.
-          val reuseRemoved = removeReuses(p)
-          val replaced = replace(reuseRemoved)
-          replaced
-      }
-      out
+      return plan
     }
 
     private def removeReuses(p: SparkPlan): SparkPlan = {

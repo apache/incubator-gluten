@@ -137,7 +137,7 @@
         <sparkbundle.version>3.2</sparkbundle.version>
         <sparkshim.module.name>spark32</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
-        <spark.version>3.2.2</spark.version>
+        <spark.version>3.2.0</spark.version>
         <iceberg.version>1.3.1</iceberg.version>
         <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.0.1</delta.version>
