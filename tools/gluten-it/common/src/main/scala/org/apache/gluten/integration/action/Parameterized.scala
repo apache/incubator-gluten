@@ -122,8 +122,7 @@ class Parameterized(
 
     val marks: Seq[CoordMark] = coordinates.flatMap { entry =>
       val coordinate = entry._1
-      val appName = "Parameterized %s".format(coordinate)
-      sessionSwitcher.useSession(coordinate.toString, appName)
+      sessionSwitcher.useSession(coordinate.toString, "Parameterized %s".format(coordinate))
       runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
 
       runQueryIds.flatMap { queryId =>

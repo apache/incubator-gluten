@@ -20,7 +20,8 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 import org.apache.gluten.integration.stat.RamStat
-import org.apache.gluten.integration.{QueryRunner, Suite}
+import org.apache.gluten.integration.{QueryRunner, Suite, TableCreator}
+import org.apache.spark.sql.{SparkSession, SparkSessionSwitcher}
 
 case class Queries(
     scale: Double,
@@ -35,13 +36,16 @@ case class Queries(
     val runQueryIds = queries.select(suite)
     val runner: QueryRunner =
       new QueryRunner(suite.queryResource(), suite.dataWritePath(scale, genPartitionedData))
+    val sessionSwitcher = suite.sessionSwitcher
+    sessionSwitcher.useSession("test", "Run Queries")
+    runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
     val results = (0 until iterations).flatMap { iteration =>
       println(s"Running tests (iteration $iteration)...")
       runQueryIds.map { queryId =>
         Queries.runQuery(
           runner,
           suite.tableCreator(),
-          suite.sessionSwitcher,
+          sessionSwitcher.spark(),
           queryId,
           suite.desc(),
           explain,
@@ -158,20 +162,18 @@ object Queries {
   }
 
   private def runQuery(
-      runner: _root_.org.apache.gluten.integration.QueryRunner,
-      creator: _root_.org.apache.gluten.integration.TableCreator,
-      sessionSwitcher: _root_.org.apache.spark.sql.SparkSessionSwitcher,
-      id: _root_.java.lang.String,
-      desc: _root_.java.lang.String,
+      runner: QueryRunner,
+      creator: TableCreator,
+      session: SparkSession,
+      id: String,
+      desc: String,
       explain: Boolean,
-      randomKillTasks: Boolean) = {
+      randomKillTasks: Boolean): TestResultLine = {
     println(s"Running query: $id...")
     try {
       val testDesc = "Gluten Spark %s %s".format(desc, id)
-      sessionSwitcher.useSession("test", testDesc)
-      runner.createTables(creator, sessionSwitcher.spark())
       val result = runner.runQuery(
-        sessionSwitcher.spark(),
+        session,
         testDesc,
         id,
         explain = explain,
