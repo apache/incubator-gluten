@@ -912,7 +912,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string for ascii")
     .exclude("base64/unbase64 for string")
     .exclude("encode/decode for string")
-    .exclude("Levenshtein distance")
     .exclude("soundex unit test")
     .exclude("replace")
     .exclude("overlay for string")

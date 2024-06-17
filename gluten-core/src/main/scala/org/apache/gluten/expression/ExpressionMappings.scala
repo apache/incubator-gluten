@@ -101,6 +101,7 @@ object ExpressionMappings {
     Sig[Encode](ENCODE),
     Sig[Uuid](UUID),
     Sig[BitLength](BIT_LENGTH),
+    Sig[Levenshtein](LEVENSHTEIN),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
