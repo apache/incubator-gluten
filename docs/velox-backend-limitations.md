@@ -118,6 +118,10 @@ spark.range(100).toDF("id")
   .saveAsTable("velox_ctas")
 ```
 
+#### HiveFileFormat write
+
+Gluten supports writes of HiveFileFormat when the output file type is of type `parquet` only
+
 #### NaN support
 Velox does NOT support NaN. So unexpected result can be obtained for a few cases, e.g., comparing a number with NaN.
 

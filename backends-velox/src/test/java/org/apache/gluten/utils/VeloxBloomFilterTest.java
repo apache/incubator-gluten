@@ -16,11 +16,13 @@
  */
 package org.apache.gluten.utils;
 
+import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.backendsapi.ListenerApi;
 import org.apache.gluten.backendsapi.velox.VeloxListenerApi;
 
 import com.codahale.metrics.MetricRegistry;
 import org.apache.spark.SparkConf;
+import org.apache.spark.SparkContext;
 import org.apache.spark.api.plugin.PluginContext;
 import org.apache.spark.resource.ResourceInformation;
 import org.apache.spark.util.TaskResources$;
@@ -33,50 +35,13 @@ import org.junit.function.ThrowingRunnable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Collections;
 import java.util.Map;
 
 public class VeloxBloomFilterTest {
-
   @BeforeClass
   public static void setup() {
     final ListenerApi api = new VeloxListenerApi();
-    PluginContext pluginContext =
-        new PluginContext() {
-          @Override
-          public MetricRegistry metricRegistry() {
-            return null;
-          }
-
-          @Override
-          public SparkConf conf() {
-            return new SparkConf();
-          }
-
-          @Override
-          public String executorID() {
-            return "";
-          }
-
-          @Override
-          public String hostname() {
-            return "";
-          }
-
-          @Override
-          public Map<String, ResourceInformation> resources() {
-            return Collections.emptyMap();
-          }
-
-          @Override
-          public void send(Object message) throws IOException {}
-
-          @Override
-          public Object ask(Object message) throws Exception {
-            return null;
-          }
-        };
-    api.onDriverStart(null, pluginContext);
+    api.onDriverStart(mockSparkContext(), mockPluginContext());
   }
 
   @Test
@@ -225,5 +190,51 @@ public class VeloxBloomFilterTest {
     Assert.assertTrue(falsePositives < attemptCount);
     Assert.assertTrue(negativeFalsePositives > 0);
     Assert.assertTrue(negativeFalsePositives < attemptCount);
+  }
+
+  private static SparkContext mockSparkContext() {
+    // Not yet implemented.
+    return null;
+  }
+
+  private static PluginContext mockPluginContext() {
+    return new PluginContext() {
+      @Override
+      public MetricRegistry metricRegistry() {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public SparkConf conf() {
+        final SparkConf conf = new SparkConf();
+        conf.set(GlutenConfig.GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY(), "0");
+        return conf;
+      }
+
+      @Override
+      public String executorID() {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public String hostname() {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public Map<String, ResourceInformation> resources() {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public void send(Object message) throws IOException {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public Object ask(Object message) throws Exception {
+        throw new UnsupportedOperationException();
+      }
+    };
   }
 }

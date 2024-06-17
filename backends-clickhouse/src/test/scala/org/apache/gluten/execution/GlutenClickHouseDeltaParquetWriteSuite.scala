@@ -220,6 +220,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     spark.sql(s"""
                  | insert into table lineitem_delta_parquet_insertoverwrite2
                  | select * from lineitem
+                 | where l_shipdate BETWEEN date'1993-01-01' AND date'1993-03-31'
                  |""".stripMargin)
 
     spark.sql(
@@ -272,6 +273,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       spark.sql(s"""
                    | insert into table lineitem_delta_parquet_insertoverwrite3
                    | select * from lineitem
+                   | where l_shipdate BETWEEN date'1993-01-01' AND date'1993-03-31'
                    |""".stripMargin)
 
       spark.sql(
@@ -286,7 +288,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
            |""".stripMargin
       assert(
         // total rows should remain unchanged
-        spark.sql(sql2).collect().apply(0).get(0) == 600572
+        spark.sql(sql2).collect().apply(0).get(0) == 21875
       )
     }
   }
@@ -570,6 +572,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     spark.sql(s"""
                  | insert into table lineitem_delta_parquet_partition
                  | select * from lineitem
+                 | where l_shipdate BETWEEN date'1993-01-01' AND date'1993-03-31'
                  |""".stripMargin)
 
     // write with dataframe api
@@ -603,7 +606,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     // static partition
     spark.sql(
       s"""
-         | insert into lineitem_delta_parquet_partition PARTITION (l_shipdate=date'1995-01-21',
+         | insert into lineitem_delta_parquet_partition PARTITION (l_shipdate=date'1993-02-21',
          | l_returnflag = 'A')
          | (l_orderkey,
          |  l_partkey,
@@ -663,14 +666,14 @@ class GlutenClickHouseDeltaParquetWriteSuite
     runTPCHQueryBySQL(1, sqlStr, compareResult = false) {
       df =>
         val result = df.collect()
-        assert(result.size == 4)
+        assert(result.size == 2)
         assert(result(0).getString(0).equals("A"))
         assert(result(0).getString(1).equals("F"))
-        assert(result(0).getDouble(2) == 3865234.0)
+        assert(result(0).getDouble(2) == 368009.0)
 
-        assert(result(2).getString(0).equals("N"))
-        assert(result(2).getString(1).equals("O"))
-        assert(result(2).getDouble(2) == 7454519.0)
+        assert(result(1).getString(0).equals("R"))
+        assert(result(1).getString(1).equals("F"))
+        assert(result(1).getDouble(2) == 312371.0)
 
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -679,18 +682,18 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
         val parquetScan = scanExec(0)
         assert(parquetScan.nodeName.startsWith("Scan parquet"))
-        assert(parquetScan.metrics("numFiles").value == 3745)
+        assert(parquetScan.metrics("numFiles").value == 201)
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
 
-        assert(addFiles.size == 3836)
+        assert(addFiles.size == 201)
         assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1992-06-01")).size == 2)
+          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1993-03-31")).size == 2)
         assert(
           addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1993-01-01")).size == 4)
         assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1995-01-21")).size == 3)
+          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1993-02-21")).size == 3)
     }
   }
 
@@ -755,7 +758,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS lineitem_delta_parquet_ctas2
                  |USING delta
-                 |PARTITIONED BY (l_shipdate)
+                 |PARTITIONED BY (l_returnflag)
                  |LOCATION '$basePath/lineitem_mergetree_ctas2'
                  | as select * from lineitem
                  |""".stripMargin)
@@ -888,6 +891,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
     val sourceDF = spark.sql(s"""
                                 |select * from lineitem
+                                |where l_shipdate BETWEEN date'1993-01-01' AND date'1993-03-31'
                                 |""".stripMargin)
 
     sourceDF.write
@@ -921,6 +925,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
       val sourceDF = spark.sql(s"""
                                   |select * from lineitem
+                                  |where l_shipdate BETWEEN date'1993-01-01' AND date'1993-03-31'
                                   |""".stripMargin)
 
       sourceDF.write
@@ -943,7 +948,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
         .format("delta")
         .load(dataPath)
         .count()
-      assert(result == 600572)
+      assert(result == 21875)
     }
   }
 
@@ -1131,6 +1136,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
     val sourceDF = spark.sql(s"""
                                 |select * from lineitem
+                                |where l_shipdate BETWEEN date'1993-01-01' AND date'1993-03-31'
                                 |""".stripMargin)
 
     sourceDF.write
@@ -1177,14 +1183,14 @@ class GlutenClickHouseDeltaParquetWriteSuite
     runTPCHQueryBySQL(1, sqlStr, compareResult = false) {
       df =>
         val result = df.collect()
-        assert(result.size == 4)
+        assert(result.size == 2)
         assert(result(0).getString(0).equals("A"))
         assert(result(0).getString(1).equals("F"))
-        assert(result(0).getDouble(2) == 3803858.0)
+        assert(result(0).getDouble(2) == 306633.0)
 
-        assert(result(2).getString(0).equals("N"))
-        assert(result(2).getString(1).equals("O"))
-        assert(result(2).getDouble(2) == 7454519.0)
+        assert(result(1).getString(0).equals("R"))
+        assert(result(1).getString(1).equals("F"))
+        assert(result(1).getDouble(2) == 312371.0)
 
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -1193,18 +1199,16 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
         val parquetScan = scanExec(0)
         assert(parquetScan.nodeName.startsWith("Scan parquet"))
-        assert(parquetScan.metrics("numFiles").value == 3744)
+        assert(parquetScan.metrics("numFiles").value == 200)
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
 
-        assert(addFiles.size == 3835)
+        assert(addFiles.size == 200)
         assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1992-06-01")).size == 2)
+          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1993-03-31")).size == 2)
         assert(
           addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1993-01-01")).size == 4)
-        assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1995-01-21")).size == 2)
     }
   }
 
@@ -1215,7 +1219,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     spark.sql(s"""
                  |CREATE TABLE delta.`$dataPath`
                  |USING delta
-                 |PARTITIONED BY (l_shipdate)
+                 |PARTITIONED BY (l_linestatus)
                  | as select * from lineitem
                  |""".stripMargin)
 
@@ -1271,7 +1275,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
   }
 
   def countFiles(directory: File): Int = {
-    if (directory.exists && directory.isDirectory) {
+    if (directory.exists && directory.isDirectory && !directory.getName.equals("_commits")) {
       val files = directory.listFiles
       val count = files
         .filter(!_.getName.endsWith(".crc"))

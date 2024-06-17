@@ -21,8 +21,10 @@ include(FetchContent)
 set(GLUTEN_GBENCHMARK_BUILD_VERSION "v1.6.0")
 set(GLUTEN_GBENCHMARK_SOURCE_URL
     "https://github.com/google/benchmark/archive/refs/tags/${GLUTEN_GBENCHMARK_BUILD_VERSION}.tar.gz"
-    "https://github.com/ursa-labs/thirdparty/releases/download/latest/gbenchmark-${GLUTEN_GBENCHMARK_BUILD_VERSION}.tar.gz")
-set(GLUTEN_GBENCHMARK_BUILD_SHA256_CHECKSUM "1f71c72ce08d2c1310011ea6436b31e39ccab8c2db94186d26657d41747c85d6")
+    "https://github.com/ursa-labs/thirdparty/releases/download/latest/gbenchmark-${GLUTEN_GBENCHMARK_BUILD_VERSION}.tar.gz"
+)
+set(GLUTEN_GBENCHMARK_BUILD_SHA256_CHECKSUM
+    "1f71c72ce08d2c1310011ea6436b31e39ccab8c2db94186d26657d41747c85d6")
 
 resolve_dependency_url(GBENCHMARK)
 
@@ -30,12 +32,11 @@ set(GBENCHMARK_CMAKE_ARGS "-fPIC -w")
 
 message(STATUS "Building google benchmark from source")
 FetchContent_Declare(
-    gbenchmark
-    URL ${GLUTEN_GBENCHMARK_SOURCE_URL}
-    URL_HASH "${GLUTEN_GBENCHMARK_BUILD_SHA256_CHECKSUM}"
-)
+  gbenchmark
+  URL ${GLUTEN_GBENCHMARK_SOURCE_URL}
+  URL_HASH "${GLUTEN_GBENCHMARK_BUILD_SHA256_CHECKSUM}")
 
-if (NOT gbenchmark_POPULATED)
+if(NOT gbenchmark_POPULATED)
   # We don't want to build tests.
   set(BENCHMARK_ENABLE_TESTING
       OFF
