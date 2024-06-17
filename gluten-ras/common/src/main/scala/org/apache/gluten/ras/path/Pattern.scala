@@ -111,7 +111,8 @@ object Pattern {
         override def acceptsChildrenCount(count: Int): Boolean = nodes.size == count
       }
 
-      case class Func[T <: AnyRef](arity: Int => Boolean, func: Int => Node[T]) extends ChildrenFactory[T] {
+      case class Func[T <: AnyRef](arity: Int => Boolean, func: Int => Node[T])
+        extends ChildrenFactory[T] {
         override def child(index: Int): Node[T] = func(index)
         override def acceptsChildrenCount(count: Int): Boolean = arity(count)
       }
@@ -124,7 +125,10 @@ object Pattern {
   def branch[T <: AnyRef](matcher: Matcher[T], children: Node[T]*): Node[T] =
     Branch(matcher, Branch.ChildrenFactory.Plain(children.toSeq))
   // Similar to #branch, but with unknown arity.
-  def branch2[T <: AnyRef](matcher: Matcher[T], arity: Int => Boolean, children: Int => Node[T]): Node[T] =
+  def branch2[T <: AnyRef](
+      matcher: Matcher[T],
+      arity: Int => Boolean,
+      children: Int => Node[T]): Node[T] =
     Branch(matcher, Branch.ChildrenFactory.Func(arity, children))
   def leaf[T <: AnyRef](matcher: Matcher[T]): Node[T] =
     Branch(matcher, Branch.ChildrenFactory.Plain(List.empty))
