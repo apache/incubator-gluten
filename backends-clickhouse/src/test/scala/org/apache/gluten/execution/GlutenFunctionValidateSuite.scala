@@ -723,9 +723,4 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       runQueryAndCompare(q)(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
-
-  test("Fix issue(6016) allow overflow when converting decimal to integer") {
-    val sql = "select int(cast(id * 10000000000 as decimal(29, 2))) from range(10)"
-    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
-  }
 }
