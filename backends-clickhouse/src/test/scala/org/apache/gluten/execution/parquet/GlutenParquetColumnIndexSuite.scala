@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.gluten.parquet
+package org.apache.gluten.execution.parquet
 
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseWholeStageTransformerSuite}
+import org.apache.gluten.test.GlutenSQLTestUtils
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.gluten.test.GlutenSQLTestUtils
 import org.apache.spark.sql.internal.SQLConf
 
 case class ParquetData(
@@ -98,6 +98,6 @@ class GlutenParquetColumnIndexSuite
   }
   override protected def sparkConf: SparkConf =
     super.sparkConf
-      .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED, false)
+      .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "false")
       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
 }

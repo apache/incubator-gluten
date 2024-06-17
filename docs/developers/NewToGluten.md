@@ -309,6 +309,20 @@ After the above installation, you can optionally do some configuration in Visual
       location, you might not need to change this setting.
 3. Now, you can format your CMake files by right-clicking in a file and selecting `Format Document`.
 
+### Add UT
+
+1. For Native Code Modifications: If you have modified native code, it is best to use gtest to test the native code. 
+   A secondary option is to add Gluten UT to ensure coverage.
+
+2. For Gluten-Related Code Modifications: If you have modified code related to Gluten, it is preferable to add scalatest rather than JUnit. 
+   Additionally, the test classes should be placed in the org.apache.gluten package.
+
+3. For Spark-Related Code Modifications: If you have modified code related to Spark, it is preferable to add scalatest rather than JUnit. 
+   Additionally, the test classes should be placed in the org.apache.spark package.
+
+4. Placement of Non-Native Code UTs: Ensure that unit tests for non-native code are placed within org.apache.gluten and org.apache.spark packages. 
+   This is important because the CI system runs unit tests from these two paths in parallel. Placing tests in other paths might cause your tests to be ignored.
+
 # Debug cpp code with coredump
 
 ```bash
