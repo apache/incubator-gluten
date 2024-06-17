@@ -20,10 +20,11 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.TableRender.Field
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
+import org.apache.gluten.integration.action.TestResultLine.CoordMark
 import org.apache.gluten.integration.stat.RamStat
-import org.apache.gluten.integration.{QueryRunner, Suite, TableCreator}
+import org.apache.gluten.integration.{QueryRunner, Suite}
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
-import org.apache.spark.sql.SparkSessionSwitcher
+import org.apache.spark.sql.SparkSession
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
@@ -45,11 +46,11 @@ class Parameterized(
 
   private def validateDims(configDimensions: Seq[Dim]): Unit = {
     if (configDimensions
-          .map(dim => {
-            dim.name
-          })
-          .toSet
-          .size != configDimensions.size) {
+        .map(dim => {
+          dim.name
+        })
+        .toSet
+        .size != configDimensions.size) {
       throw new IllegalStateException("Duplicated dimension name found")
     }
 
@@ -73,9 +74,9 @@ class Parameterized(
         // we got one coordinate
         excludedCombinations.foreach { ec: Set[DimKv] =>
           if (ec.forall { kv =>
-                intermediateCoordinate.contains(kv.k) && intermediateCoordinate(kv.k) == kv.v
-              }) {
-            println(s"Coordinate ${intermediateCoordinate} excluded by $ec.")
+              intermediateCoordinate.contains(kv.k) && intermediateCoordinate(kv.k) == kv.v
+            }) {
+            println(s"Coordinate $intermediateCoordinate excluded by $ec.")
             return
           }
         }
@@ -105,9 +106,8 @@ class Parameterized(
     val testConf = suite.getTestConf()
 
     println("Prepared coordinates: ")
-    coordinates.toList.map(_._1).zipWithIndex.foreach {
-      case (c, idx) =>
-        println(s"  $idx: $c")
+    coordinates.toList.map(_._1).zipWithIndex.foreach { case (c, idx) =>
+      println(s"  $idx: $c")
     }
     coordinates.foreach { entry =>
       // register one session per coordinate
@@ -120,37 +120,47 @@ class Parameterized(
 
     val runQueryIds = queries.select(suite)
 
-    val results = (0 until iterations).flatMap { iteration =>
-      runQueryIds.map { queryId =>
-        val queryResult =
-          TestResultLine(
+    val marks: Seq[CoordMark] = coordinates.flatMap { entry =>
+      val coordinate = entry._1
+      val appName = "Parameterized %s".format(coordinate)
+      sessionSwitcher.useSession(coordinate.toString, appName)
+      runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+
+      runQueryIds.flatMap { queryId =>
+        // warm up
+        (0 until warmupIterations).foreach { iteration =>
+          println(s"Warming up: Running query $queryId (iteration $iteration)...")
+          Parameterized.warmUp(runner, sessionSwitcher.spark(), queryId, coordinate, suite.desc())
+        }
+
+        // run
+        (0 until iterations).map { iteration =>
+          println(s"Running query $queryId with coordinate $coordinate (iteration $iteration)...")
+          val r = Parameterized.runQuery(
+            runner,
+            sessionSwitcher.spark(),
             queryId,
-            coordinates.map { entry =>
-              val coordinate = entry._1
-              println(s"Running tests (iteration $iteration) with coordinate $coordinate...")
-              // warm up
-              (0 until warmupIterations).foreach { _ =>
-                Parameterized.warmUp(
-                  runner,
-                  suite.tableCreator(),
-                  sessionSwitcher,
-                  queryId,
-                  suite.desc())
-              }
-              // run
-              Parameterized.runQuery(
-                runner,
-                suite.tableCreator(),
-                sessionSwitcher,
-                queryId,
-                coordinate,
-                suite.desc(),
-                explain,
-                metrics)
-            }.toList)
-        queryResult
+            coordinate,
+            suite.desc(),
+            explain,
+            metrics)
+          println(s"Successfully ran query $queryId. Returned row count: ${r.rowCount}")
+          CoordMark(iteration, queryId, r)
+        }
       }
-    }
+    }.toSeq
+
+    val results: Seq[TestResultLine] = marks
+      .groupBy(m => (m.queryId, m.iteration))
+      .toSeq
+      .sortBy(e => (e._1._2, e._1._1))
+      .map { e =>
+        val queryId = e._1._1
+        val iteration = e._1._2
+        val marks = e._2
+        val line = TestResultLine(queryId, marks.map(_.coord).toList)
+        line
+      }
 
     val succeededCount = results.count(l => l.succeeded())
     val totalCount = results.count(_ => true)
@@ -174,9 +184,7 @@ class Parameterized(
       totalCount)
     println("")
     println("Configurations:")
-    coordinates.foreach { coord =>
-      println(s"${coord._1.id}. ${coord._1}")
-    }
+    coordinates.foreach(coord => println(s"${coord._1.id}. ${coord._1}"))
     println("")
     val succeeded = results.filter(_.succeeded())
     TestResultLines(
@@ -229,6 +237,8 @@ object TestResultLine {
       metrics: Map[String, Long],
       errorMessage: Option[String])
 
+  case class CoordMark(iteration: Int, queryId: String, coord: Coord)
+
   class Parser(metricNames: Seq[String]) extends TableRender.RowParser[TestResultLine] {
     override def parse(rowAppender: RowAppender, line: TestResultLine): Unit = {
       val inc = rowAppender.incremental()
@@ -253,8 +263,9 @@ object TestResultLine {
     }
 
     List(lines.reduce { (left, right) =>
-      TestResultLine(name, left.coordinates.zip(right.coordinates).map {
-        case (leftCoord, rightCoord) =>
+      TestResultLine(
+        name,
+        left.coordinates.zip(right.coordinates).map { case (leftCoord, rightCoord) =>
           assert(leftCoord.coordinate == rightCoord.coordinate)
           Coord(
             leftCoord.coordinate,
@@ -264,7 +275,7 @@ object TestResultLine {
             (leftCoord.executionTimeMillis, rightCoord.executionTimeMillis).onBothProvided(_ + _),
             (leftCoord.metrics, rightCoord.metrics).sumUp,
             (leftCoord.errorMessage ++ rightCoord.errorMessage).reduceOption(_ + ", " + _))
-      })
+        })
     })
   }
 }
@@ -287,9 +298,7 @@ case class TestResultLines(
     val render =
       TableRender.create[TestResultLine](fields: _*)(new TestResultLine.Parser(metricNames))
 
-    lines.foreach { line =>
-      render.appendRow(line)
-    }
+    lines.foreach(line => render.appendRow(line))
 
     render.print(System.out)
   }
@@ -298,24 +307,17 @@ case class TestResultLines(
 object Parameterized {
   private def runQuery(
       runner: QueryRunner,
-      creator: TableCreator,
-      sessionSwitcher: SparkSessionSwitcher,
+      spark: SparkSession,
       id: String,
       coordinate: Coordinate,
       desc: String,
       explain: Boolean,
       metrics: Array[String]): TestResultLine.Coord = {
-    println(s"Running query: $id...")
     try {
       val testDesc = "Gluten Spark %s [%s] %s".format(desc, id, coordinate)
-      sessionSwitcher.useSession(coordinate.toString, testDesc)
-      runner.createTables(creator, sessionSwitcher.spark())
       val result =
-        runner.runQuery(sessionSwitcher.spark(), testDesc, id, explain, metrics)
+        runner.runQuery(spark, testDesc, id, explain, metrics)
       val resultRows = result.rows
-      println(
-        s"Successfully ran query $id. " +
-          s"Returned row count: ${resultRows.length}")
       TestResultLine.Coord(
         coordinate,
         succeeded = true,
@@ -336,26 +338,10 @@ object Parameterized {
 
   private def warmUp(
       runner: QueryRunner,
-      creator: TableCreator,
-      sessionSwitcher: SparkSessionSwitcher,
+      session: SparkSession,
       id: String,
+      coordinate: Coordinate,
       desc: String): Unit = {
-    println(s"Warming up: Running query: $id...")
-    try {
-      val testDesc = "Gluten Spark %s [%s] Warm Up".format(desc, id)
-      sessionSwitcher.useSession("test", testDesc)
-      runner.createTables(creator, sessionSwitcher.spark())
-      val result = runner.runQuery(sessionSwitcher.spark(), testDesc, id, explain = false)
-      val resultRows = result.rows
-      println(
-        s"Warming up: Successfully ran query $id. " +
-          s"Returned row count: ${resultRows.length}")
-    } catch {
-      case e: Exception =>
-        val error = Some(s"FATAL: ${ExceptionUtils.getStackTrace(e)}")
-        println(
-          s"Warming up: Error running query $id. " +
-            s" Error: ${error.get}")
-    }
+    runQuery(runner, session, id, coordinate, desc, explain = false, Array.empty)
   }
 }
