@@ -407,7 +407,7 @@ class GlutenInsertSuite
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -422,12 +422,12 @@ class GlutenInsertSuite
       val incompatibleDefault =
         "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
           "table column `s` has a DEFAULT value"
-      Seq(Config("parquet"), Config("parquet", true)).foreach {
+      Seq(Config("parquet"), Config("parquet", useDataFrames = true)).foreach {
         config =>
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -454,7 +454,7 @@ class GlutenInsertSuite
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -471,12 +471,12 @@ class GlutenInsertSuite
       val incompatibleDefault =
         "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
           "table column `s` has a DEFAULT value"
-      Seq(Config("parquet"), Config("parquet", true)).foreach {
+      Seq(Config("parquet"), Config("parquet", useDataFrames = true)).foreach {
         config =>
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -503,7 +503,7 @@ class GlutenInsertSuite
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -568,12 +568,12 @@ class GlutenInsertSuite
       val incompatibleDefault =
         "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
           "table column `s` has a DEFAULT value"
-      Seq(Config("parquet"), Config("parquet", true)).foreach {
+      Seq(Config("parquet"), Config("parquet", useDataFrames = true)).foreach {
         config =>
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
