@@ -18,6 +18,7 @@
 #include "shuffle/Partitioner.h"
 #include "shuffle/FallbackRangePartitioner.h"
 #include "shuffle/HashPartitioner.h"
+#include "shuffle/RandomPartitioner.h"
 #include "shuffle/RoundRobinPartitioner.h"
 #include "shuffle/SinglePartitioner.h"
 
@@ -34,6 +35,8 @@ Partitioner::make(Partitioning partitioning, int32_t numPartitions, int32_t star
       return std::make_shared<SinglePartitioner>();
     case Partitioning::kRange:
       return std::make_shared<FallbackRangePartitioner>(numPartitions);
+    case Partitioning::kRandom:
+      return std::make_shared<RandomPartitioner>(numPartitions);
     default:
       return arrow::Status::Invalid("Unsupported partitioning type: " + std::to_string(partitioning));
   }

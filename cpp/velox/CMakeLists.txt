@@ -513,6 +513,7 @@ set(VELOX_SRCS
     operators/serializer/VeloxRowToColumnarConverter.cc
     operators/writer/VeloxParquetDatasource.cc
     shuffle/VeloxShuffleReader.cc
+    shuffle/VeloxShuffleWriter.cc
     shuffle/VeloxHashBasedShuffleWriter.cc
     shuffle/VeloxSortBasedShuffleWriter.cc
     substrait/SubstraitParser.cc
