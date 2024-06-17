@@ -25,10 +25,11 @@ import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel._
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.utils.LogLevelUtil
-import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator}
+import org.apache.gluten.vectorized.{BatchIterator, CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator}
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 import org.apache.spark.affinity.CHAffinity
+import org.apache.spark.executor.InputMetrics
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
@@ -209,46 +210,26 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val splitInfoByteArray = inputPartition
       .asInstanceOf[GlutenPartition]
       .splitInfosByteArray
-    val resIter =
+    val nativeIter =
       transKernel.createKernelWithBatchIterator(
         inputPartition.plan,
         splitInfoByteArray,
         inBatchIters,
         false)
 
+    val iter = new CollectMetricIterator(
+      nativeIter,
+      updateNativeMetrics,
+      updateInputMetrics,
+      context.taskMetrics().inputMetrics)
+
     context.addTaskFailureListener(
       (ctx, _) => {
         if (ctx.isInterrupted()) {
-          resIter.cancel()
+          iter.cancel()
         }
       })
-    context.addTaskCompletionListener[Unit](_ => resIter.close())
-    val iter = new Iterator[Any] {
-      private val inputMetrics = context.taskMetrics().inputMetrics
-      private var outputRowCount = 0L
-      private var outputVectorCount = 0L
-      private var metricsUpdated = false
-
-      override def hasNext: Boolean = {
-        val res = resIter.hasNext
-        // avoid to collect native metrics more than once, 'hasNext' is a idempotent operation
-        if (!res && !metricsUpdated) {
-          val nativeMetrics = resIter.getMetrics.asInstanceOf[NativeMetrics]
-          nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
-          updateNativeMetrics(nativeMetrics)
-          updateInputMetrics(inputMetrics)
-          metricsUpdated = true
-        }
-        res
-      }
-
-      override def next(): Any = {
-        val cb = resIter.next()
-        outputVectorCount += 1
-        outputRowCount += cb.numRows()
-        cb
-      }
-    }
+    context.addTaskCompletionListener[Unit](_ => iter.close())
 
     // TODO: SPARK-25083 remove the type erasure hack in data source scan
     new InterruptibleIterator(
@@ -288,51 +269,16 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       materializeInput
     )
 
-    val resIter = new Iterator[ColumnarBatch] {
-      private var outputRowCount = 0L
-      private var outputVectorCount = 0L
-      private var metricsUpdated = false
-
-      override def hasNext: Boolean = {
-        val res = nativeIterator.hasNext
-        // avoid to collect native metrics more than once, 'hasNext' is a idempotent operation
-        if (!res && !metricsUpdated) {
-          val nativeMetrics = nativeIterator.getMetrics.asInstanceOf[NativeMetrics]
-          nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
-          updateNativeMetrics(nativeMetrics)
-          metricsUpdated = true
-        }
-        res
-      }
-
-      override def next(): ColumnarBatch = {
-        val cb = nativeIterator.next()
-        outputVectorCount += 1
-        outputRowCount += cb.numRows()
-        cb
-      }
-    }
-    var closed = false
-    val cancelled = false
-
-    def close(): Unit = {
-      closed = true
-      nativeIterator.close()
-      // relationHolder.clear()
-    }
-
-    def cancel(): Unit = {
-      nativeIterator.cancel()
-    }
+    val iter = new CollectMetricIterator(nativeIterator, updateNativeMetrics, null, null)
 
     context.addTaskFailureListener(
       (ctx, _) => {
         if (ctx.isInterrupted()) {
-          cancel()
+          iter.cancel()
         }
       })
-    context.addTaskCompletionListener[Unit](_ => close())
-    new CloseableCHColumnBatchIterator(resIter, Some(pipelineTime))
+    context.addTaskCompletionListener[Unit](_ => iter.close())
+    new CloseableCHColumnBatchIterator(iter, Some(pipelineTime))
   }
 }
 
@@ -343,6 +289,50 @@ object CHIteratorApi {
     iter match {
       case _: CloseableCHColumnBatchIterator => iter
       case _ => new CloseableCHColumnBatchIterator(iter)
+    }
+  }
+}
+
+class CollectMetricIterator(
+    val nativeIterator: BatchIterator,
+    val updateNativeMetrics: IMetrics => Unit,
+    val updateInputMetrics: InputMetricsWrapper => Unit,
+    val inputMetrics: InputMetrics
+) extends Iterator[ColumnarBatch] {
+  private var outputRowCount = 0L
+  private var outputVectorCount = 0L
+  private var metricsUpdated = false
+
+  override def hasNext: Boolean = {
+    nativeIterator.hasNext
+  }
+
+  override def next(): ColumnarBatch = {
+    val cb = nativeIterator.next()
+    outputVectorCount += 1
+    outputRowCount += cb.numRows()
+    cb
+  }
+
+  def close(): Unit = {
+    collectStageMetrics()
+    nativeIterator.close()
+  }
+
+  def cancel(): Unit = {
+    collectStageMetrics()
+    nativeIterator.cancel()
+  }
+
+  private def collectStageMetrics(): Unit = {
+    if (!metricsUpdated) {
+      val nativeMetrics = nativeIterator.getMetrics.asInstanceOf[NativeMetrics]
+      nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
+      updateNativeMetrics(nativeMetrics)
+      if (updateInputMetrics != null) {
+        updateInputMetrics(inputMetrics)
+      }
+      metricsUpdated = true
     }
   }
 }
