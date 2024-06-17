@@ -517,6 +517,7 @@ jobs:
       - name: Setup java and maven
         run: |
           apt-get update && apt-get install -y openjdk-8-jdk maven wget
+          apt remove openjdk-11* -y
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/
