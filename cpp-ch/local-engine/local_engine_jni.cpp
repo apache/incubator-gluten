@@ -17,7 +17,7 @@
 #include <numeric>
 #include <string>
 #include <jni.h>
-
+#include <gluten_version.h>
 #include <Builder/SerializedPlanBuilder.h>
 #include <Compression/CompressedReadBuffer.h>
 #include <DataTypes/DataTypeNullable.h>
@@ -129,6 +129,11 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     JNIEnv * env;
     if (vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_8) != JNI_OK)
         return JNI_ERR;
+
+    LOG_INFO(&Poco::Logger::get("jni"), "gluten version info:");
+    LOG_INFO(&Poco::Logger::get("jni"), "gluten commit hash: {}", local_engine::COMMIT_HASH);
+    LOG_INFO(&Poco::Logger::get("jni"), "gluten commit author: {}", local_engine::COMMIT_AUTHOR);
+    LOG_INFO(&Poco::Logger::get("jni"), "gluten commit date: {}", local_engine::COMMIT_DATE);
 
     local_engine::JniErrorsGlobalState::instance().initialize(env);
 
