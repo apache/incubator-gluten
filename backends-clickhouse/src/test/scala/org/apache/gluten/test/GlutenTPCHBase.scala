@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.gluten.test
 
+import org.apache.gluten.test.GlutenTPCBase
+
 import org.apache.spark.sql.catalyst.TableIdentifier
 
 trait GlutenTPCHBase extends GlutenTPCBase {

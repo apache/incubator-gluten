@@ -14,15 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.gluten.parquet
+package org.apache.gluten.execution.parquet
 
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseWholeStageTransformerSuite}
+import org.apache.gluten.test.GlutenSQLTestUtils
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.gluten.test.{GlutenSQLTestUtils, GlutenTPCHBase}
+import org.apache.spark.sql.gluten.test.GlutenTPCHBase
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.Decimal
 
@@ -45,8 +46,8 @@ class GlutenParquetFilterSuite
 
   override protected def sparkConf: SparkConf =
     super.sparkConf
-      .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED, false)
-      .set(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD, -1L) // disable broadcast
+      .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "false")
+      .set(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key, "-1") // disable broadcast
 
   private val result: Array[Map[String, Seq[Predicate]]] = Array(
     Map( // q1
