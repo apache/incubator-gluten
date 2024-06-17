@@ -87,14 +87,34 @@ object Pattern {
     override def children(count: Int): Seq[Node[T]] = (0 until count).map(_ => ignore[T])
   }
 
-  private case class Branch[T <: AnyRef](matcher: Matcher[T], children: Seq[Node[T]])
+  private case class Branch[T <: AnyRef](matcher: Matcher[T], children: Branch.ChildrenFactory[T])
     extends Node[T] {
     override def skip(): Boolean = false
-    override def abort(node: CanonicalNode[T]): Boolean = node.childrenCount != children.size
+    override def abort(node: CanonicalNode[T]): Boolean =
+      !children.acceptsChildrenCount(node.childrenCount)
     override def matches(node: CanonicalNode[T]): Boolean = matcher(node.self())
     override def children(count: Int): Seq[Node[T]] = {
-      assert(count == children.size)
-      children
+      assert(children.acceptsChildrenCount(count))
+      (0 until count).map(children.child)
+    }
+  }
+
+  private object Branch {
+    trait ChildrenFactory[T <: AnyRef] {
+      def child(index: Int): Node[T]
+      def acceptsChildrenCount(count: Int): Boolean
+    }
+
+    object ChildrenFactory {
+      case class Plain[T <: AnyRef](nodes: Seq[Node[T]]) extends ChildrenFactory[T] {
+        override def child(index: Int): Node[T] = nodes(index)
+        override def acceptsChildrenCount(count: Int): Boolean = nodes.size == count
+      }
+
+      case class Func[T <: AnyRef](arity: Int => Boolean, func: Int => Node[T]) extends ChildrenFactory[T] {
+        override def child(index: Int): Node[T] = func(index)
+        override def acceptsChildrenCount(count: Int): Boolean = arity(count)
+      }
     }
   }
 
@@ -102,8 +122,12 @@ object Pattern {
   def ignore[T <: AnyRef]: Node[T] = Ignore.INSTANCE.asInstanceOf[Node[T]]
   def node[T <: AnyRef](matcher: Matcher[T]): Node[T] = Single(matcher)
   def branch[T <: AnyRef](matcher: Matcher[T], children: Node[T]*): Node[T] =
-    Branch(matcher, children.toSeq)
-  def leaf[T <: AnyRef](matcher: Matcher[T]): Node[T] = Branch(matcher, List.empty)
+    Branch(matcher, Branch.ChildrenFactory.Plain(children.toSeq))
+  // Similar to #branch, but with unknown arity.
+  def branch2[T <: AnyRef](matcher: Matcher[T], arity: Int => Boolean, children: Int => Node[T]): Node[T] =
+    Branch(matcher, Branch.ChildrenFactory.Func(arity, children))
+  def leaf[T <: AnyRef](matcher: Matcher[T]): Node[T] =
+    Branch(matcher, Branch.ChildrenFactory.Plain(List.empty))
 
   implicit class NodeImplicits[T <: AnyRef](node: Node[T]) {
     def build(): Pattern[T] = {

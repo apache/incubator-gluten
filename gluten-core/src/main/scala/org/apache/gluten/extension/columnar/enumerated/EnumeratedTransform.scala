@@ -43,6 +43,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
 
   private val rules = List(
     new PushFilterToScan(RasOffload.validator),
+    RemoveSort,
     RemoveFilter
   )
 
