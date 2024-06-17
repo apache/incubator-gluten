@@ -118,6 +118,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDecimalPrecisionSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenHigherOrderFunctionsSuite]
+    .exclude("TransformKeys")
   enableSuite[GlutenIntervalExpressionsSuite]
   enableSuite[GlutenJsonFunctionsSuite]
     // * in get_json_object expression not supported in velox

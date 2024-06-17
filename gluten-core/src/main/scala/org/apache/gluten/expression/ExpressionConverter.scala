@@ -656,6 +656,22 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           Seq(replaceWithExpressionTransformerInternal(c.child, attributeSeq, expressionsMap)),
           c
         )
+      case t: TransformKeys =>
+        // default is `EXCEPTION`
+        val mapKeyDedupPolicy = SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
+        if (mapKeyDedupPolicy == SQLConf.MapKeyDedupPolicy.LAST_WIN.toString) {
+          // TODO: Remove after fix ready for
+          //  https://github.com/facebookincubator/velox/issues/10219
+          throw new GlutenNotSupportException(
+            "Not support to handle the cases if duplicate map keys exists after transform" +
+              s"with conf ${SQLConf.MAP_KEY_DEDUP_POLICY.key} been set to $mapKeyDedupPolicy, "
+          )
+        }
+        GenericExpressionTransformer(
+          substraitExprName,
+          t.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
+          t
+        )
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
