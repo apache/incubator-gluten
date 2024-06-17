@@ -87,7 +87,7 @@ jobs:
       matrix:
         os: [ "ubuntu:20.04", "ubuntu:22.04" ]
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
-        java: [ "java-8", "java-17" ]
+        java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
         exclude:
           - spark: spark-3.2
@@ -116,10 +116,13 @@ jobs:
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
             apt-get update && apt-get install -y openjdk-17-jdk maven
+            apt remove openjdk-11* -y
+          elif [ "${{ matrix.java }}" = "java-11" ]; then
+            apt-get update && apt-get install -y openjdk-11-jdk maven
           else
             apt-get update && apt-get install -y openjdk-8-jdk maven
+            apt remove openjdk-11* -y
           fi
-          apt remove openjdk-11* -y
           ls -l /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
       - name: Build and run TPCH/DS
         run: |
@@ -175,6 +178,8 @@ jobs:
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
             yum update -y && yum install -y java-17-openjdk-devel wget
+          elif [ "${{ matrix.java }}" = "java-11" ]; then
+            yum update -y && yum install -y java-11-openjdk-devel wget
           else
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           fi
@@ -186,6 +191,8 @@ jobs:
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
           if [ "${{ matrix.java }}" = "java-17" ]; then
             echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk" >> $GITHUB_ENV
+          elif [ "${{ matrix.java }}" = "java-11" ]; then
+            echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk" >> $GITHUB_ENV
           else
             echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
           fi
