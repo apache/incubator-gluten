@@ -22,6 +22,7 @@ import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
+import org.apache.gluten.expression.ExpressionNames.MAP_CONCAT
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar.TransformHints
@@ -854,7 +855,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       Sig[VeloxCollectList](ExpressionNames.COLLECT_LIST),
       Sig[VeloxCollectSet](ExpressionNames.COLLECT_SET),
       Sig[VeloxBloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
-      Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG)
+      Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG),
+      Sig[MapConcat](MAP_CONCAT)
     )
   }
 
