@@ -664,7 +664,6 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", "session_timezone", time_zone_val);
         }
     }
-
     /// Finally apply some fixed kvs to settings.
     settings.set("join_use_nulls", true);
     settings.set("input_format_orc_allow_missing_columns", true);
