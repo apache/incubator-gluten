@@ -55,7 +55,7 @@ case class Queries(
             randomKillTasks)
         } finally {
           if (noSessionReuse) {
-            sessionSwitcher.close()
+            sessionSwitcher.renewSession()
           }
         }
       }

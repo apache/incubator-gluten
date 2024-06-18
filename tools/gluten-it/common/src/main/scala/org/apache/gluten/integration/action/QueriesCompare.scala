@@ -45,12 +45,18 @@ case class QueriesCompare(
     val baselineResults = (0 until iterations).flatMap { iteration =>
       runQueryIds.map { queryId =>
         println(s"Running baseline query $queryId (iteration $iteration)...")
-        QueriesCompare.runBaselineQuery(
-          runner,
-          sessionSwitcher.spark(),
-          suite.desc(),
-          queryId,
-          explain)
+        try {
+          QueriesCompare.runBaselineQuery(
+            runner,
+            sessionSwitcher.spark(),
+            suite.desc(),
+            queryId,
+            explain)
+        } finally {
+          if (noSessionReuse) {
+            sessionSwitcher.renewSession()
+          }
+        }
       }
     }.toList
 
@@ -68,7 +74,7 @@ case class QueriesCompare(
             explain)
         } finally {
           if (noSessionReuse) {
-            sessionSwitcher.close()
+            sessionSwitcher.renewSession()
           }
         }
       }

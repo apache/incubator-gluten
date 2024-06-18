@@ -131,7 +131,13 @@ class Parameterized(
         // warm up
         (0 until warmupIterations).foreach { iteration =>
           println(s"Warming up: Running query $queryId (iteration $iteration)...")
-          Parameterized.warmUp(runner, sessionSwitcher.spark(), queryId, coordinate, suite.desc())
+          try {
+            Parameterized.warmUp(runner, sessionSwitcher.spark(), queryId, coordinate, suite.desc())
+          } finally {
+            if (noSessionReuse) {
+              sessionSwitcher.renewSession()
+            }
+          }
         }
 
         // run
@@ -149,7 +155,7 @@ class Parameterized(
                 metrics)
             } finally {
               if (noSessionReuse) {
-                sessionSwitcher.close()
+                sessionSwitcher.renewSession()
               }
             }
           TestResultLine.CoordMark(iteration, queryId, r)

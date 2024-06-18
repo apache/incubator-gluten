@@ -65,6 +65,15 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
     useSession(SessionDesc(SessionToken(token), appName))
   }
 
+  def renewSession(): Unit = synchronized {
+    if (!hasActiveSession()) {
+      return
+    }
+    val sd = _activeSessionDesc
+    stopActiveSession()
+    useSession(sd)
+  }
+
   private def useSession(desc: SessionDesc): Unit = synchronized {
     if (desc == _activeSessionDesc) {
       return
