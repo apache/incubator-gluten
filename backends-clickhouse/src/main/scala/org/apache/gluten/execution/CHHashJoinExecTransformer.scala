@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.clickhouse.CHIteratorApi
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.utils.{BroadcastHashJoinStrategy, CHJoinValidateUtil, ShuffleHashJoinStrategy}
 
@@ -75,7 +74,7 @@ case class CHBroadcastBuildSideRDD(
 
   override def genBroadcastBuildSideIterator(): Iterator[ColumnarBatch] = {
     CHBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadcastContext)
-    CHIteratorApi.genCloseableColumnBatchIterator(Iterator.empty)
+    Iterator.empty
   }
 }
 
