@@ -31,14 +31,18 @@ DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
 DEFINE_int32(iterations, 1, "The number of iterations to run this benchmark");
 
+namespace gluten {
 namespace {
+std::unordered_map<std::string, std::string> bmConfMap = defaultConf();
+}
 
-std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)}};
-
-} // namespace
+std::unordered_map<std::string, std::string> defaultConf() {
+  return {
+      {gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)},
+  };
+}
 
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
-  conf[gluten::kGlogSeverityLevel] = "0";
   gluten::VeloxBackend::create(conf);
 }
 
@@ -190,9 +194,18 @@ void BenchmarkAllocationListener::allocationChanged(int64_t diff) {
         velox::succinctBytes(diff),
         velox::succinctBytes(usedBytes_));
     auto neededBytes = usedBytes_ + diff - limit_;
-    auto spilledBytes = iterator_->spillFixedSize(neededBytes);
+    int64_t spilledBytes = 0;
+    if (iterator_) {
+      spilledBytes += iterator_->spillFixedSize(neededBytes);
+    }
+    if (spilledBytes < neededBytes && shuffleWriter_) {
+      int64_t reclaimed = 0;
+      GLUTEN_THROW_NOT_OK(shuffleWriter_->reclaimFixedSize(neededBytes - spilledBytes, &reclaimed));
+      spilledBytes += reclaimed;
+    }
     LOG(INFO) << fmt::format("spill finish, got {}.", velox::succinctBytes(spilledBytes));
   } else {
     usedBytes_ += diff;
   }
 }
+} // namespace gluten

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
   set(ARROW_SHARED_LIBRARY_SUFFIX ".1500.dylib")
   set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".1500.1.0.dylib")
 else()
@@ -30,22 +30,28 @@ set(ARROW_SUBSTRAIT_LIB_NAME "arrow_substrait")
 
 function(FIND_ARROW_LIB LIB_NAME)
   if(NOT TARGET Arrow::${LIB_NAME})
-    set(ARROW_LIB_FULL_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
+    set(ARROW_LIB_FULL_NAME
+        ${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
     add_library(Arrow::${LIB_NAME} SHARED IMPORTED)
-    find_library(ARROW_LIB_${LIB_NAME}
-        NAMES ${ARROW_LIB_FULL_NAME}
-        PATHS ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR}
-        NO_DEFAULT_PATH)
+    find_library(
+      ARROW_LIB_${LIB_NAME}
+      NAMES ${ARROW_LIB_FULL_NAME}
+      PATHS ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR}
+      NO_DEFAULT_PATH)
     if(NOT ARROW_LIB_${LIB_NAME})
       message(FATAL_ERROR "Arrow library Not Found: ${ARROW_LIB_FULL_NAME}")
     else()
       message(STATUS "Found Arrow library: ${ARROW_LIB_${LIB_NAME}}")
-      set_target_properties(Arrow::${LIB_NAME}
+      set_target_properties(
+        Arrow::${LIB_NAME}
         PROPERTIES IMPORTED_LOCATION "${ARROW_LIB_${LIB_NAME}}"
-        INTERFACE_INCLUDE_DIRECTORIES
-        "${ARROW_HOME}/install/include")
+                   INTERFACE_INCLUDE_DIRECTORIES
+                   "${ARROW_HOME}/install/include")
     endif()
-    file(COPY ${ARROW_LIB_${LIB_NAME}} DESTINATION ${root_directory}/releases/ FOLLOW_SYMLINK_CHAIN)
+    file(
+      COPY ${ARROW_LIB_${LIB_NAME}}
+      DESTINATION ${root_directory}/releases/
+      FOLLOW_SYMLINK_CHAIN)
   endif()
 endfunction()
 

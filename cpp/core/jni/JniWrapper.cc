@@ -756,6 +756,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     throw gluten::GlutenException(std::string("Short partitioning name can't be null"));
   }
 
+  // Build ShuffleWriterOptions.
   auto shuffleWriterOptions = ShuffleWriterOptions{
       .bufferSize = bufferSize,
       .bufferReallocThreshold = reallocThreshold,
@@ -763,7 +764,15 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .taskAttemptId = (int64_t)taskAttemptId,
       .startPartitionId = startPartitionId,
   };
+  auto shuffleWriterTypeC = env->GetStringUTFChars(shuffleWriterTypeJstr, JNI_FALSE);
+  auto shuffleWriterType = std::string(shuffleWriterTypeC);
+  env->ReleaseStringUTFChars(shuffleWriterTypeJstr, shuffleWriterTypeC);
 
+  if (shuffleWriterType == "sort") {
+    shuffleWriterOptions.shuffleWriterType = kSortShuffle;
+  }
+
+  // Build PartitionWriterOptions.
   auto partitionWriterOptions = PartitionWriterOptions{
       .mergeBufferSize = mergeBufferSize,
       .mergeThreshold = mergeThreshold,
@@ -779,19 +788,12 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     partitionWriterOptions.codecBackend = getCodecBackend(env, codecBackendJstr);
     partitionWriterOptions.compressionMode = getCompressionMode(env, compressionModeJstr);
   }
+
   std::unique_ptr<PartitionWriter> partitionWriter;
 
   auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);
   auto partitionWriterType = std::string(partitionWriterTypeC);
   env->ReleaseStringUTFChars(partitionWriterTypeJstr, partitionWriterTypeC);
-
-  auto shuffleWriterTypeC = env->GetStringUTFChars(shuffleWriterTypeJstr, JNI_FALSE);
-  auto shuffleWriterType = std::string(shuffleWriterTypeC);
-  env->ReleaseStringUTFChars(shuffleWriterTypeJstr, shuffleWriterTypeC);
-
-  if (shuffleWriterType == "sort") {
-    shuffleWriterOptions.shuffleWriterType = kSortShuffle;
-  }
 
   if (partitionWriterType == "local") {
     if (dataFileJstr == NULL) {

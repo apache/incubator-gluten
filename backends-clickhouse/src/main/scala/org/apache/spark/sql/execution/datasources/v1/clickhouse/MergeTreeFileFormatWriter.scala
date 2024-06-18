@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.v1.clickhouse
 
-import org.apache.spark.{TaskContext, TaskOutputFileAlreadyExistException}
+import org.apache.spark.{SparkException, TaskContext, TaskOutputFileAlreadyExistException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
 import org.apache.spark.shuffle.FetchFailedException
@@ -28,7 +28,6 @@ import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.delta.constraints.Constraint
-import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.{processStats, ConcurrentOutputWriterSpec, OutputSpec}
@@ -249,7 +248,7 @@ object MergeTreeFileFormatWriter extends Logging {
       case cause: Throwable =>
         logError(s"Aborting job ${description.uuid}.", cause)
         committer.abortJob(job)
-        throw QueryExecutionErrors.jobAbortedError(cause)
+        throw cause
     }
   }
   // scalastyle:on argcount
@@ -329,7 +328,7 @@ object MergeTreeFileFormatWriter extends Logging {
         // We throw the exception and let Executor throw ExceptionFailure to abort the job.
         throw new TaskOutputFileAlreadyExistException(f)
       case t: Throwable =>
-        throw QueryExecutionErrors.taskFailedWhileWritingRowsError(t)
+        throw new SparkException("Task failed while writing rows.", t)
     }
   }
 }

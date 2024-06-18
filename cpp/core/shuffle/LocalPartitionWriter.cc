@@ -25,7 +25,6 @@
 #include "shuffle/Payload.h"
 #include "shuffle/Spill.h"
 #include "shuffle/Utils.h"
-#include "utils/Timer.h"
 
 namespace gluten {
 
@@ -547,7 +546,7 @@ arrow::Status LocalPartitionWriter::evict(
 arrow::Status LocalPartitionWriter::evict(uint32_t partitionId, int64_t rawSize, const char* data, int64_t length) {
   rawPartitionLengths_[partitionId] += rawSize;
 
-  if (partitionId <= lastEvictPid_) {
+  if (partitionId < lastEvictPid_) {
     RETURN_NOT_OK(finishSpill());
   }
   lastEvictPid_ = partitionId;

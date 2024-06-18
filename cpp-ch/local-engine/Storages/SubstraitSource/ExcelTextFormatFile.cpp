@@ -293,7 +293,12 @@ bool ExcelTextFormatReader::readField(
         return false;
     }
 
-    if (column_size == column.size())
+    // See https://github.com/ClickHouse/ClickHouse/pull/60556
+    // In case of failing to parse, we will always push element into nullmap.
+    // so, we need using nestedColumn to check if error occurs.
+    /// FIXME:  move it to ExcelSerialization ???
+    const auto nestedColumn = DB::removeNullable(column.getPtr());
+    if (column_size == nestedColumn->size())
     {
         skipErrorChars(*buf, has_quote, maybe_quote, escape, format_settings);
         column_back_func(column);
