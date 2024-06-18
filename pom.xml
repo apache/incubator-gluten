@@ -54,7 +54,7 @@
     <delta.version>2.4.0</delta.version>
     <delta.binary.version>24</delta.binary.version>
     <celeborn.version>0.3.2-incubating</celeborn.version>
-    <uniffle.version>0.8.0</uniffle.version>
+    <uniffle.version>0.9.0</uniffle.version>
     <arrow.version>15.0.0</arrow.version>
     <arrow-gluten.version>15.0.0-gluten</arrow-gluten.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>

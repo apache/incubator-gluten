@@ -124,7 +124,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   }
 
   @Override
-  protected void writeImpl(Iterator<Product2<K, V>> records) throws IOException {
+  protected void writeImpl(Iterator<Product2<K, V>> records) {
     if (!records.hasNext() && !isMemoryShuffleEnabled) {
       super.sendCommit();
       return;
@@ -205,7 +205,11 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
     if (nativeShuffleWriter == -1L) {
       throw new IllegalStateException("nativeShuffleWriter should not be -1L");
     }
-    splitResult = jniWrapper.stop(nativeShuffleWriter);
+    try {
+      splitResult = jniWrapper.stop(nativeShuffleWriter);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     columnarDep
         .metrics()
         .get("splitTime")
