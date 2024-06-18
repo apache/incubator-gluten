@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.gluten.compatibility
+package org.apache.gluten.execution.compatibility
 
 import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
+import org.apache.gluten.test.GlutenSQLTestUtils
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.gluten.test.GlutenSQLTestUtils
 
 class GlutenFunctionSuite
   extends GlutenClickHouseWholeStageTransformerSuite
