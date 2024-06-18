@@ -37,6 +37,7 @@ class Parameterized(
     explain: Boolean,
     iterations: Int,
     warmupIterations: Int,
+    noSessionReuse: Boolean,
     configDimensions: Seq[Parameterized.Dim],
     excludedCombinations: Seq[Set[Parameterized.DimKv]],
     metrics: Array[String])
@@ -136,14 +137,21 @@ class Parameterized(
         // run
         (0 until iterations).map { iteration =>
           println(s"Running query $queryId with coordinate $coordinate (iteration $iteration)...")
-          val r = Parameterized.runQuery(
-            runner,
-            sessionSwitcher.spark(),
-            queryId,
-            coordinate,
-            suite.desc(),
-            explain,
-            metrics)
+          val r =
+            try {
+              Parameterized.runQuery(
+                runner,
+                sessionSwitcher.spark(),
+                queryId,
+                coordinate,
+                suite.desc(),
+                explain,
+                metrics)
+            } finally {
+              if (noSessionReuse) {
+                sessionSwitcher.close()
+              }
+            }
           TestResultLine.CoordMark(iteration, queryId, r)
         }
       }

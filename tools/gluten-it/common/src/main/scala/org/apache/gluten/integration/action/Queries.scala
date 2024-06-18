@@ -29,7 +29,8 @@ case class Queries(
     queries: QuerySelector,
     explain: Boolean,
     iterations: Int,
-    randomKillTasks: Boolean)
+    randomKillTasks: Boolean,
+    noSessionReuse: Boolean)
     extends Action {
   import Queries._
 
@@ -43,14 +44,20 @@ case class Queries(
     val results = (0 until iterations).flatMap { iteration =>
       println(s"Running tests (iteration $iteration)...")
       runQueryIds.map { queryId =>
-        Queries.runQuery(
-          runner,
-          suite.tableCreator(),
-          sessionSwitcher.spark(),
-          queryId,
-          suite.desc(),
-          explain,
-          randomKillTasks)
+        try {
+          Queries.runQuery(
+            runner,
+            suite.tableCreator(),
+            sessionSwitcher.spark(),
+            queryId,
+            suite.desc(),
+            explain,
+            randomKillTasks)
+        } finally {
+          if (noSessionReuse) {
+            sessionSwitcher.close()
+          }
+        }
       }
     }.toList
 

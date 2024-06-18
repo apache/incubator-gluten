@@ -30,7 +30,8 @@ case class QueriesCompare(
     genPartitionedData: Boolean,
     queries: QuerySelector,
     explain: Boolean,
-    iterations: Int)
+    iterations: Int,
+    noSessionReuse: Boolean)
     extends Action {
 
   override def execute(suite: Suite): Boolean = {
@@ -44,7 +45,12 @@ case class QueriesCompare(
     val baselineResults = (0 until iterations).flatMap { iteration =>
       runQueryIds.map { queryId =>
         println(s"Running baseline query $queryId (iteration $iteration)...")
-        QueriesCompare.runBaselineQuery(runner, sessionSwitcher.spark(), suite.desc(), queryId, explain)
+        QueriesCompare.runBaselineQuery(
+          runner,
+          sessionSwitcher.spark(),
+          suite.desc(),
+          queryId,
+          explain)
       }
     }.toList
 
@@ -53,7 +59,18 @@ case class QueriesCompare(
     val testResults = (0 until iterations).flatMap { iteration =>
       runQueryIds.map { queryId =>
         println(s"Running test query $queryId (iteration $iteration)...")
-        QueriesCompare.runTestQuery(runner, sessionSwitcher.spark(), suite.desc(), queryId, explain)
+        try {
+          QueriesCompare.runTestQuery(
+            runner,
+            sessionSwitcher.spark(),
+            suite.desc(),
+            queryId,
+            explain)
+        } finally {
+          if (noSessionReuse) {
+            sessionSwitcher.close()
+          }
+        }
       }
     }.toList
 
