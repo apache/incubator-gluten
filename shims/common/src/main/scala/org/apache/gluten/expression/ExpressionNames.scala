@@ -276,6 +276,8 @@ object ExpressionNames {
   final val MAP_FROM_ARRAYS = "map_from_arrays"
   final val MAP_ENTRIES = "map_entries"
   final val MAP_ZIP_WITH = "map_zip_with"
+  final val TRANSFORM_KEYS = "transform_keys"
+  final val TRANSFORM_VALUES = "transform_values"
   final val STR_TO_MAP = "str_to_map"
 
   // struct functions
