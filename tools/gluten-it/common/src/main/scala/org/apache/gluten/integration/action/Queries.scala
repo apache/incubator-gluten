@@ -56,6 +56,7 @@ case class Queries(
         } finally {
           if (noSessionReuse) {
             sessionSwitcher.renewSession()
+            runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
           }
         }
       }

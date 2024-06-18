@@ -136,6 +136,7 @@ class Parameterized(
           } finally {
             if (noSessionReuse) {
               sessionSwitcher.renewSession()
+              runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
             }
           }
         }
@@ -156,6 +157,7 @@ class Parameterized(
             } finally {
               if (noSessionReuse) {
                 sessionSwitcher.renewSession()
+                runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
               }
             }
           TestResultLine.CoordMark(iteration, queryId, r)
