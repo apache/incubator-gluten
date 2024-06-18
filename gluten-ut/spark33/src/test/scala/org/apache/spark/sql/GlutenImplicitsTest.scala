@@ -79,10 +79,10 @@ class GlutenImplicitsTest extends GlutenSQLTestsBaseTrait {
   testGluten("fallbackSummary with shuffle") {
     withAQEEnabledAndDisabled {
       val df = spark.sql("SELECT c2 FROM t1 group by c2").filter(_.getLong(0) > 0)
-      assert(df.fallbackSummary().numGlutenNodes == 5, df.fallbackSummary())
+      assert(df.fallbackSummary().numGlutenNodes == 6, df.fallbackSummary())
       assert(df.fallbackSummary().numFallbackNodes == 1, df.fallbackSummary())
       df.collect()
-      assert(df.fallbackSummary().numGlutenNodes == 5, df.fallbackSummary())
+      assert(df.fallbackSummary().numGlutenNodes == 6, df.fallbackSummary())
       assert(df.fallbackSummary().numFallbackNodes == 1, df.fallbackSummary())
     }
   }
@@ -119,10 +119,10 @@ class GlutenImplicitsTest extends GlutenSQLTestsBaseTrait {
   testGluten("fallbackSummary with cached data and shuffle") {
     withAQEEnabledAndDisabled {
       val df = spark.sql("select * from t1").filter(_.getLong(0) > 0).cache.repartition()
-      assert(df.fallbackSummary().numGlutenNodes == 6, df.fallbackSummary())
+      assert(df.fallbackSummary().numGlutenNodes == 7, df.fallbackSummary())
       assert(df.fallbackSummary().numFallbackNodes == 1, df.fallbackSummary())
       df.collect()
-      assert(df.fallbackSummary().numGlutenNodes == 6, df.fallbackSummary())
+      assert(df.fallbackSummary().numGlutenNodes == 7, df.fallbackSummary())
       assert(df.fallbackSummary().numFallbackNodes == 1, df.fallbackSummary())
     }
   }
