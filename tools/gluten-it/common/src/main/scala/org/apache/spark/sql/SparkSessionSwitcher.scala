@@ -70,6 +70,7 @@ class SparkSessionSwitcher(val masterUrl: String, val logLevel: String) extends 
       return
     }
     val sd = _activeSessionDesc
+    println(s"Renewing $sd session... ")
     stopActiveSession()
     useSession(sd)
   }
