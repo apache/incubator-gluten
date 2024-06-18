@@ -536,6 +536,14 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
     runQueryAndCompare(
       s"select l_orderkey, split(l_comment, 'h') " +
         s"from $LINEITEM_TABLE limit 5") { _ => }
+
+    runQueryAndCompare(
+      s"select l_orderkey, split(l_comment, '') " +
+        s"from $LINEITEM_TABLE limit 5", noFallBack = false) { _ => }
+
+    runQueryAndCompare(
+      s"select l_orderkey, split(l_comment, '，') " +
+        s"from $LINEITEM_TABLE limit 5", noFallBack = false) { _ => }
   }
 
   test("substr") {

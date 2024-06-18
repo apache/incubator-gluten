@@ -129,9 +129,9 @@ case class VeloxStringSplitTransformer(
 
     val limit = limitExpr.doTransform(args).asInstanceOf[IntLiteralNode].getValue
     val regex = regexExpr.doTransform(args).asInstanceOf[StringLiteralNode].getValue
-    if (limit > 0 || regex.length > 1) {
+    if (limit > 0 || regex.length != 1 || regex.charAt(0) > 127) {
       throw new GlutenNotSupportException(
-        s"$original supported single-length regex and negative limit, but given $limit and $regex")
+        s"$original supported single-length ASCII regex and negative limit, but given $limit and $regex")
     }
 
     super.doTransform(args)
