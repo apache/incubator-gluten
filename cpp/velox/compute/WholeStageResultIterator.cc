@@ -529,6 +529,7 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
       !veloxCfg_->get<bool>(kCaseSensitive, false) ? "true" : "false";
   configs[velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] = "false";
   configs[velox::connector::hive::HiveConfig::kParquetWriteTimestampUnitSession] = "6";
+  configs[velox::connector::hive::HiveConfig::kReadTimestampUnitSession] = "6";
   configs[velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] =
       std::to_string(veloxCfg_->get<int32_t>(kMaxPartitions, 10000));
   configs[velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
