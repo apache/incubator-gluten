@@ -663,8 +663,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           // TODO: Remove after fix ready for
           //  https://github.com/facebookincubator/velox/issues/10219
           throw new GlutenNotSupportException(
-            "Not support to handle the cases if duplicate map keys exists after transform" +
-              s"with conf ${SQLConf.MAP_KEY_DEDUP_POLICY.key} been set to $mapKeyDedupPolicy, "
+            "LAST_WIN policy is not supported yet in native to deduplicate map keys"
           )
         }
         GenericExpressionTransformer(
