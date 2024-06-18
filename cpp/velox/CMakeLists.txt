@@ -532,9 +532,9 @@ set(VELOX_SRCS
     utils/Common.cc
     utils/VeloxBatchAppender.cc)
 
-if(ENABLE_HDFS)
-  list(APPEND VELOX_SRCS utils/HdfsUtils.cc)
-endif()
+# if (ENABLE_HDFS)
+#   list(APPEND VELOX_SRCS utils/HdfsUtils.cc)
+# endif ()
 
 if(ENABLE_S3)
   find_package(ZLIB)
@@ -630,8 +630,13 @@ endif()
 
 if(ENABLE_HDFS)
   add_definitions(-DENABLE_HDFS)
-  find_libhdfs3()
-  target_link_libraries(velox PUBLIC HDFS::hdfs3)
+  set(HADOOP_HOME $ENV{HADOOP_HOME})
+  find_library(
+    LIBHDFS
+    NAMES libhdfs.so
+    HINTS "${HADOOP_HOME}/lib/native" REQUIRED)
+  # find_libhdfs3()
+  target_link_libraries(velox PUBLIC ${LIBHDFS})
 endif()
 
 if(ENABLE_S3)

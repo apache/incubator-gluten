@@ -68,6 +68,16 @@ jobs:
       - name: Build Gluten Velox third party
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
+          yum update -y && yum install -y java-1.8.0-openjdk-devel wget
+          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+          
+          echo "JAVA_HOME: $JAVA_HOME"
+
+          wget https://archive.apache.org/dist/hadoop/core/hadoop-2.10.1/hadoop-2.10.1.tar.gz
+          tar xf hadoop-2.10.1.tar.gz -C /usr/local/
+          export HADOOP_HOME='/usr/local/hadoop-2.10.1'
+          echo "HADOOP_HOME: $HADOOP_HOME"
+          
           source dev/ci-velox-buildstatic.sh
       - name: Upload Artifact Native
         uses: actions/upload-artifact@v2
