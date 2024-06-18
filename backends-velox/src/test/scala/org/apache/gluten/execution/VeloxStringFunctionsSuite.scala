@@ -541,9 +541,11 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
       s"select l_orderkey, split(l_comment, '') " +
         s"from $LINEITEM_TABLE limit 5", noFallBack = false) { _ => }
 
+    // scalastyle:off nonascii
     runQueryAndCompare(
       s"select l_orderkey, split(l_comment, '，') " +
         s"from $LINEITEM_TABLE limit 5", noFallBack = false) { _ => }
+    // scalastyle:on nonascii
   }
 
   test("substr") {
