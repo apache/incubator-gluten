@@ -17,13 +17,31 @@
 
 package org.apache.gluten.integration
 
+import org.apache.spark.sql.RunResult
+
 package object action {
-  implicit class DualOptionsOps[T](value: (Option[T], Option[T])) {
-    def onBothProvided[R](func: (T, T) => R): Option[R] = {
-      if (value._1.isEmpty || value._2.isEmpty) {
-        return None
+
+  implicit class QueryResultsOps(results: Iterable[QueryRunner.QueryResult]) {
+    def asSuccesses(): Iterable[QueryRunner.Success] = {
+      results.map(_.asSuccess())
+    }
+
+    def asFailures(): Iterable[QueryRunner.Failure] = {
+      results.map(_.asFailure())
+    }
+  }
+
+  implicit class CompletedOps(completed: Iterable[QueryRunner.Success]) {
+    def agg(name: String): Option[QueryRunner.Success] = {
+      completed.reduceOption { (c1, c2) =>
+        QueryRunner.Success(
+          name,
+          RunResult(
+            c1.runResult.rows ++ c2.runResult.rows,
+            c1.runResult.planningTimeMillis + c2.runResult.planningTimeMillis,
+            c1.runResult.executionTimeMillis + c2.runResult.executionTimeMillis,
+            (c1.runResult.metrics, c2.runResult.metrics).sumUp))
       }
-      Some(func(value._1.get, value._2.get))
     }
   }
 
