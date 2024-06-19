@@ -534,7 +534,7 @@ jobs:
         run: |
           apt-get update && apt-get install -y openjdk-8-jdk maven wget
           apt remove openjdk-11* -y
-          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 >> $GITHUB_ENV
+          echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/
