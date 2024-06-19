@@ -752,11 +752,11 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.enableInputFileNameReplaceRule")
       .internal()
       .doc(
-        "This config apply for velox backend to specify whether to enable " +
+        "Experimental: This config apply for velox backend to specify whether to enable " +
           "inputFileNameReplaceRule to support offload input_file_name " +
           "expression to native.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
