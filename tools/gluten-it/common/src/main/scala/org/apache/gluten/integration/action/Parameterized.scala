@@ -26,7 +26,7 @@ import org.apache.gluten.integration.{QueryRunner, Suite}
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSession
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -108,8 +108,8 @@ class Parameterized(
     val testConf = suite.getTestConf()
 
     println("Prepared coordinates: ")
-    coordinates.toList.map(_._1).zipWithIndex.foreach { case (c, idx) =>
-      println(s"  $idx: $c")
+    coordinates.keys.foreach { c =>
+      println(s"  ${c.id}: $c")
     }
     coordinates.foreach { entry =>
       // register one session per coordinate
@@ -120,7 +120,7 @@ class Parameterized(
       sessionSwitcher.registerSession(coordinate.toString, conf)
     }
 
-    val runQueryIds = queries.select(suite)
+    val runQueryIds = queries.select(suite).map(TestResultLine.QueryId(_))
 
     val marks: Seq[TestResultLine.CoordMark] = coordinates.flatMap { entry =>
       val coordinate = entry._1
@@ -132,7 +132,12 @@ class Parameterized(
         (0 until warmupIterations).foreach { iteration =>
           println(s"Warming up: Running query $queryId (iteration $iteration)...")
           try {
-            Parameterized.warmUp(runner, sessionSwitcher.spark(), queryId, coordinate, suite.desc())
+            Parameterized.warmUp(
+              runner,
+              sessionSwitcher.spark(),
+              queryId.id,
+              coordinate,
+              suite.desc())
           } finally {
             if (noSessionReuse) {
               sessionSwitcher.renewSession()
@@ -149,7 +154,7 @@ class Parameterized(
               Parameterized.runQuery(
                 runner,
                 sessionSwitcher.spark(),
-                queryId,
+                queryId.id,
                 coordinate,
                 suite.desc(),
                 explain,
@@ -166,12 +171,12 @@ class Parameterized(
     }.toSeq
 
     val results: Seq[TestResultLine] = marks
-      .groupBy(m => (m.queryId, m.iteration))
+      .groupBy(m => (m.iteration, m.queryId))
       .toSeq
-      .sortBy(e => (e._1._2, e._1._1))
+      .sortBy(_._1)
       .map { e =>
-        val queryId = e._1._1
-        val iteration = e._1._2
+        val iteration = e._1._1
+        val queryId = e._1._2
         val marks = e._2
         val line = TestResultLine(queryId, marks.map(_.coord).toList)
         line
@@ -207,19 +212,19 @@ class Parameterized(
       case several =>
         Some(
           TestResultLine(
-            "all",
-            coordinates.keys.zipWithIndex.map { case (k, i) =>
+            TestResultLine.QueryId("all"),
+            coordinates.keys.map { c =>
               TestResultLine.Coord(
-                k,
+                c,
                 several
-                  .map(_.coordinates(i))
+                  .map(_.coord(c.id))
                   .map(_.queryResult)
                   .asSuccesses()
-                  .agg(s"all coordinate $k")
+                  .agg(s"coordinate $c")
                   .get)
             }.toSeq))
     }
-    TestResultLines(coordinates.size, configDimensions, metrics, succeeded ++ all)
+    TestResultLines(coordinates.map(_._1.id).toSeq, configDimensions, metrics, succeeded ++ all)
       .print()
     println("")
 
@@ -229,7 +234,11 @@ class Parameterized(
     } else {
       println("Failed queries: ")
       println("")
-      TestResultLines(coordinates.size, configDimensions, metrics, results.filter(!_.succeeded()))
+      TestResultLines(
+        coordinates.map(_._1.id).toSeq,
+        configDimensions,
+        metrics,
+        results.filter(!_.succeeded()))
         .print()
       println("")
     }
@@ -253,21 +262,38 @@ object Parameterized {
     override def toString: String = coordinate.mkString(", ")
   }
 
-  case class TestResultLine(queryId: String, coordinates: Seq[TestResultLine.Coord]) {
+  case class TestResultLine(
+      queryId: TestResultLine.QueryId,
+      coordinates: Seq[TestResultLine.Coord]) {
+    private val coordMap = coordinates.map(c => c.coordinate.id -> c).toMap
     def succeeded(): Boolean = {
       coordinates.forall(_.queryResult.succeeded())
     }
+
+    def coord(id: Int): TestResultLine.Coord = coordMap(id)
   }
 
   object TestResultLine {
-    case class Coord(coordinate: Coordinate, queryResult: QueryResult)
-    case class CoordMark(iteration: Int, queryId: String, coord: Coord)
+    case class QueryId(id: String) {
+      import QueryId._
+      private val uid = nextUid.getAndIncrement()
+      override def toString: String = id
+    }
 
-    class Parser(metricNames: Seq[String]) extends TableRender.RowParser[TestResultLine] {
+    object QueryId {
+      private val nextUid = new AtomicLong(0L)
+      implicit val o: Ordering[QueryId] = Ordering.by(_.uid)
+    }
+
+    case class Coord(coordinate: Coordinate, queryResult: QueryResult)
+    case class CoordMark(iteration: Int, queryId: QueryId, coord: Coord)
+
+    class Parser(coordIds: Seq[Int], metricNames: Seq[String])
+        extends TableRender.RowParser[TestResultLine] {
       override def parse(rowAppender: RowAppender, line: TestResultLine): Unit = {
         val inc = rowAppender.incremental()
         inc.next().write(line.queryId)
-        val coords = line.coordinates
+        val coords = coordIds.map(id => line.coord(id))
         coords.foreach(coord => inc.next().write(coord.queryResult.succeeded()))
         coords.foreach(coord =>
           inc.next().write(coord.queryResult.asSuccessOption().map(_.runResult.rows.size)))
@@ -289,13 +315,13 @@ object Parameterized {
   }
 
   case class TestResultLines(
-      coordCount: Int,
+      coordIds: Seq[Int],
       configDimensions: Seq[Dim],
       metricNames: Seq[String],
       lines: Iterable[TestResultLine]) {
     def print(): Unit = {
       val fields = ListBuffer[Field](Field.Leaf("Query ID"))
-      val coordFields = (1 to coordCount).map(id => Field.Leaf(id.toString))
+      val coordFields = coordIds.map(id => Field.Leaf(id.toString))
 
       fields.append(Field.Branch("Succeeded", coordFields))
       fields.append(Field.Branch("Row Count", coordFields))
@@ -304,7 +330,8 @@ object Parameterized {
       fields.append(Field.Branch("Query Time (Millis)", coordFields))
 
       val render =
-        TableRender.create[TestResultLine](fields: _*)(new TestResultLine.Parser(metricNames))
+        TableRender.create[TestResultLine](fields: _*)(
+          new TestResultLine.Parser(coordIds, metricNames))
 
       lines.foreach(line => render.appendRow(line))
 
