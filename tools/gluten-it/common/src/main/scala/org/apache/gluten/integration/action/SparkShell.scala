@@ -21,7 +21,7 @@ import org.apache.spark.repl.Main
 
 case class SparkShell(scale: Double, genPartitionedData: Boolean) extends Action {
   override def execute(suite: Suite): Boolean = {
-    suite.sessionSwitcher.useSession("test", "Gluten Spark CLI")
+    suite.sessionSwitcher.useSession("test", "Spark CLI")
     val runner: QueryRunner =
       new QueryRunner(suite.queryResource(), suite.dataWritePath(scale, genPartitionedData))
     runner.createTables(suite.tableCreator(), suite.sessionSwitcher.spark())
