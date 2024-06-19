@@ -534,14 +534,13 @@ jobs:
         run: |
           apt-get update && apt-get install -y openjdk-8-jdk maven wget
           apt remove openjdk-11* -y
-          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 >> $GITHUB_ENV
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Pceleborn -DskipTests
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with ${{ matrix.celeborn }}
         run: |
-          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           EXTRA_PROFILE=""
           if [ "${{ matrix.celeborn }}" = "celeborn-0.4.0" ]; then
             EXTRA_PROFILE="-Pceleborn-0.4"
