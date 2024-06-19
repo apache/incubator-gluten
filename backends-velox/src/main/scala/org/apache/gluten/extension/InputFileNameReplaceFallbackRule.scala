@@ -22,6 +22,31 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarToRowExec, FileSourceScanExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
+/**
+ * Velox doesn't have input_file_name function support yet and it's also hard to add one, checking
+ * this discussion - https://github.com/facebookincubator/velox/issues/9957
+ *
+ * For workaround, Gluten currently use `InputFileNameReplaceRule` to convert `project` with
+ * `input_file_name` to a new project with a new projected metadata column named `$input_file_name$`
+ * which store the file name.
+ *
+ * While if scan is fallback, the replacement would fail the job due to the metadata column
+ * `$input_file_name$` not available.
+ *
+ * This final rule use to address the scan fallback cases. If scan is fallback and has replaced
+ * attrs, the rule would inject a project after the scan to convert the replaced attrs back to
+ * `input_file_name`.
+ *
+ * For example: + ProjectTransformer [$input_file_name$, name] +
+ * InputIteratorTransformer[$input_file_name$, name] + RowToVeloxColumnar + ColumnarToRow + FileScan
+ * [$input_file_name$, name]
+ *
+ * would be convert to
+ *
+ * + ProjectTransformer [$input_file_name$, name] + InputIteratorTransformer[$input_file_name$,
+ * name] + project [input_file_name() as $input_file_name$, name] + RowToVeloxColumnar +
+ * ColumnarToRow + FileScan [name]
+ */
 case class InputFileNameReplaceFallbackRule(spark: SparkSession) extends Rule[SparkPlan] {
   import InputFileNameReplaceRule._
 

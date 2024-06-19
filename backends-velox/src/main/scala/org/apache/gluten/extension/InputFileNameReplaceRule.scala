@@ -25,6 +25,26 @@ import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.types.{LongType, StringType}
 
+/**
+ * Velox doesn't have input_file_name function support yet and it's also hard to add one, checking
+ * this discussion - https://github.com/facebookincubator/velox/issues/9957
+ *
+ * So as the temporary solution we discussed in the above issue, we convert `project` with
+ * `input_file_name` expression to a new project with a new projected metadata column
+ * `$input_file_name$` which stores file name, and also make sure the metadata column is the output
+ * of the related table scan.
+ *
+ * This rule do the logic.
+ *
+ * For example: + Project [input_file_name()] + Scan [id, name]
+ *
+ * would be convert to
+ *
+ * + Project [$input_file_name$ as input_file_name()] + Scan [id, name, $input_file_name$]
+ *
+ * and here `$input_file_name$` is a metadata column used to store the file name and is the output
+ * of the table scan.
+ */
 object InputFileNameReplaceRule {
   val replacedInputFileName = "$input_file_name$"
   val replacedInputFileBlockStart = "$input_file_block_start$"
