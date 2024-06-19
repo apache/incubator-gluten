@@ -112,6 +112,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"rand", "randCanonical"},
        {"isnan", "isNaN"},
        {"bin", "sparkBin"},
+        {"rint", "sparkRint"},
 
        /// string functions
        {"like", "like"},
@@ -150,6 +151,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"initcap", "initcapUTF8"},
        {"conv", "sparkConv"},
        {"uuid", "generateUUIDv4"},
+        {"levenshteinDistance", "editDistanceUTF8"},
 
        /// hash functions
        {"crc32", "CRC32"},
