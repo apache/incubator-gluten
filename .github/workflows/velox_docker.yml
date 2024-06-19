@@ -367,7 +367,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries \
             --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --skip-data-gen  --random-kill-tasks
+            --skip-data-gen  --random-kill-tasks --no-session-reuse
 
   # run-tpc-test-ubuntu-sf30:
   #   needs: build-native-lib-centos-7
@@ -461,7 +461,7 @@ jobs:
         run: |
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          export export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
+          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd /opt && \
           git clone -b branch-0.8 https://github.com/apache/incubator-uniffle.git && \
           cd incubator-uniffle && \

@@ -765,6 +765,11 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         // We must set the application type to CLIENT to avoid ServerUUID::get() throw exception
         global_context->setApplicationType(Context::ApplicationType::CLIENT);
     }
+    else
+    {
+        // just for ut
+        global_context->updateStorageConfiguration(*config);
+    }
 }
 
 void BackendInitializerUtil::applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr config, DB::Settings & settings)
@@ -801,10 +806,7 @@ void registerAllFunctions()
 void registerGlutenDisks()
 {
     registerDisks(true);
-
-#if USE_AWS_S3
     registerGlutenDisks(true);
-#endif
 }
 
 void BackendInitializerUtil::registerAllFactories()

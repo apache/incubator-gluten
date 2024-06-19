@@ -121,7 +121,7 @@ void registerGlutenHDFSObjectStorage(ObjectStorageFactory & factory)
                 config.getUInt64(config_prefix + ".min_bytes_for_seek", 1024 * 1024),
                 context->getSettingsRef().hdfs_replication
             );
-            return std::make_unique<GlutenHDFSObjectStorage>(uri, std::move(settings), config);
+            return std::make_shared<GlutenHDFSObjectStorage>(uri, std::move(settings), config);
         });
 }
 #endif
