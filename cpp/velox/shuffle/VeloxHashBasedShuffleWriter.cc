@@ -174,10 +174,6 @@ arrow::Status VeloxHashBasedShuffleWriter::init() {
   supportAvx512_ = false;
 #endif
 
-  ARROW_ASSIGN_OR_RAISE(
-      partitioner_, Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId));
-  DLOG(INFO) << "Create partitioning type: " << std::to_string(options_.partitioning);
-
   // pre-allocated buffer size for each partition, unit is row count
   // when partitioner is SinglePart, partial variables don`t need init
   if (options_.partitioning != Partitioning::kSingle) {
@@ -279,6 +275,7 @@ arrow::Status VeloxHashBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> 
     auto pidBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[0]);
     auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
     START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
+    std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
     RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), row2Partition_, partition2RowCount_));
     END_TIMING();
     auto rvBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[1]);
@@ -310,6 +307,7 @@ arrow::Status VeloxHashBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> 
 }
 
 arrow::Status VeloxHashBasedShuffleWriter::partitioningAndDoSplit(facebook::velox::RowVectorPtr rv, int64_t memLimit) {
+  std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
   if (partitioner_->hasPid()) {
     auto pidArr = getFirstColumn(*rv);
     START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);

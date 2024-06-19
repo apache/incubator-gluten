@@ -48,10 +48,6 @@ arrow::Status VeloxSortBasedShuffleWriter::init() {
   supportAvx512_ = false;
 #endif
 
-  ARROW_ASSIGN_OR_RAISE(
-      partitioner_, Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId));
-  DLOG(INFO) << "Create partitioning type: " << std::to_string(options_.partitioning);
-
   rowVectorIndexMap_.reserve(numPartitions_);
   bufferOutputStream_ = std::make_unique<BufferOutputStream>(veloxPool_.get());
 
@@ -201,7 +197,6 @@ arrow::Status VeloxSortBasedShuffleWriter::stop() {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingStop]);
     setSortState(SortState::kSortStop);
     RETURN_NOT_OK(partitionWriter_->stop(&metrics_));
-    partitionBuffers_.clear();
   }
 
   stat();

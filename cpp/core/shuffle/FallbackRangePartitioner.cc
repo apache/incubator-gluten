@@ -26,7 +26,6 @@ arrow::Status gluten::FallbackRangePartitioner::compute(
     std::vector<uint32_t>& row2Partition,
     std::vector<uint32_t>& partition2RowCount) {
   row2Partition.resize(numRows);
-  std::fill(std::begin(partition2RowCount), std::end(partition2RowCount), 0);
   for (auto i = 0; i < numRows; ++i) {
     auto pid = pidArr[i];
     if (pid >= numPartitions_) {
