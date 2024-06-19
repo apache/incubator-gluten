@@ -39,7 +39,8 @@ const std::string kVeloxS3RetryMode = "spark.gluten.velox.fs.s3a.retry.mode";
 const std::string kVeloxS3RetryModeDefault = "legacy";
 // Connection timeout for AWS s3
 const std::string kVeloxS3ConnectTimeout = "spark.gluten.velox.fs.s3a.connect.timeout";
-const std::string kVeloxS3ConnectTimeoutDefault = "1s";
+// Using default fs.s3a.connection.timeout value in hadoop
+const std::string kVeloxS3ConnectTimeoutDefault = "200s";
 } // namespace
 
 namespace gluten {
@@ -70,9 +71,9 @@ std::shared_ptr<facebook::velox::core::MemConfig> getHiveConfig(std::shared_ptr<
   bool useInstanceCredentials = conf->get<bool>("spark.hadoop.fs.s3a.use.instance.credentials", false);
   std::string iamRole = conf->get<std::string>("spark.hadoop.fs.s3a.iam.role", "");
   std::string iamRoleSessionName = conf->get<std::string>("spark.hadoop.fs.s3a.iam.role.session.name", "");
-  std::string retryMaxAttempts = conf->get<std::string>("spark.hadoop.fs.s3a.retry.limit", "3");
+  std::string retryMaxAttempts = conf->get<std::string>("spark.hadoop.fs.s3a.retry.limit", "20");
   std::string retryMode = conf->get<std::string>(kVeloxS3RetryMode, kVeloxS3RetryModeDefault);
-  std::string maxConnections = conf->get<std::string>("spark.hadoop.fs.s3a.connection.maximum", "96");
+  std::string maxConnections = conf->get<std::string>("spark.hadoop.fs.s3a.connection.maximum", "15");
   std::string connectTimeout = conf->get<std::string>(kVeloxS3ConnectTimeout, kVeloxS3ConnectTimeoutDefault);
 
   std::string awsSdkLogLevel = conf->get<std::string>(kVeloxAwsSdkLogLevel, kVeloxAwsSdkLogLevelDefault);

@@ -704,8 +704,8 @@ object GlutenConfig {
       (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
       (SPARK_S3_IAM, ""),
       (SPARK_S3_IAM_SESSION_NAME, ""),
-      (SPARK_S3_RETRY_MAX_ATTEMPTS, "3"),
-      (SPARK_S3_CONNECTION_MAXIMUM, "96"),
+      (SPARK_S3_RETRY_MAX_ATTEMPTS, "20"),
+      (SPARK_S3_CONNECTION_MAXIMUM, "15"),
       (AWS_S3_CONNECT_TIMEOUT.key, AWS_S3_CONNECT_TIMEOUT.defaultValueString),
       (AWS_S3_RETRY_MODE.key, AWS_S3_RETRY_MODE.defaultValueString),
       (
@@ -1951,7 +1951,7 @@ object GlutenConfig {
   val AWS_S3_RETRY_MODE =
     buildConf("spark.gluten.velox.fs.s3a.retry.mode")
       .internal()
-      .doc("Retry mode for AWS s3 connection error.")
+      .doc("Retry mode for AWS s3 connection error: legacy, standard and adaptive.")
       .stringConf
       .createWithDefault("legacy")
 
@@ -1960,7 +1960,7 @@ object GlutenConfig {
       .internal()
       .doc("Timeout for AWS s3 connection.")
       .stringConf
-      .createWithDefault("1s")
+      .createWithDefault("200s")
 
   val VELOX_ORC_SCAN_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
