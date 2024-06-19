@@ -34,7 +34,7 @@ import org.apache.spark.util.TaskResources
 
 import com.google.common.base.Preconditions
 import org.apache.arrow.c.ArrowSchema
-import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
+import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import java.io.IOException
@@ -48,8 +48,8 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     // Create the hdfs path if not existed.
     val hdfsSchema = "hdfs://"
     if (filePath.startsWith(hdfsSchema)) {
-      val fs = FileSystem.get(context.getConfiguration)
       val hdfsPath = new Path(filePath)
+      val fs = hdfsPath.getFileSystem(context.getConfiguration)
       if (!fs.exists(hdfsPath.getParent)) {
         fs.mkdirs(hdfsPath.getParent)
       }
