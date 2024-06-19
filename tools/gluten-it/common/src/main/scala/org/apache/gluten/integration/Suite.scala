@@ -63,6 +63,9 @@ abstract class Suite(
     .setWarningOnOverriding("spark.executor.heartbeatInterval", "10s")
   sessionSwitcher
     .defaultConf()
+    .setWarningOnOverriding("spark.worker.timeout", "3600")
+  sessionSwitcher
+    .defaultConf()
     .setWarningOnOverriding("spark.executor.metrics.pollingInterval", "0")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.network.timeout", "3601s")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.broadcastTimeout", "1800")
