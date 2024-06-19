@@ -16,6 +16,10 @@
  */
 package org.apache.spark.util
 
+import org.apache.gluten.backendsapi.BackendsApiManager
+
+import org.apache.commons.lang3.{JavaVersion, SystemUtils}
+
 object GlutenShutdownManager {
 
   def addHook(hook: () => Unit): AnyRef = {
@@ -23,7 +27,17 @@ object GlutenShutdownManager {
   }
 
   def addHookForLibUnloading(hook: () => Unit): AnyRef = {
-    ShutdownHookManager.addShutdownHook(ShutdownHookManager.SPARK_CONTEXT_SHUTDOWN_PRIORITY)(hook)
+    ShutdownHookManager.addShutdownHook(ShutdownHookManager.SPARK_CONTEXT_SHUTDOWN_PRIORITY) {
+      if (
+        BackendsApiManager.getBackendName == "velox" && SystemUtils.isJavaVersionAtLeast(
+          JavaVersion.JAVA_11)
+      ) {
+        // In Java 11 and later, the JVM automatically handles the cleanup of JNI libraries
+        () => Unit
+      } else {
+        hook
+      }
+    }
   }
 
   def addHookForTempDirRemoval(hook: () => Unit): AnyRef = {
