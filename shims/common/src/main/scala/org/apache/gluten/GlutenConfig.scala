@@ -28,7 +28,6 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 case class GlutenNumaBindingInfo(
     enableNumaBinding: Boolean,
@@ -307,10 +306,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxCoalesceBatchesBeforeShuffle: Boolean =
     conf.getConf(COLUMNAR_VELOX_COALESCE_BATCHES_BEFORE_SHUFFLE)
 
-  def veloxMinBatchSizeForShuffle: Int =
+  def veloxMinBatchSizeForShuffle: Int = {
+    val defaultSize: Int = (0.8 * conf.getConf(COLUMNAR_MAX_BATCH_SIZE)).toInt.max(1)
     conf
       .getConf(COLUMNAR_VELOX_MIN_BATCH_SIZE_FOR_SHUFFLE)
-      .getOrElse(conf.getConf(COLUMNAR_MAX_BATCH_SIZE))
+      .getOrElse(defaultSize)
+  }
 
   def chColumnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED)
 
@@ -1425,9 +1426,9 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.backend.velox.coalesceBatchesBeforeShuffle")
       .internal()
       .doc(s"If true, combine small columnar batches together before sending to shuffle. " +
-        s"The default minimum output batch size is equal to $GLUTEN_MAX_BATCH_SIZE_KEY")
+        s"The default minimum output batch size is equal to 0.8 * $GLUTEN_MAX_BATCH_SIZE_KEY")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val COLUMNAR_VELOX_MIN_BATCH_SIZE_FOR_SHUFFLE =
     buildConf("spark.gluten.sql.columnar.backend.velox.minBatchSizeForShuffle")

@@ -59,6 +59,29 @@ class PatternSuite extends AnyFunSuite {
     assert(pattern.matches(path, 1))
   }
 
+  test("Match branch") {
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        PropertyModelImpl,
+        ExplainImpl,
+        RasRule.Factory.none())
+
+    val path1 = MockRasPath.mock(ras, Branch("n1", List()))
+    val path2 = MockRasPath.mock(ras, Branch("n1", List(Leaf("n2", 1))))
+    val path3 = MockRasPath.mock(ras, Branch("n1", List(Leaf("n2", 1), Leaf("n3", 1))))
+
+    val pattern =
+      Pattern.branch2[TestNode](n => n.isInstanceOf[Branch], _ >= 1, _ => Pattern.any).build()
+    assert(!pattern.matches(path1, 1))
+    assert(pattern.matches(path2, 1))
+    assert(pattern.matches(path2, 2))
+    assert(pattern.matches(path3, 1))
+    assert(pattern.matches(path3, 2))
+  }
+
   test("Match unary") {
     val ras =
       Ras[TestNode](
@@ -231,15 +254,18 @@ object PatternSuite {
 
   case class Unary(name: String, child: TestNode) extends UnaryLike {
     override def selfCost(): Long = 1
-
     override def withNewChildren(child: TestNode): UnaryLike = copy(child = child)
   }
 
   case class Binary(name: String, left: TestNode, right: TestNode) extends BinaryLike {
     override def selfCost(): Long = 1
-
     override def withNewChildren(left: TestNode, right: TestNode): BinaryLike =
       copy(left = left, right = right)
+  }
+
+  case class Branch(name: String, children: Seq[TestNode]) extends TestNode {
+    override def selfCost(): Long = 1
+    override def withNewChildren(children: Seq[TestNode]): TestNode = copy(children = children)
   }
 
   case class DummyGroup() extends LeafLike {

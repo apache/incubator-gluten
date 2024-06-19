@@ -96,11 +96,11 @@ class HeuristicApplier(session: SparkSession)
       (spark: SparkSession) => FallbackOnANSIMode(spark),
       (spark: SparkSession) => FallbackMultiCodegens(spark),
       (spark: SparkSession) => PlanOneRowRelation(spark),
-      (_: SparkSession) => FallbackEmptySchemaRelation(),
       (_: SparkSession) => RewriteSubqueryBroadcast()
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
       List(
+        (_: SparkSession) => FallbackEmptySchemaRelation(),
         (spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark),
         (_: SparkSession) => RewriteSparkPlanRulesManager(),
         (_: SparkSession) => AddTransformHintRule()

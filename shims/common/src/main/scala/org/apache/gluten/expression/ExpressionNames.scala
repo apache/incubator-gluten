@@ -127,6 +127,8 @@ object ExpressionNames {
   final val ENCODE = "encode"
   final val UUID = "uuid"
   final val BIT_LENGTH = "bit_length"
+  final val UNBASE64 = "unbase64"
+  final val BASE64 = "base64"
 
   // URL functions
   final val PARSE_URL = "parse_url"
@@ -274,6 +276,8 @@ object ExpressionNames {
   final val MAP_FROM_ARRAYS = "map_from_arrays"
   final val MAP_ENTRIES = "map_entries"
   final val MAP_ZIP_WITH = "map_zip_with"
+  final val TRANSFORM_KEYS = "transform_keys"
+  final val TRANSFORM_VALUES = "transform_values"
   final val STR_TO_MAP = "str_to_map"
 
   // struct functions
