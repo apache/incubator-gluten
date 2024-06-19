@@ -821,7 +821,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genExtendedColumnarTransformRules(): List[SparkSession => Rule[SparkPlan]] = {
     val buf: ListBuffer[SparkSession => Rule[SparkPlan]] = ListBuffer()
-    if (GlutenConfig.getConf.enableInputFileNameReplaceRule) {
+    if (GlutenConfig.getConf.enableVeloxFlushablePartialAggregation) {
       buf += FlushableHashAggregateRule.apply
     }
     buf.result
@@ -838,7 +838,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
   override def genExtendedColumnarFinalRules(): List[SparkSession => Rule[SparkPlan]] = {
     val buf: ListBuffer[SparkSession => Rule[SparkPlan]] = ListBuffer()
-    if (GlutenConfig.getConf.enableVeloxFlushablePartialAggregation) {
+    if (GlutenConfig.getConf.enableInputFileNameReplaceRule) {
       buf += InputFileNameReplaceFallbackRule.apply
     }
     buf.result

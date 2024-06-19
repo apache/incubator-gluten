@@ -752,8 +752,9 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.enableInputFileNameReplaceRule")
       .internal()
       .doc(
-        "This config apply for velox backend to specify whether to enable inputFileNameReplaceRule " +
-          "to support offload input_file_name expression to native.")
+        "This config apply for velox backend to specify whether to enable " +
+          "inputFileNameReplaceRule to support offload input_file_name " +
+          "expression to native.")
       .booleanConf
       .createWithDefault(true)
 
