@@ -26,7 +26,7 @@ namespace gluten {
 
 static constexpr int16_t kDefaultBatchSize = 4096;
 static constexpr int32_t kDefaultShuffleWriterBufferSize = 4096;
-static constexpr int64_t kDefaultSortBufferThreshold = 64 << 20;
+static constexpr int64_t kDefaultSortBufferThreshold = std::numeric_limits<int64_t>::max();
 static constexpr int64_t kDefaultPushMemoryThreshold = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;

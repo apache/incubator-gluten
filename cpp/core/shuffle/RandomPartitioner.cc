@@ -24,7 +24,6 @@ arrow::Status gluten::RandomPartitioner::compute(
     const int64_t numRows,
     std::vector<uint32_t>& row2Partition,
     std::vector<uint32_t>& partition2RowCount) {
-  std::fill(std::begin(partition2RowCount), std::end(partition2RowCount), 0);
   row2Partition.resize(numRows);
 
   for (int32_t i = 0; i < numRows; ++i) {

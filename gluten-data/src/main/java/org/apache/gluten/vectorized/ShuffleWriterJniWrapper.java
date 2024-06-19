@@ -199,7 +199,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
    * @param shuffleWriterHandle shuffle writer instance handle
    * @return GlutenSplitResult
    */
-  public native GlutenSplitResult stop(long shuffleWriterHandle) throws IOException;
+  public native GlutenSplitResult stop(long shuffleWriterHandle, long memLimit) throws IOException;
 
   /**
    * Release resources associated with designated shuffle writer instance.
