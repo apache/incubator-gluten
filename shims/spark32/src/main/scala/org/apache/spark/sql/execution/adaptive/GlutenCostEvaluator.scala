@@ -16,11 +16,17 @@
  */
 package org.apache.spark.sql.execution.adaptive
 
+import org.apache.gluten.GlutenConfig
+
 import org.apache.spark.sql.execution.SparkPlan
 
 /** This [[CostEvaluator]] is to force use the new physical plan when cost is equal. */
 case class GlutenCostEvaluator() extends CostEvaluator {
   override def evaluateCost(plan: SparkPlan): Cost = {
-    new GlutenCost(SimpleCostEvaluator, plan)
+    if (GlutenConfig.getConf.enableGluten) {
+      new GlutenCost(SimpleCostEvaluator, plan)
+    } else {
+      SimpleCostEvaluator.evaluateCost(plan)
+    }
   }
 }

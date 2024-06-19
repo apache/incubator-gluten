@@ -597,7 +597,7 @@ object GlutenConfig {
   val GLUTEN_DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
     "spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction"
 
-  val GLUTEN_COST_EVALUATOR_ENABLED = "spark.gluten.sql.execution.adaptive.costEvaluator.enabled"
+  val GLUTEN_COST_EVALUATOR_ENABLED = "spark.gluten.sql.adaptive.costEvaluator.enabled"
 
   var ins: GlutenConfig = _
 
