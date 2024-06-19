@@ -37,12 +37,15 @@ public:
         DB::MetadataStoragePtr metadata_storage_,
         DB::ObjectStoragePtr object_storage_,
         const Poco::Util::AbstractConfiguration & config,
-        const String & config_prefix)
+        const String & config_prefix,
+        std::function<DB::ObjectStoragePtr(
+            const Poco::Util::AbstractConfiguration & conf, DB::ContextPtr context)> _object_storage_creator)
         : DiskObjectStorage(name_, object_key_prefix_, metadata_storage_, object_storage_, config, config_prefix)
+        , object_key_prefix(object_key_prefix_)
+        , hdfs_config_prefix(config_prefix)
+        , object_storage_creator(_object_storage_creator)
     {
-        chassert(dynamic_cast<local_engine::GlutenHDFSObjectStorage *>(object_storage_.get()) != nullptr);
-        object_key_prefix = object_key_prefix_;
-        hdfs_object_storage = dynamic_cast<local_engine::GlutenHDFSObjectStorage *>(object_storage_.get());
+        hdfs_object_storage = typeid_cast<std::shared_ptr<GlutenHDFSObjectStorage>>(object_storage_);
         hdfsSetWorkingDirectory(hdfs_object_storage->getHDFSFS(), "/");
         auto max_speed = config.getUInt(config_prefix + ".write_speed", 450);
         throttler = std::make_shared<DB::Throttler>(max_speed);
@@ -59,12 +62,24 @@ public:
     std::unique_ptr<DB::WriteBufferFromFileBase> writeFile(const String& path, size_t buf_size, DB::WriteMode mode,
         const DB::WriteSettings& settings) override;
 
+    void applyNewSettings(
+        const Poco::Util::AbstractConfiguration & config,
+        DB::ContextPtr context,
+        const String & config_prefix,
+        const DB::DisksMap & map) override
+    {
+        DB::ObjectStoragePtr tmp = object_storage_creator(config, context);
+        hdfs_object_storage = typeid_cast<std::shared_ptr<GlutenHDFSObjectStorage>>(tmp);
+        object_storage = hdfs_object_storage;
+    }
 private:
-    String path2AbsPath(const String & path);
-
-    GlutenHDFSObjectStorage * hdfs_object_storage;
+    std::shared_ptr<GlutenHDFSObjectStorage> hdfs_object_storage;
     String object_key_prefix;
     DB::ThrottlerPtr throttler;
+    const String hdfs_config_prefix;
+    std::function<DB::ObjectStoragePtr(
+        const Poco::Util::AbstractConfiguration & conf, DB::ContextPtr context)>
+        object_storage_creator;
 };
 #endif
 }

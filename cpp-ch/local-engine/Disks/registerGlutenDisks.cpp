@@ -40,6 +40,8 @@ void registerGlutenHDFSObjectStorage(DB::ObjectStorageFactory & factory);
 void registerGlutenDisks(bool global_skip_access_check)
 {
     auto & factory = DB::DiskFactory::instance();
+
+#if USE_AWS_S3
     auto creator = [global_skip_access_check](
                        const String & name,
                        const Poco::Util::AbstractConfiguration & config,
@@ -66,7 +68,7 @@ void registerGlutenDisks(bool global_skip_access_check)
     };
 
     auto & object_factory = DB::ObjectStorageFactory::instance();
-#if USE_AWS_S3
+
     registerGlutenS3ObjectStorage(object_factory);
     factory.registerDiskType("s3_gluten", creator); /// For compatibility
 #endif
@@ -82,11 +84,20 @@ void registerGlutenDisks(bool global_skip_access_check)
                             bool) -> DB::DiskPtr
     {
         bool skip_access_check = global_skip_access_check || config.getBool(config_prefix + ".skip_access_check", false);
-        auto object_storage = DB::ObjectStorageFactory::instance().create(name, config, config_prefix, context, skip_access_check);
+        auto object_storage_creator = [name, skip_access_check, config_prefix](
+                                          const Poco::Util::AbstractConfiguration & conf, DB::ContextPtr ctx) -> DB::ObjectStoragePtr
+        { return DB::ObjectStorageFactory::instance().create(name, conf, config_prefix, ctx, skip_access_check); };
+        auto object_storage = object_storage_creator(config, context);
         auto metadata_storage = DB::MetadataStorageFactory::instance().create(name, config, config_prefix, object_storage, "local");
 
         DB::DiskObjectStoragePtr disk = std::make_shared<local_engine::GlutenDiskHDFS>(
-            name, object_storage->getCommonKeyPrefix(), std::move(metadata_storage), std::move(object_storage), config, config_prefix);
+            name,
+            object_storage->getCommonKeyPrefix(),
+            std::move(metadata_storage),
+            std::move(object_storage),
+            config,
+            config_prefix,
+            object_storage_creator);
 
         disk->startup(context, skip_access_check);
         return disk;
