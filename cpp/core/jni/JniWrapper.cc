@@ -131,9 +131,6 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
     jlong read;
     signature = getParameterSignature(read, reinterpret_cast<jlong>(out), nbytes);
 
-    jlong destAddress;
-    jlong maxSize;
-    jniByteInputStreamRead = getMethodIdOrError(env, jniByteInputStreamClass, "read", typeid(jlong), destAddress, maxSize);
     jlong read = env->CallLongMethod(jniIn_, jniByteInputStreamRead, reinterpret_cast<jlong>(out), nbytes);
     checkException(env);
     return read;
@@ -240,10 +237,12 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   gluten::getJniCommonState()->ensureInitialized(env);
   gluten::getJniErrorState()->ensureInitialized(env);
 
-  string funcSig = getSig(typeid(jbyteArray));
-  byteArrayClass = createGlobalClassReferenceOrError(env, funcSig.c_str());
+  byteArrayClass = createGlobalClassReferenceOrError(env, typeid(jbyteArray));
 
   jniByteInputStreamClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/JniByteInputStream;");
+  jlong destAddress;
+  jlong maxSize;
+  jniByteInputStreamRead = getMethodIdOrError(env, jniByteInputStreamClass, "read", typeid(jlong), destAddress, maxSize);
   jniByteInputStreamTell = getMethodIdOrError(env, jniByteInputStreamClass, "tell", typeid(jlong));
   jniByteInputStreamClose = getMethodIdOrError(env, jniByteInputStreamClass, "close", typeid(void));
 
@@ -266,57 +265,89 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       getMethodIdOrError(env, columnarBatchSerializeResultClass, "<init>", typeid(void), numRows, serialized);
 
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/Metrics;");
-
-  string funcSig = getSig(typeid(void), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray),
-                          typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray),
-                          typeid(jlongArray), typeid(jlong), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray),
-                          typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray),
-                          typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray),
-                          typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray), typeid(jlongArray),
-                          typeid(jlongArray), typeid(jlongArray));
+  jlongArray inputRows;
+  jlongArray inputVectors;
+  jlongArray inputBytes;
+  jlongArray rawInputRows;
+  jlongArray rawInputBytes;
+  jlongArray outputRows;
+  jlongArray outputVectors;
+  jlongArray outputBytes;
+  jlongArray cpuCount;
+  jlongArray wallNanos;
+  jlong veloxToArrow;
+  jlongArray peakMemoryBytes;
+  jlongArray numMemoryAllocations;
+  jlongArray spilledBytes;
+  jlongArray spilledRows;
+  jlongArray spilledPartitions;
+  jlongArray spilledFiles;
+  jlongArray numDynamicFiltersProduced;
+  jlongArray numDynamicFiltersAccepted;
+  jlongArray numReplacedWithDynamicFilterRows;
+  jlongArray flushRowCount;
+  jlongArray scanTime;
+  jlongArray skippedSplits;
+  jlongArray processedSplits;
+  jlongArray skippedStrides;
+  jlongArray processedStrides;
+  jlongArray remainingFilterTime;
+  jlongArray ioWaitTime;
+  jlongArray preloadSplits;
+  jlongArray physicalWrittenBytes;
+  jlongArray numWrittenFiles;
   metricsBuilderConstructor = getMethodIdOrError(
-      env, metricsBuilderClass, "<init>", funcSig.c_str());
+      env, metricsBuilderClass, "<init>", typeid(void), inputRows, inputVectors, inputBytes, rawInputRows,
+                          rawInputBytes, outputRows, outputVectors, outputBytes, cpuCount,
+                          wallNanos, veloxToArrow, peakMemoryBytes, numMemoryAllocations, spilledBytes,
+                          spilledRows, spilledPartitions, spilledFiles, numDynamicFiltersProduced, numDynamicFiltersAccepted,
+                          numReplacedWithDynamicFilterRows, flushRowCount, scanTime, skippedSplits, processedSplits,
+                          skippedStrides, processedStrides, remainingFilterTime, ioWaitTime, preloadSplits,
+                          physicalWrittenBytes, numWrittenFiles);
 
   serializedColumnarBatchIteratorClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ColumnarBatchInIterator;");
-
-  string funcSig = getSig(typeid(jboolean));
   serializedColumnarBatchIteratorHasNext =
-      getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "hasNext", funcSig.c_str());
+      getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "hasNext", typeid(jboolean));
 
-  funcSig = getSig(typeid(jlong));
-  serializedColumnarBatchIteratorNext = getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "next", funcSig.c_str());
+  serializedColumnarBatchIteratorNext = getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "next", typeid(jlong));
 
   nativeColumnarToRowInfoClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/NativeColumnarToRowInfo;");
-  funcSig = getSig(typeid(void), typeid(jintArray), typeid(jintArray), typeid(jlong));
-  nativeColumnarToRowInfoConstructor = getMethodIdOrError(env, nativeColumnarToRowInfoClass, "<init>", funcSig.c_str());
+      jintArray offsets, jintArray lengths, jlong memoryAddress
+  nativeColumnarToRowInfoConstructor = getMethodIdOrError(env, nativeColumnarToRowInfoClass, "<init>", typeid(void), jintArray, jintArray, jlong);
 
   javaReservationListenerClass = createGlobalClassReference(
       env,
       "Lorg/apache/gluten/memory/nmm/"
       "ReservationListener;");
 
-  funcSig = getSig(typeid(jlong), typeid(jlong));
-  reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", funcSig.c_str());
-  funcSig = getSig(typeid(jlong), typeid(jlong));
-  unreserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "unreserve", funcSig.c_str());
+  jlong size;
+  reserveMemoryMethod =
+      getMethodIdOrError(env, javaReservationListenerClass, "reserve", typeid(jlong), size);
+  unreserveMemoryMethod =
+      getMethodIdOrError(env, javaReservationListenerClass, "unreserve",  typeid(jlong), size);
 
   shuffleReaderMetricsClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ShuffleReaderMetrics;");
-  funcSig = getSig(typeid(void), typeid(jlong));
+  jlong decompressTime;
   shuffleReaderMetricsSetDecompressTime =
-      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDecompressTime", funcSig.c_str());
-  funcSig = getSig(typeid(void), typeid(jlong));
-  shuffleReaderMetricsSetIpcTime = getMethodIdOrError(env, shuffleReaderMetricsClass, "setIpcTime", funcSig.c_str());
-  funcSig = getSig(typeid(void), typeid(jlong));
+      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDecompressTime", typeid(void), decompressTime);
+  jlong ipcTime;
+  shuffleReaderMetricsSetIpcTime =
+      getMethodIdOrError(env, shuffleReaderMetricsClass, "setIpcTime", typeid(void), ipcTime);
+  jlong deserializeTime;
   shuffleReaderMetricsSetDeserializeTime =
-      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime", funcSig.c_str());
+      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime",typeid(void), deserializeTime);
 
   block_stripes_class =
       createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
-  funcSig = getSig(typeid(void), typeid(jlong), typeid(jlongArray), typeid(jintArray), typeid(jint), typeid(jbyteArray));
-  block_stripes_constructor = env->GetMethodID(block_stripes_class, "<init>", funcSig.c_str());
+  jlong originBlockAddress;
+  jlongArray blockAddresses;
+  jintArray headingRowIndice;
+  jint originBlockNumColumns;
+  jbyteArray rowBytes;
+  block_stripes_constructor = getMethodIdOrError(env, block_stripes_class, "<init>", typeid(void), originBlockAddress, blockAddresses, headingRowIndice, originBlockNumColumns, rowBytes);
 
   return jniVersion;
 }
@@ -889,7 +920,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   if (thread == NULL) {
     LOG(WARNING) << "Thread.currentThread() return NULL";
   } else {
-    jmethodID midGetid = getMethodIdOrError(env, cls, "getId", "()J");
+    jmethodID midGetid = getMethodIdOrError(env, cls, "getId", typeid(jlong));
     jlong sid = env->CallLongMethod(thread, midGetid);
     checkException(env);
     shuffleWriterOptions.threadId = (int64_t)sid;
@@ -948,8 +979,11 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   } else if (partitionWriterType == "celeborn") {
     jclass celebornPartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
+    jint partitionId;
+    jbyteArray buffer;
+    jint length;
     jmethodID celebornPushPartitionDataMethod =
-        getMethodIdOrError(env, celebornPartitionPusherClass, "pushPartitionData", "(I[BI)I");
+        getMethodIdOrError(env, celebornPartitionPusherClass, "pushPartitionData", typeid(jint), partitionId, buffer, length);
     JavaVM* vm;
     if (env->GetJavaVM(&vm) != JNI_OK) {
       throw gluten::GlutenException("Unable to get JavaVM instance");
@@ -964,8 +998,11 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   } else if (partitionWriterType == "uniffle") {
     jclass unifflePartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/writer/PartitionPusher;");
+    jint partitionId;
+    jbyteArray buffer;
+    jint length;
     jmethodID unifflePushPartitionDataMethod =
-        getMethodIdOrError(env, unifflePartitionPusherClass, "pushPartitionData", "(I[BI)I");
+        getMethodIdOrError(env, unifflePartitionPusherClass, "pushPartitionData", typeid(jint), partitionId, buffer, length);
     JavaVM* vm;
     if (env->GetJavaVM(&vm) != JNI_OK) {
       throw gluten::GlutenException("Unable to get JavaVM instance");

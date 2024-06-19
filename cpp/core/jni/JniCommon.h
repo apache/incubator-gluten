@@ -31,6 +31,7 @@
 #include "utils/exception.h"
 
 static jint jniVersion = JNI_VERSION_1_8;
+// this should be only retrieved in preparation phase, which should not be a data race
 static map<int, string> type2sig = buildTypeMapping();
 
 static type_info intType = typeid(int);
@@ -69,6 +70,10 @@ static inline jclass createGlobalClassReference(JNIEnv* env, const char* classNa
   return globalClass;
 }
 
+static inline jclass createGlobalClassReferenceOrError(JNIEnv* env, const std::type_info& t){
+  return createGlobalClassReferenceOrError(env, type2sig[t.hash_code()]);
+}
+
 static inline jclass createGlobalClassReferenceOrError(JNIEnv* env, const char* className) {
   jclass globalClass = createGlobalClassReference(env, className);
   if (globalClass == nullptr) {
@@ -94,7 +99,7 @@ static inline jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const 
 
 template <typename T, typename... Args>
 static inline jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const T return_type, Args... args) {
-  string sig = getSig(return_type, args);
+  string sig = getSignature(return_type, args);
   jmethodID ret = getMethodId(env, thisClass, name, sig.c_str());
   if (ret == nullptr) {
     std::string errorMessage = "Unable to find method " + std::string(name) + " within signature" + std::string(sig);
@@ -116,6 +121,22 @@ static inline jmethodID getStaticMethodIdOrError(JNIEnv* env, jclass thisClass, 
     throw gluten::GlutenException(errorMessage);
   }
   return ret;
+}
+
+template <typename T, typename... Args>
+static inline jmethodID getStaticMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const T return_type, Args... args) {
+  string sig = getSignature(return_type, args);
+  jmethodID ret = getStaticMethodId(env, thisClass, name, sig.c_str());
+  if (ret == nullptr) {
+    std::string errorMessage =
+        "Unable to find static method " + std::string(name) + " within signature" + std::string(sig);
+    throw gluten::GlutenException(errorMessage);
+  }
+  return ret;
+}
+
+static inline void bindNativeTypeToJni(const std::type_info& t, const char* sig){
+  type2sig[t.hash_code()] = sig;
 }
 
 static inline map<int, string>& buildTypeMapping(){
@@ -153,6 +174,11 @@ static inline string& getSig(T t){
 template <typename T, typename... Args>
 static string& getSig(T t, Args... args){
   return getSig(t) + getSig(args);
+}
+
+template <typename... Args>
+static string& getSignature(const char* returnValue, Args... args){
+  return "("+ getSig(args) +")" + returnValue;
 }
 
 template <typename T, typename... Args>

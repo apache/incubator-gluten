@@ -400,59 +400,51 @@ void gluten::initVeloxJniFileSystem(JNIEnv* env) {
   }
 
   // classes
-  jniFileSystemClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/fs/JniFilesystem;");
-  jniReadFileClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/fs/JniFilesystem$ReadFile;");
-  jniWriteFileClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/fs/JniFilesystem$WriteFile;");
+  bindNativeTypeToJni(typeid(JniFileSystem), "Lorg/apache/gluten/fs/JniFilesystem;");
+  jniFileSystemClass = createGlobalClassReferenceOrError(env, typeid(JniFileSystem));
+  bindNativeTypeToJni(typeid(JniReadFile), "Lorg/apache/gluten/fs/JniFilesystem$ReadFile;");
+  jniReadFileClass = createGlobalClassReferenceOrError(env, typeid(JniReadFile));
+  bindNativeTypeToJni(typeid(JniWriteFile), "Lorg/apache/gluten/fs/JniFilesystem$WriteFile;");
+  jniWriteFileClass = createGlobalClassReferenceOrError(env, typeid(JniWriteFile));
 
   // methods in JniFilesystem
   jniGetFileSystem =
-      getStaticMethodIdOrError(env, jniFileSystemClass, "getFileSystem", "()Lorg/apache/gluten/fs/JniFilesystem;");
-  jniIsCapableForNewFile = getStaticMethodIdOrError(env, jniFileSystemClass, "isCapableForNewFile", "(J)Z");
+      getStaticMethodIdOrError(env, jniFileSystemClass, "getFileSystem", typeid(JniFileSystem));
+  jlong size;
+  jniIsCapableForNewFile = getStaticMethodIdOrError(env, jniFileSystemClass, "isCapableForNewFile",  typeid(jboolean), size);
+  jstring path;
   jniFileSystemOpenFileForRead = getMethodIdOrError(
-      env, jniFileSystemClass, "openFileForRead", "(Ljava/lang/String;)Lorg/apache/gluten/fs/JniFilesystem$ReadFile;");
+      env, jniFileSystemClass, "openFileForRead", typeid(JniReadFile), path);
   jniFileSystemOpenFileForWrite = getMethodIdOrError(
-      env,
-      jniFileSystemClass,
-      "openFileForWrite",
-      "(Ljava/lang/String;)Lorg/apache/gluten/fs/JniFilesystem$WriteFile;");
-  string funcSig = getSig(typeid(void), typeid(jstring));
-  jniFileSystemRemove = getMethodIdOrError(env, jniFileSystemClass, "remove", funcSig.c_str());
-  funcSig = getSig(typeid(void), typeid(jstring), typeid(jstring), typeid(jboolean));
+      env, jniFileSystemClass, "openFileForWrite", typeid(JniWriteFile), path);
+  jniFileSystemRemove = getMethodIdOrError(env, jniFileSystemClass, "remove", typeid(void), path);
+  jstring oldPath;
+  jstring newPath;
+  jboolean overwrite;
   jniFileSystemRename =
-      getMethodIdOrError(env, jniFileSystemClass, "rename", funcSig.c_str());
-  funcSig = getSig(typeid(void), typeid(jstring));
-  jniFileSystemExists = getMethodIdOrError(env, jniFileSystemClass, "exists", "(Ljava/lang/String;)Z");
+      getMethodIdOrError(env, jniFileSystemClass, "rename", typeid(void), oldPath, newPath, overwrite);
+  jniFileSystemExists = getMethodIdOrError(env, jniFileSystemClass, "exists", typeid(void), path);
   //We don't have the jstringArray, so we pass the exact description for it
-  string funcSig = getSig(typeid(jstring[]), typeid(jstring));
-  jniFileSystemList = getMethodIdOrError(env, jniFileSystemClass, "list", "(Ljava/lang/String;)[Ljava/lang/String;");
-  funcSig = getSig(typeid(void), typeid(jstring));
-  jniFileSystemMkdir = getMethodIdOrError(env, jniFileSystemClass, "mkdir", funcSig.c_str());
-  funcSig = getSig(typeid(void), typeid(jstring));
-  jniFileSystemRmdir = getMethodIdOrError(env, jniFileSystemClass, "rmdir", funcSig.c_str());
+  jniFileSystemList = getMethodIdOrError(env, jniFileSystemClass, "list", typeid(jstring[]), path);
+  jniFileSystemMkdir = getMethodIdOrError(env, jniFileSystemClass, "mkdir", typeid(void), path);
+  jniFileSystemRmdir = getMethodIdOrError(env, jniFileSystemClass, "rmdir", typeid(void), path);
 
   // methods in JniFilesystem$ReadFile
-  funcSig = getSig(typeid(void), typeid(jlong), typeid(jlong), typeid(jlong));
-  jniReadFilePread = getMethodIdOrError(env, jniReadFileClass, "pread", funcSig.c_str());
-  funcSig = getSig(typeid(jboolean));
-  jniReadFileShouldCoalesce = getMethodIdOrError(env, jniReadFileClass, "shouldCoalesce", funcSig.c_str());
-  funcSig = getSig(typeid(jlong));
-  jniReadFileSize = getMethodIdOrError(env, jniReadFileClass, "size", funcSig.c_str());
-  funcSig = getSig(typeid(jlong));
-  jniReadFileMemoryUsage = getMethodIdOrError(env, jniReadFileClass, "memoryUsage", funcSig.c_str());
-  funcSig = getSig(typeid(jlong));
-  jniReadFileGetNaturalReadSize = getMethodIdOrError(env, jniReadFileClass, "getNaturalReadSize", funcSig.c_str());
-  funcSig = getSig(typeid(void));
-  jniReadFileClose = getMethodIdOrError(env, jniReadFileClass, "close", funcSig.c_str());
+  jlong offset;
+  jlong length;
+  jlong buf;
+  jniReadFilePread = getMethodIdOrError(env, jniReadFileClass, "pread", typeid(void, offset, length, buf));
+  jniReadFileShouldCoalesce = getMethodIdOrError(env, jniReadFileClass, "shouldCoalesce", typeid(jboolean));
+  jniReadFileSize = getMethodIdOrError(env, jniReadFileClass, "size", typeid(jlong));
+  jniReadFileMemoryUsage = getMethodIdOrError(env, jniReadFileClass, "memoryUsage", typeid(jlong));
+  jniReadFileGetNaturalReadSize = getMethodIdOrError(env, jniReadFileClass, "getNaturalReadSize", typeid(jlong));
+  jniReadFileClose = getMethodIdOrError(env, jniReadFileClass, "close", typeid(void));
 
   // methods in JniFilesystem$WriteFile
-  funcSig = getSig(typeid(void), typeid(jlong), typeid(jlong));
-  jniWriteFileAppend = getMethodIdOrError(env, jniWriteFileClass, "append", funcSig.c_str());
-  funcSig = getSig(typeid(void));
-  jniWriteFileFlush = getMethodIdOrError(env, jniWriteFileClass, "flush", funcSig.c_str());
-  funcSig = getSig(typeid(void));
-  jniWriteFileClose = getMethodIdOrError(env, jniWriteFileClass, "close", funcSig.c_str());
-  funcSig = getSig(typeid(jlong));
-  jniWriteFileSize = getMethodIdOrError(env, jniWriteFileClass, "size", funcSig.c_str());
+  jniWriteFileAppend = getMethodIdOrError(env, jniWriteFileClass, "append", typeid(void), length, buf);
+  jniWriteFileFlush = getMethodIdOrError(env, jniWriteFileClass, "flush", typeid(void));
+  jniWriteFileClose = getMethodIdOrError(env, jniWriteFileClass, "close", typeid(void));
+  jniWriteFileSize = getMethodIdOrError(env, jniWriteFileClass, "size", typeid(jlong));
 }
 
 void gluten::finalizeVeloxJniFileSystem(JNIEnv* env) {
