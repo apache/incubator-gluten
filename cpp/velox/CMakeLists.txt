@@ -519,6 +519,7 @@ set(VELOX_SRCS
     shuffle/VeloxShuffleWriter.cc
     shuffle/VeloxHashBasedShuffleWriter.cc
     shuffle/VeloxSortBasedShuffleWriter.cc
+    shuffle/VeloxSortShuffleWriter.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
     substrait/SubstraitToVeloxPlan.cc
