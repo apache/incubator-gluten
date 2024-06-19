@@ -1973,7 +1973,7 @@ object GlutenConfig {
         "If true and gluten enabled, use " +
           "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator as custom cost " +
           "evaluator class, else follow the configuration " +
-          "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator.")
+          "spark.sql.adaptive.customCostEvaluatorClass.")
       .booleanConf
       .createWithDefault(true)
 
