@@ -624,8 +624,8 @@
             <dependencies>
               <dependency>
                 <groupId>io.github.zhztheplayer.scalawarts</groupId>
-                <artifactId>scalawarts</artifactId>
-                <version>0.1.1</version>
+                <artifactId>scalawarts_${scala.binary.version}</artifactId>
+                <version>0.1.2</version>
               </dependency>
             </dependencies>
             <recompileMode>${scala.recompile.mode}</recompileMode>
