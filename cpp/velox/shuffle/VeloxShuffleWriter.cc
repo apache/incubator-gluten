@@ -34,6 +34,9 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
       return VeloxHashBasedShuffleWriter::create(
           numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
     case kSortShuffle:
+      return VeloxSortBasedShuffleWriter::create(
+          numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
+    case kSortShuffleV2:
       return VeloxSortShuffleWriter::create(
           numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
     default:

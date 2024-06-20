@@ -146,6 +146,8 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
   options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
   if (FLAGS_shuffle_writer == "sort") {
     options.shuffleWriterType = gluten::kSortShuffle;
+  } else if (FLAGS_shuffle_writer == "sortv2") {
+    options.shuffleWriterType = gluten::kSortShuffleV2;
   }
   auto shuffleWriter = runtime->createShuffleWriter(
       FLAGS_shuffle_partitions, std::move(partitionWriter), std::move(options), memoryManager);
@@ -194,7 +196,7 @@ void runShuffle(
   {
     gluten::ScopedTimer timer(&totalTime);
     while (resultIter->hasNext()) {
-      GLUTEN_THROW_NOT_OK(shuffleWriter->write(resultIter->next(), ShuffleWriter::kMinMemLimit));
+      GLUTEN_THROW_NOT_OK(shuffleWriter->write(resultIter->next(), std::numeric_limits<int64_t>::max()));
     }
     GLUTEN_THROW_NOT_OK(shuffleWriter->stop());
   }
