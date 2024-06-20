@@ -136,7 +136,10 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
             val cols = batch.numCols()
             val rows = batch.numRows()
             var info =
-              jniWrapper.nativeColumnarToRowConvert(c2rId, ColumnarBatches.getNativeHandle(batch), 0)
+              jniWrapper.nativeColumnarToRowConvert(
+                c2rId,
+                ColumnarBatches.getNativeHandle(batch),
+                0)
             batch.close()
             val columnNames = key.flatMap {
               case expression: AttributeReference =>

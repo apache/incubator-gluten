@@ -1114,8 +1114,8 @@ object GlutenConfig {
   val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD =
     buildConf(GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY)
       .internal()
-      .longConf
-      .createWithDefault(256 * 1024 * 1024)
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("64MB")
 
   // if not set, use COLUMNAR_MAX_BATCH_SIZE instead
   val SHUFFLE_WRITER_BUFFER_SIZE =

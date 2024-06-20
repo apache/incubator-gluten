@@ -541,11 +541,19 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
   columnarToRowConverter->convert(cb);
 
   auto& conf = ctx->getConfMap();
-  int64_t column2RowMemThreshold = 256 * 1024 * 1024;
-  if (auto it = conf.find(kColumnToRowMemoryThreshold); it != conf.end()) {
-    if (std::all_of(it->second.begin(), it->second.end(), [](unsigned char c) { return std::isdigit(c); })) {
-      column2RowMemThreshold = std::stoll(it->second);
-    }
+  int64_t column2RowMemThreshold;
+  auto it = conf.find(kColumnToRowMemoryThreshold);
+  bool confIsLeagal =
+      ((it == conf.end()) ? false : std::all_of(it->second.begin(), it->second.end(), [](unsigned char c) {
+        return std::isdigit(c);
+      }));
+  if (confIsLeagal) {
+    column2RowMemThreshold = std::stoll(it->second);
+  } else {
+    LOG(INFO)
+        << "Because the spark.gluten.sql.columnToRowMemoryThreshold configuration item is invalid, the kColumnToRowMemoryDefaultThreshold default value is used, which is "
+        << kColumnToRowMemoryDefaultThreshold << " byte";
+    column2RowMemThreshold = std::stoll(kColumnToRowMemoryDefaultThreshold);
   }
 
   columnarToRowConverter->convert(cb, rowId, column2RowMemThreshold);
