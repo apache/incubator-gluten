@@ -402,9 +402,10 @@ std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::cr
         hasComplexType_,
         deserializeTime_,
         decompressTime_);
+  } else if (shuffleWriterType_ = kSortShuffle) {
+    return std::make_unique<VeloxShuffleReaderOutStreamWrapper>(
+        veloxPool_, rowType_, batchSize_, veloxCompressionType_, deserializeTime_, std::move(in));
   }
-  //  return std::make_unique<VeloxShuffleReaderOutStreamWrapper>(
-  //      veloxPool_, rowType_, batchSize_, veloxCompressionType_, deserializeTime_, std::move(in));
   return std::make_unique<VeloxRowVectorDeserializer>(
       std::move(in), schema_, rowType_, batchSize_, memoryPool_, veloxPool_, veloxCompressionType_, deserializeTime_);
 }
