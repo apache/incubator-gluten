@@ -87,8 +87,7 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
     metadata_snapshot = storage->getInMemoryMetadataPtr();
     header = metadata_snapshot->getSampleBlock();
     const DB::Settings & settings = context->getSettingsRef();
-    squashing
-        = std::make_unique<DB::Squashing>(header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
+    squashing = std::make_unique<DB::Squashing>(header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
     if (!partition_dir.empty())
         extractPartitionValues(partition_dir, partition_values);
 
@@ -131,8 +130,7 @@ bool SparkMergeTreeWriter::chunkToPart(Chunk && chunk)
 
 bool SparkMergeTreeWriter::blockToPart(Block & block)
 {
-    auto blocks_with_partition
-        = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, metadata_snapshot, context);
+    auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, metadata_snapshot, context);
 
     if (blocks_with_partition.empty())
         return false;

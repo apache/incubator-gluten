@@ -64,8 +64,10 @@ public:
     std::vector<PartInfo> getAllPartInfo();
 
 private:
-    void
-    writeTempPart(MergeTreeDataWriter::TemporaryPart & temp_part, DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot);
+    void writeTempPart(
+        MergeTreeDataWriter::TemporaryPart & temp_part,
+        DB::BlockWithPartition & block_with_partition,
+        const DB::StorageMetadataPtr & metadata_snapshot);
     DB::MergeTreeDataWriter::TemporaryPart
     writeTempPartAndFinalize(DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot);
     void checkAndMerge(bool force = false);
