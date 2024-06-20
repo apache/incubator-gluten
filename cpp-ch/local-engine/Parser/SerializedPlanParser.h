@@ -105,7 +105,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"sign", "sign"},
        {"radians", "radians"},
        {"greatest", "sparkGreatest"},
-       {"least", "least"},
+       {"least", "sparkLeast"},
        {"shiftleft", "bitShiftLeft"},
        {"shiftright", "bitShiftRight"},
        {"check_overflow", "checkDecimalOverflowSpark"},
