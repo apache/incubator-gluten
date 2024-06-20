@@ -54,7 +54,7 @@ void VeloxColumnarToRowConverter::refreshStates(
       if (UNLIKELY(totalMemorySize + rowSize > memoryThreshold)) {
         if (i == rowId) {
           memoryThreshold = rowSize;
-          LOG(ERROR) << "spark.gluten.sql.columnarToRowMemoryThreshold(" + velox::succinctBytes(memoryThreshold) +
+          LOG(INFO) << "spark.gluten.sql.columnarToRowMemoryThreshold(" + velox::succinctBytes(memoryThreshold) +
                   ") is too small, it can't hold even one row(" + velox::succinctBytes(rowSize) + ")";
         }
         break;
