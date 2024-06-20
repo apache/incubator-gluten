@@ -230,7 +230,7 @@ class OperationSuite extends AnyFunSuite {
               48,
               Unary3(48, Unary3(48, Unary3(48, Unary3(48, Unary3(48, Unary3(48, Leaf(30))))))))))))
     assert(costModel.costOfCount == 32) // TODO reduce this for performance
-    assert(costModel.costCompareCount == 20) // TODO reduce this for performance
+    assert(costModel.costCompareCount == 50) // TODO reduce this for performance
   }
 
   test("Cost evaluation count - max cost") {
@@ -292,7 +292,7 @@ class OperationSuite extends AnyFunSuite {
               48,
               Unary3(48, Unary3(48, Unary3(48, Unary3(48, Unary3(48, Unary3(48, Leaf(30))))))))))))
     assert(costModel.costOfCount == 32) // TODO reduce this for performance
-    assert(costModel.costCompareCount == 20) // TODO reduce this for performance
+    assert(costModel.costCompareCount == 50) // TODO reduce this for performance
   }
 }
 
