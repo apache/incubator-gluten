@@ -1,3 +1,42 @@
+diff --git a/cpp/CMakeLists.txt b/cpp/CMakeLists.txt
+index d56f6a36d..9b4088df9 100644
+--- a/cpp/CMakeLists.txt
++++ b/cpp/CMakeLists.txt
+@@ -773,8 +773,7 @@ if(ARROW_ORC)
+   list(APPEND ARROW_SHARED_LINK_LIBS orc::orc ${ARROW_PROTOBUF_LIBPROTOBUF})
+   list(APPEND ARROW_STATIC_LINK_LIBS orc::orc ${ARROW_PROTOBUF_LIBPROTOBUF})
+   if(ORC_SOURCE STREQUAL "SYSTEM")
+-    list(APPEND ARROW_STATIC_INSTALL_INTERFACE_LIBS orc::orc
+-         ${ARROW_PROTOBUF_LIBPROTOBUF})
++    list(APPEND ARROW_STATIC_INSTALL_INTERFACE_LIBS orc::orc)
+   endif()
+ endif()
+
+@@ -823,9 +822,6 @@ if(ARROW_WITH_OPENTELEMETRY)
+          opentelemetry-cpp::ostream_span_exporter
+          opentelemetry-cpp::otlp_http_exporter)
+   endif()
+-  if(Protobuf_SOURCE STREQUAL "SYSTEM")
+-    list(APPEND ARROW_STATIC_INSTALL_INTERFACE_LIBS ${ARROW_PROTOBUF_LIBPROTOBUF})
+-  endif()
+   list(APPEND ARROW_STATIC_INSTALL_INTERFACE_LIBS CURL::libcurl)
+ endif()
+
+@@ -860,6 +856,14 @@ if(ARROW_USE_XSIMD)
+   list(APPEND ARROW_STATIC_LINK_LIBS ${ARROW_XSIMD})
+ endif()
+
++# This should be done after if(ARROW_ORC) and if(ARROW_WITH_OPENTELEMETRY)
++# because they depend on Protobuf.
++if(ARROW_WITH_PROTOBUF)
++  if(Protobuf_SOURCE STREQUAL "SYSTEM")
++    list(APPEND ARROW_STATIC_INSTALL_INTERFACE_LIBS ${ARROW_PROTOBUF_LIBPROTOBUF})
++  endif()
++endif()
++
+ add_custom_target(arrow_dependencies)
+ add_custom_target(arrow_benchmark_dependencies)
+ add_custom_target(arrow_test_dependencies)
 diff --git a/cpp/cmake_modules/ThirdpartyToolchain.cmake b/cpp/cmake_modules/ThirdpartyToolchain.cmake
 index a2627c190..e453512e6 100644
 --- a/cpp/cmake_modules/ThirdpartyToolchain.cmake

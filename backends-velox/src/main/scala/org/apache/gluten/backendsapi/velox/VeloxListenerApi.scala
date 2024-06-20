@@ -80,6 +80,8 @@ class VeloxListenerApi extends ListenerApi {
       new SharedLibraryLoaderCentos7
     } else if (system.contains("tencentos") && system.contains("3.2")) {
       new SharedLibraryLoaderCentos8
+    } else if (systemName.contains("Red Hat") && systemVersion.startsWith("9")) {
+      new SharedLibraryLoaderCentos8
     } else if (systemName.contains("Red Hat") && systemVersion.startsWith("8")) {
       new SharedLibraryLoaderCentos8
     } else if (systemName.contains("Red Hat") && systemVersion.startsWith("7")) {
@@ -92,7 +94,7 @@ class VeloxListenerApi extends ListenerApi {
       throw new GlutenException(
         s"Found unsupported OS($systemName, $systemVersion)! Currently, Gluten's Velox backend" +
           " only supports Ubuntu 20.04/22.04, CentOS 7/8, " +
-          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8, " +
+          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8/9, " +
           "Debian 11/12.")
     }
   }

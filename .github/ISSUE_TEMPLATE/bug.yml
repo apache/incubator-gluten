@@ -50,6 +50,8 @@ body:
       options:
         - Spark-3.2.x
         - Spark-3.3.x
+        - Spark-3.4.x
+        - Spark-3.5.x
     validations:
       required: false
 
