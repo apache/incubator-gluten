@@ -232,7 +232,7 @@ private:
                     tmp.push('{');
                 else if (ch == '}')
                 {
-                    if (tmp.top() == '{')
+                    if (!tmp.empty() && tmp.top() == '{')
                         tmp.pop();
                 }
                 if (tmp.empty())

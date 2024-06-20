@@ -14,19 +14,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.gluten.test
+package org.apache.gluten.test
 
-import org.apache.gluten.GlutenConfig
-
-import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
 
-trait GlutenSQLTestUtils extends SparkFunSuite with SharedSparkSession {
-  override protected def afterAll(): Unit = {
-    DeltaLog.clearCache()
-    super.afterAll()
-    // init GlutenConfig in the next beforeAll
-    GlutenConfig.ins = null
+trait GlutenTPCBase extends SharedSparkSession {
+
+  protected def injectStats: Boolean = false
+
+  override protected def sparkConf: SparkConf = {
+    if (injectStats) {
+      super.sparkConf
+        .set(SQLConf.MAX_TO_STRING_FIELDS.key, s"${Int.MaxValue}")
+        .set(SQLConf.CBO_ENABLED.key, "true")
+        .set(SQLConf.PLAN_STATS_ENABLED.key, "true")
+        .set(SQLConf.JOIN_REORDER_ENABLED.key, "true")
+    } else {
+      super.sparkConf.set(SQLConf.MAX_TO_STRING_FIELDS.key, s"${Int.MaxValue}")
+    }
   }
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    createTables()
+  }
+
+  override def afterAll(): Unit = {
+    dropTables()
+    super.afterAll()
+  }
+
+  protected def createTables(): Unit
+
+  protected def dropTables(): Unit
 }

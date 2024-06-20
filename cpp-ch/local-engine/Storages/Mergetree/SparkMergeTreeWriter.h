@@ -17,7 +17,7 @@
 #pragma once
 
 #include <Interpreters/Context.h>
-#include <Interpreters/SquashingTransform.h>
+#include <Interpreters/Squashing.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
 #include <Storages/MergeTree/MergeTreeDataWriter.h>
 #include <Storages/StorageMergeTreeFactory.h>
@@ -59,13 +59,15 @@ public:
         const String & partition_dir_ = "",
         const String & bucket_dir_ = "");
 
-    void write(DB::Block & block);
+    void write(const DB::Block & block);
     void finalize();
     std::vector<PartInfo> getAllPartInfo();
 
 private:
-    void
-    writeTempPart(MergeTreeDataWriter::TemporaryPart & temp_part, DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot);
+    void writeTempPart(
+        MergeTreeDataWriter::TemporaryPart & temp_part,
+        DB::BlockWithPartition & block_with_partition,
+        const DB::StorageMetadataPtr & metadata_snapshot);
     DB::MergeTreeDataWriter::TemporaryPart
     writeTempPartAndFinalize(DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot);
     void checkAndMerge(bool force = false);
@@ -75,6 +77,7 @@ private:
     void saveMetadata();
     void commitPartToRemoteStorageIfNeeded();
     void finalizeMerge();
+    bool chunkToPart(Chunk && chunk);
     bool blockToPart(Block & block);
 
     CustomStorageMergeTreePtr storage = nullptr;
@@ -87,7 +90,7 @@ private:
     String bucket_dir;
 
     DB::ContextPtr context;
-    std::unique_ptr<DB::SquashingTransform> squashing_transform;
+    std::unique_ptr<DB::Squashing> squashing;
     int part_num = 1;
     ConcurrentDeque<DB::MergeTreeDataPartPtr> new_parts;
     std::unordered_map<String, String> partition_values;

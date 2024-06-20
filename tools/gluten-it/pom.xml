@@ -120,6 +120,15 @@
       </properties>
     </profile>
     <profile>
+      <id>java-11</id>
+      <activation>
+        <jdk>11</jdk>
+      </activation>
+      <properties>
+        <java.version>11</java.version>
+      </properties>
+    </profile>
+    <profile>
       <id>java-17</id>
       <activation>
         <jdk>17</jdk>

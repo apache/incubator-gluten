@@ -16,11 +16,20 @@
  */
 package org.apache.spark.sql.errors
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenQueryExecutionErrorsSuite
   extends QueryExecutionErrorsSuite
   with GlutenSQLTestsBaseTrait {
+
+  override def sparkConf: SparkConf = {
+    // Disables VeloxAppendBatches in which GeneralOutIterator wraps vanilla Spark's exceptions
+    // with GlutenException.
+    super.sparkConf
+      .set("spark.gluten.sql.columnar.backend.velox.coalesceBatchesBeforeShuffle", "false")
+  }
+
   override protected def getResourceParquetFilePath(name: String): String = {
     getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + name
   }

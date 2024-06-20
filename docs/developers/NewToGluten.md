@@ -43,7 +43,7 @@ export PATH="$PATH:$JAVA_HOME/bin"
 
 ## OpenJDK 17
 
-By default, Gluten compiles package using JDK8. Enable maven profile by `-Pjava-17` to use JDK17, and please make sure your JAVA_HOME points to jdk17.
+By default, Gluten compiles package using JDK8. Enable maven profile by `-Pjava-17` to use JDK17 or `-Pjava-11` to use JDK 11, and please make sure your JAVA_HOME points to jdk17 or jdk11 respectively.
 
 Apache Spark and Arrow requires setting java args `-Dio.netty.tryReflectionSetAccessible=true`, see [SPARK-29924](https://issues.apache.org/jira/browse/SPARK-29924) and [ARROW-6206](https://issues.apache.org/jira/browse/ARROW-6206).
 So please add following configs in `spark-defaults.conf`:
@@ -308,6 +308,20 @@ After the above installation, you can optionally do some configuration in Visual
    * Set Exe Path to the path of the `cmake-format` command. If you installed `cmake-format` in a standard
       location, you might not need to change this setting.
 3. Now, you can format your CMake files by right-clicking in a file and selecting `Format Document`.
+
+### Add UT
+
+1. For Native Code Modifications: If you have modified native code, it is best to use gtest to test the native code. 
+   A secondary option is to add Gluten UT to ensure coverage.
+
+2. For Gluten-Related Code Modifications: If you have modified code related to Gluten, it is preferable to add scalatest rather than JUnit. 
+   Additionally, the test classes should be placed in the org.apache.gluten package.
+
+3. For Spark-Related Code Modifications: If you have modified code related to Spark, it is preferable to add scalatest rather than JUnit. 
+   Additionally, the test classes should be placed in the org.apache.spark package.
+
+4. Placement of Non-Native Code UTs: Ensure that unit tests for non-native code are placed within org.apache.gluten and org.apache.spark packages. 
+   This is important because the CI system runs unit tests from these two paths in parallel. Placing tests in other paths might cause your tests to be ignored.
 
 # Debug cpp code with coredump
 

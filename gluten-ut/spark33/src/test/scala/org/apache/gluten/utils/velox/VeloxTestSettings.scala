@@ -1104,8 +1104,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
     // exclude as original metric not correct when task offloaded to velox
     .exclude("SPARK-37585: test input metrics for DSV2 with output limits")
-    // Unknown. Need to investigate.
-    .exclude("SPARK-30362: test input metrics for DSV2")
     // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
     .exclude("File source v2: support passing data filters to FileScan without partitionFilters")
     // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type

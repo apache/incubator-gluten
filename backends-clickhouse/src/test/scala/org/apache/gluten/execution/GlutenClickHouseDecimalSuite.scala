@@ -443,6 +443,11 @@ class GlutenClickHouseDecimalSuite
     )
   }
 
+  test("Fix issue(6015) allow overflow when converting decimal to integer") {
+    val sql = "select int(cast(id * 9999999999 as decimal(29, 2))) from range(10)"
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
   def testFromRandomBase(
       sql: String,
       customCheck: DataFrame => Unit,

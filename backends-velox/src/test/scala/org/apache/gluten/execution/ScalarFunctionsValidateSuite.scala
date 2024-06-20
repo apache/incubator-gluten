@@ -537,6 +537,46 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("test transform_keys function") {
+    withTempPath {
+      path =>
+        Seq(
+          Map[String, Int]("a" -> 1, "b" -> 2),
+          Map[String, Int]("a" -> 2, "b" -> 3),
+          null
+        )
+          .toDF("m")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        runQueryAndCompare("select transform_keys(m, (k, v) -> upper(k)) from map_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("test transform_values function") {
+    withTempPath {
+      path =>
+        Seq(
+          Map[String, Int]("a" -> 1, "b" -> 2),
+          Map[String, Int]("a" -> 2, "b" -> 3),
+          null
+        )
+          .toDF("m")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        runQueryAndCompare("select transform_values(m, (k, v) -> v + 1) from map_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("zip_with") {
     withTempPath {
       path =>
@@ -578,6 +618,13 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
 
   test("Test monotonically_increasing_id function") {
     runQueryAndCompare("""SELECT monotonically_increasing_id(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test input_file_name function") {
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
