@@ -87,8 +87,8 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
     metadata_snapshot = storage->getInMemoryMetadataPtr();
     header = metadata_snapshot->getSampleBlock();
     const DB::Settings & settings = context->getSettingsRef();
-    squashing_transform
-        = std::make_unique<DB::SquashingTransform>(settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
+    squashing
+        = std::make_unique<DB::Squashing>(header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
     if (!partition_dir.empty())
         extractPartitionValues(partition_dir, partition_values);
 
@@ -105,19 +105,28 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
         merge_limit_parts = limit_cnt_field.get<Int64>() <= 0 ? merge_limit_parts : limit_cnt_field.get<Int64>();
 }
 
-void SparkMergeTreeWriter::write(DB::Block & block)
+void SparkMergeTreeWriter::write(const DB::Block & block)
 {
     auto new_block = removeColumnSuffix(block);
     if (auto converter = ActionsDAG::makeConvertingActions(
             new_block.getColumnsWithTypeAndName(), header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Position))
         ExpressionActions(converter).execute(new_block);
 
-    if (auto add_block = squashing_transform->add(new_block))
+    bool has_part = chunkToPart(squashing->add({new_block.getColumns(), new_block.rows()}));
+
+    if (has_part && merge_after_insert)
+        checkAndMerge();
+}
+
+bool SparkMergeTreeWriter::chunkToPart(Chunk && chunk)
+{
+    if (chunk.hasChunkInfo())
     {
-        bool has_part = blockToPart(add_block);
-        if (has_part && merge_after_insert)
-            checkAndMerge();
+        Chunk squash_chunk = DB::Squashing::squash(std::move(chunk));
+        Block result = header.cloneWithColumns(squash_chunk.getColumns());
+        return blockToPart(result);
     }
+    return false;
 }
 
 bool SparkMergeTreeWriter::blockToPart(Block & block)
@@ -180,12 +189,7 @@ void SparkMergeTreeWriter::manualFreeMemory(size_t before_write_memory)
 
 void SparkMergeTreeWriter::finalize()
 {
-    if (auto block = squashing_transform->add({}))
-    {
-        if (block.rows())
-            blockToPart(block);
-    }
-
+    chunkToPart(squashing->flush());
     if (merge_after_insert)
         finalizeMerge();
 
