@@ -265,6 +265,9 @@ macro(ADD_VELOX_DEPENDENCIES)
     dwio::dwrf::reader
     "${VELOX_COMPONENTS_PATH}/dwio/dwrf/reader/libvelox_dwio_dwrf_reader.a")
   add_velox_dependency(
+    dwio::orc::reader
+    "${VELOX_COMPONENTS_PATH}/dwio/orc/reader/libvelox_dwio_orc_reader.a")
+  add_velox_dependency(
     dwio::dwrf::utils
     "${VELOX_COMPONENTS_PATH}/dwio/dwrf/utils/libvelox_dwio_dwrf_utils.a")
   add_velox_dependency(
