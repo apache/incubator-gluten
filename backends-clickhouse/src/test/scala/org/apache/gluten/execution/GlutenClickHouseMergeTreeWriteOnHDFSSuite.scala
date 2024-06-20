@@ -57,6 +57,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
         "false")
+    // .set("spark.gluten.sql.columnar.backend.ch.runtime_config.path", "/data") // for local test
   }
 
   override protected def beforeEach(): Unit = {
@@ -139,7 +140,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
@@ -151,8 +152,8 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-        assert(addFiles.size == 1)
-        assert(addFiles.head.rows == 600572)
+        assertResult(1)(addFiles.size)
+        assertResult(600572)(addFiles.head.rows)
     }
     spark.sql("drop table lineitem_mergetree_hdfs")
   }
@@ -224,7 +225,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
@@ -232,24 +233,22 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
-        assert(
+        assertResult("l_shipdate,l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .orderByKeyOption
             .get
-            .mkString(",")
-            .equals("l_shipdate,l_orderkey"))
-        assert(
+            .mkString(","))
+        assertResult("l_shipdate")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .primaryKeyOption
             .get
-            .mkString(",")
-            .equals("l_shipdate"))
+            .mkString(","))
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.isEmpty)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
-        assert(addFiles.size == 1)
-        assert(addFiles.head.rows == 600572)
+        assertResult(1)(addFiles.size)
+        assertResult(600572)(addFiles.head.rows)
     }
     spark.sql("drop table lineitem_mergetree_orderbykey_hdfs")
   }
@@ -386,51 +385,49 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
     runTPCHQueryBySQL(1, sqlStr, compareResult = false) {
       df =>
         val result = df.collect()
-        assert(result.length == 4)
-        assert(result(0).getString(0).equals("A"))
-        assert(result(0).getString(1).equals("F"))
-        assert(result(0).getDouble(2) == 7578058.0)
+        assertResult(4)(result.length)
+        assertResult("A")(result(0).getString(0))
+        assertResult("F")(result(0).getString(1))
+        assertResult(7578058.0)(result(0).getDouble(2))
 
-        assert(result(2).getString(0).equals("N"))
-        assert(result(2).getString(1).equals("O"))
-        assert(result(2).getDouble(2) == 7454519.0)
+        assertResult("N")(result(2).getString(0))
+        assertResult("O")(result(2).getString(1))
+        assertResult(7454519.0)(result(2).getDouble(2))
 
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assertResult(1)(scanExec.size)
 
         val mergetreeScan = scanExec.head
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
-        assert(mergetreeScan.metrics("numFiles").value == 6)
+        assertResult(6)(mergetreeScan.metrics("numFiles").value)
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
-        assert(
+        assertResult("l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .orderByKeyOption
             .get
-            .mkString(",")
-            .equals("l_orderkey"))
-        assert(
+            .mkString(","))
+        assertResult("l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .primaryKeyOption
             .get
-            .mkString(",")
-            .equals("l_orderkey"))
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size == 1)
-        assert(
+            .mkString(","))
+        assertResult(1)(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size)
+        assertResult("l_returnflag")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
-            .partitionColumns(0)
-            .equals("l_returnflag"))
+            .partitionColumns
+            .head)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
 
-        assert(addFiles.size == 6)
-        assert(addFiles.map(_.rows).sum == 750735)
+        assertResult(6)(addFiles.size)
+        assertResult(750735)(addFiles.map(_.rows).sum)
     }
     spark.sql("drop table lineitem_mergetree_partition_hdfs")
   }
@@ -503,36 +500,35 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assertResult(1)(scanExec.size)
 
-        val mergetreeScan = scanExec(0)
+        val mergetreeScan = scanExec.head
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
-        assert(!ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isDefined)
         if (sparkVersion.equals("3.2")) {
           assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
         } else {
-          assert(
+          assertResult("l_partkey")(
             ClickHouseTableV2
               .getTable(fileIndex.deltaLog)
               .orderByKeyOption
               .get
-              .mkString(",")
-              .equals("l_partkey"))
+              .mkString(","))
         }
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size == 1)
-        assert(
+        assertResult(1)(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size)
+        assertResult("l_returnflag")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
-            .partitionColumns(0)
-            .equals("l_returnflag"))
+            .partitionColumns
+            .head)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
 
-        assert(addFiles.size == 12)
-        assert(addFiles.map(_.rows).sum == 600572)
+        assertResult(12)(addFiles.size)
+        assertResult(600572)(addFiles.map(_.rows).sum)
     }
     spark.sql("drop table lineitem_mergetree_bucket_hdfs")
   }
@@ -585,39 +581,38 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assertResult(1)(scanExec.size)
 
-        val mergetreeScan = scanExec(0)
+        val mergetreeScan = scanExec.head
         assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
 
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
-        assert(!ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isEmpty)
-        assert(
+        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isDefined)
+        assertResult("l_orderkey")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .orderByKeyOption
             .get
-            .mkString(",")
-            .equals("l_orderkey"))
+            .mkString(","))
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.nonEmpty)
-        assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size == 1)
-        assert(
+        assertResult(1)(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size)
+        assertResult("l_returnflag")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
-            .partitionColumns(0)
-            .equals("l_returnflag"))
+            .partitionColumns
+            .head)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
 
-        assert(addFiles.size == 12)
-        assert(addFiles.map(_.rows).sum == 600572)
+        assertResult(12)(addFiles.size)
+        assertResult(600572)(addFiles.map(_.rows).sum)
     }
 
     val result = spark.read
       .format("clickhouse")
       .load(dataPath)
       .count()
-    assert(result == 600572)
+    assertResult(600572)(result)
   }
 }
 // scalastyle:off line.size.limit
