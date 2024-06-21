@@ -68,14 +68,6 @@ index 5c7bf770a..9f897f577 100644
  if(NOT TARGET gflags::gflags)
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
-@@ -441,7 +446,7 @@ if(${VELOX_BUILD_MINIMAL_WITH_DWIO}
-
-   # Locate or build protobuf.
-   set_source(Protobuf)
--  resolve_dependency(Protobuf 3.21.4 EXACT)
-+  resolve_dependency(Protobuf 3.21 EXACT)
-   include_directories(${Protobuf_INCLUDE_DIRS})
- endif()
 
 diff --git a/third_party/CMakeLists.txt b/third_party/CMakeLists.txt
 index ce4c24dbe..785a2acc6 100644
