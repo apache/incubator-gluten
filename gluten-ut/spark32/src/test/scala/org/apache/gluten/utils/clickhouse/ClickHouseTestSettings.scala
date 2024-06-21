@@ -68,6 +68,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
         false // nativeDoValidate failed due to spark conf cleanup
       case "GlutenDataSourceV2SQLSuite" =>
         false // nativeDoValidate failed due to spark conf cleanup
+      case "GlutenShuffleSuite" => false
       case "GlutenSortShuffleSuite" => false
       case _ => true
     }

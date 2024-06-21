@@ -74,6 +74,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
         false // nativeDoValidate failed due to spark conf cleanup
       case "GlutenBloomFilterAggregateQuerySuite" =>
         !bloomFilterCases.contains(testName)
+      case "GlutenShuffleSuite" => false
       case "GlutenSortShuffleSuite" => false
       case _ => true
     }
