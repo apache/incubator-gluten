@@ -2638,5 +2638,55 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql("drop table test_tbl_5910_0")
     spark.sql("drop table test_tbl_5910_1")
   }
+
+  test("GLUTEN-4451: Fix schema may be changed by filter") {
+    val create_sql =
+      """
+        |create table if not exists test_tbl_4451(
+        |  month_day string,
+        |  month_dif int,
+        |  is_month_new string,
+        |  country string,
+        |  os string,
+        |  mr bigint
+        |) using parquet
+        |PARTITIONED BY (
+        |  day string,
+        |  app_name string)
+        |""".stripMargin
+    val insert_sql1 =
+      "INSERT into test_tbl_4451 partition (day='2024-06-01', app_name='abc') " +
+        "values('2024-06-01', 0, '1', 'CN', 'iOS', 100)"
+    val insert_sql2 =
+      "INSERT into test_tbl_4451 partition (day='2024-06-01', app_name='abc') " +
+        "values('2024-06-01', 0, '1', 'CN', 'iOS', 50)"
+    val insert_sql3 =
+      "INSERT into test_tbl_4451 partition (day='2024-06-01', app_name='abc') " +
+        "values('2024-06-01', 1, '1', 'CN', 'iOS', 80)"
+    spark.sql(create_sql)
+    spark.sql(insert_sql1)
+    spark.sql(insert_sql2)
+    spark.sql(insert_sql3)
+    val select_sql =
+      """
+        |SELECT * FROM (
+        |  SELECT
+        |    month_day,
+        |    country,
+        |    if(os = 'ALite','Android',os) AS os,
+        |    is_month_new,
+        |    nvl(sum(if(month_dif = 0, mr, 0)),0) AS `month0_n`,
+        |    nvl(sum(if(month_dif = 1, mr, 0)) / sum(if(month_dif = 0, mr, 0)),0) AS `month1_rate`,
+        |    '2024-06-18' as day,
+        |    app_name
+        |  FROM test_tbl_4451
+        |  GROUP BY month_day,country,if(os = 'ALite','Android',os),is_month_new,app_name
+        |) tt
+        |WHERE month0_n > 0 AND month1_rate <= 1  AND os IN ('all','Android','iOS')
+        |  AND app_name IS NOT NULL
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_4451")
+  }
 }
 // scalastyle:on line.size.limit

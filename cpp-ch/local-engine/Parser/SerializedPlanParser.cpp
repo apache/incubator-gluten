@@ -335,6 +335,19 @@ IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, c
     return step_ptr;
 }
 
+IQueryPlanStep * SerializedPlanParser::addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header)
+{
+    auto convert_actions_dag = ActionsDAG::makeConvertingActions(
+        query_plan->getCurrentDataStream().header.getColumnsWithTypeAndName(),
+        input_header.getColumnsWithTypeAndName(),
+        ActionsDAG::MatchColumnsMode::Name);
+    auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), convert_actions_dag);
+    expression_step->setStepDescription("Generator for rollback filter");
+    auto * step_ptr = expression_step.get();
+    query_plan->addStep(std::move(expression_step));
+    return step_ptr;
+}
+
 DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type)
 {
     return wrapNullableType(nullable == substrait::Type_Nullability_NULLABILITY_NULLABLE, nested_type);
