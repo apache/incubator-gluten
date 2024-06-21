@@ -30,9 +30,10 @@ std::string splitBinaryFromJson(const std::string & json)
     return binary;
 }
 
-TEST(SerializedPlanParser, CLICKHOUSE_65234)
+std::string JsonPlanFor65234()
 {
-    String json = R"(
+    // Plan for https://github.com/ClickHouse/ClickHouse/pull/65234
+    return R"(
 {
   "extensions": [{
     "extensionFunction": {
@@ -307,9 +308,13 @@ TEST(SerializedPlanParser, CLICKHOUSE_65234)
   }]
 }
 )";
-    std::string split
-        = R"({"items":[{"uriFile":"file:///home/chang/SourceCode/rebase_gluten/backends-clickhouse/target/scala-2.12/test-classes/tests-working-home/tpch-data/supplier/part-00000-16caa751-9774-470c-bd37-5c84c53373c8-c000.snappy.parquet","length":"84633","parquet":{},"schema":{},"metadataColumns":[{}]}]}")";
+}
+
+TEST(SerializedPlanParser, PR65234)
+{
+    const std::string split
+        = R"({"items":[{"uriFile":"file:///part-00000-16caa751-9774-470c-bd37-5c84c53373c8-c000.snappy.parquet","length":"84633","parquet":{},"schema":{},"metadataColumns":[{}]}]}")";
     SerializedPlanParser parser(SerializedPlanParser::global_context);
     parser.addSplitInfo(splitBinaryFromJson(split));
-    parser.parseJson(json);
+    parser.parseJson(JsonPlanFor65234());
 }
