@@ -2679,7 +2679,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |    nvl(sum(if(month_dif = 1, mr, 0)) / sum(if(month_dif = 0, mr, 0)),0) AS `month1_rate`,
         |    '2024-06-18' as day,
         |    app_name
-        |  FROM tmp.gluten_4451
+        |  FROM test_tbl_4451
         |  GROUP BY month_day,country,if(os = 'ALite','Android',os),is_month_new,app_name
         |) tt
         |WHERE month0_n > 0 AND month1_rate <= 1  AND os IN ('all','Android','iOS')
