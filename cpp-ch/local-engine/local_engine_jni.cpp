@@ -271,11 +271,9 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
 
     for (jsize i = 0, split_info_arr_size = env->GetArrayLength(split_infos); i < split_info_arr_size; i++) {
         jbyteArray split_info = static_cast<jbyteArray>(env->GetObjectArrayElement(split_infos, i));
-        jsize split_info_size = env->GetArrayLength(split_info);
+        std::string::size_type split_info_size = env->GetArrayLength(split_info);
         jbyte * split_info_addr = env->GetByteArrayElements(split_info, nullptr);
-        std::string split_info_str;
-        split_info_str.assign(reinterpret_cast<const char *>(split_info_addr), split_info_size);
-        parser.addSplitInfo(split_info_str);
+        parser.addSplitInfo(std::string{reinterpret_cast<const char *>(split_info_addr), split_info_size});
     }
 
     jsize plan_size = env->GetArrayLength(plan);

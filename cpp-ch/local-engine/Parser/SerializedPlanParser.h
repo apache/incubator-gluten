@@ -278,7 +278,7 @@ public:
         materialize_inputs.emplace_back(materialize_input);
     }
 
-    void addSplitInfo(std::string & split_info) { split_infos.emplace_back(std::move(split_info)); }
+    void addSplitInfo(std::string && split_info) { split_infos.emplace_back(std::move(split_info)); }
 
     int nextSplitInfoIndex()
     {
@@ -450,7 +450,7 @@ public:
     ~ASTParser() = default;
 
     ASTPtr parseToAST(const Names & names, const substrait::Expression & rel);
-    ActionsDAGPtr convertToActions(const NamesAndTypesList & name_and_types, const ASTPtr & ast);
+    ActionsDAG convertToActions(const NamesAndTypesList & name_and_types, const ASTPtr & ast) const;
 
 private:
     ContextPtr context;

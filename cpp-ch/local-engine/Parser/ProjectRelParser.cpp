@@ -99,7 +99,6 @@ ProjectRelParser::SplittedActionsDAGs ProjectRelParser::splitActionsDAGInGenerat
     std::unordered_set<const ActionsDAG::Node *> first_split_nodes(array_join_node->children.begin(), array_join_node->children.end());
     auto first_split_result = actions_dag->split(first_split_nodes);
     res.before_array_join = first_split_result.first;
-    res.before_array_join->projectInput(true);
 
     array_join_node = findArrayJoinNode(first_split_result.second);
     std::unordered_set<const ActionsDAG::Node *> second_split_nodes = {array_join_node};
