@@ -234,6 +234,7 @@ std::shared_ptr<ActionsDAG> SerializedPlanParser::expressionsToActionsDAG(
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "unsupported projection type {}.", magic_enum::enum_name(expr.rex_type_case()));
     }
     actions_dag->project(required_columns);
+    actions_dag->appendInputsForUnusedColumns(header);
     return actions_dag;
 }
 
@@ -1790,7 +1791,7 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
 QueryPlanPtr SerializedPlanParser::parseJson(const std::string & json_plan)
 {
     auto plan_ptr = std::make_unique<substrait::Plan>();
-    auto s = google::protobuf::util::JsonStringToMessage(absl::string_view(json_plan.c_str()), plan_ptr.get());
+    auto s = google::protobuf::util::JsonStringToMessage(absl::string_view(json_plan), plan_ptr.get());
     if (!s.ok())
         throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from json string failed: {}", s.ToString());
     return parse(std::move(plan_ptr));
@@ -1831,7 +1832,7 @@ void SerializedPlanParser::collectJoinKeys(
     }
 }
 
-ActionsDAGPtr ASTParser::convertToActions(const NamesAndTypesList & name_and_types, const ASTPtr & ast)
+ActionsDAG ASTParser::convertToActions(const NamesAndTypesList & name_and_types, const ASTPtr & ast) const
 {
     NamesAndTypesList aggregation_keys;
     ColumnNumbersList aggregation_keys_indexes_list;
@@ -1840,9 +1841,9 @@ ActionsDAGPtr ASTParser::convertToActions(const NamesAndTypesList & name_and_typ
     ActionsMatcher::Data visitor_data(
         context,
         size_limits_for_set,
-        size_t(0),
+        static_cast<size_t>(0),
         name_and_types,
-        std::make_shared<ActionsDAG>(name_and_types),
+        ActionsDAG(name_and_types),
         std::make_shared<PreparedSets>(),
         false /* no_subqueries */,
         false /* no_makeset */,
