@@ -656,6 +656,23 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           Seq(replaceWithExpressionTransformerInternal(c.child, attributeSeq, expressionsMap)),
           c
         )
+      case _: MapFromArrays if BackendsApiManager.getBackendName == "velox" =>
+        // for velox backend, we should mapping map_from_arrays based on the map key dedup policy
+        val mapKeyDedupPolicy = SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
+        val newSubstraitExprName =
+          if (mapKeyDedupPolicy == SQLConf.MapKeyDedupPolicy.EXCEPTION.toString) {
+            "map_from_arrays_exception_on_duplicates"
+          } else if (mapKeyDedupPolicy == SQLConf.MapKeyDedupPolicy.LAST_WIN.toString) {
+            "map_from_arrays"
+          } else {
+            throw new GlutenNotSupportException("Only EXCEPTION or LAST_WIN policy is supported!")
+          }
+        GenericExpressionTransformer(
+          newSubstraitExprName,
+          expr.children.map(
+            replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
+          expr
+        )
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
