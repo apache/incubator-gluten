@@ -36,10 +36,14 @@
 #include <Shuffle/ShuffleWriter.h>
 #include <Shuffle/ShuffleWriterBase.h>
 #include <Shuffle/WriteBufferFromJavaOutputStream.h>
+#include <Storages/Mergetree/MergeSparkMergeTreeTask.h>
+#include <Storages/Mergetree/MetaDataHelper.h>
 #include <Storages/Mergetree/SparkMergeTreeWriter.h>
 #include <Storages/Output/BlockStripeSplitter.h>
 #include <Storages/Output/FileWriterWrappers.h>
+#include <Storages/StorageMergeTreeFactory.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <jni/ReservationListenerWrapper.h>
 #include <jni/SharedPointerWrapper.h>
 #include <jni/jni_common.h>
@@ -51,10 +55,6 @@
 #include <Common/ExceptionUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
-#include <google/protobuf/wrappers.pb.h>
-#include <Storages/StorageMergeTreeFactory.h>
-#include <Storages/Mergetree/MergeSparkMergeTreeTask.h>
-#include <Storages/Mergetree/MetaDataHelper.h>
 
 
 #ifdef __cplusplus
@@ -269,7 +269,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
         parser.addInputIter(iter, materialize_input);
     }
 
-    for (jsize i = 0, split_info_arr_size = env->GetArrayLength(split_infos); i < split_info_arr_size; i++) {
+    for (jsize i = 0, split_info_arr_size = env->GetArrayLength(split_infos); i < split_info_arr_size; i++)
+    {
         jbyteArray split_info = static_cast<jbyteArray>(env->GetObjectArrayElement(split_infos, i));
         std::string::size_type split_info_size = env->GetArrayLength(split_info);
         jbyte * split_info_addr = env->GetByteArrayElements(split_info, nullptr);
@@ -628,8 +629,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .max_sort_buffer_size = static_cast<size_t>(max_sort_buffer_size),
         .spill_firstly_before_stop = static_cast<bool>(spill_firstly_before_stop),
         .force_external_sort = static_cast<bool>(force_external_sort),
-        .force_mermory_sort = static_cast<bool>(force_memory_sort)
-    };
+        .force_mermory_sort = static_cast<bool>(force_memory_sort)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     if (prefer_spill)
@@ -694,8 +694,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed),
         .flush_block_buffer_before_evict = static_cast<bool>(flush_block_buffer_before_evict),
         .force_external_sort = static_cast<bool>(force_external_sort),
-        .force_mermory_sort = static_cast<bool>(force_memory_sort)
-    };
+        .force_mermory_sort = static_cast<bool>(force_memory_sort)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options, pusher)};
@@ -766,8 +765,8 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_clo
 }
 
 // CHBlockConverterJniWrapper
-JNIEXPORT jobject
-Java_org_apache_gluten_vectorized_CHBlockConverterJniWrapper_convertColumnarToRow(JNIEnv * env, jclass, jlong block_address, jintArray masks)
+JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHBlockConverterJniWrapper_convertColumnarToRow(
+    JNIEnv * env, jclass, jlong block_address, jintArray masks)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::CHColumnToSparkRow converter;
@@ -956,21 +955,18 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     /// Parsing may fail when the number of recursive layers is large.
     /// Here, set a limit large enough to avoid this problem.
     /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
-    google::protobuf::io::CodedInputStream coded_in(
-        reinterpret_cast<const uint8_t *>(plan_str.data()), static_cast<int>(plan_str.size()));
+    google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(plan_str.data()), static_cast<int>(plan_str.size()));
     coded_in.SetRecursionLimit(100000);
 
     auto ok = plan_ptr->ParseFromCodedStream(&coded_in);
     if (!ok)
         throw DB::Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
 
-    substrait::ReadRel::ExtensionTable extension_table =
-        local_engine::SerializedPlanParser::parseExtensionTable(split_info_str);
+    substrait::ReadRel::ExtensionTable extension_table = local_engine::SerializedPlanParser::parseExtensionTable(split_info_str);
 
     auto merge_tree_table = local_engine::MergeTreeRelParser::parseMergeTreeTable(extension_table);
     auto uuid = uuid_str + "_" + task_id;
-    auto * writer = new local_engine::SparkMergeTreeWriter(
-        merge_tree_table, query_context, uuid, partition_dir, bucket_dir);
+    auto * writer = new local_engine::SparkMergeTreeWriter(merge_tree_table, query_context, uuid, partition_dir, bucket_dir);
 
     env->ReleaseByteArrayElements(plan_, plan_buf_addr, JNI_ABORT);
     env->ReleaseByteArrayElements(split_info_, split_info_addr, JNI_ABORT);
@@ -1042,8 +1038,8 @@ JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWr
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-JNIEXPORT void
-Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_writeToMergeTree(JNIEnv * env, jobject, jlong instanceId, jlong block_address)
+JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_writeToMergeTree(
+    JNIEnv * env, jobject, jlong instanceId, jlong block_address)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * writer = reinterpret_cast<local_engine::SparkMergeTreeWriter *>(instanceId);
@@ -1052,7 +1048,8 @@ Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_writeToMe
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_closeMergeTreeWriter(JNIEnv * env, jobject, jlong instanceId)
+JNIEXPORT jstring
+Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_closeMergeTreeWriter(JNIEnv * env, jobject, jlong instanceId)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * writer = reinterpret_cast<local_engine::SparkMergeTreeWriter *>(instanceId);
@@ -1065,7 +1062,14 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 }
 
 JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeMergeMTParts(
-    JNIEnv * env, jobject, jbyteArray plan_, jbyteArray split_info_, jstring uuid_, jstring task_id_, jstring partition_dir_, jstring bucket_dir_)
+    JNIEnv * env,
+    jobject,
+    jbyteArray plan_,
+    jbyteArray split_info_,
+    jstring uuid_,
+    jstring task_id_,
+    jstring partition_dir_,
+    jstring bucket_dir_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
 
@@ -1093,16 +1097,14 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     /// Parsing may fail when the number of recursive layers is large.
     /// Here, set a limit large enough to avoid this problem.
     /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
-    google::protobuf::io::CodedInputStream coded_in(
-        reinterpret_cast<const uint8_t *>(plan_str.data()), static_cast<int>(plan_str.size()));
+    google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(plan_str.data()), static_cast<int>(plan_str.size()));
     coded_in.SetRecursionLimit(100000);
 
     auto ok = plan_ptr->ParseFromCodedStream(&coded_in);
     if (!ok)
         throw DB::Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
 
-    substrait::ReadRel::ExtensionTable extension_table =
-        local_engine::SerializedPlanParser::parseExtensionTable(split_info_str);
+    substrait::ReadRel::ExtensionTable extension_table = local_engine::SerializedPlanParser::parseExtensionTable(split_info_str);
     google::protobuf::StringValue table;
     table.ParseFromString(extension_table.detail().value());
     auto merge_tree_table = local_engine::parseMergeTreeTableString(table.value());
@@ -1112,12 +1114,12 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
         = local_engine::MergeTreeRelParser::copyToVirtualStorage(merge_tree_table, local_engine::SerializedPlanParser::global_context);
 
     local_engine::TempStorageFreer freer{temp_storage->getStorageID()}; // to release temp CustomStorageMergeTree with RAII
-    std::vector<DB::DataPartPtr> selected_parts
-        = local_engine::StorageMergeTreeFactory::instance().getDataPartsByNames(temp_storage->getStorageID(), "", merge_tree_table.getPartNames());
+    std::vector<DB::DataPartPtr> selected_parts = local_engine::StorageMergeTreeFactory::instance().getDataPartsByNames(
+        temp_storage->getStorageID(), "", merge_tree_table.getPartNames());
 
     std::unordered_map<String, String> partition_values;
-    std::vector<MergeTreeDataPartPtr> loaded =
-        local_engine::mergeParts(selected_parts, partition_values, uuid_str, temp_storage, partition_dir, bucket_dir);
+    std::vector<MergeTreeDataPartPtr> loaded
+        = local_engine::mergeParts(selected_parts, partition_values, uuid_str, temp_storage, partition_dir, bucket_dir);
 
     std::vector<local_engine::PartInfo> res;
     for (auto & partPtr : loaded)
@@ -1154,7 +1156,8 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
         partition_col_indice_vec.push_back(pIndice[i]);
 
     env->ReleaseIntArrayElements(partitionColIndice, pIndice, JNI_ABORT);
-    local_engine::BlockStripes bs = local_engine::BlockStripeSplitter::split(*block, partition_col_indice_vec, hasBucket, reserve_partition_columns);
+    local_engine::BlockStripes bs
+        = local_engine::BlockStripeSplitter::split(*block, partition_col_indice_vec, hasBucket, reserve_partition_columns);
 
 
     auto * addresses = env->NewLongArray(bs.block_addresses.size());
@@ -1364,7 +1367,8 @@ JNIEXPORT jlong Java_org_apache_gluten_memory_alloc_CHNativeMemoryAllocator_getD
     return -1;
 }
 
-JNIEXPORT jlong Java_org_apache_gluten_memory_alloc_CHNativeMemoryAllocator_createListenableAllocator(JNIEnv * env, jclass, jobject listener)
+JNIEXPORT jlong
+Java_org_apache_gluten_memory_alloc_CHNativeMemoryAllocator_createListenableAllocator(JNIEnv * env, jclass, jobject listener)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto listener_wrapper = std::make_shared<local_engine::ReservationListenerWrapper>(env->NewGlobalRef(listener));

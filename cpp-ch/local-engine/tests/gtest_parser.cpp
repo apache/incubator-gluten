@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <gtest/gtest.h>
 #include <Parser/SerializedPlanParser.h>
 #include <google/protobuf/util/json_util.h>
+#include <gtest/gtest.h>
 
 using namespace local_engine;
 using namespace DB;
 
-std::string splitBinaryFromJson(const std::string &json)
+std::string splitBinaryFromJson(const std::string & json)
 {
     std::string binary;
     substrait::ReadRel::LocalFiles local_files;
@@ -307,7 +307,8 @@ TEST(SerializedPlanParser, CLICKHOUSE_65234)
   }]
 }
 )";
-    std::string split = R"({"items":[{"uriFile":"file:///home/chang/SourceCode/rebase_gluten/backends-clickhouse/target/scala-2.12/test-classes/tests-working-home/tpch-data/supplier/part-00000-16caa751-9774-470c-bd37-5c84c53373c8-c000.snappy.parquet","length":"84633","parquet":{},"schema":{},"metadataColumns":[{}]}]}")";
+    std::string split
+        = R"({"items":[{"uriFile":"file:///home/chang/SourceCode/rebase_gluten/backends-clickhouse/target/scala-2.12/test-classes/tests-working-home/tpch-data/supplier/part-00000-16caa751-9774-470c-bd37-5c84c53373c8-c000.snappy.parquet","length":"84633","parquet":{},"schema":{},"metadataColumns":[{}]}]}")";
     SerializedPlanParser parser(SerializedPlanParser::global_context);
     parser.addSplitInfo(splitBinaryFromJson(split));
     parser.parseJson(json);
