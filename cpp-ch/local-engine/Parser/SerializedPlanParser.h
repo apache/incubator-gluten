@@ -112,7 +112,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"rand", "randCanonical"},
        {"isnan", "isNaN"},
        {"bin", "sparkBin"},
-        {"rint", "sparkRint"},
+       {"rint", "sparkRint"},
 
        /// string functions
        {"like", "like"},
@@ -151,7 +151,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"initcap", "initcapUTF8"},
        {"conv", "sparkConv"},
        {"uuid", "generateUUIDv4"},
-        {"levenshteinDistance", "editDistanceUTF8"},
+       {"levenshteinDistance", "editDistanceUTF8"},
 
        /// hash functions
        {"crc32", "CRC32"},
@@ -278,7 +278,7 @@ public:
         materialize_inputs.emplace_back(materialize_input);
     }
 
-    void addSplitInfo(std::string & split_info) { split_infos.emplace_back(std::move(split_info)); }
+    void addSplitInfo(std::string && split_info) { split_infos.emplace_back(std::move(split_info)); }
 
     int nextSplitInfoIndex()
     {
@@ -299,6 +299,7 @@ public:
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
+    IQueryPlanStep * addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header);
 
     static ContextMutablePtr global_context;
     static Context::ConfigurationPtr config;
@@ -418,6 +419,7 @@ public:
     RelMetricPtr getMetric() const { return metric; }
     void setMetric(RelMetricPtr metric_) { metric = metric_; }
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
+
 private:
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(DB::Block & block);
 
@@ -433,7 +435,6 @@ private:
     DB::QueryPlanPtr current_query_plan;
     RelMetricPtr metric;
     std::vector<QueryPlanPtr> extra_plan_holder;
-
 };
 
 
@@ -449,7 +450,7 @@ public:
     ~ASTParser() = default;
 
     ASTPtr parseToAST(const Names & names, const substrait::Expression & rel);
-    ActionsDAGPtr convertToActions(const NamesAndTypesList & name_and_types, const ASTPtr & ast);
+    ActionsDAG convertToActions(const NamesAndTypesList & name_and_types, const ASTPtr & ast) const;
 
 private:
     ContextPtr context;

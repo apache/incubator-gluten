@@ -211,7 +211,7 @@ PrewhereInfoPtr MergeTreeRelParser::parsePreWhereInfo(const substrait::Expressio
     prewhere_info->prewhere_column_name = filter_name;
     prewhere_info->need_filter = true;
     prewhere_info->remove_prewhere_column = true;
-    prewhere_info->prewhere_actions->projectInput(false);
+
     for (const auto & name : input.getNames())
         prewhere_info->prewhere_actions->tryRestoreColumn(name);
     return prewhere_info;
