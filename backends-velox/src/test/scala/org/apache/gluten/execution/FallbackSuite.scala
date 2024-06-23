@@ -116,6 +116,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
   test("fallback final aggregate of collect_list") {
     withSQLConf(
       GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1",
+      GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> "false",
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "element_at"
     ) {
       runQueryAndCompare(
@@ -133,6 +134,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
   ignore("fallback final aggregate of collect_set") {
     withSQLConf(
       GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1",
+      GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> "false",
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "element_at"
     ) {
       runQueryAndCompare(
@@ -184,21 +186,32 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     }
   }
 
-  test("ignore scan fallback cost") {
+  test("Prefer to use Gluten plan in fallback policy") {
+    withSQLConf(GlutenConfig.COLUMNAR_QUERY_FALLBACK_THRESHOLD.key -> "1") {
+      runQueryAndCompare("SELECT * FROM tmp1 WHERE c1 > 0") {
+        df =>
+          val plan = df.queryExecution.executedPlan
+          assert(collect(plan) { case f: FileSourceScanExecTransformer => f }.size == 1)
+          assert(collect(plan) { case f: FilterExecTransformer => f }.size == 1)
+      }
+    }
+  }
+
+  test("test ignore row to columnar") {
     Seq("true", "false").foreach {
-      ignoreScanFallbackCost =>
+      ignoreRowToColumnar =>
         withSQLConf(
-          GlutenConfig.COLUMNAR_IGNORE_SCAN_FALLBACK_COST.key -> ignoreScanFallbackCost,
-          GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false",
+          GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> ignoreRowToColumnar,
+          GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_set",
           GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1"
         ) {
-          runQueryAndCompare("SELECT c1, sum(c2) FROM tmp1 GROUP BY c1") {
+          runQueryAndCompare("SELECT c1, collect_set(c2) FROM tmp1 GROUP BY c1") {
             df =>
               val plan = df.queryExecution.executedPlan
-              // fallback if not ignore scan fallback cost, i.e., the RowToColumnar for scan.
+              // fallback if not ignore row to columnar
               assert(collect(plan) {
                 case g: GlutenPlan => g
-              }.nonEmpty == ignoreScanFallbackCost.toBoolean)
+              }.nonEmpty == ignoreRowToColumnar.toBoolean)
           }
         }
     }
