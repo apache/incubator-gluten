@@ -672,9 +672,11 @@ trait SparkPlanExecApi {
     def getPushedFilter(dataFilters: Seq[Expression]): Seq[Expression] = {
       val pushedFilters =
         dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
-      pushedFilters.filterNot(_.references.exists {
-        attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
-      })
+      pushedFilters
+        .filterNot(_.references.exists {
+          attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
+        })
+        .filter(_.deterministic)
     }
     sparkExecNode match {
       case fileSourceScan: FileSourceScanExec =>
