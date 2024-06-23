@@ -22,7 +22,7 @@ import org.apache.spark.sql.types._
 
 import com.github.javafaker.Faker
 
-import java.sql.Date
+import java.sql.{Date, Timestamp}
 import java.util.Random
 
 case class RandomParquetDataGenerator(initialSeed: Long = 0L) extends Logging {
@@ -67,7 +67,7 @@ case class RandomParquetDataGenerator(initialSeed: Long = 0L) extends Logging {
       case DoubleType =>
         faker.number().randomDouble(2, Double.MinValue.toLong, Double.MaxValue.toLong)
       case DateType => new Date(faker.date().birthday().getTime)
-//      case TimestampType => new Timestamp(faker.date().birthday().getTime)
+      case TimestampType => new Timestamp(faker.date().birthday().getTime)
       case t: DecimalType =>
         BigDecimal(
           faker.number().randomDouble(t.scale, 0, Math.pow(10, t.precision - t.scale).toLong))
@@ -124,7 +124,7 @@ case class RandomParquetDataGenerator(initialSeed: Long = 0L) extends Logging {
     () => StructField(fieldName, FloatType, nullable = true),
     () => StructField(fieldName, DoubleType, nullable = true),
     () => StructField(fieldName, DateType, nullable = true),
-//    () => StructField(fieldName, TimestampType, nullable = true),
+    () => StructField(fieldName, TimestampType, nullable = true),
     () => StructField(fieldName, DecimalType(10, 2), nullable = true),
     () => StructField(fieldName, DecimalType(30, 10), nullable = true)
   )

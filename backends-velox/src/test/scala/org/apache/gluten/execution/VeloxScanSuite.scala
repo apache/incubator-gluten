@@ -93,7 +93,7 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
           RandomParquetDataGenerator(0).generateRandomData(spark, schema, 10, Some(path))
           spark.catalog.createTable("t", path, "parquet")
           runQueryAndCompare(
-            """select * from t where long_decimal_field = 3.14)""".stripMargin
+            """select * from t where long_decimal_field = 3.14""".stripMargin
           )(checkGlutenOperatorMatch[FileSourceScanExecTransformer])
           runQueryAndCompare(
             """select * from t where short_decimal_field = 3.14""".stripMargin
