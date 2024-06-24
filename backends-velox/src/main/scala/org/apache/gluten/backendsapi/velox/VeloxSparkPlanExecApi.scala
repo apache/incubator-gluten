@@ -827,15 +827,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     buf.result
   }
 
-  /**
-   * Generate extended columnar post-rules.
-   *
-   * @return
-   */
-  override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
-  }
-
   override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
     List(ArrowConvertorRule)
   }
