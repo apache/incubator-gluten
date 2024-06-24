@@ -46,7 +46,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "DEBUG")
+      // .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "DEBUG")
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
         s"$parquetMaxBlockSize")

@@ -21,6 +21,7 @@ import org.apache.gluten.execution.AllDataTypesWithComplexType.genTestData
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
+import org.apache.spark.gluten.NativeWriteChecker
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
@@ -28,11 +29,14 @@ import org.apache.spark.sql.test.SharedSparkSession
 
 import org.scalatest.BeforeAndAfterAll
 
+import scala.reflect.runtime.universe.TypeTag
+
 class GlutenClickHouseNativeWriteTableSuite
   extends GlutenClickHouseWholeStageTransformerSuite
   with AdaptiveSparkPlanHelper
   with SharedSparkSession
-  with BeforeAndAfterAll {
+  with BeforeAndAfterAll
+  with NativeWriteChecker {
 
   private var _hiveSpark: SparkSession = _
 
@@ -114,16 +118,19 @@ class GlutenClickHouseNativeWriteTableSuite
   def getColumnName(s: String): String = {
     s.replaceAll("\\(", "_").replaceAll("\\)", "_")
   }
+
   import collection.immutable.ListMap
 
   import java.io.File
 
   def writeIntoNewTableWithSql(table_name: String, table_create_sql: String)(
       fields: Seq[String]): Unit = {
-    spark.sql(table_create_sql)
-    spark.sql(
-      s"insert overwrite $table_name select ${fields.mkString(",")}" +
-        s" from origin_table")
+    withDestinationTable(table_name, table_create_sql) {
+      checkNativeWrite(
+        s"insert overwrite $table_name select ${fields.mkString(",")}" +
+          s" from origin_table",
+        checkNative = true)
+    }
   }
 
   def writeAndCheckRead(
@@ -170,82 +177,86 @@ class GlutenClickHouseNativeWriteTableSuite
       })
   }
 
-  test("test insert into dir") {
-    withSQLConf(
-      ("spark.gluten.sql.native.writer.enabled", "true"),
-      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
+  private val fields_ = ListMap(
+    ("string_field", "string"),
+    ("int_field", "int"),
+    ("long_field", "long"),
+    ("float_field", "float"),
+    ("double_field", "double"),
+    ("short_field", "short"),
+    ("byte_field", "byte"),
+    ("boolean_field", "boolean"),
+    ("decimal_field", "decimal(23,12)"),
+    ("date_field", "date")
+  )
 
-      val originDF = spark.createDataFrame(genTestData())
-      originDF.createOrReplaceTempView("origin_table")
+  def withDestinationTable(table: String, createTableSql: String)(f: => Unit): Unit = {
+    spark.sql(s"drop table IF EXISTS $table")
+    spark.sql(s"$createTableSql")
+    f
+  }
 
-      val fields: ListMap[String, String] = ListMap(
-        ("string_field", "string"),
-        ("int_field", "int"),
-        ("long_field", "long"),
-        ("float_field", "float"),
-        ("double_field", "double"),
-        ("short_field", "short"),
-        ("byte_field", "byte"),
-        ("boolean_field", "boolean"),
-        ("decimal_field", "decimal(23,12)"),
-        ("date_field", "date")
-      )
+  def nativeWrite(f: String => Unit): Unit = {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      formats.foreach(f(_))
+    }
+  }
 
-      for (format <- formats) {
-        spark.sql(
-          s"insert overwrite local directory '$basePath/test_insert_into_${format}_dir1' "
-            + s"stored as $format select "
-            + fields.keys.mkString(",") +
-            " from origin_table cluster by (byte_field)")
-        spark.sql(
-          s"insert overwrite local directory '$basePath/test_insert_into_${format}_dir2' " +
-            s"stored as $format " +
-            "select string_field, sum(int_field) as x from origin_table group by string_field")
+  def nativeWrite2(
+      f: String => (String, String, String),
+      extraCheck: (String, String, String) => Unit = null): Unit = nativeWrite {
+    format =>
+      val (table_name, table_create_sql, insert_sql) = f(format)
+      withDestinationTable(table_name, table_create_sql) {
+        checkNativeWrite(insert_sql, checkNative = true)
+        Option(extraCheck).foreach(_(table_name, table_create_sql, insert_sql))
+      }
+  }
+
+  def nativeWriteWithOriginalView[A <: Product: TypeTag](
+      data: Seq[A],
+      viewName: String,
+      pairs: (String, String)*)(f: String => Unit): Unit = {
+    val configs = pairs :+ ("spark.gluten.sql.native.writer.enabled", "true")
+    withSQLConf(configs: _*) {
+      withTempView(viewName) {
+        spark.createDataFrame(data).createOrReplaceTempView(viewName)
+        formats.foreach(f(_))
       }
     }
   }
 
+  test("test insert into dir") {
+    nativeWriteWithOriginalView(genTestData(), "origin_table") {
+      format =>
+        Seq(
+          s"""insert overwrite local directory '$basePath/test_insert_into_${format}_dir1'
+             |stored as $format select ${fields_.keys.mkString(",")}
+             |from origin_table""".stripMargin,
+          s"""insert overwrite local directory '$basePath/test_insert_into_${format}_dir2'
+             |stored as $format select string_field, sum(int_field) as x
+             |from origin_table group by string_field""".stripMargin
+        ).foreach(checkNativeWrite(_, checkNative = true))
+    }
+  }
+
   test("test insert into partition") {
-    withSQLConf(
-      ("spark.gluten.sql.native.writer.enabled", "true"),
-      ("spark.sql.orc.compression.codec", "lz4"),
-      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
+    def destination(format: String): (String, String, String) = {
+      val table_name = table_name_template.format(format)
+      val table_create_sql =
+        s"""create table if not exists $table_name
+           |(${fields_.map(f => s"${f._1} ${f._2}").mkString(",")})
+           |partitioned by (another_date_field date) stored as $format""".stripMargin
+      val insert_sql =
+        s"""insert into $table_name partition(another_date_field = '2020-01-01')
+           | select ${fields_.keys.mkString(",")} from origin_table""".stripMargin
+      (table_name, table_create_sql, insert_sql)
+    }
 
-      val originDF = spark.createDataFrame(genTestData())
-      originDF.createOrReplaceTempView("origin_table")
-
-      val fields: ListMap[String, String] = ListMap(
-        ("string_field", "string"),
-        ("int_field", "int"),
-        ("long_field", "long"),
-        ("float_field", "float"),
-        ("double_field", "double"),
-        ("short_field", "short"),
-        ("byte_field", "byte"),
-        ("boolean_field", "boolean"),
-        ("decimal_field", "decimal(23,12)"),
-        ("date_field", "date")
-      )
-
-      for (format <- formats) {
-        val table_name = table_name_template.format(format)
-        spark.sql(s"drop table IF EXISTS $table_name")
-
-        val table_create_sql =
-          s"create table if not exists $table_name (" +
-            fields
-              .map(f => s"${f._1} ${f._2}")
-              .mkString(",") +
-            " ) partitioned by (another_date_field date) " +
-            s"stored as $format"
-
-        spark.sql(table_create_sql)
-
-        spark.sql(
-          s"insert into $table_name partition(another_date_field = '2020-01-01') select "
-            + fields.keys.mkString(",") +
-            " from origin_table")
-
+    def nativeFormatWrite(format: String): Unit = {
+      val (table_name, table_create_sql, insert_sql) = destination(format)
+      withDestinationTable(table_name, table_create_sql) {
+        checkNativeWrite(insert_sql, checkNative = true)
         var files = recursiveListFiles(new File(getWarehouseDir + "/" + table_name))
           .filter(_.getName.endsWith(s".$format"))
         if (format == "orc") {
@@ -255,154 +266,103 @@ class GlutenClickHouseNativeWriteTableSuite
         assert(files.head.getAbsolutePath.contains("another_date_field=2020-01-01"))
       }
     }
+
+    nativeWriteWithOriginalView(
+      genTestData(),
+      "origin_table",
+      ("spark.sql.orc.compression.codec", "lz4"))(nativeFormatWrite)
   }
 
   test("test CTAS") {
-    withSQLConf(
-      ("spark.gluten.sql.native.writer.enabled", "true"),
-      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
-
-      val originDF = spark.createDataFrame(genTestData())
-      originDF.createOrReplaceTempView("origin_table")
-      val fields: ListMap[String, String] = ListMap(
-        ("string_field", "string"),
-        ("int_field", "int"),
-        ("long_field", "long"),
-        ("float_field", "float"),
-        ("double_field", "double"),
-        ("short_field", "short"),
-        ("byte_field", "byte"),
-        ("boolean_field", "boolean"),
-        ("decimal_field", "decimal(23,12)"),
-        ("date_field", "date")
-      )
-
-      for (format <- formats) {
+    nativeWriteWithOriginalView(genTestData(), "origin_table") {
+      format =>
         val table_name = table_name_template.format(format)
-        spark.sql(s"drop table IF EXISTS $table_name")
         val table_create_sql =
           s"create table $table_name using $format as select " +
-            fields
+            fields_
               .map(f => s"${f._1}")
               .mkString(",") +
             " from origin_table"
-        spark.sql(table_create_sql)
-        spark.sql(s"drop table IF EXISTS $table_name")
+        val insert_sql =
+          s"create table $table_name as select " +
+            fields_
+              .map(f => s"${f._1}")
+              .mkString(",") +
+            " from origin_table"
+        withDestinationTable(table_name, table_create_sql) {
+          spark.sql(s"drop table IF EXISTS $table_name")
 
-        try {
-          val table_create_sql =
-            s"create table $table_name as select " +
-              fields
-                .map(f => s"${f._1}")
-                .mkString(",") +
-              " from origin_table"
-          spark.sql(table_create_sql)
-        } catch {
-          case _: UnsupportedOperationException => // expected
-          case _: Exception => fail("should not throw exception")
+          try {
+            // FIXME: using checkNativeWrite
+            spark.sql(insert_sql)
+          } catch {
+            case _: UnsupportedOperationException => // expected
+            case e: Exception => fail("should not throw exception", e)
+          }
         }
-      }
 
     }
   }
 
   test("test insert into partition, bigo's case which incur InsertIntoHiveTable") {
-    withSQLConf(
-      ("spark.gluten.sql.native.writer.enabled", "true"),
-      ("spark.sql.hive.convertMetastoreParquet", "false"),
-      ("spark.sql.hive.convertMetastoreOrc", "false"),
-      (GlutenConfig.GLUTEN_ENABLED.key, "true")
-    ) {
+    def destination(format: String): (String, String, String) = {
+      val table_name = table_name_template.format(format)
+      val table_create_sql = s"create table if not exists $table_name (" + fields_
+        .map(f => s"${f._1} ${f._2}")
+        .mkString(",") + " ) partitioned by (another_date_field string)" +
+        s"stored as $format"
+      val insert_sql =
+        s"insert overwrite table $table_name " +
+          "partition(another_date_field = '2020-01-01') select " +
+          fields_.keys.mkString(",") + " from (select " + fields_.keys.mkString(
+            ",") + ", row_number() over (order by int_field desc) as rn  " +
+          "from origin_table where float_field > 3 ) tt where rn <= 100"
+      (table_name, table_create_sql, insert_sql)
+    }
 
-      val originDF = spark.createDataFrame(genTestData())
-      originDF.createOrReplaceTempView("origin_table")
-      val fields: ListMap[String, String] = ListMap(
-        ("string_field", "string"),
-        ("int_field", "int"),
-        ("long_field", "long"),
-        ("float_field", "float"),
-        ("double_field", "double"),
-        ("short_field", "short"),
-        ("byte_field", "byte"),
-        ("boolean_field", "boolean"),
-        ("decimal_field", "decimal(23,12)"),
-        ("date_field", "date")
-      )
-
-      for (format <- formats) {
-        val table_name = table_name_template.format(format)
-        spark.sql(s"drop table IF EXISTS $table_name")
-        val table_create_sql = s"create table if not exists $table_name (" + fields
-          .map(f => s"${f._1} ${f._2}")
-          .mkString(",") + " ) partitioned by (another_date_field string)" +
-          s"stored as $format"
-
-        spark.sql(table_create_sql)
-        spark.sql(
-          s"insert overwrite table $table_name " +
-            "partition(another_date_field = '2020-01-01') select "
-            + fields.keys.mkString(",") + " from (select " + fields.keys.mkString(
-              ",") + ", row_number() over (order by int_field desc) as rn  " +
-            "from origin_table where float_field > 3 ) tt where rn <= 100")
+    def nativeFormatWrite(format: String): Unit = {
+      val (table_name, table_create_sql, insert_sql) = destination(format)
+      withDestinationTable(table_name, table_create_sql) {
+        checkNativeWrite(insert_sql, checkNative = true)
         val files = recursiveListFiles(new File(getWarehouseDir + "/" + table_name))
           .filter(_.getName.startsWith("part"))
         assert(files.length == 1)
         assert(files.head.getAbsolutePath.contains("another_date_field=2020-01-01"))
       }
     }
+
+    nativeWriteWithOriginalView(
+      genTestData(),
+      "origin_table",
+      ("spark.sql.hive.convertMetastoreParquet", "false"),
+      ("spark.sql.hive.convertMetastoreOrc", "false"))(nativeFormatWrite)
   }
 
   test("test 1-col partitioned table") {
+    nativeWrite {
+      format =>
+        {
+          val table_name = table_name_template.format(format)
+          val table_create_sql =
+            s"create table if not exists $table_name (" +
+              fields_
+                .filterNot(e => e._1.equals("date_field"))
+                .map(f => s"${f._1} ${f._2}")
+                .mkString(",") +
+              " ) partitioned by (date_field date) " +
+              s"stored as $format"
 
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
-
-      val fields: ListMap[String, String] = ListMap(
-        ("string_field", "string"),
-        ("int_field", "int"),
-        ("long_field", "long"),
-        ("float_field", "float"),
-        ("double_field", "double"),
-        ("short_field", "short"),
-        ("byte_field", "byte"),
-        ("boolean_field", "boolean"),
-        ("decimal_field", "decimal(23,12)"),
-        ("date_field", "date")
-      )
-
-      for (format <- formats) {
-        val table_name = table_name_template.format(format)
-        val table_create_sql =
-          s"create table if not exists $table_name (" +
-            fields
-              .filterNot(e => e._1.equals("date_field"))
-              .map(f => s"${f._1} ${f._2}")
-              .mkString(",") +
-            " ) partitioned by (date_field date) " +
-            s"stored as $format"
-
-        writeAndCheckRead(
-          table_name,
-          writeIntoNewTableWithSql(table_name, table_create_sql),
-          fields.keys.toSeq)
-      }
+          writeAndCheckRead(
+            table_name,
+            writeIntoNewTableWithSql(table_name, table_create_sql),
+            fields_.keys.toSeq)
+        }
     }
   }
 
   // even if disable native writer, this UT fail, spark bug???
   ignore("test 1-col partitioned table, partitioned by already ordered column") {
     withSQLConf(("spark.gluten.sql.native.writer.enabled", "false")) {
-      val fields: ListMap[String, String] = ListMap(
-        ("string_field", "string"),
-        ("int_field", "int"),
-        ("long_field", "long"),
-        ("float_field", "float"),
-        ("double_field", "double"),
-        ("short_field", "short"),
-        ("byte_field", "byte"),
-        ("boolean_field", "boolean"),
-        ("decimal_field", "decimal(23,12)"),
-        ("date_field", "date")
-      )
       val originDF = spark.createDataFrame(genTestData())
       originDF.createOrReplaceTempView("origin_table")
 
@@ -410,7 +370,7 @@ class GlutenClickHouseNativeWriteTableSuite
         val table_name = table_name_template.format(format)
         val table_create_sql =
           s"create table if not exists $table_name (" +
-            fields
+            fields_
               .filterNot(e => e._1.equals("date_field"))
               .map(f => s"${f._1} ${f._2}")
               .mkString(",") +
@@ -420,31 +380,27 @@ class GlutenClickHouseNativeWriteTableSuite
         spark.sql(s"drop table IF EXISTS $table_name")
         spark.sql(table_create_sql)
         spark.sql(
-          s"insert overwrite $table_name select ${fields.mkString(",")}" +
+          s"insert overwrite $table_name select ${fields_.mkString(",")}" +
             s" from origin_table order by date_field")
       }
     }
   }
 
   test("test 2-col partitioned table") {
-    withSQLConf(
-      ("spark.gluten.sql.native.writer.enabled", "true"),
-      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
-
-      val fields: ListMap[String, String] = ListMap(
-        ("string_field", "string"),
-        ("int_field", "int"),
-        ("long_field", "long"),
-        ("float_field", "float"),
-        ("double_field", "double"),
-        ("short_field", "short"),
-        ("boolean_field", "boolean"),
-        ("decimal_field", "decimal(23,12)"),
-        ("date_field", "date"),
-        ("byte_field", "byte")
-      )
-
-      for (format <- formats) {
+    val fields: ListMap[String, String] = ListMap(
+      ("string_field", "string"),
+      ("int_field", "int"),
+      ("long_field", "long"),
+      ("float_field", "float"),
+      ("double_field", "double"),
+      ("short_field", "short"),
+      ("boolean_field", "boolean"),
+      ("decimal_field", "decimal(23,12)"),
+      ("date_field", "date"),
+      ("byte_field", "byte")
+    )
+    nativeWrite {
+      format =>
         val table_name = table_name_template.format(format)
         val table_create_sql =
           s"create table if not exists $table_name (" +
@@ -458,7 +414,6 @@ class GlutenClickHouseNativeWriteTableSuite
           table_name,
           writeIntoNewTableWithSql(table_name, table_create_sql),
           fields.keys.toSeq)
-      }
     }
   }
 
@@ -506,25 +461,21 @@ class GlutenClickHouseNativeWriteTableSuite
 
   // This test case will be failed with incorrect result randomly, ignore first.
   ignore("test hive parquet/orc table, all columns being partitioned. ") {
-    withSQLConf(
-      ("spark.gluten.sql.native.writer.enabled", "true"),
-      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
-
-      val fields: ListMap[String, String] = ListMap(
-        ("date_field", "date"),
-        ("timestamp_field", "timestamp"),
-        ("string_field", "string"),
-        ("int_field", "int"),
-        ("long_field", "long"),
-        ("float_field", "float"),
-        ("double_field", "double"),
-        ("short_field", "short"),
-        ("byte_field", "byte"),
-        ("boolean_field", "boolean"),
-        ("decimal_field", "decimal(23,12)")
-      )
-
-      for (format <- formats) {
+    val fields: ListMap[String, String] = ListMap(
+      ("date_field", "date"),
+      ("timestamp_field", "timestamp"),
+      ("string_field", "string"),
+      ("int_field", "int"),
+      ("long_field", "long"),
+      ("float_field", "float"),
+      ("double_field", "double"),
+      ("short_field", "short"),
+      ("byte_field", "byte"),
+      ("boolean_field", "boolean"),
+      ("decimal_field", "decimal(23,12)")
+    )
+    nativeWrite {
+      format =>
         val table_name = table_name_template.format(format)
         val table_create_sql =
           s"create table if not exists $table_name (" +
@@ -540,20 +491,15 @@ class GlutenClickHouseNativeWriteTableSuite
           table_name,
           writeIntoNewTableWithSql(table_name, table_create_sql),
           fields.keys.toSeq)
-      }
     }
   }
 
-  test(("test hive parquet/orc table with aggregated results")) {
-    withSQLConf(
-      ("spark.gluten.sql.native.writer.enabled", "true"),
-      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
-
-      val fields: ListMap[String, String] = ListMap(
-        ("sum(int_field)", "bigint")
-      )
-
-      for (format <- formats) {
+  test("test hive parquet/orc table with aggregated results") {
+    val fields: ListMap[String, String] = ListMap(
+      ("sum(int_field)", "bigint")
+    )
+    nativeWrite {
+      format =>
         val table_name = table_name_template.format(format)
         val table_create_sql =
           s"create table if not exists $table_name (" +
@@ -566,29 +512,12 @@ class GlutenClickHouseNativeWriteTableSuite
           table_name,
           writeIntoNewTableWithSql(table_name, table_create_sql),
           fields.keys.toSeq)
-      }
     }
   }
 
   test("test 1-col partitioned + 1-col bucketed table") {
-    withSQLConf(
-      ("spark.gluten.sql.native.writer.enabled", "true"),
-      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
-
-      val fields: ListMap[String, String] = ListMap(
-        ("string_field", "string"),
-        ("int_field", "int"),
-        ("long_field", "long"),
-        ("float_field", "float"),
-        ("double_field", "double"),
-        ("short_field", "short"),
-        ("byte_field", "byte"),
-        ("boolean_field", "boolean"),
-        ("decimal_field", "decimal(23,12)"),
-        ("date_field", "date")
-      )
-
-      for (format <- formats) {
+    nativeWrite {
+      format =>
         // spark write does not support bucketed table
         // https://issues.apache.org/jira/browse/SPARK-19256
         val table_name = table_name_template.format(format)
@@ -604,7 +533,7 @@ class GlutenClickHouseNativeWriteTableSuite
               .bucketBy(2, "byte_field")
               .saveAsTable(table_name)
           },
-          fields.keys.toSeq
+          fields_.keys.toSeq
         )
 
         assert(
@@ -614,10 +543,8 @@ class GlutenClickHouseNativeWriteTableSuite
             .filter(!_.getName.equals("date_field=__HIVE_DEFAULT_PARTITION__"))
             .head
             .listFiles()
-            .filter(!_.isHidden)
-            .length == 2
+            .count(!_.isHidden) == 2
         ) // 2 bucket files
-      }
     }
   }
 
@@ -745,8 +672,8 @@ class GlutenClickHouseNativeWriteTableSuite
   }
 
   test("test consecutive blocks having same partition value") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
-      for (format <- formats) {
+    nativeWrite {
+      format =>
         val table_name = table_name_template.format(format)
         spark.sql(s"drop table IF EXISTS $table_name")
 
@@ -760,15 +687,14 @@ class GlutenClickHouseNativeWriteTableSuite
           .partitionBy("p")
           .saveAsTable(table_name)
 
-        val ret = spark.sql("select sum(id) from " + table_name).collect().apply(0).apply(0)
+        val ret = spark.sql(s"select sum(id) from $table_name").collect().apply(0).apply(0)
         assert(ret == 449985000)
-      }
     }
   }
 
   test("test decimal with rand()") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
-      for (format <- formats) {
+    nativeWrite {
+      format =>
         val table_name = table_name_template.format(format)
         spark.sql(s"drop table IF EXISTS $table_name")
         spark
@@ -778,32 +704,30 @@ class GlutenClickHouseNativeWriteTableSuite
           .format(format)
           .partitionBy("p")
           .saveAsTable(table_name)
-        val ret = spark.sql("select max(p) from " + table_name).collect().apply(0).apply(0)
-      }
+        val ret = spark.sql(s"select max(p) from $table_name").collect().apply(0).apply(0)
     }
   }
 
   test("test partitioned by constant") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
-      for (format <- formats) {
-        spark.sql(s"drop table IF EXISTS tmp_123_$format")
-        spark.sql(
-          s"create table tmp_123_$format(" +
-            s"x1 string, x2 bigint,x3 string, x4 bigint, x5 string )" +
-            s"partitioned by (day date) stored as $format")
-
-        spark.sql(
-          s"insert into tmp_123_$format partition(day) " +
-            "select cast(id as string), id, cast(id as string), id, cast(id as string), " +
-            "'2023-05-09' from range(10000000)")
-      }
+    nativeWrite2 {
+      format =>
+        val table_name = s"tmp_123_$format"
+        val create_sql =
+          s"""create table tmp_123_$format(
+             |x1 string, x2 bigint,x3 string, x4 bigint, x5 string )
+             |partitioned by (day date) stored as $format""".stripMargin
+        val insert_sql =
+          s"""insert into tmp_123_$format partition(day)
+             |select cast(id as string), id, cast(id as string),
+             |       id, cast(id as string), '2023-05-09'
+             |from range(10000000)""".stripMargin
+        (table_name, create_sql, insert_sql)
     }
   }
 
   test("test bucketed by constant") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
-
-      for (format <- formats) {
+    nativeWrite {
+      format =>
         val table_name = table_name_template.format(format)
         spark.sql(s"drop table IF EXISTS $table_name")
 
@@ -815,15 +739,13 @@ class GlutenClickHouseNativeWriteTableSuite
           .bucketBy(2, "p")
           .saveAsTable(table_name)
 
-        val ret = spark.sql("select count(*) from " + table_name).collect().apply(0).apply(0)
-      }
+        assertResult(10000000)(spark.table(table_name).count())
     }
   }
 
   test("test consecutive null values being partitioned") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
-
-      for (format <- formats) {
+    nativeWrite {
+      format =>
         val table_name = table_name_template.format(format)
         spark.sql(s"drop table IF EXISTS $table_name")
 
@@ -835,14 +757,13 @@ class GlutenClickHouseNativeWriteTableSuite
           .partitionBy("p")
           .saveAsTable(table_name)
 
-        val ret = spark.sql("select count(*) from " + table_name).collect().apply(0).apply(0)
-      }
+        assertResult(30000)(spark.table(table_name).count())
     }
   }
 
   test("test consecutive null values being bucketed") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
-      for (format <- formats) {
+    nativeWrite {
+      format =>
         val table_name = table_name_template.format(format)
         spark.sql(s"drop table IF EXISTS $table_name")
 
@@ -854,78 +775,79 @@ class GlutenClickHouseNativeWriteTableSuite
           .bucketBy(2, "p")
           .saveAsTable(table_name)
 
-        val ret = spark.sql("select count(*) from " + table_name).collect().apply(0).apply(0)
-      }
+        assertResult(30000)(spark.table(table_name).count())
     }
   }
 
   test("test native write with empty dataset") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
-      for (format <- formats) {
+    nativeWrite2(
+      format => {
         val table_name = "t_" + format
-        spark.sql(s"drop table IF EXISTS $table_name")
-        spark.sql(s"create table $table_name (id int, str string) stored as $format")
-        spark.sql(
-          s"insert into $table_name select id, cast(id as string) from range(10)" +
-            " where id > 100")
+        (
+          table_name,
+          s"create table $table_name (id int, str string) stored as $format",
+          s"insert into $table_name select id, cast(id as string) from range(10) where id > 100"
+        )
+      },
+      (table_name, _, _) => {
+        assertResult(0)(spark.table(table_name).count())
       }
-    }
+    )
   }
 
   test("test native write with union") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
-      for (format <- formats) {
+    nativeWrite {
+      format =>
         val table_name = "t_" + format
-        spark.sql(s"drop table IF EXISTS $table_name")
-        spark.sql(s"create table $table_name (id int, str string) stored as $format")
-        spark.sql(
-          s"insert overwrite table $table_name " +
-            "select id, cast(id as string) from range(10) union all " +
-            "select 10, '10' from range(10)")
-        spark.sql(
-          s"insert overwrite table $table_name " +
-            "select id, cast(id as string) from range(10) union all " +
-            "select 10, cast(id as string) from range(10)")
-
-      }
+        withDestinationTable(
+          table_name,
+          s"create table $table_name (id int, str string) stored as $format") {
+          checkNativeWrite(
+            s"insert overwrite table $table_name " +
+              "select id, cast(id as string) from range(10) union all " +
+              "select 10, '10' from range(10)",
+            checkNative = true)
+          checkNativeWrite(
+            s"insert overwrite table $table_name " +
+              "select id, cast(id as string) from range(10) union all " +
+              "select 10, cast(id as string) from range(10)",
+            checkNative = true
+          )
+        }
     }
   }
 
   test("test native write and non-native read consistency") {
-    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
-      for (format <- formats) {
-        val table_name = "t_" + format
-        spark.sql(s"drop table IF EXISTS $table_name")
-        spark.sql(s"create table $table_name (id int, name string, info char(4)) stored as $format")
-        spark.sql(
-          s"insert overwrite table $table_name " +
-            "select id, cast(id as string), concat('aaa', cast(id as string)) from range(10)")
+    nativeWrite2(
+      {
+        format =>
+          val table_name = "t_" + format
+          (
+            table_name,
+            s"create table $table_name (id int, name string, info char(4)) stored as $format",
+            s"insert overwrite table $table_name " +
+              "select id, cast(id as string), concat('aaa', cast(id as string)) from range(10)"
+          )
+      },
+      (table_name, _, _) =>
         compareResultsAgainstVanillaSpark(
           s"select * from $table_name",
           compareResult = true,
           _ => {})
-      }
-    }
+    )
   }
 
   test("GLUTEN-4316: fix crash on dynamic partition inserting") {
-    withSQLConf(
-      ("spark.gluten.sql.native.writer.enabled", "true"),
-      (GlutenConfig.GLUTEN_ENABLED.key, "true")) {
-      formats.foreach(
-        format => {
-          val tbl = "t_" + format
-          spark.sql(s"drop table IF EXISTS $tbl")
-          val sql1 =
-            s"create table $tbl(a int, b map<string, string>, c struct<d:string, e:string>) " +
-              s"partitioned by (day string) stored as $format"
-          val sql2 = s"insert overwrite $tbl partition (day) " +
-            s"select id as a, str_to_map(concat('t1:','a','&t2:','b'),'&',':'), " +
-            s"struct('1', null) as c, '2024-01-08' as day from range(10)"
-          spark.sql(sql1)
-          spark.sql(sql2)
-        })
+    nativeWrite2 {
+      format =>
+        val tbl = "t_" + format
+        val sql1 =
+          s"create table $tbl(a int, b map<string, string>, c struct<d:string, e:string>) " +
+            s"partitioned by (day string) stored as $format"
+        val sql2 = s"insert overwrite $tbl partition (day) " +
+          s"select id as a, str_to_map(concat('t1:','a','&t2:','b'),'&',':'), " +
+          s"struct('1', null) as c, '2024-01-08' as day from range(10)"
+        (tbl, sql1, sql2)
     }
   }
-
 }

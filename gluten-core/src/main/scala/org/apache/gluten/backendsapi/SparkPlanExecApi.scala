@@ -430,7 +430,9 @@ trait SparkPlanExecApi {
    *
    * @return
    */
-  def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
+  def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
+    SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
+  }
 
   def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]]
 

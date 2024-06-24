@@ -453,7 +453,7 @@ std::unique_ptr<SparkRowInfo> CHColumnToSparkRow::convertCHColumnToSparkRow(cons
     if (!block.columns())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "A block with empty columns");
     std::unique_ptr<SparkRowInfo> spark_row_info = std::make_unique<SparkRowInfo>(block, masks);
-    spark_row_info->setBufferAddress(reinterpret_cast<char *>(alloc(spark_row_info->getTotalBytes(), 64)));
+    spark_row_info->setBufferAddress(static_cast<char *>(alloc(spark_row_info->getTotalBytes(), 64)));
     // spark_row_info->setBufferAddress(alignedAlloc(spark_row_info->getTotalBytes(), 64));
     memset(spark_row_info->getBufferAddress(), 0, spark_row_info->getTotalBytes());
     for (auto col_idx = 0; col_idx < spark_row_info->getNumCols(); col_idx++)
