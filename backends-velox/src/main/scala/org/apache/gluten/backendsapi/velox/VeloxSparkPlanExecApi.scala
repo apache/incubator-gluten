@@ -806,12 +806,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = {
-    val buf: ListBuffer[SparkSession => Rule[SparkPlan]] =
-      ListBuffer(BloomFilterMightContainJointRewriteRule.apply, ArrowScanReplaceRule.apply)
-    if (GlutenConfig.getConf.enableInputFileNameReplaceRule) {
-      buf += InputFileNameReplaceRule.apply
-    }
-    buf.result
+    List(BloomFilterMightContainJointRewriteRule.apply, ArrowScanReplaceRule.apply)
   }
 
   /**
