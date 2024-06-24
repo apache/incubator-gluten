@@ -41,8 +41,8 @@ object HdfsConfGenerator extends Logging {
     addFileMethod.invoke(sc, path, Boolean.box(false), Boolean.box(true), Boolean.box(false))
     // Overwrite the spark internal config `spark.app.initial.file.urls`,
     // so that the file can be available before initializing executor plugin.
-    assert(sc.addedFiles.nonEmpty)
-    sc.conf.set("spark.app.initial.file.urls", sc.addedFiles.keys.toSeq.mkString(","))
+    assert(sc.listFiles.nonEmpty)
+    sc.conf.set("spark.app.initial.file.urls", sc.listFiles().mkString(","))
   }
 
   private def ignoreKey(key: String): Boolean = {
