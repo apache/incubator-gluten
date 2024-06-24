@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.types._
 
 import java.sql.Timestamp
@@ -1145,7 +1146,18 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         runQueryAndCompare(
           "SELECT a, window.start, window.end, count(*) as cnt FROM" +
             " string_timestamp GROUP by a, window(b, '5 minutes') ORDER BY a, start;") {
-          checkGlutenOperatorMatch[ProjectExecTransformer]
+          df =>
+            val executedPlan = getExecutedPlan(df)
+            assert(
+              executedPlan.exists(plan => plan.isInstanceOf[ProjectExecTransformer]),
+              s"Expect ProjectExecTransformer exists " +
+                s"in executedPlan:\n ${executedPlan.last}"
+            )
+            assert(
+              !executedPlan.exists(plan => plan.isInstanceOf[ProjectExec]),
+              s"Expect ProjectExec doesn't exist " +
+                s"in executedPlan:\n ${executedPlan.last}"
+            )
         }
     }
   }
