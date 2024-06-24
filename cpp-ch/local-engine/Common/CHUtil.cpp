@@ -623,7 +623,8 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
 {
     /// Initialize default setting.
     settings.set("date_time_input_format", "best_effort");
-    settings.set("mergetree.merge_after_insert", true);
+    settings.set(MERGETREE_MERGE_AFTER_INSERT, true);
+    settings.set(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, false);
 
     for (const auto & [key, value] : backend_conf_map)
     {

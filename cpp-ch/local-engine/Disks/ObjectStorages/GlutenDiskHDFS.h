@@ -57,6 +57,8 @@ public:
 
     void removeDirectory(const String & path) override;
 
+    void removeRecursive(const String & path) override;
+
     DB::DiskObjectStoragePtr createDiskObjectStorage() override;
 
     std::unique_ptr<DB::WriteBufferFromFileBase> writeFile(const String& path, size_t buf_size, DB::WriteMode mode,

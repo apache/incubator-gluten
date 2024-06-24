@@ -25,9 +25,11 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMerg
 
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import java.io.File
+
+import scala.concurrent.duration.DurationInt
 
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
@@ -613,6 +615,46 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
       .load(dataPath)
       .count()
     assertResult(600572)(result)
+  }
+
+  test("test mergetree insert with optimize basic") {
+    val tableName = "lineitem_mergetree_insert_optimize_basic_hdfs"
+    val dataPath = s"$HDFS_URL/test/$tableName"
+
+    withSQLConf(
+      "spark.databricks.delta.optimize.minFileSize" -> "200000000",
+      "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert" -> "true",
+      "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.insert_without_local_storage" -> "true",
+      "spark.gluten.sql.columnar.backend.ch.runtime_settings.min_insert_block_size_rows" -> "10000"
+    ) {
+      spark.sql(s"""
+                   |DROP TABLE IF EXISTS $tableName;
+                   |""".stripMargin)
+
+      spark.sql(s"""
+                   |CREATE TABLE IF NOT EXISTS $tableName
+                   |USING clickhouse
+                   |LOCATION '$dataPath'
+                   |TBLPROPERTIES (storage_policy='__hdfs_main')
+                   | as select * from lineitem
+                   |""".stripMargin)
+
+      val ret = spark.sql(s"select count(*) from $tableName").collect()
+      assertResult(600572)(ret.apply(0).get(0))
+      val conf = new Configuration
+      conf.set("fs.defaultFS", HDFS_URL)
+      val fs = FileSystem.get(conf)
+
+      eventually(timeout(60.seconds), interval(2.seconds)) {
+        val it = fs.listFiles(new Path(dataPath), true)
+        var files = 0
+        while (it.hasNext) {
+          it.next()
+          files += 1
+        }
+        assertResult(72)(files)
+      }
+    }
   }
 }
 // scalastyle:off line.size.limit
