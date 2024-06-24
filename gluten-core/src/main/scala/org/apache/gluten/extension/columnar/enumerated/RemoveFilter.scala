@@ -42,6 +42,7 @@ object RemoveFilter extends RasRule[SparkPlan] {
     val filter = node.asInstanceOf[FilterExecTransformerBase]
     if (filter.isNoop()) {
       val out = NoopFilter(filter.child, filter.output)
+      out.copyTagsFrom(filter)
       return List(out)
     }
     List.empty
