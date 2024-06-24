@@ -59,7 +59,7 @@ class SharedLibraryLoaderUbuntu2004 extends SharedLibraryLoader {
       .loadAndCreateLink("libicudata.so.66", "libicudata.so", false)
       .loadAndCreateLink("libicuuc.so.66", "libicuuc.so", false)
       .loadAndCreateLink("libxml2.so.2", "libxml2.so", false)
-      .loadAndCreateLink("libhdfs3.so.1", "libhdfs3.so", false)
+      .loadAndCreateLink("libhdfs.so.0.0.0", "libhdfs.so", false)
       .loadAndCreateLink("libre2.so.5", "libre2.so", false)
       .loadAndCreateLink("libsnappy.so.1", "libsnappy.so", false)
       .loadAndCreateLink("libthrift-0.13.0.so", "libthrift.so", false)
