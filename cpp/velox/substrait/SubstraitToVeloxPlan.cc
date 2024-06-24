@@ -26,6 +26,7 @@
 #include "utils/ConfigExtractor.h"
 
 #include "config/GlutenConfig.h"
+#include "operators/plannodes/RowVectorStream.h"
 
 namespace gluten {
 namespace {
@@ -710,16 +711,24 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 namespace {
 
 void extractUnnestFieldExpr(
-    std::shared_ptr<const core::ProjectNode> projNode,
+    std::shared_ptr<const core::PlanNode> child,
     int32_t index,
     std::vector<core::FieldAccessTypedExprPtr>& unnestFields) {
-  auto name = projNode->names()[index];
-  auto expr = projNode->projections()[index];
-  auto type = expr->type();
+  if (auto projNode = std::dynamic_pointer_cast<const core::ProjectNode>(child)) {
+    auto name = projNode->names()[index];
+    auto expr = projNode->projections()[index];
+    auto type = expr->type();
 
-  auto unnestFieldExpr = std::make_shared<core::FieldAccessTypedExpr>(type, name);
-  VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
-  unnestFields.emplace_back(unnestFieldExpr);
+    auto unnestFieldExpr = std::make_shared<core::FieldAccessTypedExpr>(type, name);
+    VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
+    unnestFields.emplace_back(unnestFieldExpr);
+  } else {
+    auto name = child->outputType()->names()[index];
+    auto field = child->outputType()->childAt(index);
+    std::cout << "name: " << name << "type: " << field->toString() << std::endl;
+    auto unnestFieldExpr = std::make_shared<core::FieldAccessTypedExpr>(field, name);
+    unnestFields.emplace_back(unnestFieldExpr);
+  }
 }
 
 } // namespace
@@ -752,9 +761,10 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "injectedProject=");
 
   if (injectedProject) {
-    auto projNode = std::dynamic_pointer_cast<const core::ProjectNode>(childNode);
+    // Child should be either ProjectNode or ValueStreamNode in case of project fallback.
     VELOX_CHECK(
-        projNode != nullptr && projNode->names().size() > requiredChildOutput.size(),
+        std::dynamic_pointer_cast<const core::ProjectNode>(childNode) != nullptr ||
+            std::dynamic_pointer_cast<const ValueStreamNode>(childNode) != nullptr,
         "injectedProject is true, but the Project is missing or does not have the corresponding projection field")
 
     bool isStack = generateRel.has_advanced_extension() &&
@@ -768,7 +778,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       //  +- Project [fake_column#128, [1,2,3] AS _pre_0#129]
       //   +- RewrittenNodeWall Scan OneRowRelation[fake_column#128]
       // The last projection column in GeneratorRel's child(Project) is the column we need to unnest
-      extractUnnestFieldExpr(projNode, projNode->projections().size() - 1, unnest);
+      auto index = childNode->outputType()->size() - 1;
+      extractUnnestFieldExpr(childNode, index, unnest);
     } else {
       // For stack function, e.g. stack(2, 1,2,3), a sample
       // input substrait plan is like the following:
@@ -782,10 +793,10 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       auto generatorFunc = generator.scalar_function();
       auto numRows = SubstraitParser::getLiteralValue<int32_t>(generatorFunc.arguments(0).value().literal());
       auto numFields = static_cast<int32_t>(std::ceil((generatorFunc.arguments_size() - 1.0) / numRows));
-      auto totalProjectCount = projNode->names().size();
+      auto totalProjectCount = childNode->outputType()->size();
 
       for (auto i = totalProjectCount - numFields; i < totalProjectCount; ++i) {
-        extractUnnestFieldExpr(projNode, i, unnest);
+        extractUnnestFieldExpr(childNode, i, unnest);
       }
     }
   } else {
