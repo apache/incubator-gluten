@@ -77,6 +77,7 @@ namespace ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
 extern const int UNKNOWN_TYPE;
+extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
 }
 }
 
@@ -466,17 +467,17 @@ String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
 
 using namespace DB;
 
-std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std::string * plan)
+std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string & plan)
 {
     std::map<std::string, std::string> ch_backend_conf;
-    if (plan == nullptr)
+    if (plan.empty())
         return ch_backend_conf;
 
     /// Parse backend configs from plan extensions
     do
     {
         auto plan_ptr = std::make_unique<substrait::Plan>();
-        auto success = plan_ptr->ParseFromString(*plan);
+        auto success = plan_ptr->ParseFromString(plan);
         if (!success)
             break;
 
@@ -841,14 +842,8 @@ void BackendInitializerUtil::initCompiledExpressionCache(DB::Context::Configurat
 #endif
 }
 
-void BackendInitializerUtil::init_json(std::string * plan_json)
-{
-    auto plan_ptr = std::make_unique<substrait::Plan>();
-    google::protobuf::util::JsonStringToMessage(plan_json->c_str(), plan_ptr.get());
-    return init(new String(plan_ptr->SerializeAsString()));
-}
 
-void BackendInitializerUtil::init(std::string * plan)
+void BackendInitializerUtil::init(const std::string & plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
     DB::Context::ConfigurationPtr config = initConfig(backend_conf_map);
@@ -906,7 +901,7 @@ void BackendInitializerUtil::init(std::string * plan)
         });
 }
 
-void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, std::string * plan)
+void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, const std::string & plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
 

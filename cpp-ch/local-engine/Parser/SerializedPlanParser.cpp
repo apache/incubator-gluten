@@ -380,13 +380,13 @@ DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type)
         return nested_type;
 }
 
-QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
+QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan& plan)
 {
-    logDebugMessage(*plan, "substrait plan");
-    parseExtensions(plan->extensions());
-    if (plan->relations_size() == 1)
+    logDebugMessage(plan, "substrait plan");
+    parseExtensions(plan.extensions());
+    if (plan.relations_size() == 1)
     {
-        auto root_rel = plan->relations().at(0);
+        auto root_rel = plan.relations().at(0);
         if (!root_rel.has_root())
         {
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "must have root rel!");
@@ -1747,8 +1747,7 @@ substrait::ReadRel::LocalFiles SerializedPlanParser::parseLocalFiles(const std::
 {
     substrait::ReadRel::LocalFiles local_files;
     google::protobuf::io::CodedInputStream coded_in(
-        reinterpret_cast<const uint8_t *>(split_info.data()),
-        static_cast<int>(split_info.size()));
+        reinterpret_cast<const uint8_t *>(split_info.data()), static_cast<int>(split_info.size()));
     coded_in.SetRecursionLimit(100000);
 
     auto ok = local_files.ParseFromCodedStream(&coded_in);
@@ -1758,10 +1757,44 @@ substrait::ReadRel::LocalFiles SerializedPlanParser::parseLocalFiles(const std::
     return local_files;
 }
 
-
-QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPlanPtr query_plan)
 {
-    auto plan_ptr = std::make_unique<substrait::Plan>();
+    Stopwatch stopwatch;
+    auto * logger = &Poco::Logger::get("SerializedPlanParser");
+    const Settings & settings = context->getSettingsRef();
+
+    QueryPriorities priorities;
+    auto query_status = std::make_shared<QueryStatus>(
+        context,
+        "",
+        context->getClientInfo(),
+        priorities.insert(static_cast<int>(settings.priority)),
+        CurrentThread::getGroup(),
+        IAST::QueryKind::Select,
+        settings,
+        0);
+
+    QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings.query_plan_enable_optimizations};
+    auto pipeline_builder = query_plan->buildQueryPipeline(
+        optimization_settings,
+        BuildQueryPipelineSettings{
+            .actions_settings
+            = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3,
+                                        .compile_expressions = CompileExpressions::yes},
+            .process_list_element = query_status});
+    QueryPipeline pipeline =  QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder));
+    LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
+
+    LOG_DEBUG(logger, "clickhouse plan [optimization={}]:\n{}", settings.query_plan_enable_optimizations,
+        PlanUtil::explainPlan(*query_plan));
+    LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(pipeline));
+
+    return std::make_unique<LocalExecutor>(context, std::move(query_plan), std::move(pipeline), query_plan->getCurrentDataStream().header.cloneEmpty());
+}
+
+QueryPlanPtr SerializedPlanParser::parse(const std::string_view & plan)
+{
+    substrait::Plan s_plan;
     /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
     /// Parsing may fail when the number of recursive layers is large.
     /// Here, set a limit large enough to avoid this problem.
@@ -1769,11 +1802,10 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
     google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(plan.data()), static_cast<int>(plan.size()));
     coded_in.SetRecursionLimit(100000);
 
-    auto ok = plan_ptr->ParseFromCodedStream(&coded_in);
-    if (!ok)
+    if (!s_plan.ParseFromCodedStream(&coded_in))
         throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
 
-    auto res = parse(std::move(plan_ptr));
+    auto res = parse(s_plan);
 
 #ifndef NDEBUG
     PlanUtil::checkOuputType(*res);
@@ -1788,13 +1820,13 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
     return res;
 }
 
-QueryPlanPtr SerializedPlanParser::parseJson(const std::string & json_plan)
+QueryPlanPtr SerializedPlanParser::parseJson(const std::string_view & json_plan)
 {
-    auto plan_ptr = std::make_unique<substrait::Plan>();
-    auto s = google::protobuf::util::JsonStringToMessage(absl::string_view(json_plan), plan_ptr.get());
+    substrait::Plan plan;
+    auto s = google::protobuf::util::JsonStringToMessage(json_plan, &plan);
     if (!s.ok())
         throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from json string failed: {}", s.ToString());
-    return parse(std::move(plan_ptr));
+    return parse(plan);
 }
 
 SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_)
@@ -2021,12 +2053,11 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
     }
 }
 
-void SerializedPlanParser::removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAGPtr actions_dag)
+void SerializedPlanParser::removeNullableForRequiredColumns(const std::set<String> & require_columns, const ActionsDAGPtr & actions_dag) const
 {
     for (const auto & item : require_columns)
     {
-        const auto * require_node = actions_dag->tryFindInOutputs(item);
-        if (require_node)
+        if (const auto * require_node = actions_dag->tryFindInOutputs(item))
         {
             auto function_builder = FunctionFactory::instance().get("assumeNotNull", context);
             ActionsDAG::NodeRawConstPtrs args = {require_node};
@@ -2092,86 +2123,23 @@ LocalExecutor::~LocalExecutor()
     }
 }
 
-
-void LocalExecutor::execute(QueryPlanPtr query_plan)
-{
-    Stopwatch stopwatch;
-
-    const Settings & settings = context->getSettingsRef();
-    current_query_plan = std::move(query_plan);
-    auto * logger = &Poco::Logger::get("LocalExecutor");
-
-    QueryPriorities priorities;
-    auto query_status = std::make_shared<QueryStatus>(
-        context,
-        "",
-        context->getClientInfo(),
-        priorities.insert(static_cast<int>(settings.priority)),
-        CurrentThread::getGroup(),
-        IAST::QueryKind::Select,
-        settings,
-        0);
-
-    QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings.query_plan_enable_optimizations};
-    auto pipeline_builder = current_query_plan->buildQueryPipeline(
-        optimization_settings,
-        BuildQueryPipelineSettings{
-            .actions_settings
-            = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3,
-                                        .compile_expressions = CompileExpressions::yes},
-            .process_list_element = query_status});
-
-    LOG_DEBUG(logger, "clickhouse plan after optimization:\n{}", PlanUtil::explainPlan(*current_query_plan));
-    query_pipeline = QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder));
-    LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(query_pipeline));
-    auto t_pipeline = stopwatch.elapsedMicroseconds();
-
-    executor = std::make_unique<PullingPipelineExecutor>(query_pipeline);
-    auto t_executor = stopwatch.elapsedMicroseconds() - t_pipeline;
-    stopwatch.stop();
-    LOG_INFO(
-        logger,
-        "build pipeline {} ms; create executor {} ms;",
-        t_pipeline / 1000.0,
-        t_executor / 1000.0);
-
-    header = current_query_plan->getCurrentDataStream().header.cloneEmpty();
-    ch_column_to_spark_row = std::make_unique<CHColumnToSparkRow>();
-}
-
-std::unique_ptr<SparkRowInfo> LocalExecutor::writeBlockToSparkRow(Block & block)
+std::unique_ptr<SparkRowInfo> LocalExecutor::writeBlockToSparkRow(const Block & block) const
 {
     return ch_column_to_spark_row->convertCHColumnToSparkRow(block);
 }
 
 bool LocalExecutor::hasNext()
 {
-    bool has_next;
-    try
+    size_t columns = currentBlock().columns();
+    if (columns == 0 || isConsumed())
     {
-        size_t columns = currentBlock().columns();
-        if (columns == 0 || isConsumed())
-        {
-            auto empty_block = header.cloneEmpty();
-            setCurrentBlock(empty_block);
-            has_next = executor->pull(currentBlock());
-            produce();
-        }
-        else
-        {
-            has_next = true;
-        }
+        auto empty_block = header.cloneEmpty();
+        setCurrentBlock(empty_block);
+        bool has_next = executor->pull(currentBlock());
+        produce();
+        return has_next;
     }
-    catch (Exception & e)
-    {
-        LOG_ERROR(
-            &Poco::Logger::get("LocalExecutor"),
-            "LocalExecutor run query plan failed with message: {}. Plan Explained: \n{}",
-            e.message(),
-            PlanUtil::explainPlan(*current_query_plan));
-        throw;
-    }
-    return has_next;
+    return true;
 }
 
 SparkRowInfoPtr LocalExecutor::next()
@@ -2246,12 +2214,16 @@ Block & LocalExecutor::getHeader()
     return header;
 }
 
-LocalExecutor::LocalExecutor(ContextPtr context_)
-    : context(context_)
-{
-}
+LocalExecutor::LocalExecutor(const ContextPtr & context_, QueryPlanPtr query_plan, QueryPipeline&& pipeline, const Block & header_)
+    : query_pipeline(std::move(pipeline))
+    , executor(std::make_unique<PullingPipelineExecutor>(query_pipeline))
+    , header(header_)
+    , context(context_)
+    , ch_column_to_spark_row(std::make_unique<CHColumnToSparkRow>())
+    , current_query_plan(std::move(query_plan))
+{}
 
-std::string LocalExecutor::dumpPipeline()
+std::string LocalExecutor::dumpPipeline() const
 {
     const auto & processors = query_pipeline.getProcessors();
     for (auto & processor : processors)
@@ -2353,7 +2325,7 @@ void NonNullableColumnsResolver::visitNonNullable(const substrait::Expression & 
 
 std::string NonNullableColumnsResolver::safeGetFunctionName(
     const std::string & function_signature,
-    const substrait::Expression_ScalarFunction & function)
+    const substrait::Expression_ScalarFunction & function) const
 {
     try
     {
