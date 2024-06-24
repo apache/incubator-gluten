@@ -212,7 +212,7 @@ abstract class HashAggregateExecTransformer(
             VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
           )
           aggregateNodeList.add(aggFunctionNode)
-        case Final =>
+        case Final | Complete =>
           val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
             VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
             childrenNodeList,
@@ -335,7 +335,7 @@ abstract class HashAggregateExecTransformer(
       val aggFunc = aggregateExpression.aggregateFunction
       val functionInputAttributes = aggFunc.inputAggBufferAttributes
       aggFunc match {
-        case _ if aggregateExpression.mode == Partial =>
+        case _ if aggregateExpression.mode == Partial || aggregateExpression.mode == Complete =>
           val childNodes = aggFunc.children
             .map(
               ExpressionConverter
@@ -464,7 +464,7 @@ abstract class HashAggregateExecTransformer(
             // by previous projection.
             childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
             colIdx += 1
-          case Partial =>
+          case Partial | Complete =>
             aggFunc.children.foreach {
               _ =>
                 childrenNodes.add(ExpressionBuilder.makeSelection(colIdx))
@@ -597,7 +597,7 @@ abstract class HashAggregateExecTransformer(
         }
         val aggregateFunc = aggExpr.aggregateFunction
         val childrenNodes = aggExpr.mode match {
-          case Partial =>
+          case Partial | Complete =>
             aggregateFunc.children.toList.map(
               expr => {
                 ExpressionConverter
@@ -770,7 +770,7 @@ case class HashAggregateExecPullOutHelper(
         expr.mode match {
           case Partial | PartialMerge =>
             expr.aggregateFunction.aggBufferAttributes
-          case Final =>
+          case Final | Complete =>
             Seq(aggregateAttributes(index))
           case other =>
             throw new GlutenNotSupportException(s"Unsupported aggregate mode: $other.")
