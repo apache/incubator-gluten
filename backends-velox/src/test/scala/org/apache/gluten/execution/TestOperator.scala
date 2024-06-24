@@ -1883,6 +1883,6 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       .collect()
       .length
     assert(resultLength >= 25000)
-    assert(resultLength >= 40000)
+    assert(resultLength <= 40000)
   }
 }
