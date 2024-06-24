@@ -337,7 +337,6 @@ class GlutenClickHouseDecimalSuite
     allowPrecisionLoss =>
       Range
         .inclusive(1, 22)
-        .filter(_ != 17) // Ignore Q17 which include avg
         .foreach {
           sql_num =>
             {
