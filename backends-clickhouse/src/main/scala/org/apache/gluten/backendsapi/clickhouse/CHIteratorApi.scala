@@ -39,6 +39,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.SerializableConfiguration
 
 import java.lang.{Long => JLong}
 import java.net.URI
@@ -126,7 +127,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
-      properties: Map[String, String]): SplitInfo = {
+      properties: Map[String, String],
+      serializableHadoopConf: SerializableConfiguration): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>
         val partLists = new JArrayList[String]()
