@@ -59,14 +59,6 @@ public:
         , num_scale(num_scale_)
         , round_scale(round_scale_)
     {
-        //     auto calculate =     ;
-        //
-        //
-        //     const UInt32 p1 = DB::getDecimalPrecision(*data_type);
-        // const UInt32 s1 = DB::getDecimalScale(*data_type);
-        // auto [p2, s2] = GlutenDecimalUtils::LONG_DECIMAL;
-        // auto [_, round_scale] = GlutenDecimalUtils::dividePrecisionScale(
-        //     p1, s1, p2, s2, );
     }
 
     DataTypePtr createResultType(const DataTypes & argument_types_, UInt32 num_scale_, UInt32 round_scale_)
@@ -74,10 +66,6 @@ public:
         const DataTypePtr & data_type = argument_types_[0];
         const UInt32 precision_value = std::min<size_t>(getDecimalPrecision(*data_type) + 4, DecimalUtils::max_precision<Decimal128>);
         const auto scale_value = std::min(num_scale_ + 4, precision_value);
-
-        // if (scale_value == round_scale_)
-        //     return createDecimal<DataTypeDecimal>(precision_value + 1, scale_value + 1);
-
         return createDecimal<DataTypeDecimal>(precision_value, scale_value);
     }
 
@@ -89,26 +77,51 @@ public:
         if (which.isDecimal32())
         {
             assert_cast<ColumnDecimal<Decimal32> &>(to).getData().push_back(
-                this->data(place).divideDecimalAndUInt(num_scale, result_scale, round_scale));
+                divideDecimalAndUInt(this->data(place), num_scale, result_scale, round_scale));
         }
         else if (which.isDecimal64())
         {
             assert_cast<ColumnDecimal<Decimal64> &>(to).getData().push_back(
-                this->data(place).divideDecimalAndUInt(num_scale, result_scale, round_scale));
+          divideDecimalAndUInt(this->data(place), num_scale, result_scale, round_scale));
         }
         else if (which.isDecimal128())
         {
             assert_cast<ColumnDecimal<Decimal128> &>(to).getData().push_back(
-                this->data(place).divideDecimalAndUInt(num_scale, result_scale, round_scale));
+                divideDecimalAndUInt(this->data(place), num_scale, result_scale, round_scale));
         }
         else
         {
             assert_cast<ColumnDecimal<Decimal256> &>(to).getData().push_back(
-                this->data(place).divideDecimalAndUInt(num_scale, result_scale, round_scale));
+                divideDecimalAndUInt(this->data(place), num_scale, result_scale, round_scale));
         }
     }
 
     String getName() const override { return "sparkAvg"; }
+
+private:
+    Int128 NO_SANITIZE_UNDEFINED
+    divideDecimalAndUInt(AvgFraction<AvgFieldType<T>, UInt64> avg, UInt32 num_scale, UInt32 result_scale, UInt32 round_scale) const
+    {
+        auto value = avg.numerator.value;
+        if (result_scale > num_scale)
+        {
+            auto diff = DecimalUtils::scaleMultiplier<AvgFieldType<T>>(result_scale - num_scale);
+            value = value * diff;
+        }
+        else if (result_scale < num_scale)
+        {
+            auto diff = DecimalUtils::scaleMultiplier<AvgFieldType<T>>(num_scale - result_scale);
+            value = value / diff;
+        }
+
+        auto result = value / avg.denominator;
+
+        if (round_scale > result_scale)
+            return result;
+
+        auto round_diff = DecimalUtils::scaleMultiplier<AvgFieldType<T>>(result_scale - round_scale);
+        return (result + round_diff / 2) / round_diff * round_diff;
+    }
 
 private:
     UInt32 num_scale;
