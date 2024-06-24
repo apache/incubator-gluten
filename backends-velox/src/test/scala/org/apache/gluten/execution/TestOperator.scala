@@ -1873,7 +1873,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
-  test("Shouldn't pushdown deterministic filter to scan node") {
+  test("Shouldn't pushdown undeterministic filter to scan node") {
     // there are total 60175 rows in lineitem, after rand filter,
     // there should be around 30000 rows
     val resultLength = spark
@@ -1883,5 +1883,6 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       .collect()
       .length
     assert(resultLength >= 25000)
+    assert(resultLength >= 40000)
   }
 }
