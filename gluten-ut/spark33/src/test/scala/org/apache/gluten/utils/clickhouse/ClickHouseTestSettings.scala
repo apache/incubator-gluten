@@ -714,7 +714,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Sequence with default step")
     .exclude("Reverse")
     .exclude("elementAt")
-    .exclude("Flatten")
     .exclude("ArrayRepeat")
     .exclude("Array remove")
     .exclude("Array Distinct")
