@@ -35,7 +35,9 @@ class QueryPlan;
 
 namespace local_engine
 {
-static const std::unordered_set<String> BOOL_VALUE_SETTINGS{"mergetree.merge_after_insert"};
+static const String MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE = "mergetree.insert_without_local_storage";
+static const String MERGETREE_MERGE_AFTER_INSERT = "mergetree.merge_after_insert";
+static const std::unordered_set<String> BOOL_VALUE_SETTINGS{MERGETREE_MERGE_AFTER_INSERT, MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE};
 static const std::unordered_set<String> LONG_VALUE_SETTINGS{
     "optimize.maxfilesize", "optimize.minFileSize", "mergetree.max_num_part_per_merge_task"};
 
