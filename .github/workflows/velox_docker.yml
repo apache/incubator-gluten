@@ -120,6 +120,12 @@ jobs:
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Setup tzdata
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu:22.04" ]; then
+            apt-get update
+            TZ="Etc/GMT" DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
+          fi
       - name: Setup java and maven
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
@@ -530,6 +536,10 @@ jobs:
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Setup tzdata
+        run: |
+          apt-get update
+          TZ="Etc/GMT" DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
       - name: Setup java and maven
         run: |
           apt-get update && apt-get install -y openjdk-8-jdk maven wget
