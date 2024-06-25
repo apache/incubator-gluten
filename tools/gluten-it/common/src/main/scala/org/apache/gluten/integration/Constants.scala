@@ -60,6 +60,7 @@ object Constants {
     .set("spark.gluten.sql.columnar.physicalJoinOptimizeEnable", "false") // q72 slow if false, q64 fails if true
     .set("spark.celeborn.push.data.timeout", "600s")
     .set("spark.celeborn.push.limit.inFlight.timeout", "1200s")
+    .set("spark.celeborn.client.spark.fetch.throwsFetchFailure", "true")
 
   val VELOX_WITH_UNIFFLE_CONF: SparkConf = new SparkConf(false)
     .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")

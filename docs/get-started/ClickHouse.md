@@ -671,7 +671,7 @@ spark.dynamicAllocation.enabled false
 ```
 
 #### Celeborn Columnar Shuffle Support
-Currently, the supported Celeborn versions are `0.3.x` and `0.4.0`.
+Currently, the supported Celeborn versions are `0.3.x` and `0.4.x`.
 The native Celeborn support can be enabled by the following configuration
 ```
 spark.shuffle.manager=org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager

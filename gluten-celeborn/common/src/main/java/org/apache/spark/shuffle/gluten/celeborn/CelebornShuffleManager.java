@@ -31,7 +31,6 @@ import org.apache.spark.shuffle.sort.ColumnarShuffleManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
@@ -88,10 +87,10 @@ public class CelebornShuffleManager implements ShuffleManager {
       ConcurrentHashMap.newKeySet();
   private final CelebornShuffleFallbackPolicyRunner fallbackPolicyRunner;
 
-  // for Celeborn 0.4.0
+  // for Celeborn 0.4.x
   private final Object shuffleIdTracker;
 
-  // for Celeborn 0.4.0
+  // for Celeborn 0.4.x
   private boolean throwsFetchFailure;
 
   public CelebornShuffleManager(SparkConf conf) {
@@ -149,7 +148,7 @@ public class CelebornShuffleManager implements ShuffleManager {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
 
-          // for Celeborn 0.4.0
+          // for Celeborn 0.4.x
           CelebornUtils.registerShuffleTrackerCallback(throwsFetchFailure, lifecycleManager);
 
           shuffleClient =
@@ -185,7 +184,7 @@ public class CelebornShuffleManager implements ShuffleManager {
     appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
     initializeLifecycleManager();
 
-    // for Celeborn 0.4.0
+    // for Celeborn 0.4.x
     CelebornUtils.registerAppShuffleDeterminate(lifecycleManager, shuffleId, dependency);
 
     // Note: generate app unique id at driver side, make sure dependency.rdd.context
@@ -217,7 +216,13 @@ public class CelebornShuffleManager implements ShuffleManager {
       }
     }
     return CelebornUtils.unregisterShuffle(
-        lifecycleManager, shuffleClient, shuffleIdTracker, shuffleId, appUniqueId, isDriver());
+        lifecycleManager,
+        shuffleClient,
+        shuffleIdTracker,
+        shuffleId,
+        appUniqueId,
+        throwsFetchFailure,
+        isDriver());
   }
 
   @Override
@@ -247,15 +252,6 @@ public class CelebornShuffleManager implements ShuffleManager {
       ShuffleHandle handle, long mapId, TaskContext context, ShuffleWriteMetricsReporter metrics) {
     try {
       if (handle instanceof CelebornShuffleHandle) {
-        byte[] extension;
-        try {
-          Field field = CelebornShuffleHandle.class.getDeclaredField("extension");
-          field.setAccessible(true);
-          extension = (byte[]) field.get(handle);
-
-        } catch (NoSuchFieldException e) {
-          extension = null;
-        }
         @SuppressWarnings("unchecked")
         CelebornShuffleHandle<K, V, V> h = ((CelebornShuffleHandle<K, V, V>) handle);
         shuffleClient =
@@ -266,11 +262,11 @@ public class CelebornShuffleManager implements ShuffleManager {
                 celebornConf,
                 h.userIdentifier(),
                 false,
-                extension);
+                null);
 
         int shuffleId;
 
-        // for Celeborn 0.4.0
+        // for Celeborn 0.4.x
         try {
           Method celebornShuffleIdMethod =
               SparkUtils.class.getMethod(
