@@ -454,11 +454,11 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("analyze column command - result verification")
     .exclude("column stats collection for null columns")
   enableSuite[GlutenStringFunctionsSuite]
-    .exclude("string regex_replace / regex_extract")
-    .exclude("string overlay function")
-    .exclude("binary overlay function")
-    .exclude("string / binary substring function")
-    .exclude("string parse_url function")
+//    .exclude("string regex_replace / regex_extract")
+//    .exclude("string overlay function")
+//    .exclude("binary overlay function")
+//    .exclude("string / binary substring function")
+//    .exclude("string parse_url function")
   enableSuite[GlutenSubquerySuite]
     .exclude("SPARK-15370: COUNT bug in subquery in subquery in subquery")
     .exclude("SPARK-26893: Allow pushdown of partition pruning subquery filters to file source")
@@ -902,7 +902,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK - 34814: LikeSimplification should handleNULL")
   enableSuite[GlutenSortOrderExpressionsSuite].exclude("SortPrefix")
   enableSuite[GlutenStringExpressionsSuite]
-  exclude("SttringComparison")
+    exclude("SttringComparison")
     .exclude("Substring")
     .exclude("string substring_index function")
     .exclude("SPARK-40213: ascii for Latin-1 Supplement characters")
