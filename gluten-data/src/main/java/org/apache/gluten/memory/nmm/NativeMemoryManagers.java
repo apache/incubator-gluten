@@ -26,6 +26,8 @@ import org.apache.gluten.proto.MemoryUsageStats;
 
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,6 +39,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public final class NativeMemoryManagers {
+  private static final Logger LOG = LoggerFactory.getLogger(NativeMemoryManagers.class);
 
   // TODO: Let all caller support spill.
   public static NativeMemoryManager contextInstance(String name) {
@@ -76,16 +79,17 @@ public final class NativeMemoryManagers {
                                 new Spiller() {
                                   @Override
                                   public long spill(MemoryTarget self, long size) {
-                                    return Optional.of(out.get())
+                                    return Optional.ofNullable(out.get())
                                         .map(nmm -> nmm.shrink(size))
-                                        .orElseThrow(
-                                            () ->
-                                                new IllegalStateException(
-                                                    ""
-                                                        + "Shrink is requested before native "
-                                                        + "memory manager is created. Try moving "
-                                                        + "any actions about memory allocation out "
-                                                        + "from the memory manager constructor."));
+                                        .orElseGet(
+                                            () -> {
+                                              LOG.warn(
+                                                  "Shrink is requested before native "
+                                                      + "memory manager is created. Try moving "
+                                                      + "any actions about memory allocation out "
+                                                      + "from the memory manager constructor.");
+                                              return 0L;
+                                            });
                                   }
 
                                   @Override
@@ -120,7 +124,7 @@ public final class NativeMemoryManagers {
                           }
 
                           private NativeMemoryManager getNativeMemoryManager() {
-                            return Optional.of(out.get())
+                            return Optional.ofNullable(out.get())
                                 .orElseThrow(
                                     () ->
                                         new IllegalStateException(
