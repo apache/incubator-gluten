@@ -106,7 +106,6 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         .config("spark.sql.warehouse.dir", warehouse)
         // Avoid the code size overflow error in Spark code generation.
         .config("spark.sql.codegen.wholeStage", "false")
-        .config("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "trace")
 
       _spark = if (BackendTestUtils.isCHBackendLoaded()) {
         sparkBuilder
