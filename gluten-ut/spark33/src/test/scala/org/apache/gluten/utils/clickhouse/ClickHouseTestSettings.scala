@@ -190,6 +190,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("shuffle function - array for primitive type not containing null")
     .exclude("shuffle function - array for primitive type containing null")
     .exclude("shuffle function - array for non-primitive type")
+    .exclude("flatten function")
   enableSuite[GlutenDataFrameHintSuite]
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenDataFrameJoinSuite].exclude(
@@ -714,7 +715,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Sequence with default step")
     .exclude("Reverse")
     .exclude("elementAt")
-    .exclude("Flatten")
     .exclude("ArrayRepeat")
     .exclude("Array remove")
     .exclude("Array Distinct")
