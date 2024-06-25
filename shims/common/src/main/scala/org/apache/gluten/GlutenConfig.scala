@@ -718,7 +718,9 @@ object GlutenConfig {
 
       GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
-      GLUTEN_OFFHEAP_ENABLED
+      GLUTEN_OFFHEAP_ENABLED,
+      SESSION_LOCAL_TIMEZONE.key,
+      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -733,10 +735,6 @@ object GlutenConfig {
 
     conf
       .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
-      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
-
-    conf
-      .filter(_._1.startsWith(SQLConf.SESSION_LOCAL_TIMEZONE.key))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
