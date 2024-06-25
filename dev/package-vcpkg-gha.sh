@@ -6,7 +6,8 @@ CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 GLUTEN_DIR="$CURRENT_DIR/.."
 
 cd "$GLUTEN_DIR"
-source ./dev/vcpkg/env.sh
+source /opt/rh/devtoolset-9/enable
+source /opt/gluten/dev/vcpkg/env.sh
 ./dev/buildbundle-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON
 mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.2 -DskipTests
 mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.3 -DskipTests

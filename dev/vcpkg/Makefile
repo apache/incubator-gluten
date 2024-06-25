@@ -1,4 +1,6 @@
-DOCKER_IMAGE=apache/gluten:gluten-vcpkg-builder_2024_05_22
+DOCKER_IMAGE_STABLE=apache/gluten:gluten-vcpkg-builder_2024_05_22
+DOCKER_IMAGE_LOCAL=apache/gluten:gluten-vcpkg-builder_`date '+%Y_%m_%d'`
+DOCKER_IMAGE=gluten-builder-vcpkg
 GLUTEN_REPO=$(shell realpath -L ../..)
 
 CCACHE_DIR=$(HOME)/.ccache
@@ -7,7 +9,7 @@ MAVEN_M2_DIR=$(HOME)/.m2
 
 $(info $(GLUTEN_REPO))
 
-.PHONY: docker-image build
+.PHONY: docker-image build docker-image-gha
 build: $(CCACHE_DIR) $(VCPKG_BINARY_CACHE_DIR) $(MAVEN_M2_DIR)
 	docker run --rm -ti \
 		-v $(GLUTEN_REPO):$(GLUTEN_REPO) \
@@ -18,8 +20,8 @@ build: $(CCACHE_DIR) $(VCPKG_BINARY_CACHE_DIR) $(MAVEN_M2_DIR)
 		-e https_proxy \
 		--workdir $(GLUTEN_REPO) \
 		-ti \
-		$(DOCKER_IMAGE) \
-		./dev/package-vcpkg.sh
+		$(DOCKER_IMAGE_STABLE) \
+		./dev/package-vcpkg-gha.sh
 
 docker-image:
 	docker build \
@@ -32,7 +34,7 @@ docker-image:
 docker-image-gha:
 	docker build \
 		--file docker/Dockerfile.gha \
-		--tag "$(DOCKER_IMAGE)" \
+		--tag "$(DOCKER_IMAGE_LOCAL)" \
 		.
 
 
