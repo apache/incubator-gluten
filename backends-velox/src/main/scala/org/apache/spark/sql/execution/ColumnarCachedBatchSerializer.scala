@@ -23,7 +23,8 @@ import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
-import org.apache.gluten.utils.{ArrowAbiUtil, Iterators}
+import org.apache.gluten.utils.ArrowAbiUtil
+import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.ColumnarBatchSerializerJniWrapper
 
 import org.apache.spark.internal.Logging
@@ -50,31 +51,30 @@ case class CachedColumnarBatch(
 // spotless:off
 /**
  * Feature:
- * 1. This serializer supports column pruning
- * 2. TODO: support push down filter
- * 3. Super TODO: support store offheap object directly
+ *   1. This serializer supports column pruning 2. TODO: support push down filter 3. Super TODO:
+ *      support store offheap object directly
  *
  * The data transformation pipeline:
  *
  *   - Serializer ColumnarBatch -> CachedColumnarBatch
- *     -> serialize to byte[]
+ * -> serialize to byte[]
  *
  *   - Deserializer CachedColumnarBatch -> ColumnarBatch
- *     -> deserialize to byte[] to create Velox ColumnarBatch
+ * -> deserialize to byte[] to create Velox ColumnarBatch
  *
  *   - Serializer InternalRow -> CachedColumnarBatch (support RowToColumnar)
- *     -> Convert InternalRow to ColumnarBatch
- *     -> Serializer ColumnarBatch -> CachedColumnarBatch
+ * -> Convert InternalRow to ColumnarBatch
+ * -> Serializer ColumnarBatch -> CachedColumnarBatch
  *
  *   - Serializer InternalRow -> DefaultCachedBatch (unsupport RowToColumnar)
- *     -> Convert InternalRow to DefaultCachedBatch using vanilla Spark serializer
+ * -> Convert InternalRow to DefaultCachedBatch using vanilla Spark serializer
  *
  *   - Deserializer CachedColumnarBatch -> InternalRow (support ColumnarToRow)
- *     -> Deserializer CachedColumnarBatch -> ColumnarBatch
- *     -> Convert ColumnarBatch to InternalRow
+ * -> Deserializer CachedColumnarBatch -> ColumnarBatch
+ * -> Convert ColumnarBatch to InternalRow
  *
  *   - Deserializer DefaultCachedBatch -> InternalRow (unsupport ColumnarToRow)
- *     -> Convert DefaultCachedBatch to InternalRow using vanilla Spark serializer
+ * -> Convert DefaultCachedBatch to InternalRow using vanilla Spark serializer
  */
 // spotless:on
 class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHelper with Logging {

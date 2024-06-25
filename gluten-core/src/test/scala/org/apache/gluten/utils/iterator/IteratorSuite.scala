@@ -14,18 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils
+package org.apache.gluten.utils.iterator
 
+import org.apache.gluten.utils.iterator.Iterators.{V1, V2, WrapperBuilder}
 import org.apache.spark.util.TaskResources
-
 import org.scalatest.funsuite.AnyFunSuite
 
-class IteratorSuite extends AnyFunSuite {
+class IteratorV1Suite extends IteratorSuite {
+  override protected def wrap[A](in: Iterator[A]): WrapperBuilder[A] = Iterators.wrap(V1, in)
+}
+
+class IteratorV2Suite extends IteratorSuite {
+  override protected def wrap[A](in: Iterator[A]): WrapperBuilder[A] = Iterators.wrap(V2, in)
+}
+
+abstract class IteratorSuite extends AnyFunSuite {
+  protected def wrap[A](in: Iterator[A]): WrapperBuilder[A]
+
   test("Trivial wrapping") {
     val strings = Array[String]("one", "two", "three")
     val itr = strings.toIterator
-    val wrapped = Iterators
-      .wrap(itr)
+    val wrapped = wrap(itr)
       .create()
     assertResult(strings) {
       wrapped.toArray
@@ -37,8 +46,7 @@ class IteratorSuite extends AnyFunSuite {
     TaskResources.runUnsafe {
       val strings = Array[String]("one", "two", "three")
       val itr = strings.toIterator
-      val wrapped = Iterators
-        .wrap(itr)
+      val wrapped = wrap(itr)
         .recycleIterator {
           completeCount += 1
         }
@@ -56,8 +64,7 @@ class IteratorSuite extends AnyFunSuite {
     TaskResources.runUnsafe {
       val strings = Array[String]("one", "two", "three")
       val itr = strings.toIterator
-      val _ = Iterators
-        .wrap(itr)
+      val _ = wrap(itr)
         .recycleIterator {
           completeCount += 1
         }
@@ -72,8 +79,7 @@ class IteratorSuite extends AnyFunSuite {
     TaskResources.runUnsafe {
       val strings = Array[String]("one", "two", "three")
       val itr = strings.toIterator
-      val wrapped = Iterators
-        .wrap(itr)
+      val wrapped = wrap(itr)
         .recyclePayload { _: String => closeCount += 1 }
         .create()
       assertResult(strings) {
@@ -89,8 +95,7 @@ class IteratorSuite extends AnyFunSuite {
     TaskResources.runUnsafe {
       val strings = Array[String]("one", "two", "three")
       val itr = strings.toIterator
-      val wrapped = Iterators
-        .wrap(itr)
+      val wrapped = wrap(itr)
         .recyclePayload { _: String => closeCount += 1 }
         .create()
       assertResult(strings.take(2)) {
@@ -115,8 +120,7 @@ class IteratorSuite extends AnyFunSuite {
         new Object
       }
     }
-    val wrapped = Iterators
-      .wrap(itr)
+    val wrapped = wrap(itr)
       .protectInvocationFlow()
       .create()
     wrapped.hasNext
