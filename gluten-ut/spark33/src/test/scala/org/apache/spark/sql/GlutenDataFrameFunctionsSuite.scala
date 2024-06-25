@@ -59,11 +59,7 @@ class GlutenDataFrameFunctionsSuite extends DataFrameFunctionsSuite with GlutenS
       (Seq(Seq.empty, Seq(1)))
     ).toDF("i")
 
-    val intDFResult = Seq(
-      Row(Seq(1, 2, 3, 4, 5, 6)),
-      Row(Seq(1, 2)),
-      Row(Seq(1)),
-      Row(Seq(1)))
+    val intDFResult = Seq(Row(Seq(1, 2, 3, 4, 5, 6)), Row(Seq(1, 2)), Row(Seq(1)), Row(Seq(1)))
 
     def testInt(): Unit = {
       checkAnswer(intDF.select(flatten($"i")), intDFResult)
