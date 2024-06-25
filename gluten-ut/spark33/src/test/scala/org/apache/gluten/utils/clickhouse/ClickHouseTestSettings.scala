@@ -902,7 +902,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK - 34814: LikeSimplification should handleNULL")
   enableSuite[GlutenSortOrderExpressionsSuite].exclude("SortPrefix")
   enableSuite[GlutenStringExpressionsSuite]
-    exclude("SttringComparison")
+    .exclude("StringComparison")
     .exclude("Substring")
     .exclude("string substring_index function")
     .exclude("SPARK-40213: ascii for Latin-1 Supplement characters")
