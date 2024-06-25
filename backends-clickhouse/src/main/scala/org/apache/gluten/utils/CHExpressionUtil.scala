@@ -21,7 +21,7 @@ import org.apache.gluten.utils.FunctionValidator._
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
-//import org.apache.spark.unsafe.types.UTF8String
+import org.apache.spark.unsafe.types.UTF8String
 
 trait FunctionValidator {
   def doValidate(expr: Expression): Boolean
@@ -98,7 +98,6 @@ case class StringSplitValidator() extends FunctionValidator {
 
 case class SubstringIndexValidator() extends FunctionValidator {
   override def doValidate(expr: Expression): Boolean = {
-    /*
     val substringIndex = expr.asInstanceOf[SubstringIndex]
 
     // TODO: CH substringIndexUTF8 function only support string literal as delimiter
@@ -111,7 +110,6 @@ case class SubstringIndexValidator() extends FunctionValidator {
     if (delim.value.asInstanceOf[UTF8String].toString.length != 1) {
       return false
     }
-     */
 
     true
   }
