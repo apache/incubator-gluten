@@ -151,8 +151,25 @@ DB::WindowFrame WindowRelParser::parseWindowFrame(const WindowInfo & win_info)
     const auto & signature_function_name = win_info.signature_function_name;
     const auto & window_function = win_info.measure->measure();
     win_frame.type = parseWindowFrameType(signature_function_name, window_function);
-    parseBoundType(window_function.lower_bound(), true, win_frame.begin_type, win_frame.begin_offset, win_frame.begin_preceding);
-    parseBoundType(window_function.upper_bound(), false, win_frame.end_type, win_frame.end_offset, win_frame.end_preceding);
+
+    /// row_number is not related to window frame bound settings.
+    /// This is a tricky way, but OOM has happened to many times in practice .
+    /// Let's wait for a new fix in `CH` and remove this later. https://github.com/ClickHouse/ClickHouse/issues/65642
+    if (signature_function_name == "row_number")
+    {
+        win_frame.begin_type = DB::WindowFrame::BoundaryType::Offset;
+        win_frame.begin_offset = 1;
+        win_frame.begin_preceding = true;
+
+        win_frame.end_type = DB::WindowFrame::BoundaryType::Current;
+        win_frame.end_offset = 0;
+        win_frame.end_preceding = false;
+    }
+    else
+    {
+        parseBoundType(window_function.lower_bound(), true, win_frame.begin_type, win_frame.begin_offset, win_frame.begin_preceding);
+        parseBoundType(window_function.upper_bound(), false, win_frame.end_type, win_frame.end_offset, win_frame.end_preceding);
+    }
 
     // special cases
     if (signature_function_name == "lead" || signature_function_name == "lag")
