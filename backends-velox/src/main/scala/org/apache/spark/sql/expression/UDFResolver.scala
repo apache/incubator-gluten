@@ -278,7 +278,6 @@ object UDFResolver extends Logging {
       .split(",")
       .map {
         f =>
-          val file = new File(f)
           // Relative paths should be uploaded via --files or --archives
           if (isRelativePath(f)) {
             logInfo(s"resolve relative path: $f")
@@ -286,13 +285,18 @@ object UDFResolver extends Logging {
               throw new IllegalArgumentException(
                 "On yarn-client mode, driver only accepts absolute paths, but got " + f)
             }
-            if (isYarnCluster || isYarnClient) {
-              file
+            if (isDriver && isYarnCluster) {
+              // Yarn AM container only gets the filename in the working directory.
+              new File(System.getProperty("user.dir"), f)
+            } else if (isYarnCluster || isYarnClient) {
+              // In other cases the yarn containers get the full path in the working directory.
+              new File(f)
             } else {
               new File(SparkFiles.get(f))
             }
           } else {
             logInfo(s"resolve absolute URI path: $f")
+            val file = new File(f)
             // Download or copy absolute paths to JniWorkspace.
             val uri = Utils.resolveURI(f)
             val name = file.getName
