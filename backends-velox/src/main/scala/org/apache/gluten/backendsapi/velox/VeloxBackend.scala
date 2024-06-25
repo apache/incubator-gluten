@@ -224,9 +224,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
         field =>
           field.dataType match {
             case _: TimestampType => Some("TimestampType")
-            case _: StructType => Some("StructType")
-            case _: ArrayType => Some("ArrayType")
-            case _: MapType => Some("MapType")
             case _: YearMonthIntervalType => Some("YearMonthIntervalType")
             case _ => None
           }
@@ -292,7 +289,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     fields.map {
       field =>
         field.dataType match {
-          case _: TimestampType | _: StructType | _: ArrayType | _: MapType => return false
+          case _: TimestampType => return false
           case _ =>
         }
     }
