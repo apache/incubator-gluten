@@ -67,9 +67,9 @@ class GlutenClickHouseDecimalSuite
   private val decimalTPCHTables: Seq[(DecimalType, Seq[Int])] = Seq.apply(
     (DecimalType.apply(9, 4), Seq()),
     // 1: ch decimal avg is float
-    (DecimalType.apply(18, 8), Seq(1)),
+    (DecimalType.apply(18, 8), Seq()),
     // 1: ch decimal avg is float, 3/10: all value is null and compare with limit
-    (DecimalType.apply(38, 19), Seq(1, 3, 10))
+    (DecimalType.apply(38, 19), Seq(3, 10))
   )
 
   private def createDecimalTables(dataType: DecimalType): Unit = {
@@ -337,7 +337,6 @@ class GlutenClickHouseDecimalSuite
     allowPrecisionLoss =>
       Range
         .inclusive(1, 22)
-        .filter(_ != 17) // Ignore Q17 which include avg
         .foreach {
           sql_num =>
             {
