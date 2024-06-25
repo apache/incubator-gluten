@@ -26,7 +26,7 @@ import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.execution._
@@ -388,6 +388,38 @@ case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
     logDebug(s"Columnar Processing for ${filter.getClass} is currently supported.")
     BackendsApiManager.getSparkPlanExecApiInstance
       .genFilterExecTransformer(filter.condition, newChild)
+  }
+}
+
+case class OffloadWindow() extends OffloadSingleNode with LogLevelUtil {
+  import OffloadOthers._
+  private val replace = new ReplaceSingleNode()
+
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
+    case window: WindowExec =>
+      if (TransformHints.isNotTransformable(window)) {
+        return window
+      }
+
+      val transformer = replace.doReplace(window)
+      val newChild = transformer.children.head match {
+        case SortExec(_, false, child, _)
+            if outputOrderSatisfied(child, transformer.requiredChildOrdering) =>
+          child
+        case p @ ProjectExec(_, SortExec(_, false, child, _))
+            if outputOrderSatisfied(child, transformer.requiredChildOrdering) =>
+          p.copy(child = child)
+        case children => children
+      }
+      transformer.withNewChildren(Seq(newChild))
+    case other => other
+  }
+
+  private def outputOrderSatisfied(child: SparkPlan, required: Seq[Seq[SortOrder]]): Boolean = {
+    Seq(child).zip(required).forall {
+      case (child, requiredOrdering) =>
+        SortOrder.orderingSatisfies(child.outputOrdering, requiredOrdering)
+    }
   }
 }
 

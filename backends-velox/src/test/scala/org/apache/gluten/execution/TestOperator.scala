@@ -287,8 +287,15 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
   }
 
   test("window expression") {
+    def checkWindowAndSortOperator(df: DataFrame, expectedSortNum: Int): Unit = {
+      val executedPlan = getExecutedPlan(df)
+      assert(executedPlan.exists(_.isInstanceOf[WindowExecTransformer]))
+      assert(executedPlan.count(_.isInstanceOf[SortExecTransformer]) == expectedSortNum)
+    }
+
     Seq("sort", "streaming").foreach {
       windowType =>
+        val expectedSortNum = if (windowType == "sort") 0 else 1
         withSQLConf("spark.gluten.sql.columnar.backend.velox.window.type" -> windowType) {
           runQueryAndCompare(
             "select max(l_partkey) over" +
@@ -297,42 +304,42 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
               "min(l_comment) over" +
               " (partition by l_suppkey order by l_linenumber" +
               " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum * 2)
           }
 
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
               " RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
               " RANGE BETWEEN 6 PRECEDING AND CURRENT ROW) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
               " RANGE BETWEEN 6 PRECEDING AND 2 FOLLOWING) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
               " RANGE BETWEEN 6 PRECEDING AND 3 PRECEDING) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
               " RANGE BETWEEN 3 FOLLOWING AND 6 FOLLOWING) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           // DecimalType as order by column is not supported
@@ -340,99 +347,111 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
             "select min(l_comment) over" +
               " (partition by l_suppkey order by l_discount" +
               " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
-            checkSparkOperatorMatch[WindowExec]
+            df =>
+              val executedPlan = getExecutedPlan(df)
+              assert(executedPlan.count(_.isInstanceOf[WindowExec]) == 1)
+              // The number of SortExecTransformer should always be 1
+              // no matter the window type is streaming or sort,
+              // because WindowExec is fallback to Vanilla Spark
+              assert(executedPlan.count(_.isInstanceOf[SortExecTransformer]) == 1)
           }
 
           runQueryAndCompare(
             "select ntile(4) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select row_number() over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select rank() over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select dense_rank() over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            df => checkWindowAndSortOperator(df, expectedSortNum)
+          }
 
           runQueryAndCompare(
             "select percent_rank() over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            df => checkWindowAndSortOperator(df, expectedSortNum)
+          }
 
           runQueryAndCompare(
             "select cume_dist() over" +
-              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            df => checkWindowAndSortOperator(df, expectedSortNum)
+          }
 
           runQueryAndCompare(
             "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) IGNORE NULLS over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select sum(l_partkey + 1) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select min(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select avg(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select lag(l_orderkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           runQueryAndCompare(
             "select lead(l_orderkey) over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           // Test same partition/ordering keys.
           runQueryAndCompare(
             "select avg(l_partkey) over" +
               " (partition by l_suppkey order by l_suppkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
 
           // Test overlapping partition/ordering keys.
           runQueryAndCompare(
             "select avg(l_partkey) over" +
               " (partition by l_suppkey order by l_suppkey, l_orderkey) from lineitem ") {
-            checkGlutenOperatorMatch[WindowExecTransformer]
+            df => checkWindowAndSortOperator(df, expectedSortNum)
           }
         }
     }
