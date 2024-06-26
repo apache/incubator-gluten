@@ -603,7 +603,8 @@ jobs:
           source /opt/rh/gcc-toolset-9/enable
           source ./dev/build_arrow.sh
           install_arrow_deps
-          ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_tests=ON --build_examples=ON --build_benchmarks=ON
+          ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_tests=ON \
+              --build_examples=ON --build_benchmarks=ON --build_protobuf=ON
       - uses: actions/upload-artifact@v2
         with:
           name: velox-native-lib-centos-8-${{github.sha}}
