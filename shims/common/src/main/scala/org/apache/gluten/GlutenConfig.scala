@@ -1580,13 +1580,13 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val DEBUG_KEEP_JNI_WORKSPACE =
-    buildConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE)
+    buildStaticConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE)
       .internal()
       .booleanConf
       .createWithDefault(false)
 
   val DEBUG_KEEP_JNI_WORKSPACE_DIR =
-    buildConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE_DIR)
+    buildStaticConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE_DIR)
       .internal()
       .stringConf
       .createWithDefault("/tmp")
