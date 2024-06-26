@@ -56,7 +56,7 @@ if [[ "$LINUX_OS" == "ubuntu" || "$LINUX_OS" == "pop" ]]; then
     process_setup_ubuntu_2204
   fi
 elif [ "$LINUX_OS" == "centos" ]; then
-  if [ "$VERSION" == "8" || "$VERSION" == "9"]; then
+  if [ "$VERSION" == "8" || "$VERSION" == "9" ]; then
     process_setup_centos_8
   elif [ "$VERSION" == "7" ]; then
     process_setup_centos_7
