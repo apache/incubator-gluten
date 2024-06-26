@@ -30,7 +30,7 @@ VELOX_REPO=""
 VELOX_BRANCH=""
 VELOX_HOME=""
 VELOX_PARAMETER=""
-COMPILE_ARROW_JAVA=ON
+BUILD_ARROW=ON
 SPARK_VERSION=ALL
 
 # set default number of threads as cpu cores minus 2
@@ -133,8 +133,8 @@ do
         BUILD_VELOX_BENCHMARKS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --compile_arrow_java=*)
-        COMPILE_ARROW_JAVA=("${arg#*=}")
+        --build_arrow=*)
+        BUILD_ARROW=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --num_threads=*)
@@ -186,10 +186,13 @@ fi
 
 concat_velox_param
 
+
+
 function build_arrow {
   echo "Start to build Arrow"
-  cd $GLUTEN_DIR/dev
-  ./build_arrow.sh $BUILD_TYPE
+  source $GLUTEN_DIR/dev/build_arrow.sh
+  build_arrow_cpp $BUILD_TYPE
+  build_arrow_java
 }
 
 function build_velox {
@@ -216,7 +219,9 @@ function build_gluten_cpp {
 }
 
 function build_velox_backend {
-  build_arrow
+  if [ $BUILD_ARROW == "ON" ]; then
+    build_arrow
+  fi
   build_velox
   build_gluten_cpp
 }
