@@ -67,7 +67,7 @@ public:
             if (args.empty())
                 result_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), "");
             else if (args.size() == 1)
-                result_node = args[0];
+                result_node = toFunctionNode(actions_dag, "identity", args);
             else
                 result_node = toFunctionNode(actions_dag, "concat", args);
         }
