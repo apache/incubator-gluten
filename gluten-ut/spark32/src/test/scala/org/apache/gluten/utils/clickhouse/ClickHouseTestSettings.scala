@@ -435,8 +435,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("column stats collection for null columns")
   enableSuite[GlutenStringFunctionsSuite]
     .exclude("string regex_replace / regex_extract")
-    .exclude("string overlay function")
-    .exclude("binary overlay function")
     .exclude("string / binary substring function")
     .exclude("string parse_url function")
   enableSuite[GlutenSubquerySuite]
@@ -904,8 +902,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("encode/decode for string")
     .exclude("soundex unit test")
     .exclude("replace")
-    .exclude("overlay for string")
-    .exclude("overlay for byte array")
     .exclude("translate")
     .exclude("FORMAT")
     .exclude("SPARK-22603: FormatString should not generate codes beyond 64KB")
