@@ -31,7 +31,8 @@ function build_arrow_cpp() {
    BUILD_TYPE=$1
  fi
  pushd $ARROW_PREFIX/cpp
- cmake -DARROW_PARQUET=ON \
+ cmake_install \
+       -DARROW_PARQUET=ON \
        -DARROW_FILESYSTEM=ON \
        -DARROW_PROTOBUF_USE_SHARED=OFF \
        -DARROW_WITH_THRIFT=ON \
@@ -48,13 +49,10 @@ function build_arrow_cpp() {
        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
        -DARROW_BUILD_STATIC=ON \
        -DThrift_SOURCE=${THRIFT_SOURCE}
- make -j
- make install
  popd
 }
 
 function build_arrow_java() {
-    ARROW_HOME="${VELOX_HOME}/_build/$COMPILE_TYPE/third_party/arrow_ep/src/arrow_ep"
     ARROW_INSTALL_DIR="${ARROW_PREFIX}/install"
 
     pushd $ARROW_PREFIX/java
