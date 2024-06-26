@@ -65,7 +65,7 @@ public class CelebornUtils {
           unregisterAppShuffleId.invoke(shuffleIdTracker, shuffleClient, appShuffleId);
         }
         return true;
-      } catch (NoSuchMethodException ex) {
+      } catch (NoSuchMethodException | ClassNotFoundException ex) {
         try {
           if (lifecycleManager != null) {
             Method unregisterShuffleMethod =
