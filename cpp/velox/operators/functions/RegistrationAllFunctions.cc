@@ -34,6 +34,14 @@
 
 using namespace facebook;
 
+namespace facebook::velox::functions {
+void registerPrestoVectorFunctions() {
+  // Presto function. To be removed.
+  VELOX_REGISTER_VECTOR_FUNCTION(udf_arrays_overlap, "arrays_overlap");
+  VELOX_REGISTER_VECTOR_FUNCTION(udf_transform_keys, "transform_keys");
+  VELOX_REGISTER_VECTOR_FUNCTION(udf_transform_values, "transform_values");
+}
+} // namespace facebook::velox::functions
 namespace gluten {
 namespace {
 void registerFunctionOverwrite() {
@@ -70,6 +78,8 @@ void registerFunctionOverwrite() {
   velox::functions::registerBinaryIntegral<velox::functions::CheckedMinusFunction>({"check_subtract"});
   velox::functions::registerBinaryIntegral<velox::functions::CheckedMultiplyFunction>({"check_multiply"});
   velox::functions::registerBinaryIntegral<velox::functions::CheckedDivideFunction>({"check_divide"});
+
+  velox::functions::registerPrestoVectorFunctions();
 }
 } // namespace
 
