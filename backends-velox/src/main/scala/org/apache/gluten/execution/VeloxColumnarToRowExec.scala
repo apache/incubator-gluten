@@ -20,7 +20,7 @@ import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
-import org.apache.gluten.utils.Iterators
+import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.NativeColumnarToRowJniWrapper
 
 import org.apache.spark.broadcast.Broadcast

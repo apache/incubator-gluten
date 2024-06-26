@@ -105,7 +105,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"sign", "sign"},
        {"radians", "radians"},
        {"greatest", "sparkGreatest"},
-       {"least", "least"},
+       {"least", "sparkLeast"},
        {"shiftleft", "bitShiftLeft"},
        {"shiftright", "bitShiftRight"},
        {"check_overflow", "checkDecimalOverflowSpark"},
@@ -127,13 +127,11 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"trim", ""}, // trimLeft or trimLeftSpark, depends on argument size
        {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
        {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
-       {"concat", ""}, /// dummy mapping
        {"strpos", "positionUTF8"},
        {"char_length",
         "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
        {"replace", "replaceAll"},
        {"regexp_replace", "replaceRegexpAll"},
-       // {"regexp_extract", "regexpExtract"},
        {"regexp_extract_all", "regexpExtractAllSpark"},
        {"chr", "char"},
        {"rlike", "match"},
