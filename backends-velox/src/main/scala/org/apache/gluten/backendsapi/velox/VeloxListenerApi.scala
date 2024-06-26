@@ -134,28 +134,10 @@ class VeloxListenerApi extends ListenerApi {
     ) {
       loadLibFromJar(loader, conf)
     }
-    loader
-      .newTransaction()
-      .loadAndCreateLink(s"libarrow.so.$ARROW_VERSION.0.0", s"libarrow.so.$ARROW_VERSION", false)
-      .loadAndCreateLink(
-        s"libparquet.so.$ARROW_VERSION.0.0",
-        s"libparquet.so.$ARROW_VERSION",
-        false)
-      .commit()
   }
 
   private def loadLibWithMacOS(loader: JniLibLoader): Unit = {
-    loader
-      .newTransaction()
-      .loadAndCreateLink(
-        s"libarrow.$ARROW_VERSION.0.0.dylib",
-        s"libarrow.$ARROW_VERSION.dylib",
-        false)
-      .loadAndCreateLink(
-        s"libparquet.$ARROW_VERSION.0.0.dylib",
-        s"libparquet.$ARROW_VERSION.dylib",
-        false)
-      .commit()
+    // Placeholder for loading shared libs on MacOS if user needs.
   }
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
