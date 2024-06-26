@@ -22,11 +22,20 @@ ARROW_PREFIX=$CURRENT_DIR/arrow_ep
 THRIFT_SOURCE="BUNDLED"
 BUILD_TYPE=Release
 
-sudo rm -rf arrow_ep/
-wget_and_untar https://archive.apache.org/dist/arrow/arrow-${VELOX_ARROW_BUILD_VERSION}/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep
-cd arrow_ep/
-patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow.patch
-patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow_dataset_scan_option.patch
+function prepare_arrow_build() {
+  sudo rm -rf arrow_ep/
+  wget_and_untar https://archive.apache.org/dist/arrow/arrow-${VELOX_ARROW_BUILD_VERSION}/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep
+  cd arrow_ep/
+  patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow.patch
+  patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow_dataset_scan_option.patch
+}
+
+function install_arrow_deps {
+  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl
+  pushd openssl
+  ./config no-shared && make depend && make && sudo make install
+  popd
+}
 
 function build_arrow_cpp() {
  if [ -n "$1" ]; then
@@ -76,7 +85,7 @@ function build_arrow_java() {
 	    -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -N
 
     # Arrow Java libraries
-    mvn install  -Parrow-jni -P arrow-c-data -pl c,dataset -am \
+    mvn install -Parrow-jni -P arrow-c-data -pl c,dataset -am \
       -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Darrow.dataset.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib \
       -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -Dassembly.skipAssembly
     popd

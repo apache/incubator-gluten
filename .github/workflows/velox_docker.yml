@@ -600,13 +600,10 @@ jobs:
       - name: Build Gluten Velox third party
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
-          cd ep/build-velox/src
-          ./get_velox.sh
           source /opt/rh/gcc-toolset-9/enable
-          ./build_arrow_deps_centos8.sh
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
-          cd $GITHUB_WORKSPACE/cpp
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
+          source ./dev/build_arrow.sh
+          install_arrow_deps
+          ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_tests=ON --build_examples=ON --build_benchmarks=ON
       - uses: actions/upload-artifact@v2
         with:
           name: velox-native-lib-centos-8-${{github.sha}}

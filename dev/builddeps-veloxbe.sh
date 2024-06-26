@@ -191,6 +191,7 @@ function build_arrow {
   export SUDO=sudo
   cd $GLUTEN_DIR/dev
   source build_arrow.sh
+  prepare_arrow_build
   build_arrow_cpp $BUILD_TYPE
   echo "Finished building arrow CPP"
   build_arrow_java
