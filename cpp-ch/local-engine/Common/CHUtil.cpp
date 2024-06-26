@@ -672,7 +672,6 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
     }
-
     /// Finally apply some fixed kvs to settings.
     settings.set("join_use_nulls", true);
     settings.set("input_format_orc_allow_missing_columns", true);
@@ -694,6 +693,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("output_format_json_quote_64bit_integers", false);
     settings.set("output_format_json_quote_denormals", true);
     settings.set("output_format_json_skip_null_value_in_named_tuples", true);
+    settings.set("output_format_json_escape_forward_slashes", false);
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
     settings.set("precise_float_parsing", true);
