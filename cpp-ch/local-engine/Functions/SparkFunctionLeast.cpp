@@ -18,21 +18,21 @@
 
 namespace local_engine
 {
-class SparkFunctionGreatest : public FunctionGreatestestLeast<DB::LeastGreatest::Greatest>
+class SparkFunctionLeast : public FunctionGreatestestLeast<DB::LeastGreatest::Least>
 {
 public:
-    static constexpr auto name = "sparkGreatest";
-    static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionGreatest>(); }
-    SparkFunctionGreatest() = default;
-    ~SparkFunctionGreatest() override = default;
+    static constexpr auto name = "sparkLeast";
+    static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionLeast>(); }
+    SparkFunctionLeast() = default;
+    ~SparkFunctionLeast() override = default;
     String getName() const override
     {
         return name;
     } 
 };
 
-REGISTER_FUNCTION(SparkGreatest)
+REGISTER_FUNCTION(SparkLeast)
 {
-    factory.registerFunction<SparkFunctionGreatest>();
+    factory.registerFunction<SparkFunctionLeast>();
 }
 }
