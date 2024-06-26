@@ -188,7 +188,9 @@ concat_velox_param
 
 function build_arrow {
   echo "Start to build Arrow"
-  source $GLUTEN_DIR/dev/build_arrow.sh
+  export SUDO=sudo
+  cd $GLUTEN_DIR/dev
+  source build_arrow.sh
   build_arrow_cpp $BUILD_TYPE
   echo "Finished building arrow CPP"
   build_arrow_java

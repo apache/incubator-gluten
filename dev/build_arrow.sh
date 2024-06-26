@@ -22,7 +22,7 @@ ARROW_PREFIX=$CURRENT_DIR/arrow_ep
 THRIFT_SOURCE="BUNDLED"
 BUILD_TYPE=Release
 
-sudo rm -r arrow_ep/
+sudo rm -rf arrow_ep/
 wget_and_untar https://archive.apache.org/dist/arrow/arrow-${VELOX_ARROW_BUILD_VERSION}/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep
 cd arrow_ep/
 patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow.patch
@@ -33,6 +33,7 @@ function build_arrow_cpp() {
    BUILD_TYPE=$1
  fi
  pushd $ARROW_PREFIX/cpp
+
  cmake_install \
        -DARROW_PARQUET=ON \
        -DARROW_FILESYSTEM=ON \
@@ -47,7 +48,6 @@ function build_arrow_cpp() {
        -DARROW_RUNTIME_SIMD_LEVEL=NONE \
        -DARROW_WITH_UTF8PROC=OFF \
        -DARROW_TESTING=ON \
-       # Install to system path
        -DCMAKE_INSTALL_PREFIX=/usr/local \
        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
        -DARROW_BUILD_STATIC=ON \
