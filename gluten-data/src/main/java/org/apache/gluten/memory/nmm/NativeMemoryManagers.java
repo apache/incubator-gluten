@@ -26,6 +26,8 @@ import org.apache.gluten.proto.MemoryUsageStats;
 
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,6 +39,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public final class NativeMemoryManagers {
+  private static final Logger LOG = LoggerFactory.getLogger(NativeMemoryManagers.class);
 
   // TODO: Let all caller support spill.
   public static NativeMemoryManager contextInstance(String name) {
@@ -67,86 +70,92 @@ public final class NativeMemoryManagers {
     final MemoryTarget target =
         MemoryTargets.throwOnOom(
             MemoryTargets.overAcquire(
-                MemoryTargets.newConsumer(
-                    tmm,
-                    name,
-                    // call memory manager's shrink API, if no good then call the spiller
-                    Stream.concat(
-                            Stream.of(
-                                new Spiller() {
-                                  @Override
-                                  public long spill(MemoryTarget self, long size) {
-                                    return Optional.of(out.get())
-                                        .map(nmm -> nmm.shrink(size))
-                                        .orElseThrow(
-                                            () ->
-                                                new IllegalStateException(
-                                                    ""
-                                                        + "Shrink is requested before native "
-                                                        + "memory manager is created. Try moving "
-                                                        + "any actions about memory allocation out "
-                                                        + "from the memory manager constructor."));
-                                  }
+                MemoryTargets.dynamicOffHeapSizingIfEnabled(
+                    MemoryTargets.newConsumer(
+                        tmm,
+                        name,
+                        // call memory manager's shrink API, if no good then call the spiller
+                        Stream.concat(
+                                Stream.of(
+                                    new Spiller() {
+                                      @Override
+                                      public long spill(MemoryTarget self, long size) {
+                                        return Optional.ofNullable(out.get())
+                                            .map(nmm -> nmm.shrink(size))
+                                            .orElseGet(
+                                                () -> {
+                                                  LOG.warn(
+                                                      "Shrink is requested before native "
+                                                          + "memory manager is created. Try moving "
+                                                          + "any actions about memory allocation"
+                                                          + " out from the memory manager"
+                                                          + " constructor.");
+                                                  return 0L;
+                                                });
+                                      }
 
-                                  @Override
-                                  public Set<Phase> applicablePhases() {
-                                    return Spillers.PHASE_SET_SHRINK_ONLY;
-                                  }
-                                }),
-                            spillers.stream())
-                        .map(spiller -> Spillers.withMinSpillSize(spiller, reservationBlockSize))
-                        .collect(Collectors.toList()),
-                    Collections.singletonMap(
-                        "single",
-                        new MemoryUsageRecorder() {
-                          @Override
-                          public void inc(long bytes) {
-                            // no-op
-                          }
+                                      @Override
+                                      public Set<Phase> applicablePhases() {
+                                        return Spillers.PHASE_SET_SHRINK_ONLY;
+                                      }
+                                    }),
+                                spillers.stream())
+                            .map(
+                                spiller -> Spillers.withMinSpillSize(spiller, reservationBlockSize))
+                            .collect(Collectors.toList()),
+                        Collections.singletonMap(
+                            "single",
+                            new MemoryUsageRecorder() {
+                              @Override
+                              public void inc(long bytes) {
+                                // no-op
+                              }
 
-                          @Override
-                          public long peak() {
-                            throw new UnsupportedOperationException("Not implemented");
-                          }
+                              @Override
+                              public long peak() {
+                                throw new UnsupportedOperationException("Not implemented");
+                              }
 
-                          @Override
-                          public long current() {
-                            throw new UnsupportedOperationException("Not implemented");
-                          }
+                              @Override
+                              public long current() {
+                                throw new UnsupportedOperationException("Not implemented");
+                              }
 
-                          @Override
-                          public MemoryUsageStats toStats() {
-                            return getNativeMemoryManager().collectMemoryUsage();
-                          }
+                              @Override
+                              public MemoryUsageStats toStats() {
+                                return getNativeMemoryManager().collectMemoryUsage();
+                              }
 
-                          private NativeMemoryManager getNativeMemoryManager() {
-                            return Optional.of(out.get())
-                                .orElseThrow(
-                                    () ->
-                                        new IllegalStateException(
-                                            ""
-                                                + "Memory usage stats are requested before native "
-                                                + "memory manager is created. Try moving any "
-                                                + "actions about memory allocation out from the "
-                                                + "memory manager constructor."));
-                          }
-                        })),
-                MemoryTargets.newConsumer(
-                    tmm,
-                    "OverAcquire.DummyTarget",
-                    Collections.singletonList(
-                        new Spiller() {
-                          @Override
-                          public long spill(MemoryTarget self, long size) {
-                            return self.repay(size);
-                          }
+                              private NativeMemoryManager getNativeMemoryManager() {
+                                return Optional.ofNullable(out.get())
+                                    .orElseThrow(
+                                        () ->
+                                            new IllegalStateException(
+                                                ""
+                                                    + "Memory usage stats are requested before"
+                                                    + " native memory manager is created. Try"
+                                                    + " moving any actions about memory"
+                                                    + " allocation out from the memory manager"
+                                                    + " constructor."));
+                              }
+                            }))),
+                MemoryTargets.dynamicOffHeapSizingIfEnabled(
+                    MemoryTargets.newConsumer(
+                        tmm,
+                        "OverAcquire.DummyTarget",
+                        Collections.singletonList(
+                            new Spiller() {
+                              @Override
+                              public long spill(MemoryTarget self, long size) {
+                                return self.repay(size);
+                              }
 
-                          @Override
-                          public Set<Phase> applicablePhases() {
-                            return Spillers.PHASE_SET_ALL;
-                          }
-                        }),
-                    Collections.emptyMap()),
+                              @Override
+                              public Set<Phase> applicablePhases() {
+                                return Spillers.PHASE_SET_ALL;
+                              }
+                            }),
+                        Collections.emptyMap())),
                 overAcquiredRatio));
     // listener
     ManagedReservationListener rl =

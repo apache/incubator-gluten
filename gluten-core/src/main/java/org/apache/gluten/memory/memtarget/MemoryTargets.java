@@ -63,6 +63,6 @@ public final class MemoryTargets {
       factory = TreeMemoryConsumers.shared();
     }
 
-    return dynamicOffHeapSizingIfEnabled(factory.newConsumer(tmm, name, spillers, virtualChildren));
+    return factory.newConsumer(tmm, name, spillers, virtualChildren);
   }
 }
