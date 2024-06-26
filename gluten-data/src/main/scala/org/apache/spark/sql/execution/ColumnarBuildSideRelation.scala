@@ -21,7 +21,8 @@ import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.utils.{ArrowAbiUtil, Iterators}
+import org.apache.gluten.utils.ArrowAbiUtil
+import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
 
 import org.apache.spark.sql.catalyst.InternalRow

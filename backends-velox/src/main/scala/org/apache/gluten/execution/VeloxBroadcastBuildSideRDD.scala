@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.utils.Iterators
+import org.apache.gluten.utils.iterator.Iterators
 
 import org.apache.spark.{broadcast, SparkContext}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
