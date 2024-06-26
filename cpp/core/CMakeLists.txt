@@ -212,6 +212,10 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
 file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
 add_dependencies(gluten jni_proto)
+target_include_directories(gluten PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${VELOX_HOME}/
+)
 
 if(ENABLE_GLUTEN_VCPKG)
   # Hide symbols of some static dependencies. Otherwise, if such dependencies

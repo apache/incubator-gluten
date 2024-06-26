@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include <filesystem>
+#include <iostream>
 
 #include "VeloxBackend.h"
 
@@ -108,7 +109,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
   initJolFilesystem();
-  initCache();
+  // initCache();
   initConnector();
 
   // Register Velox functions
@@ -126,27 +127,20 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   facebook::velox::memory::MemoryManager::initialize({});
 }
 
-facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
-  return asyncDataCache_.get();
+uint64_t VeloxBackend::shrinkAsyncDataCache(uint64_t size) const {
+  return asyncDataCache_->shrink(size);
 }
 
-// JNI-or-local filesystem, for spilling-to-heap if we have extra JVM heap spaces
-void VeloxBackend::initJolFilesystem() {
-  int64_t maxSpillFileSize = backendConf_->get<int64_t>(kMaxSpillFileSize, kMaxSpillFileSizeDefault);
-
-  // FIXME It's known that if spill compression is disabled, the actual spill file size may
-  //   in crease beyond this limit a little (maximum 64 rows which is by default
-  //   one compression page)
-  gluten::registerJolFileSystem(maxSpillFileSize);
-}
-
-void VeloxBackend::initCache() {
-  if (backendConf_->get<bool>(kVeloxCacheEnabled, false)) {
+void VeloxBackend::setAsyncDataCache(
+    int64_t memCacheSize,
+    facebook::velox::memory::MmapAllocator* allocator,
+    gluten::AllocationListener* listener) {
+  if (true) {
     FLAGS_ssd_odirect = true;
 
     FLAGS_ssd_odirect = backendConf_->get<bool>(kVeloxSsdODirectEnabled, false);
 
-    uint64_t memCacheSize = backendConf_->get<uint64_t>(kVeloxMemCacheSize, kVeloxMemCacheSizeDefault);
+    // uint64_t memCacheSize = backendConf_->get<uint64_t>(kVeloxMemCacheSize, kVeloxMemCacheSizeDefault);
     uint64_t ssdCacheSize = backendConf_->get<uint64_t>(kVeloxSsdCacheSize, kVeloxSsdCacheSizeDefault);
     int32_t ssdCacheShards = backendConf_->get<int32_t>(kVeloxSsdCacheShards, kVeloxSsdCacheShardsDefault);
     int32_t ssdCacheIOThreads = backendConf_->get<int32_t>(kVeloxSsdCacheIOThreads, kVeloxSsdCacheIOThreadsDefault);
@@ -167,23 +161,36 @@ void VeloxBackend::initCache() {
           "free space: " + std::to_string(si.available))
     }
 
-    velox::memory::MmapAllocator::Options options;
-    options.capacity = memCacheSize;
-    cacheAllocator_ = std::make_shared<velox::memory::MmapAllocator>(options);
     if (ssdCacheSize == 0) {
       LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
       // TODO: this is not tracked by Spark.
-      asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get());
+      asyncDataCache_ = gluten::ListenableAsyncDataCache::create(allocator, listener, nullptr);
     } else {
       // TODO: this is not tracked by Spark.
-      asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get(), std::move(ssd));
+      asyncDataCache_ = gluten::ListenableAsyncDataCache::create(allocator, listener, std::move(ssd));
+      // asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator);
     }
 
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()))
-    LOG(INFO) << "STARTUP: Using AsyncDataCache memory cache size: " << memCacheSize
+    std::cout << "STARTUP: Using AsyncDataCache memory cache size: " << memCacheSize
               << ", ssdCache prefix: " << ssdCachePath << ", ssdCache size: " << ssdCacheSize
-              << ", ssdCache shards: " << ssdCacheShards << ", ssdCache IO threads: " << ssdCacheIOThreads;
+              << ", ssdCache shards: " << ssdCacheShards << ", ssdCache IO threads: " << ssdCacheIOThreads
+              << std::endl;
   }
+}
+
+facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
+  return asyncDataCache_.get();
+}
+
+// JNI-or-local filesystem, for spilling-to-heap if we have extra JVM heap spaces
+void VeloxBackend::initJolFilesystem() {
+  int64_t maxSpillFileSize = backendConf_->get<int64_t>(kMaxSpillFileSize, kMaxSpillFileSizeDefault);
+
+  // FIXME It's known that if spill compression is disabled, the actual spill file size may
+  //   in crease beyond this limit a little (maximum 64 rows which is by default
+  //   one compression page)
+  gluten::registerJolFileSystem(maxSpillFileSize);
 }
 
 void VeloxBackend::initConnector() {

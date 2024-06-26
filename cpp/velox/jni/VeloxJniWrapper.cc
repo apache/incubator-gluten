@@ -16,6 +16,7 @@
  */
 
 #include <jni.h>
+#include <iostream>
 
 #include <glog/logging.h>
 #include <jni/JniCommon.h>
@@ -37,6 +38,11 @@
 
 using namespace facebook;
 
+static jclass javaReservationListenerClass;
+
+static jmethodID reserveMemoryMethod;
+static jmethodID unreserveMemoryMethod;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -46,7 +52,13 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   if (vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
     return JNI_ERR;
   }
-
+  javaReservationListenerClass = createGlobalClassReference(
+      env,
+      "Lorg/apache/spark/storage/memory/"
+      "ExtMemStoreReservationListener;");
+  reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", "(J)J");
+  unreserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "unreserve", "(J)J");
+ 
   gluten::getJniCommonState()->ensureInitialized(env);
   gluten::getJniErrorState()->ensureInitialized(env);
   gluten::initVeloxJniFileSystem(env);
@@ -84,6 +96,38 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_init_NativeBackendInitializer_shut
   JNI_METHOD_START
   gluten::VeloxBackend::get()->tearDown();
   JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL Java_org_apache_gluten_storage_memory_NativeDataCache_setAsyncDataCache( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong size,
+    jobject jlistener) {
+  JNI_METHOD_START
+  JavaVM* vm;
+  if (env->GetJavaVM(&vm) != JNI_OK) {
+    throw gluten::GlutenException("Unable to get JavaVM instance");
+  }
+  gluten::AllocationListener* listener =
+      new SparkAllocationListener(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod);
+  velox::memory::MmapAllocator::Options options;
+  options.capacity = size;
+  facebook::velox::memory::MmapAllocator* cacheAllocator = new facebook::velox::memory::MmapAllocator(options);
+  gluten::VeloxBackend::get()->setAsyncDataCache(size, cacheAllocator, listener);
+  JNI_METHOD_END()
+}
+
+// TODO: move to dedicate class
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_storage_memory_NativeDataCache_shrinkAsyncDataCache( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong size) {
+  JNI_METHOD_START
+  static std::mutex mtx;
+  std::lock_guard lock{mtx};
+  uint64_t shrinkedSize = gluten::VeloxBackend::get()->shrinkAsyncDataCache(static_cast<uint64_t>(size));
+  return static_cast<jlong>(shrinkedSize);
+  JNI_METHOD_END(gluten::kInvalidResourceHandle)
 }
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_udf_UdfJniWrapper_getFunctionSignatures( // NOLINT
