@@ -16,16 +16,14 @@
  */
 package org.apache.gluten.utils.iterator
 
-import org.apache.gluten.utils.iterator.Iterators.{V1, V2, WrapperBuilder}
+import org.apache.gluten.utils.iterator.Iterators.{V1, WrapperBuilder}
+
 import org.apache.spark.util.TaskResources
+
 import org.scalatest.funsuite.AnyFunSuite
 
 class IteratorV1Suite extends IteratorSuite {
   override protected def wrap[A](in: Iterator[A]): WrapperBuilder[A] = Iterators.wrap(V1, in)
-}
-
-class IteratorV2Suite extends IteratorSuite {
-  override protected def wrap[A](in: Iterator[A]): WrapperBuilder[A] = Iterators.wrap(V2, in)
 }
 
 abstract class IteratorSuite extends AnyFunSuite {

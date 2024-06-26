@@ -17,7 +17,6 @@
 package org.apache.gluten.utils.iterator
 
 import org.apache.gluten.utils.iterator.IteratorsV1.WrapperBuilderV1
-import org.apache.gluten.utils.iterator.IteratorsV2.WrapperBuilderV2
 
 import org.apache.spark.TaskContext
 
@@ -28,9 +27,8 @@ import org.apache.spark.TaskContext
 object Iterators {
   sealed trait Version
   case object V1 extends Version
-  case object V2 extends Version
 
-  private val VERSION: Version = V1
+  private val DEFAULT_VERSION: Version = V1
 
   trait WrapperBuilder[A] {
     def recyclePayload(closeCallback: (A) => Unit): WrapperBuilder[A]
@@ -50,8 +48,6 @@ object Iterators {
     version match {
       case V1 =>
         new WrapperBuilderV1[A](in)
-      case V2 =>
-        new WrapperBuilderV2[A](in)
     }
   }
 }
