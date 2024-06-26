@@ -396,11 +396,8 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"modulus", "remainder"},
     {"date_format", "format_datetime"},
     {"collect_set", "set_agg"},
-    {"forall", "all_match"},
-    {"exists", "any_match"},
     {"negative", "unaryminus"},
-    {"get_array_item", "get"},
-    {"arrays_zip", "zip"}};
+    {"get_array_item", "get"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
     {"bool", "BOOLEAN"},
