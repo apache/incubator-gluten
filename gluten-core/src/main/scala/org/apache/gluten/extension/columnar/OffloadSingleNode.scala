@@ -396,13 +396,13 @@ case class OffloadWindow() extends OffloadSingleNode with LogLevelUtil {
   private val replace = new ReplaceSingleNode()
 
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case window: WindowExec =>
+    case window: WindowExec if BackendsApiManager.getSettings.requiredChildOrderingForWindow() =>
       if (TransformHints.isNotTransformable(window)) {
         return window
       }
 
-      val transformer = replace.doReplace(window)
-      val newChild = transformer.children.head match {
+      val transformer = replace.doReplace(window).asInstanceOf[UnaryTransformSupport]
+      val newChild = transformer.child match {
         case SortExec(_, false, child, _)
             if outputOrderSatisfied(child, transformer.requiredChildOrdering.head) =>
           child
