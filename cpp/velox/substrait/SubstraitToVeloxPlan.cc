@@ -725,7 +725,6 @@ void extractUnnestFieldExpr(
   } else {
     auto name = child->outputType()->names()[index];
     auto field = child->outputType()->childAt(index);
-    std::cout << "name: " << name << "type: " << field->toString() << std::endl;
     auto unnestFieldExpr = std::make_shared<core::FieldAccessTypedExpr>(field, name);
     unnestFields.emplace_back(unnestFieldExpr);
   }
@@ -763,9 +762,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   if (injectedProject) {
     // Child should be either ProjectNode or ValueStreamNode in case of project fallback.
     VELOX_CHECK(
-        std::dynamic_pointer_cast<const core::ProjectNode>(childNode) != nullptr ||
-            std::dynamic_pointer_cast<const ValueStreamNode>(childNode) != nullptr,
-        "injectedProject is true, but the Project is missing or does not have the corresponding projection field")
+        (std::dynamic_pointer_cast<const core::ProjectNode>(childNode) != nullptr ||
+         std::dynamic_pointer_cast<const ValueStreamNode>(childNode) != nullptr) &&
+            childNode->outputType()->size() > requiredChildOutput.size(),
+        "injectedProject is true, but the ProjectNode or ValueStreamNode (in case of projection fallback)"
+        " is missing or does not have the corresponding projection field")
 
     bool isStack = generateRel.has_advanced_extension() &&
         SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isStack=");
