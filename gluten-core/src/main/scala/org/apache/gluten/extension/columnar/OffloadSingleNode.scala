@@ -188,12 +188,10 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
 }
 
 case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
-  private def isInputFileNameExpr(expr: Expression): Boolean = {
+  private def containsInputFileRelatedExpr(expr: Expression): Boolean = {
     expr match {
-      case _: InputFileName => true
-      case _: InputFileBlockStart => true
-      case _: InputFileBlockLength => true
-      case _ => expr.children.exists(isInputFileNameExpr)
+      case _: InputFileName | _: InputFileBlockStart | _: InputFileBlockLength => true
+      case _ => expr.children.exists(containsInputFileRelatedExpr)
     }
   }
 
@@ -239,6 +237,7 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
       }
       newProjectList
     }
+
     plan match {
       case f: FileSourceScanExec =>
         f.copy(output = genNewOutput(f.output))
@@ -256,48 +255,57 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
     }
   }
 
-  private def genProjectExec(projectExec: ProjectExec): SparkPlan = {
+  private def tryOffloadProjectExecWithInputFileRelatedExprs(
+      projectExec: ProjectExec): SparkPlan = {
     def findScanNodes(plan: SparkPlan): Seq[SparkPlan] = {
-      plan match {
+      plan.collect {
         case f @ (_: FileSourceScanExec | _: AbstractFileSourceScanExec |
             _: DataSourceV2ScanExecBase) =>
-          Seq(f)
-        case o => o.children.flatMap(findScanNodes)
+          f
       }
     }
-
-    if (!TransformHints.isNotTransformable(projectExec)) {
-      logWarning(s"Columnar Processing for ${projectExec.getClass} is currently supported.")
-      ProjectExecTransformer(projectExec.projectList, projectExec.child)
-    } else if (BackendsApiManager.getSettings.supportNativeInputFileNameExpr()) {
-      val addHint = AddTransformHintRule()
-      val newProjectList = projectExec.projectList.filterNot(isInputFileNameExpr)
-      val newProjectExec = ProjectExec(newProjectList, projectExec.child)
-      addHint.apply(newProjectExec)
-      if (TransformHints.isNotTransformable(newProjectExec)) {
-        // Project is still not transformable after remove `input_file_name` expressions.
+    val addHint = AddTransformHintRule()
+    val newProjectList = projectExec.projectList.filterNot(containsInputFileRelatedExpr)
+    val newProjectExec = ProjectExec(newProjectList, projectExec.child)
+    addHint.apply(newProjectExec)
+    if (TransformHints.isNotTransformable(newProjectExec)) {
+      // Project is still not transformable after remove `input_file_name` expressions.
+      projectExec
+    } else {
+      // the project with `input_file_name` expression should have at most
+      // one data source, reference:
+      // https://github.com/apache/spark/blob/e459674127e7b21e2767cc62d10ea6f1f941936c
+      // /sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/rules.scala#L506
+      val leafScans = findScanNodes(projectExec)
+      assert(leafScans.size <= 1)
+      if (leafScans.isEmpty || TransformHints.isNotTransformable(leafScans(0))) {
+        // It means
+        // 1. projectExec has `input_file_name` but no scan child.
+        // 2. It has scan child node but the scan node fallback.
         projectExec
       } else {
-        // the project with `input_file_name` expression should have at most
-        // one data source, reference:
-        // https://github.com/apache/spark/blob/e459674127e7b21e2767cc62d10ea6f1f941936c
-        // /sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/rules.scala#L506
-        val scanChild = findScanNodes(projectExec)
-        if (scanChild.isEmpty || TransformHints.isNotTransformable(scanChild(0))) {
-          // It means
-          // 1. projectExec has `input_file_name` but no scan child.
-          // 2. It has scan child node but the scan node fallback.
-          projectExec
-        } else {
-          val replacedExprs = scala.collection.mutable.Map[String, AttributeReference]()
-          val newProjectList = projectExec.projectList.map {
-            expr => rewriteExpr(expr, replacedExprs).asInstanceOf[NamedExpression]
-          }
-          val newChild = addMetadataCol(projectExec.child, replacedExprs)
-          logDebug(s"Columnar Processing for ${projectExec.getClass} is currently supported.")
-          ProjectExecTransformer(newProjectList, newChild)
+        val replacedExprs = scala.collection.mutable.Map[String, AttributeReference]()
+        val newProjectList = projectExec.projectList.map {
+          expr => rewriteExpr(expr, replacedExprs).asInstanceOf[NamedExpression]
         }
+        val newChild = addMetadataCol(projectExec.child, replacedExprs)
+        logDebug(
+          s"Columnar Processing for ${projectExec.getClass} with " +
+            s"ProjectList ${projectExec.projectList} is currently supported.")
+        ProjectExecTransformer(newProjectList, newChild)
       }
+    }
+  }
+
+  private def genProjectExec(projectExec: ProjectExec): SparkPlan = {
+    if (!TransformHints.isNotTransformable(projectExec)) {
+      logDebug(s"Columnar Processing for ${projectExec.getClass} is currently supported.")
+      ProjectExecTransformer(projectExec.projectList, projectExec.child)
+    } else if (
+      BackendsApiManager.getSettings.supportNativeInputFileRelatedExpr() &&
+      projectExec.projectList.exists(containsInputFileRelatedExpr)
+    ) {
+      tryOffloadProjectExecWithInputFileRelatedExprs(projectExec)
     } else projectExec
   }
 

@@ -303,7 +303,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportNativeRowIndexColumn(): Boolean = true
 
-  override def supportNativeInputFileNameExpr(): Boolean = true
+  override def supportNativeInputFileRelatedExpr(): Boolean = true
 
   override def supportExpandExec(): Boolean = true
 
