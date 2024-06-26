@@ -32,7 +32,7 @@ import org.apache.spark.sql.hive.HiveUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
-trait Transformable extends Unevaluable {
+trait Transformable {
   def getTransformer(childrenTransformers: Seq[ExpressionTransformer]): ExpressionTransformer
 }
 

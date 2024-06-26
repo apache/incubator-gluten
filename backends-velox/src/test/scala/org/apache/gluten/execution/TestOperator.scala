@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.datasource.ArrowCSVFileFormat
 import org.apache.gluten.execution.datasource.v2.ArrowBatchScanExec
+import org.apache.gluten.expression.VeloxDummyExpression
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
@@ -45,6 +46,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
   override def beforeAll(): Unit = {
     super.beforeAll()
     createTPCHNotNullTables()
+    VeloxDummyExpression.registerFunctions(spark.sessionState.functionRegistry)
+  }
+
+  override def afterAll(): Unit = {
+    VeloxDummyExpression.unregisterFunctions(spark.sessionState.functionRegistry)
+    super.afterAll()
   }
 
   override protected def sparkConf: SparkConf = {
@@ -66,14 +73,20 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
 
   test("select_part_column") {
     val df = runQueryAndCompare("select l_shipdate, l_orderkey from lineitem limit 1") {
-      df => { assert(df.schema.fields.length == 2) }
+      df =>
+        {
+          assert(df.schema.fields.length == 2)
+        }
     }
     checkLengthAndPlan(df, 1)
   }
 
   test("select_as") {
     val df = runQueryAndCompare("select l_shipdate as my_col from lineitem limit 1") {
-      df => { assert(df.schema.fieldNames(0).equals("my_col")) }
+      df =>
+        {
+          assert(df.schema.fieldNames(0).equals("my_col"))
+        }
     }
     checkLengthAndPlan(df, 1)
   }
@@ -1073,6 +1086,13 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
                                 |""".stripMargin) {
             // No ProjectExecTransformer is introduced.
             checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer]
+          }
+
+          runQueryAndCompare(
+            s"""
+               |SELECT $func(${VeloxDummyExpression.VELOX_DUMMY_EXPRESSION}(a)) from t2;
+               |""".stripMargin) {
+            checkGlutenOperatorMatch[GenerateExecTransformer]
           }
         }
     }

@@ -27,7 +27,7 @@ import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, ExpressionInfo}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, ExpressionInfo, Unevaluable}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
@@ -94,7 +94,8 @@ case class UDFExpression(
     dataType: DataType,
     nullable: Boolean,
     children: Seq[Expression])
-  extends Transformable {
+  extends Unevaluable
+  with Transformable {
   override protected def withNewChildrenInternal(
       newChildren: IndexedSeq[Expression]): Expression = {
     this.copy(children = newChildren)
