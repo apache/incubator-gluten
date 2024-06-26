@@ -20,17 +20,15 @@ import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.extension.ValidationResult
-<<<<<<< HEAD
 import org.apache.gluten.utils.iterator.Iterators
-=======
->>>>>>>[VL] Runtime / native memory manager refactor
 import org.apache.gluten.vectorized.NativeColumnarToRowJniWrapper
+
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.{BroadcastUtils, SparkPlan}
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -75,9 +73,10 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
     val numOutputRows = longMetric("numOutputRows")
     val numInputBatches = longMetric("numInputBatches")
     val convertTime = longMetric("convertTime")
-    child.executeColumnar().mapPartitions { it =>
-      VeloxColumnarToRowExec
-        .toRowIterator(it, output, numOutputRows, numInputBatches, convertTime)
+    child.executeColumnar().mapPartitions {
+      it =>
+        VeloxColumnarToRowExec
+          .toRowIterator(it, output, numOutputRows, numInputBatches, convertTime)
     }
   }
 
@@ -92,12 +91,7 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
       sparkContext,
       mode,
       relation,
-      VeloxColumnarToRowExec.toRowIterator(
-        _,
-        output,
-        numOutputRows,
-        numInputBatches,
-        convertTime))
+      VeloxColumnarToRowExec.toRowIterator(_, output, numOutputRows, numInputBatches, convertTime))
   }
 
   protected def withNewChildInternal(newChild: SparkPlan): VeloxColumnarToRowExec =
@@ -134,8 +128,10 @@ object VeloxColumnarToRowExec {
         if (batch.numRows == 0) {
           batch.close()
           Iterator.empty
-        } else if (batch.numCols() > 0 &&
-          !ColumnarBatches.isLightBatch(batch)) {
+        } else if (
+          batch.numCols() > 0 &&
+          !ColumnarBatches.isLightBatch(batch)
+        ) {
           // Fallback to ColumnarToRow of vanilla Spark.
           val localOutput = output
           val toUnsafe = UnsafeProjection.create(localOutput, localOutput)

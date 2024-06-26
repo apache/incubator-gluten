@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.arrow.c.ArrowSchema
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
@@ -26,11 +25,12 @@ import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.ColumnarBatchSerializerJniWrapper
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.columnar.{CachedBatch, CachedBatchSerializer}
 import org.apache.spark.sql.execution.columnar.DefaultCachedBatchSerializer
 import org.apache.spark.sql.internal.SQLConf
@@ -39,11 +39,13 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
 
+import org.apache.arrow.c.ArrowSchema
+
 case class CachedColumnarBatch(
     override val numRows: Int,
     override val sizeInBytes: Long,
     bytes: Array[Byte])
-    extends CachedBatch {}
+  extends CachedBatch {}
 
 // spotless:off
 /**
@@ -74,10 +76,7 @@ case class CachedColumnarBatch(
  * -> Convert DefaultCachedBatch to InternalRow using vanilla Spark serializer
  */
 // spotless:on
-class ColumnarCachedBatchSerializer
-    extends CachedBatchSerializer
-    with SQLConfHelper
-    with Logging {
+class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHelper with Logging {
   private lazy val rowBasedCachedBatchSerializer = new DefaultCachedBatchSerializer
 
   private def toStructType(schema: Seq[Attribute]): StructType = {
@@ -141,14 +140,15 @@ class ColumnarCachedBatchSerializer
     val numOutputBatches = metrics("numOutputBatches")
     val convertTime = metrics("convertTime")
     val numRows = conf.columnBatchSize
-    val rddColumnarBatch = input.mapPartitions { it =>
-      RowToVeloxColumnarExec.toColumnarBatchIterator(
-        it,
-        localSchema,
-        numInputRows,
-        numOutputBatches,
-        convertTime,
-        numRows)
+    val rddColumnarBatch = input.mapPartitions {
+      it =>
+        RowToVeloxColumnarExec.toColumnarBatchIterator(
+          it,
+          localSchema,
+          numInputRows,
+          numOutputBatches,
+          convertTime,
+          numRows)
     }
     convertColumnarBatchToCachedBatch(rddColumnarBatch, schema, storageLevel, conf)
   }
@@ -176,13 +176,14 @@ class ColumnarCachedBatchSerializer
     val convertTime = metrics("convertTime")
     val rddColumnarBatch =
       convertCachedBatchToColumnarBatch(input, cacheAttributes, selectedAttributes, conf)
-    rddColumnarBatch.mapPartitions { it =>
-      VeloxColumnarToRowExec.toRowIterator(
-        it,
-        selectedAttributes,
-        numOutputRows,
-        numInputBatches,
-        convertTime)
+    rddColumnarBatch.mapPartitions {
+      it =>
+        VeloxColumnarToRowExec.toRowIterator(
+          it,
+          selectedAttributes,
+          numOutputRows,
+          numInputBatches,
+          convertTime)
     }
   }
 
@@ -191,22 +192,23 @@ class ColumnarCachedBatchSerializer
       schema: Seq[Attribute],
       storageLevel: StorageLevel,
       conf: SQLConf): RDD[CachedBatch] = {
-    input.mapPartitions { it =>
-      new Iterator[CachedBatch] {
-        override def hasNext: Boolean = it.hasNext
+    input.mapPartitions {
+      it =>
+        new Iterator[CachedBatch] {
+          override def hasNext: Boolean = it.hasNext
 
-        override def next(): CachedBatch = {
-          val batch = it.next()
-          val results =
-            ColumnarBatchSerializerJniWrapper
-              .create(Runtimes.contextInstance("ColumnarCachedBatchSerializer#serialize"))
-              .serialize(Array(ColumnarBatches.getNativeHandle(batch)))
-          CachedColumnarBatch(
-            results.getNumRows.toInt,
-            results.getSerialized.length,
-            results.getSerialized)
+          override def next(): CachedBatch = {
+            val batch = it.next()
+            val results =
+              ColumnarBatchSerializerJniWrapper
+                .create(Runtimes.contextInstance("ColumnarCachedBatchSerializer#serialize"))
+                .serialize(Array(ColumnarBatches.getNativeHandle(batch)))
+            CachedColumnarBatch(
+              results.getNumRows.toInt,
+              results.getSerialized.length,
+              results.getSerialized)
+          }
         }
-      }
     }
   }
 
@@ -216,51 +218,52 @@ class ColumnarCachedBatchSerializer
       selectedAttributes: Seq[Attribute],
       conf: SQLConf): RDD[ColumnarBatch] = {
     // Find the ordinals and data types of the requested columns.
-    val requestedColumnIndices = selectedAttributes.map { a =>
-      cacheAttributes.map(_.exprId).indexOf(a.exprId)
+    val requestedColumnIndices = selectedAttributes.map {
+      a => cacheAttributes.map(_.exprId).indexOf(a.exprId)
     }
     val shouldSelectAttributes = cacheAttributes != selectedAttributes
     val localSchema = toStructType(cacheAttributes)
     val timezoneId = SQLConf.get.sessionLocalTimeZone
     val runtime = Runtimes.contextInstance("ColumnarCachedBatchSerializer#read")
-    input.mapPartitions { it =>
-      val jniWrapper = ColumnarBatchSerializerJniWrapper
-        .create(runtime)
-      val schema = SparkArrowUtil.toArrowSchema(localSchema, timezoneId)
-      val arrowAlloc = ArrowBufferAllocators.contextInstance()
-      val cSchema = ArrowSchema.allocateNew(arrowAlloc)
-      ArrowAbiUtil.exportSchema(arrowAlloc, schema, cSchema)
-      val deserializerHandle = jniWrapper
-        .init(cSchema.memoryAddress())
-      cSchema.close()
+    input.mapPartitions {
+      it =>
+        val jniWrapper = ColumnarBatchSerializerJniWrapper
+          .create(runtime)
+        val schema = SparkArrowUtil.toArrowSchema(localSchema, timezoneId)
+        val arrowAlloc = ArrowBufferAllocators.contextInstance()
+        val cSchema = ArrowSchema.allocateNew(arrowAlloc)
+        ArrowAbiUtil.exportSchema(arrowAlloc, schema, cSchema)
+        val deserializerHandle = jniWrapper
+          .init(cSchema.memoryAddress())
+        cSchema.close()
 
-      Iterators
-        .wrap(new Iterator[ColumnarBatch] {
-          override def hasNext: Boolean = it.hasNext
+        Iterators
+          .wrap(new Iterator[ColumnarBatch] {
+            override def hasNext: Boolean = it.hasNext
 
-          override def next(): ColumnarBatch = {
-            val cachedBatch = it.next().asInstanceOf[CachedColumnarBatch]
-            val batchHandle =
-              jniWrapper
-                .deserialize(deserializerHandle, cachedBatch.bytes)
-            val batch = ColumnarBatches.create(runtime, batchHandle)
-            if (shouldSelectAttributes) {
-              try {
-                ColumnarBatches.select(batch, requestedColumnIndices.toArray)
-              } finally {
-                batch.close()
+            override def next(): ColumnarBatch = {
+              val cachedBatch = it.next().asInstanceOf[CachedColumnarBatch]
+              val batchHandle =
+                jniWrapper
+                  .deserialize(deserializerHandle, cachedBatch.bytes)
+              val batch = ColumnarBatches.create(runtime, batchHandle)
+              if (shouldSelectAttributes) {
+                try {
+                  ColumnarBatches.select(batch, requestedColumnIndices.toArray)
+                } finally {
+                  batch.close()
+                }
+              } else {
+                batch
               }
-            } else {
-              batch
             }
+          })
+          .protectInvocationFlow()
+          .recycleIterator {
+            jniWrapper.close(deserializerHandle)
           }
-        })
-        .protectInvocationFlow()
-        .recycleIterator {
-          jniWrapper.close(deserializerHandle)
-        }
-        .recyclePayload(_.close())
-        .create()
+          .recyclePayload(_.close())
+          .create()
     }
   }
 
