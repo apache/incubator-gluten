@@ -161,17 +161,14 @@ class ArbitratorFactoryRegister {
   gluten::AllocationListener* listener_;
 };
 
-VeloxMemoryManager::VeloxMemoryManager(
-    const std::string& name,
-    std::shared_ptr<MemoryAllocator> allocator,
-    std::unique_ptr<AllocationListener> listener)
-    : MemoryManager(), name_(name), listener_(std::move(listener)) {
+VeloxMemoryManager::VeloxMemoryManager(std::unique_ptr<AllocationListener> listener)
+    : MemoryManager(), listener_(std::move(listener)) {
   auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
       kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
   auto memInitCapacity =
       VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
-  listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), blockListener_.get());
+  listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), blockListener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
 
   ArbitratorFactoryRegister afr(listener_.get());
@@ -189,11 +186,11 @@ VeloxMemoryManager::VeloxMemoryManager(
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(
-      name_ + "_root",
+      "root",
       velox::memory::kMaxMemory, // the 3rd capacity
       facebook::velox::memory::MemoryReclaimer::create());
 
-  veloxLeafPool_ = veloxAggregatePool_->addLeafChild(name_ + "_default_leaf");
+  veloxLeafPool_ = veloxAggregatePool_->addLeafChild("default_leaf");
 }
 
 namespace {

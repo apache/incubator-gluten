@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializerJniWrapper}
 
@@ -158,12 +157,8 @@ object BroadcastUtils {
     val serializeResult =
       try {
         ColumnarBatchSerializerJniWrapper
-          .forRuntime(batchRuntime)
-          .serialize(
-            handleArray,
-            NativeMemoryManagers
-              .contextInstance("BroadcastRelation")
-              .getNativeInstanceHandle)
+          .create(batchRuntime)
+          .serialize(handleArray)
       } finally {
         filtered.foreach(ColumnarBatches.release)
       }

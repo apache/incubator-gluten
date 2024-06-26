@@ -21,7 +21,7 @@ import org.apache.gluten.columnarbatch.ColumnarBatches;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
-import org.apache.gluten.memory.nmm.NativeMemoryManagers;
+import org.apache.gluten.memory.listener.NativeMemoryManagers;
 import org.apache.gluten.vectorized.ShuffleWriterJniWrapper;
 import org.apache.gluten.vectorized.SplitResult;
 

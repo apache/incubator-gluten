@@ -31,10 +31,12 @@ public class IndicatorVector extends ColumnVector {
   private final Runtime runtime;
   private final long handle;
   private final AtomicLong refCnt = new AtomicLong(1L);
+  private final ColumnarBatchJniWrapper jniwrapper;
 
   protected IndicatorVector(Runtime runtime, long handle) {
     super(DataTypes.NullType);
     this.runtime = runtime;
+    this.jniwrapper = ColumnarBatchJniWrapper.create(runtime);
     this.handle = handle;
   }
 
@@ -43,15 +45,16 @@ public class IndicatorVector extends ColumnVector {
   }
 
   public String getType() {
-    return ColumnarBatchJniWrapper.forRuntime(runtime).getType(handle);
+
+    return jniwrapper.getType(handle);
   }
 
   public long getNumColumns() {
-    return ColumnarBatchJniWrapper.forRuntime(runtime).numColumns(handle);
+    return jniwrapper.numColumns(handle);
   }
 
   public long getNumRows() {
-    return ColumnarBatchJniWrapper.forRuntime(runtime).numRows(handle);
+    return jniwrapper.numRows(handle);
   }
 
   public long refCnt() {
@@ -69,7 +72,7 @@ public class IndicatorVector extends ColumnVector {
       return;
     }
     if (refCnt.decrementAndGet() == 0) {
-      ColumnarBatchJniWrapper.forRuntime(runtime).close(handle);
+      jniwrapper.close(handle);
     }
   }
 

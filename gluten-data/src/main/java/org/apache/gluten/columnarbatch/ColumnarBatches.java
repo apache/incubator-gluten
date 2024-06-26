@@ -19,7 +19,6 @@ package org.apache.gluten.columnarbatch;
 import org.apache.gluten.exception.GlutenException;
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.Runtimes;
-import org.apache.gluten.memory.nmm.NativeMemoryManager;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;
 import org.apache.gluten.utils.ImplicitClass;
@@ -125,14 +124,13 @@ public class ColumnarBatches {
    * This method will always return a velox based ColumnarBatch. This method will close the input
    * column batch.
    */
-  public static ColumnarBatch select(
-      NativeMemoryManager nmm, ColumnarBatch batch, int[] columnIndices) {
+  public static ColumnarBatch select(ColumnarBatch batch, int[] columnIndices) {
     switch (identifyBatchType(batch)) {
       case LIGHT:
         final IndicatorVector iv = getIndicatorVector(batch);
         long outputBatchHandle =
-            ColumnarBatchJniWrapper.create()
-                .select(nmm.getNativeInstanceHandle(), iv.handle(), columnIndices);
+            ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#select"))
+                .select(iv.handle(), columnIndices);
         return create(iv.runtime(), outputBatchHandle);
       case HEAVY:
         return new ColumnarBatch(
@@ -181,7 +179,7 @@ public class ColumnarBatches {
         ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
         CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
-      ColumnarBatchJniWrapper.forRuntime(iv.runtime())
+      ColumnarBatchJniWrapper.create(iv.runtime())
           .exportToArrow(iv.handle(), cSchema.memoryAddress(), cArray.memoryAddress());
 
       Data.exportSchema(
@@ -217,12 +215,12 @@ public class ColumnarBatches {
     if (input.numCols() == 0) {
       throw new IllegalArgumentException("batch with zero columns cannot be offloaded");
     }
-    final Runtime runtime = Runtimes.contextInstance();
+    final Runtime runtime = Runtimes.contextInstance("ColumnarBatches#offload");
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
       ArrowAbiUtil.exportFromSparkColumnarBatch(allocator, input, cSchema, cArray);
       long handle =
-          ColumnarBatchJniWrapper.forRuntime(runtime)
+          ColumnarBatchJniWrapper.create(runtime)
               .createWithArrowArray(cSchema.memoryAddress(), cArray.memoryAddress());
       ColumnarBatch output = ColumnarBatches.create(runtime, handle);
 
@@ -335,12 +333,13 @@ public class ColumnarBatches {
             .toArray(IndicatorVector[]::new);
     // We assume all input batches should be managed by same Runtime.
     // FIXME: The check could be removed to adopt ownership-transfer semantic
-    final Runtime[] ctxs =
+    final Runtime[] runtimes =
         Arrays.stream(ivs).map(IndicatorVector::runtime).distinct().toArray(Runtime[]::new);
     Preconditions.checkState(
-        ctxs.length == 1, "All input batches should be managed by same Runtime.");
+        runtimes.length == 1, "All input batches should be managed by same Runtime.");
+    final Runtime runtime = runtimes[0];
     final long[] handles = Arrays.stream(ivs).mapToLong(IndicatorVector::handle).toArray();
-    return ColumnarBatchJniWrapper.forRuntime(ctxs[0]).compose(handles);
+    return ColumnarBatchJniWrapper.create(runtime).compose(handles);
   }
 
   public static ColumnarBatch create(Runtime runtime, long nativeHandle) {

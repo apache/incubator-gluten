@@ -18,7 +18,6 @@ package org.apache.gluten.columnarbatch;
 
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.RuntimeAware;
-import org.apache.gluten.exec.Runtimes;
 
 public class ColumnarBatchJniWrapper implements RuntimeAware {
   private final Runtime runtime;
@@ -27,11 +26,7 @@ public class ColumnarBatchJniWrapper implements RuntimeAware {
     this.runtime = runtime;
   }
 
-  public static ColumnarBatchJniWrapper create() {
-    return new ColumnarBatchJniWrapper(Runtimes.contextInstance());
-  }
-
-  public static ColumnarBatchJniWrapper forRuntime(Runtime runtime) {
+  public static ColumnarBatchJniWrapper create(Runtime runtime) {
     return new ColumnarBatchJniWrapper(runtime);
   }
 
@@ -51,10 +46,7 @@ public class ColumnarBatchJniWrapper implements RuntimeAware {
 
   public native void exportToArrow(long batch, long cSchema, long cArray);
 
-  public native long select(
-      long nativeMemoryManagerHandle, // why a mm is needed here?
-      long batch,
-      int[] columnIndices);
+  public native long select(long batch, int[] columnIndices);
 
   public native void close(long batch);
 

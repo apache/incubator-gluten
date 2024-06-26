@@ -55,12 +55,15 @@ struct SparkTaskInfo {
 
 class Runtime : public std::enable_shared_from_this<Runtime> {
  public:
-  using Factory = std::function<Runtime*(const std::unordered_map<std::string, std::string>&)>;
+  using Factory = std::function<
+      Runtime*(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>&)>;
   static void registerFactory(const std::string& kind, Factory factory);
-  static Runtime* create(const std::string& kind, const std::unordered_map<std::string, std::string>& sessionConf = {});
+  static Runtime* create(
+      const std::string& kind,
+      std::unique_ptr<AllocationListener> listener,
+      const std::unordered_map<std::string, std::string>& sessionConf = {});
   static void release(Runtime*);
 
-  Runtime() = default;
   Runtime(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
   virtual ~Runtime() = default;
 
@@ -78,52 +81,38 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   }
 
   virtual std::shared_ptr<ResultIterator> createResultIterator(
-      MemoryManager* memoryManager,
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
       const std::unordered_map<std::string, std::string>& sessionConf) = 0;
 
   virtual std::shared_ptr<ColumnarBatch> createOrGetEmptySchemaBatch(int32_t numRows) = 0;
 
-  virtual std::shared_ptr<ColumnarBatch>
-  select(MemoryManager*, std::shared_ptr<ColumnarBatch>, std::vector<int32_t>) = 0;
+  virtual std::shared_ptr<ColumnarBatch> select(std::shared_ptr<ColumnarBatch>, std::vector<int32_t>) = 0;
 
-  virtual MemoryManager* createMemoryManager(
-      const std::string& name,
-      std::shared_ptr<MemoryAllocator>,
-      std::unique_ptr<AllocationListener>) = 0;
+  virtual MemoryManager* memoryManager() = 0;
 
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row.
-  virtual std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter(MemoryManager* memoryManager) = 0;
+  virtual std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter() = 0;
 
-  virtual std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(
-      MemoryManager* memoryManager,
-      struct ArrowSchema* cSchema) = 0;
+  virtual std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(struct ArrowSchema* cSchema) = 0;
 
   virtual std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
-      MemoryManager* memoryManager) = 0;
+      ShuffleWriterOptions options) = 0;
 
   virtual Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) = 0;
 
   virtual std::shared_ptr<Datasource> createDatasource(
       const std::string& filePath,
-      MemoryManager* memoryManager,
       std::shared_ptr<arrow::Schema> schema) = 0;
 
   virtual std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
-      ShuffleReaderOptions options,
-      arrow::MemoryPool* pool,
-      MemoryManager* memoryManager) = 0;
+      ShuffleReaderOptions options) = 0;
 
-  virtual std::unique_ptr<ColumnarBatchSerializer> createColumnarBatchSerializer(
-      MemoryManager* memoryManager,
-      arrow::MemoryPool* arrowPool,
-      struct ArrowSchema* cSchema) = 0;
+  virtual std::unique_ptr<ColumnarBatchSerializer> createColumnarBatchSerializer(struct ArrowSchema* cSchema) = 0;
 
   virtual void dumpConf(const std::string& path) = 0;
 
@@ -141,11 +130,11 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
  protected:
   std::unique_ptr<ObjectStore> objStore_ = ObjectStore::create();
+  std::unordered_map<std::string, std::string> confMap_; // Session conf map
+
   ::substrait::Plan substraitPlan_;
   std::vector<::substrait::ReadRel_LocalFiles> localFiles_;
   std::optional<std::string> writeFilesTempPath_;
   SparkTaskInfo taskInfo_;
-  // Session conf map
-  std::unordered_map<std::string, std::string> confMap_;
 };
 } // namespace gluten

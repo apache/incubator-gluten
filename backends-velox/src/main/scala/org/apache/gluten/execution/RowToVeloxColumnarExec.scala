@@ -16,22 +16,22 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.arrow.c.ArrowSchema
+import org.apache.arrow.memory.ArrowBuf
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized._
-
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.execution.{BroadcastUtils, SparkPlan}
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.{BroadcastUtils, SparkPlan}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
@@ -39,19 +39,15 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.Platform
 import org.apache.spark.util.TaskResources
 
-import org.apache.arrow.c.ArrowSchema
-import org.apache.arrow.memory.ArrowBuf
-
 import scala.collection.mutable.ListBuffer
 
 case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBase(child = child) {
 
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
-    BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema).foreach {
-      reason =>
-        throw new GlutenException(
-          s"Input schema contains unsupported type when convert row to columnar for $schema " +
-            s"due to $reason")
+    BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema).foreach { reason =>
+      throw new GlutenException(
+        s"Input schema contains unsupported type when convert row to columnar for $schema " +
+          s"due to $reason")
     }
 
     val numInputRows = longMetric("numInputRows")
@@ -63,16 +59,14 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = schema
-    child.execute().mapPartitions {
-      rowIterator =>
-        RowToVeloxColumnarExec.toColumnarBatchIterator(
-          rowIterator,
-          localSchema,
-          numInputRows,
-          numOutputBatches,
-          convertTime,
-          numRows
-        )
+    child.execute().mapPartitions { rowIterator =>
+      RowToVeloxColumnarExec.toColumnarBatchIterator(
+        rowIterator,
+        localSchema,
+        numInputRows,
+        numOutputBatches,
+        convertTime,
+        numRows)
     }
   }
 
@@ -97,9 +91,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
           numInputRows,
           numOutputBatches,
           convertTime,
-          numRows
-        )
-    )
+          numRows))
   }
 
   // For spark 3.2.
@@ -121,16 +113,16 @@ object RowToVeloxColumnarExec {
 
     val arrowSchema =
       SparkArrowUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
-    val jniWrapper = NativeRowToColumnarJniWrapper.create()
+    val runtime = Runtimes.contextInstance("RowToColumnar")
+    val jniWrapper = NativeRowToColumnarJniWrapper.create(runtime)
     val arrowAllocator = ArrowBufferAllocators.contextInstance()
-    val memoryManager = NativeMemoryManagers.contextInstance("RowToColumnar")
     val cSchema = ArrowSchema.allocateNew(arrowAllocator)
     val factory = UnsafeProjection
     val converter = factory.create(schema)
     val r2cHandle =
       try {
         ArrowAbiUtil.exportSchema(arrowAllocator, arrowSchema, cSchema)
-        jniWrapper.init(cSchema.memoryAddress(), memoryManager.getNativeInstanceHandle)
+        jniWrapper.init(cSchema.memoryAddress())
       } finally {
         cSchema.close()
       }
@@ -220,7 +212,7 @@ object RowToVeloxColumnarExec {
         try {
           val handle = jniWrapper
             .nativeConvertRowToColumnar(r2cHandle, rowLength.toArray, arrowBuf.memoryAddress())
-          val cb = ColumnarBatches.create(Runtimes.contextInstance(), handle)
+          val cb = ColumnarBatches.create(runtime, handle)
           convertTime += System.currentTimeMillis() - startNative
           cb
         } finally {

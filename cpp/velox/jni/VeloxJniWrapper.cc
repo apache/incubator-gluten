@@ -250,13 +250,11 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWra
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBatchAppenderJniWrapper_create( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlong memoryManagerHandle,
     jint minOutputBatchSize,
     jobject jIter) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto memoryManager = jniCastOrThrow<gluten::MemoryManager>(memoryManagerHandle);
-  auto pool = gluten::VeloxRuntime::getLeafVeloxPool(memoryManager);
+  auto pool = dynamic_cast<gluten::VeloxMemoryManager*>(ctx->memoryManager())->getLeafMemoryPool();
   auto iter = gluten::makeJniColumnarBatchIterator(env, jIter, ctx, nullptr);
   auto appender = std::make_shared<gluten::ResultIterator>(
       std::make_unique<gluten::VeloxBatchAppender>(pool.get(), minOutputBatchSize, std::move(iter)));
