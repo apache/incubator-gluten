@@ -76,7 +76,9 @@ class Spark35Shims extends SparkShims {
       Sig[SplitPart](ExpressionNames.SPLIT_PART),
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
-      Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
+      Sig[KnownNullable](ExpressionNames.KNOWN_NULLABLE),
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL)
+    )
   }
 
   override def aggregateExpressionMappings: Seq[Sig] = {

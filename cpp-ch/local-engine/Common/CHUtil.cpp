@@ -77,6 +77,7 @@ namespace ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
 extern const int UNKNOWN_TYPE;
+extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
 }
 }
 
@@ -466,17 +467,17 @@ String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
 
 using namespace DB;
 
-std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std::string * plan)
+std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string & plan)
 {
     std::map<std::string, std::string> ch_backend_conf;
-    if (plan == nullptr)
+    if (plan.empty())
         return ch_backend_conf;
 
     /// Parse backend configs from plan extensions
     do
     {
         auto plan_ptr = std::make_unique<substrait::Plan>();
-        auto success = plan_ptr->ParseFromString(*plan);
+        auto success = plan_ptr->ParseFromString(plan);
         if (!success)
             break;
 
@@ -623,7 +624,9 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
 {
     /// Initialize default setting.
     settings.set("date_time_input_format", "best_effort");
-    settings.set("mergetree.merge_after_insert", true);
+    settings.set(MERGETREE_MERGE_AFTER_INSERT, true);
+    settings.set(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, false);
+    settings.set(DECIMAL_OPERATIONS_ALLOW_PREC_LOSS, true);
 
     for (const auto & [key, value] : backend_conf_map)
     {
@@ -663,8 +666,12 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
             settings.set("session_timezone", time_zone_val);
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", "session_timezone", time_zone_val);
         }
+        else if (key == DECIMAL_OPERATIONS_ALLOW_PREC_LOSS)
+        {
+            settings.set(key, toField(key, value));
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
+        }
     }
-
     /// Finally apply some fixed kvs to settings.
     settings.set("join_use_nulls", true);
     settings.set("input_format_orc_allow_missing_columns", true);
@@ -686,6 +693,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("output_format_json_quote_64bit_integers", false);
     settings.set("output_format_json_quote_denormals", true);
     settings.set("output_format_json_skip_null_value_in_named_tuples", true);
+    settings.set("output_format_json_escape_forward_slashes", false);
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
     settings.set("precise_float_parsing", true);
@@ -750,7 +758,7 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t index_uncompressed_cache_size = config->getUInt64("index_uncompressed_cache_size", DEFAULT_INDEX_UNCOMPRESSED_CACHE_MAX_SIZE);
         double index_uncompressed_cache_size_ratio = config->getDouble("index_uncompressed_cache_size_ratio", DEFAULT_INDEX_UNCOMPRESSED_CACHE_SIZE_RATIO);
         global_context->setIndexUncompressedCache(index_uncompressed_cache_policy, index_uncompressed_cache_size, index_uncompressed_cache_size_ratio);
-        
+
         String index_mark_cache_policy = config->getString("index_mark_cache_policy", DEFAULT_INDEX_MARK_CACHE_POLICY);
         size_t index_mark_cache_size = config->getUInt64("index_mark_cache_size", DEFAULT_INDEX_MARK_CACHE_MAX_SIZE);
         double index_mark_cache_size_ratio = config->getDouble("index_mark_cache_size_ratio", DEFAULT_INDEX_MARK_CACHE_SIZE_RATIO);
@@ -786,6 +794,7 @@ void BackendInitializerUtil::updateNewSettings(const DB::ContextMutablePtr & con
 
 extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCombinatorFactory &);
 extern void registerAggregateFunctionsBloomFilter(AggregateFunctionFactory &);
+extern void registerAggregateFunctionSparkAvg(AggregateFunctionFactory &);
 extern void registerFunctions(FunctionFactory &);
 
 void registerAllFunctions()
@@ -795,7 +804,7 @@ void registerAllFunctions()
     DB::registerAggregateFunctions();
     auto & agg_factory = AggregateFunctionFactory::instance();
     registerAggregateFunctionsBloomFilter(agg_factory);
-
+    registerAggregateFunctionSparkAvg(agg_factory);
     {
         /// register aggregate function combinators from local_engine
         auto & factory = AggregateFunctionCombinatorFactory::instance();
@@ -840,14 +849,8 @@ void BackendInitializerUtil::initCompiledExpressionCache(DB::Context::Configurat
 #endif
 }
 
-void BackendInitializerUtil::init_json(std::string * plan_json)
-{
-    auto plan_ptr = std::make_unique<substrait::Plan>();
-    google::protobuf::util::JsonStringToMessage(plan_json->c_str(), plan_ptr.get());
-    return init(new String(plan_ptr->SerializeAsString()));
-}
 
-void BackendInitializerUtil::init(std::string * plan)
+void BackendInitializerUtil::init(const std::string & plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
     DB::Context::ConfigurationPtr config = initConfig(backend_conf_map);
@@ -905,7 +908,7 @@ void BackendInitializerUtil::init(std::string * plan)
         });
 }
 
-void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, std::string * plan)
+void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, const std::string & plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
 
@@ -919,7 +922,10 @@ void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context,
 
 void BackendFinalizerUtil::finalizeGlobally()
 {
-    // Make sure client caches release before ClientCacheRegistry
+    /// Make sure that all active LocalExecutor stop before spark executor shutdown, otherwise crash map happen.
+    LocalExecutor::cancelAll();
+
+    /// Make sure client caches release before ClientCacheRegistry
     ReadBufferBuilderFactory::instance().clean();
     StorageMergeTreeFactory::clear();
     auto & global_context = SerializedPlanParser::global_context;

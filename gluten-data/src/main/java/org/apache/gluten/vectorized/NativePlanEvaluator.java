@@ -71,7 +71,7 @@ public class NativePlanEvaluator {
               @Override
               public long spill(MemoryTarget self, long size) {
                 ColumnarBatchOutIterator instance =
-                    Optional.of(outIterator.get())
+                    Optional.ofNullable(outIterator.get())
                         .orElseThrow(
                             () ->
                                 new IllegalStateException(

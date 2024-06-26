@@ -35,7 +35,12 @@ class QueryPlan;
 
 namespace local_engine
 {
-static const std::unordered_set<String> BOOL_VALUE_SETTINGS{"mergetree.merge_after_insert"};
+static const String MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE = "mergetree.insert_without_local_storage";
+static const String MERGETREE_MERGE_AFTER_INSERT = "mergetree.merge_after_insert";
+static const std::string DECIMAL_OPERATIONS_ALLOW_PREC_LOSS = "spark.sql.decimalOperations.allowPrecisionLoss";
+
+static const std::unordered_set<String> BOOL_VALUE_SETTINGS{
+    MERGETREE_MERGE_AFTER_INSERT, MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, DECIMAL_OPERATIONS_ALLOW_PREC_LOSS};
 static const std::unordered_set<String> LONG_VALUE_SETTINGS{
     "optimize.maxfilesize", "optimize.minFileSize", "mergetree.max_num_part_per_merge_task"};
 
@@ -135,9 +140,8 @@ public:
     /// Initialize two kinds of resources
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
-    static void init(std::string * plan);
-    static void init_json(std::string * plan_json);
-    static void updateConfig(const DB::ContextMutablePtr &, std::string *);
+    static void init(const std::string & plan);
+    static void updateConfig(const DB::ContextMutablePtr &, const std::string &);
 
 
     // use excel text parser
@@ -194,7 +198,7 @@ private:
     static void updateNewSettings(const DB::ContextMutablePtr &, const DB::Settings &);
 
 
-    static std::map<std::string, std::string> getBackendConfMap(std::string * plan);
+    static std::map<std::string, std::string> getBackendConfMap(const std::string & plan);
 
     inline static std::once_flag init_flag;
     inline static Poco::Logger * logger;
@@ -281,10 +285,7 @@ public:
         return deq.empty();
     }
 
-    std::deque<T> unsafeGet()
-    {
-        return deq;
-    }
+    std::deque<T> unsafeGet() { return deq; }
 
 private:
     std::deque<T> deq;
