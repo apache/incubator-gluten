@@ -78,20 +78,6 @@ object TransformHints {
     }
   }
 
-  /**
-   * NOTE: To be deprecated. Do not create new usages of this method.
-   *
-   * Since it's usually not safe to consider a plan "transformable" during validation phase. Another
-   * validation rule could turn "transformable" to "non-transformable" before implementing the plan
-   * within Gluten transformers.
-   */
-  def isTransformable(plan: SparkPlan): Boolean = {
-    getHintOption(plan) match {
-      case None => true
-      case _ => false
-    }
-  }
-
   def tag(plan: SparkPlan, hint: TransformHint): Unit = {
     val mergedHint = getHintOption(plan)
       .map {

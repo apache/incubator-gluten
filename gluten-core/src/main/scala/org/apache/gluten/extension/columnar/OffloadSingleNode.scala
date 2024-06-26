@@ -213,18 +213,15 @@ case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
     // Push down the left conditions in Filter into FileSourceScan.
     val newChild: SparkPlan = filter.child match {
       case scan @ (_: FileSourceScanExec | _: BatchScanExec) =>
-        if (TransformHints.isTransformable(scan)) {
+        if (!TransformHints.isNotTransformable(scan)) {
           val newScan =
             FilterHandler.pushFilterToScan(filter.condition, scan)
           newScan match {
             case ts: TransformSupport if ts.doValidate().isValid => ts
-            // TODO remove the call
-            case _ => replace.doReplace(scan)
+            case _ => scan
           }
-        } else {
-          replace.doReplace(scan)
-        }
-      case _ => replace.doReplace(filter.child)
+        } else scan
+      case _ => filter.child
     }
     logDebug(s"Columnar Processing for ${filter.getClass} is currently supported.")
     BackendsApiManager.getSparkPlanExecApiInstance
