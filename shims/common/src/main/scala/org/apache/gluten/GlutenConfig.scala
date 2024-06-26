@@ -391,8 +391,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
 
   def debug: Boolean = conf.getConf(DEBUG_ENABLED)
-  def debugKeepJniWorkspace: Boolean =
-    conf.getConf(DEBUG_ENABLED) && conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
+  def debugKeepJniWorkspace: Boolean = conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
   def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
@@ -553,6 +552,7 @@ object GlutenConfig {
 
   val GLUTEN_DEBUG_MODE = "spark.gluten.sql.debug"
   val GLUTEN_DEBUG_KEEP_JNI_WORKSPACE = "spark.gluten.sql.debug.keepJniWorkspace"
+  val GLUTEN_DEBUG_KEEP_JNI_WORKSPACE_DIR = "spark.gluten.sql.debug.keepJniWorkspaceDir"
 
   // Added back to Spark Conf during executor initialization
   val GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY = "spark.gluten.numTaskSlotsPerExecutor"
@@ -1584,6 +1584,12 @@ object GlutenConfig {
       .internal()
       .booleanConf
       .createWithDefault(false)
+
+  val DEBUG_KEEP_JNI_WORKSPACE_DIR =
+    buildConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE_DIR)
+      .internal()
+      .stringConf
+      .createWithDefault("/tmp")
 
   val BENCHMARK_TASK_STAGEID =
     buildConf("spark.gluten.sql.benchmark_task.stageId")
