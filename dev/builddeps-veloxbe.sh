@@ -186,13 +186,13 @@ fi
 
 concat_velox_param
 
-
-
 function build_arrow {
   echo "Start to build Arrow"
   source $GLUTEN_DIR/dev/build_arrow.sh
   build_arrow_cpp $BUILD_TYPE
+  echo "Finished building arrow CPP"
   build_arrow_java
+  echo "Finished building arrow Java"
 }
 
 function build_velox {
@@ -202,7 +202,7 @@ function build_velox {
   # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
   ./build_velox.sh --run_setup_script=$RUN_SETUP_SCRIPT --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
                    --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_test_utils=$BUILD_TESTS --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS \
-                   --compile_arrow_java=$COMPILE_ARROW_JAVA  --num_threads=$NUM_THREADS
+                   --num_threads=$NUM_THREADS
 }
 
 ## compile gluten cpp
