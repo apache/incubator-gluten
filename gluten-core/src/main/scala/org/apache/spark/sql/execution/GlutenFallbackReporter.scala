@@ -89,6 +89,7 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
                 logicalPlan.setTagValue(FALLBACK_REASON_TAG, newReason)
             }
           case TRANSFORM_UNSUPPORTED(_, _) =>
+            logFallbackReason(validationLogLevel, p.nodeName, "unknown reason")
           case _ =>
             throw new IllegalStateException("Unreachable code")
         }
