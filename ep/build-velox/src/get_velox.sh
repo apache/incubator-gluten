@@ -132,11 +132,7 @@ function process_setup_centos9 {
   #sed -i "/cd fbthrift/{n;s/cmake_install -Denable_tests=OFF/cmake_install -Denable_tests=OFF -DBUILD_SHARED_LIBS=OFF/;}" scripts/setup-centos9.sh
   # No need to re-install git.
   sed -i 's/dnf_install ninja-build cmake curl ccache gcc-toolset-12 git/dnf_install ninja-build cmake curl ccache gcc-toolset-12/' scripts/setup-centos9.sh
-<<<<<<< HEAD
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos9.sh
-=======
-  #sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos9.sh
->>>>>>> 35abc1233 (Fix for centos9 build of Gluten)
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos9.sh
   sed -i '/^function install_gflags.*/i function install_openssl {\n  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl \n cd openssl \n ./config no-shared && make depend && make && sudo make install \n cd ..\n}\n'     scripts/setup-centos9.sh
   sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos9.sh
