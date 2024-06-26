@@ -857,7 +857,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string substring_index function")
     .exclude("SPARK-40213: ascii for Latin-1 Supplement characters")
     .exclude("ascii for string")
-    .exclude("string for ascii")
     .exclude("base64/unbase64 for string")
     .exclude("encode/decode for string")
     .exclude("overlay for string")
