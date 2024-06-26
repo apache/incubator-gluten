@@ -20,7 +20,8 @@ import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.utils.{Iterators, PullOutProjectHelper}
+import org.apache.gluten.utils.PullOutProjectHelper
+import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.{ContextAwareIterator, SparkEnv, TaskContext}

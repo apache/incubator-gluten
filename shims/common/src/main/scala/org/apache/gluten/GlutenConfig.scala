@@ -391,8 +391,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
 
   def debug: Boolean = conf.getConf(DEBUG_ENABLED)
-  def debugKeepJniWorkspace: Boolean =
-    conf.getConf(DEBUG_ENABLED) && conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
+  def debugKeepJniWorkspace: Boolean = conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
   def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
@@ -435,6 +434,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 
   def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
+
+  def awsS3RetryMode: String = conf.getConf(AWS_S3_RETRY_MODE)
+
+  def awsConnectionTimeout: String = conf.getConf(AWS_S3_CONNECT_TIMEOUT)
 
   def enableCastAvgAggregateFunction: Boolean = conf.getConf(COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED)
 
@@ -488,6 +491,10 @@ object GlutenConfig {
   val SPARK_S3_IAM: String = HADOOP_PREFIX + S3_IAM_ROLE
   val S3_IAM_ROLE_SESSION_NAME = "fs.s3a.iam.role.session.name"
   val SPARK_S3_IAM_SESSION_NAME: String = HADOOP_PREFIX + S3_IAM_ROLE_SESSION_NAME
+  val S3_RETRY_MAX_ATTEMPTS = "fs.s3a.retry.limit"
+  val SPARK_S3_RETRY_MAX_ATTEMPTS: String = HADOOP_PREFIX + S3_RETRY_MAX_ATTEMPTS
+  val S3_CONNECTION_MAXIMUM = "fs.s3a.connection.maximum"
+  val SPARK_S3_CONNECTION_MAXIMUM: String = HADOOP_PREFIX + S3_CONNECTION_MAXIMUM
 
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
@@ -545,6 +552,7 @@ object GlutenConfig {
 
   val GLUTEN_DEBUG_MODE = "spark.gluten.sql.debug"
   val GLUTEN_DEBUG_KEEP_JNI_WORKSPACE = "spark.gluten.sql.debug.keepJniWorkspace"
+  val GLUTEN_DEBUG_KEEP_JNI_WORKSPACE_DIR = "spark.gluten.sql.debug.keepJniWorkspaceDir"
 
   // Added back to Spark Conf during executor initialization
   val GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY = "spark.gluten.numTaskSlotsPerExecutor"
@@ -642,6 +650,10 @@ object GlutenConfig {
       SPARK_S3_USE_INSTANCE_CREDENTIALS,
       SPARK_S3_IAM,
       SPARK_S3_IAM_SESSION_NAME,
+      SPARK_S3_RETRY_MAX_ATTEMPTS,
+      SPARK_S3_CONNECTION_MAXIMUM,
+      AWS_S3_CONNECT_TIMEOUT.key,
+      AWS_S3_RETRY_MODE.key,
       AWS_SDK_LOG_LEVEL.key,
       // gcs config
       SPARK_GCS_STORAGE_ROOT_URL,
@@ -693,6 +705,10 @@ object GlutenConfig {
       (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
       (SPARK_S3_IAM, ""),
       (SPARK_S3_IAM_SESSION_NAME, ""),
+      (SPARK_S3_RETRY_MAX_ATTEMPTS, "20"),
+      (SPARK_S3_CONNECTION_MAXIMUM, "15"),
+      (AWS_S3_CONNECT_TIMEOUT.key, AWS_S3_CONNECT_TIMEOUT.defaultValueString),
+      (AWS_S3_RETRY_MODE.key, AWS_S3_RETRY_MODE.defaultValueString),
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
         conf.getOrElse(GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, "-1")),
@@ -718,7 +734,9 @@ object GlutenConfig {
 
       GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
-      GLUTEN_OFFHEAP_ENABLED
+      GLUTEN_OFFHEAP_ENABLED,
+      SESSION_LOCAL_TIMEZONE.key,
+      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -733,10 +751,6 @@ object GlutenConfig {
 
     conf
       .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
-      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
-
-    conf
-      .filter(_._1.startsWith(SQLConf.SESSION_LOCAL_TIMEZONE.key))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
@@ -1566,10 +1580,16 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val DEBUG_KEEP_JNI_WORKSPACE =
-    buildConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE)
+    buildStaticConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE)
       .internal()
       .booleanConf
       .createWithDefault(false)
+
+  val DEBUG_KEEP_JNI_WORKSPACE_DIR =
+    buildStaticConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE_DIR)
+      .internal()
+      .stringConf
+      .createWithDefault("/tmp")
 
   val BENCHMARK_TASK_STAGEID =
     buildConf("spark.gluten.sql.benchmark_task.stageId")
@@ -1942,6 +1962,20 @@ object GlutenConfig {
       .doc("Log granularity of AWS C++ SDK in velox.")
       .stringConf
       .createWithDefault("FATAL")
+
+  val AWS_S3_RETRY_MODE =
+    buildConf("spark.gluten.velox.fs.s3a.retry.mode")
+      .internal()
+      .doc("Retry mode for AWS s3 connection error: legacy, standard and adaptive.")
+      .stringConf
+      .createWithDefault("legacy")
+
+  val AWS_S3_CONNECT_TIMEOUT =
+    buildConf("spark.gluten.velox.fs.s3a.connect.timeout")
+      .internal()
+      .doc("Timeout for AWS s3 connection.")
+      .stringConf
+      .createWithDefault("200s")
 
   val VELOX_ORC_SCAN_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
