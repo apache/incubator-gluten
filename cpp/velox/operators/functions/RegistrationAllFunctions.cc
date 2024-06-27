@@ -84,9 +84,6 @@ void registerFunctionOverwrite() {
 } // namespace
 
 void registerAllFunctions() {
-  // The registration order matters. Spark sql functions are registered after
-  // presto sql functions to overwrite the registration for same named
-  // functions.
   velox::functions::sparksql::registerFunctions("");
   velox::aggregate::prestosql::registerAllAggregateFunctions(
       "", true /*registerCompanionFunctions*/, false /*onlyPrestoSignatures*/, true /*overwrite*/);
