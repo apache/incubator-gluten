@@ -213,7 +213,7 @@ case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
     // Push down the left conditions in Filter into FileSourceScan.
     val newChild: SparkPlan = filter.child match {
       case scan @ (_: FileSourceScanExec | _: BatchScanExec) =>
-        if (!TransformHints.isNotTransformable(scan)) {
+        if (TransformHints.maybeTransformable(scan)) {
           val newScan =
             FilterHandler.pushFilterToScan(filter.condition, scan)
           newScan match {

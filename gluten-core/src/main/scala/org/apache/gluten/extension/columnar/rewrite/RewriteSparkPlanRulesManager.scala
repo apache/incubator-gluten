@@ -49,7 +49,7 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
   extends Rule[SparkPlan] {
 
   private def mayNeedRewrite(plan: SparkPlan): Boolean = {
-    !TransformHints.isNotTransformable(plan) && {
+    TransformHints.maybeTransformable(plan) && {
       plan match {
         case _: SortExec => true
         case _: TakeOrderedAndProjectExec => true
