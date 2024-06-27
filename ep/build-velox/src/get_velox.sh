@@ -18,6 +18,7 @@ set -exu
 
 VELOX_REPO=https://github.com/zhli1142015/velox.git
 VELOX_BRANCH=test_simd_re
+
 VELOX_HOME=""
 
 #Set on run gluten on HDFS

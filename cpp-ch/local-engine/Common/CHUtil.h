@@ -196,6 +196,7 @@ private:
     static void registerAllFactories();
     static void applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr, DB::Settings &);
     static void updateNewSettings(const DB::ContextMutablePtr &, const DB::Settings &);
+    static std::vector<String> wrapDiskPathConfig(const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config);
 
 
     static std::map<std::string, std::string> getBackendConfMap(const std::string & plan);
@@ -212,6 +213,9 @@ public:
 
     /// Release session level resources like StorageJoinBuilder. Invoked every time executor/driver shutdown.
     static void finalizeSessionally();
+
+    static std::vector<String> paths_need_to_clean;
+    static std::mutex paths_mutex;
 };
 
 // Ignore memory track, memory should free before IgnoreMemoryTracker deconstruction

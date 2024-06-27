@@ -564,7 +564,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           tryEval,
-          ExpressionNames.CHECK_ADD
+          ExpressionNames.CHECKED_ADD
         )
       case tryEval @ TryEval(a: Subtract) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
@@ -572,7 +572,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           tryEval,
-          ExpressionNames.CHECK_SUBTRACT
+          ExpressionNames.CHECKED_SUBTRACT
         )
       case tryEval @ TryEval(a: Divide) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
@@ -580,7 +580,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           tryEval,
-          ExpressionNames.CHECK_DIVIDE
+          ExpressionNames.CHECKED_DIVIDE
         )
       case tryEval @ TryEval(a: Multiply) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
@@ -588,7 +588,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           tryEval,
-          ExpressionNames.CHECK_MULTIPLY
+          ExpressionNames.CHECKED_MULTIPLY
         )
       case a: Add =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
@@ -596,7 +596,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           a,
-          ExpressionNames.CHECK_ADD
+          ExpressionNames.CHECKED_ADD
         )
       case a: Subtract =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
@@ -604,7 +604,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           a,
-          ExpressionNames.CHECK_SUBTRACT
+          ExpressionNames.CHECKED_SUBTRACT
         )
       case a: Multiply =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
@@ -612,7 +612,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           a,
-          ExpressionNames.CHECK_MULTIPLY
+          ExpressionNames.CHECKED_MULTIPLY
         )
       case a: Divide =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
@@ -620,7 +620,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           a,
-          ExpressionNames.CHECK_DIVIDE
+          ExpressionNames.CHECKED_DIVIDE
         )
       case tryEval: TryEval =>
         // This is a placeholder to handle try_eval(other expressions).
