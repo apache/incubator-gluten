@@ -49,7 +49,7 @@ class ResourceMap {
   }
 
   void erase(ResourceHandle moduleId) {
-    map_.erase(moduleId);
+    GLUTEN_CHECK(map_.erase(moduleId) == 1, "Module not found in resource map: " + std::to_string(moduleId));
   }
 
   TResource lookup(ResourceHandle moduleId) {

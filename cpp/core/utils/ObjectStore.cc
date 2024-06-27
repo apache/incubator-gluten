@@ -24,9 +24,6 @@ gluten::ObjectStore::~ObjectStore() {
   const std::lock_guard<std::mutex> lock(mtx_);
   for (auto itr = aliveObjects_.rbegin(); itr != aliveObjects_.rend(); itr++) {
     ResourceHandle handle = *itr;
-    if (store_.lookup(handle) == nullptr) {
-      LOG(WARNING) << "Fatal: resource handle " + std::to_string(handle) + " not found in store.";
-    }
     store_.erase(handle);
   }
   stores().erase(storeId_);
