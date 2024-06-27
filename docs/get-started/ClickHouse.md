@@ -679,13 +679,13 @@ spark.shuffle.manager=org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleMa
 
 quickly start a celeborn cluster
 ```shell
-wget https://archive.apache.org/dist/incubator/celeborn/celeborn-0.3.0-incubating/apache-celeborn-0.3.0-incubating-bin.tgz && \
-tar -zxvf apache-celeborn-0.3.0-incubating-bin.tgz && \
-mv apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf.template apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf && \
-mv apache-celeborn-0.3.0-incubating-bin/conf/log4j2.xml.template apache-celeborn-0.3.0-incubating-bin/conf/log4j2.xml && \
+wget https://archive.apache.org/dist/celeborn/celeborn-0.3.2-incubating/apache-celeborn-0.3.2-incubating-bin.tgz && \
+tar -zxvf apache-celeborn-0.3.2-incubating-bin.tgz && \
+mv apache-celeborn-0.3.2-incubating-bin/conf/celeborn-defaults.conf.template apache-celeborn-0.3.2-incubating-bin/conf/celeborn-defaults.conf && \
+mv apache-celeborn-0.3.2-incubating-bin/conf/log4j2.xml.template apache-celeborn-0.3.2-incubating-bin/conf/log4j2.xml && \
 mkdir /opt/hadoop && chmod 777 /opt/hadoop && \
-echo -e "celeborn.worker.flusher.threads 4\nceleborn.worker.storage.dirs /tmp\nceleborn.worker.monitor.disk.enabled false" > apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf && \
-bash apache-celeborn-0.3.0-incubating-bin/sbin/start-master.sh && bash apache-celeborn-0.3.0-incubating-bin/sbin/start-worker.sh
+echo -e "celeborn.worker.flusher.threads 4\nceleborn.worker.storage.dirs /tmp\nceleborn.worker.monitor.disk.enabled false" > apache-celeborn-0.3.2-incubating-bin/conf/celeborn-defaults.conf && \
+bash apache-celeborn-0.3.2-incubating-bin/sbin/start-master.sh && bash apache-celeborn-0.3.2-incubating-bin/sbin/start-worker.sh
 ```
 
 ### Columnar shuffle mode
