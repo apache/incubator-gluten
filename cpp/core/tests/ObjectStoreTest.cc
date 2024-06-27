@@ -20,10 +20,97 @@
 
 using namespace gluten;
 
-TEST(ObjectStore, Retrieve) {
+TEST(ObjectStore, retreive) {
   auto store = ObjectStore::create();
   auto obj = std::make_shared<int32_t>(1);
-  auto handle =  store->save(obj);
+  auto handle = store->save(obj);
   auto retrieved = ObjectStore::retrieve<int32_t>(handle);
   ASSERT_EQ(*retrieved, 1);
+}
+
+TEST(ObjectStore, retreiveMultiple) {
+  auto store = ObjectStore::create();
+  auto obj1 = std::make_shared<int32_t>(50);
+  auto obj2 = std::make_shared<int32_t>(100);
+  auto handle1 = store->save(obj1);
+  auto handle2 = store->save(obj2);
+  auto retrieved1 = ObjectStore::retrieve<int32_t>(handle1);
+  auto retrieved2 = ObjectStore::retrieve<int32_t>(handle2);
+  ASSERT_EQ(*retrieved1, *obj1);
+  ASSERT_EQ(*retrieved2, *obj2);
+}
+
+TEST(ObjectStore, release) {
+  ObjectHandle handle = kInvalidObjectHandle;
+  auto store = ObjectStore::create();
+  {
+    auto obj = std::make_shared<int32_t>(1);
+    handle = store->save(obj);
+  }
+  auto retrieved = ObjectStore::retrieve<int32_t>(handle);
+  ASSERT_EQ(*retrieved, 1);
+  ObjectStore::release(handle);
+  ASSERT_ANY_THROW(ObjectStore::retrieve<int32_t>(handle));
+}
+
+TEST(ObjectStore, releaseMultiple) {
+  ObjectHandle handle1 = kInvalidObjectHandle;
+  ObjectHandle handle2 = kInvalidObjectHandle;
+  auto store = ObjectStore::create();
+  {
+    auto obj1 = std::make_shared<int32_t>(50);
+    auto obj2 = std::make_shared<int32_t>(100);
+    handle1 = store->save(obj1);
+    handle2 = store->save(obj2);
+  }
+  ASSERT_EQ(*ObjectStore::retrieve<int32_t>(handle1), 50);
+  ASSERT_EQ(*ObjectStore::retrieve<int32_t>(handle2), 100);
+  ObjectStore::release(handle2);
+  ASSERT_EQ(*ObjectStore::retrieve<int32_t>(handle1), 50);
+  ASSERT_ANY_THROW(ObjectStore::retrieve<int32_t>(handle2));
+  ObjectStore::release(handle1);
+  ASSERT_ANY_THROW(ObjectStore::retrieve<int32_t>(handle1));
+  ASSERT_ANY_THROW(ObjectStore::retrieve<int32_t>(handle2));
+}
+
+TEST(ObjectStore, releaseObjectsInMultipleStores) {
+  ObjectHandle handle1 = kInvalidObjectHandle;
+  ObjectHandle handle2 = kInvalidObjectHandle;
+  auto store1 = ObjectStore::create();
+  auto store2 = ObjectStore::create();
+  {
+    auto obj1 = std::make_shared<int32_t>(50);
+    auto obj2 = std::make_shared<int32_t>(100);
+    handle1 = store1->save(obj1);
+    handle2 = store2->save(obj2);
+  }
+  ASSERT_EQ(*ObjectStore::retrieve<int32_t>(handle1), 50);
+  ASSERT_EQ(*ObjectStore::retrieve<int32_t>(handle2), 100);
+  ObjectStore::release(handle2);
+  ASSERT_EQ(*ObjectStore::retrieve<int32_t>(handle1), 50);
+  ASSERT_ANY_THROW(ObjectStore::retrieve<int32_t>(handle2));
+  ObjectStore::release(handle1);
+  ASSERT_ANY_THROW(ObjectStore::retrieve<int32_t>(handle1));
+  ASSERT_ANY_THROW(ObjectStore::retrieve<int32_t>(handle2));
+}
+
+TEST(ObjectStore, releaseMultipleStores) {
+  ObjectHandle handle1 = kInvalidObjectHandle;
+  ObjectHandle handle2 = kInvalidObjectHandle;
+  auto store1 = ObjectStore::create();
+  auto store2 = ObjectStore::create();
+  {
+    auto obj1 = std::make_shared<int32_t>(50);
+    auto obj2 = std::make_shared<int32_t>(100);
+    handle1 = store1->save(obj1);
+    handle2 = store2->save(obj2);
+  }
+  ASSERT_EQ(*ObjectStore::retrieve<int32_t>(handle1), 50);
+  ASSERT_EQ(*ObjectStore::retrieve<int32_t>(handle2), 100);
+  store2.reset();
+  ASSERT_EQ(*ObjectStore::retrieve<int32_t>(handle1), 50);
+  ASSERT_ANY_THROW(ObjectStore::retrieve<int32_t>(handle2));
+  store1.reset();
+  ASSERT_ANY_THROW(ObjectStore::retrieve<int32_t>(handle1));
+  ASSERT_ANY_THROW(ObjectStore::retrieve<int32_t>(handle2));
 }

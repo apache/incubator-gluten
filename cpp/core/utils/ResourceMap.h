@@ -24,9 +24,11 @@
 
 namespace gluten {
 using ResourceHandle = uint32_t;
+static_assert(std::numeric_limits<ResourceHandle>::min() == 0);
 
 template <typename T, typename F>
 T safeCast(F f) {
+  GLUTEN_CHECK(sizeof(T) <= sizeof(F), "Vain safe casting");
   F min = 0;
   F max = static_cast<F>(std::numeric_limits<T>::max());
   GLUTEN_CHECK(f >= min, "Safe casting a negative number");

@@ -53,16 +53,16 @@ class ObjectStore {
   }
 
   static void release(ObjectHandle handle) {
-    ResourceHandle storeId = safeCast<ResourceHandle>(handle >> sizeof(ResourceHandle));
-    ResourceHandle resourceId = safeCast<ResourceHandle>(handle & std::numeric_limits<ResourceHandle>::min());
+    ResourceHandle storeId = safeCast<ResourceHandle>(handle >> (sizeof(ResourceHandle) * 8));
+    ResourceHandle resourceId = safeCast<ResourceHandle>(handle & std::numeric_limits<ResourceHandle>::max());
     auto store = stores().lookup(storeId);
     store->release0(resourceId);
   }
 
   template <typename T>
   static std::shared_ptr<T> retrieve(ObjectHandle handle) {
-    ResourceHandle storeId = safeCast<ResourceHandle>(handle >> sizeof(ResourceHandle));
-    ResourceHandle resourceId = safeCast<ResourceHandle>(handle & std::numeric_limits<ResourceHandle>::min());
+    ResourceHandle storeId = safeCast<ResourceHandle>(handle >> (sizeof(ResourceHandle) * 8));
+    ResourceHandle resourceId = safeCast<ResourceHandle>(handle & std::numeric_limits<ResourceHandle>::max());
     auto store = stores().lookup(storeId);
     return store->retrieve0<T>(resourceId);
   }
@@ -77,7 +77,8 @@ class ObjectStore {
 
  private:
   ObjectHandle toObjHandle(ResourceHandle rh) {
-    ResourceHandle objHandle = (safeCast<ObjectHandle>(storeId_) << (sizeof(ResourceHandle) * 8)) + rh;
+    ObjectHandle prefix = static_cast<ObjectHandle>(storeId_) << (sizeof(ResourceHandle) * 8);
+    ObjectHandle objHandle = prefix + rh;
     return objHandle;
   }
 
