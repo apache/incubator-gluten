@@ -26,7 +26,6 @@
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
-#include "velox/functions/sparksql/Bitwise.h"
 #include "velox/functions/sparksql/Hash.h"
 #include "velox/functions/sparksql/Rand.h"
 #include "velox/functions/sparksql/Register.h"
@@ -35,6 +34,14 @@
 
 using namespace facebook;
 
+namespace facebook::velox::functions {
+void registerPrestoVectorFunctions() {
+  // Presto function. To be removed.
+  VELOX_REGISTER_VECTOR_FUNCTION(udf_arrays_overlap, "arrays_overlap");
+  VELOX_REGISTER_VECTOR_FUNCTION(udf_transform_keys, "transform_keys");
+  VELOX_REGISTER_VECTOR_FUNCTION(udf_transform_values, "transform_values");
+}
+} // namespace facebook::velox::functions
 namespace gluten {
 namespace {
 void registerFunctionOverwrite() {
@@ -67,19 +74,16 @@ void registerFunctionOverwrite() {
   velox::exec::registerFunctionCallToSpecialForm(
       kRowConstructorWithAllNull,
       std::make_unique<RowConstructorWithNullCallToSpecialForm>(kRowConstructorWithAllNull));
-  velox::functions::sparksql::registerBitwiseFunctions("spark_");
   velox::functions::registerBinaryIntegral<velox::functions::CheckedPlusFunction>({"check_add"});
   velox::functions::registerBinaryIntegral<velox::functions::CheckedMinusFunction>({"check_subtract"});
   velox::functions::registerBinaryIntegral<velox::functions::CheckedMultiplyFunction>({"check_multiply"});
   velox::functions::registerBinaryIntegral<velox::functions::CheckedDivideFunction>({"check_divide"});
+
+  velox::functions::registerPrestoVectorFunctions();
 }
 } // namespace
 
 void registerAllFunctions() {
-  // The registration order matters. Spark sql functions are registered after
-  // presto sql functions to overwrite the registration for same named
-  // functions.
-  velox::functions::prestosql::registerAllScalarFunctions();
   velox::functions::sparksql::registerFunctions("");
   velox::aggregate::prestosql::registerAllAggregateFunctions(
       "", true /*registerCompanionFunctions*/, false /*onlyPrestoSignatures*/, true /*overwrite*/);
