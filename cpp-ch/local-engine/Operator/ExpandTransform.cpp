@@ -104,7 +104,7 @@ void ExpandTransform::work()
 
         if (kind == EXPAND_FIELD_KIND_SELECTION)
         {
-            const auto & original_col = original_cols[field.get<Int32>()];
+            const auto & original_col = original_cols.at(field.get<Int32>());
             if (type->isNullable() == original_col->isNullable())
             {
                 cols.push_back(original_col);

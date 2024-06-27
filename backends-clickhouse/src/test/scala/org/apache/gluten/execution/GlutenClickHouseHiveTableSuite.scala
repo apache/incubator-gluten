@@ -1252,4 +1252,29 @@ class GlutenClickHouseHiveTableSuite
     }
     spark.sql("drop table test_tbl_3452")
   }
+
+  test("GLUTEN-6235: Fix crash on ExpandTransform::work()") {
+    val tbl = "test_tbl_6235"
+    sql(s"drop table if exists $tbl")
+    val createSql =
+      s"""
+         |create table $tbl
+         |stored as textfile
+         |as select 1 as a1, 2 as a2, 3 as a3, 4 as a4, 5 as a5, 6 as a6, 7 as a7, 8 as a8, 9 as a9
+         |""".stripMargin
+    sql(createSql)
+    val select_sql =
+      s"""
+         |select
+         |a5,a6,a7,a8,a3,a4,a9
+         |,count(distinct a2) as a2
+         |,count(distinct a1) as a1
+         |,count(distinct if(a3=1,a2,null)) as a33
+         |,count(distinct if(a4=2,a1,null)) as a43
+         |from $tbl
+         |group by a5,a6,a7,a8,a3,a4,a9 with cube
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    sql(s"drop table if exists $tbl")
+  }
 }
