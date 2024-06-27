@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.datasources
 
 import org.apache.gluten.datasource.DatasourceJniWrapper
-import org.apache.gluten.utils.Iterators
+import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.ColumnarBatchInIterator
 
 import org.apache.spark.TaskContext

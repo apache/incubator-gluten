@@ -457,7 +457,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string regex_replace / regex_extract")
     .exclude("string overlay function")
     .exclude("binary overlay function")
-    .exclude("string / binary substring function")
     .exclude("string parse_url function")
   enableSuite[GlutenSubquerySuite]
     .exclude("SPARK-15370: COUNT bug in subquery in subquery in subquery")
@@ -756,7 +755,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK - 34814: LikeSimplification should handleNULL")
   enableSuite[GlutenSortOrderExpressionsSuite].exclude("SortPrefix")
   enableSuite[GlutenStringExpressionsSuite]
-    .exclude("concat")
     .exclude("StringComparison")
     .exclude("Substring")
     .exclude("string substring_index function")
@@ -766,24 +764,14 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("base64/unbase64 for string")
     .exclude("encode/decode for string")
     .exclude("Levenshtein distance")
-    .exclude("soundex unit test")
-    .exclude("replace")
     .exclude("overlay for string")
     .exclude("overlay for byte array")
     .exclude("translate")
-    .exclude("FORMAT")
-    .exclude("SPARK-22603: FormatString should not generate codes beyond 64KB")
-    .exclude("INSTR")
     .exclude("LOCATE")
-    .exclude("LPAD/RPAD")
     .exclude("REPEAT")
     .exclude("length for string / binary")
-    .exclude("format_number / FormatNumber")
-    .exclude("ToNumber: positive tests")
-    .exclude("ToNumber: negative tests (the input string does not match the format string)")
     .exclude("ParseUrl")
     .exclude("SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url")
-    .exclude("Sentences")
   enableSuite[GlutenDataSourceV2DataFrameSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2SQLSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2SQLSuiteV1Filter]

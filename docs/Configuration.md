@@ -89,6 +89,8 @@ The following configurations are related to Velox settings.
 | spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes            | Set the max coalesced bytes for velox file scan.                                                                                                   |                   |
 | spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct          | Set prefetch cache min pct for velox file scan.                                                                                                    |                   |
 | spark.gluten.velox.awsSdkLogLevel                                    | Log granularity of AWS C++ SDK in velox.                                                                                                           | FATAL             |
+| spark.gluten.velox.fs.s3a.retry.mode                                 | Retry mode for AWS s3 connection error, can be "legacy", "standard" and "adaptive".                                                                | legacy            |
+| spark.gluten.velox.fs.s3a.connect.timeout                            | Timeout for AWS s3 connection.                                                                                                                     | 1s                |
 | spark.gluten.sql.columnar.backend.velox.orc.scan.enabled             | Enable velox orc scan. If disabled, vanilla spark orc scan will be used.                                                                           | true              |
 | spark.gluten.sql.complexType.scan.fallback.enabled                   | Force fallback for complex type scan, including struct, map, array.                                                                                | true              |
 
