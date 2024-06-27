@@ -50,7 +50,7 @@ sealed trait OffloadSingleNode extends Logging {
 // Aggregation transformation.
 case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case plan if TransformHints.isNotTransformable(plan) =>
+    case plan if FallbackHints.isNotTransformable(plan) =>
       plan
     case agg: HashAggregateExec =>
       genHashAggregateExec(agg)
@@ -66,7 +66,7 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
    *   the actually used plan for execution.
    */
   private def genHashAggregateExec(plan: HashAggregateExec): SparkPlan = {
-    if (TransformHints.isNotTransformable(plan)) {
+    if (FallbackHints.isNotTransformable(plan)) {
       return plan
     }
 
@@ -86,7 +86,7 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
           HashAggregateExecBaseTransformer.from(plan)()
         case _ =>
           // If the child is not transformable, do not transform the agg.
-          TransformHints.tagNotTransformable(plan, "child output schema is empty")
+          FallbackHints.tagNotTransformable(plan, "child output schema is empty")
           plan
       }
     } else {
@@ -99,7 +99,7 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
 // Exchange transformation.
 case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case p if TransformHints.isNotTransformable(p) =>
+    case p if FallbackHints.isNotTransformable(p) =>
       p
     case s: ShuffleExchangeExec
         if (s.child.supportsColumnar || GlutenConfig.getConf.enablePreferColumnar) &&
@@ -118,7 +118,7 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
 case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
 
   override def offload(plan: SparkPlan): SparkPlan = {
-    if (TransformHints.isNotTransformable(plan)) {
+    if (FallbackHints.isNotTransformable(plan)) {
       logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
       return plan
     }
@@ -132,7 +132,7 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
             plan.leftKeys,
             plan.rightKeys,
             plan.joinType,
-            TransformHints.getShuffleHashJoinBuildSide(plan),
+            FallbackHints.getShuffleHashJoinBuildSide(plan),
             plan.condition,
             left,
             right,
@@ -204,7 +204,7 @@ case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
    *   the actually used plan for execution.
    */
   private def genFilterExec(filter: FilterExec): SparkPlan = {
-    if (TransformHints.isNotTransformable(filter)) {
+    if (FallbackHints.isNotTransformable(filter)) {
       return filter
     }
 
@@ -213,7 +213,7 @@ case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
     // Push down the left conditions in Filter into FileSourceScan.
     val newChild: SparkPlan = filter.child match {
       case scan @ (_: FileSourceScanExec | _: BatchScanExec) =>
-        if (TransformHints.isTransformable(scan)) {
+        if (FallbackHints.isTransformable(scan)) {
           val newScan =
             FilterHandler.pushFilterToScan(filter.condition, scan)
           newScan match {
@@ -251,7 +251,7 @@ object OffloadOthers {
 
     def doReplace(p: SparkPlan): SparkPlan = {
       val plan = p
-      if (TransformHints.isNotTransformable(plan)) {
+      if (FallbackHints.isNotTransformable(plan)) {
         return plan
       }
       plan match {
@@ -406,7 +406,7 @@ object OffloadOthers {
           transformer
         } else {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-          TransformHints.tagNotTransformable(plan, validationResult.reason.get)
+          FallbackHints.tagNotTransformable(plan, validationResult.reason.get)
           plan
         }
       case plan: BatchScanExec =>
@@ -421,7 +421,7 @@ object OffloadOthers {
           return hiveTableScanExecTransformer
         }
         logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-        TransformHints.tagNotTransformable(plan, validateResult.reason.get)
+        FallbackHints.tagNotTransformable(plan, validateResult.reason.get)
         plan
       case other =>
         throw new GlutenNotSupportException(s"${other.getClass.toString} is not supported.")

@@ -22,7 +22,7 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.{CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, RewriteToDateExpresstionRule}
-import org.apache.gluten.extension.columnar.AddTransformHintRule
+import org.apache.gluten.extension.columnar.AddFallbackHintRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -147,7 +147,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
 
     child match {
       case scan: FileSourceScanExec if (checkMergeTreeFileFormat(scan.relation)) =>
-        // For the validation phase of the AddTransformHintRule
+        // For the validation phase of the AddFallbackHintRule
         CHFilterExecTransformer(condition, child)
       case scan: FileSourceScanExecTransformerBase if (checkMergeTreeFileFormat(scan.relation)) =>
         // For the transform phase, the FileSourceScanExec is already transformed
@@ -227,7 +227,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         // FIXME: The operation happens inside ReplaceSingleNode().
         //  Caller may not know it adds project on top of the shuffle.
         val project = TransformPreOverrides().apply(
-          AddTransformHintRule().apply(
+          AddFallbackHintRule().apply(
             ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
         var newExprs = Seq[Expression]()
         for (i <- exprs.indices) {
@@ -252,7 +252,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         // FIXME: The operation happens inside ReplaceSingleNode().
         //  Caller may not know it adds project on top of the shuffle.
         val project = TransformPreOverrides().apply(
-          AddTransformHintRule().apply(
+          AddFallbackHintRule().apply(
             ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
         var newOrderings = Seq[SortOrder]()
         for (i <- orderings.indices) {

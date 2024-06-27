@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.events.GlutenPlanFallbackEvent
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.{TRANSFORM_UNSUPPORTED, TransformHints}
+import org.apache.gluten.extension.columnar.{FallbackHints, TRANSFORM_UNSUPPORTED}
 import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.sql.SparkSession
@@ -57,8 +57,8 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
     val validationLogLevel = glutenConfig.validationLogLevel
     plan.foreachUp {
       case _: GlutenPlan => // ignore
-      case p: SparkPlan if TransformHints.isNotTransformable(p) =>
-        TransformHints.getHint(p) match {
+      case p: SparkPlan if FallbackHints.isNotTransformable(p) =>
+        FallbackHints.getHint(p) match {
           case TRANSFORM_UNSUPPORTED(Some(reason), append) =>
             logFallbackReason(validationLogLevel, p.nodeName, reason)
             // With in next round stage in AQE, the physical plan would be a new instance that

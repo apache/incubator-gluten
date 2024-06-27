@@ -18,8 +18,8 @@ package org.apache.gluten.extension
 
 import org.apache.gluten.{GlutenConfig, GlutenSparkExtensionsInjector}
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.extension.columnar.FallbackHints.TAG
 import org.apache.gluten.extension.columnar.TRANSFORM_UNSUPPORTED
-import org.apache.gluten.extension.columnar.TransformHints.TAG
 import org.apache.gluten.utils.LogicalPlanSelector
 
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions, Strategy}

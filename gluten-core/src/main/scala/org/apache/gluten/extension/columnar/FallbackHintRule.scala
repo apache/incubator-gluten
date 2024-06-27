@@ -21,7 +21,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
-import org.apache.gluten.extension.columnar.TransformHints.EncodeTransformableTagImplicits
+import org.apache.gluten.extension.columnar.FallbackHints.EncodeTransformableTagImplicits
 import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -47,19 +47,19 @@ import org.apache.spark.sql.types.StringType
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-sealed trait TransformHint {
+sealed trait FallbackHint {
   val stacktrace: Option[String] =
-    if (TransformHints.DEBUG) {
+    if (FallbackHints.DEBUG) {
       Some(ExceptionUtils.getStackTrace(new Throwable()))
     } else None
 }
 
 case class TRANSFORM_UNSUPPORTED(reason: Option[String], appendReasonIfExists: Boolean = true)
-  extends TransformHint
+  extends FallbackHint
 
-object TransformHints {
-  val TAG: TreeNodeTag[TransformHint] =
-    TreeNodeTag[TransformHint]("org.apache.gluten.transformhint")
+object FallbackHints {
+  val TAG: TreeNodeTag[FallbackHint] =
+    TreeNodeTag[FallbackHint]("org.apache.gluten.fallbackhint")
 
   val DEBUG = false
 
@@ -92,7 +92,7 @@ object TransformHints {
     }
   }
 
-  def tag(plan: SparkPlan, hint: TransformHint): Unit = {
+  def tag(plan: SparkPlan, hint: FallbackHint): Unit = {
     val mergedHint = getHintOption(plan)
       .map {
         case originalHint @ TRANSFORM_UNSUPPORTED(Some(originalReason), originAppend) =>
@@ -142,12 +142,12 @@ object TransformHints {
     }
   }
 
-  def getHint(plan: SparkPlan): TransformHint = {
+  def getHint(plan: SparkPlan): FallbackHint = {
     getHintOption(plan).getOrElse(
       throw new IllegalStateException("Transform hint tag not set in plan: " + plan.toString()))
   }
 
-  def getHintOption(plan: SparkPlan): Option[TransformHint] = {
+  def getHintOption(plan: SparkPlan): Option[FallbackHint] = {
     plan.getTagValue(TAG)
   }
 
@@ -192,7 +192,7 @@ object TransformHints {
 case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
     if (GlutenConfig.getConf.enableAnsiMode) {
-      plan.foreach(TransformHints.tagNotTransformable(_, "does not support ansi mode"))
+      plan.foreach(FallbackHints.tagNotTransformable(_, "does not support ansi mode"))
     }
     plan
   }
@@ -215,7 +215,7 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
     }
 
   def tagNotTransformable(plan: SparkPlan): SparkPlan = {
-    TransformHints.tagNotTransformable(plan, "fallback multi codegens")
+    FallbackHints.tagNotTransformable(plan, "fallback multi codegens")
     plan
   }
 
@@ -304,11 +304,11 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
         if (p.children.exists(_.output.isEmpty)) {
           // Some backends are not eligible to offload plan with zero-column input.
           // If any child have empty output, mark the plan and that child as UNSUPPORTED.
-          TransformHints.tagNotTransformable(p, "at least one of its children has empty output")
+          FallbackHints.tagNotTransformable(p, "at least one of its children has empty output")
           p.children.foreach {
             child =>
               if (child.output.isEmpty && !child.isInstanceOf[WriteFilesExec]) {
-                TransformHints.tagNotTransformable(
+                FallbackHints.tagNotTransformable(
                   child,
                   "at least one of its children has empty output")
               }
@@ -323,8 +323,8 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
 // The doValidate function will be called to check if the conversion is supported.
 // If false is returned or any unsupported exception is thrown, a row guard will
 // be added on the top of that plan to prevent actual conversion.
-case class AddTransformHintRule() extends Rule[SparkPlan] {
-  import AddTransformHintRule._
+case class AddFallbackHintRule() extends Rule[SparkPlan] {
+  import AddFallbackHintRule._
   private val glutenConf: GlutenConfig = GlutenConfig.getConf
   private val validator = Validators
     .builder()
@@ -352,7 +352,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
     val outcome = validator.validate(plan)
     outcome match {
       case Validator.Failed(reason) =>
-        TransformHints.tagNotTransformable(plan, reason)
+        FallbackHints.tagNotTransformable(plan, reason)
         return
       case Validator.Passed =>
     }
@@ -421,7 +421,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.leftKeys,
               plan.rightKeys,
               plan.joinType,
-              TransformHints.getShuffleHashJoinBuildSide(plan),
+              FallbackHints.getShuffleHashJoinBuildSide(plan),
               plan.condition,
               plan.left,
               plan.right,
@@ -544,7 +544,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
       }
     } catch {
       case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
-        TransformHints.tagNotTransformable(
+        FallbackHints.tagNotTransformable(
           plan,
           s"${e.getMessage}, original Spark plan is " +
             s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
@@ -555,7 +555,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   }
 }
 
-object AddTransformHintRule {
+object AddFallbackHintRule {
   implicit private class ValidatorBuilderImplicits(builder: Validators.Builder) {
 
     /**
@@ -593,9 +593,9 @@ object AddTransformHintRule {
   }
 }
 
-case class RemoveTransformHintRule() extends Rule[SparkPlan] {
+case class RemoveFallbackHintRule() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    plan.foreach(TransformHints.untag)
+    plan.foreach(FallbackHints.untag)
     plan
   }
 }
