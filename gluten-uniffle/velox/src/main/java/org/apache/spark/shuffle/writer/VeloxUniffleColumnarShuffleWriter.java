@@ -18,10 +18,11 @@ package org.apache.spark.shuffle.writer;
 
 import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
+import org.apache.gluten.exec.Runtime;
+import org.apache.gluten.exec.Runtimes;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
-import org.apache.gluten.memory.listener.NativeMemoryManagers;
 import org.apache.gluten.vectorized.ShuffleWriterJniWrapper;
 import org.apache.gluten.vectorized.SplitResult;
 
@@ -45,7 +46,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -67,7 +67,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
   private int compressionLevel;
   private int partitionId;
 
-  private ShuffleWriterJniWrapper jniWrapper = ShuffleWriterJniWrapper.create();
+  private Runtime runtime = Runtimes.contextInstance("UniffleShuffleWriter");
+  private ShuffleWriterJniWrapper jniWrapper = ShuffleWriterJniWrapper.create(runtime);
   private SplitResult splitResult;
   private int nativeBufferSize = GlutenConfig.getConf().maxBatchSize();
   private int bufferSize;
@@ -150,35 +151,6 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   bufferSize,
                   bufferSize,
                   partitionPusher,
-                  NativeMemoryManagers.create(
-                          "UniffleShuffleWriter",
-                          new Spiller() {
-                            @Override
-                            public long spill(MemoryTarget self, long size) {
-                              if (nativeShuffleWriter == -1) {
-                                throw new IllegalStateException(
-                                    "Fatal: spill() called before a shuffle shuffle writer "
-                                        + "evaluator is created. This behavior should be"
-                                        + "optimized by moving memory "
-                                        + "allocations from make() to split()");
-                              }
-                              LOG.info(
-                                  "Gluten shuffle writer: Trying to push {} bytes of data", size);
-                              long pushed =
-                                  jniWrapper.nativeEvict(nativeShuffleWriter, size, false);
-                              LOG.info(
-                                  "Gluten shuffle writer: Pushed {} / {} bytes of data",
-                                  pushed,
-                                  size);
-                              return pushed;
-                            }
-
-                            @Override
-                            public Set<Phase> applicablePhases() {
-                              return Spillers.PHASE_SET_SPILL_ONLY;
-                            }
-                          })
-                      .getNativeInstanceHandle(),
                   handle,
                   taskAttemptId,
                   GlutenShuffleUtils.getStartPartitionId(
@@ -186,6 +158,26 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   "uniffle",
                   isSort ? "sort" : "hash",
                   reallocThreshold);
+          runtime.addSpiller(
+              new Spiller() {
+                @Override
+                public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
+                  if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+                    return 0L;
+                  }
+                  if (nativeShuffleWriter == -1) {
+                    throw new IllegalStateException(
+                        "Fatal: spill() called before a shuffle shuffle writer "
+                            + "evaluator is created. This behavior should be"
+                            + "optimized by moving memory "
+                            + "allocations from make() to split()");
+                  }
+                  LOG.info("Gluten shuffle writer: Trying to push {} bytes of data", size);
+                  long pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false);
+                  LOG.info("Gluten shuffle writer: Pushed {} / {} bytes of data", pushed, size);
+                  return pushed;
+                }
+              });
         }
         long startTime = System.nanoTime();
         long bytes =
@@ -242,7 +234,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       closeShuffleWriter();
       return super.stop(success);
     }
-    return Option.empty();
+    return Option.<MapStatus>empty();
   }
 
   private void closeShuffleWriter() {

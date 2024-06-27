@@ -16,17 +16,19 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.CelebornConf
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.vectorized._
+
 import org.apache.spark._
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
 import java.util.Locale
@@ -38,13 +40,13 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
     celebornConf: CelebornConf,
     client: ShuffleClient,
     writeMetrics: ShuffleWriteMetricsReporter)
-    extends CelebornHashBasedColumnarShuffleWriter[K, V](
-      shuffleId: Int,
-      handle,
-      context,
-      celebornConf,
-      client,
-      writeMetrics) {
+  extends CelebornHashBasedColumnarShuffleWriter[K, V](
+    shuffleId: Int,
+    handle,
+    context,
+    celebornConf,
+    client,
+    writeMetrics) {
 
   private val customizedCompressCodec =
     customizedCompressionCodec.toUpperCase(Locale.ROOT)
@@ -75,7 +77,8 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
         GlutenConfig.getConf.chColumnarThrowIfMemoryExceed,
         GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict,
         GlutenConfig.getConf.chColumnarForceExternalSortShuffle,
-        GlutenConfig.getConf.chColumnarForceMemorySortShuffle)
+        GlutenConfig.getConf.chColumnarForceMemorySortShuffle
+      )
       CHNativeMemoryAllocators.createSpillable(
         "CelebornShuffleWriter",
         new Spiller() {
@@ -95,7 +98,8 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
             logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
             spilled
           }
-        })
+        }
+      )
     }
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]

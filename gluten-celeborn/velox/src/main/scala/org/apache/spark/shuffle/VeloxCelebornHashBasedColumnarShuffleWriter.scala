@@ -16,19 +16,21 @@
  */
 package org.apache.spark.shuffle
 
-import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.CelebornConf
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.vectorized._
+
 import org.apache.spark._
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkResourceUtil
+
+import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
 
@@ -39,13 +41,13 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
     celebornConf: CelebornConf,
     client: ShuffleClient,
     writeMetrics: ShuffleWriteMetricsReporter)
-    extends CelebornHashBasedColumnarShuffleWriter[K, V](
-      shuffleId,
-      handle,
-      context,
-      celebornConf,
-      client,
-      writeMetrics) {
+  extends CelebornHashBasedColumnarShuffleWriter[K, V](
+    shuffleId,
+    handle,
+    context,
+    celebornConf,
+    client,
+    writeMetrics) {
 
   private val runtime = Runtimes.contextInstance("CelebornShuffleWriter")
 
@@ -107,7 +109,8 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
             GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
             "celeborn",
             shuffleWriterType,
-            GlutenConfig.getConf.columnarShuffleReallocThreshold)
+            GlutenConfig.getConf.columnarShuffleReallocThreshold
+          )
           runtime.addSpiller(new Spiller() {
             override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
               if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
