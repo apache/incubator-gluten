@@ -25,11 +25,13 @@
 namespace gluten {
 using ResourceHandle = uint32_t;
 
-template <typename T, typename O>
-T safeCast(O o) {
-  GLUTEN_CHECK(o >= std::numeric_limits<T>::min(), "Number overflow");
-  GLUTEN_CHECK(o <= std::numeric_limits<T>::max(), "Number overflow");
-  return static_cast<T>(o);
+template <typename T, typename F>
+T safeCast(F f) {
+  F min = 0;
+  F max = static_cast<F>(std::numeric_limits<T>::max());
+  GLUTEN_CHECK(f >= min, "Safe casting a negative number");
+  GLUTEN_CHECK(f <= max, "Number overflow");
+  return static_cast<T>(f);
 }
 
 /**
@@ -64,6 +66,10 @@ class ResourceMap {
 
   size_t size() {
     return map_.size();
+  }
+
+  size_t nextId() {
+    return resourceId_;
   }
 
  private:

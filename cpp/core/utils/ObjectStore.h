@@ -45,8 +45,7 @@ class ObjectStore {
   }
 
   static std::unique_ptr<ObjectStore> create() {
-    size_t numStores = stores().size();
-    StoreHandle nextId = safeCast<StoreHandle>(numStores);
+    StoreHandle nextId = stores().nextId();
     auto store = std::unique_ptr<ObjectStore>(new ObjectStore(nextId));
     StoreHandle storeId = safeCast<StoreHandle>(stores().insert(store.get()));
     GLUTEN_CHECK(storeId == nextId, "Assertion error");
@@ -78,7 +77,8 @@ class ObjectStore {
 
  private:
   ObjectHandle toObjHandle(ResourceHandle rh) {
-    return (storeId_ << sizeof(ResourceHandle)) + rh;
+    ResourceHandle objHandle = (safeCast<ObjectHandle>(storeId_) << (sizeof(ResourceHandle) * 8)) + rh;
+    return objHandle;
   }
 
   template <typename T>
