@@ -128,8 +128,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
        {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
        {"strpos", "positionUTF8"},
-       {"char_length",
-        "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
+       {"char_length", "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
+       {"octet_length", "octet_length"},
        {"replace", "replaceAll"},
        {"regexp_replace", "replaceRegexpAll"},
        {"regexp_extract_all", "regexpExtractAllSpark"},

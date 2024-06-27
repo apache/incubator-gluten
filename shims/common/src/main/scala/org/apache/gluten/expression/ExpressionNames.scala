@@ -127,6 +127,7 @@ object ExpressionNames {
   final val ENCODE = "encode"
   final val UUID = "uuid"
   final val BIT_LENGTH = "bit_length"
+  final val OCTET_LENGTH = "octet_length"
   final val LEVENSHTEIN = "levenshteinDistance"
   final val UNBASE64 = "unbase64"
   final val BASE64 = "base64"
