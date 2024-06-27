@@ -124,8 +124,8 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     taskInfo_ = taskInfo;
   }
 
-  ObjectStore* objectStore() {
-    return objStore_.get();
+  ObjectHandle saveObject(std::shared_ptr<void> obj) {
+    return objStore_->save(obj);
   }
 
  protected:

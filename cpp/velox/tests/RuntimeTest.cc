@@ -87,8 +87,6 @@ class DummyRuntime final : public Runtime {
   }
 
  private:
-  ResourceMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;
-
   class DummyResultIterator : public ColumnarBatchIterator {
    public:
     std::shared_ptr<ColumnarBatch> next() override {

@@ -17,13 +17,20 @@
 
 #pragma once
 
+#include <limits>
 #include <mutex>
 #include <unordered_map>
+#include "utils/exception.h"
 
 namespace gluten {
+using ResourceHandle = uint32_t;
 
-using ResourceHandle = int64_t;
-constexpr static ResourceHandle kInvalidResourceHandle = -1;
+template <typename T, typename O>
+T safeCast(O o) {
+  GLUTEN_CHECK(o >= std::numeric_limits<T>::min(), "Number overflow");
+  GLUTEN_CHECK(o <= std::numeric_limits<T>::max(), "Number overflow");
+  return static_cast<T>(o);
+}
 
 /**
  * An utility class that map resource handle to its shared pointers.
@@ -36,7 +43,7 @@ class ResourceMap {
   ResourceMap() : resourceId_(kInitResourceId) {}
 
   ResourceHandle insert(TResource holder) {
-    ResourceHandle result = resourceId_++;
+    ResourceHandle result = safeCast<ResourceHandle>(resourceId_++);
     map_.insert(std::pair<ResourceHandle, TResource>(result, holder));
     return result;
   }
@@ -64,9 +71,9 @@ class ResourceMap {
  private:
   // Initialize the resource id starting value to a number greater than zero
   // to allow for easier debugging of uninitialized java variables.
-  static constexpr int kInitResourceId = 4;
+  static constexpr uint64_t kInitResourceId = 4;
 
-  ResourceHandle resourceId_;
+  uint64_t resourceId_;
 
   // map from resource ids returned to Java and resource pointers
   std::unordered_map<ResourceHandle, TResource> map_;

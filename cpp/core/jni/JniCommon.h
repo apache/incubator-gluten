@@ -28,6 +28,7 @@
 #include "memory/AllocationListener.h"
 #include "shuffle/rss/RssClient.h"
 #include "utils/Compression.h"
+#include "utils/ObjectStore.h"
 #include "utils/ResourceMap.h"
 #include "utils/exception.h"
 

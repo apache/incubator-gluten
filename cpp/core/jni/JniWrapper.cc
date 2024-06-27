@@ -235,7 +235,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_createRunt
   auto sparkConf = gluten::parseConfMap(env, safeArray.elems(), safeArray.length());
   auto runtime = gluten::Runtime::create(backendType, std::move(listener), sparkConf);
   return reinterpret_cast<jlong>(runtime);
-  JNI_METHOD_END(kInvalidResourceHandle)
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_collectMemoryUsage( // NOLINT
@@ -265,7 +265,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_shrinkMemo
   JNI_METHOD_START
   auto runtime = jniCastOrThrow<Runtime>(ctxHandle);
   return runtime->memoryManager()->shrink(static_cast<int64_t>(size));
-  JNI_METHOD_END(kInvalidResourceHandle)
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_holdMemory( // NOLINT
@@ -392,8 +392,8 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWith
     inputIters.push_back(std::move(resultIter));
   }
 
-  return ctx->objectStore()->save(ctx->createResultIterator(spillDirStr, inputIters, conf));
-  JNI_METHOD_END(kInvalidResourceHandle)
+  return ctx->saveObject(ctx->createResultIterator(spillDirStr, inputIters, conf));
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jboolean JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterator_nativeHasNext( // NOLINT
@@ -403,7 +403,7 @@ JNIEXPORT jboolean JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIte
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  auto iter = ctx->objectStore()->retrieve<ResultIterator>(iterHandle);
+  auto iter = ObjectStore::retrieve<ResultIterator>(iterHandle);
   if (iter == nullptr) {
     std::string errorMessage =
         "When hasNext() is called on a closed iterator, an exception is thrown. To prevent this, consider using the protectInvocationFlow() method when creating the iterator in scala side. This will allow the hasNext() method to be called multiple times without issue.";
@@ -420,17 +420,17 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterat
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  auto iter = ctx->objectStore()->retrieve<ResultIterator>(iterHandle);
+  auto iter = ObjectStore::retrieve<ResultIterator>(iterHandle);
   if (!iter->hasNext()) {
-    return kInvalidResourceHandle;
+    return kInvalidObjectHandle;
   }
 
   std::shared_ptr<ColumnarBatch> batch = iter->next();
-  auto batchHandle = ctx->objectStore()->save(batch);
+  auto batchHandle = ctx->saveObject(batch);
 
   iter->setExportNanos(batch->getExportNanos());
   return batchHandle;
-  JNI_METHOD_END(kInvalidResourceHandle)
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterator_nativeFetchMetrics( // NOLINT
@@ -440,7 +440,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIter
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  auto iter = ctx->objectStore()->retrieve<ResultIterator>(iterHandle);
+  auto iter = ObjectStore::retrieve<ResultIterator>(iterHandle);
   auto metrics = iter->getMetrics();
   unsigned int numMetrics = 0;
   if (metrics) {
@@ -501,13 +501,13 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterat
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  auto it = ctx->objectStore()->retrieve<ResultIterator>(iterHandle);
+  auto it = ObjectStore::retrieve<ResultIterator>(iterHandle);
   if (it == nullptr) {
     std::string errorMessage = "Invalid result iter handle " + std::to_string(iterHandle);
     throw gluten::GlutenException(errorMessage);
   }
   return it->spillFixedSize(size);
-  JNI_METHOD_END(kInvalidResourceHandle)
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterator_nativeClose( // NOLINT
@@ -517,7 +517,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterato
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  ctx->objectStore()->release(iterHandle);
+  ObjectStore::release(iterHandle);
   JNI_METHOD_END()
 }
 
@@ -529,8 +529,8 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
   auto ctx = gluten::getRuntime(env, wrapper);
 
   // Convert the native batch to Spark unsafe row.
-  return ctx->objectStore()->save(ctx->createColumnar2RowConverter());
-  JNI_METHOD_END(kInvalidResourceHandle)
+  return ctx->saveObject(ctx->createColumnar2RowConverter());
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jobject JNICALL
@@ -541,8 +541,8 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
     jlong c2rHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto columnarToRowConverter = ctx->objectStore()->retrieve<ColumnarToRowConverter>(c2rHandle);
-  auto cb = ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle);
+  auto columnarToRowConverter = ObjectStore::retrieve<ColumnarToRowConverter>(c2rHandle);
+  auto cb = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   columnarToRowConverter->convert(cb);
 
   const auto& offsets = columnarToRowConverter->getOffsets();
@@ -571,7 +571,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_NativeColumnarToRowJniW
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  ctx->objectStore()->release(c2rHandle);
+  ObjectStore::release(c2rHandle);
   JNI_METHOD_END()
 }
 
@@ -582,8 +582,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_NativeRowToColumnarJni
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  return ctx->objectStore()->save(ctx->createRow2ColumnarConverter(reinterpret_cast<struct ArrowSchema*>(cSchema)));
-  JNI_METHOD_END(kInvalidResourceHandle)
+  return ctx->saveObject(ctx->createRow2ColumnarConverter(reinterpret_cast<struct ArrowSchema*>(cSchema)));
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jlong JNICALL
@@ -603,10 +603,10 @@ Java_org_apache_gluten_vectorized_NativeRowToColumnarJniWrapper_nativeConvertRow
   auto safeArray = gluten::getLongArrayElementsSafe(env, rowLength);
   uint8_t* address = reinterpret_cast<uint8_t*>(memoryAddress);
 
-  auto converter = ctx->objectStore()->retrieve<RowToColumnarConverter>(r2cHandle);
+  auto converter = ObjectStore::retrieve<RowToColumnarConverter>(r2cHandle);
   auto cb = converter->convert(numRows, safeArray.elems(), address);
-  return ctx->objectStore()->save(cb);
-  JNI_METHOD_END(kInvalidResourceHandle)
+  return ctx->saveObject(cb);
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_NativeRowToColumnarJniWrapper_close( // NOLINT
@@ -616,7 +616,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_NativeRowToColumnarJniW
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  ctx->objectStore()->release(r2cHandle);
+  ObjectStore::release(r2cHandle);
   JNI_METHOD_END()
 }
 
@@ -626,7 +626,7 @@ JNIEXPORT jstring JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniW
     jlong batchHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   return env->NewStringUTF(batch->getType().c_str());
   JNI_METHOD_END(nullptr)
 }
@@ -637,9 +637,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
     jlong batchHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   return batch->numBytes();
-  JNI_METHOD_END(kInvalidResourceHandle)
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_numColumns( // NOLINT
@@ -648,9 +648,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
     jlong batchHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   return batch->numColumns();
-  JNI_METHOD_END(kInvalidResourceHandle)
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_numRows( // NOLINT
@@ -659,9 +659,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
     jlong batchHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   return batch->numRows();
-  JNI_METHOD_END(kInvalidResourceHandle)
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_compose( // NOLINT
@@ -677,12 +677,12 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   std::vector<std::shared_ptr<ColumnarBatch>> batches;
   for (int i = 0; i < handleCount; ++i) {
     int64_t handle = safeArray.elems()[i];
-    auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(handle);
+    auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
     batches.push_back(batch);
   }
   auto newBatch = CompositeColumnarBatch::create(std::move(batches));
-  return ctx->objectStore()->save(newBatch);
-  JNI_METHOD_END(kInvalidResourceHandle)
+  return ctx->saveObject(newBatch);
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_exportToArrow( // NOLINT
@@ -693,7 +693,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrap
     jlong cArray) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   std::shared_ptr<ArrowSchema> exportedSchema = batch->exportArrowSchema();
   std::shared_ptr<ArrowArray> exportedArray = batch->exportArrowArray();
   ArrowSchemaMove(exportedSchema.get(), reinterpret_cast<struct ArrowSchema*>(cSchema));
@@ -717,8 +717,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   ArrowSchemaMove(arrowSchema, targetSchema.get());
   std::shared_ptr<ColumnarBatch> batch =
       std::make_shared<ArrowCStructColumnarBatch>(std::move(targetSchema), std::move(targetArray));
-  return ctx->objectStore()->save(batch);
-  JNI_METHOD_END(kInvalidResourceHandle)
+  return ctx->saveObject(batch);
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_getForEmptySchema( // NOLINT
@@ -727,8 +727,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
     jint numRows) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  return ctx->objectStore()->save(ctx->createOrGetEmptySchemaBatch(static_cast<int32_t>(numRows)));
-  JNI_METHOD_END(kInvalidResourceHandle)
+  return ctx->saveObject(ctx->createOrGetEmptySchemaBatch(static_cast<int32_t>(numRows)));
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_select( // NOLINT
@@ -746,9 +746,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
     columnIndices.push_back(safeArray.elems()[i]);
   }
 
-  return ctx->objectStore()->save(
-      ctx->select(ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle), std::move(columnIndices)));
-  JNI_METHOD_END(kInvalidResourceHandle)
+  return ctx->saveObject(ctx->select(ObjectStore::retrieve<ColumnarBatch>(batchHandle), std::move(columnIndices)));
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_close( // NOLINT
@@ -757,7 +756,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrap
     jlong batchHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  ctx->objectStore()->release(batchHandle);
+  ObjectStore::release(batchHandle);
   JNI_METHOD_END()
 }
 
@@ -889,9 +888,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     throw gluten::GlutenException("Unrecognizable partition writer type: " + partitionWriterType);
   }
 
-  return ctx->objectStore()->save(
+  return ctx->saveObject(
       ctx->createShuffleWriter(numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions)));
-  JNI_METHOD_END(kInvalidResourceHandle)
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_nativeEvict( // NOLINT
@@ -903,7 +902,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  auto shuffleWriter = ctx->objectStore()->retrieve<ShuffleWriter>(shuffleWriterHandle);
+  auto shuffleWriter = ObjectStore::retrieve<ShuffleWriter>(shuffleWriterHandle);
   if (!shuffleWriter) {
     std::string errorMessage = "Invalid shuffle writer handle " + std::to_string(shuffleWriterHandle);
     throw gluten::GlutenException(errorMessage);
@@ -912,7 +911,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   gluten::arrowAssertOkOrThrow(
       shuffleWriter->reclaimFixedSize(size, &evictedSize), "(shuffle) nativeEvict: evict failed");
   return (jlong)evictedSize;
-  JNI_METHOD_END(kInvalidResourceHandle)
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_write( // NOLINT
@@ -925,18 +924,18 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  auto shuffleWriter = ctx->objectStore()->retrieve<ShuffleWriter>(shuffleWriterHandle);
+  auto shuffleWriter = ObjectStore::retrieve<ShuffleWriter>(shuffleWriterHandle);
   if (!shuffleWriter) {
     std::string errorMessage = "Invalid shuffle writer handle " + std::to_string(shuffleWriterHandle);
     throw gluten::GlutenException(errorMessage);
   }
 
   // The column batch maybe VeloxColumnBatch or ArrowCStructColumnarBatch(FallbackRangeShuffleWriter)
-  auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   auto numBytes = batch->numBytes();
   gluten::arrowAssertOkOrThrow(shuffleWriter->write(batch, memLimit), "Native write: shuffle writer failed");
   return numBytes;
-  JNI_METHOD_END(kInvalidResourceHandle)
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_stop( // NOLINT
@@ -946,7 +945,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrap
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  auto shuffleWriter = ctx->objectStore()->retrieve<ShuffleWriter>(shuffleWriterHandle);
+  auto shuffleWriter = ObjectStore::retrieve<ShuffleWriter>(shuffleWriterHandle);
   if (!shuffleWriter) {
     std::string errorMessage = "Invalid shuffle writer handle " + std::to_string(shuffleWriterHandle);
     throw gluten::GlutenException(errorMessage);
@@ -988,7 +987,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  ctx->objectStore()->release(shuffleWriterHandle);
+  ObjectStore::release(shuffleWriterHandle);
   JNI_METHOD_END()
 }
 
@@ -1030,8 +1029,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
   std::shared_ptr<arrow::Schema> schema =
       gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
 
-  return ctx->objectStore()->save(ctx->createShuffleReader(schema, options));
-  JNI_METHOD_END(kInvalidResourceHandle)
+  return ctx->saveObject(ctx->createShuffleReader(schema, options));
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper_readStream( // NOLINT
@@ -1041,11 +1040,11 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
     jobject jniIn) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto reader = ctx->objectStore()->retrieve<ShuffleReader>(shuffleReaderHandle);
+  auto reader = ObjectStore::retrieve<ShuffleReader>(shuffleReaderHandle);
   std::shared_ptr<arrow::io::InputStream> in = std::make_shared<JavaInputStreamAdaptor>(env, reader->getPool(), jniIn);
   auto outItr = reader->readStream(in);
-  return ctx->objectStore()->save(outItr);
-  JNI_METHOD_END(kInvalidResourceHandle)
+  return ctx->saveObject(outItr);
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper_populateMetrics( // NOLINT
@@ -1056,7 +1055,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  auto reader = ctx->objectStore()->retrieve<ShuffleReader>(shuffleReaderHandle);
+  auto reader = ObjectStore::retrieve<ShuffleReader>(shuffleReaderHandle);
   env->CallVoidMethod(metrics, shuffleReaderMetricsSetDecompressTime, reader->getDecompressTime());
   env->CallVoidMethod(metrics, shuffleReaderMetricsSetDeserializeTime, reader->getDeserializeTime());
 
@@ -1071,9 +1070,9 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrapper
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  auto reader = ctx->objectStore()->retrieve<ShuffleReader>(shuffleReaderHandle);
+  auto reader = ObjectStore::retrieve<ShuffleReader>(shuffleReaderHandle);
   GLUTEN_THROW_NOT_OK(reader->close());
-  ctx->objectStore()->release(shuffleReaderHandle);
+  ObjectStore::release(shuffleReaderHandle);
   JNI_METHOD_END()
 }
 
@@ -1086,24 +1085,24 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_n
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  ResourceHandle handle = kInvalidResourceHandle;
+  ResourceHandle handle = kInvalidObjectHandle;
 
   if (cSchema == -1) {
     // Only inspect the schema and not write
-    handle = ctx->objectStore()->save(ctx->createDatasource(jStringToCString(env, filePath), nullptr));
+    handle = ctx->saveObject(ctx->createDatasource(jStringToCString(env, filePath), nullptr));
   } else {
     auto safeArray = gluten::getByteArrayElementsSafe(env, options);
     auto datasourceOptions = gluten::parseConfMap(env, safeArray.elems(), safeArray.length());
     auto& sparkConf = ctx->getConfMap();
     datasourceOptions.insert(sparkConf.begin(), sparkConf.end());
     auto schema = gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
-    handle = ctx->objectStore()->save(ctx->createDatasource(jStringToCString(env, filePath), schema));
-    auto datasource = ctx->objectStore()->retrieve<Datasource>(handle);
+    handle = ctx->saveObject(ctx->createDatasource(jStringToCString(env, filePath), schema));
+    auto datasource = ObjectStore::retrieve<Datasource>(handle);
     datasource->init(datasourceOptions);
   }
 
   return handle;
-  JNI_METHOD_END(kInvalidResourceHandle)
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_inspectSchema( // NOLINT
@@ -1114,7 +1113,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_in
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  auto datasource = ctx->objectStore()->retrieve<Datasource>(dsHandle);
+  auto datasource = ObjectStore::retrieve<Datasource>(dsHandle);
   datasource->inspectSchema(reinterpret_cast<struct ArrowSchema*>(cSchema));
   JNI_METHOD_END()
 }
@@ -1126,9 +1125,9 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_cl
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  auto datasource = ctx->objectStore()->retrieve<Datasource>(dsHandle);
+  auto datasource = ObjectStore::retrieve<Datasource>(dsHandle);
   datasource->close();
-  ctx->objectStore()->release(dsHandle);
+  ObjectStore::release(dsHandle);
   JNI_METHOD_END()
 }
 
@@ -1139,7 +1138,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_wr
     jobject jIter) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto datasource = ctx->objectStore()->retrieve<Datasource>(dsHandle);
+  auto datasource = ObjectStore::retrieve<Datasource>(dsHandle);
   auto iter = makeJniColumnarBatchIterator(env, jIter, ctx, nullptr);
   while (true) {
     auto batch = iter->next();
@@ -1161,7 +1160,7 @@ Java_org_apache_gluten_datasource_DatasourceJniWrapper_splitBlockByPartitionAndB
     jlong memoryManagerId) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   auto safeArray = gluten::getIntArrayElementsSafe(env, partitionColIndice);
   int size = env->GetArrayLength(partitionColIndice);
   std::vector<int32_t> partitionColIndiceVec;
@@ -1171,7 +1170,7 @@ Java_org_apache_gluten_datasource_DatasourceJniWrapper_splitBlockByPartitionAndB
 
   auto result = batch->toUnsafeRow(0);
   auto rowBytes = result.data();
-  auto newBatchHandle = ctx->objectStore()->save(ctx->select(batch, partitionColIndiceVec));
+  auto newBatchHandle = ctx->saveObject(ctx->select(batch, partitionColIndiceVec));
 
   auto bytesSize = result.size();
   jbyteArray bytesArray = env->NewByteArray(bytesSize);
@@ -1202,7 +1201,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSeriali
   std::vector<std::shared_ptr<ColumnarBatch>> batches;
   int64_t numRows = 0L;
   for (int32_t i = 0; i < numBatches; i++) {
-    auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(safeArray.elems()[i]);
+    auto batch = ObjectStore::retrieve<ColumnarBatch>(safeArray.elems()[i]);
     GLUTEN_DCHECK(
         batch != nullptr, "Cannot find the ColumnarBatch with handle " + std::to_string(safeArray.elems()[i]));
     numRows += batch->numRows();
@@ -1227,8 +1226,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerialize
     jlong cSchema) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  return ctx->objectStore()->save(ctx->createColumnarBatchSerializer(reinterpret_cast<struct ArrowSchema*>(cSchema)));
-  JNI_METHOD_END(kInvalidResourceHandle)
+  return ctx->saveObject(ctx->createColumnarBatchSerializer(reinterpret_cast<struct ArrowSchema*>(cSchema)));
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_deserialize( // NOLINT
@@ -1239,13 +1238,13 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerialize
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  auto serializer = ctx->objectStore()->retrieve<ColumnarBatchSerializer>(serializerHandle);
+  auto serializer = ObjectStore::retrieve<ColumnarBatchSerializer>(serializerHandle);
   GLUTEN_DCHECK(serializer != nullptr, "ColumnarBatchSerializer cannot be null");
   int32_t size = env->GetArrayLength(data);
   auto safeArray = gluten::getByteArrayElementsSafe(env, data);
   auto batch = serializer->deserialize(safeArray.elems(), size);
-  return ctx->objectStore()->save(batch);
-  JNI_METHOD_END(kInvalidResourceHandle)
+  return ctx->saveObject(batch);
+  JNI_METHOD_END(kInvalidObjectHandle)
 }
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializerJniWrapper_close( // NOLINT
@@ -1255,7 +1254,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchSerializer
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  ctx->objectStore()->release(serializerHandle);
+  ObjectStore::release(serializerHandle);
   JNI_METHOD_END()
 }
 
