@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.BasicScanExecTransformer
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.{FallbackEmptySchemaRelation, TRANSFORM_UNSUPPORTED, FallbackHints}
+import org.apache.gluten.extension.columnar.{FallbackEmptySchemaRelation, FallbackHints, TRANSFORM_UNSUPPORTED}
 import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
 import org.apache.gluten.extension.columnar.transition.InsertTransitions
 import org.apache.gluten.utils.QueryPlanSelector
