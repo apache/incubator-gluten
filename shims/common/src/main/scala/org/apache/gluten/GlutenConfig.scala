@@ -446,6 +446,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
 
   def enableHiveFileFormatWriter: Boolean = conf.getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
+
+  def enableCelebornFallback: Boolean = conf.getConf(CELEBORN_FALLBACK_ENABLED)
 }
 
 object GlutenConfig {
@@ -2038,4 +2040,12 @@ object GlutenConfig {
       .doubleConf
       .checkValue(v => v >= 0 && v <= 1, "offheap sizing memory fraction must between [0, 1]")
       .createWithDefault(0.6)
+
+  val CELEBORN_FALLBACK_ENABLED =
+    buildStaticConf("spark.gluten.sql.columnar.shuffle.celeborn.fallback.enabled")
+      .internal()
+      .doc("If enabled, fall back to ColumnarShuffleManager when celeborn service is unavailable." +
+        "Otherwise, throw an exception.")
+      .booleanConf
+      .createWithDefault(true)
 }
