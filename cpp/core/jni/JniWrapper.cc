@@ -180,7 +180,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   javaReservationListenerClass = createGlobalClassReference(
       env,
-      "Lorg/apache/gluten/memory/nmm/"
+      "Lorg/apache/gluten/memory/listener/"
       "ReservationListener;");
 
   reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", "(J)J");
