@@ -1085,7 +1085,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_n
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  ResourceHandle handle = kInvalidObjectHandle;
+  ObjectHandle handle = kInvalidObjectHandle;
 
   if (cSchema == -1) {
     // Only inspect the schema and not write
