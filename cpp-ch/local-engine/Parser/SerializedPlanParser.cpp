@@ -564,6 +564,16 @@ NamesAndTypesList SerializedPlanParser::blockToNameAndTypeList(const Block & hea
     return types;
 }
 
+std::optional<String> SerializedPlanParser::getFunctionSignatureName(UInt32 function_ref) const
+{
+    auto it = function_mapping.find(std::to_string(function_ref));
+    if (it == function_mapping.end())
+        return {};
+    auto function_signature = it->second;
+    auto pos = function_signature.find(':');
+    return function_signature.substr(0, pos);
+}
+
 std::string
 SerializedPlanParser::getFunctionName(const std::string & function_signature, const substrait::Expression_ScalarFunction & function)
 {
