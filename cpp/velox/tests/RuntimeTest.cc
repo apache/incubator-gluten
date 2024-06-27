@@ -18,6 +18,7 @@
 #include "compute/VeloxRuntime.h"
 
 #include <gtest/gtest.h>
+#include "compute/VeloxBackend.h"
 
 namespace gluten {
 
@@ -113,6 +114,13 @@ TEST(TestRuntime, CreateRuntime) {
   Runtime::registerFactory("DUMMY", dummyRuntimeFactory);
   auto runtime = Runtime::create("DUMMY", AllocationListener::noop());
   ASSERT_EQ(typeid(*runtime), typeid(DummyRuntime));
+  Runtime::release(runtime);
+}
+
+TEST(TestRuntime, CreateVeloxRuntime) {
+  VeloxBackend::create({});
+  auto runtime = Runtime::create(kVeloxRuntimeKind, AllocationListener::noop());
+  ASSERT_EQ(typeid(*runtime), typeid(VeloxRuntime));
   Runtime::release(runtime);
 }
 
