@@ -217,7 +217,13 @@ public class CelebornShuffleManager implements ShuffleManager {
       }
     }
     return CelebornUtils.unregisterShuffle(
-        lifecycleManager, shuffleClient, shuffleIdTracker, shuffleId, appUniqueId, isDriver());
+        lifecycleManager,
+        shuffleClient,
+        shuffleIdTracker,
+        shuffleId,
+        appUniqueId,
+        throwsFetchFailure,
+        isDriver());
   }
 
   @Override
