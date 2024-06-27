@@ -231,8 +231,9 @@ object UDFResolver extends Logging {
 
     udfLibPaths match {
       case Some(paths) =>
+        // Set resolved paths to the internal config to parse on native side.
         sparkConf.set(
-          VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS,
+          VeloxBackendSettings.GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS,
           getAllLibraries(sparkConf, isDriver, paths))
       case None =>
     }
