@@ -161,10 +161,9 @@ class VeloxListenerApi extends ListenerApi {
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     SparkDirectoryUtil.init(conf)
     UDFResolver.resolveUdfConf(conf, isDriver = isDriver)
-    val debugJni = conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_MODE, defaultValue = false) &&
-      conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)
-    if (debugJni) {
-      JniWorkspace.enableDebug()
+    if (conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)) {
+      val debugDir = conf.get(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE_DIR)
+      JniWorkspace.enableDebug(debugDir)
     }
     val loader = JniWorkspace.getDefault.libLoader
 

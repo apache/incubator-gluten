@@ -59,7 +59,12 @@ DB::QueryPlanPtr FilterRelParser::parse(DB::QueryPlanPtr query_plan, const subst
     filter_step->setStepDescription("WHERE");
     steps.emplace_back(filter_step.get());
     query_plan->addStep(std::move(filter_step));
-    
+ 
+    // header maybe changed, need to rollback it
+    if (!blocksHaveEqualStructure(input_header, query_plan->getCurrentDataStream().header)) {
+        steps.emplace_back(getPlanParser()->addRollbackFilterHeaderStep(query_plan, input_header));
+    }
+   
     // remove nullable
     auto * remove_null_step = getPlanParser()->addRemoveNullableStep(*query_plan, non_nullable_columns);
     if (remove_null_step)

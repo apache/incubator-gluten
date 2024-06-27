@@ -24,37 +24,34 @@ import io.substrait.proto.{NamedStruct, Plan}
 
 object SubstraitPlanPrinterUtil extends Logging {
 
-  /** Transform Substrait Plan to json format. */
-  def substraitPlanToJson(substraintPlan: Plan): String = {
+  private def typeRegistry(
+      d: com.google.protobuf.Descriptors.Descriptor): com.google.protobuf.TypeRegistry = {
     val defaultRegistry = WrappersProto.getDescriptor.getMessageTypes
-    val registry = com.google.protobuf.TypeRegistry
+    com.google.protobuf.TypeRegistry
       .newBuilder()
-      .add(substraintPlan.getDescriptorForType())
+      .add(d)
       .add(defaultRegistry)
       .build()
-    JsonFormat.printer.usingTypeRegistry(registry).print(substraintPlan)
+  }
+  private def MessageToJson(message: com.google.protobuf.Message): String = {
+    val registry = typeRegistry(message.getDescriptorForType)
+    JsonFormat.printer.usingTypeRegistry(registry).print(message)
   }
 
-  def substraitNamedStructToJson(substraintPlan: NamedStruct): String = {
-    val defaultRegistry = WrappersProto.getDescriptor.getMessageTypes
-    val registry = com.google.protobuf.TypeRegistry
-      .newBuilder()
-      .add(substraintPlan.getDescriptorForType())
-      .add(defaultRegistry)
-      .build()
-    JsonFormat.printer.usingTypeRegistry(registry).print(substraintPlan)
+  /** Transform Substrait Plan to json format. */
+  def substraitPlanToJson(substraitPlan: Plan): String = {
+    MessageToJson(substraitPlan)
+  }
+
+  def substraitNamedStructToJson(namedStruct: NamedStruct): String = {
+    MessageToJson(namedStruct)
   }
 
   /** Transform substrait plan json string to PlanNode */
   def jsonToSubstraitPlan(planJson: String): Plan = {
     try {
       val builder = Plan.newBuilder()
-      val defaultRegistry = WrappersProto.getDescriptor.getMessageTypes
-      val registry = com.google.protobuf.TypeRegistry
-        .newBuilder()
-        .add(builder.getDescriptorForType)
-        .add(defaultRegistry)
-        .build()
+      val registry = typeRegistry(builder.getDescriptorForType)
       JsonFormat.parser().usingTypeRegistry(registry).merge(planJson, builder)
       builder.build()
     } catch {

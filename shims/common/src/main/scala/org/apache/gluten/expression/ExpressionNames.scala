@@ -83,10 +83,10 @@ object ExpressionNames {
   final val IS_NAN = "isnan"
   final val NANVL = "nanvl"
   final val TRY_EVAL = "try"
-  final val CHECK_ADD = "check_add"
-  final val CHECK_SUBTRACT = "check_subtract"
-  final val CHECK_DIVIDE = "check_divide"
-  final val CHECK_MULTIPLY = "check_multiply"
+  final val CHECKED_ADD = "checked_add"
+  final val CHECKED_SUBTRACT = "checked_subtract"
+  final val CHECKED_DIVIDE = "checked_divide"
+  final val CHECKED_MULTIPLY = "checked_multiply"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
@@ -127,6 +127,7 @@ object ExpressionNames {
   final val ENCODE = "encode"
   final val UUID = "uuid"
   final val BIT_LENGTH = "bit_length"
+  final val LEVENSHTEIN = "levenshteinDistance"
   final val UNBASE64 = "unbase64"
   final val BASE64 = "base64"
 

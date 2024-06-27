@@ -44,6 +44,7 @@ object Constants {
 
   val VELOX_WITH_CELEBORN_CONF: SparkConf = new SparkConf(false)
     .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
+    .set("spark.gluten.sql.columnar.shuffle.celeborn.fallback.enabled", "false")
     .set("spark.sql.parquet.enableVectorizedReader", "true")
     .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
     .set(

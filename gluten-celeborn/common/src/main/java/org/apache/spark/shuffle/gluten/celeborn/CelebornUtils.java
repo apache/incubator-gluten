@@ -49,11 +49,21 @@ public class CelebornUtils {
       Object shuffleIdTracker,
       int appShuffleId,
       String appUniqueId,
+      boolean throwsFetchFailure,
       boolean isDriver) {
     try {
-      // for Celeborn 0.4.0
       try {
-        if (lifecycleManager != null) {
+        try {
+          // for Celeborn 0.4.1
+          if (lifecycleManager != null) {
+            Method unregisterAppShuffle =
+                lifecycleManager
+                    .getClass()
+                    .getMethod("unregisterAppShuffle", int.class, boolean.class);
+            unregisterAppShuffle.invoke(lifecycleManager, appShuffleId, throwsFetchFailure);
+          }
+        } catch (NoSuchMethodException ex) {
+          // for Celeborn 0.4.0
           Method unregisterAppShuffle =
               lifecycleManager.getClass().getMethod("unregisterAppShuffle", int.class);
           unregisterAppShuffle.invoke(lifecycleManager, appShuffleId);
@@ -65,7 +75,7 @@ public class CelebornUtils {
           unregisterAppShuffleId.invoke(shuffleIdTracker, shuffleClient, appShuffleId);
         }
         return true;
-      } catch (NoSuchMethodException ex) {
+      } catch (NoSuchMethodException | ClassNotFoundException ex) {
         try {
           if (lifecycleManager != null) {
             Method unregisterShuffleMethod =

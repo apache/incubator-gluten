@@ -459,7 +459,7 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
                 rename_dag->getOutputs()[pos] = &alias;
             }
         }
-        rename_dag->projectInput();
+
         QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), rename_dag);
         project_step->setStepDescription("Right Table Rename");
         steps.emplace_back(project_step.get());
