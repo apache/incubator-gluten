@@ -47,7 +47,7 @@ public:
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires two or three arguments", getName());
 
         /*
-            parse chr(number) as if(number < 0, '', char(0, number), 'unicode', 'utf-8'))
+            parse chr(number) as if(number < 0, '', convertCharset(char(0, number), 'unicode', 'utf-8'))
         */
         const auto & num_arg = parsed_args[0];
         const auto * const_zero_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeInt32>(), 0);
