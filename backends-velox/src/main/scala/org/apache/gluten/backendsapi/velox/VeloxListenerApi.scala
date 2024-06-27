@@ -66,6 +66,8 @@ class VeloxListenerApi extends ListenerApi {
       new SharedLibraryLoaderUbuntu2004
     } else if (systemName.contains("Ubuntu") && systemVersion.startsWith("22.04")) {
       new SharedLibraryLoaderUbuntu2204
+    } else if (systemName.contains("CentOS") && systemVersion.startsWith("9")) {
+      new SharedLibraryLoaderCentos9
     } else if (systemName.contains("CentOS") && systemVersion.startsWith("8")) {
       new SharedLibraryLoaderCentos8
     } else if (systemName.contains("CentOS") && systemVersion.startsWith("7")) {
