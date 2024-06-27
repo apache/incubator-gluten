@@ -2048,10 +2048,15 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       """
         |select to_json(struct(cast(id as string), id, 1.1, 1.1f, 1.1d)) from range(3)
         |""".stripMargin
+    val sql1 =
+      """
+        | select to_json(named_struct('name', concat('/val/', id))) from range(3)
+        |""".stripMargin
     // cast('nan' as double) output 'NaN' in Spark, 'nan' in CH
     // cast('inf' as double) output 'Infinity' in Spark, 'inf' in CH
     // ignore them temporarily
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql1)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("GLUTEN-3501: test json output format with struct contains null value") {
@@ -2570,12 +2575,12 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql("drop table test_tbl_5096")
   }
 
-  test("GLUTEN-5896: Bug fix greatest diff") {
+  test("GLUTEN-5896: Bug fix greatest/least diff") {
     val tbl_create_sql =
       "create table test_tbl_5896(id bigint, x1 int, x2 int, x3 int) using parquet"
     val tbl_insert_sql =
       "insert into test_tbl_5896 values(1, 12, NULL, 13), (2, NULL, NULL, NULL), (3, 11, NULL, NULL), (4, 10, 9, 8)"
-    val select_sql = "select id, greatest(x1, x2, x3) from test_tbl_5896"
+    val select_sql = "select id, greatest(x1, x2, x3), least(x1, x2, x3) from test_tbl_5896"
     spark.sql(tbl_create_sql)
     spark.sql(tbl_insert_sql)
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })

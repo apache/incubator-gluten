@@ -16,6 +16,10 @@
  */
 
 #include "VeloxMemoryManager.h"
+#ifdef ENABLE_JEMALLOC
+#include <jemalloc/jemalloc.h>
+#endif
+
 #include "velox/common/memory/MallocAllocator.h"
 #include "velox/common/memory/MemoryPool.h"
 #include "velox/exec/MemoryReclaimer.h"
@@ -74,7 +78,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       uint64_t targetBytes,
       bool allowSpill,
       bool allowAbort) override {
-    velox::memory::ScopedMemoryArbitrationContext ctx(nullptr);
+    velox::memory::ScopedMemoryArbitrationContext ctx((const velox::memory::MemoryPool*)nullptr);
     facebook::velox::exec::MemoryReclaimer::Stats status;
     VELOX_CHECK_EQ(pools.size(), 1, "Gluten only has one root pool");
     std::lock_guard<std::recursive_mutex> l(mutex_); // FIXME: Do we have recursive locking for this mutex?
@@ -326,6 +330,9 @@ VeloxMemoryManager::~VeloxMemoryManager() {
     usleep(waitMs * 1000);
     accumulatedWaitMs += waitMs;
   }
+#ifdef ENABLE_JEMALLOC
+  je_gluten_malloc_stats_print(NULL, NULL, NULL);
+#endif
 }
 
 } // namespace gluten

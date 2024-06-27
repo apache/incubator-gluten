@@ -52,7 +52,15 @@ void GlutenDiskHDFS::createDirectories(const String & path)
 void GlutenDiskHDFS::removeDirectory(const String & path)
 {
     DiskObjectStorage::removeDirectory(path);
-    hdfsDelete(hdfs_object_storage->getHDFSFS(), path.c_str(), 1);
+    String abs_path = "/" + path;
+    hdfsDelete(hdfs_object_storage->getHDFSFS(), abs_path.c_str(), 1);
+}
+
+void GlutenDiskHDFS::removeRecursive(const String & path)
+{
+    DiskObjectStorage::removeRecursive(path);
+    String abs_path = "/" + path;
+    hdfsDelete(hdfs_object_storage->getHDFSFS(), abs_path.c_str(), 1);
 }
 
 DiskObjectStoragePtr GlutenDiskHDFS::createDiskObjectStorage()

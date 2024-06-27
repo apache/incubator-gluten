@@ -17,7 +17,8 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.utils.{Iterators, VeloxBatchAppender}
+import org.apache.gluten.utils.VeloxBatchAppender
+import org.apache.gluten.utils.iterator.Iterators
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
