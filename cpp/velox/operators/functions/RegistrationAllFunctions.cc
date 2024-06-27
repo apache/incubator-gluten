@@ -52,9 +52,6 @@ void registerFunctionOverwrite() {
   velox::registerFunction<RoundFunction, int64_t, int64_t, int32_t>({"round"});
   velox::registerFunction<RoundFunction, double, double, int32_t>({"round"});
   velox::registerFunction<RoundFunction, float, float, int32_t>({"round"});
-  // TODO: the below rand function registry can be removed after presto function registry is removed.
-  velox::registerFunction<velox::functions::sparksql::RandFunction, double, velox::Constant<int32_t>>({"spark_rand"});
-  velox::registerFunction<velox::functions::sparksql::RandFunction, double, velox::Constant<int64_t>>({"spark_rand"});
 
   auto kRowConstructorWithNull = RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull;
   velox::exec::registerVectorFunction(
@@ -74,10 +71,6 @@ void registerFunctionOverwrite() {
   velox::exec::registerFunctionCallToSpecialForm(
       kRowConstructorWithAllNull,
       std::make_unique<RowConstructorWithNullCallToSpecialForm>(kRowConstructorWithAllNull));
-  velox::functions::registerBinaryIntegral<velox::functions::CheckedPlusFunction>({"check_add"});
-  velox::functions::registerBinaryIntegral<velox::functions::CheckedMinusFunction>({"check_subtract"});
-  velox::functions::registerBinaryIntegral<velox::functions::CheckedMultiplyFunction>({"check_multiply"});
-  velox::functions::registerBinaryIntegral<velox::functions::CheckedDivideFunction>({"check_divide"});
 
   velox::functions::registerPrestoVectorFunctions();
 }
