@@ -594,8 +594,12 @@ std::shared_ptr<ColumnarBatch> VeloxRowVectorDeserializer::next() {
         break;
       }
     } else {
-      columnarBatch = std::make_shared<VeloxColumnarBatch>(std::move(rowVector_));
-      rowVector_ = std::move(result);
+      if (cachedRows > 0) {
+        columnarBatch = std::make_shared<VeloxColumnarBatch>(std::move(rowVector_));
+        rowVector_ = std::move(result);
+      } else {
+        columnarBatch = std::make_shared<VeloxColumnarBatch>(std::move(result));
+      }
       break;
     }
   } while (true);
