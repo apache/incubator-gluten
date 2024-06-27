@@ -25,7 +25,7 @@ namespace gluten {
 // ObjectHandle is a signed int64 consisting of:
 // 1. 1 - 32 bits is a signed int32 as the object store's ID;
 // 2. 1st bit is always zero to be compatible with jlong;
-// 3. 33 - 64 bits is an unsigned int32 as the object's id;
+// 3. 33 - 64 bits is an unsigned int32 as the object's ID;
 //
 // When the object is tended to be retrieved with its ObjectHandle,
 // the program first finds its resident object store, then looks up
