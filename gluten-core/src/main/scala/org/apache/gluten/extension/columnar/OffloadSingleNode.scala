@@ -298,15 +298,18 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
   }
 
   private def genProjectExec(projectExec: ProjectExec): SparkPlan = {
-    if (!TransformHints.isNotTransformable(projectExec)) {
-      logDebug(s"Columnar Processing for ${projectExec.getClass} is currently supported.")
-      ProjectExecTransformer(projectExec.projectList, projectExec.child)
-    } else if (
+    if (
+      TransformHints.isNotTransformable(projectExec) &&
       BackendsApiManager.getSettings.supportNativeInputFileRelatedExpr() &&
       projectExec.projectList.exists(containsInputFileRelatedExpr)
     ) {
       tryOffloadProjectExecWithInputFileRelatedExprs(projectExec)
-    } else projectExec
+    } else if (TransformHints.isNotTransformable(projectExec)) {
+      projectExec
+    } else {
+      logDebug(s"Columnar Processing for ${projectExec.getClass} is currently supported.")
+      ProjectExecTransformer(projectExec.projectList, projectExec.child)
+    }
   }
 
   override def offload(plan: SparkPlan): SparkPlan = plan match {
