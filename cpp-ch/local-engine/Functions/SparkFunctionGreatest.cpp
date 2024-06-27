@@ -14,58 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Functions/LeastGreatestGeneric.h>
-#include <DataTypes/getLeastSupertype.h>
-#include <DataTypes/DataTypeNullable.h>
-
-namespace DB
-{
-namespace ErrorCodes
-{
-    extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
-}
-}
+#include <Functions/FunctionGreatestLeast.h>
 
 namespace local_engine
 {
-class SparkFunctionGreatest : public DB::FunctionLeastGreatestGeneric<DB::LeastGreatest::Greatest>
+class SparkFunctionGreatest : public FunctionGreatestestLeast<DB::LeastGreatest::Greatest>
 {
 public:
     static constexpr auto name = "sparkGreatest";
     static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionGreatest>(); }
     SparkFunctionGreatest() = default;
     ~SparkFunctionGreatest() override = default;
-    bool useDefaultImplementationForNulls() const override { return false; }
-
-private:
-    DB::DataTypePtr getReturnTypeImpl(const DB::DataTypes & types) const override
+    String getName() const override
     {
-        if (types.empty())
-            throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} cannot be called without arguments", name);
-        return makeNullable(getLeastSupertype(types));
-    }
-
-    DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t input_rows_count) const override
-    {
-        size_t num_arguments = arguments.size();
-        DB::Columns converted_columns(num_arguments);
-        for (size_t arg = 0; arg < num_arguments; ++arg)
-            converted_columns[arg] = castColumn(arguments[arg], result_type)->convertToFullColumnIfConst();
-        auto result_column = result_type->createColumn();
-        result_column->reserve(input_rows_count);
-        for (size_t row_num = 0; row_num < input_rows_count; ++row_num)
-        {
-            size_t best_arg = 0;
-            for (size_t arg = 1; arg < num_arguments; ++arg)
-            {
-                auto cmp_result = converted_columns[arg]->compareAt(row_num, row_num, *converted_columns[best_arg], -1);
-                if (cmp_result > 0)
-                    best_arg = arg;
-            }
-            result_column->insertFrom(*converted_columns[best_arg], row_num);
-        }
-        return result_column;
-    }
+        return name;
+    } 
 };
 
 REGISTER_FUNCTION(SparkGreatest)

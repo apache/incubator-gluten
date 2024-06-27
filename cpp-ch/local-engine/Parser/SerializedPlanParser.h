@@ -105,7 +105,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"sign", "sign"},
        {"radians", "radians"},
        {"greatest", "sparkGreatest"},
-       {"least", "least"},
+       {"least", "sparkLeast"},
        {"shiftleft", "bitShiftLeft"},
        {"shiftright", "bitShiftRight"},
        {"check_overflow", "checkDecimalOverflowSpark"},
@@ -127,13 +127,11 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"trim", ""}, // trimLeft or trimLeftSpark, depends on argument size
        {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
        {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
-       {"concat", ""}, /// dummy mapping
        {"strpos", "positionUTF8"},
        {"char_length",
         "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
        {"replace", "replaceAll"},
        {"regexp_replace", "replaceRegexpAll"},
-       // {"regexp_extract", "regexpExtract"},
        {"regexp_extract_all", "regexpExtractAllSpark"},
        {"chr", "char"},
        {"rlike", "match"},
@@ -180,6 +178,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"array", "array"},
        {"shuffle", "arrayShuffle"},
        {"range", "range"}, /// dummy mapping
+        {"flatten", "sparkArrayFlatten"},
 
        // map functions
        {"map", "map"},
@@ -218,6 +217,7 @@ DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type);
 std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c);
 
 class SerializedPlanParser;
+class LocalExecutor;
 
 // Give a condition expression `cond_rel_`, found all columns with nullability that must not containt
 // null after this filter.
@@ -241,7 +241,7 @@ private:
     void visit(const substrait::Expression & expr);
     void visitNonNullable(const substrait::Expression & expr);
 
-    String safeGetFunctionName(const String & function_signature, const substrait::Expression_ScalarFunction & function);
+    String safeGetFunctionName(const String & function_signature, const substrait::Expression_ScalarFunction & function) const;
 };
 
 class SerializedPlanParser
@@ -257,11 +257,21 @@ private:
     friend class JoinRelParser;
     friend class MergeTreeRelParser;
 
+    std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan);
+
+    DB::QueryPlanPtr parse(const std::string_view & plan);
+    DB::QueryPlanPtr parse(const substrait::Plan & plan);
+
 public:
     explicit SerializedPlanParser(const ContextPtr & context);
-    DB::QueryPlanPtr parse(const std::string & plan);
-    DB::QueryPlanPtr parseJson(const std::string & json_plan);
-    DB::QueryPlanPtr parse(std::unique_ptr<substrait::Plan> plan);
+
+    /// UT only
+    DB::QueryPlanPtr parseJson(const std::string_view & json_plan);
+    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan) { return createExecutor(parse((plan))); }
+    ///
+
+    template <bool JsonPlan>
+    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view & plan);
 
     DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
@@ -372,7 +382,7 @@ private:
     const ActionsDAG::Node *
     toFunctionNode(ActionsDAGPtr actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
     // remove nullable after isNotNull
-    void removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAGPtr actions_dag);
+    void removeNullableForRequiredColumns(const std::set<String> & require_columns, const ActionsDAGPtr & actions_dag) const;
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     void wrapNullable(
@@ -394,6 +404,12 @@ public:
     const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
 };
 
+template <bool JsonPlan>
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view & plan)
+{
+    return createExecutor(JsonPlan ? parseJson(plan) : parse(plan));
+}
+
 struct SparkBuffer
 {
     char * address;
@@ -403,11 +419,9 @@ struct SparkBuffer
 class LocalExecutor : public BlockIterator
 {
 public:
-    LocalExecutor() = default;
-    explicit LocalExecutor(ContextPtr context);
+    LocalExecutor(const ContextPtr & context_, QueryPlanPtr query_plan, QueryPipeline && pipeline, const Block & header_);
     ~LocalExecutor();
 
-    void execute(QueryPlanPtr query_plan);
     SparkRowInfoPtr next();
     Block * nextColumnar();
     bool hasNext();
@@ -420,11 +434,18 @@ public:
     void setMetric(RelMetricPtr metric_) { metric = metric_; }
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
 
+    static void cancelAll();
+    static void addExecutor(LocalExecutor * executor);
+    static void removeExecutor(Int64 handle);
+
 private:
-    std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(DB::Block & block);
+    std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(const DB::Block & block) const;
+
+    void asyncCancel();
+    void waitCancelFinished();
 
     /// Dump processor runtime information to log
-    std::string dumpPipeline();
+    std::string dumpPipeline() const;
 
     QueryPipeline query_pipeline;
     std::unique_ptr<PullingPipelineExecutor> executor;
@@ -432,9 +453,14 @@ private:
     ContextPtr context;
     std::unique_ptr<CHColumnToSparkRow> ch_column_to_spark_row;
     std::unique_ptr<SparkBuffer> spark_buffer;
-    DB::QueryPlanPtr current_query_plan;
+    QueryPlanPtr current_query_plan;
     RelMetricPtr metric;
     std::vector<QueryPlanPtr> extra_plan_holder;
+    std::atomic<bool> is_cancelled{false};
+
+    /// Record all active LocalExecutor in current executor to cancel them when executor receives shutdown command from driver.
+    static std::unordered_map<Int64, LocalExecutor *> executors;
+    static std::mutex executors_mutex;
 };
 
 

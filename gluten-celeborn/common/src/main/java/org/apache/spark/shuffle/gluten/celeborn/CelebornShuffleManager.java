@@ -16,6 +16,7 @@
  */
 package org.apache.spark.shuffle.gluten.celeborn;
 
+import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.exception.GlutenException;
 
@@ -194,9 +195,14 @@ public class CelebornShuffleManager implements ShuffleManager {
     if (dependency instanceof ColumnarShuffleDependency) {
       if (fallbackPolicyRunner.applyAllFallbackPolicy(
           lifecycleManager, dependency.partitioner().numPartitions())) {
-        logger.warn("Fallback to ColumnarShuffleManager!");
-        columnarShuffleIds.add(shuffleId);
-        return columnarShuffleManager().registerShuffle(shuffleId, dependency);
+        if (GlutenConfig.getConf().enableCelebornFallback()) {
+          logger.warn("Fallback to ColumnarShuffleManager!");
+          columnarShuffleIds.add(shuffleId);
+          return columnarShuffleManager().registerShuffle(shuffleId, dependency);
+        } else {
+          throw new GlutenException(
+              "The Celeborn service(Master: " + celebornConf.masterHost() + ") is unavailable");
+        }
       } else {
         return registerCelebornShuffleHandle(shuffleId, dependency);
       }
@@ -217,7 +223,13 @@ public class CelebornShuffleManager implements ShuffleManager {
       }
     }
     return CelebornUtils.unregisterShuffle(
-        lifecycleManager, shuffleClient, shuffleIdTracker, shuffleId, appUniqueId, isDriver());
+        lifecycleManager,
+        shuffleClient,
+        shuffleIdTracker,
+        shuffleId,
+        appUniqueId,
+        throwsFetchFailure,
+        isDriver());
   }
 
   @Override

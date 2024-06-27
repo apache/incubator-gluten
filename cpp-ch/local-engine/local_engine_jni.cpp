@@ -224,11 +224,9 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jobject, jbyteArray conf_plan)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    jsize plan_buf_size = env->GetArrayLength(conf_plan);
+    std::string::size_type plan_buf_size = env->GetArrayLength(conf_plan);
     jbyte * plan_buf_addr = env->GetByteArrayElements(conf_plan, nullptr);
-    std::string plan_str;
-    plan_str.assign(reinterpret_cast<const char *>(plan_buf_addr), plan_buf_size);
-    local_engine::BackendInitializerUtil::init(&plan_str);
+    local_engine::BackendInitializerUtil::init({reinterpret_cast<const char *>(plan_buf_addr), plan_buf_size});
     env->ReleaseByteArrayElements(conf_plan, plan_buf_addr, JNI_ABORT);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
@@ -254,11 +252,9 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     auto query_context = local_engine::getAllocator(allocator_id)->query_context;
 
     // by task update new configs ( in case of dynamic config update )
-    jsize plan_buf_size = env->GetArrayLength(conf_plan);
+    std::string::size_type plan_buf_size = env->GetArrayLength(conf_plan);
     jbyte * plan_buf_addr = env->GetByteArrayElements(conf_plan, nullptr);
-    std::string plan_str;
-    plan_str.assign(reinterpret_cast<const char *>(plan_buf_addr), plan_buf_size);
-    local_engine::BackendInitializerUtil::updateConfig(query_context, &plan_str);
+    local_engine::BackendInitializerUtil::updateConfig(query_context, {reinterpret_cast<const char *>(plan_buf_addr), plan_buf_size});
 
     local_engine::SerializedPlanParser parser(query_context);
     jsize iter_num = env->GetArrayLength(iter_arr);
@@ -277,16 +273,14 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
         parser.addSplitInfo(std::string{reinterpret_cast<const char *>(split_info_addr), split_info_size});
     }
 
-    jsize plan_size = env->GetArrayLength(plan);
+    std::string::size_type plan_size = env->GetArrayLength(plan);
     jbyte * plan_address = env->GetByteArrayElements(plan, nullptr);
-    std::string plan_string;
-    plan_string.assign(reinterpret_cast<const char *>(plan_address), plan_size);
-    auto query_plan = parser.parse(plan_string);
-    local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(query_context);
+    local_engine::LocalExecutor * executor
+        = parser.createExecutor<false>({reinterpret_cast<const char *>(plan_address), plan_size}).release();
+    local_engine::LocalExecutor::addExecutor(executor);
     LOG_INFO(&Poco::Logger::get("jni"), "Construct LocalExecutor {}", reinterpret_cast<uintptr_t>(executor));
     executor->setMetric(parser.getMetric());
     executor->setExtraPlanHolder(parser.extra_plan_holder);
-    executor->execute(std::move(query_plan));
     env->ReleaseByteArrayElements(plan, plan_address, JNI_ABORT);
     env->ReleaseByteArrayElements(conf_plan, plan_buf_addr, JNI_ABORT);
     return reinterpret_cast<jlong>(executor);
@@ -314,17 +308,19 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_BatchIterator_nativeCHNext(JNI
 JNIEXPORT void Java_org_apache_gluten_vectorized_BatchIterator_nativeCancel(JNIEnv * env, jobject /*obj*/, jlong executor_address)
 {
     LOCAL_ENGINE_JNI_METHOD_START
+    local_engine::LocalExecutor::removeExecutor(executor_address);
     local_engine::LocalExecutor * executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
     executor->cancel();
-    LOG_INFO(&Poco::Logger::get("jni"), "Cancel LocalExecutor {}", reinterpret_cast<uintptr_t>(executor));
+    LOG_INFO(&Poco::Logger::get("jni"), "Cancel LocalExecutor {}", reinterpret_cast<intptr_t>(executor));
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_BatchIterator_nativeClose(JNIEnv * env, jobject /*obj*/, jlong executor_address)
 {
     LOCAL_ENGINE_JNI_METHOD_START
+    local_engine::LocalExecutor::removeExecutor(executor_address);
     local_engine::LocalExecutor * executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
-    LOG_INFO(&Poco::Logger::get("jni"), "Finalize LocalExecutor {}", reinterpret_cast<uintptr_t>(executor));
+    LOG_INFO(&Poco::Logger::get("jni"), "Finalize LocalExecutor {}", reinterpret_cast<intptr_t>(executor));
     delete executor;
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
@@ -929,11 +925,10 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     LOCAL_ENGINE_JNI_METHOD_START
     auto query_context = local_engine::getAllocator(allocator_id)->query_context;
     // by task update new configs ( in case of dynamic config update )
-    jsize conf_plan_buf_size = env->GetArrayLength(conf_plan);
+    std::string::size_type conf_plan_buf_size = env->GetArrayLength(conf_plan);
     jbyte * conf_plan_buf_addr = env->GetByteArrayElements(conf_plan, nullptr);
-    std::string conf_plan_str;
-    conf_plan_str.assign(reinterpret_cast<const char *>(conf_plan_buf_addr), conf_plan_buf_size);
-    local_engine::BackendInitializerUtil::updateConfig(query_context, &conf_plan_str);
+    local_engine::BackendInitializerUtil::updateConfig(
+        query_context, {reinterpret_cast<const char *>(conf_plan_buf_addr), conf_plan_buf_size});
 
     const auto uuid_str = jstring2string(env, uuid_);
     const auto task_id = jstring2string(env, task_id_);
@@ -1326,13 +1321,11 @@ Java_org_apache_gluten_vectorized_SimpleExpressionEval_createNativeInstance(JNIE
     local_engine::SerializedPlanParser parser(context);
     jobject iter = env->NewGlobalRef(input);
     parser.addInputIter(iter, false);
-    jsize plan_size = env->GetArrayLength(plan);
+    std::string::size_type plan_size = env->GetArrayLength(plan);
     jbyte * plan_address = env->GetByteArrayElements(plan, nullptr);
-    std::string plan_string;
-    plan_string.assign(reinterpret_cast<const char *>(plan_address), plan_size);
-    auto query_plan = parser.parse(plan_string);
-    local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(context);
-    executor->execute(std::move(query_plan));
+    local_engine::LocalExecutor * executor
+        = parser.createExecutor<false>({reinterpret_cast<const char *>(plan_address), plan_size}).release();
+    local_engine::LocalExecutor::addExecutor(executor);
     env->ReleaseByteArrayElements(plan, plan_address, JNI_ABORT);
     return reinterpret_cast<jlong>(executor);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
@@ -1341,6 +1334,7 @@ Java_org_apache_gluten_vectorized_SimpleExpressionEval_createNativeInstance(JNIE
 JNIEXPORT void Java_org_apache_gluten_vectorized_SimpleExpressionEval_nativeClose(JNIEnv * env, jclass, jlong instance)
 {
     LOCAL_ENGINE_JNI_METHOD_START
+    local_engine::LocalExecutor::removeExecutor(instance);
     local_engine::LocalExecutor * executor = reinterpret_cast<local_engine::LocalExecutor *>(instance);
     delete executor;
     LOCAL_ENGINE_JNI_METHOD_END(env, )

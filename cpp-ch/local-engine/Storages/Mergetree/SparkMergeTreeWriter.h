@@ -79,6 +79,7 @@ private:
     void finalizeMerge();
     bool chunkToPart(Chunk && chunk);
     bool blockToPart(Block & block);
+    bool useLocalStorage() const;
 
     CustomStorageMergeTreePtr storage = nullptr;
     CustomStorageMergeTreePtr dest_storage = nullptr;
@@ -97,6 +98,7 @@ private:
     std::unordered_set<String> tmp_parts;
     DB::Block header;
     bool merge_after_insert;
+    bool insert_without_local_storage;
     FreeThreadPool thread_pool;
     size_t merge_min_size = 1024 * 1024 * 1024;
     size_t merge_limit_parts = 10;

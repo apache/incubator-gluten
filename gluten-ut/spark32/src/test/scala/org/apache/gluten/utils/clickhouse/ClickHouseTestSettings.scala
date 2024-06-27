@@ -172,6 +172,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("shuffle function - array for primitive type not containing null")
     .exclude("shuffle function - array for primitive type containing null")
     .exclude("shuffle function - array for non-primitive type")
+    .exclude("flatten function")
   enableSuite[GlutenDataFrameHintSuite]
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenDataFrameJoinSuite].exclude(
@@ -436,7 +437,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string regex_replace / regex_extract")
     .exclude("string overlay function")
     .exclude("binary overlay function")
-    .exclude("string / binary substring function")
     .exclude("string parse_url function")
   enableSuite[GlutenSubquerySuite]
     .exclude("SPARK-15370: COUNT bug in subquery in subquery in subquery")
@@ -674,7 +674,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Sequence with default step")
     .exclude("Reverse")
     .exclude("elementAt")
-    .exclude("Flatten")
     .exclude("ArrayRepeat")
     .exclude("Array remove")
     .exclude("Array Distinct")
@@ -894,7 +893,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-34814: LikeSimplification should handle NULL")
   enableSuite[GlutenSortOrderExpressionsSuite].exclude("SortPrefix")
   enableSuite[GlutenStringExpressionsSuite]
-    .exclude("concat")
     .exclude("StringComparison")
     .exclude("Substring")
     .exclude("string substring_index function")
@@ -902,22 +900,15 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string for ascii")
     .exclude("base64/unbase64 for string")
     .exclude("encode/decode for string")
-    .exclude("soundex unit test")
-    .exclude("replace")
     .exclude("overlay for string")
     .exclude("overlay for byte array")
     .exclude("translate")
-    .exclude("FORMAT")
-    .exclude("SPARK-22603: FormatString should not generate codes beyond 64KB")
-    .exclude("INSTR")
     .exclude("LOCATE")
     .exclude("LPAD/RPAD")
     .exclude("REPEAT")
     .exclude("length for string / binary")
-    .exclude("format_number / FormatNumber")
     .exclude("ParseUrl")
     .exclude("SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url")
-    .exclude("Sentences")
     .excludeGlutenTest("SPARK-40213: ascii for Latin-1 Supplement characters")
   enableSuite[GlutenTryCastSuite]
     .exclude("null cast")
