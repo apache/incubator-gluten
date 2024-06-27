@@ -54,10 +54,8 @@ class ResourceMap {
 
   TResource lookup(ResourceHandle moduleId) {
     auto it = map_.find(moduleId);
-    if (it != map_.end()) {
-      return it->second;
-    }
-    return nullptr;
+    GLUTEN_CHECK(it != map_.end(), "Module not found in resource map: " + std::to_string(moduleId));
+    return it->second;
   }
 
   void clear() {
