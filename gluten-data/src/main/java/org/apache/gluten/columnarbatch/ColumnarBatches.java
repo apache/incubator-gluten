@@ -24,7 +24,6 @@ import org.apache.gluten.utils.ArrowUtil;
 import org.apache.gluten.utils.ImplicitClass;
 import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 
-import com.google.common.base.Preconditions;
 import org.apache.arrow.c.ArrowArray;
 import org.apache.arrow.c.ArrowSchema;
 import org.apache.arrow.c.CDataDictionaryProvider;
@@ -37,11 +36,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Set;
 
 public class ColumnarBatches {
   private static final Field FIELD_COLUMNS;
@@ -131,7 +127,7 @@ public class ColumnarBatches {
         long outputBatchHandle =
             ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#select"))
                 .select(iv.handle(), columnIndices);
-        return create(iv.runtime(), outputBatchHandle);
+        return create(Runtimes.contextInstance("ColumnarBatches#select"), outputBatchHandle);
       case HEAVY:
         return new ColumnarBatch(
             Arrays.stream(columnIndices).mapToObj(batch::column).toArray(ColumnVector[]::new),
@@ -179,7 +175,7 @@ public class ColumnarBatches {
         ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
         CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
-      ColumnarBatchJniWrapper.create(iv.runtime())
+      ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#load"))
           .exportToArrow(iv.handle(), cSchema.memoryAddress(), cArray.memoryAddress());
 
       Data.exportSchema(
@@ -331,15 +327,9 @@ public class ColumnarBatches {
         Arrays.stream(batches)
             .map(ColumnarBatches::getIndicatorVector)
             .toArray(IndicatorVector[]::new);
-    // We assume all input batches should be managed by same Runtime.
-    // FIXME: The check could be removed to adopt ownership-transfer semantic
-    final Runtime[] runtimes =
-        Arrays.stream(ivs).map(IndicatorVector::runtime).distinct().toArray(Runtime[]::new);
-    Preconditions.checkState(
-        runtimes.length == 1, "All input batches should be managed by same Runtime.");
-    final Runtime runtime = runtimes[0];
     final long[] handles = Arrays.stream(ivs).mapToLong(IndicatorVector::handle).toArray();
-    return ColumnarBatchJniWrapper.create(runtime).compose(handles);
+    return ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#compose"))
+        .compose(handles);
   }
 
   public static ColumnarBatch create(Runtime runtime, long nativeHandle) {
@@ -382,19 +372,5 @@ public class ColumnarBatches {
 
   public static long getNativeHandle(ColumnarBatch batch) {
     return getIndicatorVector(batch).handle();
-  }
-
-  public static Runtime getRuntime(ColumnarBatch batch) {
-    return getIndicatorVector(batch).runtime();
-  }
-
-  public static Runtime getRuntime(List<ColumnarBatch> batch) {
-    final Set<Runtime> all = new HashSet<>();
-    batch.forEach(b -> all.add(getRuntime(b)));
-    if (all.size() != 1) {
-      throw new IllegalArgumentException(
-          "The input columnar batches has different associated runtimes");
-    }
-    return all.toArray(new Runtime[0])[0];
   }
 }

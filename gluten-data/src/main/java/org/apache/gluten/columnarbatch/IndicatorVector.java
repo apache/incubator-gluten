@@ -40,12 +40,7 @@ public class IndicatorVector extends ColumnVector {
     this.handle = handle;
   }
 
-  public Runtime runtime() {
-    return runtime;
-  }
-
   public String getType() {
-
     return jniwrapper.getType(handle);
   }
 

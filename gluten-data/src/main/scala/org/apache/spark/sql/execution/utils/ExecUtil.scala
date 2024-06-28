@@ -145,7 +145,10 @@ object ExecUtil {
                 val newHandle = ColumnarBatches.compose(pidBatch, cb)
                 // Composed batch already hold pidBatch's shared ref, so close is safe.
                 ColumnarBatches.forceClose(pidBatch)
-                (0, ColumnarBatches.create(ColumnarBatches.getRuntime(cb), newHandle))
+                (
+                  0,
+                  ColumnarBatches
+                    .create(Runtimes.contextInstance("ExecUtil#getShuffleDependency"), newHandle))
             })
         .recyclePayload(p => ColumnarBatches.forceClose(p._2)) // FIXME why force close?
         .create()
