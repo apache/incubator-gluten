@@ -33,11 +33,12 @@ function(FIND_ARROW_LIB LIB_NAME)
     set(ARROW_LIB_FULL_NAME
         ${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
     add_library(Arrow::${LIB_NAME} SHARED IMPORTED)
+    # Firstly find the lib from velox's arrow build path. If not found, try to
+    # find it from system.
     find_library(
       ARROW_LIB_${LIB_NAME}
       NAMES ${ARROW_LIB_FULL_NAME}
-      PATHS ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR}
-      NO_DEFAULT_PATH)
+      PATHS ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR})
     if(NOT ARROW_LIB_${LIB_NAME})
       message(FATAL_ERROR "Arrow library Not Found: ${ARROW_LIB_FULL_NAME}")
     else()
