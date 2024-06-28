@@ -16,7 +16,9 @@
  */
 package org.apache.spark
 
-class GlutenSortShuffleSuite extends SortShuffleSuite {
+import org.apache.spark.sql.GlutenTestsBaseTrait
+
+class GlutenSortShuffleSuite extends SortShuffleSuite with GlutenTestsBaseTrait {
   override def beforeAll(): Unit = {
     super.beforeAll()
     conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
