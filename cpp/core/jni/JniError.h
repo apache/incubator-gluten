@@ -28,11 +28,11 @@
 #endif
 
 #ifndef JNI_METHOD_END
-#define JNI_METHOD_END(fallback_expr)                                             \
-  }                                                                               \
-  catch (std::exception & e) {                                                    \
-    env->ThrowNew(gluten::getJniErrorState()->glutenExceptionClass(), e.what());  \
-    return fallback_expr;                                                         \
+#define JNI_METHOD_END(fallback_expr)                                            \
+  }                                                                              \
+  catch (std::exception & e) {                                                   \
+    env->ThrowNew(gluten::getJniErrorState()->glutenExceptionClass(), e.what()); \
+    return fallback_expr;                                                        \
   }
 // macro ended
 #endif

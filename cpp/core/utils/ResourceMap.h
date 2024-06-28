@@ -20,6 +20,7 @@
 #include <limits>
 #include <mutex>
 #include <unordered_map>
+#include <atomic>
 #include "utils/exception.h"
 
 namespace gluten {
@@ -48,25 +49,30 @@ class ResourceMap {
 
   ResourceHandle insert(TResource holder) {
     ResourceHandle result = safeCast<ResourceHandle>(resourceId_++);
+    const std::lock_guard<std::mutex> lock(mtx_);
     map_.insert(std::pair<ResourceHandle, TResource>(result, holder));
     return result;
   }
 
   void erase(ResourceHandle moduleId) {
+    const std::lock_guard<std::mutex> lock(mtx_);
     GLUTEN_CHECK(map_.erase(moduleId) == 1, "Module not found in resource map: " + std::to_string(moduleId));
   }
 
   TResource lookup(ResourceHandle moduleId) {
+    const std::lock_guard<std::mutex> lock(mtx_);
     auto it = map_.find(moduleId);
     GLUTEN_CHECK(it != map_.end(), "Module not found in resource map: " + std::to_string(moduleId));
     return it->second;
   }
 
   void clear() {
+    const std::lock_guard<std::mutex> lock(mtx_);
     map_.clear();
   }
 
   size_t size() {
+    const std::lock_guard<std::mutex> lock(mtx_);
     return map_.size();
   }
 
@@ -77,12 +83,13 @@ class ResourceMap {
  private:
   // Initialize the resource id starting value to a number greater than zero
   // to allow for easier debugging of uninitialized java variables.
-  static constexpr uint64_t kInitResourceId = 4;
+  static constexpr size_t kInitResourceId = 4;
 
-  uint64_t resourceId_;
+  std::atomic<size_t> resourceId_{0};
 
   // map from resource ids returned to Java and resource pointers
   std::unordered_map<ResourceHandle, TResource> map_;
+  std::mutex mtx_;
 };
 
 } // namespace gluten

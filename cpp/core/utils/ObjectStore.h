@@ -40,7 +40,6 @@ constexpr static ObjectHandle kInvalidObjectHandle = -1;
 class ObjectStore {
  public:
   static std::unique_ptr<ObjectStore> create() {
-    const std::lock_guard<std::mutex> lockS(storesMutex());
     StoreHandle nextId = stores().nextId();
     auto store = std::unique_ptr<ObjectStore>(new ObjectStore(nextId));
     StoreHandle storeId = safeCast<StoreHandle>(stores().insert(store.get()));
@@ -51,7 +50,6 @@ class ObjectStore {
   static void release(ObjectHandle handle) {
     ResourceHandle storeId = safeCast<ResourceHandle>(handle >> (sizeof(ResourceHandle) * 8));
     ResourceHandle resourceId = safeCast<ResourceHandle>(handle & std::numeric_limits<ResourceHandle>::max());
-    const std::lock_guard<std::mutex> lockS(storesMutex());
     auto store = stores().lookup(storeId);
     store->release0(resourceId);
   }
@@ -60,7 +58,6 @@ class ObjectStore {
   static std::shared_ptr<T> retrieve(ObjectHandle handle) {
     ResourceHandle storeId = safeCast<ResourceHandle>(handle >> (sizeof(ResourceHandle) * 8));
     ResourceHandle resourceId = safeCast<ResourceHandle>(handle & std::numeric_limits<ResourceHandle>::max());
-    const std::lock_guard<std::mutex> lockS(storesMutex());
     auto store = stores().lookup(storeId);
     return store->retrieve0<T>(resourceId);
   }
@@ -74,11 +71,6 @@ class ObjectStore {
   ObjectHandle save(std::shared_ptr<void> obj);
 
  private:
-  static std::mutex& storesMutex() {
-    static std::mutex mtx;
-    return mtx;
-  }
-
   static ResourceMap<ObjectStore*>& stores() {
     static ResourceMap<ObjectStore*> stores;
     return stores;
