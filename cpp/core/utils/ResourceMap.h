@@ -17,10 +17,10 @@
 
 #pragma once
 
+#include <atomic>
 #include <limits>
 #include <mutex>
 #include <unordered_map>
-#include <atomic>
 #include "utils/exception.h"
 
 namespace gluten {
