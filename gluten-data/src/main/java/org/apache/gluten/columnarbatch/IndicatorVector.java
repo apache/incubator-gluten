@@ -27,41 +27,25 @@ import org.apache.spark.unsafe.types.UTF8String;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class IndicatorVector extends ColumnVector {
-  private final Runtime runtime;
-  private final long handle;
+public class IndicatorVector extends IndicatorVectorBase {
   private final AtomicLong refCnt = new AtomicLong(1L);
-  private final ColumnarBatchJniWrapper jniwrapper;
 
   protected IndicatorVector(Runtime runtime, long handle) {
-    super(DataTypes.NullType);
-    this.runtime = runtime;
-    this.jniwrapper = ColumnarBatchJniWrapper.create(runtime);
-    this.handle = handle;
+    super(runtime, handle);
   }
 
-  public String getType() {
-    return jniwrapper.getType(handle);
-  }
-
-  public long getNumColumns() {
-    return jniwrapper.numColumns(handle);
-  }
-
-  public long getNumRows() {
-    return jniwrapper.numRows(handle);
-  }
-
-  public long refCnt() {
+  @Override
+  long refCnt() {
     return refCnt.get();
   }
 
-  public void retain() {
+  @Override
+  void retain() {
     refCnt.getAndIncrement();
   }
 
   @Override
-  public void close() {
+  void release() {
     if (refCnt.get() == 0) {
       // TODO use stronger restriction (IllegalStateException probably)
       return;
@@ -69,93 +53,5 @@ public class IndicatorVector extends ColumnVector {
     if (refCnt.decrementAndGet() == 0) {
       jniwrapper.close(handle);
     }
-  }
-
-  public boolean isClosed() {
-    return refCnt.get() == 0;
-  }
-
-  @Override
-  public boolean hasNull() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public int numNulls() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public boolean isNullAt(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public boolean getBoolean(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public byte getByte(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public short getShort(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public int getInt(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public long getLong(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public float getFloat(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public double getDouble(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public ColumnarArray getArray(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public ColumnarMap getMap(int ordinal) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public Decimal getDecimal(int rowId, int precision, int scale) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public UTF8String getUTF8String(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public byte[] getBinary(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public ColumnVector getChild(int ordinal) {
-    throw new UnsupportedOperationException();
-  }
-
-  public long handle() {
-    return handle;
   }
 }

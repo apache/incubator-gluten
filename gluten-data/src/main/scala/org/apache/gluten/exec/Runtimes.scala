@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.exec
 
-import org.apache.spark.util.TaskResources
+import org.apache.spark.util.{TaskResource, TaskResources}
 
 object Runtimes {
 
@@ -29,7 +29,7 @@ object Runtimes {
     TaskResources.addResourceIfNotRegistered(name, () => create(name))
   }
 
-  private def create(name: String): Runtime = {
-    new Runtime(name)
+  private def create(name: String): Runtime with TaskResource = {
+    Runtime(name)
   }
 }

@@ -52,7 +52,8 @@ public class ColumnarBatches {
     }
   }
 
-  private ColumnarBatches() {}
+  private ColumnarBatches() {
+  }
 
   enum BatchType {
     LIGHT,
@@ -103,7 +104,9 @@ public class ColumnarBatches {
     }
   }
 
-  /** Heavy batch: Data is readable from JVM and formatted as Arrow data. */
+  /**
+   * Heavy batch: Data is readable from JVM and formatted as Arrow data.
+   */
   public static boolean isHeavyBatch(ColumnarBatch batch) {
     return identifyBatchType(batch) == BatchType.HEAVY;
   }
@@ -121,13 +124,14 @@ public class ColumnarBatches {
    * column batch.
    */
   public static ColumnarBatch select(ColumnarBatch batch, int[] columnIndices) {
+    final Runtime runtime = Runtimes.contextInstance("ColumnarBatches#select");
     switch (identifyBatchType(batch)) {
       case LIGHT:
         final IndicatorVector iv = getIndicatorVector(batch);
         long outputBatchHandle =
-            ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#select"))
+            ColumnarBatchJniWrapper.create(runtime)
                 .select(iv.handle(), columnIndices);
-        return create(Runtimes.contextInstance("ColumnarBatches#select"), outputBatchHandle);
+        return create(runtime, outputBatchHandle);
       case HEAVY:
         return new ColumnarBatch(
             Arrays.stream(columnIndices).mapToObj(batch::column).toArray(ColumnVector[]::new),
@@ -172,9 +176,9 @@ public class ColumnarBatches {
     }
     IndicatorVector iv = (IndicatorVector) input.column(0);
     try (ArrowSchema cSchema = ArrowSchema.allocateNew(allocator);
-        ArrowArray cArray = ArrowArray.allocateNew(allocator);
-        ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
-        CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
+         ArrowArray cArray = ArrowArray.allocateNew(allocator);
+         ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
+         CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
       ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#load"))
           .exportToArrow(iv.handle(), cSchema.memoryAddress(), cArray.memoryAddress());
 
@@ -213,7 +217,7 @@ public class ColumnarBatches {
     }
     final Runtime runtime = Runtimes.contextInstance("ColumnarBatches#offload");
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
-        ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
+         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
       ArrowAbiUtil.exportFromSparkColumnarBatch(allocator, input, cSchema, cArray);
       long handle =
           ColumnarBatchJniWrapper.create(runtime)
@@ -332,8 +336,7 @@ public class ColumnarBatches {
         .compose(handles);
   }
 
-  public static ColumnarBatch create(Runtime runtime, long nativeHandle) {
-    final IndicatorVector iv = new IndicatorVector(runtime, nativeHandle);
+  private static ColumnarBatch create(IndicatorVector iv) {
     int numColumns = Math.toIntExact(iv.getNumColumns());
     int numRows = Math.toIntExact(iv.getNumRows());
     if (numColumns == 0) {
@@ -347,6 +350,10 @@ public class ColumnarBatches {
       columnVectors[i + 1] = pv;
     }
     return new ColumnarBatch(columnVectors, numRows);
+  }
+
+  public static ColumnarBatch create(Runtime runtime, long nativeHandle) {
+    return create(new IndicatorVector(runtime, nativeHandle));
   }
 
   public static void retain(ColumnarBatch b) {

@@ -225,9 +225,9 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
     val shouldSelectAttributes = cacheAttributes != selectedAttributes
     val localSchema = toStructType(cacheAttributes)
     val timezoneId = SQLConf.get.sessionLocalTimeZone
-    val runtime = Runtimes.contextInstance("ColumnarCachedBatchSerializer#read")
     input.mapPartitions {
       it =>
+        val runtime = Runtimes.contextInstance("ColumnarCachedBatchSerializer#read")
         val jniWrapper = ColumnarBatchSerializerJniWrapper
           .create(runtime)
         val schema = SparkArrowUtil.toArrowSchema(localSchema, timezoneId)
