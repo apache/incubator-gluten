@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.execution.datasources
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, FilterExecTransformer}
-import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
@@ -108,7 +108,7 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
         METADATA_FILE_MODIFICATION_TIME,
         "age")
       dfWithMetadata.collect
-      if (BackendTestUtils.isVeloxBackendLoaded()) {
+      if (BackendsApiManager.getSettings.supportNativeMetadataColumns()) {
         checkOperatorMatch[FileSourceScanExecTransformer](dfWithMetadata)
       } else {
         checkOperatorMatch[FileSourceScanExec](dfWithMetadata)
@@ -133,7 +133,7 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
         .where(Column(METADATA_FILE_NAME) === f0((METADATA_FILE_NAME)))
       val ret = filterDF.collect
       assert(ret.size == 1)
-      if (BackendTestUtils.isVeloxBackendLoaded()) {
+      if (BackendsApiManager.getSettings.supportNativeMetadataColumns()) {
         checkOperatorMatch[FileSourceScanExecTransformer](filterDF)
       } else {
         checkOperatorMatch[FileSourceScanExec](filterDF)
@@ -149,7 +149,7 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
           Row(f1(METADATA_FILE_PATH))
         )
       )
-      if (BackendTestUtils.isVeloxBackendLoaded()) {
+      if (BackendsApiManager.getSettings.supportNativeMetadataColumns()) {
         checkOperatorMatch[FileSourceScanExecTransformer](filterDF)
       } else {
         checkOperatorMatch[FileSourceScanExec](filterDF)
