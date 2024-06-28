@@ -37,10 +37,10 @@ import org.apache.arrow.c.ArrowSchema
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Array[Byte]])
-  extends BuildSideRelation {
-  private val runtime = Runtimes.contextInstance("BuildSideRelation#BatchSerializer")
+    extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
+    val runtime = Runtimes.contextInstance("BuildSideRelation#deserialized")
     val jniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializeHandle: Long = {
       val allocator = ArrowBufferAllocators.contextInstance()
@@ -82,10 +82,11 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
   override def asReadOnlyCopy(): ColumnarBuildSideRelation = this
 
   /**
-   * Transform columnar broadcast value to Array[InternalRow] by key and distinct. NOTE: This method
-   * was called in Spark Driver, should manage resources carefully.
+   * Transform columnar broadcast value to Array[InternalRow] by key and distinct. NOTE: This
+   * method was called in Spark Driver, should manage resources carefully.
    */
   override def transform(key: Expression): Array[InternalRow] = TaskResources.runUnsafe {
+    val runtime = Runtimes.contextInstance("BuildSideRelation#transform")
     // This transformation happens in Spark driver, thus resources can not be managed automatically.
     val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializeHandle = {
@@ -147,20 +148,20 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
               throw new IllegalArgumentException(s"Key column not found in expression: $key")
             }
             if (columnNames.size != 1) {
-              throw new IllegalArgumentException(s"Multiple key columns found in expression: $key")
+              throw new IllegalArgumentException(
+                s"Multiple key columns found in expression: $key")
             }
             val columnExpr = columnNames.head
             val oneColumnWithSameName = output.count(_.name == columnExpr.name) == 1
-            val columnInOutput = output.zipWithIndex.filter {
-              p: (Attribute, Int) =>
-                if (oneColumnWithSameName) {
-                  // The comparison of exprId can be ignored when
-                  // only one attribute name match is found.
-                  p._1.name == columnExpr.name
-                } else {
-                  // A case where output has multiple columns with same name
-                  p._1.name == columnExpr.name && p._1.exprId == columnExpr.exprId
-                }
+            val columnInOutput = output.zipWithIndex.filter { p: (Attribute, Int) =>
+              if (oneColumnWithSameName) {
+                // The comparison of exprId can be ignored when
+                // only one attribute name match is found.
+                p._1.name == columnExpr.name
+              } else {
+                // A case where output has multiple columns with same name
+                p._1.name == columnExpr.name && p._1.exprId == columnExpr.exprId
+              }
             }
             if (columnInOutput.isEmpty) {
               throw new IllegalStateException(
@@ -173,9 +174,8 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
             val replacement =
               BoundReference(columnInOutput.head._2, columnExpr.dataType, columnExpr.nullable)
 
-            val projExpr = key.transformDown {
-              case _: AttributeReference =>
-                replacement
+            val projExpr = key.transformDown { case _: AttributeReference =>
+              replacement
             }
 
             val proj = UnsafeProjection.create(projExpr)
