@@ -22,10 +22,26 @@
 
 namespace gluten {
 
+class DummyMemoryManager final : public MemoryManager {
+ public:
+  arrow::MemoryPool* getArrowMemoryPool() override {
+    throw GlutenException("Not yet implemented");
+  }
+  const MemoryUsageStats collectMemoryUsageStats() const override {
+    throw GlutenException("Not yet implemented");
+  }
+  const int64_t shrink(int64_t size) override {
+    throw GlutenException("Not yet implemented");
+  }
+  void hold() override {
+    throw GlutenException("Not yet implemented");
+  }
+};
+
 class DummyRuntime final : public Runtime {
  public:
   DummyRuntime(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>& conf)
-      : Runtime(conf) {}
+      : Runtime(std::make_shared<DummyMemoryManager>(), conf) {}
 
   void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override {}
 
