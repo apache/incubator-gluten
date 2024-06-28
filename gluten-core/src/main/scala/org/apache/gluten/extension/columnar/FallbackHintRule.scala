@@ -79,18 +79,12 @@ object FallbackHints {
   }
 
   /**
-   * NOTE: To be deprecated. Do not create new usages of this method.
-   *
-   * Since it's usually not safe to consider a plan "transformable" during validation phase. Another
-   * validation rule could turn "transformable" to "non-transformable" before implementing the plan
-   * within Gluten transformers.
+   * If true, it implies the plan maybe transformable during validation phase but not guaranteed,
+   * since another validation rule could turn it to "non-transformable" before implementing the plan
+   * within Gluten transformers. If false, the plan node will be guaranteed fallback to Vanilla plan
+   * node while being implemented.
    */
-  def isTransformable(plan: SparkPlan): Boolean = {
-    getHintOption(plan) match {
-      case None => true
-      case _ => false
-    }
-  }
+  def maybeTransformable(plan: SparkPlan): Boolean = !isNotTransformable(plan)
 
   def tag(plan: SparkPlan, hint: FallbackHint): Unit = {
     val mergedHint = getHintOption(plan)
