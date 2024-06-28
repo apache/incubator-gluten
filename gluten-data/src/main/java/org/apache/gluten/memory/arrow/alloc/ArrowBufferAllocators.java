@@ -60,11 +60,12 @@ public class ArrowBufferAllocators {
       listener =
           new ManagedAllocationListener(
               MemoryTargets.throwOnOom(
-                  MemoryTargets.newConsumer(
-                      tmm,
-                      "ArrowContextInstance",
-                      Collections.emptyList(),
-                      Collections.emptyMap())),
+                  MemoryTargets.dynamicOffHeapSizingIfEnabled(
+                      MemoryTargets.newConsumer(
+                          tmm,
+                          "ArrowContextInstance",
+                          Collections.emptyList(),
+                          Collections.emptyMap()))),
               TaskResources.getSharedUsage());
     }
 

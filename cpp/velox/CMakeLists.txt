@@ -265,6 +265,9 @@ macro(ADD_VELOX_DEPENDENCIES)
     dwio::dwrf::reader
     "${VELOX_COMPONENTS_PATH}/dwio/dwrf/reader/libvelox_dwio_dwrf_reader.a")
   add_velox_dependency(
+    dwio::orc::reader
+    "${VELOX_COMPONENTS_PATH}/dwio/orc/reader/libvelox_dwio_orc_reader.a")
+  add_velox_dependency(
     dwio::dwrf::utils
     "${VELOX_COMPONENTS_PATH}/dwio/dwrf/utils/libvelox_dwio_dwrf_utils.a")
   add_velox_dependency(
@@ -572,6 +575,17 @@ find_package(Folly REQUIRED CONFIG)
 
 target_include_directories(velox PUBLIC ${GTEST_INCLUDE_DIRS}
                                         ${PROTOBUF_INCLUDE})
+
+if(BUILD_JEMALLOC)
+  include(Findjemalloc_pic)
+  find_jemalloc()
+  if(JEMALLOC_NOT_FOUND)
+    include(Buildjemalloc_pic)
+    build_jemalloc()
+  endif()
+  add_definitions(-DENABLE_JEMALLOC)
+  target_link_libraries(velox PUBLIC jemalloc::libjemalloc)
+endif()
 
 target_link_libraries(velox PUBLIC gluten)
 add_velox_dependencies()

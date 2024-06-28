@@ -76,7 +76,9 @@ class Spark35Shims extends SparkShims {
       Sig[SplitPart](ExpressionNames.SPLIT_PART),
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
-      Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
+      Sig[KnownNullable](ExpressionNames.KNOWN_NULLABLE),
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL)
+    )
   }
 
   override def aggregateExpressionMappings: Seq[Sig] = {
@@ -236,8 +238,9 @@ class Spark35Shims extends SparkShims {
         case _ =>
       }
     }
-
-    // TODO row_index metadata support
+    metadataColumn.put(InputFileName().prettyName, file.filePath.toString)
+    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
+    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
     metadataColumn
   }
 

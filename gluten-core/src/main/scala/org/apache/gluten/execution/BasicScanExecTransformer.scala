@@ -32,6 +32,7 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.{BooleanType, StringType, StructField, StructType}
 
 import com.google.protobuf.StringValue
+import io.substrait.proto.NamedStruct
 
 import scala.collection.JavaConverters._
 
@@ -109,19 +110,19 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   }
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
-    val output = filteRedundantField(outputAttributes())
+    val output = outputAttributes()
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val columnTypeNodes = output.map {
       attr =>
         if (getPartitionSchema.exists(_.name.equals(attr.name))) {
-          new ColumnTypeNode(1)
+          new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL_VALUE)
         } else if (SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)) {
-          new ColumnTypeNode(3)
+          new ColumnTypeNode(NamedStruct.ColumnType.ROWINDEX_COL_VALUE)
         } else if (attr.isMetadataCol) {
-          new ColumnTypeNode(2)
+          new ColumnTypeNode(NamedStruct.ColumnType.METADATA_COL_VALUE)
         } else {
-          new ColumnTypeNode(0)
+          new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL_VALUE)
         }
     }.asJava
     // Will put all filter expressions into an AND expression
@@ -154,22 +155,5 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       context,
       context.nextOperatorId(this.nodeName))
     TransformContext(output, output, readNode)
-  }
-
-  def filteRedundantField(outputs: Seq[Attribute]): Seq[Attribute] = {
-    var final_output: List[Attribute] = List()
-    val outputList = outputs.toArray
-    for (i <- outputList.indices) {
-      var dup = false
-      for (j <- 0 until i) {
-        if (outputList(i).name == outputList(j).name) {
-          dup = true
-        }
-      }
-      if (!dup) {
-        final_output = final_output :+ outputList(i)
-      }
-    }
-    final_output
   }
 }

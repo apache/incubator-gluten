@@ -309,12 +309,27 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
     // Add a check to find error easily.
     if (storage_join)
     {
-        if(!blocksHaveEqualStructure(right_header_before_convert_step, right->getCurrentDataStream().header))
+        bool is_col_names_changed = false;
+        const auto & current_right_header = right->getCurrentDataStream().header;
+        if (right_header_before_convert_step.columns() != current_right_header.columns())
+            is_col_names_changed = true;
+        if (!is_col_names_changed)
+        {
+            for (size_t i = 0; i < right_header_before_convert_step.columns(); i++)
+            {
+                if (right_header_before_convert_step.getByPosition(i).name != current_right_header.getByPosition(i).name)
+                {
+                    is_col_names_changed = true;
+                    break;
+                }
+            }
+        }
+        if (is_col_names_changed)
         {
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "For broadcast join, we must not change the columns name in the right table.\nleft header:{},\nright header: {} -> {}",
-                left->getCurrentDataStream().header.dumpNames(),
-                right_header_before_convert_step.dumpNames(),
-                right->getCurrentDataStream().header.dumpNames());
+                left->getCurrentDataStream().header.dumpStructure(),
+                right_header_before_convert_step.dumpStructure(),
+                right->getCurrentDataStream().header.dumpStructure());
         }
     }
 
@@ -459,7 +474,7 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
                 rename_dag->getOutputs()[pos] = &alias;
             }
         }
-        rename_dag->projectInput();
+
         QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), rename_dag);
         project_step->setStepDescription("Right Table Rename");
         steps.emplace_back(project_step.get());

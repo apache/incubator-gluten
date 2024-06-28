@@ -82,15 +82,23 @@ private object GroupBasedBestFinder {
         return Some(KnownCostPath(ras, path))
       }
       val childrenGroups = can.getChildrenGroups(allGroups).map(gn => allGroups(gn.groupId()))
-      val maybeBestChildrenPaths: Seq[Option[RasPath[T]]] = childrenGroups.map {
-        childGroup => childrenGroupsOutput(childGroup).map(kcg => kcg.best().rasPath)
+      val maybeBestChildrenPaths: Seq[Option[KnownCostPath[T]]] = childrenGroups.map {
+        childGroup => childrenGroupsOutput(childGroup).map(kcg => kcg.best())
       }
       if (maybeBestChildrenPaths.exists(_.isEmpty)) {
         // Node should only be solved when all children outputs exist.
         return None
       }
       val bestChildrenPaths = maybeBestChildrenPaths.map(_.get)
-      Some(KnownCostPath(ras, path.RasPath(ras, can, bestChildrenPaths).get))
+      val kcp = KnownCostPath(ras, path.RasPath(ras, can, bestChildrenPaths.map(_.rasPath)).get)
+      // Cost should be in monotonically increasing basis.
+      bestChildrenPaths.map(_.cost).foreach {
+        childCost =>
+          assert(
+            ras.costModel.costComparator().gteq(kcp.cost, childCost),
+            "Illegal decreasing cost")
+      }
+      Some(kcp)
     }
 
     override def solveGroup(

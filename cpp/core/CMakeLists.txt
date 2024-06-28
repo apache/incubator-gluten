@@ -300,16 +300,6 @@ target_include_directories(
 set_target_properties(gluten PROPERTIES LIBRARY_OUTPUT_DIRECTORY
                                         ${root_directory}/releases)
 
-include(Findjemalloc_pic)
-# Build Jemalloc
-if(BUILD_JEMALLOC)
-  build_jemalloc(${STATIC_JEMALLOC})
-  message(STATUS "Building Jemalloc: ${STATIC_JEMALLOC}")
-else() #
-  find_jemalloc()
-  message(STATUS "Use existing Jemalloc libraries")
-endif()
-
 if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()

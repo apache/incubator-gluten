@@ -69,11 +69,23 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
     , bucket_dir(bucket_dir_)
     , thread_pool(CurrentMetrics::LocalThread, CurrentMetrics::LocalThreadActive, CurrentMetrics::LocalThreadScheduled, 1, 1, 100000)
 {
-    dest_storage = MergeTreeRelParser::parseStorage(merge_tree_table, SerializedPlanParser::global_context);
+    const DB::Settings & settings = context->getSettingsRef();
+    merge_after_insert = settings.get(MERGETREE_MERGE_AFTER_INSERT).get<bool>();
+    insert_without_local_storage = settings.get(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE).get<bool>();
 
-    if (dest_storage->getStoragePolicy()->getAnyDisk()->isRemote())
+    Field limit_size_field;
+    if (settings.tryGet("optimize.minFileSize", limit_size_field))
+        merge_min_size = limit_size_field.get<Int64>() <= 0 ? merge_min_size : limit_size_field.get<Int64>();
+
+    Field limit_cnt_field;
+    if (settings.tryGet("mergetree.max_num_part_per_merge_task", limit_cnt_field))
+        merge_limit_parts = limit_cnt_field.get<Int64>() <= 0 ? merge_limit_parts : limit_cnt_field.get<Int64>();
+
+    dest_storage = MergeTreeRelParser::parseStorage(merge_tree_table, SerializedPlanParser::global_context);
+    isRemoteStorage = dest_storage->getStoragePolicy()->getAnyDisk()->isRemote();
+
+    if (useLocalStorage())
     {
-        isRemoteStorage = true;
         temp_storage = MergeTreeRelParser::copyToDefaultPolicyStorage(merge_tree_table, SerializedPlanParser::global_context);
         storage = temp_storage;
         LOG_DEBUG(
@@ -86,44 +98,43 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
 
     metadata_snapshot = storage->getInMemoryMetadataPtr();
     header = metadata_snapshot->getSampleBlock();
-    const DB::Settings & settings = context->getSettingsRef();
-    squashing_transform
-        = std::make_unique<DB::SquashingTransform>(settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
+    squashing = std::make_unique<DB::Squashing>(header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
     if (!partition_dir.empty())
         extractPartitionValues(partition_dir, partition_values);
-
-    Field is_merge;
-    if (settings.tryGet("mergetree.merge_after_insert", is_merge))
-        merge_after_insert = is_merge.get<bool>();
-
-    Field limit_size_field;
-    if (settings.tryGet("optimize.minFileSize", limit_size_field))
-        merge_min_size = limit_size_field.get<Int64>() <= 0 ? merge_min_size : limit_size_field.get<Int64>();
-
-    Field limit_cnt_field;
-    if (settings.tryGet("mergetree.max_num_part_per_merge_task", limit_cnt_field))
-        merge_limit_parts = limit_cnt_field.get<Int64>() <= 0 ? merge_limit_parts : limit_cnt_field.get<Int64>();
 }
 
-void SparkMergeTreeWriter::write(DB::Block & block)
+bool SparkMergeTreeWriter::useLocalStorage() const
+{
+    return !insert_without_local_storage && isRemoteStorage;
+}
+
+void SparkMergeTreeWriter::write(const DB::Block & block)
 {
     auto new_block = removeColumnSuffix(block);
     if (auto converter = ActionsDAG::makeConvertingActions(
             new_block.getColumnsWithTypeAndName(), header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Position))
         ExpressionActions(converter).execute(new_block);
 
-    if (auto add_block = squashing_transform->add(new_block))
+    bool has_part = chunkToPart(squashing->add({new_block.getColumns(), new_block.rows()}));
+
+    if (has_part && merge_after_insert)
+        checkAndMerge();
+}
+
+bool SparkMergeTreeWriter::chunkToPart(Chunk && chunk)
+{
+    if (chunk.hasChunkInfo())
     {
-        bool has_part = blockToPart(add_block);
-        if (has_part && merge_after_insert)
-            checkAndMerge();
+        Chunk squash_chunk = DB::Squashing::squash(std::move(chunk));
+        Block result = header.cloneWithColumns(squash_chunk.getColumns());
+        return blockToPart(result);
     }
+    return false;
 }
 
 bool SparkMergeTreeWriter::blockToPart(Block & block)
 {
-    auto blocks_with_partition
-        = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, metadata_snapshot, context);
+    auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, metadata_snapshot, context);
 
     if (blocks_with_partition.empty())
         return false;
@@ -154,7 +165,7 @@ void SparkMergeTreeWriter::manualFreeMemory(size_t before_write_memory)
     // it may alloc memory in current thread, and free on global thread.
     // Now, wo have not idea to clear global memory by used spark thread tracker.
     // So we manually correct the memory usage.
-    if (!isRemoteStorage)
+    if (isRemoteStorage && insert_without_local_storage)
         return;
 
     auto disk = storage->getStoragePolicy()->getAnyDisk();
@@ -180,12 +191,7 @@ void SparkMergeTreeWriter::manualFreeMemory(size_t before_write_memory)
 
 void SparkMergeTreeWriter::finalize()
 {
-    if (auto block = squashing_transform->add({}))
-    {
-        if (block.rows())
-            blockToPart(block);
-    }
-
+    chunkToPart(squashing->flush());
     if (merge_after_insert)
         finalizeMerge();
 
@@ -217,7 +223,7 @@ void SparkMergeTreeWriter::saveMetadata()
 
 void SparkMergeTreeWriter::commitPartToRemoteStorageIfNeeded()
 {
-    if (!isRemoteStorage)
+    if (!useLocalStorage())
         return;
 
     LOG_DEBUG(
@@ -287,8 +293,8 @@ void SparkMergeTreeWriter::finalizeMerge()
                 {
                     for (const auto & disk : storage->getDisks())
                     {
-                        auto full_path = storage->getFullPathOnDisk(disk);
-                        disk->removeRecursive(full_path + "/" + tmp_part);
+                        auto rel_path = storage->getRelativeDataPath() + "/" + tmp_part;
+                        disk->removeRecursive(rel_path);
                     }
                 });
         }

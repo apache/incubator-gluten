@@ -805,11 +805,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = List(
-    BloomFilterMightContainJointRewriteRule.apply,
-    ArrowScanReplaceRule.apply,
-    InputFileNameReplaceRule.apply
-  )
+  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = {
+    List(BloomFilterMightContainJointRewriteRule.apply, ArrowScanReplaceRule.apply)
+  }
 
   /**
    * Generate extended columnar pre-rules.
@@ -822,15 +820,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       buf += FlushableHashAggregateRule.apply
     }
     buf.result
-  }
-
-  /**
-   * Generate extended columnar post-rules.
-   *
-   * @return
-   */
-  override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
   }
 
   override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
@@ -858,7 +847,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       Sig[VeloxBloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
       Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG),
       Sig[TransformKeys](TRANSFORM_KEYS),
-      Sig[TransformValues](TRANSFORM_VALUES)
+      Sig[TransformValues](TRANSFORM_VALUES),
+      // For test purpose.
+      Sig[VeloxDummyExpression](VeloxDummyExpression.VELOX_DUMMY_EXPRESSION)
     )
   }
 

@@ -87,7 +87,7 @@ jobs:
       matrix:
         os: [ "ubuntu:20.04", "ubuntu:22.04" ]
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
-        java: [ "java-8", "java-17" ]
+        java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
         exclude:
           - spark: spark-3.2
@@ -96,8 +96,16 @@ jobs:
             java: java-17
           - spark: spark-3.5
             java: java-17
+          - spark: spark-3.2
+            java: java-11
+          - spark: spark-3.3
+            java: java-11
+          - spark: spark-3.4
+            java: java-11
           - os: ubuntu:22.04
             java: java-17
+          - os: ubuntu:22.04
+            java: java-11
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
@@ -112,14 +120,23 @@ jobs:
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Setup tzdata
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu:22.04" ]; then
+            apt-get update
+            TZ="Etc/GMT" DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
+          fi
       - name: Setup java and maven
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
             apt-get update && apt-get install -y openjdk-17-jdk maven
+            apt remove openjdk-11* -y
+          elif [ "${{ matrix.java }}" = "java-11" ]; then
+            apt-get update && apt-get install -y openjdk-11-jdk maven
           else
             apt-get update && apt-get install -y openjdk-8-jdk maven
+            apt remove openjdk-11* -y
           fi
-          apt remove openjdk-11* -y
           ls -l /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
       - name: Build and run TPCH/DS
         run: |
@@ -141,7 +158,7 @@ jobs:
       matrix:
         os: [ "centos:7", "centos:8" ]
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
-        java: [ "java-8", "java-17" ]
+        java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
         exclude:
           - spark: spark-3.2
@@ -150,8 +167,16 @@ jobs:
             java: java-17
           - spark: spark-3.5
             java: java-17
+          - spark: spark-3.2
+            java: java-11
+          - spark: spark-3.3
+            java: java-11
+          - spark: spark-3.4
+            java: java-11
           - os: centos:7
             java: java-17
+          - os: centos:7
+            java: java-11
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
@@ -175,6 +200,8 @@ jobs:
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
             yum update -y && yum install -y java-17-openjdk-devel wget
+          elif [ "${{ matrix.java }}" = "java-11" ]; then
+            yum update -y && yum install -y java-11-openjdk-devel wget
           else
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           fi
@@ -186,6 +213,8 @@ jobs:
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
           if [ "${{ matrix.java }}" = "java-17" ]; then
             echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk" >> $GITHUB_ENV
+          elif [ "${{ matrix.java }}" = "java-11" ]; then
+            echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk" >> $GITHUB_ENV
           else
             echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
           fi
@@ -492,7 +521,7 @@ jobs:
       fail-fast: false
       matrix:
         spark: ["spark-3.2"]
-        celeborn: ["celeborn-0.4.0", "celeborn-0.3.2"]
+        celeborn: ["celeborn-0.4.1", "celeborn-0.3.2-incubating"]
     runs-on: ubuntu-20.04
     container: ubuntu:22.04
     steps:
@@ -507,24 +536,29 @@ jobs:
         with:
           name: velox-arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
+      - name: Setup tzdata
+        run: |
+          apt-get update
+          TZ="Etc/GMT" DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
       - name: Setup java and maven
         run: |
           apt-get update && apt-get install -y openjdk-8-jdk maven wget
+          apt remove openjdk-11* -y
+          echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Pceleborn -DskipTests
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with ${{ matrix.celeborn }}
         run: |
-          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           EXTRA_PROFILE=""
           if [ "${{ matrix.celeborn }}" = "celeborn-0.4.0" ]; then
             EXTRA_PROFILE="-Pceleborn-0.4"
           fi
           echo "EXTRA_PROFILE: ${EXTRA_PROFILE}"
           cd /opt && mkdir -p celeborn && \
-          wget https://archive.apache.org/dist/incubator/celeborn/${{ matrix.celeborn }}-incubating/apache-${{ matrix.celeborn }}-incubating-bin.tgz && \
-          tar xzf apache-${{ matrix.celeborn }}-incubating-bin.tgz -C /opt/celeborn --strip-components=1 && cd celeborn && \
+          wget https://archive.apache.org/dist/celeborn/${{ matrix.celeborn }}/apache-${{ matrix.celeborn }}-bin.tgz && \
+          tar xzf apache-${{ matrix.celeborn }}-bin.tgz -C /opt/celeborn --strip-components=1 && cd celeborn && \
           mv ./conf/celeborn-env.sh.template ./conf/celeborn-env.sh && \
           bash -c "echo -e 'CELEBORN_MASTER_MEMORY=4g\nCELEBORN_WORKER_MEMORY=4g\nCELEBORN_WORKER_OFFHEAP_MEMORY=8g' > ./conf/celeborn-env.sh" && \
           bash -c "echo -e 'celeborn.worker.commitFiles.threads 128\nceleborn.worker.sortPartition.threads 64' > ./conf/celeborn-defaults.conf" && \
@@ -566,13 +600,11 @@ jobs:
       - name: Build Gluten Velox third party
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
-          cd ep/build-velox/src
-          ./get_velox.sh
           source /opt/rh/gcc-toolset-9/enable
-          ./build_arrow_deps_centos8.sh
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
-          cd $GITHUB_WORKSPACE/cpp
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
+          source ./dev/build_arrow.sh
+          install_arrow_deps
+          ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_tests=ON \
+              --build_examples=ON --build_benchmarks=ON --build_protobuf=ON
       - uses: actions/upload-artifact@v2
         with:
           name: velox-native-lib-centos-8-${{github.sha}}
