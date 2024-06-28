@@ -26,15 +26,19 @@ import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
 import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+import org.apache.spark.sql.types.{LongType, StringType}
+
+import scala.collection.mutable.Map
 
 /**
  * Converts a vanilla Spark plan node into Gluten plan node. Gluten plan is supposed to be executed
@@ -181,7 +185,138 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
       case other => other
     }
   }
+}
 
+case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
+  private def containsInputFileRelatedExpr(expr: Expression): Boolean = {
+    expr match {
+      case _: InputFileName | _: InputFileBlockStart | _: InputFileBlockLength => true
+      case _ => expr.children.exists(containsInputFileRelatedExpr)
+    }
+  }
+
+  private def rewriteExpr(
+      expr: Expression,
+      replacedExprs: Map[String, AttributeReference]): Expression = {
+    expr match {
+      case _: InputFileName =>
+        replacedExprs.getOrElseUpdate(
+          expr.prettyName,
+          AttributeReference(expr.prettyName, StringType, false)())
+      case _: InputFileBlockStart =>
+        replacedExprs.getOrElseUpdate(
+          expr.prettyName,
+          AttributeReference(expr.prettyName, LongType, false)())
+      case _: InputFileBlockLength =>
+        replacedExprs.getOrElseUpdate(
+          expr.prettyName,
+          AttributeReference(expr.prettyName, LongType, false)())
+      case other =>
+        other.withNewChildren(other.children.map(child => rewriteExpr(child, replacedExprs)))
+    }
+  }
+
+  private def addMetadataCol(
+      plan: SparkPlan,
+      replacedExprs: Map[String, AttributeReference]): SparkPlan = {
+    def genNewOutput(output: Seq[Attribute]): Seq[Attribute] = {
+      var newOutput = output
+      for ((_, newAttr) <- replacedExprs) {
+        if (!newOutput.exists(attr => attr.exprId == newAttr.exprId)) {
+          newOutput = newOutput :+ newAttr
+        }
+      }
+      newOutput
+    }
+    def genNewProjectList(projectList: Seq[NamedExpression]): Seq[NamedExpression] = {
+      var newProjectList = projectList
+      for ((_, newAttr) <- replacedExprs) {
+        if (!newProjectList.exists(attr => attr.exprId == newAttr.exprId)) {
+          newProjectList = newProjectList :+ newAttr.toAttribute
+        }
+      }
+      newProjectList
+    }
+
+    plan match {
+      case f: FileSourceScanExec =>
+        f.copy(output = genNewOutput(f.output))
+      case f: FileSourceScanExecTransformer =>
+        f.copy(output = genNewOutput(f.output))
+      case b: BatchScanExec =>
+        b.copy(output = genNewOutput(b.output).asInstanceOf[Seq[AttributeReference]])
+      case b: BatchScanExecTransformer =>
+        b.copy(output = genNewOutput(b.output).asInstanceOf[Seq[AttributeReference]])
+      case p @ ProjectExec(projectList, child) =>
+        p.copy(genNewProjectList(projectList), addMetadataCol(child, replacedExprs))
+      case p @ ProjectExecTransformer(projectList, child) =>
+        p.copy(genNewProjectList(projectList), addMetadataCol(child, replacedExprs))
+      case _ => plan.withNewChildren(plan.children.map(addMetadataCol(_, replacedExprs)))
+    }
+  }
+
+  private def tryOffloadProjectExecWithInputFileRelatedExprs(
+      projectExec: ProjectExec): SparkPlan = {
+    def findScanNodes(plan: SparkPlan): Seq[SparkPlan] = {
+      plan.collect {
+        case f @ (_: FileSourceScanExec | _: AbstractFileSourceScanExec |
+            _: DataSourceV2ScanExecBase) =>
+          f
+      }
+    }
+    val addHint = AddTransformHintRule()
+    val newProjectList = projectExec.projectList.filterNot(containsInputFileRelatedExpr)
+    val newProjectExec = ProjectExec(newProjectList, projectExec.child)
+    addHint.apply(newProjectExec)
+    if (TransformHints.isNotTransformable(newProjectExec)) {
+      // Project is still not transformable after remove `input_file_name` expressions.
+      projectExec
+    } else {
+      // the project with `input_file_name` expression should have at most
+      // one data source, reference:
+      // https://github.com/apache/spark/blob/e459674127e7b21e2767cc62d10ea6f1f941936c
+      // /sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/rules.scala#L506
+      val leafScans = findScanNodes(projectExec)
+      assert(leafScans.size <= 1)
+      if (leafScans.isEmpty || TransformHints.isNotTransformable(leafScans(0))) {
+        // It means
+        // 1. projectExec has `input_file_name` but no scan child.
+        // 2. It has scan child node but the scan node fallback.
+        projectExec
+      } else {
+        val replacedExprs = scala.collection.mutable.Map[String, AttributeReference]()
+        val newProjectList = projectExec.projectList.map {
+          expr => rewriteExpr(expr, replacedExprs).asInstanceOf[NamedExpression]
+        }
+        val newChild = addMetadataCol(projectExec.child, replacedExprs)
+        logDebug(
+          s"Columnar Processing for ${projectExec.getClass} with " +
+            s"ProjectList ${projectExec.projectList} is currently supported.")
+        ProjectExecTransformer(newProjectList, newChild)
+      }
+    }
+  }
+
+  private def genProjectExec(projectExec: ProjectExec): SparkPlan = {
+    if (
+      TransformHints.isNotTransformable(projectExec) &&
+      BackendsApiManager.getSettings.supportNativeInputFileRelatedExpr() &&
+      projectExec.projectList.exists(containsInputFileRelatedExpr)
+    ) {
+      tryOffloadProjectExecWithInputFileRelatedExprs(projectExec)
+    } else if (TransformHints.isNotTransformable(projectExec)) {
+      projectExec
+    } else {
+      logDebug(s"Columnar Processing for ${projectExec.getClass} is currently supported.")
+      ProjectExecTransformer(projectExec.projectList, projectExec.child)
+    }
+  }
+
+  override def offload(plan: SparkPlan): SparkPlan = plan match {
+    case p: ProjectExec =>
+      genProjectExec(p)
+    case other => other
+  }
 }
 
 // Filter transformation.
@@ -261,10 +396,6 @@ object OffloadOthers {
         case plan: CoalesceExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           ColumnarCoalesceExec(plan.numPartitions, plan.child)
-        case plan: ProjectExec =>
-          val columnarChild = plan.child
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          ProjectExecTransformer(plan.projectList, columnarChild)
         case plan: SortAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HashAggregateExecBaseTransformer.from(plan) {

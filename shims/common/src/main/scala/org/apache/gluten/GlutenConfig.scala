@@ -37,7 +37,6 @@ case class GlutenNumaBindingInfo(
 class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
-  def enableInputFileNameReplaceRule: Boolean = conf.getConf(INPUT_FILE_NAME_REPLACE_RULE_ENABLED)
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
   def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
@@ -766,16 +765,6 @@ object GlutenConfig {
         " Recommend to enable/disable Gluten through the setting for spark.plugins.")
       .booleanConf
       .createWithDefault(GLUTEN_ENABLE_BY_DEFAULT)
-
-  val INPUT_FILE_NAME_REPLACE_RULE_ENABLED =
-    buildConf("spark.gluten.sql.enableInputFileNameReplaceRule")
-      .internal()
-      .doc(
-        "Experimental: This config apply for velox backend to specify whether to enable " +
-          "inputFileNameReplaceRule to support offload input_file_name " +
-          "expression to native.")
-      .booleanConf
-      .createWithDefault(false)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =

@@ -645,13 +645,9 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
   }
 
   test("Test input_file_name function") {
-    withSQLConf(
-      "spark.gluten.sql.enableInputFileNameReplaceRule" -> "true"
-    ) {
-      runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                           | from lineitem limit 100""".stripMargin) {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 

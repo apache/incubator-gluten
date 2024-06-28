@@ -54,6 +54,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     RasOffload.from[BaseJoinExec](OffloadJoin()).toRule,
     RasOffloadHashAggregate.toRule,
     RasOffloadFilter.toRule,
+    RasOffloadProject.toRule,
     RasOffload.from[DataSourceV2ScanExecBase](OffloadOthers()).toRule,
     RasOffload.from[DataSourceScanExec](OffloadOthers()).toRule,
     RasOffload
