@@ -60,7 +60,8 @@ object Runtime {
       JniUtils.toNativeConf(
         GlutenConfig.getNativeSessionConf(
           BackendsApiManager.getSettings.getBackendConfigPrefix,
-          GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs))))
+          GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))
+    )
 
     spillers.append(new Spiller() {
       override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
@@ -104,7 +105,8 @@ object Runtime {
               override def name: String = resourceName()
 
               override def stats: MemoryUsageStats = collectMemoryUsage()
-            }))
+            }
+          ))
       }
 
       RuntimeJniWrapper.releaseRuntime(handle)
@@ -116,7 +118,8 @@ object Runtime {
               " leak, size: %s. ",
             name,
             rl.toString,
-            SparkMemoryUtil.bytesToString(rl.getUsedBytes)))
+            SparkMemoryUtil.bytesToString(rl.getUsedBytes)
+          ))
       }
     }
 
