@@ -905,7 +905,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("LOCATE")
     .exclude("LPAD/RPAD")
     .exclude("REPEAT")
-    .exclude("length for string / binary")
     .exclude("ParseUrl")
     .exclude("SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url")
     .excludeGlutenTest("SPARK-40213: ascii for Latin-1 Supplement characters")

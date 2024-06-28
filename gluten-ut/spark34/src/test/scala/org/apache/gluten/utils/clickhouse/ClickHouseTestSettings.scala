@@ -768,7 +768,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("translate")
     .exclude("LOCATE")
     .exclude("REPEAT")
-    .exclude("length for string / binary")
     .exclude("ParseUrl")
     .exclude("SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url")
   enableSuite[GlutenDataSourceV2DataFrameSessionCatalogSuite]
