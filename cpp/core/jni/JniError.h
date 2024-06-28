@@ -31,7 +31,7 @@
 #define JNI_METHOD_END(fallback_expr)                                             \
   }                                                                               \
   catch (std::exception & e) {                                                    \
-    env->ThrowNew(gluten::getJniErrorState()->runtimeExceptionClass(), e.what()); \
+    env->ThrowNew(gluten::getJniErrorState()->glutenExceptionClass(), e.what());  \
     return fallback_expr;                                                         \
   }
 // macro ended
@@ -53,6 +53,8 @@ class JniErrorState {
 
   jclass illegalAccessExceptionClass();
 
+  jclass glutenExceptionClass();
+
  private:
   void initialize(JNIEnv* env);
 
@@ -61,6 +63,7 @@ class JniErrorState {
   jclass unsupportedOperationExceptionClass_ = nullptr;
   jclass illegalAccessExceptionClass_ = nullptr;
   jclass illegalArgumentExceptionClass_ = nullptr;
+  jclass glutenExceptionClass_ = nullptr;
   JavaVM* vm_;
   bool initialized_{false};
   bool closed_{false};
