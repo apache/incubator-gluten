@@ -38,7 +38,7 @@ public:
     explicit FunctionParserLog(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
     ~FunctionParserLog() override = default;
 
-    static constexpr auto name = "logarithm";
+    static constexpr auto name = "log";
 
     String getName() const override { return name; }
 
