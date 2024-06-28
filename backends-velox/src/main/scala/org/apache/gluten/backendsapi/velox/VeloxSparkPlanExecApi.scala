@@ -16,26 +16,28 @@
  */
 package org.apache.gluten.backendsapi.velox
 
-import org.apache.commons.lang3.ClassUtils
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.SparkPlanExecApi
 import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
-import org.apache.gluten.expression.ExpressionNames.{TRANSFORM_KEYS, TRANSFORM_VALUES}
 import org.apache.gluten.expression._
+import org.apache.gluten.expression.ExpressionNames.{TRANSFORM_KEYS, TRANSFORM_VALUES}
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar.TransformHints
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.extension.columnar.transition.ConventionFunc.BatchOverride
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializer}
+import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
+
+import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
+import org.apache.spark.shuffle.utils.ShuffleUtil
+import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -59,10 +61,11 @@ import org.apache.spark.sql.expression.{UDFExpression, UDFResolver, UserDefinedA
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.{ShuffleDependency, SparkException}
+
+import org.apache.commons.lang3.ClassUtils
 
 import javax.ws.rs.core.UriBuilder
+
 import scala.collection.mutable.ListBuffer
 
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
@@ -73,9 +76,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
-   * Overrides [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using
-   * to determine the convention (its row-based processing / columnar-batch processing support) of
-   * a plan with a user-defined function that accepts a plan then returns batch type it outputs.
+   * Overrides [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using to
+   * determine the convention (its row-based processing / columnar-batch processing support) of a
+   * plan with a user-defined function that accepts a plan then returns batch type it outputs.
    */
   override def batchTypeFunc(): BatchOverride = {
     case i: InMemoryTableScanExec
@@ -155,8 +158,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       original.dataType match {
         case LongType | IntegerType | ShortType | ByteType =>
         case _ =>
-          throw new GlutenNotSupportException(
-            s"$substraitExprName with try mode is not supported")
+          throw new GlutenNotSupportException(s"$substraitExprName with try mode is not supported")
       }
       // Offload to velox for only IntegralTypes.
       GenericExpressionTransformer(
@@ -683,8 +685,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       substraitExprName: String,
       children: Seq[ExpressionTransformer],
       expr: Expression): ExpressionTransformer = {
-    if (SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
-        != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString) {
+    if (
+      SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
+        != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString
+    ) {
       throw new GlutenNotSupportException("Only EXCEPTION policy is supported!")
     }
     GenericExpressionTransformer(substraitExprName, children, expr)
@@ -834,7 +838,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       Sig[TransformKeys](TRANSFORM_KEYS),
       Sig[TransformValues](TRANSFORM_VALUES),
       // For test purpose.
-      Sig[VeloxDummyExpression](VeloxDummyExpression.VELOX_DUMMY_EXPRESSION))
+      Sig[VeloxDummyExpression](VeloxDummyExpression.VELOX_DUMMY_EXPRESSION)
+    )
   }
 
   override def genInjectedFunctions()
