@@ -537,8 +537,8 @@ JNIEXPORT jobject JNICALL
 Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToRowConvert( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlong batchHandle,
-    jlong c2rHandle) {
+    jlong c2rHandle,
+    jlong batchHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
   auto columnarToRowConverter = ObjectStore::retrieve<ColumnarToRowConverter>(c2rHandle);
