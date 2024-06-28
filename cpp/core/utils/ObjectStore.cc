@@ -26,6 +26,7 @@ gluten::ObjectStore::~ObjectStore() {
     ResourceHandle handle = *itr;
     store_.erase(handle);
   }
+  const std::lock_guard<std::mutex> lockS(storesMutex());
   stores().erase(storeId_);
 }
 
