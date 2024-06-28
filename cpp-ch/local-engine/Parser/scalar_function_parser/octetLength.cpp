@@ -28,19 +28,18 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-class FunctionParserBitLength : public FunctionParser
+class FunctionParserOctetLength : public FunctionParser
 {
 public:
-    explicit FunctionParserBitLength(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
-    ~FunctionParserBitLength() override = default;
+    explicit FunctionParserOctetLength(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    ~FunctionParserOctetLength() override = default;
 
-    static constexpr auto name = "bit_length";
+    static constexpr auto name = "octet_length";
 
     String getName() const override { return name; }
 
     const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const override
     {
-        // parse bit_length(a) as octet_length(a) * 8
         auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
         if (parsed_args.size() != 1)
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly one arguments", getName());
@@ -52,14 +51,10 @@ public:
             const auto * string_type_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), "Nullable(String)");
             new_arg = toFunctionNode(actions_dag, "CAST", {arg, string_type_node});
         }
-
         const auto * octet_length_node = toFunctionNode(actions_dag, "octet_length", {new_arg});
-        const auto * const_eight_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeInt32>(), 8);
-        const auto * result_node = toFunctionNode(actions_dag, "multiply", {octet_length_node, const_eight_node});
-
-        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);;
+        return convertNodeTypeIfNeeded(substrait_func, octet_length_node, actions_dag);;
     }
 };
 
-static FunctionParserRegister<FunctionParserBitLength> register_bit_length;
+static FunctionParserRegister<FunctionParserOctetLength> register_octet_length;
 }
