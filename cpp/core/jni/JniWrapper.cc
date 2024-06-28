@@ -756,7 +756,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
 //  was called.
 //
 // Additionally, as in Gluten we have principle that runtime / mm that were created earlier will be released
-//  later, this FILO practice is what helps the runtime that took ownership be able to access the data
+//  later, this FILO practice is what helps the runtime that took ownership be able to access the data constantly
 //  because the original runtime will live longer than itself.
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_takeOwnership( // NOLINT
     JNIEnv* env,
