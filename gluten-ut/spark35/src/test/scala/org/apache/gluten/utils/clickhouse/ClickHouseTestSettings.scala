@@ -458,6 +458,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string overlay function")
     .exclude("binary overlay function")
     .exclude("string parse_url function")
+    .exclude("string / binary length function")
+    .exclude("SPARK-36751: add octet length api for scala")
+    .exclude("SPARK-36751: add bit length api for scala")
   enableSuite[GlutenSubquerySuite]
     .exclude("SPARK-15370: COUNT bug in subquery in subquery in subquery")
     .exclude("SPARK-26893: Allow pushdown of partition pruning subquery filters to file source")
