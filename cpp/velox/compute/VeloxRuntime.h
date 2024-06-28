@@ -99,9 +99,7 @@ class VeloxRuntime final : public Runtime {
       std::vector<facebook::velox::core::PlanNodeId>& streamIds);
 
  private:
-  std::unique_ptr<AllocationListener> listener_;
-  std::shared_ptr<VeloxMemoryManager> memoryManager_;
-
+  VeloxMemoryManager* vmm_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
   std::shared_ptr<facebook::velox::Config> veloxCfg_;
   bool debugModeEnabled_{false};

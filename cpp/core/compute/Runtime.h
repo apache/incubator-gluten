@@ -64,7 +64,9 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       const std::unordered_map<std::string, std::string>& sessionConf = {});
   static void release(Runtime*);
 
-  Runtime(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
+  Runtime(std::shared_ptr<MemoryManager> memoryManager, const std::unordered_map<std::string, std::string>& confMap)
+      : memoryManager_(memoryManager), confMap_(confMap) {}
+
   virtual ~Runtime() = default;
 
   virtual void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) = 0;
@@ -89,7 +91,9 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
   virtual std::shared_ptr<ColumnarBatch> select(std::shared_ptr<ColumnarBatch>, std::vector<int32_t>) = 0;
 
-  virtual MemoryManager* memoryManager() = 0;
+  virtual MemoryManager* memoryManager() {
+    return memoryManager_.get();
+  };
 
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row.
@@ -129,6 +133,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   }
 
  protected:
+  std::shared_ptr<MemoryManager> memoryManager_;
   std::unique_ptr<ObjectStore> objStore_ = ObjectStore::create();
   std::unordered_map<std::string, std::string> confMap_; // Session conf map
 
