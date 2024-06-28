@@ -750,15 +750,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-// Note: Underlying memory of returned batch still holds reference to the original memory manager. As
-//  a result, once its original resident runtime / mm is released, data may become invalid. Currently, it's
-//  the caller's responsibility to make sure the original runtime / mm keep alive even this function
-//  was called.
-//
-// Additionally, as in Gluten we have principle that runtime / mm that were created earlier will be released
-//  later, this FILO practice is what helps the runtime that took ownership be able to access the data constantly
-//  because the original runtime will live longer than itself.
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_takeOwnership( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_obtainOwnership( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong batchHandle) {
@@ -766,7 +758,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   auto ctx = gluten::getRuntime(env, wrapper);
   auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   auto newHandle = ctx->saveObject(batch);
-  ObjectStore::release(batchHandle);
   return newHandle;
   JNI_METHOD_END(-1L)
 }

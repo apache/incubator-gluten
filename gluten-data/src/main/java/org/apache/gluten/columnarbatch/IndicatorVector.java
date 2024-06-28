@@ -44,7 +44,7 @@ public class IndicatorVector extends IndicatorVectorBase {
       return;
     }
     if (refCnt.decrementAndGet() == 0) {
-      jniwrapper.close(handle);
+      jniWrapper.close(handle);
     }
   }
 }

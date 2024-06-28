@@ -28,25 +28,45 @@ import org.apache.spark.unsafe.types.UTF8String;
 public abstract class IndicatorVectorBase extends ColumnVector {
   private final Runtime runtime;
   protected final long handle;
-  protected final ColumnarBatchJniWrapper jniwrapper;
+  protected final ColumnarBatchJniWrapper jniWrapper;
 
   protected IndicatorVectorBase(Runtime runtime, long handle) {
     super(DataTypes.NullType);
     this.runtime = runtime;
-    this.jniwrapper = ColumnarBatchJniWrapper.create(runtime);
-    this.handle = jniwrapper.takeOwnership(handle);
+    this.jniWrapper = ColumnarBatchJniWrapper.create(runtime);
+    this.handle = takeOwnership(handle);
+  }
+
+  private long takeOwnership(long handle) {
+    // Note: Underlying memory of returned batch still holds
+    //  reference to the original memory manager. As
+    //  a result, once its original resident runtime / mm is
+    //  released, data may become invalid. Currently, it's
+    //  the caller's responsibility to make sure the original
+    //  runtime / mm keep alive even this function
+    //  was called.
+    //
+    // Additionally, as in Gluten we have principle that runtime
+    //  mm that were created earlier will be released
+    //  later, this FILO practice is what helps the runtime that
+    //  took ownership be able to access the data constantly
+    //  because the original runtime will live longer than
+    //  itself.
+    long newHandle = jniWrapper.obtainOwnership(handle);
+    jniWrapper.close(handle);
+    return newHandle;
   }
 
   public String getType() {
-    return jniwrapper.getType(handle);
+    return jniWrapper.getType(handle);
   }
 
   public long getNumColumns() {
-    return jniwrapper.numColumns(handle);
+    return jniWrapper.numColumns(handle);
   }
 
   public long getNumRows() {
-    return jniwrapper.numRows(handle);
+    return jniWrapper.numRows(handle);
   }
 
   abstract long refCnt();
