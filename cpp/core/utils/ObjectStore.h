@@ -39,16 +39,6 @@ constexpr static ObjectHandle kInvalidObjectHandle = -1;
 // a shared-ptr's lifecycle to a Java-side object or some kind of resource manager.
 class ObjectStore {
  public:
-  static std::mutex& storesMutex() {
-    static std::mutex mtx;
-    return mtx;
-  }
-
-  static ResourceMap<ObjectStore*>& stores() {
-    static ResourceMap<ObjectStore*> stores;
-    return stores;
-  }
-
   static std::unique_ptr<ObjectStore> create() {
     const std::lock_guard<std::mutex> lockS(storesMutex());
     StoreHandle nextId = stores().nextId();
@@ -84,6 +74,16 @@ class ObjectStore {
   ObjectHandle save(std::shared_ptr<void> obj);
 
  private:
+  static std::mutex& storesMutex() {
+    static std::mutex mtx;
+    return mtx;
+  }
+
+  static ResourceMap<ObjectStore*>& stores() {
+    static ResourceMap<ObjectStore*> stores;
+    return stores;
+  }
+
   ObjectHandle toObjHandle(ResourceHandle rh) {
     ObjectHandle prefix = static_cast<ObjectHandle>(storeId_) << (sizeof(ResourceHandle) * 8);
     ObjectHandle objHandle = prefix + rh;
