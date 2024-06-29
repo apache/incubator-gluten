@@ -468,7 +468,7 @@ String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
 
 using namespace DB;
 
-std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string & plan)
+std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string_view plan)
 {
     std::map<std::string, std::string> ch_backend_conf;
     if (plan.empty())
@@ -972,7 +972,7 @@ void BackendInitializerUtil::init(const std::string & plan)
         });
 }
 
-void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, const std::string & plan)
+void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, const std::string_view plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
 
