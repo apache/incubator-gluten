@@ -290,7 +290,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_BatchIterator_nativeCancel(JNIE
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::LocalExecutor::removeExecutor(executor_address);
-    local_engine::LocalExecutor * executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
+    auto *executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
     executor->cancel();
     LOG_INFO(&Poco::Logger::get("jni"), "Cancel LocalExecutor {}", reinterpret_cast<intptr_t>(executor));
     LOCAL_ENGINE_JNI_METHOD_END(env, )
@@ -300,7 +300,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_BatchIterator_nativeClose(JNIEn
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::LocalExecutor::removeExecutor(executor_address);
-    auto executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
+    auto *executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
     LOG_INFO(&Poco::Logger::get("jni"), "Finalize LocalExecutor {}", reinterpret_cast<intptr_t>(executor));
     delete executor;
     LOCAL_ENGINE_JNI_METHOD_END(env, )
