@@ -111,9 +111,6 @@ static jmethodID block_stripes_constructor;
 static jclass split_result_class;
 static jmethodID split_result_constructor;
 
-static jclass native_metrics_class;
-static jmethodID native_metrics_constructor;
-
 JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 {
     JNIEnv * env;
@@ -178,10 +175,6 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::ReservationListenerWrapper::reservation_listener_currentMemory
         = local_engine::GetMethodID(env, local_engine::ReservationListenerWrapper::reservation_listener_class, "currentMemory", "()J");
 
-
-    native_metrics_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/metrics/NativeMetrics;");
-    native_metrics_constructor = local_engine::GetMethodID(env, native_metrics_class, "<init>", "(Ljava/lang/String;)V");
-
     local_engine::BroadCastJoinBuilder::init(env);
 
     local_engine::JNIUtils::vm = vm;
@@ -208,7 +201,6 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
     env->DeleteGlobalRef(local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class);
     env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
     env->DeleteGlobalRef(local_engine::ReservationListenerWrapper::reservation_listener_class);
-    env->DeleteGlobalRef(native_metrics_class);
 }
 
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jobject, jbyteArray conf_plan)
@@ -314,7 +306,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_BatchIterator_nativeClose(JNIEn
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-JNIEXPORT jobject Java_org_apache_gluten_vectorized_BatchIterator_nativeFetchMetrics(JNIEnv * env, jobject /*obj*/, jlong executor_address)
+JNIEXPORT jstring Java_org_apache_gluten_vectorized_BatchIterator_nativeFetchMetrics(JNIEnv * env, jobject /*obj*/, jlong executor_address)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     /// Collect metrics only if optimizations are disabled, otherwise coredump would happen.
@@ -322,8 +314,7 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_BatchIterator_nativeFetchMet
     const auto metric = executor->getMetric();
     const String metrics_json = metric ? local_engine::RelMetricSerializer::serializeRelMetric(metric) : "";
 
-    const jstring result_metrics = local_engine::charTojstring(env, metrics_json.c_str());
-    return env->NewObject(native_metrics_class, native_metrics_constructor, result_metrics);
+    return local_engine::charTojstring(env, metrics_json.c_str());
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }
 
