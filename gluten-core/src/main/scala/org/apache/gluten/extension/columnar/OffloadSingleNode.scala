@@ -30,7 +30,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference,
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2ScanExecBase}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
@@ -87,9 +87,9 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
         case _: TransformSupport =>
           // If the child is transformable, transform aggregation as well.
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)()
+          HashAggregateExecBaseTransformer.from(plan)
         case p: SparkPlan if PlanUtil.isGlutenTableCache(p) =>
-          HashAggregateExecBaseTransformer.from(plan)()
+          HashAggregateExecBaseTransformer.from(plan)
         case _ =>
           // If the child is not transformable, do not transform the agg.
           TransformHints.tagNotTransformable(plan, "child output schema is empty")
@@ -97,7 +97,7 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
       }
     } else {
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      HashAggregateExecBaseTransformer.from(plan)()
+      HashAggregateExecBaseTransformer.from(plan)
     }
   }
 }
@@ -423,18 +423,6 @@ object OffloadOthers {
         case plan: CoalesceExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           ColumnarCoalesceExec(plan.numPartitions, plan.child)
-        case plan: SortAggregateExec =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan) {
-            case sort: SortExecTransformer if !sort.global =>
-              sort.child
-            case sort: SortExec if !sort.global =>
-              sort.child
-            case other => other
-          }
-        case plan: ObjectHashAggregateExec =>
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)()
         case plan: UnionExec =>
           val children = plan.children
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")

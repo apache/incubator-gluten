@@ -28,7 +28,6 @@ import org.apache.gluten.utils.LogLevelUtil
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.aggregate.{ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 import org.apache.spark.sql.execution.exchange.Exchange
@@ -64,8 +63,6 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
       .toRule,
     RasOffload.from[CoalesceExec](OffloadOthers()).toRule,
     RasOffload.from[ProjectExec](OffloadOthers()).toRule,
-    RasOffload.from[SortAggregateExec](OffloadOthers()).toRule,
-    RasOffload.from[ObjectHashAggregateExec](OffloadOthers()).toRule,
     RasOffload.from[UnionExec](OffloadOthers()).toRule,
     RasOffload.from[ExpandExec](OffloadOthers()).toRule,
     RasOffload.from[WriteFilesExec](OffloadOthers()).toRule,

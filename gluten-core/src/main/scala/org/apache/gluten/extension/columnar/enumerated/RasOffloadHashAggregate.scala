@@ -19,16 +19,16 @@ package org.apache.gluten.extension.columnar.enumerated
 import org.apache.gluten.execution.HashAggregateExecBaseTransformer
 
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, HashAggregateExec}
 
 object RasOffloadHashAggregate extends RasOffload {
   override def offload(node: SparkPlan): SparkPlan = node match {
     case agg: HashAggregateExec =>
-      val out = HashAggregateExecBaseTransformer.from(agg)()
+      val out = HashAggregateExecBaseTransformer.from(agg)
       out
     case other => other
   }
 
   override def typeIdentifier(): RasOffload.TypeIdentifier =
-    RasOffload.TypeIdentifier.of[HashAggregateExec]
+    RasOffload.TypeIdentifier.of[BaseAggregateExec]
 }

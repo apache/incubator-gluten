@@ -33,7 +33,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, QueryStageExec}
-import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
@@ -353,13 +353,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             .genFilterExecTransformer(plan.condition, plan.child)
           transformer.doValidate().tagOnFallback(plan)
         case plan: HashAggregateExec =>
-          val transformer = HashAggregateExecBaseTransformer.from(plan)()
-          transformer.doValidate().tagOnFallback(plan)
-        case plan: SortAggregateExec =>
-          val transformer = HashAggregateExecBaseTransformer.from(plan)()
-          transformer.doValidate().tagOnFallback(plan)
-        case plan: ObjectHashAggregateExec =>
-          val transformer = HashAggregateExecBaseTransformer.from(plan)()
+          val transformer = HashAggregateExecBaseTransformer.from(plan)
           transformer.doValidate().tagOnFallback(plan)
         case plan: UnionExec =>
           val transformer = ColumnarUnionExec(plan.children)
