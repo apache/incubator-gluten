@@ -84,11 +84,11 @@ class GlutenReplaceHashWithSortAggSuite
     withTempView("t1", "t2") {
       spark.range(100).selectExpr("id as key").createOrReplaceTempView("t1")
       spark.range(50).selectExpr("id as key").createOrReplaceTempView("t2")
-      Seq("COUNT", "COLLECT_LIST").foreach {
-        aggExpr =>
+      Seq(("COUNT", 0, 1, 2, 0), ("COLLECT_LIST", 2, 0, 2, 0)).foreach {
+        aggExprInfo =>
           val query =
             s"""
-               |SELECT key, $aggExpr(key)
+               |SELECT key, ${aggExprInfo._1}(key)
                |FROM
                |(
                |   SELECT /*+ SHUFFLE_MERGE(t1) */ t1.key AS key
@@ -98,7 +98,7 @@ class GlutenReplaceHashWithSortAggSuite
                |)
                |GROUP BY key
            """.stripMargin
-          checkAggs(query, 2, 0, 2, 0)
+          checkAggs(query, aggExprInfo._2, aggExprInfo._3, aggExprInfo._4, aggExprInfo._5)
       }
     }
   }
