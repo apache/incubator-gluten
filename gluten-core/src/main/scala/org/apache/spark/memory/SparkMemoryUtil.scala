@@ -44,6 +44,10 @@ object SparkMemoryUtil {
   consumersField.setAccessible(true)
   taskIdField.setAccessible(true)
 
+  def bytesToString(size: Long): String = {
+    Utils.bytesToString(size)
+  }
+
   // We assume storage memory can be fully transferred to execution memory so far
   def getCurrentAvailableOffHeapMemory: Long = {
     val mm = SparkEnv.get.memoryManager
