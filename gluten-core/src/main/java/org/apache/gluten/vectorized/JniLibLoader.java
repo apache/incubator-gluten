@@ -19,6 +19,7 @@ package org.apache.gluten.vectorized;
 import org.apache.gluten.exception.GlutenException;
 
 import org.apache.spark.util.GlutenShutdownManager;
+import org.apache.spark.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,6 +78,13 @@ public class JniLibLoader {
   }
 
   public static synchronized void forceUnloadAll() {
+    if (Utils.isTesting()) {
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
     List<String> loaded = new ArrayList<>(REQUIRE_UNLOAD_LIBRARY_PATHS);
     Collections.reverse(loaded); // use reversed order to unload
     loaded.forEach(JniLibLoader::unloadFromPath);
