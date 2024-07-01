@@ -21,7 +21,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
-import org.apache.gluten.extension.columnar.FallbackHints.EncodeTransformableTagImplicits
+import org.apache.gluten.extension.columnar.FallbackTags.EncodeFallbackTagImplicits
 import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -45,19 +45,19 @@ import org.apache.spark.sql.types.StringType
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-sealed trait FallbackHint {
+sealed trait FallbackTag {
   val stacktrace: Option[String] =
-    if (FallbackHints.DEBUG) {
+    if (FallbackTags.DEBUG) {
       Some(ExceptionUtils.getStackTrace(new Throwable()))
     } else None
 }
 
 case class TRANSFORM_UNSUPPORTED(reason: Option[String], appendReasonIfExists: Boolean = true)
-  extends FallbackHint
+  extends FallbackTag
 
-object FallbackHints {
-  val TAG: TreeNodeTag[FallbackHint] =
-    TreeNodeTag[FallbackHint]("org.apache.gluten.fallbackhint")
+object FallbackTags {
+  val TAG: TreeNodeTag[FallbackTag] =
+    TreeNodeTag[FallbackTag]("org.apache.gluten.FallbackTag")
 
   val DEBUG = false
 
@@ -69,8 +69,8 @@ object FallbackHints {
    * validation rule. So user should not consider the plan "transformable" unless all validation
    * rules are passed.
    */
-  def isNotTransformable(plan: SparkPlan): Boolean = {
-    getHintOption(plan) match {
+  def nonEmpty(plan: SparkPlan): Boolean = {
+    getTagOption(plan) match {
       case Some(TRANSFORM_UNSUPPORTED(_, _)) => true
       case _ => false
     }
@@ -82,10 +82,10 @@ object FallbackHints {
    * within Gluten transformers. If false, the plan node will be guaranteed fallback to Vanilla plan
    * node while being implemented.
    */
-  def maybeTransformable(plan: SparkPlan): Boolean = !isNotTransformable(plan)
+  def maybeOffloadable(plan: SparkPlan): Boolean = !nonEmpty(plan)
 
-  def tag(plan: SparkPlan, hint: FallbackHint): Unit = {
-    val mergedHint = getHintOption(plan)
+  def tag(plan: SparkPlan, hint: FallbackTag): Unit = {
+    val mergedHint = getTagOption(plan)
       .map {
         case originalHint @ TRANSFORM_UNSUPPORTED(Some(originalReason), originAppend) =>
           hint match {
@@ -117,33 +117,33 @@ object FallbackHints {
     plan.unsetTagValue(TAG)
   }
 
-  def tagNotTransformable(plan: SparkPlan, validationResult: ValidationResult): Unit = {
+  def add(plan: SparkPlan, validationResult: ValidationResult): Unit = {
     if (!validationResult.isValid) {
       tag(plan, TRANSFORM_UNSUPPORTED(validationResult.reason))
     }
   }
 
-  def tagNotTransformable(plan: SparkPlan, reason: String): Unit = {
+  def add(plan: SparkPlan, reason: String): Unit = {
     tag(plan, TRANSFORM_UNSUPPORTED(Some(reason)))
   }
 
-  def tagAllNotTransformable(plan: SparkPlan, hint: TRANSFORM_UNSUPPORTED): Unit = {
+  def addRecursively(plan: SparkPlan, hint: TRANSFORM_UNSUPPORTED): Unit = {
     plan.foreach {
       case _: GlutenPlan => // ignore
       case other => tag(other, hint)
     }
   }
 
-  def getHint(plan: SparkPlan): FallbackHint = {
-    getHintOption(plan).getOrElse(
+  def getTag(plan: SparkPlan): FallbackTag = {
+    getTagOption(plan).getOrElse(
       throw new IllegalStateException("Transform hint tag not set in plan: " + plan.toString()))
   }
 
-  def getHintOption(plan: SparkPlan): Option[FallbackHint] = {
+  def getTagOption(plan: SparkPlan): Option[FallbackTag] = {
     plan.getTagValue(TAG)
   }
 
-  implicit class EncodeTransformableTagImplicits(validationResult: ValidationResult) {
+  implicit class EncodeFallbackTagImplicits(validationResult: ValidationResult) {
     def tagOnFallback(plan: SparkPlan): Unit = {
       if (validationResult.isValid) {
         return
@@ -157,7 +157,7 @@ object FallbackHints {
 case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
     if (GlutenConfig.getConf.enableAnsiMode) {
-      plan.foreach(FallbackHints.tagNotTransformable(_, "does not support ansi mode"))
+      plan.foreach(FallbackTags.add(_, "does not support ansi mode"))
     }
     plan
   }
@@ -179,11 +179,11 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
       case plan: SortMergeJoinExec if GlutenConfig.getConf.forceShuffledHashJoin =>
         if ((count + 1) >= optimizeLevel) return true
         plan.children.exists(existsMultiCodegens(_, count + 1))
-      case other => false
+      case _ => false
     }
 
-  def tagNotTransformable(plan: SparkPlan): SparkPlan = {
-    FallbackHints.tagNotTransformable(plan, "fallback multi codegens")
+  def addFallbackTag(plan: SparkPlan): SparkPlan = {
+    FallbackTags.add(plan, "fallback multi codegens")
     plan
   }
 
@@ -200,35 +200,35 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
     }
   }
 
-  def tagNotTransformableRecursive(plan: SparkPlan): SparkPlan = {
+  def addFallbackTagRecursive(plan: SparkPlan): SparkPlan = {
     plan match {
       case p: ShuffleExchangeExec =>
-        tagNotTransformable(p.withNewChildren(p.children.map(tagNotTransformableForMultiCodegens)))
+        addFallbackTag(p.withNewChildren(p.children.map(tagOnFallbackForMultiCodegens)))
       case p: BroadcastExchangeExec =>
-        tagNotTransformable(p.withNewChildren(p.children.map(tagNotTransformableForMultiCodegens)))
+        addFallbackTag(p.withNewChildren(p.children.map(tagOnFallbackForMultiCodegens)))
       case p: ShuffledHashJoinExec =>
-        tagNotTransformable(p.withNewChildren(p.children.map(tagNotTransformableRecursive)))
+        addFallbackTag(p.withNewChildren(p.children.map(addFallbackTagRecursive)))
       case p if !supportCodegen(p) =>
-        p.withNewChildren(p.children.map(tagNotTransformableForMultiCodegens))
+        p.withNewChildren(p.children.map(tagOnFallbackForMultiCodegens))
       case p if isAQEShuffleReadExec(p) =>
-        p.withNewChildren(p.children.map(tagNotTransformableForMultiCodegens))
+        p.withNewChildren(p.children.map(tagOnFallbackForMultiCodegens))
       case p: QueryStageExec => p
-      case p => tagNotTransformable(p.withNewChildren(p.children.map(tagNotTransformableRecursive)))
+      case p => addFallbackTag(p.withNewChildren(p.children.map(addFallbackTagRecursive)))
     }
   }
 
-  def tagNotTransformableForMultiCodegens(plan: SparkPlan): SparkPlan = {
+  def tagOnFallbackForMultiCodegens(plan: SparkPlan): SparkPlan = {
     plan match {
       case plan if existsMultiCodegens(plan) =>
-        tagNotTransformableRecursive(plan)
+        addFallbackTagRecursive(plan)
       case other =>
-        other.withNewChildren(other.children.map(tagNotTransformableForMultiCodegens))
+        other.withNewChildren(other.children.map(tagOnFallbackForMultiCodegens))
     }
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
     if (physicalJoinOptimize) {
-      tagNotTransformableForMultiCodegens(plan)
+      tagOnFallbackForMultiCodegens(plan)
     } else plan
   }
 }
@@ -272,13 +272,11 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
         if (p.children.exists(_.output.isEmpty)) {
           // Some backends are not eligible to offload plan with zero-column input.
           // If any child have empty output, mark the plan and that child as UNSUPPORTED.
-          FallbackHints.tagNotTransformable(p, "at least one of its children has empty output")
+          FallbackTags.add(p, "at least one of its children has empty output")
           p.children.foreach {
             child =>
               if (child.output.isEmpty && !child.isInstanceOf[WriteFilesExec]) {
-                FallbackHints.tagNotTransformable(
-                  child,
-                  "at least one of its children has empty output")
+                FallbackTags.add(child, "at least one of its children has empty output")
               }
           }
         }
@@ -291,8 +289,8 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
 // The doValidate function will be called to check if the conversion is supported.
 // If false is returned or any unsupported exception is thrown, a row guard will
 // be added on the top of that plan to prevent actual conversion.
-case class AddFallbackHintRule() extends Rule[SparkPlan] {
-  import AddFallbackHintRule._
+case class AddFallbackTagRule() extends Rule[SparkPlan] {
+  import AddFallbackTagRule._
   private val glutenConf: GlutenConfig = GlutenConfig.getConf
   private val validator = Validators
     .builder()
@@ -305,22 +303,15 @@ case class AddFallbackHintRule() extends Rule[SparkPlan] {
     .build()
 
   def apply(plan: SparkPlan): SparkPlan = {
-    addTransformableTags(plan)
+    plan.foreachUp { case p => addFallbackTag(p) }
+    plan
   }
 
-  /** Inserts a transformable tag on top of those that are not supported. */
-  private def addTransformableTags(plan: SparkPlan): SparkPlan = {
-    // Walk the tree with post-order
-    val out = plan.mapChildren(addTransformableTags)
-    addTransformableTag(out)
-    out
-  }
-
-  private def addTransformableTag(plan: SparkPlan): Unit = {
+  private def addFallbackTag(plan: SparkPlan): Unit = {
     val outcome = validator.validate(plan)
     outcome match {
       case Validator.Failed(reason) =>
-        FallbackHints.tagNotTransformable(plan, reason)
+        FallbackTags.add(plan, reason)
         return
       case Validator.Passed =>
     }
@@ -508,11 +499,11 @@ case class AddFallbackHintRule() extends Rule[SparkPlan] {
           )
           transformer.doValidate().tagOnFallback(plan)
         case _ =>
-        // Currently we assume a plan to be transformable by default.
+        // Currently we assume a plan to be offload-able by default.
       }
     } catch {
       case e @ (_: GlutenNotSupportException | _: UnsupportedOperationException) =>
-        FallbackHints.tagNotTransformable(
+        FallbackTags.add(
           plan,
           s"${e.getMessage}, original Spark plan is " +
             s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
@@ -523,7 +514,7 @@ case class AddFallbackHintRule() extends Rule[SparkPlan] {
   }
 }
 
-object AddFallbackHintRule {
+object AddFallbackTagRule {
   implicit private class ValidatorBuilderImplicits(builder: Validators.Builder) {
 
     /**
@@ -561,9 +552,9 @@ object AddFallbackHintRule {
   }
 }
 
-case class RemoveFallbackHintRule() extends Rule[SparkPlan] {
+case class RemoveFallbackTagRule() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    plan.foreach(FallbackHints.untag)
+    plan.foreach(FallbackTags.untag)
     plan
   }
 }

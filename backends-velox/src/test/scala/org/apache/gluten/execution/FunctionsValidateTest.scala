@@ -39,6 +39,8 @@ class FunctionsValidateTest extends WholeStageTransformerSuite {
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.sql.sources.useV1SourceList", "avro")
+      .set("spark.gluten.sql.columnar.backend.velox.glogSeverityLevel", "0")
+      .set("spark.gluten.sql.columnar.backend.velox.glogVerboseLevel", "1")
       .set(
         "spark.sql.optimizer.excludedRules",
         ConstantFolding.ruleName + "," +

@@ -44,7 +44,7 @@ abstract class WholeStageTransformerSuite
 
   protected val resourcePath: String
   protected val fileFormat: String
-  protected val logLevel: String = "WARN"
+  protected val logLevel: String = "info"
 
   protected val TPCHTables: Seq[Table] = Seq(
     Table("part", partitionColumns = "p_brand" :: Nil),
@@ -305,6 +305,8 @@ abstract class WholeStageTransformerSuite
       df.cache()
     }
     try {
+      logWarning("gyytest")
+      logWarning("gyytest + " + df.collect()(0).toString())
       if (compareResult) {
         checkAnswer(df, expected)
       } else {

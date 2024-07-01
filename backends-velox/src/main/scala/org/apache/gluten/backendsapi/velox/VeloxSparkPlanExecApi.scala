@@ -25,7 +25,7 @@ import org.apache.gluten.expression._
 import org.apache.gluten.expression.ExpressionNames.{TRANSFORM_KEYS, TRANSFORM_VALUES}
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension._
-import org.apache.gluten.extension.columnar.FallbackHints
+import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.extension.columnar.transition.ConventionFunc.BatchOverride
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -371,7 +371,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
           val newChild = maybeAddAppendBatchesExec(projectTransformer)
           ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output.drop(1))
         } else {
-          FallbackHints.tagNotTransformable(shuffle, validationResult)
+          FallbackTags.add(shuffle, validationResult)
           shuffle.withNewChildren(child :: Nil)
         }
       case RoundRobinPartitioning(num) if SQLConf.get.sortBeforeRepartition && num > 1 =>
@@ -397,7 +397,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
               projectTransformer
             } else {
               val project = ProjectExec(projectList, child)
-              FallbackHints.tagNotTransformable(project, projectBeforeSortValidationResult)
+              FallbackTags.add(project, projectBeforeSortValidationResult)
               project
             }
             val sortOrder = SortOrder(projectBeforeSort.output.head, Ascending)
@@ -410,7 +410,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
               val newChild = maybeAddAppendBatchesExec(dropSortColumnTransformer)
               ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output)
             } else {
-              FallbackHints.tagNotTransformable(shuffle, validationResult)
+              FallbackTags.add(shuffle, validationResult)
               shuffle.withNewChildren(child :: Nil)
             }
           }

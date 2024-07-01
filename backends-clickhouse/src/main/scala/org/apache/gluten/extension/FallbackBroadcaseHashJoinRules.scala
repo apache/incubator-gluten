@@ -19,7 +19,7 @@ package org.apache.gluten.extension
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.FallbackHints.EncodeTransformableTagImplicits
+import org.apache.gluten.extension.columnar.FallbackTags.EncodeFallbackTagImplicits
 import org.apache.gluten.utils.PhysicalPlanSelector
 
 import org.apache.spark.sql.SparkSession
@@ -61,7 +61,7 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
                   "columnar broadcast exchange is disabled or " +
                     "columnar broadcast join is disabled")
               } else {
-                if (FallbackHints.isNotTransformable(bhj)) {
+                if (FallbackTags.nonEmpty(bhj)) {
                   ValidationResult.notOk("broadcast join is already tagged as not transformable")
                 } else {
                   val bhjTransformer = BackendsApiManager.getSparkPlanExecApiInstance
@@ -83,8 +83,8 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
                   }
                 }
               }
-            FallbackHints.tagNotTransformable(bhj, isTransformable)
-            FallbackHints.tagNotTransformable(exchange, isTransformable)
+            FallbackTags.add(bhj, isTransformable)
+            FallbackTags.add(exchange, isTransformable)
           case _ =>
           // Skip. This might be the case that the exchange was already
           // executed in earlier stage
@@ -116,7 +116,7 @@ case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPl
               //  Currently their doBroadcast() methods just propagate child's broadcast
               //  payloads which is not right in speaking of columnar.
               if (!enableColumnarBroadcastJoin) {
-                FallbackHints.tagNotTransformable(
+                FallbackTags.add(
                   bhj,
                   "columnar BroadcastJoin is not enabled in BroadcastHashJoinExec")
               } else {
@@ -149,7 +149,7 @@ case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPl
                   case Some(exchange @ BroadcastExchangeExec(mode, child)) =>
                     isBhjTransformable.tagOnFallback(bhj)
                     if (!isBhjTransformable.isValid) {
-                      FallbackHints.tagNotTransformable(exchange, isBhjTransformable)
+                      FallbackTags.add(exchange, isBhjTransformable)
                     }
                   case None =>
                     // we are in AQE, find the hidden exchange
@@ -182,7 +182,7 @@ case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPl
                     // to conform to the underlying exchange's type, columnar or vanilla
                     exchange match {
                       case BroadcastExchangeExec(mode, child) =>
-                        FallbackHints.tagNotTransformable(
+                        FallbackTags.add(
                           bhj,
                           "it's a materialized broadcast exchange or reused broadcast exchange")
                       case ColumnarBroadcastExchangeExec(mode, child) =>
@@ -199,7 +199,7 @@ case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPl
           }
         } catch {
           case e: UnsupportedOperationException =>
-            FallbackHints.tagNotTransformable(
+            FallbackTags.add(
               p,
               s"${e.getMessage}, original Spark plan is " +
                 s"${p.getClass}(${p.children.toList.map(_.getClass)})")
