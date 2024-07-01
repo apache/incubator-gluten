@@ -641,10 +641,9 @@ When compiling the Gluten Java module, it's required to enable `celeborn` profil
 mvn clean package -Pbackends-clickhouse -Pspark-3.3 -Pceleborn -DskipTests
 ```
 
-Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
+Then add the Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
 
 - Celeborn: celeborn-client-spark-3-shaded_2.12-[celebornVersion].jar
-- Gluten: gluten-XXXXX-spark-3.x-jar-with-dependencies.jar, gluten-celeborn-package-xx-SNAPSHOT.jar
 
 Currently to use Gluten following configurations are required in `spark-defaults.conf`
 
