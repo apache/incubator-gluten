@@ -192,10 +192,11 @@ jobs:
           name: velox-arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
-        if: matrix.os == 'centos:8'
         run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+          if [ "${{ matrix.os }}" = "centos:7" ] || [ "${{ matrix.os }}" = "centos:8" ]; then
+            sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+            sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+          fi
       - name: Setup java and maven
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
