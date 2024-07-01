@@ -18,7 +18,6 @@ package org.apache.gluten.datasource;
 
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.RuntimeAware;
-import org.apache.gluten.exec.Runtimes;
 import org.apache.gluten.init.JniUtils;
 import org.apache.gluten.vectorized.ColumnarBatchInIterator;
 
@@ -35,8 +34,8 @@ public class DatasourceJniWrapper implements RuntimeAware {
     this.runtime = runtime;
   }
 
-  public static DatasourceJniWrapper create() {
-    return new DatasourceJniWrapper(Runtimes.contextInstance());
+  public static DatasourceJniWrapper create(Runtime runtime) {
+    return new DatasourceJniWrapper(runtime);
   }
 
   @Override
@@ -44,14 +43,11 @@ public class DatasourceJniWrapper implements RuntimeAware {
     return runtime.getHandle();
   }
 
-  public long nativeInitDatasource(
-      String filePath, long cSchema, long memoryManagerHandle, Map<String, String> options) {
-    return nativeInitDatasource(
-        filePath, cSchema, memoryManagerHandle, JniUtils.toNativeConf(options));
+  public long nativeInitDatasource(String filePath, long cSchema, Map<String, String> options) {
+    return nativeInitDatasource(filePath, cSchema, JniUtils.toNativeConf(options));
   }
 
-  public native long nativeInitDatasource(
-      String filePath, long cSchema, long memoryManagerHandle, byte[] options);
+  public native long nativeInitDatasource(String filePath, long cSchema, byte[] options);
 
   public native void inspectSchema(long dsHandle, long cSchemaAddress);
 
@@ -60,5 +56,5 @@ public class DatasourceJniWrapper implements RuntimeAware {
   public native void write(long dsHandle, ColumnarBatchInIterator iterator);
 
   public native BlockStripes splitBlockByPartitionAndBucket(
-      long blockAddress, int[] partitionColIndice, boolean hasBucket, long memoryManagerId);
+      long blockAddress, int[] partitionColIndice, boolean hasBucket);
 }

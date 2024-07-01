@@ -161,17 +161,14 @@ class ArbitratorFactoryRegister {
   gluten::AllocationListener* listener_;
 };
 
-VeloxMemoryManager::VeloxMemoryManager(
-    const std::string& name,
-    std::shared_ptr<MemoryAllocator> allocator,
-    std::unique_ptr<AllocationListener> listener)
-    : MemoryManager(), name_(name), listener_(std::move(listener)) {
+VeloxMemoryManager::VeloxMemoryManager(std::unique_ptr<AllocationListener> listener)
+    : MemoryManager(), listener_(std::move(listener)) {
   auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
       kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
   auto memInitCapacity =
       VeloxBackend::get()->getBackendConf()->get<uint64_t>(kVeloxMemInitCapacity, kVeloxMemInitCapacityDefault);
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
-  listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), blockListener_.get());
+  listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), blockListener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
 
   ArbitratorFactoryRegister afr(listener_.get());
@@ -189,11 +186,11 @@ VeloxMemoryManager::VeloxMemoryManager(
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(
-      name_ + "_root",
+      "root",
       velox::memory::kMaxMemory, // the 3rd capacity
       facebook::velox::memory::MemoryReclaimer::create());
 
-  veloxLeafPool_ = veloxAggregatePool_->addLeafChild(name_ + "_default_leaf");
+  veloxLeafPool_ = veloxAggregatePool_->addLeafChild("default_leaf");
 }
 
 namespace {
@@ -317,8 +314,10 @@ bool VeloxMemoryManager::tryDestructSafe() {
 VeloxMemoryManager::~VeloxMemoryManager() {
   static const uint32_t kWaitTimeoutMs = FLAGS_gluten_velox_aysnc_timeout_on_task_stopping; // 30s by default
   uint32_t accumulatedWaitMs = 0UL;
+  bool destructed = false;
   for (int32_t tryCount = 0; accumulatedWaitMs < kWaitTimeoutMs; tryCount++) {
-    if (tryDestructSafe()) {
+    destructed = tryDestructSafe();
+    if (destructed) {
       if (tryCount > 0) {
         LOG(INFO) << "All the outstanding memory resources successfully released. ";
       }
@@ -329,6 +328,10 @@ VeloxMemoryManager::~VeloxMemoryManager() {
               << " ms to let possible async tasks done... ";
     usleep(waitMs * 1000);
     accumulatedWaitMs += waitMs;
+  }
+  if (!destructed) {
+    LOG(ERROR) << "Failed to release Velox memory manager after " << accumulatedWaitMs
+               << "ms as there are still outstanding memory resources. ";
   }
 #ifdef ENABLE_JEMALLOC
   je_gluten_malloc_stats_print(NULL, NULL, NULL);

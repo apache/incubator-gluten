@@ -189,7 +189,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     }
   }
 
-  override def utilizeShuffledHashJoinHint(): Boolean = true
   override def supportShuffleWithProject(
       outputPartitioning: Partitioning,
       child: SparkPlan): Boolean = {
