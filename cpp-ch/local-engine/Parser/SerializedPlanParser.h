@@ -94,6 +94,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"bitwise_and", "bitAnd"},
        {"bitwise_or", "bitOr"},
        {"bitwise_xor", "bitXor"},
+       {"bit_get", "bitTest"},
+       {"bit_count", "bitCount"},
        {"sqrt", "sqrt"},
        {"cbrt", "cbrt"},
        {"degrees", "degrees"},
