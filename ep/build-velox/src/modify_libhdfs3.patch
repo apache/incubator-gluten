@@ -1,0 +1,35 @@
+diff --git a/CMake/Options.cmake b/CMake/Options.cmake
+index 14762eb..161190d 100644
+--- a/CMake/Options.cmake
++++ b/CMake/Options.cmake
+@@ -1,6 +1,18 @@
+ OPTION(ENABLE_COVERAGE "enable code coverage" OFF)
+ OPTION(ENABLE_DEBUG "enable debug build" OFF)
+-OPTION(ENABLE_SSE "enable SSE4.2 buildin function" ON)
++
++if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
++  OPTION(ENABLE_SSE "enable SSE4.2 buildin function" ON)
++else()
++  OPTION(ENABLE_SSE "enable SSE4.2 buildin function" OFF)
++endif()
++
++if (CMAKE_SYSTEM_PROCESSOR MATCHES "(aarch64)|(AARCH64)|(ARM64)|(arm64)")
++       OPTION(ENABLE_NEON "enable NEON buildin function" ON)
++else()
++       OPTION(ENABLE_NEON "enable NEON buildin function" OFF)
++endif()
++
+ OPTION(ENABLE_FRAME_POINTER "enable frame pointer on 64bit system with flag -fno-omit-frame-pointer, on 32bit system, it is always enabled" ON)
+ OPTION(ENABLE_LIBCPP "using libc++ instead of libstdc++, only valid for clang compiler" OFF)
+ OPTION(ENABLE_BOOST "using boost instead of native compiler c++0x support" OFF)
+@@ -34,6 +46,10 @@ IF(ENABLE_SSE STREQUAL ON)
+     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+ ENDIF(ENABLE_SSE STREQUAL ON)
+
++IF(ENABLE_NEON STREQUAL ON)
++    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcpu=native")
++ENDIF(ENABLE_NEON STREQUAL ON)
++
+ IF(NOT TEST_HDFS_PREFIX)
+ SET(TEST_HDFS_PREFIX "./" CACHE STRING "default directory prefix used for test." FORCE)
+ ENDIF(NOT TEST_HDFS_PREFIX)
