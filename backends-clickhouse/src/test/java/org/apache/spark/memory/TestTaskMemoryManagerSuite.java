@@ -21,6 +21,7 @@ import org.apache.gluten.memory.alloc.CHManagedCHReservationListener;
 import org.apache.gluten.memory.alloc.CHNativeMemoryAllocator;
 import org.apache.gluten.memory.alloc.CHNativeMemoryAllocatorManagerImpl;
 import org.apache.gluten.memory.memtarget.MemoryTargets;
+import org.apache.gluten.memory.memtarget.Spillers;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.internal.config.package$;
@@ -52,7 +53,7 @@ public class TestTaskMemoryManagerSuite {
     listener =
         new CHManagedCHReservationListener(
             MemoryTargets.newConsumer(
-                taskMemoryManager, "test", Collections.emptyList(), Collections.emptyMap()),
+                taskMemoryManager, "test", Spillers.NOOP, Collections.emptyMap()),
             new SimpleMemoryUsageRecorder());
 
     manager = new CHNativeMemoryAllocatorManagerImpl(new CHNativeMemoryAllocator(-1L, listener));

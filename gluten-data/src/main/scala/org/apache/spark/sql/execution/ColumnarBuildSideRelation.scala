@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.utils.iterator.Iterators
@@ -41,7 +40,8 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
   extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
-    val jniWrapper = ColumnarBatchSerializerJniWrapper.create()
+    val runtime = Runtimes.contextInstance("BuildSideRelation#deserialized")
+    val jniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializeHandle: Long = {
       val allocator = ArrowBufferAllocators.contextInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
@@ -50,11 +50,7 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
         SQLConf.get.sessionLocalTimeZone)
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
       val handle = jniWrapper
-        .init(
-          cSchema.memoryAddress(),
-          NativeMemoryManagers
-            .contextInstance("BuildSideRelation#BatchSerializer")
-            .getNativeInstanceHandle)
+        .init(cSchema.memoryAddress())
       cSchema.close()
       handle
     }
@@ -72,7 +68,7 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
             jniWrapper
               .deserialize(serializeHandle, batches(batchId))
           batchId += 1
-          ColumnarBatches.create(Runtimes.contextInstance(), handle)
+          ColumnarBatches.create(runtime, handle)
         }
       })
       .protectInvocationFlow()
@@ -90,10 +86,9 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
    * was called in Spark Driver, should manage resources carefully.
    */
   override def transform(key: Expression): Array[InternalRow] = TaskResources.runUnsafe {
+    val runtime = Runtimes.contextInstance("BuildSideRelation#transform")
     // This transformation happens in Spark driver, thus resources can not be managed automatically.
-    val runtime = Runtimes.contextInstance()
-    val nativeMemoryManager = NativeMemoryManagers.contextInstance("BuildSideRelation#transform")
-    val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.create()
+    val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.create(runtime)
     val serializeHandle = {
       val allocator = ArrowBufferAllocators.contextInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
@@ -101,8 +96,7 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
         SparkShimLoader.getSparkShims.structFromAttributes(output),
         SQLConf.get.sessionLocalTimeZone)
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-      val handle = serializerJniWrapper
-        .init(cSchema.memoryAddress(), nativeMemoryManager.getNativeInstanceHandle)
+      val handle = serializerJniWrapper.init(cSchema.memoryAddress())
       cSchema.close()
       handle
     }
@@ -110,8 +104,8 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
     var closed = false
 
     // Convert columnar to Row.
-    val jniWrapper = NativeColumnarToRowJniWrapper.create()
-    val c2rId = jniWrapper.nativeColumnarToRowInit(nativeMemoryManager.getNativeInstanceHandle)
+    val jniWrapper = NativeColumnarToRowJniWrapper.create(runtime)
+    val c2rId = jniWrapper.nativeColumnarToRowInit()
     var batchId = 0
     val iterator = if (batches.length > 0) {
       val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
@@ -142,7 +136,7 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
             val cols = batch.numCols()
             val rows = batch.numRows()
             val info =
-              jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rId)
+              jniWrapper.nativeColumnarToRowConvert(c2rId, ColumnarBatches.getNativeHandle(batch))
             batch.close()
             val columnNames = key.flatMap {
               case expression: AttributeReference =>

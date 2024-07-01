@@ -27,7 +27,7 @@ public class VeloxBatchAppenderJniWrapper implements RuntimeAware {
     this.runtime = runtime;
   }
 
-  public static VeloxBatchAppenderJniWrapper forRuntime(Runtime runtime) {
+  public static VeloxBatchAppenderJniWrapper create(Runtime runtime) {
     return new VeloxBatchAppenderJniWrapper(runtime);
   }
 
@@ -36,6 +36,5 @@ public class VeloxBatchAppenderJniWrapper implements RuntimeAware {
     return runtime.getHandle();
   }
 
-  public native long create(
-      long memoryManagerHandle, int minOutputBatchSize, ColumnarBatchInIterator itr);
+  public native long create(int minOutputBatchSize, ColumnarBatchInIterator itr);
 }

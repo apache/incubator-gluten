@@ -302,4 +302,4 @@ check_commit
 compile
 
 echo "Successfully built Velox from Source."
-echo $TARGET_BUILD_SUMMARY >"${VELOX_HOME}/velox-build.cache"
+echo $TARGET_BUILD_SUMMARY > "${VELOX_HOME}/velox-build.cache"

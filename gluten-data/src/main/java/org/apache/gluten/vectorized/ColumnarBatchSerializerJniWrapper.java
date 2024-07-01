@@ -18,7 +18,6 @@ package org.apache.gluten.vectorized;
 
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.RuntimeAware;
-import org.apache.gluten.exec.Runtimes;
 
 public class ColumnarBatchSerializerJniWrapper implements RuntimeAware {
   private final Runtime runtime;
@@ -27,11 +26,7 @@ public class ColumnarBatchSerializerJniWrapper implements RuntimeAware {
     this.runtime = runtime;
   }
 
-  public static ColumnarBatchSerializerJniWrapper create() {
-    return new ColumnarBatchSerializerJniWrapper(Runtimes.contextInstance());
-  }
-
-  public static ColumnarBatchSerializerJniWrapper forRuntime(Runtime runtime) {
+  public static ColumnarBatchSerializerJniWrapper create(Runtime runtime) {
     return new ColumnarBatchSerializerJniWrapper(runtime);
   }
 
@@ -40,10 +35,10 @@ public class ColumnarBatchSerializerJniWrapper implements RuntimeAware {
     return runtime.getHandle();
   }
 
-  public native ColumnarBatchSerializeResult serialize(long[] handles, long memoryManagerHandle);
+  public native ColumnarBatchSerializeResult serialize(long[] handles);
 
   // Return the native ColumnarBatchSerializer handle
-  public native long init(long cSchema, long memoryManagerHandle);
+  public native long init(long cSchema);
 
   public native long deserialize(long serializerHandle, byte[] data);
 

@@ -22,24 +22,22 @@
 gluten::ObjectStore::~ObjectStore() {
   // destructing in reversed order (the last added object destructed first)
   const std::lock_guard<std::mutex> lock(mtx_);
-  for (auto itr = aliveObjectHandles_.rbegin(); itr != aliveObjectHandles_.rend(); itr++) {
+  for (auto itr = aliveObjects_.rbegin(); itr != aliveObjects_.rend(); itr++) {
     ResourceHandle handle = *itr;
-    if (store_.lookup(handle) == nullptr) {
-      LOG(WARNING) << "Fatal: resource handle " + std::to_string(handle) + " not found in store.";
-    }
     store_.erase(handle);
   }
+  stores().erase(storeId_);
 }
 
-gluten::ResourceHandle gluten::ObjectStore::save(std::shared_ptr<void> obj) {
+gluten::ObjectHandle gluten::ObjectStore::save(std::shared_ptr<void> obj) {
   const std::lock_guard<std::mutex> lock(mtx_);
   ResourceHandle handle = store_.insert(std::move(obj));
-  aliveObjectHandles_.insert(handle);
-  return handle;
+  aliveObjects_.insert(handle);
+  return toObjHandle(handle);
 }
 
-void gluten::ObjectStore::release(gluten::ResourceHandle handle) {
+void gluten::ObjectStore::release0(gluten::ResourceHandle handle) {
   const std::lock_guard<std::mutex> lock(mtx_);
   store_.erase(handle);
-  aliveObjectHandles_.erase(handle);
+  aliveObjects_.erase(handle);
 }

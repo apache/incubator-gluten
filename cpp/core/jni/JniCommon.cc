@@ -112,7 +112,7 @@ std::shared_ptr<gluten::ColumnarBatch> gluten::JniColumnarBatchIterator::next() 
   checkException(env);
   jlong handle = env->CallLongMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorNext_);
   checkException(env);
-  auto batch = runtime_->objectStore()->retrieve<ColumnarBatch>(handle);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
   if (writer_ != nullptr) {
     // save snapshot of the batch to file
     std::shared_ptr<ArrowSchema> schema = batch->exportArrowSchema();

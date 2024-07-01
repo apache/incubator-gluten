@@ -19,9 +19,9 @@ package org.apache.spark.sql.execution.datasources.velox
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.datasource.DatasourceJniWrapper
 import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.execution.datasource.GlutenRowSplitter
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.utils.{ArrowAbiUtil, DatasourceUtil}
 
 import org.apache.spark.sql.SparkSession
@@ -59,15 +59,13 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
       SparkArrowUtil.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
     val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
     var dsHandle = -1L
-    val datasourceJniWrapper = DatasourceJniWrapper.create()
+    val runtime = Runtimes.contextInstance("VeloxWriter")
+    val datasourceJniWrapper = DatasourceJniWrapper.create(runtime)
     val allocator = ArrowBufferAllocators.contextInstance()
     try {
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-      dsHandle = datasourceJniWrapper.nativeInitDatasource(
-        filePath,
-        cSchema.memoryAddress(),
-        NativeMemoryManagers.contextInstance("VeloxWriter").getNativeInstanceHandle,
-        nativeConf)
+      dsHandle =
+        datasourceJniWrapper.nativeInitDatasource(filePath, cSchema.memoryAddress(), nativeConf)
     } catch {
       case e: IOException =>
         throw new GlutenException(e)
@@ -119,16 +117,12 @@ class VeloxRowSplitter extends GlutenRowSplitter {
       hasBucket: Boolean,
       reserve_partition_columns: Boolean = false): BlockStripes = {
     val handler = ColumnarBatches.getNativeHandle(row.batch)
-    val datasourceJniWrapper = DatasourceJniWrapper.create()
+    val runtime = Runtimes.contextInstance("VeloxPartitionWriter")
+    val datasourceJniWrapper = DatasourceJniWrapper.create(runtime)
     val originalColumns: Array[Int] = Array.range(0, row.batch.numCols())
     val dataColIndice = originalColumns.filterNot(partitionColIndice.contains(_))
     new VeloxBlockStripes(
       datasourceJniWrapper
-        .splitBlockByPartitionAndBucket(
-          handler,
-          dataColIndice,
-          hasBucket,
-          NativeMemoryManagers.contextInstance("VeloxPartitionWriter").getNativeInstanceHandle)
-    )
+        .splitBlockByPartitionAndBucket(handler, dataColIndice, hasBucket))
   }
 }

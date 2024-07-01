@@ -17,6 +17,7 @@
 package org.apache.gluten.memory.memtarget.spark;
 
 import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
 
 import org.apache.spark.TaskContext;
@@ -43,7 +44,7 @@ public class TreeMemoryConsumerTest {
               factory.newConsumer(
                   TaskContext.get().taskMemoryManager(),
                   "FOO",
-                  Collections.emptyList(),
+                  Spillers.NOOP,
                   Collections.emptyMap());
           Assert.assertEquals(20, consumer.borrow(20));
           Assert.assertEquals(70, consumer.borrow(70));
@@ -65,7 +66,7 @@ public class TreeMemoryConsumerTest {
               factory.newConsumer(
                   TaskContext.get().taskMemoryManager(),
                   "FOO",
-                  Collections.emptyList(),
+                  Spillers.NOOP,
                   Collections.emptyMap());
           Assert.assertEquals(20, consumer.borrow(20));
           Assert.assertEquals(70, consumer.borrow(70));
@@ -87,7 +88,7 @@ public class TreeMemoryConsumerTest {
                   .newConsumer(
                       TaskContext.get().taskMemoryManager(),
                       "FOO",
-                      Collections.emptyList(),
+                      Spillers.NOOP,
                       Collections.emptyMap());
           Assert.assertEquals(110, shared.borrow(110));
           final TreeMemoryTarget isolated =
@@ -95,7 +96,7 @@ public class TreeMemoryConsumerTest {
                   .newConsumer(
                       TaskContext.get().taskMemoryManager(),
                       "FOO",
-                      Collections.emptyList(),
+                      Spillers.NOOP,
                       Collections.emptyMap());
           Assert.assertEquals(100, isolated.borrow(110));
         });

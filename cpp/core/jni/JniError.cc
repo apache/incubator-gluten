@@ -41,7 +41,13 @@ jclass gluten::JniErrorState::illegalAccessExceptionClass() {
   return illegalAccessExceptionClass_;
 }
 
+jclass gluten::JniErrorState::glutenExceptionClass() {
+  assertInitialized();
+  return glutenExceptionClass_;
+}
+
 void gluten::JniErrorState::initialize(JNIEnv* env) {
+  glutenExceptionClass_ = createGlobalClassReference(env, "Lorg/apache/gluten/exception/GlutenException;");
   ioExceptionClass_ = createGlobalClassReference(env, "Ljava/io/IOException;");
   runtimeExceptionClass_ = createGlobalClassReference(env, "Ljava/lang/RuntimeException;");
   unsupportedOperationExceptionClass_ = createGlobalClassReference(env, "Ljava/lang/UnsupportedOperationException;");
@@ -61,6 +67,7 @@ void gluten::JniErrorState::close() {
   }
   JNIEnv* env;
   attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+  env->DeleteGlobalRef(glutenExceptionClass_);
   env->DeleteGlobalRef(ioExceptionClass_);
   env->DeleteGlobalRef(runtimeExceptionClass_);
   env->DeleteGlobalRef(unsupportedOperationExceptionClass_);

@@ -16,14 +16,11 @@
  */
 package org.apache.gluten.memory.memtarget;
 
-import java.util.Set;
-
 public interface Spiller {
+  long spill(MemoryTarget self, Phase phase, long size);
 
-  long spill(MemoryTarget self, long size);
-
-  Set<Phase> applicablePhases();
-
+  // Order of the elements matters, since
+  // consumer should call spillers with in the defined order.
   enum Phase {
     SHRINK,
     SPILL

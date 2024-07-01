@@ -18,7 +18,6 @@ package org.apache.gluten.vectorized;
 
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.RuntimeAware;
-import org.apache.gluten.exec.Runtimes;
 import org.apache.gluten.validate.NativePlanValidationInfo;
 
 /**
@@ -33,8 +32,8 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
     this.runtime = runtime;
   }
 
-  public static PlanEvaluatorJniWrapper create() {
-    return new PlanEvaluatorJniWrapper(Runtimes.contextInstance());
+  public static PlanEvaluatorJniWrapper create(Runtime runtime) {
+    return new PlanEvaluatorJniWrapper(runtime);
   }
 
   @Override
@@ -57,11 +56,9 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
   /**
    * Create a native compute kernel and return a columnar result iterator.
    *
-   * @param memoryManagerHandle NativeMemoryManager instance handle
    * @return iterator instance id
    */
   public native long nativeCreateKernelWithIterator(
-      long memoryManagerHandle,
       byte[] wsPlan,
       byte[][] splitInfo,
       GeneralInIterator[] batchItr,

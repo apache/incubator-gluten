@@ -18,11 +18,7 @@ package org.apache.gluten.memory.memtarget.spark;
 
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
-import org.apache.gluten.memory.memtarget.MemoryTargetUtil;
-import org.apache.gluten.memory.memtarget.MemoryTargetVisitor;
-import org.apache.gluten.memory.memtarget.Spiller;
-import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
-import org.apache.gluten.memory.memtarget.TreeMemoryTargets;
+import org.apache.gluten.memory.memtarget.*;
 import org.apache.gluten.proto.MemoryUsageStats;
 
 import com.google.common.base.Preconditions;
@@ -33,7 +29,6 @@ import org.apache.spark.memory.TaskMemoryManager;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -124,10 +119,10 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryTarg
   public TreeMemoryTarget newChild(
       String name,
       long capacity,
-      List<Spiller> spillers,
+      Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
     final TreeMemoryTarget child =
-        TreeMemoryTargets.newChild(this, name, capacity, spillers, virtualChildren);
+        TreeMemoryTargets.newChild(this, name, capacity, spiller, virtualChildren);
     if (children.containsKey(child.name())) {
       throw new IllegalArgumentException("Child already registered: " + child.name());
     }
@@ -147,9 +142,9 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryTarg
   }
 
   @Override
-  public List<Spiller> getNodeSpillers() {
+  public Spiller getNodeSpiller() {
     // root doesn't spill
-    return Collections.emptyList();
+    return Spillers.NOOP;
   }
 
   public TaskMemoryManager getTaskMemoryManager() {

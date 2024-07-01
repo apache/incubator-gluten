@@ -19,7 +19,6 @@ package org.apache.gluten.vectorized
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
 import org.apache.gluten.utils.ArrowAbiUtil
 
 import org.apache.spark.SparkEnv
@@ -79,7 +78,6 @@ private class ColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private val nmm = NativeMemoryManagers.contextInstance("ShuffleReader")
   private val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators
       .contextInstance(classOf[ColumnarBatchSerializerInstance].getSimpleName)
@@ -98,15 +96,14 @@ private class ColumnarBatchSerializerInstance(
     val compressionCodecBackend =
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
     val batchSize = GlutenConfig.getConf.maxBatchSize
-    val jniWrapper = ShuffleReaderJniWrapper.create()
+    val runtime = Runtimes.contextInstance("ShuffleReader")
+    val jniWrapper = ShuffleReaderJniWrapper.create(runtime)
     val shuffleReaderHandle = jniWrapper.make(
       cSchema.memoryAddress(),
-      nmm.getNativeInstanceHandle,
       compressionCodec,
       compressionCodecBackend,
       batchSize,
-      shuffleWriterType
-    )
+      shuffleWriterType)
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that
     // was used to create all buffers read from shuffle reader. The pool
@@ -137,12 +134,12 @@ private class ColumnarBatchSerializerInstance(
     extends DeserializationStream
     with TaskResource {
     private val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
+    private val runtime = Runtimes.contextInstance("ShuffleReader")
     private val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
-      Runtimes.contextInstance(),
+      runtime,
       ShuffleReaderJniWrapper
-        .create()
-        .readStream(shuffleReaderHandle, byteIn),
-      nmm)
+        .create(runtime)
+        .readStream(shuffleReaderHandle, byteIn))
 
     private var cb: ColumnarBatch = _
 

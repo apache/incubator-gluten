@@ -19,13 +19,13 @@ package org.apache.gluten.memory.memtarget.spark;
 import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.memory.MemoryUsageStatsBuilder;
 import org.apache.gluten.memory.memtarget.Spiller;
+import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
 
 import org.apache.commons.collections.map.ReferenceMap;
 import org.apache.spark.memory.TaskMemoryManager;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -76,7 +76,7 @@ public final class TreeMemoryConsumers {
                 m -> {
                   TreeMemoryTarget tmc = new TreeMemoryConsumer((TaskMemoryManager) m);
                   return tmc.newChild(
-                      "root", perTaskCapacity, Collections.emptyList(), Collections.emptyMap());
+                      "root", perTaskCapacity, Spillers.NOOP, Collections.emptyMap());
                 });
       }
     }
@@ -84,11 +84,11 @@ public final class TreeMemoryConsumers {
     public TreeMemoryTarget newConsumer(
         TaskMemoryManager tmm,
         String name,
-        List<Spiller> spillers,
+        Spiller spiller,
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
       final TreeMemoryTarget account = getSharedAccount(tmm);
       return account.newChild(
-          name, TreeMemoryConsumer.CAPACITY_UNLIMITED, spillers, virtualChildren);
+          name, TreeMemoryConsumer.CAPACITY_UNLIMITED, spiller, virtualChildren);
     }
   }
 }

@@ -28,6 +28,7 @@
 #include "memory/AllocationListener.h"
 #include "shuffle/rss/RssClient.h"
 #include "utils/Compression.h"
+#include "utils/ObjectStore.h"
 #include "utils/ResourceMap.h"
 #include "utils/exception.h"
 
@@ -121,7 +122,7 @@ static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) 
 }
 
 template <typename T>
-static T* jniCastOrThrow(gluten::ResourceHandle handle) {
+static T* jniCastOrThrow(jlong handle) {
   auto instance = reinterpret_cast<T*>(handle);
   GLUTEN_CHECK(instance != nullptr, "FATAL: resource instance should not be null.");
   return instance;

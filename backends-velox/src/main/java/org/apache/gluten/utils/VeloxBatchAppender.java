@@ -18,8 +18,6 @@ package org.apache.gluten.utils;
 
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.Runtimes;
-import org.apache.gluten.memory.nmm.NativeMemoryManager;
-import org.apache.gluten.memory.nmm.NativeMemoryManagers;
 import org.apache.gluten.vectorized.ColumnarBatchInIterator;
 import org.apache.gluten.vectorized.ColumnarBatchOutIterator;
 
@@ -30,12 +28,10 @@ import java.util.Iterator;
 public final class VeloxBatchAppender {
   public static ColumnarBatchOutIterator create(
       int minOutputBatchSize, Iterator<ColumnarBatch> in) {
-    final Runtime runtime = Runtimes.contextInstance();
-    final NativeMemoryManager nmm = NativeMemoryManagers.contextInstance("VeloxBatchAppender");
+    final Runtime runtime = Runtimes.contextInstance("VeloxBatchAppender");
     long outHandle =
-        VeloxBatchAppenderJniWrapper.forRuntime(runtime)
-            .create(
-                nmm.getNativeInstanceHandle(), minOutputBatchSize, new ColumnarBatchInIterator(in));
-    return new ColumnarBatchOutIterator(runtime, outHandle, nmm);
+        VeloxBatchAppenderJniWrapper.create(runtime)
+            .create(minOutputBatchSize, new ColumnarBatchInIterator(in));
+    return new ColumnarBatchOutIterator(runtime, outHandle);
   }
 }

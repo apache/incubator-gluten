@@ -19,13 +19,12 @@ package org.apache.gluten.memory.alloc;
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.memory.memtarget.MemoryTargets;
 import org.apache.gluten.memory.memtarget.Spiller;
+import org.apache.gluten.memory.memtarget.Spillers;
 
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
 
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 
 /**
  * Built-in toolkit for managing native memory allocations. To use the facility, one should import
@@ -46,12 +45,12 @@ public abstract class CHNativeMemoryAllocators {
   private static CHNativeMemoryAllocatorManager createNativeMemoryAllocatorManager(
       String name,
       TaskMemoryManager taskMemoryManager,
-      List<Spiller> spillers,
+      Spiller spiller,
       SimpleMemoryUsageRecorder usage) {
 
     CHManagedCHReservationListener rl =
         new CHManagedCHReservationListener(
-            MemoryTargets.newConsumer(taskMemoryManager, name, spillers, Collections.emptyMap()),
+            MemoryTargets.newConsumer(taskMemoryManager, name, spiller, Collections.emptyMap()),
             usage);
     return new CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator.createListenable(rl));
   }
@@ -67,7 +66,7 @@ public abstract class CHNativeMemoryAllocators {
           createNativeMemoryAllocatorManager(
               "ContextInstance",
               TaskResources.getLocalTaskContext().taskMemoryManager(),
-              Collections.emptyList(),
+              Spillers.NOOP,
               TaskResources.getSharedUsage());
       TaskResources.addResource(id, manager);
     }
@@ -78,7 +77,7 @@ public abstract class CHNativeMemoryAllocators {
     return CHNativeMemoryAllocator.getDefaultForUT();
   }
 
-  public static CHNativeMemoryAllocator createSpillable(String name, Spiller... spillers) {
+  public static CHNativeMemoryAllocator createSpillable(String name, Spiller spiller) {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("spiller must be used in a Spark task");
     }
@@ -87,7 +86,7 @@ public abstract class CHNativeMemoryAllocators {
         createNativeMemoryAllocatorManager(
             name,
             TaskResources.getLocalTaskContext().taskMemoryManager(),
-            Arrays.asList(spillers),
+            spiller,
             TaskResources.getSharedUsage());
     TaskResources.addAnonymousResource(manager);
     // force add memory consumer to task memory manager, will release by inactivate

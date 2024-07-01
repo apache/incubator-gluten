@@ -18,7 +18,6 @@ package org.apache.gluten.vectorized;
 
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.RuntimeAware;
-import org.apache.gluten.exec.Runtimes;
 
 import java.io.IOException;
 
@@ -29,8 +28,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
     this.runtime = runtime;
   }
 
-  public static ShuffleWriterJniWrapper create() {
-    return new ShuffleWriterJniWrapper(Runtimes.contextInstance());
+  public static ShuffleWriterJniWrapper create(Runtime runtime) {
+    return new ShuffleWriterJniWrapper(runtime);
   }
 
   @Override
@@ -65,7 +64,6 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       String dataFile,
       int subDirsPerLocalDir,
       String localDirs,
-      long memoryManagerHandle,
       double reallocThreshold,
       long handle,
       long taskAttemptId,
@@ -85,7 +83,6 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         dataFile,
         subDirsPerLocalDir,
         localDirs,
-        memoryManagerHandle,
         reallocThreshold,
         handle,
         taskAttemptId,
@@ -115,7 +112,6 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       int pushBufferMaxSize,
       long sortBufferMaxSize,
       Object pusher,
-      long memoryManagerHandle,
       long handle,
       long taskAttemptId,
       int startPartitionId,
@@ -136,7 +132,6 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         null,
         0,
         null,
-        memoryManagerHandle,
         reallocThreshold,
         handle,
         taskAttemptId,
@@ -162,7 +157,6 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       String dataFile,
       int subDirsPerLocalDir,
       String localDirs,
-      long memoryManagerHandle,
       double reallocThreshold,
       long handle,
       long taskAttemptId,

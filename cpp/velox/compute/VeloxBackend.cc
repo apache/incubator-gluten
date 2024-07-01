@@ -55,8 +55,10 @@ using namespace facebook;
 namespace gluten {
 
 namespace {
-gluten::Runtime* veloxRuntimeFactory(const std::unordered_map<std::string, std::string>& sessionConf) {
-  return new gluten::VeloxRuntime(sessionConf);
+gluten::Runtime* veloxRuntimeFactory(
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& sessionConf) {
+  return new gluten::VeloxRuntime(std::move(listener), sessionConf);
 }
 } // namespace
 
