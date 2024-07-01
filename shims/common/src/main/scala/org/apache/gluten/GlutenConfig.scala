@@ -153,9 +153,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def logicalJoinOptimizationThrottle: Integer =
     conf.getConf(COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_THROTTLE)
 
-  def enableLogicalJoinOptimize: Boolean =
-    conf.getConf(COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_ENABLED)
-
   def enableScanOnly: Boolean = conf.getConf(COLUMNAR_SCAN_ONLY_ENABLED)
 
   def tmpFile: Option[String] = conf.getConf(COLUMNAR_TEMP_DIR)
@@ -1006,13 +1003,6 @@ object GlutenConfig {
       .doc("Fallback to row operators if there are several continuous joins.")
       .intConf
       .createWithDefault(12)
-
-  val COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_ENABLED =
-    buildConf("spark.gluten.sql.columnar.logicalJoinOptimizeEnable")
-      .internal()
-      .doc("Enable or disable columnar logicalJoinOptimize.")
-      .booleanConf
-      .createWithDefault(false)
 
   val COLUMNAR_SCAN_ONLY_ENABLED =
     buildConf("spark.gluten.sql.columnar.scanOnly")

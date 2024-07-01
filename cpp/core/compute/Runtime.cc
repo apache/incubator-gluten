@@ -56,9 +56,12 @@ void Runtime::registerFactory(const std::string& kind, Runtime::Factory factory)
   runtimeFactories().registerFactory(kind, std::move(factory));
 }
 
-Runtime* Runtime::create(const std::string& kind, const std::unordered_map<std::string, std::string>& sessionConf) {
+Runtime* Runtime::create(
+    const std::string& kind,
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& sessionConf) {
   auto& factory = runtimeFactories().getFactory(kind);
-  return factory(sessionConf);
+  return factory(std::move(listener), sessionConf);
 }
 
 void Runtime::release(Runtime* runtime) {

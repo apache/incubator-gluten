@@ -17,6 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.TransformerApi
+import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.utils.InputPartitionsUtil
@@ -83,7 +84,8 @@ class VeloxTransformerApi extends TransformerApi with Logging {
 
   override def getNativePlanString(substraitPlan: Array[Byte], details: Boolean): String = {
     TaskResources.runUnsafe {
-      val jniWrapper = PlanEvaluatorJniWrapper.create()
+      val jniWrapper = PlanEvaluatorJniWrapper.create(
+        Runtimes.contextInstance("VeloxTransformerApi#getNativePlanString"))
       jniWrapper.nativePlanString(substraitPlan, details)
     }
   }

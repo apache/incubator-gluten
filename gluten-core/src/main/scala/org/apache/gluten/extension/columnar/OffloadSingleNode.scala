@@ -27,6 +27,8 @@ import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression}
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
+import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
@@ -136,7 +138,7 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
             plan.leftKeys,
             plan.rightKeys,
             plan.joinType,
-            TransformHints.getShuffleHashJoinBuildSide(plan),
+            OffloadJoin.getBuildSide(plan),
             plan.condition,
             left,
             right,
@@ -183,6 +185,31 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
             plan.joinType,
             plan.condition)
       case other => other
+    }
+  }
+}
+
+object OffloadJoin {
+
+  def getBuildSide(shj: ShuffledHashJoinExec): BuildSide = {
+    val leftBuildable =
+      BackendsApiManager.getSettings.supportHashBuildJoinTypeOnLeft(shj.joinType)
+    val rightBuildable =
+      BackendsApiManager.getSettings.supportHashBuildJoinTypeOnRight(shj.joinType)
+    if (!leftBuildable) {
+      BuildRight
+    } else if (!rightBuildable) {
+      BuildLeft
+    } else {
+      shj.logicalLink match {
+        case Some(join: Join) =>
+          val leftSize = join.left.stats.sizeInBytes
+          val rightSize = join.right.stats.sizeInBytes
+          if (rightSize <= leftSize) BuildRight else BuildLeft
+        // Only the ShuffledHashJoinExec generated directly in some spark tests is not link
+        // logical plan, such as OuterJoinSuite.
+        case _ => shj.buildSide
+      }
     }
   }
 }
