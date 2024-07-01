@@ -159,10 +159,19 @@ bool SubstraitToVeloxPlanValidator::validateRegexExpr(
     LOG_VALIDATION_MSG("Pattern is not string literal for " + name);
     return false;
   }
-
   const auto& pattern = patternArg.literal().string();
+
+  std::string rewrite;
+  if (scalarFunction.arguments().size() > 2) {
+    const auto& rewriteArg = scalarFunction.arguments()[2].value();
+    if (!rewriteArg.has_literal() || !rewriteArg.literal().has_string()) {
+      LOG_VALIDATION_MSG("Rewrite is not string literal for " + name);
+      return false;
+    }
+    rewrite = rewriteArg.literal().string();
+  }
   std::string error;
-  if (!validatePattern(pattern, error)) {
+  if (!validatePattern(pattern, rewrite, error)) {
     LOG_VALIDATION_MSG(name + " due to " + error);
     return false;
   }

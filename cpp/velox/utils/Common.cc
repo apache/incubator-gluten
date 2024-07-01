@@ -52,10 +52,15 @@ std::unique_ptr<re2::RE2> compilePattern(const std::string& pattern) {
   return std::make_unique<re2::RE2>(re2::StringPiece(pattern), RE2::Quiet);
 }
 
-bool validatePattern(const std::string& pattern, std::string& error) {
+bool validatePattern(const std::string& pattern, const std::string& rewrite, std::string& error) {
   auto re2 = compilePattern(pattern);
   if (!re2->ok()) {
     error = "Pattern " + pattern + " compilation failed in RE2. Reason: " + re2->error();
+    return false;
+  }
+  std::string err;
+  if (!rewrite.empty() && !re2->CheckRewriteString(re2::StringPiece(rewrite), &err)) {
+    error = "Rewrite " + rewrite + "check failed in RE2. Reason: " + err;
     return false;
   }
   return ensureRegexIsCompatible(pattern, error);

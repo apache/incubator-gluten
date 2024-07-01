@@ -29,7 +29,7 @@ namespace gluten {
 // Compile the given pattern and return the RE2 object.
 inline std::unique_ptr<re2::RE2> compilePattern(const std::string& pattern);
 
-bool validatePattern(const std::string& pattern, std::string& error);
+bool validatePattern(const std::string& pattern, const std::string& rewrite, std::string& error);
 
 static inline void fastCopy(void* dst, const void* src, size_t n) {
   facebook::velox::simd::memcpy(dst, src, n);
