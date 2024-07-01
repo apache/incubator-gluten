@@ -80,7 +80,7 @@ public class JniLibLoader {
   public static synchronized void forceUnloadAll() {
     if (Utils.isTesting()) {
       try {
-        Thread.sleep(1000);
+        Thread.sleep(10000);
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
