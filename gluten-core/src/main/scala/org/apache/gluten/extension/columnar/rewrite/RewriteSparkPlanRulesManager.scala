@@ -67,12 +67,11 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
     }
   }
 
-  private def getFallbackHintBack(
-      origin: SparkPlan,
-      rewrittenPlan: SparkPlan): Option[FallbackHint] = {
-    // The rewritten plan may contain more nodes than origin, here use the node name to get it back
+  private def getFallbackHintBack(rewrittenPlan: SparkPlan): Option[TransformHint] = {
+    // The rewritten plan may contain more nodes than origin, for now it should only be
+    // `ProjectExec`.
     val target = rewrittenPlan.collect {
-      case p if p.nodeName == origin.nodeName => p
+      case p if !p.isInstanceOf[ProjectExec] && !p.isInstanceOf[RewrittenNodeWall] => p
     }
     assert(target.size == 1)
     FallbackHints.getHintOption(target.head)
@@ -113,7 +112,7 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
           origin
         } else {
           addHint.apply(rewrittenPlan)
-          val hint = getFallbackHintBack(origin, rewrittenPlan)
+          val hint = getFallbackHintBack(rewrittenPlan)
           if (hint.isDefined) {
             // If the rewritten plan is still not transformable, return the original plan.
             FallbackHints.tag(origin, hint.get)

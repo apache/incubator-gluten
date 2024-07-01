@@ -240,8 +240,9 @@ class Spark34Shims extends SparkShims {
         case _ =>
       }
     }
-
-    // TODO: row_index metadata support
+    metadataColumn.put(InputFileName().prettyName, file.filePath.toString)
+    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
+    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
     metadataColumn
   }
 

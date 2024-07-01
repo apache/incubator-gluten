@@ -14,27 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution
+package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
-import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.catalyst.plans.logical.{Join, JoinHint, LogicalPlan}
+import org.apache.gluten.execution.ProjectExecTransformer
 
-// https://issues.apache.org/jira/browse/SPARK-36745
-object JoinSelectionShim {
-  object ExtractEquiJoinKeysShim {
-    type ReturnType =
-      (
-          JoinType,
-          Seq[Expression],
-          Seq[Expression],
-          Option[Expression],
-          LogicalPlan,
-          LogicalPlan,
-          JoinHint)
-    def unapply(join: Join): Option[ReturnType] = {
-      ExtractEquiJoinKeys.unapply(join)
-    }
+import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
+
+object RasOffloadProject extends RasOffload {
+  override def offload(node: SparkPlan): SparkPlan = node match {
+    case ProjectExec(projectList, child) =>
+      ProjectExecTransformer(projectList, child)
+    case other =>
+      other
   }
+
+  override def typeIdentifier(): RasOffload.TypeIdentifier =
+    RasOffload.TypeIdentifier.of[ProjectExec]
 }

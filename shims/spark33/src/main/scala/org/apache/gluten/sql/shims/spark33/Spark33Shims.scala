@@ -231,6 +231,9 @@ class Spark33Shims extends SparkShims {
         case _ =>
       }
     }
+    metadataColumn.put(InputFileName().prettyName, file.filePath)
+    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
+    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
     metadataColumn
   }
 

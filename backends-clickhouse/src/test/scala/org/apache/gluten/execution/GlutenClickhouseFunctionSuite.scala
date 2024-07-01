@@ -190,4 +190,25 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     )(df => checkFallbackOperators(df, 0))
     spark.sql("drop table json_t1")
   }
+
+  test("Fix arrayDistinct(Array(Nullable(Decimal))) core dump") {
+    val create_sql =
+      """
+        |create table if not exists test(
+        | dec array<decimal(10, 2)>
+        |) using parquet
+        |""".stripMargin
+    val fill_sql =
+      """
+        |insert into test values(array(1, 2, null)), (array(null, 2,3, 5))
+        |""".stripMargin
+    val query_sql =
+      """
+        |select array_distinct(dec) from test;
+        |""".stripMargin
+    spark.sql(create_sql)
+    spark.sql(fill_sql)
+    compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
+    spark.sql("drop table test")
+  }
 }

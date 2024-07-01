@@ -314,7 +314,10 @@ void FunctionArrayDistinctSpark::executeHashed(
             if (!set.find(hash))
             {
                 set.insert(hash);
-                res_data_col.insertFrom(src_data, j);
+                if (nullable_col)
+                    res_data_col.insertFrom(*nullable_col, j);
+                else
+                    res_data_col.insertFrom(src_data, j);
             }
         }
 

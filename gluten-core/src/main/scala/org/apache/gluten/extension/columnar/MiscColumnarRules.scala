@@ -30,7 +30,7 @@ object MiscColumnarRules {
   object TransformPreOverrides {
     def apply(): TransformPreOverrides = {
       TransformPreOverrides(
-        List(OffloadFilter()),
+        List(OffloadProject(), OffloadFilter()),
         List(
           OffloadOthers(),
           OffloadAggregate(),

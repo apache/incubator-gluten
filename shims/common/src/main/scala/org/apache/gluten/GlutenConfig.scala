@@ -37,7 +37,6 @@ case class GlutenNumaBindingInfo(
 class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
-  def enableInputFileNameReplaceRule: Boolean = conf.getConf(INPUT_FILE_NAME_REPLACE_RULE_ENABLED)
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
   def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
@@ -153,9 +152,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def logicalJoinOptimizationThrottle: Integer =
     conf.getConf(COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_THROTTLE)
-
-  def enableLogicalJoinOptimize: Boolean =
-    conf.getConf(COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_ENABLED)
 
   def enableScanOnly: Boolean = conf.getConf(COLUMNAR_SCAN_ONLY_ENABLED)
 
@@ -767,16 +763,6 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(GLUTEN_ENABLE_BY_DEFAULT)
 
-  val INPUT_FILE_NAME_REPLACE_RULE_ENABLED =
-    buildConf("spark.gluten.sql.enableInputFileNameReplaceRule")
-      .internal()
-      .doc(
-        "Experimental: This config apply for velox backend to specify whether to enable " +
-          "inputFileNameReplaceRule to support offload input_file_name " +
-          "expression to native.")
-      .booleanConf
-      .createWithDefault(false)
-
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
     buildConf("spark.gluten.sql.enable.native.validation")
@@ -1017,13 +1003,6 @@ object GlutenConfig {
       .doc("Fallback to row operators if there are several continuous joins.")
       .intConf
       .createWithDefault(12)
-
-  val COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_ENABLED =
-    buildConf("spark.gluten.sql.columnar.logicalJoinOptimizeEnable")
-      .internal()
-      .doc("Enable or disable columnar logicalJoinOptimize.")
-      .booleanConf
-      .createWithDefault(false)
 
   val COLUMNAR_SCAN_ONLY_ENABLED =
     buildConf("spark.gluten.sql.columnar.scanOnly")

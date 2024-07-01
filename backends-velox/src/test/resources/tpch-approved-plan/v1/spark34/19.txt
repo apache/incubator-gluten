@@ -1,5 +1,5 @@
 == Physical Plan ==
-AdaptiveSparkPlan (36)
+AdaptiveSparkPlan (38)
 +- == Final Plan ==
    VeloxColumnarToRowExec (24)
    +- ^ RegularHashAggregateExecTransformer (22)
@@ -21,17 +21,19 @@ AdaptiveSparkPlan (36)
                               +- ^ FilterExecTransformer (11)
                                  +- ^ Scan parquet (10)
 +- == Initial Plan ==
-   HashAggregate (35)
-   +- HashAggregate (34)
-      +- Project (33)
-         +- ShuffledHashJoin Inner BuildRight (32)
-            :- Exchange (28)
-            :  +- Project (27)
-            :     +- Filter (26)
-            :        +- Scan parquet (25)
-            +- Exchange (31)
-               +- Filter (30)
-                  +- Scan parquet (29)
+   HashAggregate (37)
+   +- HashAggregate (36)
+      +- Project (35)
+         +- SortMergeJoin Inner (34)
+            :- Sort (29)
+            :  +- Exchange (28)
+            :     +- Project (27)
+            :        +- Filter (26)
+            :           +- Scan parquet (25)
+            +- Sort (33)
+               +- Exchange (32)
+                  +- Filter (31)
+                     +- Scan parquet (30)
 
 
 (1) Scan parquet
@@ -158,45 +160,53 @@ Input [6]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipin
 Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(29) Scan parquet
+(29) Sort
+Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
+Arguments: [l_partkey#X ASC NULLS FIRST], false, 0
+
+(30) Scan parquet
 Output [4]: [p_partkey#X, p_brand#X, p_size#X, p_container#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_size), GreaterThanOrEqual(p_size,1), IsNotNull(p_partkey), Or(Or(And(And(EqualTo(p_brand,Brand#X),In(p_container, [SM BOX,SM CASE,SM PACK,SM PKG])),LessThanOrEqual(p_size,5)),And(And(EqualTo(p_brand,Brand#X),In(p_container, [MED BAG,MED BOX,MED PACK,MED PKG])),LessThanOrEqual(p_size,10))),And(And(EqualTo(p_brand,Brand#X),In(p_container, [LG BOX,LG CASE,LG PACK,LG PKG])),LessThanOrEqual(p_size,15)))]
 ReadSchema: struct<p_partkey:bigint,p_brand:string,p_size:int,p_container:string>
 
-(30) Filter
+(31) Filter
 Input [4]: [p_partkey#X, p_brand#X, p_size#X, p_container#X]
 Condition : (((isnotnull(p_size#X) AND (p_size#X >= 1)) AND isnotnull(p_partkey#X)) AND (((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (p_size#X <= 5)) OR (((p_brand#X = Brand#X) AND p_container#X IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (p_size#X <= 10))) OR (((p_brand#X = Brand#X) AND p_container#X IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (p_size#X <= 15))))
 
-(31) Exchange
+(32) Exchange
 Input [4]: [p_partkey#X, p_brand#X, p_size#X, p_container#X]
 Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(32) ShuffledHashJoin
+(33) Sort
+Input [4]: [p_partkey#X, p_brand#X, p_size#X, p_container#X]
+Arguments: [p_partkey#X ASC NULLS FIRST], false, 0
+
+(34) SortMergeJoin
 Left keys [1]: [l_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join type: Inner
 Join condition: (((((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (l_quantity#X >= 1.00)) AND (l_quantity#X <= 11.00)) AND (p_size#X <= 5)) OR (((((p_brand#X = Brand#X) AND p_container#X IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (l_quantity#X >= 10.00)) AND (l_quantity#X <= 20.00)) AND (p_size#X <= 10))) OR (((((p_brand#X = Brand#X) AND p_container#X IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (l_quantity#X >= 20.00)) AND (l_quantity#X <= 30.00)) AND (p_size#X <= 15)))
 
-(33) Project
+(35) Project
 Output [2]: [l_extendedprice#X, l_discount#X]
 Input [8]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, p_partkey#X, p_brand#X, p_size#X, p_container#X]
 
-(34) HashAggregate
+(36) HashAggregate
 Input [2]: [l_extendedprice#X, l_discount#X]
 Keys: []
 Functions [1]: [partial_sum((l_extendedprice#X * (1 - l_discount#X)))]
 Aggregate Attributes [2]: [sum#X, isEmpty#X]
 Results [2]: [sum#X, isEmpty#X]
 
-(35) HashAggregate
+(37) HashAggregate
 Input [2]: [sum#X, isEmpty#X]
 Keys: []
 Functions [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))]
 Aggregate Attributes [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X]
 Results [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X AS revenue#X]
 
-(36) AdaptiveSparkPlan
+(38) AdaptiveSparkPlan
 Output [1]: [revenue#X]
 Arguments: isFinalPlan=true

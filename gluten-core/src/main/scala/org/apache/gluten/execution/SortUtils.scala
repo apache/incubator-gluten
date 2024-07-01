@@ -14,36 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.memory.alloc;
+package org.apache.gluten.execution
 
-/**
- * This along with {@link NativeMemoryAllocators}, as built-in toolkit for managing native memory
- * allocations.
- */
-public class NativeMemoryAllocator {
-  enum Type {
-    DEFAULT,
+import org.apache.gluten.extension.columnar.rewrite.RewrittenNodeWall
+
+import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan}
+
+object SortUtils {
+  def dropPartialSort(plan: SparkPlan): SparkPlan = plan match {
+    case RewrittenNodeWall(p) => RewrittenNodeWall(dropPartialSort(p))
+    case sort: SortExec if !sort.global => sort.child
+    // from pre/post project-pulling
+    case ProjectExec(_, SortExec(_, false, ProjectExec(_, p), _))
+        if plan.outputSet == p.outputSet =>
+      p
+    case _ => plan
   }
-
-  private final long nativeInstanceId;
-
-  public NativeMemoryAllocator(long nativeInstanceId) {
-    this.nativeInstanceId = nativeInstanceId;
-  }
-
-  public static NativeMemoryAllocator create(Type type) {
-    return new NativeMemoryAllocator(getAllocator(type.name()));
-  }
-
-  public long getNativeInstanceId() {
-    return this.nativeInstanceId;
-  }
-
-  public void close() {
-    releaseAllocator(this.nativeInstanceId);
-  }
-
-  private static native long getAllocator(String typeName);
-
-  private static native void releaseAllocator(long allocatorId);
 }

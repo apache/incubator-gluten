@@ -44,6 +44,7 @@ trait BackendSettingsApi {
   def supportNativeWrite(fields: Array[StructField]): Boolean = true
   def supportNativeMetadataColumns(): Boolean = false
   def supportNativeRowIndexColumn(): Boolean = false
+  def supportNativeInputFileRelatedExpr(): Boolean = false
 
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
@@ -85,7 +86,6 @@ trait BackendSettingsApi {
    * the result columns from the shuffle.
    */
   def supportShuffleWithProject(outputPartitioning: Partitioning, child: SparkPlan): Boolean = false
-  def utilizeShuffledHashJoinHint(): Boolean = false
   def excludeScanExecFromCollapsedStage(): Boolean = false
   def rescaleDecimalArithmetic: Boolean = false
 

@@ -27,10 +27,7 @@ namespace gluten {
 
 class VeloxMemoryManager final : public MemoryManager {
  public:
-  VeloxMemoryManager(
-      const std::string& name,
-      std::shared_ptr<MemoryAllocator> allocator,
-      std::unique_ptr<AllocationListener> listener);
+  VeloxMemoryManager(std::unique_ptr<AllocationListener> listener);
 
   ~VeloxMemoryManager() override;
   VeloxMemoryManager(const VeloxMemoryManager&) = delete;
@@ -72,8 +69,6 @@ class VeloxMemoryManager final : public MemoryManager {
  private:
   bool tryDestructSafe();
 
-  std::string name_;
-
 #ifdef GLUTEN_ENABLE_HBM
   std::unique_ptr<VeloxMemoryAllocator> wrappedAlloc_;
 #endif
@@ -92,8 +87,7 @@ class VeloxMemoryManager final : public MemoryManager {
 
 /// Not tracked by Spark and should only used in test or validation.
 inline std::shared_ptr<gluten::VeloxMemoryManager> getDefaultMemoryManager() {
-  static auto memoryManager = std::make_shared<gluten::VeloxMemoryManager>(
-      "test", gluten::defaultMemoryAllocator(), gluten::AllocationListener::noop());
+  static auto memoryManager = std::make_shared<gluten::VeloxMemoryManager>(gluten::AllocationListener::noop());
   return memoryManager;
 }
 

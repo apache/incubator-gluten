@@ -34,7 +34,6 @@ ENABLE_TESTS=OFF
 # Set to ON for gluten cpp test build.
 BUILD_TEST_UTILS=OFF
 RUN_SETUP_SCRIPT=ON
-COMPILE_ARROW_JAVA=ON
 NUM_THREADS=""
 OTHER_ARGUMENTS=""
 
@@ -85,10 +84,6 @@ for arg in "$@"; do
     ;;
   --run_setup_script=*)
     RUN_SETUP_SCRIPT=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  --compile_arrow_java=*)
-    COMPILE_ARROW_JAVA=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --num_threads=*)
@@ -191,7 +186,7 @@ function get_build_summary {
   echo "ENABLE_S3=$ENABLE_S3,ENABLE_GCS=$ENABLE_GCS,ENABLE_HDFS=$ENABLE_HDFS,ENABLE_ABFS=$ENABLE_ABFS,\
 BUILD_TYPE=$BUILD_TYPE,VELOX_HOME=$VELOX_HOME,ENABLE_BENCHMARK=$ENABLE_BENCHMARK,\
 ENABLE_TESTS=$ENABLE_TESTS,BUILD_TEST_UTILS=$BUILD_TEST_UTILS,\
-COMPILE_ARROW_JAVA=$COMPILE_ARROW_JAVA,OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
+OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
 }
 
 function check_commit {
@@ -277,34 +272,6 @@ function setup_linux {
   fi
 }
 
-function compile_arrow_java_module() {
-    ARROW_HOME="${VELOX_HOME}/_build/$COMPILE_TYPE/third_party/arrow_ep/src/arrow_ep"
-    ARROW_INSTALL_DIR="${ARROW_HOME}/../../install"
-
-    pushd $ARROW_HOME/java
-    # Because arrow-bom module need the -DprocessAllModules
-    mvn versions:set -DnewVersion=15.0.0-gluten -DprocessAllModules
-   
-    mvn clean install -pl bom,maven/module-info-compiler-maven-plugin,vector -am \
-          -DskipTests -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -Dassembly.skipAssembly
-
-    # Arrow C Data Interface CPP libraries
-    mvn generate-resources -P generate-libs-cdata-all-os -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR \
-      -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -N
-
-    # Arrow JNI Date Interface CPP libraries
-    export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
-    mvn generate-resources -Pgenerate-libs-jni-macos-linux -N -Darrow.dataset.jni.dist.dir=$ARROW_INSTALL_DIR \
-      -DARROW_GANDIVA=OFF -DARROW_JAVA_JNI_ENABLE_GANDIVA=OFF -DARROW_ORC=OFF -DARROW_JAVA_JNI_ENABLE_ORC=OFF \
-	    -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -N
-
-    # Arrow Java libraries
-    mvn install  -Parrow-jni -P arrow-c-data -pl c,dataset -am \
-      -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Darrow.dataset.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Darrow.cpp.build.dir=$ARROW_INSTALL_DIR/lib \
-      -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -Dassembly.skipAssembly
-    popd
-}
-
 CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
   pwd
@@ -334,9 +301,5 @@ echo "Target Velox build: $TARGET_BUILD_SUMMARY"
 check_commit
 compile
 
-if [ $COMPILE_ARROW_JAVA == "ON" ]; then
-  compile_arrow_java_module
-fi
-
 echo "Successfully built Velox from Source."
-echo $TARGET_BUILD_SUMMARY >"${VELOX_HOME}/velox-build.cache"
+echo $TARGET_BUILD_SUMMARY > "${VELOX_HOME}/velox-build.cache"
