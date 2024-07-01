@@ -30,10 +30,6 @@ class GlutenStringFunctionsSuite
 
   import testImplicits._
 
-  override def testNameBlackList: Seq[String] = super.testNameBlackList ++ Seq(
-    "string / binary length function"
-  )
-
   testGluten("string split function with no limit and regex pattern") {
     val df1 = Seq(("aaAbbAcc4")).toDF("a").select(split($"a", "A"))
     checkAnswer(df1, Row(Seq("aa", "bb", "cc4")))

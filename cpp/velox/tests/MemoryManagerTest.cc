@@ -54,7 +54,7 @@ class MemoryManagerTest : public ::testing::Test {
   }
 
   void SetUp() override {
-    vmm_ = std::make_unique<VeloxMemoryManager>("test", stdAllocator_, std::make_unique<MockAllocationListener>());
+    vmm_ = std::make_unique<VeloxMemoryManager>(std::make_unique<MockAllocationListener>());
     listener_ = vmm_->getListener();
     allocator_ = vmm_->allocator();
   }

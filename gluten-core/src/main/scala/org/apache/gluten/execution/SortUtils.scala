@@ -14,27 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution
+package org.apache.gluten.execution
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
-import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.catalyst.plans.logical.{Join, JoinHint, LogicalPlan}
+import org.apache.gluten.extension.columnar.rewrite.RewrittenNodeWall
 
-// https://issues.apache.org/jira/browse/SPARK-36745
-object JoinSelectionShim {
-  object ExtractEquiJoinKeysShim {
-    type ReturnType =
-      (
-          JoinType,
-          Seq[Expression],
-          Seq[Expression],
-          Option[Expression],
-          LogicalPlan,
-          LogicalPlan,
-          JoinHint)
-    def unapply(join: Join): Option[ReturnType] = {
-      ExtractEquiJoinKeys.unapply(join)
-    }
+import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan}
+
+object SortUtils {
+  def dropPartialSort(plan: SparkPlan): SparkPlan = plan match {
+    case RewrittenNodeWall(p) => RewrittenNodeWall(dropPartialSort(p))
+    case sort: SortExec if !sort.global => sort.child
+    // from pre/post project-pulling
+    case ProjectExec(_, SortExec(_, false, ProjectExec(_, p), _))
+        if plan.outputSet == p.outputSet =>
+      p
+    case _ => plan
   }
 }

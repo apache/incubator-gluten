@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.utils;
 
+import org.apache.gluten.exec.Runtimes;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.spark.util.sketch.BloomFilter;
 import org.apache.spark.util.sketch.IncompatibleMergeException;
@@ -27,17 +29,15 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 public class VeloxBloomFilter extends BloomFilter {
-
-  private final VeloxBloomFilterJniWrapper jni;
+  private final VeloxBloomFilterJniWrapper jni =
+      VeloxBloomFilterJniWrapper.create(Runtimes.contextInstance("VeloxBloomFilter"));
   private final long handle;
 
   private VeloxBloomFilter(byte[] data) {
-    jni = VeloxBloomFilterJniWrapper.create();
     handle = jni.init(data);
   }
 
   private VeloxBloomFilter(int capacity) {
-    jni = VeloxBloomFilterJniWrapper.create();
     handle = jni.empty(capacity);
   }
 

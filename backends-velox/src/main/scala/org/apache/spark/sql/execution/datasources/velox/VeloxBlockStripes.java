@@ -53,7 +53,8 @@ public class VeloxBlockStripes extends BlockStripes {
         return new BlockStripe() {
           @Override
           public ColumnarBatch getColumnarBatch() {
-            return ColumnarBatches.create(Runtimes.contextInstance(), blockAddresses[0]);
+            return ColumnarBatches.create(
+                Runtimes.contextInstance("VeloxBlockStripes"), blockAddresses[0]);
           }
 
           @Override

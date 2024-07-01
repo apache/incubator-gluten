@@ -83,8 +83,13 @@ WholeStageResultIterator::WholeStageResultIterator(
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
+  static std::atomic<uint32_t> vtId{0}; // Velox task ID to distinguish from Spark task ID.
   task_ = velox::exec::Task::create(
-      fmt::format("Gluten_Stage_{}_TID_{}", std::to_string(taskInfo_.stageId), std::to_string(taskInfo_.taskId)),
+      fmt::format(
+          "Gluten_Stage_{}_TID_{}_VTID_{}",
+          std::to_string(taskInfo_.stageId),
+          std::to_string(taskInfo_.taskId),
+          std::to_string(vtId++)),
       std::move(planFragment),
       0,
       std::move(queryCtx),

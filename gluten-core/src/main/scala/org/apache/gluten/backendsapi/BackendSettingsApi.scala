@@ -86,7 +86,6 @@ trait BackendSettingsApi {
    * the result columns from the shuffle.
    */
   def supportShuffleWithProject(outputPartitioning: Partitioning, child: SparkPlan): Boolean = false
-  def utilizeShuffledHashJoinHint(): Boolean = false
   def excludeScanExecFromCollapsedStage(): Boolean = false
   def rescaleDecimalArithmetic: Boolean = false
 
