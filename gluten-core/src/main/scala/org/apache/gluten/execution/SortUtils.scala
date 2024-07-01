@@ -23,11 +23,27 @@ import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan}
 object SortUtils {
   def dropPartialSort(plan: SparkPlan): SparkPlan = plan match {
     case RewrittenNodeWall(p) => RewrittenNodeWall(dropPartialSort(p))
-    case sort: SortExec if !sort.global => sort.child
+    case PartialSortChild(p) => p
     // from pre/post project-pulling
-    case ProjectExec(_, SortExec(_, false, ProjectExec(_, p), _))
-        if plan.outputSet == p.outputSet =>
+    case ProjectChild(PartialSortChild(ProjectChild(p))) if plan.outputSet == p.outputSet =>
       p
+    case ProjectChild(PartialSortChild(p)) => plan.withNewChildren(Seq(p))
     case _ => plan
+  }
+}
+
+object PartialSortChild {
+  def unapply(plan: SparkPlan): Option[SparkPlan] = plan match {
+    case sort: SortExecTransformer if !sort.global => Some(sort.child)
+    case sort: SortExec if !sort.global => Some(sort.child)
+    case _ => None
+  }
+}
+
+object ProjectChild {
+  def unapply(plan: SparkPlan): Option[SparkPlan] = plan match {
+    case project: ProjectExecTransformer => Some(project.child)
+    case project: ProjectExec => Some(project.child)
+    case _ => None
   }
 }

@@ -425,13 +425,7 @@ object OffloadOthers {
           ColumnarCoalesceExec(plan.numPartitions, plan.child)
         case plan: SortAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan) {
-            case sort: SortExecTransformer if !sort.global =>
-              sort.child
-            case sort: SortExec if !sort.global =>
-              sort.child
-            case other => other
-          }
+          HashAggregateExecBaseTransformer.from(plan)(SortUtils.dropPartialSort)
         case plan: ObjectHashAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HashAggregateExecBaseTransformer.from(plan)()
