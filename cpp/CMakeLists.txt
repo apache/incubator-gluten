@@ -68,9 +68,13 @@ if(NOT DEFINED VELOX_HOME)
 endif()
 
 if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-  set(ARROW_HOME ${VELOX_HOME}/_build/debug/CMake/resolve_dependency_modules/arrow/arrow_ep/)
+  set(ARROW_HOME
+      ${VELOX_HOME}/_build/debug/CMake/resolve_dependency_modules/arrow/arrow_ep/
+  )
 else()
-  set(ARROW_HOME ${VELOX_HOME}/_build/release/CMake/resolve_dependency_modules/arrow/arrow_ep)
+  set(ARROW_HOME
+      ${VELOX_HOME}/_build/release/CMake/resolve_dependency_modules/arrow/arrow_ep
+  )
 endif()
 
 include(ResolveDependency)
