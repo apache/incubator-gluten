@@ -148,7 +148,7 @@ function compile {
 
   export simdjson_SOURCE=AUTO
   # Quick fix for CI error due to velox rebase
-  export arrow_SOURCE=BUNDLED
+  export Arrow_SOURCE=BUNDLED
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE $NUM_THREADS_OPTS EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
