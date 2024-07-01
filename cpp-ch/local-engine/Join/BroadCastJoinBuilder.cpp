@@ -15,16 +15,18 @@
  * limitations under the License.
  */
 #include "BroadCastJoinBuilder.h"
+
 #include <Compression/CompressedReadBuffer.h>
 #include <Interpreters/TableJoin.h>
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Parser/JoinRelParser.h>
 #include <Parser/TypeParser.h>
+#include <QueryPipeline/ProfileInfo.h>
 #include <Shuffle/ShuffleReader.h>
 #include <jni/SharedPointerWrapper.h>
 #include <jni/jni_common.h>
 #include <Poco/StringTokenizer.h>
-#include <Common/CurrentThread.h>
+#include <Common/CHUtil.h>
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
 
@@ -50,6 +52,20 @@ jlong callJavaGet(const std::string & id)
     CLEAN_JNIENV
 
     return result;
+}
+
+DB::Block resetBuildTableBlockName(Block & block, bool only_one = false)
+{
+    DB::ColumnsWithTypeAndName new_cols;
+    for (const auto & col : block)
+    {
+        // Add a prefix to avoid column name conflicts with left table.
+        new_cols.emplace_back(col.column, col.type, BlockUtil::RIHGT_COLUMN_PREFIX + col.name);
+
+        if (only_one)
+            break;
+    }
+    return DB::Block(new_cols);
 }
 
 void cleanBuildHashTable(const std::string & hash_table_id, jlong instance)
@@ -88,7 +104,8 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     auto join_key_list = Poco::StringTokenizer(join_keys, ",");
     Names key_names;
     for (const auto & key_name : join_key_list)
-        key_names.emplace_back(key_name);
+        key_names.emplace_back(BlockUtil::RIHGT_COLUMN_PREFIX + key_name);
+
     DB::JoinKind kind;
     DB::JoinStrictness strictness;
 
@@ -97,10 +114,44 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     substrait::NamedStruct substrait_struct;
     substrait_struct.ParseFromString(named_struct);
     Block header = TypeParser::buildBlockFromNamedStruct(substrait_struct);
+    header = resetBuildTableBlockName(header);
+
+    Blocks data;
+    {
+        bool header_empty = header.getNamesAndTypesList().empty();
+        bool only_one_column = header_empty;
+        NativeReader block_stream(input);
+        ProfileInfo info;
+        while (Block block = block_stream.read())
+        {
+            if (header_empty)
+            {
+                // In bnlj, buidside output maybe empty,
+                //   we use buildside header only for loop
+                // Like: select count(*) from t1 left join t2
+                header = resetBuildTableBlockName(block, true);
+                header_empty = false;
+            }
+
+            DB::ColumnsWithTypeAndName columns;
+            for (size_t i = 0; i < block.columns(); ++i)
+            {
+                const auto & column = block.getByPosition(i);
+                columns.emplace_back(BlockUtil::convertColumnAsNecessary(column, header.getByPosition(i)));
+                if (only_one_column)
+                    break;
+            }
+
+            DB::Block final_block(columns);
+            info.update(final_block);
+            data.emplace_back(std::move(final_block));
+        }
+    }
+
     ColumnsDescription columns_description(header.getNamesAndTypesList());
 
     return make_shared<StorageJoinFromReadBuffer>(
-        input,
+        data,
         row_count,
         key_names,
         true,

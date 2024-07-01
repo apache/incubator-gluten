@@ -133,10 +133,15 @@ object JoinUtils {
 
   def createJoinExtensionNode(
       joinParameters: Any,
-      output: Seq[Attribute]): AdvancedExtensionNode = {
+      output: Seq[Attribute],
+      validation: Boolean = false): AdvancedExtensionNode = {
     // Use field [optimization] in a extension node
     // to send some join parameters through Substrait plan.
-    val enhancement = createEnhancement(output)
+    val enhancement = if (validation) {
+      createEnhancement(output)
+    } else {
+      null
+    }
     ExtensionBuilder.makeAdvancedExtension(joinParameters, enhancement)
   }
 
@@ -337,6 +342,7 @@ object JoinUtils {
       inputBuildOutput: Seq[Attribute],
       substraitContext: SubstraitContext,
       operatorId: java.lang.Long,
+      joinParameters: Any,
       validation: Boolean = false
   ): RelNode = {
     val expressionNode = condition.map {
@@ -346,7 +352,7 @@ object JoinUtils {
           .doTransform(substraitContext.registeredFunction)
     }
     val extensionNode =
-      JoinUtils.createExtensionNode(inputStreamedOutput ++ inputBuildOutput, validation)
+      createJoinExtensionNode(joinParameters, inputStreamedOutput ++ inputBuildOutput, validation)
 
     RelBuilder.makeCrossRel(
       inputStreamedRelNode,

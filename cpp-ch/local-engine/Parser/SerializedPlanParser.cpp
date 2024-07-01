@@ -528,6 +528,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
         case substrait::Rel::RelTypeCase::kSort:
         case substrait::Rel::RelTypeCase::kWindow:
         case substrait::Rel::RelTypeCase::kJoin:
+        case substrait::Rel::RelTypeCase::kCross:
         case substrait::Rel::RelTypeCase::kExpand: {
             auto op_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(this);
             query_plan = op_parser->parseOp(rel, rel_stack);

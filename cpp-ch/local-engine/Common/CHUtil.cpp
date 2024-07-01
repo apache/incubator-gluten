@@ -128,6 +128,27 @@ DB::Block BlockUtil::buildHeader(const DB::NamesAndTypesList & names_types_list)
     return DB::Block(cols);
 }
 
+/// The column names may be different in two blocks.
+/// and the nullability also could be different, with TPCDS-Q1 as an example.
+DB::ColumnWithTypeAndName
+BlockUtil::convertColumnAsNecessary(const DB::ColumnWithTypeAndName & column, const DB::ColumnWithTypeAndName & sample_column)
+{
+    if (sample_column.type->equals(*column.type))
+        return {column.column, column.type, sample_column.name};
+    else if (sample_column.type->isNullable() && !column.type->isNullable() && DB::removeNullable(sample_column.type)->equals(*column.type))
+    {
+        auto nullable_column = column;
+        DB::JoinCommon::convertColumnToNullable(nullable_column);
+        return {nullable_column.column, sample_column.type, sample_column.name};
+    }
+    else
+        throw DB::Exception(
+            DB::ErrorCodes::LOGICAL_ERROR,
+            "Columns have different types. original:{} expected:{}",
+            column.dumpStructure(),
+            sample_column.dumpStructure());
+}
+
 /**
  * There is a special case with which we need be careful. In spark, struct/map/list are always
  * wrapped in Nullable, but this should not happen in clickhouse.
