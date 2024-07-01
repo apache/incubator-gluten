@@ -28,6 +28,7 @@
 #include "velox/common/memory/MemoryPool.h"
 #include "velox/common/memory/MmapAllocator.h"
 #include "velox/core/Config.h"
+#include "velox/cache/VeloxListenableAsyncDataCache.h"
 
 namespace gluten {
 /// As a static instance in per executor, initialized at executor startup.
@@ -35,7 +36,7 @@ namespace gluten {
 class VeloxBackend {
  public:
   ~VeloxBackend() {
-    if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
+    if (dynamic_cast<gluten::ListenableAsyncDataCache*>(asyncDataCache_.get())) {
       LOG(INFO) << asyncDataCache_->toString();
       for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
         if (entry.path().filename().string().find(cacheFilePrefix_) != std::string::npos) {
@@ -51,7 +52,11 @@ class VeloxBackend {
 
   static VeloxBackend* get();
 
+  void setAsyncDataCache(int64_t memCacheSize, facebook::velox::memory::MmapAllocator* allocator, gluten::AllocationListener* listener);
+
   facebook::velox::cache::AsyncDataCache* getAsyncDataCache() const;
+
+  uint64_t shrinkAsyncDataCache(uint64_t size) const;
 
   std::shared_ptr<facebook::velox::Config> getBackendConf() const {
     return backendConf_;
@@ -70,7 +75,8 @@ class VeloxBackend {
   }
 
   void init(const std::unordered_map<std::string, std::string>& conf);
-  void initCache();
+  // we create cache late in memory manager initialization
+  // void initCache();
   void initConnector();
   void initUdf();
 
@@ -83,11 +89,11 @@ class VeloxBackend {
   static std::unique_ptr<VeloxBackend> instance_;
 
   // Instance of AsyncDataCache used for all large allocations.
-  std::shared_ptr<facebook::velox::cache::AsyncDataCache> asyncDataCache_;
+  std::shared_ptr<gluten::ListenableAsyncDataCache> asyncDataCache_;
 
   std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
-  std::shared_ptr<facebook::velox::memory::MmapAllocator> cacheAllocator_;
+  // std::shared_ptr<facebook::velox::memory::MmapAllocator> cacheAllocator_;
 
   std::string cachePathPrefix_;
   std::string cacheFilePrefix_;

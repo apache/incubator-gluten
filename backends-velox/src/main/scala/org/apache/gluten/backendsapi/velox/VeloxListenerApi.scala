@@ -22,6 +22,7 @@ import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.init.NativeBackendInitializer
+import org.apache.gluten.storage.memory.NativeDataCache
 import org.apache.gluten.utils._
 import org.apache.gluten.vectorized.{JniLibLoader, JniWorkspace}
 
@@ -30,6 +31,7 @@ import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
+import org.apache.spark.storage.memory.{GlutenExtMemStoreInjects, GlutenMemStoreInjects}
 import org.apache.spark.util.SparkDirectoryUtil
 
 import org.apache.commons.lang3.StringUtils
@@ -54,6 +56,14 @@ class VeloxListenerApi extends ListenerApi {
 
   override def onExecutorStart(pc: PluginContext): Unit = {
     initialize(pc.conf(), isDriver = false)
+    if (GlutenMemStoreInjects.getReservationListener() != null) {
+      NativeDataCache.setAsyncDataCache(
+        GlutenMemStoreInjects.getMemStoreSize(),
+        GlutenMemStoreInjects.getReservationListener())
+      // scalastyle:off println
+      println("!!!!Data cache is initialized.")
+    }
+    // scalastyle:on println
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
@@ -198,6 +208,8 @@ class VeloxListenerApi extends ListenerApi {
     GlutenParquetWriterInjects.setInstance(new VeloxParquetWriterInjects())
     GlutenOrcWriterInjects.setInstance(new VeloxOrcWriterInjects())
     GlutenRowSplitter.setInstance(new VeloxRowSplitter())
+    // for memStore evict
+    GlutenMemStoreInjects.setInstance(new GlutenExtMemStoreInjects())
   }
 
   private def shutdown(): Unit = {

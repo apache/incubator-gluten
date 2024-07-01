@@ -505,6 +505,7 @@ set(VELOX_SRCS
     jni/VeloxJniWrapper.cc
     jni/JniFileSystem.cc
     jni/JniUdf.cc
+    cache/VeloxListenableAsyncDataCache.cc
     memory/BufferOutputStream.cc
     memory/VeloxColumnarBatch.cc
     memory/VeloxMemoryManager.cc
@@ -560,6 +561,7 @@ target_include_directories(
   PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH}
          ${JNI_INCLUDE_DIRS}
          ${CMAKE_CURRENT_SOURCE_DIR}
+	 ${CMAKE_CURRENT_SOURCE_DIR}/../
          ${VELOX_HOME}/
          ${VELOX_BUILD_PATH}/
          ${VELOX_BUILD_PATH}/_deps/xsimd-src/include/
