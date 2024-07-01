@@ -1132,8 +1132,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionArgument(
     {
         std::string arg_name;
         bool keep_arg = FUNCTION_NEED_KEEP_ARGUMENTS.contains(function_name);
-        parseFunctionWithDAG(arg.value(), arg_name, actions_dag, keep_arg);
-        res = &actions_dag->getNodes().back();
+        res = parseFunctionWithDAG(arg.value(), arg_name, actions_dag, keep_arg);
     }
     else
     {

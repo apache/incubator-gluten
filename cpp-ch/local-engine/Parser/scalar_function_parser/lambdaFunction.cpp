@@ -45,7 +45,9 @@ DB::NamesAndTypesList collectLambdaArguments(const SerializedPlanParser & plan_p
             auto [_, col_name_field] = plan_parser_.parseLiteral(arg.value().scalar_function().arguments()[0].value().literal());
             String col_name = col_name_field.get<String>();
             if (collected_names.contains(col_name))
+            {
                 continue;
+            }
             collected_names.insert(col_name);
             auto type = TypeParser::parseType(arg.value().scalar_function().output_type());
             lambda_arguments.emplace_back(col_name, type);
@@ -96,6 +98,15 @@ protected:
         } 
         auto lambda_actions_dag = std::make_shared<DB::ActionsDAG>(parent_header);
 
+        /// The first argument is the lambda function body, followings are the lambda arguments which is
+        /// needed by the lambda function body.
+        /// There could be a nested lambda function in the lambda function body, and it refer a variable from
+        /// this outside lambda function's arguments. For an example, transform(number, x -> transform(letter, y -> struct(x, y))).
+        /// Before parsing the lambda function body, we add lambda function arguments int actions dag at first.
+        for (size_t i = 1; i < substrait_func.arguments().size(); ++i)
+        {
+            (void)parseExpression(lambda_actions_dag, substrait_func.arguments()[i].value());
+        }
         const auto & substrait_lambda_body = substrait_func.arguments()[0].value();
         const auto * lambda_body_node = parseExpression(lambda_actions_dag, substrait_lambda_body);
         lambda_actions_dag->getOutputs().push_back(lambda_body_node);
@@ -134,7 +145,9 @@ protected:
                 auto parent_node_it = parent_nodes.find(required_column_name);
                 if (parent_node_it == parent_nodes.end())
                 {
-                    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not found column {} in actions dag:\n{}", required_column_name, actions_dag->dumpDAG());
+                    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not found column {} in actions dag:\n{}",
+                        required_column_name,
+                        actions_dag->dumpDAG());
                 }
                 /// The nodes must be the ones in `actions_dag`, otherwise `ActionsDAG::evaluatePartialResult` will fail. Because nodes may have the
                 /// same name but their addresses are different.
@@ -143,7 +156,6 @@ protected:
             }
         }
 
-        LOG_DEBUG(getLogger("LambdaFunction"), "lambda actions dag:\n{}", lambda_actions_dag->dumpDAG());
         auto function_capture = std::make_shared<DB::FunctionCaptureOverloadResolver>(
             lambda_actions,
             captured_column_names,
@@ -152,7 +164,6 @@ protected:
             lambda_body_node->result_name);
 
         const auto * result = &actions_dag->addFunction(function_capture, lambda_children, lambda_body_node->result_name);
-        LOG_DEBUG(getLogger("LambdaFunction"), "actions dag:\n{}", actions_dag->dumpDAG());
         return result;
     }
 };
