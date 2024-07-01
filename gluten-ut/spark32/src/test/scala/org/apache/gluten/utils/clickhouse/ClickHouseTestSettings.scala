@@ -438,6 +438,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string overlay function")
     .exclude("binary overlay function")
     .exclude("string parse_url function")
+    .exclude("string / binary length function")
+    .exclude("SPARK-36751: add octet length api for scala")
+    .exclude("SPARK-36751: add bit length api for scala")
   enableSuite[GlutenSubquerySuite]
     .exclude("SPARK-15370: COUNT bug in subquery in subquery in subquery")
     .exclude("SPARK-26893: Allow pushdown of partition pruning subquery filters to file source")
@@ -905,7 +908,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("LOCATE")
     .exclude("LPAD/RPAD")
     .exclude("REPEAT")
-    .exclude("length for string / binary")
     .exclude("ParseUrl")
     .exclude("SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url")
     .excludeGlutenTest("SPARK-40213: ascii for Latin-1 Supplement characters")
