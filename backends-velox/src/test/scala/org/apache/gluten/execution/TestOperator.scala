@@ -1895,6 +1895,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
 
   test("fix non-deterministic filter executed twice when push down to scan") {
     val df = sql("select * from lineitem where rand() <= 0.5")
+    // plan check
     val plan = df.queryExecution.executedPlan
     val scans = plan.collect { case scan: FileSourceScanExecTransformer => scan }
     val filters = plan.collect { case filter: FilterExecTransformer => filter }
@@ -1905,5 +1906,9 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       scans(0).dataFilters,
       splitConjunctivePredicates(filters(0).condition))
     assert(remainingFilters.size == 0)
+
+    // result length check, table lineitem has 60,000 rows
+    val resultLength = df.collect().length
+    assert(resultLength > 25000 && resultLength < 35000)
   }
 }
