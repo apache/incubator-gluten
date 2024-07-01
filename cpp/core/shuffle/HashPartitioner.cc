@@ -43,7 +43,6 @@ arrow::Status gluten::HashPartitioner::compute(
     std::vector<uint32_t>& row2partition,
     std::vector<uint32_t>& partition2RowCount) {
   row2partition.resize(numRows);
-  std::fill(std::begin(partition2RowCount), std::end(partition2RowCount), 0);
 
   for (auto i = 0; i < numRows; ++i) {
     auto pid = computePid(pidArr, i, numPartitions_);
