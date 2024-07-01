@@ -127,7 +127,7 @@ public class ColumnarBatches {
         final IndicatorVector iv = getIndicatorVector(batch);
         long outputBatchHandle =
             ColumnarBatchJniWrapper.create(runtime).select(iv.handle(), columnIndices);
-        return create(runtime, outputBatchHandle);
+        return create(outputBatchHandle);
       case HEAVY:
         return new ColumnarBatch(
             Arrays.stream(columnIndices).mapToObj(batch::column).toArray(ColumnVector[]::new),
@@ -218,7 +218,7 @@ public class ColumnarBatches {
       long handle =
           ColumnarBatchJniWrapper.create(runtime)
               .createWithArrowArray(cSchema.memoryAddress(), cArray.memoryAddress());
-      ColumnarBatch output = ColumnarBatches.create(runtime, handle);
+      ColumnarBatch output = ColumnarBatches.create(handle);
 
       // Follow input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
@@ -348,8 +348,8 @@ public class ColumnarBatches {
     return new ColumnarBatch(columnVectors, numRows);
   }
 
-  public static ColumnarBatch create(Runtime runtime, long nativeHandle) {
-    return create(new IndicatorVector(runtime, nativeHandle));
+  public static ColumnarBatch create(long nativeHandle) {
+    return create(IndicatorVector.obtain(nativeHandle));
   }
 
   public static void retain(ColumnarBatch b) {
