@@ -291,11 +291,11 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
           f
       }
     }
-    val addHint = AddTransformHintRule()
+    val addHint = AddFallbackHintRule()
     val newProjectList = projectExec.projectList.filterNot(containsInputFileRelatedExpr)
     val newProjectExec = ProjectExec(newProjectList, projectExec.child)
     addHint.apply(newProjectExec)
-    if (TransformHints.isNotTransformable(newProjectExec)) {
+    if (FallbackHints.isNotTransformable(newProjectExec)) {
       // Project is still not transformable after remove `input_file_name` expressions.
       projectExec
     } else {
@@ -305,7 +305,7 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
       // /sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/rules.scala#L506
       val leafScans = findScanNodes(projectExec)
       assert(leafScans.size <= 1)
-      if (leafScans.isEmpty || TransformHints.isNotTransformable(leafScans(0))) {
+      if (leafScans.isEmpty || FallbackHints.isNotTransformable(leafScans(0))) {
         // It means
         // 1. projectExec has `input_file_name` but no scan child.
         // 2. It has scan child node but the scan node fallback.
@@ -326,12 +326,12 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
 
   private def genProjectExec(projectExec: ProjectExec): SparkPlan = {
     if (
-      TransformHints.isNotTransformable(projectExec) &&
+      FallbackHints.isNotTransformable(projectExec) &&
       BackendsApiManager.getSettings.supportNativeInputFileRelatedExpr() &&
       projectExec.projectList.exists(containsInputFileRelatedExpr)
     ) {
       tryOffloadProjectExecWithInputFileRelatedExprs(projectExec)
-    } else if (TransformHints.isNotTransformable(projectExec)) {
+    } else if (FallbackHints.isNotTransformable(projectExec)) {
       projectExec
     } else {
       logDebug(s"Columnar Processing for ${projectExec.getClass} is currently supported.")

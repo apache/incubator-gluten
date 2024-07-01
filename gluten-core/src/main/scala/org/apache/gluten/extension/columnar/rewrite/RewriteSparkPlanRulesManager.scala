@@ -67,7 +67,7 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
     }
   }
 
-  private def getFallbackHintBack(rewrittenPlan: SparkPlan): Option[TransformHint] = {
+  private def getFallbackHintBack(rewrittenPlan: SparkPlan): Option[FallbackHint] = {
     // The rewritten plan may contain more nodes than origin, for now it should only be
     // `ProjectExec`.
     val target = rewrittenPlan.collect {
