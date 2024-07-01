@@ -38,7 +38,8 @@ object ScanTransformerFactory {
       scanExec: FileSourceScanExec,
       allPushDownFilters: Option[Seq[Expression]] = None): FileSourceScanExecTransformerBase = {
     val fileFormat = scanExec.relation.fileFormat
-    lookupDataSourceScanTransformer(fileFormat.getClass.getName) match {
+    val name = fileFormat.getClass.getName
+    lookupDataSourceScanTransformer(name) match {
       case Some(clz) =>
         clz
           .getDeclaredConstructor()
@@ -127,7 +128,7 @@ object ScanTransformerFactory {
           .getOrElse(getClass.getClassLoader)
         val serviceLoader = ServiceLoader.load(classOf[DataSourceScanTransformerRegister], loader)
         serviceLoader.asScala
-          .filter(_.scanClassName.equalsIgnoreCase(scanClassName))
+          .filter(service => scanClassName.contains(service.scanClassName))
           .toList match {
           case head :: Nil =>
             // there is exactly one registered alias
