@@ -258,7 +258,7 @@ private:
 
     std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan);
 
-    DB::QueryPlanPtr parse(const std::string_view & plan);
+    DB::QueryPlanPtr parse(const std::string_view plan);
     DB::QueryPlanPtr parse(const substrait::Plan & plan);
 
 public:
@@ -270,7 +270,7 @@ public:
     ///
 
     template <bool JsonPlan>
-    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view & plan);
+    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
 
     DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
@@ -407,7 +407,7 @@ public:
 };
 
 template <bool JsonPlan>
-std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view & plan)
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)
 {
     return createExecutor(JsonPlan ? parseJson(plan) : parse(plan));
 }

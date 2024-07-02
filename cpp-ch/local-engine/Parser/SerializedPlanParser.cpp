@@ -1742,7 +1742,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
         context, std::move(query_plan), std::move(pipeline), query_plan->getCurrentDataStream().header.cloneEmpty());
 }
 
-QueryPlanPtr SerializedPlanParser::parse(const std::string_view & plan)
+QueryPlanPtr SerializedPlanParser::parse(const std::string_view plan)
 {
     substrait::Plan s_plan;
     /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
