@@ -86,6 +86,13 @@ Scripts under `/path/to/gluten/ep/build-velox/src` provide `get_velox.sh` and `b
 Velox provides arrow/parquet lib. Gluten cpp module need a required VELOX_HOME parsed by --velox_home, if you specify custom ep location, make sure these variables be passed correctly.
 
 ```bash
+## build Arrow
+cd /path/to/gluten/dev
+source build_arrow.sh
+prepare_arrow_build
+build_arrow_cpp Release
+build_arrow_java
+
 ## fetch Velox and compile
 cd /path/to/gluten/ep/build-velox/src/
 ## you could use custom ep location by --velox_home=custom_path, make sure specify --velox_home in build_velox.sh too.
