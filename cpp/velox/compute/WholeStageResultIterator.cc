@@ -454,8 +454,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     }
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
-    // Align Velox size function with Spark.
-    configs[velox::core::QueryConfig::kSparkLegacySizeOfNull] = std::to_string(veloxCfg_->get<bool>(kLegacySize, true));
 
     {
       // partial aggregation memory config
