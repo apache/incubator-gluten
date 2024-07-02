@@ -247,7 +247,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
               val batchHandle =
                 jniWrapper
                   .deserialize(deserializerHandle, cachedBatch.bytes)
-              val batch = ColumnarBatches.create(runtime, batchHandle)
+              val batch = ColumnarBatches.create(batchHandle)
               if (shouldSelectAttributes) {
                 try {
                   ColumnarBatches.select(batch, requestedColumnIndices.toArray)
