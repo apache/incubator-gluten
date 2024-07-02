@@ -860,6 +860,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
   }
 
+  /** Transform array sort to Substrait. */
+  override def genArraySortTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArraySort): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
+  }
+
   override def genPreProjectForGenerate(generate: GenerateExec): SparkPlan = generate
 
   override def genPostProjectForGenerate(generate: GenerateExec): SparkPlan = generate
