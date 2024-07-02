@@ -459,6 +459,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string overlay function")
     .exclude("binary overlay function")
     .exclude("string parse_url function")
+    .exclude("string / binary length function")
+    .exclude("SPARK-36751: add octet length api for scala")
+    .exclude("SPARK-36751: add bit length api for scala")
   enableSuite[GlutenSubquerySuite]
     .exclude("SPARK-15370: COUNT bug in subquery in subquery in subquery")
     .exclude("SPARK-26893: Allow pushdown of partition pruning subquery filters to file source")
@@ -546,7 +549,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36920: Support day-time intervals by ABS")
     .exclude("SPARK-36921: Support YearMonthIntervalType by div")
     .exclude("SPARK-36921: Support DayTimeIntervalType by div")
-  enableSuite[GlutenBitwiseExpressionsSuite].exclude("BitGet")
+  enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude("null cast")
     .exclude("cast string to date")
@@ -864,7 +867,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("translate")
     .exclude("LOCATE")
     .exclude("REPEAT")
-    .exclude("length for string / binary")
     .exclude("ParseUrl")
     .exclude("SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url")
   enableSuite[GlutenTryCastSuite]

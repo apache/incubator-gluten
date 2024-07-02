@@ -1326,6 +1326,13 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     }
   }
 
+  test("bit_get/bit_count") {
+    runQueryAndCompare(
+      "select bit_count(id), bit_get(id, 0), bit_get(id, 1), bit_get(id, 2), bit_get(id, 3) from range(100)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("test 'EqualNullSafe'") {
     runQueryAndCompare("select l_linenumber <=> l_orderkey, l_linenumber <=> null from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]

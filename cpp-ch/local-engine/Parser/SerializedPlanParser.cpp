@@ -564,6 +564,16 @@ NamesAndTypesList SerializedPlanParser::blockToNameAndTypeList(const Block & hea
     return types;
 }
 
+std::optional<String> SerializedPlanParser::getFunctionSignatureName(UInt32 function_ref) const
+{
+    auto it = function_mapping.find(std::to_string(function_ref));
+    if (it == function_mapping.end())
+        return {};
+    auto function_signature = it->second;
+    auto pos = function_signature.find(':');
+    return function_signature.substr(0, pos);
+}
+
 std::string
 SerializedPlanParser::getFunctionName(const std::string & function_signature, const substrait::Expression_ScalarFunction & function)
 {
@@ -647,15 +657,6 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         auto null_on_overflow = args.at(1).value().literal().boolean();
         if (null_on_overflow)
             ch_function_name = ch_function_name + "OrNull";
-    }
-    else if (function_name == "char_length")
-    {
-        /// In Spark
-        /// char_length returns the number of bytes when input is binary type, corresponding to CH length function
-        /// char_length returns the number of characters when input is string type, corresponding to CH char_length function
-        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
-        if (function_signature.find("vbin") != std::string::npos)
-            ch_function_name = "length";
     }
     else if (function_name == "reverse")
     {
@@ -1131,8 +1132,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionArgument(
     {
         std::string arg_name;
         bool keep_arg = FUNCTION_NEED_KEEP_ARGUMENTS.contains(function_name);
-        parseFunctionWithDAG(arg.value(), arg_name, actions_dag, keep_arg);
-        res = &actions_dag->getNodes().back();
+        res = parseFunctionWithDAG(arg.value(), arg_name, actions_dag, keep_arg);
     }
     else
     {

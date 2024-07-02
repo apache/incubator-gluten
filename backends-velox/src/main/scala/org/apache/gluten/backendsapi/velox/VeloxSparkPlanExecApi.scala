@@ -110,8 +110,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       GenericExpressionTransformer(condFuncName, Seq(left), condExpr),
       right,
       left,
-      newExpr
-    )
+      newExpr)
   }
 
   /** Transform Uuid to Substrait. */
@@ -488,8 +487,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       left,
       right,
       isSkewJoin,
-      projectList
-    )
+      projectList)
   }
   override def genCartesianProductExecTransformer(
       left: SparkPlan,
@@ -498,8 +496,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     CartesianProductExecTransformer(
       ColumnarCartesianProductBridge(left),
       ColumnarCartesianProductBridge(right),
-      condition
-    )
+      condition)
   }
 
   override def genBroadcastNestedLoopJoinExecTransformer(
@@ -508,13 +505,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       buildSide: BuildSide,
       joinType: JoinType,
       condition: Option[Expression]): BroadcastNestedLoopJoinExecTransformer =
-    VeloxBroadcastNestedLoopJoinExecTransformer(
-      left,
-      right,
-      buildSide,
-      joinType,
-      condition
-    )
+    VeloxBroadcastNestedLoopJoinExecTransformer(left, right, buildSide, joinType, condition)
 
   override def genHashExpressionTransformer(
       substraitExprName: String,
@@ -795,10 +786,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = List(
-    CollectRewriteRule.apply,
-    HLLRewriteRule.apply
-  )
+  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] =
+    List(CollectRewriteRule.apply, HLLRewriteRule.apply)
 
   /**
    * Generate extended columnar pre-rules, in the validation phase.
@@ -879,8 +868,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       requiredChildOutput: Seq[Attribute],
       outer: Boolean,
       generatorOutput: Seq[Attribute],
-      child: SparkPlan
-  ): GenerateExecTransformerBase = {
+      child: SparkPlan): GenerateExecTransformerBase = {
     GenerateExecTransformer(generator, requiredChildOutput, outer, generatorOutput, child)
   }
 

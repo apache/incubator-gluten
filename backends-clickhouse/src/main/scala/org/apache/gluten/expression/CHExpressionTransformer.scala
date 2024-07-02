@@ -30,16 +30,6 @@ import com.google.common.collect.Lists
 
 import java.util.Locale
 
-case class CHSizeExpressionTransformer(
-    substraitExprName: String,
-    expr: ExpressionTransformer,
-    original: Size)
-  extends BinaryExpressionTransformer {
-  override def left: ExpressionTransformer = expr
-  // Pass legacyLiteral as second argument in substrait function
-  override def right: ExpressionTransformer = LiteralTransformer(original.legacySizeOfNull)
-}
-
 case class CHTruncTimestampTransformer(
     substraitExprName: String,
     format: ExpressionTransformer,

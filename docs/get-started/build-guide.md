@@ -14,8 +14,8 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | build_tests            | Build gluten cpp tests.                                                                            | OFF     |
 | build_examples         | Build udf example.                                                                                 | OFF     |
 | build_benchmarks       | Build gluten cpp benchmarks.                                                                       | OFF     |
-| build_jemalloc         | Build with jemalloc.                                                                               | OFF      |
-| build_protobuf         | Build protobuf lib.                                                                                | ON      |
+| build_jemalloc         | Build with jemalloc.                                                                               | OFF     |
+| build_protobuf         | Build protobuf lib.                                                                                | OFF     |
 | enable_qat             | Enable QAT for shuffle data de/compression.                                                        | OFF     |
 | enable_iaa             | Enable IAA for shuffle data de/compression.                                                        | OFF     |
 | enable_hbm             | Enable HBM allocator.                                                                              | OFF     |
@@ -55,17 +55,18 @@ Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 ### Maven build parameters
 The below parameters can be set via `-P` for mvn.
 
-| Parameters          | Description                                                                  | Default state |
-|---------------------|------------------------------------------------------------------------------|---------------|
-| backends-velox      | Build Gluten Velox backend.                                                  | disabled       |
-| backends-clickhouse | Build Gluten ClickHouse backend.                                             | disabled      |
-| rss                 | Build Gluten with Remote Shuffle Service, only applicable for Velox backend. | disabled       |
-| delta               | Build Gluten with Delta Lake support.                                        | disabled      |
-| iceberg             | Build Gluten with Iceberg support.                                           | disabled      |
-| spark-3.2           | Build Gluten for Spark 3.2.                                                  | enabled       |
-| spark-3.3           | Build Gluten for Spark 3.3.                                                  | disabled       |
-| spark-3.4           | Build Gluten for Spark 3.4.                                                  | disabled       |
-| spark-3.5           | Build Gluten for Spark 3.5.                                                  | disabled       |
+| Parameters          | Description                           | Default state |
+|---------------------|---------------------------------------|---------------|
+| backends-velox      | Build Gluten Velox backend.           | disabled      |
+| backends-clickhouse | Build Gluten ClickHouse backend.      | disabled      |
+| celeborn            | Build Gluten with Celeborn.           | disabled      |
+| uniffle             | Build Gluten with Uniffle.            | disabled      |
+| delta               | Build Gluten with Delta Lake support. | disabled      |
+| iceberg             | Build Gluten with Iceberg support.    | disabled      |
+| spark-3.2           | Build Gluten for Spark 3.2.           | enabled       |
+| spark-3.3           | Build Gluten for Spark 3.3.           | disabled      |
+| spark-3.4           | Build Gluten for Spark 3.4.           | disabled      |
+| spark-3.5           | Build Gluten for Spark 3.5.           | disabled      |
 
 ## Gluten Jar for Deployment
 The gluten jar built out is under `GLUTEN_SRC/package/target/`.

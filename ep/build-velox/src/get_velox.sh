@@ -17,13 +17,11 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_06_28
+VELOX_BRANCH=2024_07_02
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
-#It can be set to OFF when compiling velox again
-BUILD_PROTOBUF=ON
 #Set on run gluten on S3
 ENABLE_S3=OFF
 #Set on run gluten on GCS
@@ -45,10 +43,6 @@ for arg in "$@"; do
     ;;
   --velox_home=*)
     VELOX_HOME=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  --build_protobuf=*)
-    BUILD_PROTOBUF=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_hdfs=*)
@@ -95,14 +89,12 @@ function process_setup_ubuntu {
   sed -i '/ccache/a\  curl \\' scripts/setup-ubuntu.sh
   sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
   sed -i 's/github_checkout boostorg\/boost \"\${BOOST_VERSION}\" --recursive/wget_and_untar https:\/\/github.com\/boostorg\/boost\/releases\/download\/boost-1.84.0\/boost-1.84.0.tar.gz boost \&\& cd boost/g' scripts/setup-ubuntu.sh
+  sed -i '/^function install_folly.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-ubuntu.sh
+  sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-ubuntu.sh
   if [ $ENABLE_HDFS == "ON" ]; then
     sed -i '/^function install_folly.*/i function install_libhdfs3 {\n  github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
     sed -i '/ccache /a\  yasm \\' scripts/setup-ubuntu.sh
-  fi
-  if [ $BUILD_PROTOBUF == "ON" ]; then
-    sed -i '/^function install_folly.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-ubuntu.sh
-    sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-ubuntu.sh
   fi
   sed -i "s/apt install -y/sudo apt install -y/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
@@ -136,15 +128,14 @@ function process_setup_centos8 {
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
   sed -i '/^function install_gflags.*/i function install_openssl {\n  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl \n cd openssl \n ./config no-shared && make depend && make && sudo make install \n cd ..\n}\n'     scripts/setup-centos8.sh
   sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos8.sh
+  sed -i '/cd protobuf/{n;s/\.\/configure --prefix=\/usr/\.\/configure CXXFLAGS="-fPIC" --prefix=\/usr\/local/;}' scripts/setup-centos8.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
     sed -i '/^function install_gflags.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master\n cmake_install\n}\n' scripts/setup-centos8.sh
     sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_libhdfs3' scripts/setup-centos8.sh
     sed -i '/^  dnf_install ninja-build/a\  dnf_install yasm\' scripts/setup-centos8.sh
   fi
-  if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
-    sed -i '/cd protobuf/{n;s/\.\/configure --prefix=\/usr/\.\/configure CXXFLAGS="-fPIC" --prefix=\/usr\/local/;}' scripts/setup-centos8.sh
-  fi
+
   sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^  run_and_time install_fbthrift/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-centos8.sh
@@ -172,14 +163,11 @@ function process_setup_centos7 {
 
   # install gtest
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
-
+  sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
   if [ $ENABLE_HDFS = "ON" ]; then
     sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos7.sh
     sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
     sed -i '/^dnf_install ccache/a\ \ yasm \\' scripts/setup-centos7.sh
-  fi
-  if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
-    sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
   fi
   sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
@@ -219,7 +207,6 @@ function process_setup_tencentos32 {
 
 echo "Preparing Velox source code..."
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
-echo "BUILD_PROTOBUF=${BUILD_PROTOBUF}"
 
 CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
@@ -256,11 +243,11 @@ function apply_compilation_fixes {
   current_dir=$1
   velox_home=$2
   sudo cp ${current_dir}/modify_velox.patch ${velox_home}/
-  sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/third_party/
-  sudo cp ${current_dir}/modify_arrow_dataset_scan_option.patch ${velox_home}/third_party/
+  sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/CMake/resolve_dependency_modules/arrow/
+  sudo cp ${current_dir}/modify_arrow_dataset_scan_option.patch ${velox_home}/CMake/resolve_dependency_modules/arrow/
   git add ${velox_home}/modify_velox.patch # to avoid the file from being deleted by git clean -dffx :/
-  git add ${velox_home}/third_party/modify_arrow.patch # to avoid the file from being deleted by git clean -dffx :/
-  git add ${velox_home}/third_party/modify_arrow_dataset_scan_option.patch # to avoid the file from being deleted by git clean -dffx :/
+  git add ${velox_home}/CMake/resolve_dependency_modules/arrow/modify_arrow.patch # to avoid the file from being deleted by git clean -dffx :/
+  git add ${velox_home}/CMake/resolve_dependency_modules/arrow/modify_arrow_dataset_scan_option.patch # to avoid the file from being deleted by git clean -dffx :/
   cd ${velox_home}
   echo "Applying patch to Velox source code..."
   git apply modify_velox.patch

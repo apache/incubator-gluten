@@ -612,13 +612,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHStringTranslateTransformer(substraitExprName, srcExpr, matchingExpr, replaceExpr, original)
   }
 
-  override def genSizeExpressionTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Size): ExpressionTransformer = {
-    CHSizeExpressionTransformer(substraitExprName, child, original)
-  }
-
   override def genLikeTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,
@@ -847,6 +840,24 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       child: SparkPlan
   ): GenerateExecTransformerBase = {
     CHGenerateExecTransformer(generator, requiredChildOutput, outer, generatorOutput, child)
+  }
+
+  /** Transform array filter to Substrait. */
+  override def genArrayFilterTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayFilter): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
+  }
+
+  /** Transform array transform to Substrait. */
+  override def genArrayTransformTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayTransform): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
   }
 
   override def genPreProjectForGenerate(generate: GenerateExec): SparkPlan = generate

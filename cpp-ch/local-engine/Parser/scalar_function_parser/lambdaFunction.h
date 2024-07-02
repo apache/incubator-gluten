@@ -14,36 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.memory.alloc;
-
-/**
- * This along with {@link NativeMemoryAllocators}, as built-in toolkit for managing native memory
- * allocations.
- */
-public class NativeMemoryAllocator {
-  enum Type {
-    DEFAULT,
-  }
-
-  private final long nativeInstanceId;
-
-  public NativeMemoryAllocator(long nativeInstanceId) {
-    this.nativeInstanceId = nativeInstanceId;
-  }
-
-  public static NativeMemoryAllocator create(Type type) {
-    return new NativeMemoryAllocator(getAllocator(type.name()));
-  }
-
-  public long getNativeInstanceId() {
-    return this.nativeInstanceId;
-  }
-
-  public void close() {
-    releaseAllocator(this.nativeInstanceId);
-  }
-
-  private static native long getAllocator(String typeName);
-
-  private static native void releaseAllocator(long allocatorId);
-}
+#pragma once
+#include <Parser/FunctionParser.h>
+#include <Core/NamesAndTypes.h>
+namespace local_engine
+{
+DB::NamesAndTypesList collectLambdaArguments(const SerializedPlanParser & plan_parser_, const substrait::Expression_ScalarFunction & substrait_func);
+} 

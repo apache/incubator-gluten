@@ -94,6 +94,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"bitwise_and", "bitAnd"},
        {"bitwise_or", "bitOr"},
        {"bitwise_xor", "bitXor"},
+       {"bit_get", "bitTest"},
+       {"bit_count", "bitCount"},
        {"sqrt", "sqrt"},
        {"cbrt", "cbrt"},
        {"degrees", "degrees"},
@@ -128,8 +130,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
        {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
        {"strpos", "positionUTF8"},
-       {"char_length",
-        "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
        {"replace", "replaceAll"},
        {"regexp_replace", "replaceRegexpAll"},
        {"regexp_extract_all", "regexpExtractAllSpark"},
@@ -304,11 +304,15 @@ public:
     std::shared_ptr<DB::ActionsDAG> expressionsToActionsDAG(
         const std::vector<substrait::Expression> & expressions, const DB::Block & header, const DB::Block & read_schema);
     RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
+    const std::unordered_map<std::string, std::string> & getFunctionMapping() { return function_mapping; }
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
+    std::optional<std::string> getFunctionSignatureName(UInt32 function_ref) const;
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
     IQueryPlanStep * addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header);
+    
+    static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
 
     static ContextMutablePtr global_context;
     static Context::ConfigurationPtr config;
@@ -383,7 +387,6 @@ private:
     // remove nullable after isNotNull
     void removeNullableForRequiredColumns(const std::set<String> & require_columns, const ActionsDAGPtr & actions_dag) const;
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
-    static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     void wrapNullable(
         const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);

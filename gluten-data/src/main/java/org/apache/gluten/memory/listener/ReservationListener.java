@@ -14,14 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.memory.nmm;
-
-import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
-import org.apache.gluten.memory.memtarget.NoopMemoryTarget;
+package org.apache.gluten.memory.listener;
 
 public interface ReservationListener {
-  ReservationListener NOOP =
-      new ManagedReservationListener(new NoopMemoryTarget(), new SimpleMemoryUsageRecorder());
 
   long reserve(long size);
 
