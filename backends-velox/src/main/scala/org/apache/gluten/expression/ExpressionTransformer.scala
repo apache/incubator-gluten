@@ -115,7 +115,6 @@ case class VeloxStringSplitTransformer(
     limitExpr: ExpressionTransformer,
     original: StringSplit)
   extends ExpressionTransformer {
-  // TODO: split function support limit arg
   override def children: Seq[ExpressionTransformer] = srcExpr :: regexExpr :: limitExpr :: Nil
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {

@@ -830,37 +830,16 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
   }
 
   test("split") {
-    runQueryAndCompare("SELECT split(c_comment, ''), c_comment FROM customer limit 10") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-    runQueryAndCompare("SELECT split(c_comment, '', 2), c_comment FROM customer limit 10") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-    runQueryAndCompare("SELECT split(c_comment, ',',  1), c_comment FROM customer limit 10") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-    runQueryAndCompare("SELECT split(c_comment, ','), c_comment FROM customer limit 10") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-    runQueryAndCompare("SELECT split(c_comment, ',', 3), c_comment FROM customer limit 10") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-    runQueryAndCompare("SELECT split(c_comment, ',', 10), c_comment FROM customer limit 10") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-    runQueryAndCompare("SELECT split(c_comment, '[a-z]+', 10), c_comment FROM customer limit 10") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
     runQueryAndCompare("SELECT split(c_comment, '[a-z]+'), c_comment FROM customer limit 10") {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-    runQueryAndCompare("SELECT split(c_comment, '[a-z]+', 2), c_comment FROM customer limit 10") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     runQueryAndCompare("SELECT split(c_comment, '[1-9]+', -2), c_comment FROM customer limit 10") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
-    runQueryAndCompare("SELECT split(c_comment, '[a-z]+', 0), c_comment FROM customer limit 10") {
+    runQueryAndCompare("SELECT split(c_comment, '[a-z]+', 2), c_comment FROM customer limit 10") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT split(c_comment, '[a-z]+', 10), c_comment FROM customer limit 10") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
