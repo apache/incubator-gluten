@@ -365,7 +365,7 @@ object FilterHandler extends PredicateHelper {
    *   the filter conditions not pushed down into Scan.
    */
   def getRemainingFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] =
-    (ExpressionSet(filters) -- ExpressionSet(scanFilters)).toSeq
+    (filters.toSet -- scanFilters.toSet).toSeq
 
   // Separate and compare the filter conditions in Scan and Filter.
   // Try to push down the remaining conditions in Filter into Scan.
