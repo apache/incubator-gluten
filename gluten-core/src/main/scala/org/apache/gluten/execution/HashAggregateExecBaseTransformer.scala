@@ -84,9 +84,14 @@ abstract class HashAggregateExecBaseTransformer(
     val functionString = truncatedString(allAggregateExpressions, "[", ", ", "]", maxFields)
     val outputString = truncatedString(output, "[", ", ", "]", maxFields)
     if (verbose) {
-      s"HashAggregateTransformer(keys=$keyString, functions=$functionString, output=$outputString)"
+      s"HashAggregateTransformer(keys=$keyString, " +
+        s"functions=$functionString, " +
+        s"isStreamingAgg=$isCapableForStreamingAggregation, " +
+        s"output=$outputString)"
     } else {
-      s"HashAggregateTransformer(keys=$keyString, functions=$functionString)"
+      s"HashAggregateTransformer(keys=$keyString, " +
+        s"functions=$functionString, " +
+        s"isStreamingAgg=$isCapableForStreamingAggregation)"
     }
   }
 
