@@ -58,6 +58,6 @@ private:
 class RelMetricSerializer
 {
 public:
-    static std::string serializeRelMetric(RelMetricPtr rel_metric, bool flatten = true);
+    static std::string serializeRelMetric(const RelMetricPtr & rel_metric, bool flatten = true);
 };
 }
