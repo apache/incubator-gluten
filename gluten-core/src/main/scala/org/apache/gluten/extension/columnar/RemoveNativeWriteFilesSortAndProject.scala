@@ -76,7 +76,7 @@ object NativeWriteFilesWithSkippingSortAndProject extends Logging {
         } else {
           // If we can not transform the project, then we fallback to origin plan which means
           // we also retain the sort operator.
-          TransformHints.tagNotTransformable(p, validationResult)
+          FallbackTags.add(p, validationResult)
           None
         }
       case _ => None

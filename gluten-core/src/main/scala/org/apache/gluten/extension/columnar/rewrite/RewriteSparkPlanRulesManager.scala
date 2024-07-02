@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.rewrite
 
-import org.apache.gluten.extension.columnar.{AddTransformHintRule, TransformHint, TransformHints}
+import org.apache.gluten.extension.columnar.{AddFallbackTagRule, FallbackTag, FallbackTags}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.rdd.RDD
@@ -49,7 +49,7 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
   extends Rule[SparkPlan] {
 
   private def mayNeedRewrite(plan: SparkPlan): Boolean = {
-    TransformHints.maybeTransformable(plan) && {
+    FallbackTags.maybeOffloadable(plan) && {
       plan match {
         case _: SortExec => true
         case _: TakeOrderedAndProjectExec => true
@@ -67,14 +67,14 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
     }
   }
 
-  private def getTransformHintBack(rewrittenPlan: SparkPlan): Option[TransformHint] = {
+  private def getFallbackTagBack(rewrittenPlan: SparkPlan): Option[FallbackTag] = {
     // The rewritten plan may contain more nodes than origin, for now it should only be
     // `ProjectExec`.
     val target = rewrittenPlan.collect {
       case p if !p.isInstanceOf[ProjectExec] && !p.isInstanceOf[RewrittenNodeWall] => p
     }
     assert(target.size == 1)
-    TransformHints.getHintOption(target.head)
+    FallbackTags.getTagOption(target.head)
   }
 
   private def applyRewriteRules(origin: SparkPlan): (SparkPlan, Option[String]) = {
@@ -93,7 +93,7 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    val addHint = AddTransformHintRule()
+    val addHint = AddFallbackTagRule()
     plan.transformUp {
       case origin if mayNeedRewrite(origin) =>
         // Add a wall to avoid transforming unnecessary nodes.
@@ -104,18 +104,18 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
           // Note, it is not expected, but it happens in CH backend when pulling out
           // aggregate.
           // TODO: Fix the exception and remove this branch
-          TransformHints.tagNotTransformable(origin, error.get)
+          FallbackTags.add(origin, error.get)
           origin
         } else if (withWall.fastEquals(rewrittenPlan)) {
           // Return origin if the rewrite rules do nothing.
-          // We do not add tag and leave it to the outside `AddTransformHintRule`.
+          // We do not add tag and leave it to the outside `AddFallbackTagRule`.
           origin
         } else {
           addHint.apply(rewrittenPlan)
-          val hint = getTransformHintBack(rewrittenPlan)
+          val hint = getFallbackTagBack(rewrittenPlan)
           if (hint.isDefined) {
             // If the rewritten plan is still not transformable, return the original plan.
-            TransformHints.tag(origin, hint.get)
+            FallbackTags.tag(origin, hint.get)
             origin
           } else {
             rewrittenPlan.transformUp {
