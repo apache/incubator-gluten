@@ -464,13 +464,6 @@ trait SparkPlanExecApi {
       original)
   }
 
-  def genSizeExpressionTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Size): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(child), original)
-  }
-
   def genLikeTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,
