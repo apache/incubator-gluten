@@ -116,12 +116,12 @@ public:
         for (size_t i = 0; i < array_col->size(); ++i)
         {
             String res;
-            size_t array_size = array_offsets[i] - current_offset;
             if (arg_null_col->isNullAt(i))
             {
                 null_result[i] = 1;
                 continue;
             }
+            size_t array_size = array_offsets[i] - current_offset;
             size_t data_pos = 0;
             for (size_t j = 0; j < array_size - 1; ++j)
             {
@@ -141,8 +141,11 @@ public:
                 }
                 data_pos = string_offsets[j];
             }
-            const StringRef s = array_nested_col->isNullAt(array_size - 1) ? null_replacement : StringRef(&string_data[data_pos], string_offsets[array_size - 1] - data_pos);
-            res += s.toString();
+            if (array_size > 0)
+            {
+                const StringRef s = array_nested_col->isNullAt(array_size - 1) ? null_replacement : StringRef(&string_data[data_pos], string_offsets[array_size - 1] - data_pos);
+                res += s.toString();
+            }
             res_col->insertData(res.data(), res.size());
             current_offset = array_offsets[i];
         }
