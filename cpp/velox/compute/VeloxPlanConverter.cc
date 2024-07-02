@@ -81,9 +81,9 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
     splitInfo->paths.emplace_back(file.uri_file());
     splitInfo->starts.emplace_back(file.start());
     splitInfo->lengths.emplace_back(file.length());
-    if (file.has_properties()){
-        facebook::velox::FileProperties fileProps = {file.properties().filesize(), file.properties().modificationtime()};
-        splitInfo->properties.emplace_back(fileProps);
+    if (file.has_properties()) {
+      facebook::velox::FileProperties fileProps = {file.properties().filesize(), file.properties().modificationtime()};
+      splitInfo->properties.emplace_back(fileProps);
     }
     switch (file.file_format_case()) {
       case SubstraitFileFormatCase::kOrc:
