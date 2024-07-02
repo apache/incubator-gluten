@@ -57,16 +57,13 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
           }
           val noFallBack = queryNum match {
             case i
-                if i == 10 || i == 16 || i == 28 || i == 35 || i == 45 || i == 77 ||
-                  i == 88 || i == 90 || i == 94 =>
+                if i == 10 || i == 16 || i == 35 || i == 45 || i == 77 ||
+                  i == 94 =>
               // Q10 BroadcastHashJoin, ExistenceJoin
               // Q16 ShuffledHashJoin, NOT condition
-              // Q28 BroadcastNestedLoopJoin
               // Q35 BroadcastHashJoin, ExistenceJoin
               // Q45 BroadcastHashJoin, ExistenceJoin
               // Q77 CartesianProduct
-              // Q88 BroadcastNestedLoopJoin
-              // Q90 BroadcastNestedLoopJoin
               // Q94 BroadcastHashJoin, LeftSemi, NOT condition
               (false, false)
             case j if j == 38 || j == 87 =>

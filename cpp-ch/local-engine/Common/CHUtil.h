@@ -47,6 +47,8 @@ static const std::unordered_set<String> LONG_VALUE_SETTINGS{
 class BlockUtil
 {
 public:
+    static constexpr auto RIHGT_COLUMN_PREFIX = "broadcast_right_";
+
     // Build a header block with a virtual column which will be
     // use to indicate the number of rows in a block.
     // Commonly seen in the following quries:
@@ -72,6 +74,10 @@ public:
         const std::unordered_set<size_t> & columns_to_skip_flatten = {});
 
     static DB::Block concatenateBlocksMemoryEfficiently(std::vector<DB::Block> && blocks);
+
+    /// The column names may be different in two blocks.
+    /// and the nullability also could be different, with TPCDS-Q1 as an example.
+    static DB::ColumnWithTypeAndName convertColumnAsNecessary(const DB::ColumnWithTypeAndName & column, const DB::ColumnWithTypeAndName & sample_column);
 };
 
 class PODArrayUtil

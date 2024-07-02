@@ -254,6 +254,7 @@ private:
     friend class FunctionExecutor;
     friend class NonNullableColumnsResolver;
     friend class JoinRelParser;
+    friend class CrossRelParser;
     friend class MergeTreeRelParser;
 
     std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan);
