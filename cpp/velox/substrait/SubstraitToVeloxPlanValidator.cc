@@ -255,6 +255,11 @@ bool SubstraitToVeloxPlanValidator::validateCast(
   const auto& toType = SubstraitParser::parseType(castExpr.type());
   core::TypedExprPtr input = exprConverter_->toVeloxExpr(castExpr.input(), inputType);
 
+  // Support for cast from timestamp to date
+  if (input->type()->kind() == TypeKind::TIMESTAMP &&  toType->isDate()) {
+    return true;
+  }
+
   // Only support cast from date to timestamp
   if (toType->kind() == TypeKind::TIMESTAMP && !input->type()->isDate()) {
     LOG_VALIDATION_MSG(

@@ -1787,6 +1787,18 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
+  test("Cast timestamp to date") {
+    withTable("ts") {
+      sql("create table ts (c1 timestamp) using parquet")
+      sql("insert into ts values (timestamp'2016-01-01 10:11:12.123456')")
+      sql("insert into ts values (timestamp'1965-01-01 10:11:12.123456')")
+
+      runQueryAndCompare("select cast(c1 as date) from ts") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
   test("cast date to timestamp with timezone") {
     sql("SET spark.sql.session.timeZone = America/Los_Angeles")
     val dfInLA = sql("SELECT cast(date'2023-01-02 01:01:01' as timestamp) as ts")
