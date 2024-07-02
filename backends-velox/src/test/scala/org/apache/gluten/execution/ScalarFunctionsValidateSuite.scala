@@ -101,8 +101,8 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  test("null input for array_size") {
-    val df = runQueryAndCompare("SELECT array_size(null)") {
+  testWithSpecifiedSparkVersion("null input for array_size", Some("3.3")) {
+    runQueryAndCompare("SELECT array_size(null)") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
