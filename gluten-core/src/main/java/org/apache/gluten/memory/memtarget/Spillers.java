@@ -16,15 +16,20 @@
  */
 package org.apache.gluten.memory.memtarget;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public final class Spillers {
   private Spillers() {
     // enclose factory ctor
   }
+
+  public static final Spiller NOOP =
+      new Spiller() {
+        @Override
+        public long spill(MemoryTarget self, Phase phase, long size) {
+          return 0;
+        }
+      };
 
   public static final Set<Spiller.Phase> PHASE_SET_ALL =
       Collections.unmodifiableSet(
@@ -40,6 +45,10 @@ public final class Spillers {
     return new WithMinSpillSize(spiller, minSize);
   }
 
+  public static AppendableSpillerList appendable() {
+    return new AppendableSpillerList();
+  }
+
   // Minimum spill target size should be larger than spark.gluten.memory.reservationBlockSize,
   // since any release action within size smaller than the block size may not have chance to
   // report back to the Java-side reservation listener.
@@ -53,13 +62,27 @@ public final class Spillers {
     }
 
     @Override
-    public long spill(MemoryTarget self, long size) {
-      return delegated.spill(self, Math.max(size, minSize));
+    public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
+      return delegated.spill(self, phase, Math.max(size, minSize));
+    }
+  }
+
+  public static class AppendableSpillerList implements Spiller {
+    private final List<Spiller> spillers = new LinkedList<>();
+
+    private AppendableSpillerList() {}
+
+    public void append(Spiller spiller) {
+      spillers.add(spiller);
     }
 
     @Override
-    public Set<Phase> applicablePhases() {
-      return delegated.applicablePhases();
+    public long spill(MemoryTarget self, Phase phase, final long size) {
+      long remainingBytes = size;
+      for (Spiller spiller : spillers) {
+        remainingBytes -= spiller.spill(self, phase, remainingBytes);
+      }
+      return size - remainingBytes;
     }
   }
 }

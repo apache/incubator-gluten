@@ -648,15 +648,6 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         if (null_on_overflow)
             ch_function_name = ch_function_name + "OrNull";
     }
-    else if (function_name == "char_length")
-    {
-        /// In Spark
-        /// char_length returns the number of bytes when input is binary type, corresponding to CH length function
-        /// char_length returns the number of characters when input is string type, corresponding to CH char_length function
-        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
-        if (function_signature.find("vbin") != std::string::npos)
-            ch_function_name = "length";
-    }
     else if (function_name == "reverse")
     {
         if (function.output_type().has_list())

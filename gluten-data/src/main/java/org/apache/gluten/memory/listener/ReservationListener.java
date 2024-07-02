@@ -14,36 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.memory.alloc;
+package org.apache.gluten.memory.listener;
 
-/**
- * This along with {@link NativeMemoryAllocators}, as built-in toolkit for managing native memory
- * allocations.
- */
-public class NativeMemoryAllocator {
-  enum Type {
-    DEFAULT,
-  }
+public interface ReservationListener {
 
-  private final long nativeInstanceId;
+  long reserve(long size);
 
-  public NativeMemoryAllocator(long nativeInstanceId) {
-    this.nativeInstanceId = nativeInstanceId;
-  }
+  long unreserve(long size);
 
-  public static NativeMemoryAllocator create(Type type) {
-    return new NativeMemoryAllocator(getAllocator(type.name()));
-  }
-
-  public long getNativeInstanceId() {
-    return this.nativeInstanceId;
-  }
-
-  public void close() {
-    releaseAllocator(this.nativeInstanceId);
-  }
-
-  private static native long getAllocator(String typeName);
-
-  private static native void releaseAllocator(long allocatorId);
+  long getUsedBytes();
 }

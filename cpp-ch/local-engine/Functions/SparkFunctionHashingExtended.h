@@ -28,6 +28,7 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/NumberTraits.h>
 #include <Functions/FunctionsHashing.h>
+#include <Common/NaNUtils.h>
 
 namespace DB
 {
@@ -200,14 +201,14 @@ private:
         {
             if constexpr (std::is_same_v<T, Float32>)
             {
-                if (n == -0.0f) [[unlikely]]
+                if (n == -0.0f || isNaN(n)) [[unlikely]]
                     return applyNumber<Int32>(0, seed);
                 else
                     return Impl::apply(reinterpret_cast<const char *>(&n), sizeof(n), seed);
             }
             else
             {
-                if (n == -0.0) [[unlikely]]
+                if (n == -0.0 || isNaN(n)) [[unlikely]]
                     return applyNumber<Int64>(0, seed);
                 else
                     return Impl::apply(reinterpret_cast<const char *>(&n), sizeof(n), seed);

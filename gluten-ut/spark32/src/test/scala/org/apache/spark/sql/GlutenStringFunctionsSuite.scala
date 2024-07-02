@@ -21,9 +21,4 @@ import org.apache.spark.sql.catalyst.expressions.ExpressionEvalHelper
 class GlutenStringFunctionsSuite
   extends StringFunctionsSuite
   with GlutenSQLTestsTrait
-  with ExpressionEvalHelper {
-
-  override def testNameBlackList: Seq[String] = super.testNameBlackList ++ Seq(
-    "string / binary length function"
-  )
-}
+  with ExpressionEvalHelper {}
