@@ -192,7 +192,7 @@ function build_arrow {
   cd $GLUTEN_DIR/dev
   source build_arrow.sh
   prepare_arrow_build
-  build_arrow_cpp $BUILD_TYPE
+  build_arrow_cpp
   echo "Finished building arrow CPP"
   build_arrow_java
   echo "Finished building arrow Java"
@@ -208,9 +208,8 @@ function build_velox {
                    --num_threads=$NUM_THREADS
 }
 
-## compile gluten cpp
 function build_gluten_cpp {
-  echo "Start to Gluten CPP"
+  echo "Start to build Gluten CPP"
   cd $GLUTEN_DIR/cpp
   rm -rf build
   mkdir build

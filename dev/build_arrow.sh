@@ -17,15 +17,13 @@
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 source ${CURRENT_DIR}/build_helper_functions.sh
 VELOX_ARROW_BUILD_VERSION=15.0.0
-ARROW_PREFIX=$CURRENT_DIR/arrow_ep
-# Always uses BUNDLED in case of that thrift is not installed.
-THRIFT_SOURCE="BUNDLED"
+ARROW_PREFIX=$CURRENT_DIR/../ep/_ep/arrow_ep
 BUILD_TYPE=Release
 
 function prepare_arrow_build() {
-  sudo rm -rf arrow_ep/
+  mkdir -p ${ARROW_PREFIX}/../ && cd ${ARROW_PREFIX}/../ && sudo rm -rf arrow_ep/
   wget_and_untar https://archive.apache.org/dist/arrow/arrow-${VELOX_ARROW_BUILD_VERSION}/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep
-  cd arrow_ep/
+  cd arrow_ep
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow.patch
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow_dataset_scan_option.patch
 }
@@ -38,15 +36,14 @@ function install_arrow_deps {
 }
 
 function build_arrow_cpp() {
- if [ -n "$1" ]; then
-   BUILD_TYPE=$1
- fi
  pushd $ARROW_PREFIX/cpp
 
  cmake_install \
        -DARROW_PARQUET=ON \
        -DARROW_FILESYSTEM=ON \
        -DARROW_PROTOBUF_USE_SHARED=OFF \
+       -DARROW_DEPENDENCY_USE_SHARED=OFF \
+       -DARROW_DEPENDENCY_SOURCE=BUNDLED \
        -DARROW_WITH_THRIFT=ON \
        -DARROW_WITH_LZ4=ON \
        -DARROW_WITH_SNAPPY=ON \
@@ -59,8 +56,8 @@ function build_arrow_cpp() {
        -DARROW_TESTING=ON \
        -DCMAKE_INSTALL_PREFIX=/usr/local \
        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-       -DARROW_BUILD_STATIC=ON \
-       -DThrift_SOURCE=${THRIFT_SOURCE}
+       -DARROW_BUILD_SHARED=OFF \
+       -DARROW_BUILD_STATIC=ON
  popd
 }
 
