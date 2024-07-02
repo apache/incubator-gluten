@@ -1153,6 +1153,12 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::convertStructFieldType(const
 #undef UINT_CONVERT
 }
 
+bool SerializedPlanParser::isFunction(substrait::Expression_ScalarFunction rel, String function_name)
+{
+    auto func_signature = function_mapping[std::to_string(rel.function_reference())];
+    return func_signature.starts_with(function_name + ":");
+}
+
 ActionsDAGPtr SerializedPlanParser::parseFunction(
     const Block & header, const substrait::Expression & rel, std::string & result_name, ActionsDAGPtr actions_dag, bool keep_result)
 {
