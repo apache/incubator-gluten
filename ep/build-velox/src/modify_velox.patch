@@ -35,8 +35,31 @@ index d49115f12..1aaa8e532 100644
 +          IMPORTED_LOCATION_DEBUG "${LZ4_LIBRARY_DEBUG}")
 +  endif()
  endif()
+diff --git a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
+index 3f01df2fd..8c1c493f3 100644
+--- a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
++++ b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
+@@ -24,6 +24,9 @@ if(VELOX_ENABLE_ARROW)
+   set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep")
+   set(ARROW_CMAKE_ARGS
+       -DARROW_PARQUET=OFF
++      -DARROW_PARQUET=ON
++      -DARROW_FILESYSTEM=ON
++      -DARROW_PROTOBUF_USE_SHARED=OFF
+       -DARROW_WITH_THRIFT=ON
+       -DARROW_WITH_LZ4=ON
+       -DARROW_WITH_SNAPPY=ON
+@@ -66,6 +69,8 @@ if(VELOX_ENABLE_ARROW)
+     arrow_ep
+     PREFIX ${ARROW_PREFIX}
+     URL ${VELOX_ARROW_SOURCE_URL}
++    PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/modify_arrow.patch
++    COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/modify_arrow_dataset_scan_option.patch
+     URL_HASH ${VELOX_ARROW_BUILD_SHA256_CHECKSUM}
+     SOURCE_SUBDIR cpp
+     CMAKE_ARGS ${ARROW_CMAKE_ARGS}
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 5c7bf770a..9f897f577 100644
+index bb7c49907..3372d48b4 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -234,10 +234,15 @@ if(VELOX_ENABLE_ABFS)
@@ -59,7 +82,7 @@ index 5c7bf770a..9f897f577 100644
    add_definitions(-DVELOX_ENABLE_HDFS3)
  endif()
 
-@@ -377,7 +382,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+@@ -378,7 +383,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
 
  set_source(gflags)
@@ -68,31 +91,6 @@ index 5c7bf770a..9f897f577 100644
  if(NOT TARGET gflags::gflags)
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
-
-diff --git a/third_party/CMakeLists.txt b/third_party/CMakeLists.txt
-index ce4c24dbe..785a2acc6 100644
---- a/third_party/CMakeLists.txt
-+++ b/third_party/CMakeLists.txt
-@@ -26,7 +26,9 @@ if(VELOX_ENABLE_ARROW)
-   endif()
-   set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep")
-   set(ARROW_CMAKE_ARGS
--      -DARROW_PARQUET=OFF
-+      -DARROW_PARQUET=ON
-+      -DARROW_FILESYSTEM=ON
-+      -DARROW_PROTOBUF_USE_SHARED=OFF
-       -DARROW_WITH_THRIFT=ON
-       -DARROW_WITH_LZ4=ON
-       -DARROW_WITH_SNAPPY=ON
-@@ -69,6 +71,8 @@ if(VELOX_ENABLE_ARROW)
-     arrow_ep
-     PREFIX ${ARROW_PREFIX}
-     URL ${VELOX_ARROW_SOURCE_URL}
-+    PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/modify_arrow.patch
-+    COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/modify_arrow_dataset_scan_option.patch
-     URL_HASH ${VELOX_ARROW_BUILD_SHA256_CHECKSUM}
-     SOURCE_SUBDIR cpp
-     CMAKE_ARGS ${ARROW_CMAKE_ARGS}
 diff --git a/velox/common/process/tests/CMakeLists.txt b/velox/common/process/tests/CMakeLists.txt
 index 6797697a1..3e241f8f7 100644
 --- a/velox/common/process/tests/CMakeLists.txt
