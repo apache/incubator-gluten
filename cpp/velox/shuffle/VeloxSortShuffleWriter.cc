@@ -185,6 +185,7 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
     RETURN_NOT_OK(evict(pid));
     partitionSerializer_[pid] = nullptr;
     arenas_[pid] = nullptr;
+    partition2RowCount_[pid] = 0;
   }
   partitionRowIndices_.clear();
   sortedVector_.clear();
