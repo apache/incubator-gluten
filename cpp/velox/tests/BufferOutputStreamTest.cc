@@ -16,6 +16,7 @@
  */
 
 #include "memory/BufferOutputStream.h"
+#include "compute/VeloxBackend.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "velox/common/memory/ByteStream.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
@@ -27,6 +28,7 @@ class BufferOutputStreamTest : public ::testing::Test, public test::VectorTestBa
  protected:
   // Velox requires the mem manager to be instanced.
   static void SetUpTestCase() {
+    VeloxBackend::create({});
     memory::MemoryManager::testingSetInstance({});
   }
 
