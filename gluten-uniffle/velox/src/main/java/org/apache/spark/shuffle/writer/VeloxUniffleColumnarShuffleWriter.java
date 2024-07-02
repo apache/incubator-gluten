@@ -165,13 +165,6 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
                     return 0L;
                   }
-                  if (nativeShuffleWriter == -1) {
-                    throw new IllegalStateException(
-                        "Fatal: spill() called before a shuffle shuffle writer "
-                            + "evaluator is created. This behavior should be"
-                            + "optimized by moving memory "
-                            + "allocations from make() to split()");
-                  }
                   LOG.info("Gluten shuffle writer: Trying to push {} bytes of data", size);
                   long pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false);
                   LOG.info("Gluten shuffle writer: Pushed {} / {} bytes of data", pushed, size);

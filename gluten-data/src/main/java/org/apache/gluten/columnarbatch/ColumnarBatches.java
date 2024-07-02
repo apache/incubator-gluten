@@ -24,6 +24,7 @@ import org.apache.gluten.utils.ArrowUtil;
 import org.apache.gluten.utils.ImplicitClass;
 import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.c.ArrowArray;
 import org.apache.arrow.c.ArrowSchema;
 import org.apache.arrow.c.CDataDictionaryProvider;
@@ -94,10 +95,12 @@ public class ColumnarBatches {
       if (target.numCols() != from.numCols()) {
         throw new IllegalStateException();
       }
-      final ColumnVector[] vectors = (ColumnVector[]) FIELD_COLUMNS.get(target);
+      final ColumnVector[] newVectors = new ColumnVector[from.numCols()];
       for (int i = 0; i < target.numCols(); i++) {
-        vectors[i] = from.column(i);
+        newVectors[i] = from.column(i);
       }
+      FIELD_COLUMNS.set(target, newVectors);
+      System.out.println();
     } catch (IllegalAccessException e) {
       throw new GlutenException(e);
     }
@@ -127,7 +130,7 @@ public class ColumnarBatches {
         final IndicatorVector iv = getIndicatorVector(batch);
         long outputBatchHandle =
             ColumnarBatchJniWrapper.create(runtime).select(iv.handle(), columnIndices);
-        return create(runtime, outputBatchHandle);
+        return create(outputBatchHandle);
       case HEAVY:
         return new ColumnarBatch(
             Arrays.stream(columnIndices).mapToObj(batch::column).toArray(ColumnVector[]::new),
@@ -218,7 +221,7 @@ public class ColumnarBatches {
       long handle =
           ColumnarBatchJniWrapper.create(runtime)
               .createWithArrowArray(cSchema.memoryAddress(), cArray.memoryAddress());
-      ColumnarBatch output = ColumnarBatches.create(runtime, handle);
+      ColumnarBatch output = ColumnarBatches.create(handle);
 
       // Follow input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
@@ -294,7 +297,8 @@ public class ColumnarBatches {
     return refCnt;
   }
 
-  private static long getRefCnt(ColumnarBatch input) {
+  @VisibleForTesting
+  static long getRefCnt(ColumnarBatch input) {
     switch (identifyBatchType(input)) {
       case LIGHT:
         return getRefCntLight(input);
@@ -348,8 +352,8 @@ public class ColumnarBatches {
     return new ColumnarBatch(columnVectors, numRows);
   }
 
-  public static ColumnarBatch create(Runtime runtime, long nativeHandle) {
-    return create(new IndicatorVector(runtime, nativeHandle));
+  public static ColumnarBatch create(long nativeHandle) {
+    return create(IndicatorVector.obtain(nativeHandle));
   }
 
   public static void retain(ColumnarBatch b) {

@@ -67,7 +67,7 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator implements Runt
     if (batchHandle == -1L) {
       return null; // stream ended
     }
-    return ColumnarBatches.create(runtime, batchHandle);
+    return ColumnarBatches.create(batchHandle);
   }
 
   @Override

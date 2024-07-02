@@ -216,7 +216,7 @@ object RowToVeloxColumnarExec {
         try {
           val handle = jniWrapper
             .nativeConvertRowToColumnar(r2cHandle, rowLength.toArray, arrowBuf.memoryAddress())
-          val cb = ColumnarBatches.create(runtime, handle)
+          val cb = ColumnarBatches.create(handle)
           convertTime += System.currentTimeMillis() - startNative
           cb
         } finally {

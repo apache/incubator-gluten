@@ -750,18 +750,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_obtainOwnership( // NOLINT
-    JNIEnv* env,
-    jobject wrapper,
-    jlong batchHandle) {
-  JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
-  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
-  auto newHandle = ctx->saveObject(batch);
-  return newHandle;
-  JNI_METHOD_END(-1L)
-}
-
 JNIEXPORT void JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_close( // NOLINT
     JNIEnv* env,
     jobject wrapper,

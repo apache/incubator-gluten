@@ -48,8 +48,6 @@ public class ColumnarBatchJniWrapper implements RuntimeAware {
 
   public native long select(long batch, int[] columnIndices);
 
-  public native long obtainOwnership(long batch);
-
   public native void close(long batch);
 
   @Override

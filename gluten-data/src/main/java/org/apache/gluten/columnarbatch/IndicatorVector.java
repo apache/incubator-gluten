@@ -16,15 +16,24 @@
  */
 package org.apache.gluten.columnarbatch;
 
-import org.apache.gluten.exec.Runtime;
+import org.apache.spark.util.TaskResources;
 
 import java.util.concurrent.atomic.AtomicLong;
 
 public class IndicatorVector extends IndicatorVectorBase {
+  private final IndicatorVectorPool pool;
   private final AtomicLong refCnt = new AtomicLong(1L);
 
-  protected IndicatorVector(Runtime runtime, long handle) {
-    super(runtime, handle);
+  protected IndicatorVector(IndicatorVectorPool pool, long handle) {
+    super(handle);
+    this.pool = pool;
+  }
+
+  static IndicatorVector obtain(long handle) {
+    final IndicatorVectorPool pool =
+        TaskResources.addResourceIfNotRegistered(
+            IndicatorVectorPool.class.getName(), IndicatorVectorPool::new);
+    return pool.obtain(handle);
   }
 
   @Override
@@ -44,6 +53,7 @@ public class IndicatorVector extends IndicatorVectorBase {
       return;
     }
     if (refCnt.decrementAndGet() == 0) {
+      pool.remove(handle);
       jniWrapper.close(handle);
     }
   }

@@ -68,7 +68,7 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
             jniWrapper
               .deserialize(serializeHandle, batches(batchId))
           batchId += 1
-          ColumnarBatches.create(runtime, handle)
+          ColumnarBatches.create(handle)
         }
       })
       .protectInvocationFlow()
@@ -124,7 +124,7 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
           batchId += 1
           val batchHandle =
             serializerJniWrapper.deserialize(serializeHandle, batchBytes)
-          val batch = ColumnarBatches.create(runtime, batchHandle)
+          val batch = ColumnarBatches.create(batchHandle)
           if (batch.numRows == 0) {
             batch.close()
             Iterator.empty

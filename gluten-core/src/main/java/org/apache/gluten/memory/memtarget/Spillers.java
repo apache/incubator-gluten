@@ -80,6 +80,9 @@ public final class Spillers {
     public long spill(MemoryTarget self, Phase phase, final long size) {
       long remainingBytes = size;
       for (Spiller spiller : spillers) {
+        if (remainingBytes <= 0) {
+          break;
+        }
         remainingBytes -= spiller.spill(self, phase, remainingBytes);
       }
       return size - remainingBytes;
