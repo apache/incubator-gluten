@@ -256,7 +256,7 @@ bool SubstraitToVeloxPlanValidator::validateCast(
   core::TypedExprPtr input = exprConverter_->toVeloxExpr(castExpr.input(), inputType);
 
   // Support for cast from timestamp to date
-  if (input->type()->kind() == TypeKind::TIMESTAMP &&  toType->isDate()) {
+  if (input->type()->kind() == TypeKind::TIMESTAMP && toType->isDate()) {
     return true;
   }
 
