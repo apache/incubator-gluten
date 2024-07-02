@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 #pragma once
+
 #include <filesystem>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
@@ -25,6 +26,8 @@
 #include <Interpreters/Context.h>
 #include <Processors/Chunk.h>
 #include <base/types.h>
+#include <google/protobuf/wrappers.pb.h>
+#include <substrait/algebra.pb.h>
 #include <Common/CurrentThread.h>
 
 namespace DB
@@ -300,6 +303,14 @@ public:
 private:
     std::deque<T> deq;
     mutable std::mutex mtx;
+};
+
+class JoinUtil
+{
+public:
+    static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
+    static std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type);
+    static std::pair<DB::JoinKind, DB::JoinStrictness> getCrossJoinKindAndStrictness(substrait::CrossRel_JoinType join_type);
 };
 
 }

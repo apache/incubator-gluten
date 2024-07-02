@@ -16,19 +16,16 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.extension.ValidationResult
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
-import org.apache.spark.sql.catalyst.plans.JoinType
+import org.apache.spark.sql.catalyst.plans.{InnerLike, JoinType}
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
-import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashJoin}
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import com.google.protobuf.{Any, StringValue}
 
 case class CHBroadcastNestedLoopJoinExecTransformer(
     left: SparkPlan,
@@ -43,32 +40,6 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
     joinType,
     condition
   ) {
-  // Unique ID for builded table
-  lazy val buildBroadcastTableId: String = "BuiltBroadcastTable-" + buildPlan.id
-
-  lazy val (buildKeyExprs, streamedKeyExprs) = {
-    require(
-      leftKeys.length == rightKeys.length &&
-        leftKeys
-          .map(_.dataType)
-          .zip(rightKeys.map(_.dataType))
-          .forall(types => sameType(types._1, types._2)),
-      "Join keys from two sides should have same length and types"
-    )
-    // Spark has an improvement which would patch integer joins keys to a Long value.
-    // But this improvement would cause add extra project before hash join in velox,
-    // disabling this improvement as below would help reduce the project.
-    val (lkeys, rkeys) = if (BackendsApiManager.getSettings.enableJoinKeysRewrite()) {
-      (HashJoin.rewriteKeyExpr(leftKeys), HashJoin.rewriteKeyExpr(rightKeys))
-    } else {
-      (leftKeys, rightKeys)
-    }
-    if (needSwitchChildren) {
-      (lkeys, rkeys)
-    } else {
-      (rkeys, lkeys)
-    }
-  }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     val streamedRDD = getColumnarInputRDDs(streamedPlan)
@@ -106,38 +77,17 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
     res
   }
 
-  def sameType(from: DataType, to: DataType): Boolean = {
-    (from, to) match {
-      case (ArrayType(fromElement, _), ArrayType(toElement, _)) =>
-        sameType(fromElement, toElement)
-
-      case (MapType(fromKey, fromValue, _), MapType(toKey, toValue, _)) =>
-        sameType(fromKey, toKey) &&
-        sameType(fromValue, toValue)
-
-      case (StructType(fromFields), StructType(toFields)) =>
-        fromFields.length == toFields.length &&
-        fromFields.zip(toFields).forall {
-          case (l, r) =>
-            l.name.equalsIgnoreCase(r.name) &&
-            sameType(l.dataType, r.dataType)
+  override def validateJoinTypeAndBuildSide(): ValidationResult = {
+    joinType match {
+      case _: InnerLike =>
+      case _ =>
+        if (condition.isDefined) {
+          return ValidationResult.notOk(
+            s"Broadcast Nested Loop join is not supported join type $joinType with conditions")
         }
-
-      case (fromDataType, toDataType) => fromDataType == toDataType
     }
-  }
 
-  override def genJoinParameters(): Any = {
-    val joinParametersStr = new StringBuffer("JoinParameters:")
-    joinParametersStr
-      .append("buildHashTableId=")
-      .append(buildBroadcastTableId)
-      .append("\n")
-    val message = StringValue
-      .newBuilder()
-      .setValue(joinParametersStr.toString)
-      .build()
-    BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
+    ValidationResult.ok
   }
 
 }

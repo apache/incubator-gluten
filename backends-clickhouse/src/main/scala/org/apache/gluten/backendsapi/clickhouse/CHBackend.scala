@@ -28,6 +28,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
@@ -297,4 +298,9 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   }
 
   override def mergeTwoPhasesHashBaseAggregateIfNeed(): Boolean = true
+
+  override def supportBroadcastNestedJoinJoinType: JoinType => Boolean = {
+    case _: InnerLike | LeftSemi | FullOuter => true
+    case _ => false
+  }
 }

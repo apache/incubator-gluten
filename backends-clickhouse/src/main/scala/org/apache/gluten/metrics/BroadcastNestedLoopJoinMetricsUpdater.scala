@@ -32,24 +32,6 @@ class BroadcastNestedLoopJoinMetricsUpdater(val metrics: Map[String, SQLMetric])
           var currentIdx = operatorMetrics.metricsList.size() - 1
           var totalTime = 0L
 
-          // build side pre projection
-          if (joinParams.buildPreProjectionNeeded) {
-            metrics("buildPreProjectionTime") +=
-              (operatorMetrics.metricsList.get(currentIdx).time / 1000L).toLong
-            metrics("outputVectors") += operatorMetrics.metricsList.get(currentIdx).outputVectors
-            totalTime += operatorMetrics.metricsList.get(currentIdx).time
-            currentIdx -= 1
-          }
-
-          // stream side pre projection
-          if (joinParams.streamPreProjectionNeeded) {
-            metrics("streamPreProjectionTime") +=
-              (operatorMetrics.metricsList.get(currentIdx).time / 1000L).toLong
-            metrics("outputVectors") += operatorMetrics.metricsList.get(currentIdx).outputVectors
-            totalTime += operatorMetrics.metricsList.get(currentIdx).time
-            currentIdx -= 1
-          }
-
           // update fillingRightJoinSideTime
           MetricsUtil
             .getAllProcessorList(operatorMetrics.metricsList.get(currentIdx))
@@ -76,6 +58,8 @@ class BroadcastNestedLoopJoinMetricsUpdater(val metrics: Map[String, SQLMetric])
                 }
                 if (processor.name.equalsIgnoreCase("FilterTransform")) {
                   metrics("conditionTime") += (processor.time / 1000L).toLong
+                  metrics("numOutputRows") += processor.outputRows - processor.inputRows
+                  metrics("outputBytes") += processor.outputBytes - processor.inputBytes
                 }
                 if (processor.name.equalsIgnoreCase("JoiningTransform")) {
                   metrics("probeTime") += (processor.time / 1000L).toLong

@@ -17,7 +17,6 @@
 #pragma once
 
 #include <memory>
-#include <unordered_set>
 #include <Parser/RelParser.h>
 #include <substrait/algebra.pb.h>
 
@@ -31,7 +30,6 @@ namespace local_engine
 
 class StorageJoinFromReadBuffer;
 
-std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type);
 
 class CrossRelParser : public RelParser
 {
@@ -56,12 +54,8 @@ private:
     void renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & right, const StorageJoinFromReadBuffer & storage_join);
     void addConvertStep(TableJoin & table_join, DB::QueryPlan & left, DB::QueryPlan & right);
     void addPostFilter(DB::QueryPlan & query_plan, const substrait::CrossRel & join);
-    void collectJoinKeys(
-        TableJoin & table_join, const substrait::CrossRel & join_rel, const DB::Block & left_header, const DB::Block & right_header);
     bool applyJoinFilter(
         DB::TableJoin & table_join, const substrait::CrossRel & join_rel, DB::QueryPlan & left, DB::QueryPlan & right, bool allow_mixed_condition);
-    static std::unordered_set<DB::JoinTableSide> extractTableSidesFromExpression(
-        const substrait::Expression & expr, const DB::Block & left_header, const DB::Block & right_header);
 };
 
 }

@@ -357,10 +357,6 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
     "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
     "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
     "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
-    "streamPreProjectionTime" ->
-      SQLMetrics.createTimingMetric(sparkContext, "time of stream side preProjection"),
-    "buildPreProjectionTime" ->
-      SQLMetrics.createTimingMetric(sparkContext, "time of build side preProjection"),
     "postProjectTime" ->
       SQLMetrics.createTimingMetric(sparkContext, "time of postProjection"),
     "probeTime" ->

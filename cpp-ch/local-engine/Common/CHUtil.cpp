@@ -51,6 +51,7 @@
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Processors/Chunk.h>
+#include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
@@ -60,7 +61,6 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <google/protobuf/util/json_util.h>
-#include <google/protobuf/wrappers.pb.h>
 #include <sys/resource.h>
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
@@ -1073,6 +1073,55 @@ UInt64 MemoryUtil::getMemoryRSS()
     fscanf(fp, "%*s%ld", &rss);
     fclose(fp);
     return rss * sysconf(_SC_PAGESIZE);
+}
+
+
+void JoinUtil::reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
+{
+    ActionsDAGPtr project = std::make_shared<ActionsDAG>(plan.getCurrentDataStream().header.getNamesAndTypesList());
+    NamesWithAliases project_cols;
+    for (const auto & col : cols)
+    {
+        project_cols.emplace_back(NameWithAlias(col, col));
+    }
+    project->project(project_cols);
+    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), project);
+    project_step->setStepDescription("Reorder Join Output");
+    plan.addStep(std::move(project_step));
+}
+
+std::pair<DB::JoinKind, DB::JoinStrictness> JoinUtil::getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type)
+{
+    switch (join_type)
+    {
+        case substrait::JoinRel_JoinType_JOIN_TYPE_INNER:
+            return {DB::JoinKind::Inner, DB::JoinStrictness::All};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_SEMI:
+            return {DB::JoinKind::Left, DB::JoinStrictness::Semi};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_ANTI:
+            return {DB::JoinKind::Left, DB::JoinStrictness::Anti};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
+            return {DB::JoinKind::Left, DB::JoinStrictness::All};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT:
+            return {DB::JoinKind::Right, DB::JoinStrictness::All};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_OUTER:
+            return {DB::JoinKind::Full, DB::JoinStrictness::All};
+        default:
+            throw Exception(ErrorCodes::UNKNOWN_TYPE, "unsupported join type {}.", magic_enum::enum_name(join_type));
+    }
+}
+
+std::pair<DB::JoinKind, DB::JoinStrictness> JoinUtil::getCrossJoinKindAndStrictness(substrait::CrossRel_JoinType join_type)
+{
+    switch (join_type)
+    {
+        case substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
+        case substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
+        case substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
+            return {DB::JoinKind::Cross, DB::JoinStrictness::All};
+        default:
+            throw Exception(ErrorCodes::UNKNOWN_TYPE, "unsupported join type {}.", magic_enum::enum_name(join_type));
+    }
 }
 
 }

@@ -97,7 +97,7 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     DB::ReadBuffer & input,
     jlong row_count,
     const std::string & join_keys,
-    substrait::JoinRel_JoinType join_type,
+    jint join_type,
     bool has_mixed_join_condition,
     const std::string & named_struct)
 {
@@ -109,7 +109,11 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     DB::JoinKind kind;
     DB::JoinStrictness strictness;
 
-    std::tie(kind, strictness) = getJoinKindAndStrictness(join_type);
+    if (key.starts_with("BuiltBNLJBroadcastTable-"))
+        std::tie(kind, strictness) = JoinUtil::getCrossJoinKindAndStrictness(static_cast<substrait::CrossRel_JoinType>(join_type));
+    else
+        std::tie(kind, strictness) = JoinUtil::getJoinKindAndStrictness(static_cast<substrait::JoinRel_JoinType>(join_type));
+
 
     substrait::NamedStruct substrait_struct;
     substrait_struct.ParseFromString(named_struct);
