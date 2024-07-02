@@ -258,7 +258,7 @@ private:
 
     std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan);
 
-    DB::QueryPlanPtr parse(const std::string_view & plan);
+    DB::QueryPlanPtr parse(const std::string_view plan);
     DB::QueryPlanPtr parse(const substrait::Plan & plan);
 
 public:
@@ -270,7 +270,7 @@ public:
     ///
 
     template <bool JsonPlan>
-    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view & plan);
+    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
 
     DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
@@ -307,9 +307,12 @@ public:
     const std::unordered_map<std::string, std::string> & getFunctionMapping() { return function_mapping; }
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
+    std::optional<std::string> getFunctionSignatureName(UInt32 function_ref) const;
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
     IQueryPlanStep * addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header);
+    
+    static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
 
     static ContextMutablePtr global_context;
     static Context::ConfigurationPtr config;
@@ -384,7 +387,6 @@ private:
     // remove nullable after isNotNull
     void removeNullableForRequiredColumns(const std::set<String> & require_columns, const ActionsDAGPtr & actions_dag) const;
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
-    static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     void wrapNullable(
         const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
@@ -405,7 +407,7 @@ public:
 };
 
 template <bool JsonPlan>
-std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view & plan)
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)
 {
     return createExecutor(JsonPlan ? parseJson(plan) : parse(plan));
 }

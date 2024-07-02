@@ -116,13 +116,6 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
               if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
                 return 0L
               }
-              if (nativeShuffleWriter == -1L) {
-                throw new IllegalStateException(
-                  "Fatal: spill() called before a celeborn shuffle writer " +
-                    "is created. This behavior should be" +
-                    "optimized by moving memory " +
-                    "allocations from make() to split()")
-              }
               logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
               // fixme pass true when being called by self
               val pushed =
