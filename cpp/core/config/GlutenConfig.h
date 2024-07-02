@@ -30,8 +30,6 @@ const std::string kGlutenSaveDir = "spark.gluten.saveDir";
 
 const std::string kCaseSensitive = "spark.sql.caseSensitive";
 
-const std::string kLegacySize = "spark.sql.legacy.sizeOfNull";
-
 const std::string kSessionTimezone = "spark.sql.session.timeZone";
 
 const std::string kIgnoreMissingFiles = "spark.sql.files.ignoreMissingFiles";

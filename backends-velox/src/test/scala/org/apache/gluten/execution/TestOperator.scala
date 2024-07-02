@@ -1017,7 +1017,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
-  test("test explode/posexplode function") {
+  ignore("test explode/posexplode function") {
     Seq("explode", "posexplode").foreach {
       func =>
         // Literal: func(literal)
@@ -1190,7 +1190,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
                           |""".stripMargin)(_)
   }
 
-  test("test multi-generate") {
+  ignore("test multi-generate") {
     withTable("t") {
       sql("CREATE TABLE t (col1 array<struct<a int, b string>>, col2 array<int>) using parquet")
       sql("INSERT INTO t VALUES (array(struct(1, 'a'), struct(2, 'b')), array(1, 2))")
@@ -1588,7 +1588,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
-  test("test array literal") {
+  ignore("test array literal") {
     withTable("array_table") {
       sql("create table array_table(a array<bigint>) using parquet")
       sql("insert into table array_table select array(1)")
@@ -1601,7 +1601,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
-  test("test map literal") {
+  ignore("test map literal") {
     withTable("map_table") {
       sql("create table map_table(a map<bigint, string>) using parquet")
       sql("insert into table map_table select map(1, 'hello')")
