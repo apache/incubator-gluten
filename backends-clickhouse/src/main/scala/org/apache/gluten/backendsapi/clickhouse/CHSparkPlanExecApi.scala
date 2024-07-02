@@ -612,13 +612,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHStringTranslateTransformer(substraitExprName, srcExpr, matchingExpr, replaceExpr, original)
   }
 
-  override def genSizeExpressionTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Size): ExpressionTransformer = {
-    CHSizeExpressionTransformer(substraitExprName, child, original)
-  }
-
   override def genLikeTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,
