@@ -40,7 +40,12 @@ class HeuristicApplier(session: SparkSession)
   with Logging
   with LogLevelUtil {
   // This is an empirical value, may need to be changed for supporting other versions of spark.
-  private val aqeStackTraceIndex = 19
+  private val aqeStackTraceIndex =
+    if (scala.util.Properties.releaseVersion.exists(_.startsWith("2.12"))) {
+      19
+    } else {
+      17
+    }
   private val adaptiveContext = AdaptiveContext(session, aqeStackTraceIndex)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {

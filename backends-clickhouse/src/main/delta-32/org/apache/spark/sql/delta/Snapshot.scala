@@ -33,7 +33,6 @@ import org.apache.spark.sql.delta.stats.StatisticsCollection
 import org.apache.spark.sql.delta.util.DeltaCommitFileProvider
 import org.apache.spark.sql.delta.util.FileNames
 import org.apache.spark.sql.delta.util.StateCache
-import org.apache.spark.sql.util.ScalaExtensions._
 import org.apache.hadoop.fs.{FileStatus, Path}
 
 import org.apache.spark.sql._
@@ -126,7 +125,27 @@ class Snapshot(
    * This potentially triggers an IO operation to read the inCommitTimestamp.
    * This is a lazy val, so repeated calls will not trigger multiple IO operations.
    */
-  protected lazy val getInCommitTimestampOpt: Option[Long] =
+  protected lazy val getInCommitTimestampOpt: Option[Long] = {
+    // --- modified start
+    // This implicit is for scala 2.12, copy from scala 2.13
+    implicit class OptionExtCompanion(opt: Option.type) {
+      /**
+       * When a given condition is true, evaluates the a argument and returns Some(a).
+       * When the condition is false, a is not evaluated and None is returned.
+       */
+      def when[A](cond: Boolean)(a: => A): Option[A] = if (cond) Some(a) else None
+
+      /**
+       * When a given condition is false, evaluates the a argument and returns Some(a).
+       * When the condition is true, a is not evaluated and None is returned.
+       */
+      def whenNot[A](cond: Boolean)(a: => A): Option[A] = if (!cond) Some(a) else None
+
+      /** Sum up all the `options`, substituting `default` for each `None`. */
+      def sum[N: Numeric](default: N)(options: Option[N]*): N =
+        options.map(_.getOrElse(default)).sum
+    }
+    // --- modified end
     Option.when(DeltaConfigs.IN_COMMIT_TIMESTAMPS_ENABLED.fromMetaData(metadata)) {
       _reconstructedProtocolMetadataAndICT.inCommitTimestamp
         .getOrElse {
@@ -158,6 +177,7 @@ class Snapshot(
           }
         }
     }
+  }
 
 
   private[delta] lazy val nonFileActions: Seq[Action] = {

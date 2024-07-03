@@ -360,6 +360,6 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
     }
     _spark.internalCreateDataFrame(
       _spark.sparkContext.parallelize(Seq(inputRow)),
-      StructType(structFileSeq))
+      StructType(structFileSeq.toSeq))
   }
 }

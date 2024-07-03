@@ -97,7 +97,7 @@ object Validators {
       if (buffer.isEmpty) {
         NoopValidator
       } else {
-        new ValidatorPipeline(buffer)
+        new ValidatorPipeline(buffer.toSeq)
       }
     }
   }
