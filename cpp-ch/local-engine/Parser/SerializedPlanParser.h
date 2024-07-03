@@ -255,6 +255,7 @@ private:
     friend class NonNullableColumnsResolver;
     friend class JoinRelParser;
     friend class MergeTreeRelParser;
+    friend class ProjectRelParser;
 
     std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan);
 
@@ -390,6 +391,8 @@ private:
     void wrapNullable(
         const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
+
+    bool isFunction(substrait::Expression_ScalarFunction rel, String function_name);
 
     int name_no = 0;
     std::unordered_map<std::string, std::string> function_mapping;
