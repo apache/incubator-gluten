@@ -81,10 +81,11 @@ arrow::Status VeloxSortBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> 
     auto batches = compositeBatch->getBatches();
     VELOX_CHECK_EQ(batches.size(), 2);
     auto pidBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[0]);
-    auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
+    auto pidArr = getFirstColumn(pidBatch->getRowVector());
     START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
     setSortState(SortState::kSort);
-    RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), batches_.size(), rowVectorIndexMap_));
+    RETURN_NOT_OK(partitioner_->compute(
+        pidArr->asFlatVector<int32_t>()->rawValues(), pidBatch->numRows(), batches_.size(), rowVectorIndexMap_));
     END_TIMING();
     auto rvBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[1]);
     auto rv = rvBatch->getFlattenedRowVector();
@@ -98,10 +99,11 @@ arrow::Status VeloxSortBasedShuffleWriter::write(std::shared_ptr<ColumnarBatch> 
     rv = veloxColumnBatch->getFlattenedRowVector();
     END_TIMING();
     if (partitioner_->hasPid()) {
-      auto pidArr = getFirstColumn(*rv);
+      auto pidArr = getFirstColumn(rv);
       START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
       setSortState(SortState::kSort);
-      RETURN_NOT_OK(partitioner_->compute(pidArr, rv->size(), batches_.size(), rowVectorIndexMap_));
+      RETURN_NOT_OK(partitioner_->compute(
+          pidArr->asFlatVector<int32_t>()->rawValues(), rv->size(), batches_.size(), rowVectorIndexMap_));
       END_TIMING();
       auto strippedRv = getStrippedRowVector(*rv);
       RETURN_NOT_OK(initFromRowVector(*strippedRv));
@@ -187,7 +189,7 @@ arrow::Status VeloxSortBasedShuffleWriter::evictRowVector(uint32_t partitionId) 
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSortBasedShuffleWriter::stop() {
+arrow::Status VeloxSortBasedShuffleWriter::stop(int64_t memLimit) {
   for (auto pid = 0; pid < numPartitions(); ++pid) {
     RETURN_NOT_OK(evictRowVector(pid));
   }

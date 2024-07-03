@@ -37,7 +37,7 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) override;
 
-  arrow::Status stop() override;
+  arrow::Status stop(int64_t memLimit) override;
 
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 

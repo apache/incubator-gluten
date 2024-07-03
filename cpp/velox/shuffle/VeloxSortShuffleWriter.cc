@@ -125,7 +125,7 @@ arrow::Status VeloxSortShuffleWriter::reclaimFixedSize(int64_t size, int64_t* ac
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSortShuffleWriter::stop() {
+arrow::Status VeloxSortShuffleWriter::stop(int64_t memLimit) {
   RETURN_NOT_OK(evictAllPartitions());
   RETURN_NOT_OK(partitionWriter_->stop(&metrics_));
   return arrow::Status::OK();
@@ -214,8 +214,9 @@ arrow::Result<facebook::velox::RowVectorPtr> VeloxSortShuffleWriter::getPeeledRo
     VELOX_CHECK_EQ(batches.size(), 2);
 
     auto pidBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[0]);
-    auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
-    RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), row2Partition_, partition2RowCount_));
+    auto pidArr = getFirstColumn(pidBatch->getRowVector());
+    RETURN_NOT_OK(partitioner_->compute(
+        pidArr->asFlatVector<int32_t>()->rawValues(), pidBatch->numRows(), row2Partition_, partition2RowCount_));
 
     auto rvBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[1]);
     return rvBatch->getFlattenedRowVector();
@@ -224,14 +225,14 @@ arrow::Result<facebook::velox::RowVectorPtr> VeloxSortShuffleWriter::getPeeledRo
     VELOX_CHECK_NOT_NULL(veloxColumnBatch);
     auto rv = veloxColumnBatch->getFlattenedRowVector();
     if (partitioner_->hasPid()) {
-      auto pidArr = getFirstColumn(*rv);
-      RETURN_NOT_OK(partitioner_->compute(pidArr, rv->size(), row2Partition_, partition2RowCount_));
+      auto pidArr = getFirstColumn(rv);
+      RETURN_NOT_OK(partitioner_->compute(
+          pidArr->asFlatVector<int32_t>()->rawValues(), rv->size(), row2Partition_, partition2RowCount_));
       return getStrippedRowVector(*rv);
     } else {
       RETURN_NOT_OK(partitioner_->compute(nullptr, rv->size(), row2Partition_, partition2RowCount_));
       return rv;
     }
   }
-  throw GlutenException("Unreachable.");
 }
 } // namespace gluten

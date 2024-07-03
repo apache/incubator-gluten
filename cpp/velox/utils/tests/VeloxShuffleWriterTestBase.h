@@ -357,7 +357,7 @@ class SinglePartitioningShuffleWriter : public VeloxShuffleWriterTest {
     for (auto& vector : vectors) {
       ASSERT_NOT_OK(splitRowVector(shuffleWriter, vector));
     }
-    ASSERT_NOT_OK(shuffleWriter.stop());
+    ASSERT_NOT_OK(shuffleWriter.stop(ShuffleWriter::kMinMemLimit));
     // verify data file
     checkFileExists(dataFile_);
     // verify output temporary files
@@ -394,7 +394,7 @@ class MultiplePartitioningShuffleWriter : public VeloxShuffleWriterTest {
       int32_t expectPartitionLength,
       facebook::velox::TypePtr dataType,
       std::vector<std::vector<facebook::velox::RowVectorPtr>> expectedVectors) { /* blockId = pid, rowVector in block */
-    ASSERT_NOT_OK(shuffleWriter.stop());
+    ASSERT_NOT_OK(shuffleWriter.stop(ShuffleWriter::kMinMemLimit));
     // verify data file
     checkFileExists(dataFile_);
     // verify output temporary files
