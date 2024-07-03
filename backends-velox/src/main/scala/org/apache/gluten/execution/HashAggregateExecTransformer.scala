@@ -396,7 +396,7 @@ abstract class HashAggregateExecTransformer(
                     childNodes.add(expressionNode)
                   }
               }
-              exprNodes.add(getRowConstructNode(args, childNodes, newInputAttributes, aggFunc))
+              exprNodes.add(getRowConstructNode(args, childNodes, newInputAttributes.toSeq, aggFunc))
             case other =>
               throw new GlutenNotSupportException(s"$other is not supported.")
           }

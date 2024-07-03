@@ -134,7 +134,7 @@ object SparkArrowUtil {
             val dt = fromArrowField(child)
             StructField(child.getName, dt, child.isNullable)
         }
-        StructType(fields)
+        StructType(fields.toSeq)
       case arrowType => fromArrowType(arrowType)
     }
   }
