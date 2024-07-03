@@ -26,7 +26,7 @@ import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, Literal, NamedExpression, PredicateHelper}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.execution._
@@ -347,9 +347,7 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
 }
 
 // Filter transformation.
-case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
-  import OffloadOthers._
-  private val replace = new ReplaceSingleNode()
+case class OffloadFilter() extends OffloadSingleNode with PredicateHelper with LogLevelUtil {
 
   override def offload(plan: SparkPlan): SparkPlan = plan match {
     case filter: FilterExec =>
@@ -369,25 +367,27 @@ case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
     if (FallbackTags.nonEmpty(filter)) {
       return filter
     }
-
-    // FIXME: Filter push-down should be better done by Vanilla Spark's planner or by
-    //  a individual rule.
-    // Push down the left conditions in Filter into FileSourceScan.
-    val newChild: SparkPlan = filter.child match {
-      case scan @ (_: FileSourceScanExec | _: BatchScanExec) =>
-        if (FallbackTags.maybeOffloadable(scan)) {
-          val newScan =
-            FilterHandler.pushFilterToScan(filter.condition, scan)
-          newScan match {
-            case ts: TransformSupport if ts.doValidate().isValid => ts
-            case _ => scan
-          }
-        } else scan
-      case _ => filter.child
-    }
+    val newFilter = pushFilterToScan(filter)
     logDebug(s"Columnar Processing for ${filter.getClass} is currently supported.")
     BackendsApiManager.getSparkPlanExecApiInstance
-      .genFilterExecTransformer(filter.condition, newChild)
+      .genFilterExecTransformer(newFilter.condition, newFilter.child)
+  }
+
+  // FIXME: Filter push-down should be better done by Vanilla Spark's planner or by
+  //  a individual rule.
+  def pushFilterToScan(filter: FilterExec): FilterExec = filter.child match {
+    case scan @ (_: FileSourceScanExec | _: BatchScanExec) if FallbackTags.maybeOffloadable(scan) =>
+      FilterHandler.pushFilterToScan(filter.condition, scan) match {
+        case st: BasicScanExecTransformer if st.doValidate().isValid =>
+          val newCond = FilterHandler
+            .getRemainingFilters(st.filterExprs(), splitConjunctivePredicates(filter.condition))
+            .reduceLeftOption(And)
+            // TODO: Add rule to remove filter condition always evaluate to true.
+            .getOrElse(Literal.TrueLiteral)
+          FilterExec(newCond, st)
+        case _ => filter
+      }
+    case _ => filter
   }
 }
 

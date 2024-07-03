@@ -21,23 +21,6 @@ import org.apache.spark.sql.execution.SparkPlan
 
 case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecTransformerBase(condition, child) {
-  override protected def getRemainingCondition: Expression = {
-    val scanFilters = child match {
-      // Get the filters including the manually pushed down ones.
-      case basicScanTransformer: BasicScanExecTransformer =>
-        basicScanTransformer.filterExprs()
-      // In ColumnarGuardRules, the child is still row-based. Need to get the original filters.
-      case _ =>
-        FilterHandler.getScanFilters(child)
-    }
-    if (scanFilters.isEmpty) {
-      condition
-    } else {
-      val remainingFilters =
-        FilterHandler.getRemainingFilters(scanFilters, splitConjunctivePredicates(condition))
-      remainingFilters.reduceLeftOption(And).orNull
-    }
-  }
 
   override protected def withNewChildInternal(newChild: SparkPlan): CHFilterExecTransformer =
     copy(child = newChild)
@@ -45,7 +28,6 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
 
 case class FilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecTransformerBase(condition, child) {
-  override protected def getRemainingCondition: Expression = condition
   override protected def withNewChildInternal(newChild: SparkPlan): FilterExecTransformer =
     copy(child = newChild)
 }
