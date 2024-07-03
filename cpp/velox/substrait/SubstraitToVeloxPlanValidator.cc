@@ -171,7 +171,7 @@ bool SubstraitToVeloxPlanValidator::validateRegexExpr(
     rewrite = rewriteArg.literal().string();
   }
   std::string error;
-  if (!validatePattern(pattern, rewrite, error)) {
+  if (!validateRe2Function(pattern, rewrite, error)) {
     LOG_VALIDATION_MSG(name + " due to " + error);
     return false;
   }
