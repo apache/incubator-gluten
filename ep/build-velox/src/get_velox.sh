@@ -111,7 +111,8 @@ function process_setup_ubuntu {
     sed -i '/^  run_and_time install_folly/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-ubuntu.sh
   fi
   sed -i '/run_and_time install_conda/d' scripts/setup-ubuntu.sh
-
+  # Just depends on Gluten to install arrow libs since Gluten will apply some patches to Arrow source and uses different build options.
+  sed -i '/run_and_time install_arrow/d' scripts/setup-ubuntu.sh
 }
 
 function process_setup_centos8 {

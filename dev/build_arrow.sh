@@ -58,6 +58,10 @@ function build_arrow_cpp() {
        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
        -DARROW_BUILD_SHARED=OFF \
        -DARROW_BUILD_STATIC=ON
+
+ # Install thrift.
+ cd _build/thrift_ep-prefix/src/thrift_ep-build
+ sudo cmake --install ./ --prefix /usr/local/
  popd
 }
 
