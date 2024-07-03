@@ -162,7 +162,7 @@ bool SubstraitToVeloxPlanValidator::validateRegexExpr(
   const auto& pattern = patternArg.literal().string();
 
   std::string rewrite;
-  if (scalarFunction.arguments().size() > 2) {
+  if (name == "regexp_replace " && scalarFunction.arguments().size() > 2) {
     const auto& rewriteArg = scalarFunction.arguments()[2].value();
     if (!rewriteArg.has_literal() || !rewriteArg.literal().has_string()) {
       LOG_VALIDATION_MSG("Rewrite is not string literal for " + name);
