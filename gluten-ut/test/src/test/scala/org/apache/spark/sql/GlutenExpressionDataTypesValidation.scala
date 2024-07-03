@@ -65,10 +65,10 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
   }
 
   test("ascii") {
-    val inputTypes = Size(null).inputTypes
+    val inputTypes = Ascii(null).inputTypes
     Ascii(null).prettyName
     if (inputTypes.size == 1 && inputTypes.head.acceptsType(StringType)) {
-      doTest(generateSimpleSQL(Size(null).prettyName))
+      doTest(generateSimpleSQL(Ascii(null).prettyName))
     }
   }
 }
