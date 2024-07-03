@@ -21,7 +21,7 @@ import org.apache.spark.sql.functions.{expr, input_file_name}
 import org.apache.spark.sql.types.{ArrayType, IntegerType, StringType, StructField, StructType}
 
 class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTestsTrait {
-  testGluten("input_file_name with scan is fallback") {
+  testGluten("input_file_name, input_file_block_start, input_file_block_length with scan is fallback") {
     withTempPath {
       dir =>
         val rawData = Seq(
@@ -45,9 +45,11 @@ class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTe
         data.write.parquet(dir.getCanonicalPath)
 
         val q =
-          spark.read.parquet(dir.getCanonicalPath).select(input_file_name(), expr("nested_column"))
+          spark.read.parquet(dir.getCanonicalPath).select(input_file_name(), expr("input_file_block_start()"), expr("input_file_block_length()"),  expr("nested_column"))
         val firstRow = q.head()
         assert(firstRow.getString(0).contains(dir.toURI.getPath))
+        assert(firstRow.getLong(1) == 0)
+        assert(firstRow.getLong(2) > 0)
         val project = q.queryExecution.executedPlan.collect { case p: ProjectExec => p }
         assert(project.size == 1)
     }
