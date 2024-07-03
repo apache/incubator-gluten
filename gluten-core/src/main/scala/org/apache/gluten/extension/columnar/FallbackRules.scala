@@ -30,7 +30,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.TreeNodeTag
+import org.apache.spark.sql.catalyst.trees.{TreeNode, TreeNodeTag}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, QueryStageExec}
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
@@ -50,10 +50,42 @@ sealed trait FallbackTag {
     if (FallbackTags.DEBUG) {
       Some(ExceptionUtils.getStackTrace(new Throwable()))
     } else None
+
+  def reason(): String
 }
 
-case class TRANSFORM_UNSUPPORTED(reason: Option[String], appendReasonIfExists: Boolean = true)
-  extends FallbackTag
+object FallbackTag {
+
+  /** A tag that stores one reason text of fall back. */
+  case class Appendable(override val reason: String) extends FallbackTag
+
+  /**
+   * A tag that stores reason text of fall back. Other reasons will be discarded when this tag is
+   * added to plan.
+   */
+  case class Exclusive(override val reason: String) extends FallbackTag
+
+  trait Converter[T] {
+    def from(obj: T): Option[FallbackTag]
+  }
+
+  object Converter {
+    implicit def asIs[T <: FallbackTag]: Converter[T] = (tag: T) => Some(tag)
+
+    implicit object FromString extends Converter[String] {
+      override def from(reason: String): Option[FallbackTag] = Some(Appendable(reason))
+    }
+
+    implicit object FromValidationResult extends Converter[ValidationResult] {
+      override def from(result: ValidationResult): Option[FallbackTag] = {
+        if (result.ok()) {
+          return None
+        }
+        Some(Appendable(result.reason()))
+      }
+    }
+  }
+}
 
 object FallbackTags {
   val TAG: TreeNodeTag[FallbackTag] =
@@ -70,10 +102,7 @@ object FallbackTags {
    * rules are passed.
    */
   def nonEmpty(plan: SparkPlan): Boolean = {
-    getTagOption(plan) match {
-      case Some(TRANSFORM_UNSUPPORTED(_, _)) => true
-      case _ => false
-    }
+    getOption(plan).nonEmpty
   }
 
   /**
@@ -84,72 +113,55 @@ object FallbackTags {
    */
   def maybeOffloadable(plan: SparkPlan): Boolean = !nonEmpty(plan)
 
-  def tag(plan: SparkPlan, hint: FallbackTag): Unit = {
-    val mergedHint = getTagOption(plan)
-      .map {
-        case originalHint @ TRANSFORM_UNSUPPORTED(Some(originalReason), originAppend) =>
-          hint match {
-            case TRANSFORM_UNSUPPORTED(Some(newReason), append) =>
-              if (originAppend && append) {
-                TRANSFORM_UNSUPPORTED(Some(originalReason + "; " + newReason))
-              } else if (originAppend) {
-                TRANSFORM_UNSUPPORTED(Some(originalReason))
-              } else if (append) {
-                TRANSFORM_UNSUPPORTED(Some(newReason))
-              } else {
-                TRANSFORM_UNSUPPORTED(Some(originalReason), false)
+  def add[T](plan: TreeNode[_], t: T)(implicit converter: FallbackTag.Converter[T]): Unit = {
+    val tagOption = getOption(plan)
+    val newTagOption = converter.from(t)
+
+    tagOption
+      .flatMap(
+        tag =>
+          newTagOption.map(
+            newTag => {
+              // New tag comes while the plan was already tagged, merge.
+              (tag, newTag) match {
+                case (_, exclusive: FallbackTag.Exclusive) =>
+                  exclusive
+                case (exclusive: FallbackTag.Exclusive, _) =>
+                  exclusive
+                case (l: FallbackTag.Appendable, r: FallbackTag.Appendable) =>
+                  FallbackTag.Appendable(s"${l.reason}; ${r.reason}")
               }
-            case TRANSFORM_UNSUPPORTED(None, _) =>
-              originalHint
-            case _ =>
-              throw new GlutenNotSupportException(
-                "Plan was already tagged as non-transformable, " +
-                  s"cannot mark it as transformable after that:\n${plan.toString()}")
-          }
-        case _ =>
-          hint
-      }
-      .getOrElse(hint)
-    plan.setTagValue(TAG, mergedHint)
+            }))
+      .foreach(mergedTag => plan.setTagValue(TAG, mergedTag))
   }
 
-  def untag(plan: SparkPlan): Unit = {
+  def addRecursively[T](plan: TreeNode[_], t: T)(implicit
+      converter: FallbackTag.Converter[T]): Unit = {
+    plan.foreach {
+      case _: GlutenPlan => // ignore
+      case other: TreeNode[_] => add(other, t)
+    }
+  }
+
+  def untag(plan: TreeNode[_]): Unit = {
     plan.unsetTagValue(TAG)
   }
 
-  def add(plan: SparkPlan, validationResult: ValidationResult): Unit = {
-    if (!validationResult.isValid) {
-      tag(plan, TRANSFORM_UNSUPPORTED(validationResult.reason))
-    }
-  }
-
-  def add(plan: SparkPlan, reason: String): Unit = {
-    tag(plan, TRANSFORM_UNSUPPORTED(Some(reason)))
-  }
-
-  def addRecursively(plan: SparkPlan, hint: TRANSFORM_UNSUPPORTED): Unit = {
-    plan.foreach {
-      case _: GlutenPlan => // ignore
-      case other => tag(other, hint)
-    }
-  }
-
-  def getTag(plan: SparkPlan): FallbackTag = {
-    getTagOption(plan).getOrElse(
+  def get(plan: TreeNode[_]): FallbackTag = {
+    getOption(plan).getOrElse(
       throw new IllegalStateException("Transform hint tag not set in plan: " + plan.toString()))
   }
 
-  def getTagOption(plan: SparkPlan): Option[FallbackTag] = {
+  def getOption(plan: TreeNode[_]): Option[FallbackTag] = {
     plan.getTagValue(TAG)
   }
 
-  implicit class EncodeFallbackTagImplicits(validationResult: ValidationResult) {
-    def tagOnFallback(plan: SparkPlan): Unit = {
-      if (validationResult.isValid) {
+  implicit class EncodeFallbackTagImplicits(result: ValidationResult) {
+    def tagOnFallback(plan: TreeNode[_]): Unit = {
+      if (result.ok()) {
         return
       }
-      val newTag = TRANSFORM_UNSUPPORTED(validationResult.reason)
-      tag(plan, newTag)
+      add(plan, result)
     }
   }
 }

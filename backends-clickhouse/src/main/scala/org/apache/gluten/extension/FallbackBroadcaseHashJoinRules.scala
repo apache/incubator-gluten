@@ -57,12 +57,12 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
                 !columnarConf.enableColumnarBroadcastExchange ||
                 !columnarConf.enableColumnarBroadcastJoin
               ) {
-                ValidationResult.notOk(
+                ValidationResult.failed(
                   "columnar broadcast exchange is disabled or " +
                     "columnar broadcast join is disabled")
               } else {
                 if (FallbackTags.nonEmpty(bhj)) {
-                  ValidationResult.notOk("broadcast join is already tagged as not transformable")
+                  ValidationResult.failed("broadcast join is already tagged as not transformable")
                 } else {
                   val bhjTransformer = BackendsApiManager.getSparkPlanExecApiInstance
                     .genBroadcastHashJoinExecTransformer(
@@ -75,7 +75,7 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
                       bhj.right,
                       bhj.isNullAwareAntiJoin)
                   val isBhjTransformable = bhjTransformer.doValidate()
-                  if (isBhjTransformable.isValid) {
+                  if (isBhjTransformable.ok()) {
                     val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
                     exchangeTransformer.doValidate()
                   } else {
@@ -111,12 +111,12 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
             !GlutenConfig.getConf.enableColumnarBroadcastExchange ||
             !GlutenConfig.getConf.enableColumnarBroadcastJoin
           ) {
-            ValidationResult.notOk(
+            ValidationResult.failed(
               "columnar broadcast exchange is disabled or " +
                 "columnar broadcast join is disabled")
           } else {
             if (FallbackTags.nonEmpty(bnlj)) {
-              ValidationResult.notOk("broadcast join is already tagged as not transformable")
+              ValidationResult.failed("broadcast join is already tagged as not transformable")
             } else {
               val transformer = BackendsApiManager.getSparkPlanExecApiInstance
                 .genBroadcastNestedLoopJoinExecTransformer(
@@ -126,7 +126,7 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
                   bnlj.joinType,
                   bnlj.condition)
               val isTransformable = transformer.doValidate()
-              if (isTransformable.isValid) {
+              if (isTransformable.ok()) {
                 val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
                 exchangeTransformer.doValidate()
               } else {
@@ -242,7 +242,7 @@ case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPl
     maybeExchange match {
       case Some(exchange @ BroadcastExchangeExec(_, _)) =>
         isTransformable.tagOnFallback(plan)
-        if (!isTransformable.isValid) {
+        if (!isTransformable.ok) {
           FallbackTags.add(exchange, isTransformable)
         }
       case None =>
@@ -280,7 +280,7 @@ case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPl
               plan,
               "it's a materialized broadcast exchange or reused broadcast exchange")
           case ColumnarBroadcastExchangeExec(mode, child) =>
-            if (!isTransformable.isValid) {
+            if (!isTransformable.ok) {
               throw new IllegalStateException(
                 s"BroadcastExchange has already been" +
                   s" transformed to columnar version but BHJ is determined as" +

@@ -117,7 +117,7 @@ abstract class HashAggregateExecBaseTransformer(
 
     val unsupportedAggExprs = aggregateAttributes.filterNot(attr => checkType(attr.dataType))
     if (unsupportedAggExprs.nonEmpty) {
-      return ValidationResult.notOk(
+      return ValidationResult.failed(
         "Found unsupported data type in aggregation expression: " +
           unsupportedAggExprs
             .map(attr => s"${attr.name}#${attr.exprId.id}:${attr.dataType}")
@@ -125,7 +125,7 @@ abstract class HashAggregateExecBaseTransformer(
     }
     val unsupportedGroupExprs = groupingExpressions.filterNot(attr => checkType(attr.dataType))
     if (unsupportedGroupExprs.nonEmpty) {
-      return ValidationResult.notOk(
+      return ValidationResult.failed(
         "Found unsupported data type in grouping expression: " +
           unsupportedGroupExprs
             .map(attr => s"${attr.name}#${attr.exprId.id}:${attr.dataType}")
