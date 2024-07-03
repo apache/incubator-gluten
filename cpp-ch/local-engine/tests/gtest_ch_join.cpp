@@ -31,7 +31,7 @@
 #include <Common/DebugUtils.h>
 #include <Common/MergeTreeTool.h>
 
-#include <Interpreters/HashJoin.h>
+#include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
 #include <substrait/plan.pb.h>
 
