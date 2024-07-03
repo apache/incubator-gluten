@@ -133,7 +133,7 @@ class EnumeratedApplier(session: SparkSession)
       // when columnar table cache is enabled.
       (s: SparkSession) => RemoveGlutenTableCacheColumnarToRow(s),
       (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
-      (_: SparkSession) => RemoveTransformHintRule()
+      (_: SparkSession) => RemoveFallbackTagRule()
     )
   }
 }

@@ -108,7 +108,7 @@ class HeuristicApplier(session: SparkSession)
         (_: SparkSession) => FallbackEmptySchemaRelation(),
         (spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark),
         (_: SparkSession) => RewriteSparkPlanRulesManager(),
-        (_: SparkSession) => AddTransformHintRule()
+        (_: SparkSession) => AddFallbackTagRule()
       ) :::
       List((_: SparkSession) => TransformPreOverrides()) :::
       List(
@@ -155,7 +155,7 @@ class HeuristicApplier(session: SparkSession)
       // when columnar table cache is enabled.
       (s: SparkSession) => RemoveGlutenTableCacheColumnarToRow(s),
       (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
-      (_: SparkSession) => RemoveTransformHintRule()
+      (_: SparkSession) => RemoveFallbackTagRule()
     )
   }
 

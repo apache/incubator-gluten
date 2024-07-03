@@ -19,7 +19,7 @@ package org.apache.gluten.extension.columnar.validator
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, BackendSettingsApi}
 import org.apache.gluten.expression.ExpressionUtils
-import org.apache.gluten.extension.columnar.{TRANSFORM_UNSUPPORTED, TransformHints}
+import org.apache.gluten.extension.columnar.{FallbackTags, TRANSFORM_UNSUPPORTED}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution._
@@ -108,8 +108,8 @@ object Validators {
 
   private object FallbackByHint extends Validator {
     override def validate(plan: SparkPlan): Validator.OutCome = {
-      if (TransformHints.isNotTransformable(plan)) {
-        val hint = TransformHints.getHint(plan).asInstanceOf[TRANSFORM_UNSUPPORTED]
+      if (FallbackTags.nonEmpty(plan)) {
+        val hint = FallbackTags.getTag(plan).asInstanceOf[TRANSFORM_UNSUPPORTED]
         return fail(hint.reason.getOrElse("Reason not recorded"))
       }
       pass()
