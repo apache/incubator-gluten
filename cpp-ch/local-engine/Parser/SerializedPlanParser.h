@@ -439,15 +439,8 @@ public:
     void setMetric(RelMetricPtr metric_) { metric = metric_; }
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
 
-    static void cancelAll();
-    static void addExecutor(LocalExecutor * executor);
-    static void removeExecutor(Int64 handle);
-
 private:
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(const DB::Block & block) const;
-
-    void asyncCancel();
-    void waitCancelFinished();
 
     /// Dump processor runtime information to log
     std::string dumpPipeline() const;
@@ -461,11 +454,6 @@ private:
     QueryPlanPtr current_query_plan;
     RelMetricPtr metric;
     std::vector<QueryPlanPtr> extra_plan_holder;
-    std::atomic<bool> is_cancelled{false};
-
-    /// Record all active LocalExecutor in current executor to cancel them when executor receives shutdown command from driver.
-    static std::unordered_map<Int64, LocalExecutor *> executors;
-    static std::mutex executors_mutex;
 };
 
 
