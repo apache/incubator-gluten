@@ -282,6 +282,7 @@ object ExpressionMappings {
     Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
     Sig[WidthBucket](WIDTH_BUCKET),
+    Sig[ReplicateRows](REPLICATE_ROWS),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE),
     // Generator function

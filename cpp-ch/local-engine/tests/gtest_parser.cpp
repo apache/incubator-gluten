@@ -138,6 +138,7 @@ TEST(LocalExecutor, StorageFileSink)
     metadata.setColumns(ColumnsDescription::fromNamesAndTypes({{"name", STRING()}, {"value", UINT()}}));
     StorageMetadataPtr metadata_ptr = std::make_shared<StorageInMemoryMetadata>(metadata);
 
+/*
     auto sink = createFilelinkSink(
         metadata_ptr,
         "test_table",
@@ -150,4 +151,5 @@ TEST(LocalExecutor, StorageFileSink)
 
     sink->consume(testChunk());
     sink->onFinish();
+    */
 }

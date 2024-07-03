@@ -211,4 +211,19 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
     spark.sql("drop table test")
   }
+
+  test("intersect all") {
+    spark.sql("create table t1 (a int, b string) using parquet")
+    spark.sql("insert into t1 values (1, '1'),(2, '2'),(3, '3'),(4, '4'),(5, '5'),(6, '6')")
+    spark.sql("create table t2 (a int, b string) using parquet")
+    spark.sql("insert into t2 values (4, '4'),(5, '5'),(6, '6'),(7, '7'),(8, '8'),(9, '9')")
+    runQueryAndCompare(
+      """
+        |SELECT a,b FROM t1 INTERSECT ALL SELECT a,b FROM t2
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+    spark.sql("drop table t1")
+    spark.sql("drop table t2")
+  }
+
 }

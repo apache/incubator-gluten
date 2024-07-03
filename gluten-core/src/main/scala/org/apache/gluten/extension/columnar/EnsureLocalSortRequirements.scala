@@ -37,7 +37,7 @@ object EnsureLocalSortRequirements extends Rule[SparkPlan] {
       requiredOrdering: Seq[SortOrder]): SparkPlan = {
     val newChild = SortExec(requiredOrdering, global = false, child = originalChild)
     if (!GlutenConfig.getConf.enableColumnarSort) {
-      TransformHints.tagNotTransformable(newChild, "columnar Sort is not enabled in SortExec")
+      FallbackTags.add(newChild, "columnar Sort is not enabled in SortExec")
       newChild
     } else {
       val newChildWithTransformer =
@@ -50,7 +50,7 @@ object EnsureLocalSortRequirements extends Rule[SparkPlan] {
       if (validationResult.isValid) {
         newChildWithTransformer
       } else {
-        TransformHints.tagNotTransformable(newChild, validationResult)
+        FallbackTags.add(newChild, validationResult)
         newChild
       }
     }

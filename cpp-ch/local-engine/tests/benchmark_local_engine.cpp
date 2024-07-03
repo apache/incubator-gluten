@@ -21,7 +21,7 @@
 #include <Compression/CompressedReadBuffer.h>
 #include <Functions/FunctionFactory.h>
 #include <Interpreters/Context.h>
-#include <Interpreters/HashJoin.h>
+#include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
 #include <Interpreters/TreeRewriter.h>
 #include <Parser/CHColumnToSparkRow.h>

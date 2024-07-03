@@ -712,7 +712,7 @@ trait VacuumCommandImpl extends DeltaCommand {
           // This is never going to be a path relative to `basePath` for DVs.
           None
         }
-      case None => None
+      case _ => None
     }
   }
 }
