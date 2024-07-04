@@ -67,7 +67,8 @@ public:
         auto res_col = ColumnString::create();
         auto null_col = ColumnUInt8::create(array_col->size(), 0);
         PaddedPODArray<UInt8> & null_result = null_col->getData();
-        StringRef delim, null_replacement;
+        std::pair<bool, StringRef> delim_p, null_replacement_p;
+        bool return_result = false;
         auto checkAndGetConstString = [&](const ColumnPtr & col) -> std::pair<bool, StringRef>
         {
             StringRef res;
@@ -81,6 +82,7 @@ public:
                         res_col->insertDefault();
                         null_result[i] = 1;
                     }
+                    return_result = true;
                     return std::pair<bool, StringRef>(false, res);
                 }
             }
@@ -88,44 +90,84 @@ public:
             {
                 const auto * string_col = checkAndGetColumnConstData<ColumnString>(col.get());
                 if (!string_col)
-                    throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {} 2nd/3rd argument type must be literal string", getName());
-                res = string_col->getDataAt(0);
-                return std::pair<bool, StringRef>(true, res);
+                    return std::pair<bool, StringRef>(false, res);
+                else
+                    return std::pair<bool, StringRef>(true, string_col->getDataAt(0));
             }
         };
-        std::pair<bool, StringRef> delim_res = checkAndGetConstString(arguments[1].column);
-        if (!delim_res.first)
+        delim_p = checkAndGetConstString(arguments[1].column);
+        if (return_result)
             return ColumnNullable::create(std::move(res_col), std::move(null_col));
-        delim = delim_res.second;
-
+        
         if (arguments.size() == 3)
         {
-            std::pair<bool, StringRef> null_replacement_res = checkAndGetConstString(arguments[2].column);
-            if (!null_replacement_res.first)
+            null_replacement_p = checkAndGetConstString(arguments[2].column);
+            if (return_result)
                 return ColumnNullable::create(std::move(res_col), std::move(null_col));
-            null_replacement = null_replacement_res.second;
         }
         const ColumnNullable * array_nested_col = checkAndGetColumn<ColumnNullable>(&array_col->getData());
-        const ColumnString * string_col = checkAndGetColumn<ColumnString>(array_nested_col->getNestedColumnPtr().get());
+        const ColumnString * string_col;
+        if (array_nested_col)
+            string_col = checkAndGetColumn<ColumnString>(array_nested_col->getNestedColumnPtr().get());
+        else
+            string_col = checkAndGetColumn<ColumnString>(&array_col->getData());
         const ColumnArray::Offsets & array_offsets = array_col->getOffsets();
         const ColumnString::Offsets & string_offsets = string_col->getOffsets();
         const ColumnString::Chars & string_data = string_col->getChars();
+        const ColumnNullable * delim_col = checkAndGetColumn<ColumnNullable>(arguments[1].column.get());
+        const ColumnNullable * null_replacement_col = arguments.size() == 3 ? checkAndGetColumn<ColumnNullable>(arguments[2].column.get()) : nullptr;
         size_t current_offset = 0, array_pos = 0;
         for (size_t i = 0; i < array_col->size(); ++i)
         {
             String res;
-            if (arg_null_col->isNullAt(i))
+            auto setResultNull = [&]() -> void
             {
                 res_col->insertDefault();
                 null_result[i] = 1;
                 current_offset = array_offsets[i];
+            };
+            auto getDelimiterOrNullReplacement = [&](const std::pair<bool, StringRef> & s, const ColumnNullable * col) -> StringRef
+            {
+                if (s.first)
+                    return s.second;
+                else
+                {
+                    if (col->isNullAt(i))
+                        return StringRef(nullptr, 0);
+                    else
+                    {
+                        const ColumnString * col_string = checkAndGetColumn<ColumnString>(col->getNestedColumnPtr().get());
+                        return col_string->getDataAt(i);
+                    }
+                }
+            };
+            if (arg_null_col->isNullAt(i))
+            {
+                setResultNull();
                 continue;
             }
+            const StringRef delim = getDelimiterOrNullReplacement(delim_p, delim_col);
+            if (!delim.data)
+            {
+                setResultNull();
+                continue;
+            }
+            StringRef null_replacement;
+            if (arguments.size() == 3)
+            {
+                null_replacement = getDelimiterOrNullReplacement(null_replacement_p, null_replacement_col);
+                if (!null_replacement.data)
+                {
+                    setResultNull();
+                    continue;
+                }
+            }
+            
             size_t array_size = array_offsets[i] - current_offset;
             size_t data_pos = array_pos == 0 ? 0 : string_offsets[array_pos - 1];
             for (size_t j = 0; j < array_size; ++j)
             {
-                if (array_nested_col->isNullAt(j + array_pos))
+                if (array_nested_col && array_nested_col->isNullAt(j + array_pos))
                 {
                     if (null_replacement.data)
                     {
@@ -136,7 +178,7 @@ public:
                 }
                 else
                 {
-                    const StringRef s(&string_data[data_pos], string_offsets[j + array_pos] - data_pos);
+                    const StringRef s(&string_data[data_pos], string_offsets[j + array_pos] - data_pos - 1);
                     res += s.toString();
                     if (j != array_size - 1)
                         res += delim.toString();
@@ -144,7 +186,7 @@ public:
                 data_pos = string_offsets[j + array_pos];
             }
             array_pos += array_size;
-            res_col->insertData(res.data(), res.size());
+            res_col->insertData(res.data(), res.length());
             current_offset = array_offsets[i];
         }
         return ColumnNullable::create(std::move(res_col), std::move(null_col));
