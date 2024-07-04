@@ -77,16 +77,13 @@ static std::string jstring2string(JNIEnv * env, jstring jStr)
     if (!jStr)
         return "";
 
-    jclass string_class = env->GetObjectClass(jStr);
-    jmethodID get_bytes = env->GetMethodID(string_class, "getBytes", "(Ljava/lang/String;)[B");
-    jbyteArray string_jbytes
+    const jclass string_class = env->GetObjectClass(jStr);
+    const jmethodID get_bytes = env->GetMethodID(string_class, "getBytes", "(Ljava/lang/String;)[B");
+    const auto string_jbytes
         = static_cast<jbyteArray>(local_engine::safeCallObjectMethod(env, jStr, get_bytes, env->NewStringUTF("UTF-8")));
 
-    size_t length = static_cast<size_t>(env->GetArrayLength(string_jbytes));
-    jbyte * p_bytes = env->GetByteArrayElements(string_jbytes, nullptr);
-
-    std::string ret = std::string(reinterpret_cast<char *>(p_bytes), length);
-    env->ReleaseByteArrayElements(string_jbytes, p_bytes, JNI_ABORT);
+    const auto string_jbytes_a = local_engine::getByteArrayElementsSafe(env, string_jbytes);
+    std::string ret{reinterpret_cast<char *>(string_jbytes_a.elems()), static_cast<size_t>(string_jbytes_a.length())};
 
     env->DeleteLocalRef(string_jbytes);
     env->DeleteLocalRef(string_class);
