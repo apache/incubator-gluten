@@ -468,7 +468,7 @@ String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
 
 using namespace DB;
 
-std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string_view plan)
+std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std::string_view plan)
 {
     std::map<std::string, std::string> ch_backend_conf;
     if (plan.empty())
@@ -477,8 +477,8 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(con
     /// Parse backend configs from plan extensions
     do
     {
-        auto plan_ptr = std::make_unique<substrait::Plan>();
-        auto success = plan_ptr->ParseFromString(plan);
+        substrait::Plan sPlan;
+        auto success = sPlan.ParseFromString(plan);
         if (!success)
             break;
 
@@ -487,15 +487,15 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(con
             namespace pb_util = google::protobuf::util;
             pb_util::JsonOptions options;
             std::string json;
-            auto s = pb_util::MessageToJsonString(*plan_ptr, &json, options);
+            auto s = pb_util::MessageToJsonString(sPlan, &json, options);
             if (!s.ok())
                 throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert Substrait Plan to Json");
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Update Config Map Plan:\n{}", json);
         }
 
-        if (!plan_ptr->has_advanced_extensions() || !plan_ptr->advanced_extensions().has_enhancement())
+        if (!sPlan.has_advanced_extensions() || !sPlan.advanced_extensions().has_enhancement())
             break;
-        const auto & enhancement = plan_ptr->advanced_extensions().enhancement();
+        const auto & enhancement = sPlan.advanced_extensions().enhancement();
 
         if (!enhancement.Is<substrait::Expression>())
             break;
@@ -914,8 +914,7 @@ void BackendInitializerUtil::initCompiledExpressionCache(DB::Context::Configurat
 #endif
 }
 
-
-void BackendInitializerUtil::init(const std::string & plan)
+void BackendInitializerUtil::init(const std::string_view plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
     DB::Context::ConfigurationPtr config = initConfig(backend_conf_map);

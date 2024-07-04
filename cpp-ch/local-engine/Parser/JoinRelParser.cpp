@@ -31,7 +31,6 @@
 #include <Processors/QueryPlan/JoinStep.h>
 #include <google/protobuf/wrappers.pb.h>
 
-#include <Poco/Logger.h>
 #include <Common/logger_useful.h>
 
 
