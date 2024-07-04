@@ -62,7 +62,7 @@ object ExecUtil {
           if (rowId >= batch.numRows()) throw new NoSuchElementException
           if (rowId == baseLength + info.lengths.length) {
             baseLength += info.lengths.length
-            info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rHandle, rowId)
+            info = jniWrapper.nativeColumnarToRowConvert(c2rHandle, batchHandle, rowId)
           }
           val (offset, length) =
             (info.offsets(rowId - baseLength), info.lengths(rowId - baseLength))

@@ -165,7 +165,7 @@ object VeloxColumnarToRowExec {
               if (rowId == baseLength + info.lengths.length) {
                 baseLength += info.lengths.length
                 val before = System.currentTimeMillis()
-                info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rId, rowId)
+                info = jniWrapper.nativeColumnarToRowConvert(c2rId, batchHandle, rowId)
                 convertTime += (System.currentTimeMillis() - before)
               }
               val (offset, length) =
