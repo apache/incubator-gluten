@@ -204,11 +204,11 @@ class SafeNativeArray {
   SafeNativeArray& operator=(const SafeNativeArray&) = delete;
   SafeNativeArray& operator=(SafeNativeArray&&) = delete;
 
-  const NativeArrayType elems() const {
+  NativeArrayType elems() const {
     return reinterpret_cast<const NativeArrayType>(nativeArray_);
   }
 
-  const jsize length() const {
+  jsize length() const {
     return env_->GetArrayLength(javaArray_);
   }
 
