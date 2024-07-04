@@ -179,7 +179,8 @@ arrow::Status VeloxHashBasedShuffleWriter::init() {
   if (options_.partitioning != Partitioning::kSingle) {
     partitionTotalRows_.resize(numPartitions_, 0);
     partitionBufferSize_.resize(numPartitions_);
-    partition2RowOffsetBase_.resize(numPartitions_ + 1, 0);
+    partition2RowOffsetBase_.resize(numPartitions_ + 1);
+    partition2RowOffsetBase_[0] = 0;
   }
 
   partitionBufferNumRows_.resize(numPartitions_, 0);
@@ -403,11 +404,10 @@ void VeloxHashBasedShuffleWriter::buildPartition2Row() {
   SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingBuildPartition]);
 
   currentPartitionInUse_.clear();
-
   const auto& partitionNumRows = partitionNumRows_[currentInput_];
   for (auto pid = 0; pid < numPartitions_; ++pid) {
+    partition2RowOffsetBase_[pid + 1] = partition2RowOffsetBase_[pid] + partitionNumRows[pid];
     if (partitionNumRows[pid] > 0) {
-      partition2RowOffsetBase_[pid + 1] = partition2RowOffsetBase_[pid] + partitionNumRows[pid];
       currentPartitionInUse_.push_back(pid);
     }
   }
@@ -459,6 +459,8 @@ void VeloxHashBasedShuffleWriter::setSplitState(SplitState state) {
 }
 
 arrow::Status VeloxHashBasedShuffleWriter::doSplit(int64_t memLimit) {
+  DLOG(INFO) << "Splitting after caching " << inputs_.size() << " input(s), "
+             << " retained bytes: " << retainedSize_;
   if (veloxColumnTypes_.empty()) {
     RETURN_NOT_OK(initFromRowVector(inputs_[0]));
   }
@@ -506,7 +508,6 @@ void VeloxHashBasedShuffleWriter::finishSplit() {
   row2Partition_.clear();
   partitionNumRows_.clear();
   std::fill(std::begin(partitionTotalRows_), std::end(partitionTotalRows_), 0);
-  std::fill(std::begin(partition2RowOffsetBase_), std::end(partition2RowOffsetBase_), 0);
 
   partitionInUse_.clear();
   inputs_.clear();
@@ -918,7 +919,7 @@ uint32_t VeloxHashBasedShuffleWriter::calculatePartitionBufferSize(int64_t memLi
 
   auto numPartitionsInUse = partitionInUse_.size();
   uint64_t preAllocRowCnt =
-      memLimit > 0 && bytesPerRow > 0 ? memLimit / bytesPerRow / numPartitions_ >> 2 : options_.bufferSize;
+      memLimit > 0 && bytesPerRow > 0 ? memLimit / bytesPerRow / numPartitionsInUse >> 2 : options_.bufferSize;
   preAllocRowCnt = std::min(preAllocRowCnt, (uint64_t)options_.bufferSize);
 
   DLOG(INFO) << "Calculated partition buffer size -  memLimit: " << memLimit << ", bytesPerRow: " << bytesPerRow
