@@ -65,6 +65,6 @@ private:
     std::unique_ptr<DB::PushingPipelineExecutor> writer;
 };
 
-FileWriterWrapper *
-createFileWriterWrapper(const std::string & file_uri, const std::vector<std::string> & preferred_column_names, const std::string & format_hint);
+std::unique_ptr<FileWriterWrapper>
+createFileWriterWrapper(const std::string & file_uri, const DB::Names & preferred_column_names, const std::string & format_hint);
 }

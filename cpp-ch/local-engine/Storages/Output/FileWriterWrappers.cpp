@@ -54,8 +54,8 @@ void NormalFileWriter::close()
         writer->finish();
 }
 
-FileWriterWrapper *
-createFileWriterWrapper(const std::string & file_uri, const std::vector<std::string> & preferred_column_names, const std::string & format_hint)
+std::unique_ptr<FileWriterWrapper>
+createFileWriterWrapper(const std::string & file_uri, const DB::Names & preferred_column_names, const std::string & format_hint)
 {
     // the passed in file_uri is exactly what is expected to see in the output folder
     // e.g /xxx/中文/timestamp_field=2023-07-13 03%3A00%3A17.622/abc.parquet
@@ -66,7 +66,7 @@ createFileWriterWrapper(const std::string & file_uri, const std::vector<std::str
     auto context = DB::Context::createCopy(local_engine::SerializedPlanParser::global_context);
     auto write_buffer_builder = WriteBufferBuilderFactory::instance().createBuilder(poco_uri.getScheme(), context);
     auto file = OutputFormatFileUtil::createFile(context, write_buffer_builder, encoded, preferred_column_names, format_hint);
-    return new NormalFileWriter(file, context);
+    return std::make_unique<NormalFileWriter>(file, context);
 }
 
 }

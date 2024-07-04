@@ -870,7 +870,7 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     auto file_uri = jstring2string(env, file_uri_);
     auto format_hint = jstring2string(env, format_hint_);
     // for HiveFileFormat, the file url may not end with .parquet, so we pass in the format as a hint
-    auto * writer = local_engine::createFileWriterWrapper(file_uri, names, format_hint);
+    auto * writer = local_engine::createFileWriterWrapper(file_uri, names, format_hint).release();
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
