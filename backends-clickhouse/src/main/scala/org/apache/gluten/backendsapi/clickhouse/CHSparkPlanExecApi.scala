@@ -704,7 +704,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         val columnName = s"${aliasExpr.name}_${aliasExpr.exprId.id}"
         val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
         wExpression.windowFunction match {
-          case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
+          case wf @ (RowNumber() | Rank(_) | DenseRank(_)) =>
             val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
@@ -789,6 +789,22 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(offsetWf.dataType, offsetWf.nullable),
+              frame.upper,
+              frame.lower,
+              frame.frameType.sql,
+              originalInputAttributes.asJava
+            )
+            windowExpressionNodes.add(windowFunctionNode)
+          case wf @ NTile(buckets: Expression) =>
+            val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
+            val childrenNodeList = new JArrayList[ExpressionNode]()
+            val literal = buckets.asInstanceOf[Literal]
+            childrenNodeList.add(LiteralTransformer(literal).doTransform(args))
+            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+              WindowFunctionsBuilder.create(args, wf).toInt,
+              childrenNodeList,
+              columnName,
+              ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
               frame.upper,
               frame.lower,
               frame.frameType.sql,

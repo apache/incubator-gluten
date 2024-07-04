@@ -26,7 +26,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, DenseRank, Expression, Lag, Lead, Literal, NamedExpression, Rank, RowNumber}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
@@ -237,7 +237,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
           }
 
           wExpression.windowFunction match {
-            case _: RowNumber | _: AggregateExpression | _: Rank | _: DenseRank =>
+            case _: RowNumber | _: AggregateExpression | _: Rank | _: DenseRank | _: NTile =>
               allSupported = allSupported
             case l: Lag =>
               checkLagOrLead(l.third)
