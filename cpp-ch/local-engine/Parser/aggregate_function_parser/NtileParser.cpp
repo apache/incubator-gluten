@@ -30,7 +30,7 @@ NtileParser::parseFunctionArguments(const CommonFunctionInfo & func_info, const 
 
     const auto & arg0 = func_info.arguments[0].value();
     auto [data_type, field] = parseLiteral(arg0.literal());
-    if (data_type->getTypeId() != TypeIndex::Int32)
+    if (!(WhichDataType(data_type).isInt32()))
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "ntile's argument must be i32");
     Int32 field_index = static_cast<Int32>(field.get<Int32>());
     // For CH, the data type of the args[0] must be the UInt32
