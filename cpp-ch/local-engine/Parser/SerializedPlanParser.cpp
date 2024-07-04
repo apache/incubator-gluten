@@ -2033,33 +2033,6 @@ void SerializedPlanParser::wrapNullable(
 
 SharedContextHolder SerializedPlanParser::shared_context;
 
-std::unordered_map<Int64, LocalExecutor *> LocalExecutor::executors;
-std::mutex LocalExecutor::executors_mutex;
-
-void LocalExecutor::cancelAll()
-{
-    std::lock_guard lock{executors_mutex};
-
-    for (auto & [handle, executor] : executors)
-        executor->asyncCancel();
-
-    for (auto & [handle, executor] : executors)
-        executor->waitCancelFinished();
-}
-
-void LocalExecutor::addExecutor(LocalExecutor * executor)
-{
-    std::lock_guard lock{executors_mutex};
-    Int64 handle = reinterpret_cast<Int64>(executor);
-    executors.emplace(handle, executor);
-}
-
-void LocalExecutor::removeExecutor(Int64 handle)
-{
-    std::lock_guard lock{executors_mutex};
-    executors.erase(handle);
-}
-
 LocalExecutor::~LocalExecutor()
 {
     if (context->getConfigRef().getBool("dump_pipeline", false))
@@ -2127,35 +2100,8 @@ Block * LocalExecutor::nextColumnar()
 
 void LocalExecutor::cancel()
 {
-    asyncCancel();
-    waitCancelFinished();
-}
-
-void LocalExecutor::asyncCancel()
-{
-    if (executor && !is_cancelled)
-    {
-        LOG_INFO(&Poco::Logger::get("LocalExecutor"), "Cancel LocalExecutor {}", reinterpret_cast<intptr_t>(this));
+    if (executor)
         executor->cancel();
-    }
-}
-
-void LocalExecutor::waitCancelFinished()
-{
-    if (executor && !is_cancelled)
-    {
-        Stopwatch watch;
-        Chunk chunk;
-        while (executor->pull(chunk))
-            ;
-        is_cancelled = true;
-
-        LOG_INFO(
-            &Poco::Logger::get("LocalExecutor"),
-            "Finish cancel LocalExecutor {}, takes {} ms",
-            reinterpret_cast<intptr_t>(this),
-            watch.elapsedMilliseconds());
-    }
 }
 
 Block & LocalExecutor::getHeader()
