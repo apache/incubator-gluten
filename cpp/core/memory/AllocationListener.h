@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <memory>
 
 namespace gluten {
@@ -32,8 +33,58 @@ class AllocationListener {
   // Value of diff can be either positive or negative
   virtual void allocationChanged(int64_t diff) = 0;
 
+  virtual int64_t currentBytes() {
+    return 0;
+  }
+
+  virtual int64_t peakBytes() {
+    return 0;
+  }
+
  protected:
   AllocationListener() = default;
+};
+
+/// Memory changes will be round to specified block size which aim to decrease delegated listener calls.
+class BlockAllocationListener final : public AllocationListener {
+ public:
+  BlockAllocationListener(AllocationListener* delegated, uint64_t blockSize)
+      : delegated_(delegated), blockSize_(blockSize) {}
+
+  void allocationChanged(int64_t diff) override {
+    if (diff == 0) {
+      return;
+    }
+    if (diff > 0) {
+      if (reservationBytes_ - usedBytes_ < diff) {
+        auto roundSize = (diff + (blockSize_ - 1)) / blockSize_ * blockSize_;
+        delegated_->allocationChanged(roundSize);
+        reservationBytes_ += roundSize;
+        peakBytes_ = std::max(peakBytes_, reservationBytes_);
+      }
+      usedBytes_ += diff;
+    } else {
+      usedBytes_ += diff;
+      auto unreservedSize = (reservationBytes_ - usedBytes_) / blockSize_ * blockSize_;
+      delegated_->allocationChanged(-unreservedSize);
+      reservationBytes_ -= unreservedSize;
+    }
+  }
+
+  int64_t currentBytes() override {
+    return reservationBytes_;
+  }
+
+  int64_t peakBytes() override {
+    return peakBytes_;
+  }
+
+ private:
+  AllocationListener* delegated_;
+  uint64_t blockSize_{0L};
+  uint64_t usedBytes_{0L};
+  uint64_t peakBytes_{0L};
+  uint64_t reservationBytes_{0L};
 };
 
 } // namespace gluten

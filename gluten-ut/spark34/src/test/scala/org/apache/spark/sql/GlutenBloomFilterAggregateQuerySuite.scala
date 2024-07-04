@@ -16,9 +16,9 @@
  */
 package org.apache.spark.sql
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.HashAggregateExecBaseTransformer
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.HashAggregateExecBaseTransformer
 
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.internal.SQLConf
@@ -68,7 +68,7 @@ class GlutenBloomFilterAggregateQuerySuite
       Row(null))
   }
 
-  testGluten("Test bloom_filter_agg fallback") {
+  testGluten("Test bloom_filter_agg filter fallback") {
     val table = "bloom_filter_test"
     val numEstimatedItems = 5000000L
     val numBits = GlutenConfig.getConf.veloxBloomFilterMaxNumBits
@@ -97,7 +97,7 @@ class GlutenBloomFilterAggregateQuerySuite
           df.queryExecution.executedPlan
         )
       }
-      if (BackendsApiManager.getSettings.enableBloomFilterAggFallbackRule()) {
+      if (BackendsApiManager.getSettings.requireBloomFilterAggMightContainJointFallback()) {
         withSQLConf(
           GlutenConfig.COLUMNAR_FILTER_ENABLED.key -> "false"
         ) {
@@ -106,10 +106,43 @@ class GlutenBloomFilterAggregateQuerySuite
           assert(
             collectWithSubqueries(df.queryExecution.executedPlan) {
               case h if h.isInstanceOf[HashAggregateExecBaseTransformer] => h
-            }.size == 0,
+            }.size == 2,
             df.queryExecution.executedPlan
           )
         }
+      }
+    }
+  }
+
+  testGluten("Test bloom_filter_agg agg fallback") {
+    val table = "bloom_filter_test"
+    val numEstimatedItems = 5000000L
+    val numBits = GlutenConfig.getConf.veloxBloomFilterMaxNumBits
+    val sqlString = s"""
+                       |SELECT col positive_membership_test
+                       |FROM $table
+                       |WHERE might_contain(
+                       |            (SELECT bloom_filter_agg(col,
+                       |              cast($numEstimatedItems as long),
+                       |              cast($numBits as long))
+                       |             FROM $table), col)
+                      """.stripMargin
+
+    withTempView(table) {
+      (Seq(Long.MinValue, 0, Long.MaxValue) ++ (1L to 200000L))
+        .toDF("col")
+        .createOrReplaceTempView(table)
+      withSQLConf(
+        GlutenConfig.COLUMNAR_HASHAGG_ENABLED.key -> "false"
+      ) {
+        val df = spark.sql(sqlString)
+        df.collect
+        assert(
+          collectWithSubqueries(df.queryExecution.executedPlan) {
+            case h if h.isInstanceOf[HashAggregateExecBaseTransformer] => h
+          }.isEmpty,
+          df.queryExecution.executedPlan
+        )
       }
     }
   }

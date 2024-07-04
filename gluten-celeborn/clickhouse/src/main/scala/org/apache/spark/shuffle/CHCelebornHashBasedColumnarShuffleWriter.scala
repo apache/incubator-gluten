@@ -16,13 +16,11 @@
  */
 package org.apache.spark.shuffle
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
-import io.glutenproject.memory.alloc.CHNativeMemoryAllocators
-import io.glutenproject.memory.memtarget.MemoryTarget
-import io.glutenproject.memory.memtarget.Spiller
-import io.glutenproject.memory.memtarget.Spillers
-import io.glutenproject.vectorized._
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators
+import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
+import org.apache.gluten.vectorized._
 
 import org.apache.spark._
 import org.apache.spark.scheduler.MapStatus
@@ -33,7 +31,6 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
-import java.util
 import java.util.Locale
 
 class CHCelebornHashBasedColumnarShuffleWriter[K, V](
@@ -78,12 +75,17 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
         CHBackendSettings.shuffleHashAlgorithm,
         celebornPartitionPusher,
         GlutenConfig.getConf.chColumnarThrowIfMemoryExceed,
-        GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict
+        GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict,
+        GlutenConfig.getConf.chColumnarForceExternalSortShuffle,
+        GlutenConfig.getConf.chColumnarForceMemorySortShuffle
       )
       CHNativeMemoryAllocators.createSpillable(
         "CelebornShuffleWriter",
         new Spiller() {
-          override def spill(self: MemoryTarget, size: Long): Long = {
+          override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
+            if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+              return 0L
+            }
             if (nativeShuffleWriter == -1L) {
               throw new IllegalStateException(
                 "Fatal: spill() called before a celeborn shuffle writer " +
@@ -96,8 +98,6 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
             logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
             spilled
           }
-
-          override def applicablePhases(): util.Set[Spiller.Phase] = Spillers.PHASE_SET_SPILL_ONLY
         }
       )
     }

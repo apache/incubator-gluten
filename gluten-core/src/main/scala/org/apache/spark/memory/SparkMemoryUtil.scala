@@ -16,9 +16,9 @@
  */
 package org.apache.spark.memory
 
-import io.glutenproject.memory.memtarget.{KnownNameAndStats, LoggingMemoryTarget, MemoryTarget, MemoryTargetVisitor, NoopMemoryTarget, OverAcquire, ThrowOnOomMemoryTarget, TreeMemoryTargets}
-import io.glutenproject.memory.memtarget.spark.{RegularMemoryConsumer, TreeMemoryConsumer}
-import io.glutenproject.proto.MemoryUsageStats
+import org.apache.gluten.memory.memtarget.{DynamicOffHeapSizingMemoryTarget, KnownNameAndStats, LoggingMemoryTarget, MemoryTarget, MemoryTargetVisitor, NoopMemoryTarget, OverAcquire, ThrowOnOomMemoryTarget, TreeMemoryTargets}
+import org.apache.gluten.memory.memtarget.spark.{RegularMemoryConsumer, TreeMemoryConsumer}
+import org.apache.gluten.proto.MemoryUsageStats
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.util.Utils
@@ -43,6 +43,10 @@ object SparkMemoryUtil {
   private val taskIdField = tmmClazz.getDeclaredField("taskAttemptId")
   consumersField.setAccessible(true)
   taskIdField.setAccessible(true)
+
+  def bytesToString(size: Long): String = {
+    Utils.bytesToString(size)
+  }
 
   // We assume storage memory can be fully transferred to execution memory so far
   def getCurrentAvailableOffHeapMemory: Long = {
@@ -116,6 +120,11 @@ object SparkMemoryUtil {
 
         override def visit(noopMemoryTarget: NoopMemoryTarget): KnownNameAndStats = {
           noopMemoryTarget
+        }
+
+        override def visit(dynamicOffHeapSizingMemoryTarget: DynamicOffHeapSizingMemoryTarget)
+            : KnownNameAndStats = {
+          dynamicOffHeapSizingMemoryTarget.delegated().accept(this)
         }
       })
     }

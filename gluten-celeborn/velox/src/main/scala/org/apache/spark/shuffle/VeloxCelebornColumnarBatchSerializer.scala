@@ -16,12 +16,11 @@
  */
 package org.apache.spark.shuffle
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.exec.Runtimes
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.memory.nmm.NativeMemoryManagers
-import io.glutenproject.utils.ArrowAbiUtil
-import io.glutenproject.vectorized._
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.exec.Runtimes
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
+import org.apache.gluten.utils.ArrowAbiUtil
+import org.apache.gluten.vectorized._
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
@@ -39,6 +38,7 @@ import org.apache.celeborn.client.read.CelebornInputStream
 
 import java.io._
 import java.nio.ByteBuffer
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -64,7 +64,7 @@ private class CelebornColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private val nmm = NativeMemoryManagers.contextInstance("ShuffleReader")
+  private val runtime = Runtimes.contextInstance("CelebornShuffleReader")
 
   private val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators
@@ -83,15 +83,17 @@ private class CelebornColumnarBatchSerializerInstance(
       }
     val compressionCodecBackend =
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
-    val jniWrapper = ShuffleReaderJniWrapper.create()
+    val shuffleWriterType =
+      conf.get("spark.celeborn.client.spark.shuffle.writer", "hash").toLowerCase(Locale.ROOT)
+    val jniWrapper = ShuffleReaderJniWrapper.create(runtime)
     val batchSize = GlutenConfig.getConf.maxBatchSize
     val handle = jniWrapper
       .make(
         cSchema.memoryAddress(),
-        nmm.getNativeInstanceHandle,
         compressionCodec,
         compressionCodecBackend,
-        batchSize
+        batchSize,
+        shuffleWriterType
       )
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that
@@ -115,11 +117,10 @@ private class CelebornColumnarBatchSerializerInstance(
     with TaskResource {
     private val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
     private val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
-      Runtimes.contextInstance(),
+      runtime,
       ShuffleReaderJniWrapper
-        .create()
-        .readStream(shuffleReaderHandle, byteIn),
-      nmm)
+        .create(runtime)
+        .readStream(shuffleReaderHandle, byteIn))
 
     private var cb: ColumnarBatch = _
 

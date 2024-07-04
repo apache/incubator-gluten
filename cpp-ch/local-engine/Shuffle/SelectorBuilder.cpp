@@ -17,25 +17,17 @@
 #include "SelectorBuilder.h"
 #include <limits>
 #include <memory>
-#include <mutex>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
-#include <Columns/ColumnTuple.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeMap.h>
-#include <DataTypes/DataTypeTuple.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <Functions/FunctionFactory.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/TypeParser.h>
-#include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
-#include <Processors/QueryPlan/QueryPlan.h>
-#include <Poco/Base64Decoder.h>
-#include <Poco/JSON/JSON.h>
 #include <Poco/JSON/Parser.h>
 #include <Poco/MemoryStream.h>
-#include <Poco/StreamCopier.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 
@@ -48,25 +40,36 @@ extern const int LOGICAL_ERROR;
 }
 namespace local_engine
 {
-PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t partition_num)
+PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t partition_num, bool use_external_sort_shuffle)
 {
-    auto rows = selector.size();
-    std::vector<size_t> partition_row_idx_start_points(partition_num + 1, 0);
-    IColumn::Selector partition_selector(rows, 0);
-    for (size_t i = 0; i < rows; ++i)
-        partition_row_idx_start_points[selector[i]]++;
-
-    for (size_t i = 1; i <= partition_num; ++i)
-        partition_row_idx_start_points[i] += partition_row_idx_start_points[i - 1];
-    for (size_t i = rows; i-- > 0;)
+    if (use_external_sort_shuffle)
     {
-        partition_selector[partition_row_idx_start_points[selector[i]] - 1] = i;
-        partition_row_idx_start_points[selector[i]]--;
+        return PartitionInfo{
+            .src_partition_num = std::move(selector),
+            .partition_num = partition_num};
     }
-    return PartitionInfo{
-        .partition_selector = std::move(partition_selector),
-        .partition_start_points = partition_row_idx_start_points,
-        .partition_num = partition_num};
+    else
+    {
+        auto rows = selector.size();
+        std::vector<size_t> partition_row_idx_start_points(partition_num + 1, 0);
+        IColumn::Selector partition_selector(rows, 0);
+        for (size_t i = 0; i < rows; ++i)
+            partition_row_idx_start_points[selector[i]]++;
+
+        for (size_t i = 1; i <= partition_num; ++i)
+            partition_row_idx_start_points[i] += partition_row_idx_start_points[i - 1];
+        for (size_t i = rows; i-- > 0;)
+        {
+            partition_selector[partition_row_idx_start_points[selector[i]] - 1] = i;
+            partition_row_idx_start_points[selector[i]]--;
+        }
+        return PartitionInfo{
+            .partition_selector = std::move(partition_selector),
+            .partition_start_points = partition_row_idx_start_points,
+            .src_partition_num = std::move(selector),
+            .partition_num = partition_num};
+    }
+
 }
 
 PartitionInfo RoundRobinSelectorBuilder::build(DB::Block & block)
@@ -78,12 +81,12 @@ PartitionInfo RoundRobinSelectorBuilder::build(DB::Block & block)
         pid = pid_selection;
         pid_selection = (pid_selection + 1) % parts_num;
     }
-    return PartitionInfo::fromSelector(std::move(result), parts_num);
+    return PartitionInfo::fromSelector(std::move(result), parts_num, use_sort_shuffle);
 }
 
 HashSelectorBuilder::HashSelectorBuilder(
-    UInt32 parts_num_, const std::vector<size_t> & exprs_index_, const std::string & hash_function_name_)
-    : parts_num(parts_num_), exprs_index(exprs_index_), hash_function_name(hash_function_name_)
+    UInt32 parts_num_, const std::vector<size_t> & exprs_index_, const std::string & hash_function_name_, bool use_external_sort_shuffle)
+    : SelectorBuilder(use_external_sort_shuffle), parts_num(parts_num_), exprs_index(exprs_index_), hash_function_name(hash_function_name_)
 {
 }
 
@@ -153,13 +156,14 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
             }
         }
     }
-    return PartitionInfo::fromSelector(std::move(partition_ids), parts_num);
+    return PartitionInfo::fromSelector(std::move(partition_ids), parts_num, use_sort_shuffle);
 }
 
 
 static std::map<int, std::pair<int, int>> direction_map = {{1, {1, -1}}, {2, {1, 1}}, {3, {-1, 1}}, {4, {-1, -1}}};
 
-RangeSelectorBuilder::RangeSelectorBuilder(const std::string & option, const size_t partition_num_)
+RangeSelectorBuilder::RangeSelectorBuilder(const std::string & option, const size_t partition_num_, bool use_external_sort_shuffle)
+    : SelectorBuilder(use_external_sort_shuffle)
 {
     Poco::JSON::Parser parser;
     auto info = parser.parse(option).extract<Poco::JSON::Object::Ptr>();
@@ -173,7 +177,7 @@ PartitionInfo RangeSelectorBuilder::build(DB::Block & block)
 {
     DB::IColumn::Selector result;
     computePartitionIdByBinarySearch(block, result);
-    return PartitionInfo::fromSelector(std::move(result), partition_num);
+    return PartitionInfo::fromSelector(std::move(result), partition_num, use_sort_shuffle);
 }
 
 void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)

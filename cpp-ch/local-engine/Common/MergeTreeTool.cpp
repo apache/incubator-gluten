@@ -16,14 +16,14 @@
  */
 #include "MergeTreeTool.h"
 
+#include <google/protobuf/util/json_util.h>
+#include <rapidjson/document.h>
+
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
 #include <IO/WriteBufferFromString.h>
 #include <IO/WriteHelpers.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
-#include <google/protobuf/util/json_util.h>
-#include <rapidjson/rapidjson.h>
-#include <rapidjson/document.h>
 #include <Poco/StringTokenizer.h>
 
 using namespace DB;
@@ -160,6 +160,8 @@ MergeTreeTable parseMergeTreeTableString(const std::string & info)
     assertChar('\n', in);
     readString(table.table, in);
     assertChar('\n', in);
+    readString(table.snapshot_id, in);
+    assertChar('\n', in);
     String schema;
     readString(schema, in);
     google::protobuf::util::JsonStringToMessage(schema, &table.schema);
@@ -224,6 +226,7 @@ RangesInDataParts MergeTreeTable::extractRange(DataPartsVector parts_vector) con
             ranges_in_data_part.data_part = name_index.at(part.name);
             ranges_in_data_part.part_index_in_query = 0;
             ranges_in_data_part.ranges.emplace_back(MarkRange(part.begin, part.end));
+            ranges_in_data_part.alter_conversions = std::make_shared<AlterConversions>();
             return ranges_in_data_part;
         });
     return ranges_in_data_parts;

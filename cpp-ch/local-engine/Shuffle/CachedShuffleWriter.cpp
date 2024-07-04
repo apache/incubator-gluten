@@ -25,20 +25,19 @@
 
 namespace DB
 {
-
 namespace ErrorCodes
 {
-    extern const int BAD_ARGUMENTS;
+extern const int BAD_ARGUMENTS;
 }
 }
 
 
 namespace local_engine
 {
-
 using namespace DB;
 
-CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitOptions & options_, jobject rss_pusher) : options(options_)
+CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitOptions & options_, jobject rss_pusher)
+    : options(options_)
 {
     if (short_name == "rr")
     {
@@ -60,19 +59,13 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
         partitioner = std::make_unique<RoundRobinSelectorBuilder>(options.partition_num);
     }
     else if (short_name == "range")
-    {
         partitioner = std::make_unique<RangeSelectorBuilder>(options.hash_exprs, options.partition_num);
-    }
     else
-    {
         throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "unsupported splitter {}", short_name);
-    }
 
     Poco::StringTokenizer output_column_tokenizer(options_.out_exprs, ",");
     for (const auto & iter : output_column_tokenizer)
-    {
         output_columns_indicies.push_back(std::stoi(iter));
-    }
 
     if (rss_pusher)
     {
@@ -82,13 +75,9 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
         jmethodID celeborn_push_partition_data_method =
             GetMethodID(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[BI)I");
         CLEAN_JNIENV
-        auto celeborn_client = std::make_unique<CelebornClient>(rss_pusher, celeborn_push_partition_data_method);
-        partition_writer = std::make_unique<CelebornPartitionWriter>(this, std::move(celeborn_client));
+        celeborn_client = std::make_unique<CelebornClient>(rss_pusher, celeborn_push_partition_data_method);
     }
-    else
-    {
-        partition_writer = std::make_unique<LocalPartitionWriter>(this);
-    }
+
 
     split_result.partition_lengths.resize(options.partition_num, 0);
     split_result.raw_partition_lengths.resize(options.partition_num, 0);
@@ -96,11 +85,13 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
 
 void CachedShuffleWriter::split(DB::Block & block)
 {
+    lazyInitPartitionWriter(block);
     auto block_info = block.info;
     initOutputIfNeeded(block);
 
     Stopwatch split_time_watch;
-    block = convertAggregateStateInBlock(block);
+    if (!sort_shuffle)
+        block = convertAggregateStateInBlock(block);
     split_result.total_split_time += split_time_watch.elapsedNanoseconds();
 
     Stopwatch compute_pid_time_watch;
@@ -124,9 +115,7 @@ void CachedShuffleWriter::initOutputIfNeeded(Block & block)
         {
             output_header = block.cloneEmpty();
             for (size_t i = 0; i < block.columns(); ++i)
-            {
                 output_columns_indicies.push_back(i);
-            }
         }
         else
         {
@@ -139,18 +128,50 @@ void CachedShuffleWriter::initOutputIfNeeded(Block & block)
     }
 }
 
+void CachedShuffleWriter::lazyInitPartitionWriter(Block & input_sample)
+{
+    if (partition_writer)
+        return;
+
+//    auto avg_row_size = input_sample.allocatedBytes() / input_sample.rows();
+//    auto overhead_memory = std::max(avg_row_size, input_sample.columns() * 16) * options.split_size * options.partition_num;
+//    auto use_sort_shuffle = overhead_memory > options.spill_threshold * 0.5 || options.partition_num >= 300;
+    auto use_external_sort_shuffle = options.force_external_sort;
+    auto use_memory_sort_shuffle = options.force_mermory_sort;
+    sort_shuffle = use_memory_sort_shuffle || use_external_sort_shuffle;
+    if (celeborn_client)
+    {
+        if (use_external_sort_shuffle)
+            partition_writer = std::make_unique<ExternalSortCelebornPartitionWriter>(this, std::move(celeborn_client));
+        else if (use_memory_sort_shuffle)
+            partition_writer = std::make_unique<MemorySortCelebornPartitionWriter>(this, std::move(celeborn_client));
+        else
+            partition_writer = std::make_unique<CelebornPartitionWriter>(this, std::move(celeborn_client));
+    }
+    else
+    {
+        if (use_external_sort_shuffle)
+            partition_writer = std::make_unique<ExternalSortLocalPartitionWriter>(this);
+        else if (use_memory_sort_shuffle)
+            partition_writer = std::make_unique<MemorySortLocalPartitionWriter>(this);
+        else
+            partition_writer = std::make_unique<LocalPartitionWriter>(this);
+    }
+    partitioner->setUseSortShuffle(sort_shuffle);
+    LOG_INFO(logger, "Use Partition Writer {}", partition_writer->getName());
+}
+
 SplitResult CachedShuffleWriter::stop()
 {
-    partition_writer->stop();
-
-    static auto * logger = &Poco::Logger::get("CachedShuffleWriter");
+    if (partition_writer)
+        partition_writer->stop();
     LOG_INFO(logger, "CachedShuffleWriter stop, split result: {}", split_result.toString());
     return split_result;
 }
 
 size_t CachedShuffleWriter::evictPartitions()
 {
+    if (!partition_writer) return 0;
     return partition_writer->evictPartitions(true, options.flush_block_buffer_before_evict);
 }
-
 }

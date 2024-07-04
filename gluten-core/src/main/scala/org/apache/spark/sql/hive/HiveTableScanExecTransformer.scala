@@ -16,13 +16,12 @@
  */
 package org.apache.spark.sql.hive
 
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.BasicScanExecTransformer
-import io.glutenproject.extension.ValidationResult
-import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.BasicScanExecTransformer
+import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.metrics.MetricsUpdater
+import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, AttributeSeq, Expression}
@@ -34,7 +33,6 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer._
 import org.apache.spark.sql.hive.client.HiveClientImpl
 import org.apache.spark.sql.hive.execution.{AbstractHiveTableScanExec, HiveTableScanExec}
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
@@ -80,10 +78,6 @@ case class HiveTableScanExecTransformer(
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genHiveTableScanTransformerMetricsUpdater(metrics)
-
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    doExecuteColumnarInternal()
-  }
 
   @transient private lazy val hivePartitionConverter =
     new HivePartitionConverter(session.sessionState.newHadoopConf(), session)
@@ -192,10 +186,6 @@ object HiveTableScanExecTransformer {
     Utils.classForName("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat")
   def isHiveTableScan(plan: SparkPlan): Boolean = {
     plan.isInstanceOf[HiveTableScanExec]
-  }
-
-  def getPartitionFilters(plan: SparkPlan): Seq[Expression] = {
-    plan.asInstanceOf[HiveTableScanExec].partitionPruningPred
   }
 
   def copyWith(plan: SparkPlan, newPartitionFilters: Seq[Expression]): SparkPlan = {

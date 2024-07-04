@@ -16,12 +16,14 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.metrics.GlutenTimeMetric
+import org.apache.gluten.metrics.GlutenTimeMetric
+import org.apache.gluten.sql.shims.SparkShimLoader
 
-import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, FileSourceMetadataAttribute, PlanExpression, Predicate}
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
+import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetUtils}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
@@ -58,8 +60,7 @@ abstract class FileSourceScanExecShim(
   protected lazy val driverMetricsAlias = driverMetrics
 
   def dataFiltersInScan: Seq[Expression] = dataFilters.filterNot(_.references.exists {
-    case FileSourceMetadataAttribute(_) => true
-    case _ => false
+    attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
   })
 
   def hasUnsupportedColumns: Boolean = {
@@ -122,4 +123,27 @@ abstract class FileSourceScanExecShim(
     sendDriverMetrics()
     selected
   }
+}
+
+abstract class ArrowFileSourceScanLikeShim(original: FileSourceScanExec)
+  extends FileSourceScanLike {
+  override val nodeNamePrefix: String = "ArrowFile"
+
+  override def tableIdentifier: Option[TableIdentifier] = original.tableIdentifier
+
+  override def inputRDDs(): Seq[RDD[InternalRow]] = original.inputRDDs()
+
+  override def dataFilters: Seq[Expression] = original.dataFilters
+
+  override def disableBucketedScan: Boolean = original.disableBucketedScan
+
+  override def optionalBucketSet: Option[BitSet] = original.optionalBucketSet
+
+  override def optionalNumCoalescedBuckets: Option[Int] = original.optionalNumCoalescedBuckets
+
+  override def partitionFilters: Seq[Expression] = original.partitionFilters
+
+  override def relation: HadoopFsRelation = original.relation
+
+  override def requiredSchema: StructType = original.requiredSchema
 }

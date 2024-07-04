@@ -198,6 +198,13 @@ message ReadRel {
         string value = 2;
       }
       repeated metadataColumn metadata_columns = 19;
+
+      // File properties contained in split
+      message fileProperties {
+        int64 fileSize = 1;
+        int64 modificationTime = 2;
+      }
+      fileProperties properties = 20;
     }
   }
 }
@@ -268,6 +275,15 @@ message FetchRel {
   substrait.extensions.AdvancedExtension advanced_extension = 10;
 }
 
+// The relational operator representing TOP N calculation
+message TopNRel {
+  RelCommon common = 1;
+  Rel input = 2;
+  int64 n = 3;
+  repeated SortField sorts = 4;
+  substrait.extensions.AdvancedExtension advanced_extension = 10;
+}
+
 // The relational operator representing a GROUP BY Aggregate
 message AggregateRel {
   RelCommon common = 1;
@@ -317,6 +333,15 @@ message WindowRel {
   message Measure {
     Expression.WindowFunction measure = 1;
   }
+}
+
+message WindowGroupLimitRel {
+  RelCommon common = 1;
+  Rel input = 2;
+  repeated Expression partition_expressions = 3;
+  repeated SortField sorts = 4;
+  int32 limit = 5;
+  substrait.extensions.AdvancedExtension advanced_extension = 10;
 }
 
 // The relational operator capturing simple FILTERs (as in the WHERE clause of SQL)
@@ -485,6 +510,8 @@ message Rel {
     WindowRel window = 16;
     GenerateRel generate = 17;
     WriteRel write = 18;
+    TopNRel top_n = 19;
+    WindowGroupLimitRel windowGroupLimit = 20;
   }
 }
 
@@ -969,18 +996,28 @@ message Expression {
     message Bound {
       // Defines that the bound extends this far back from the current record.
       message Preceding {
-        // A strictly positive integer specifying the number of records that
-        // the window extends back from the current record. Required. Use
-        // CurrentRow for offset zero and Following for negative offsets.
-        int64 offset = 1;
+        oneof kind {
+          // A strictly positive integer specifying the number of records that
+          // the window extends back from the current record. Use
+          // CurrentRow for offset zero and Following for negative offsets.
+          int64 offset = 1;
+
+          // the reference to pre-project range frame boundary.
+          Expression ref = 2;
+        }
       }
 
       // Defines that the bound extends this far ahead of the current record.
       message Following {
-        // A strictly positive integer specifying the number of records that
-        // the window extends ahead of the current record. Required. Use
-        // CurrentRow for offset zero and Preceding for negative offsets.
-        int64 offset = 1;
+        oneof kind {
+          // A strictly positive integer specifying the number of records that
+          // the window extends ahead of the current record. Use
+          // CurrentRow for offset zero and Preceding for negative offsets.
+          int64 offset = 1;
+
+          // the reference to pre-project range frame boundary.
+          Expression ref = 2;
+        }
       }
 
       // Defines that the bound extends to or from the current record.

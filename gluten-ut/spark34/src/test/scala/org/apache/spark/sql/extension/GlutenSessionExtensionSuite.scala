@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.extension
 
-import io.glutenproject.extension.{ColumnarOverrideRules, JoinSelectionOverrides}
+import org.apache.gluten.extension.ColumnarOverrideRules
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql._
@@ -31,7 +31,6 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
 
   testGluten("test gluten extensions") {
     assert(spark.sessionState.columnarRules.contains(ColumnarOverrideRules(spark)))
-    assert(spark.sessionState.planner.strategies.contains(JoinSelectionOverrides(spark)))
 
     assert(spark.sessionState.planner.strategies.contains(MySparkStrategy(spark)))
     assert(spark.sessionState.analyzer.extendedResolutionRules.contains(MyRule(spark)))

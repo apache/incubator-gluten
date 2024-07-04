@@ -16,11 +16,11 @@
  */
 package org.apache.spark.sql.execution.utils
 
-import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.memory.nmm.NativeMemoryManagers
-import io.glutenproject.utils.Iterators
-import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
+import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.exec.Runtimes
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
+import org.apache.gluten.utils.iterator.Iterators
+import org.apache.gluten.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
 
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
 import org.apache.spark.rdd.RDD
@@ -41,14 +41,12 @@ import org.apache.spark.util.MutablePair
 object ExecUtil {
 
   def convertColumnarToRow(batch: ColumnarBatch): Iterator[InternalRow] = {
-    val jniWrapper = NativeColumnarToRowJniWrapper.create()
+    val runtime = Runtimes.contextInstance("ExecUtil#ColumnarToRow")
+    val jniWrapper = NativeColumnarToRowJniWrapper.create(runtime)
     var info: NativeColumnarToRowInfo = null
     val batchHandle = ColumnarBatches.getNativeHandle(batch)
-    val c2rHandle = jniWrapper.nativeColumnarToRowInit(
-      NativeMemoryManagers
-        .contextInstance("ExecUtil#ColumnarToRow")
-        .getNativeInstanceHandle)
-    info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rHandle)
+    val c2rHandle = jniWrapper.nativeColumnarToRowInit()
+    info = jniWrapper.nativeColumnarToRowConvert(c2rHandle, batchHandle)
 
     Iterators
       .wrap(new Iterator[InternalRow] {
@@ -67,6 +65,7 @@ object ExecUtil {
           row
         }
       })
+      .protectInvocationFlow()
       .recycleIterator {
         jniWrapper.nativeClose(c2rHandle)
       }
@@ -80,7 +79,8 @@ object ExecUtil {
       newPartitioning: Partitioning,
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
-      metrics: Map[String, SQLMetric]): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+      metrics: Map[String, SQLMetric],
+      isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
     metrics("numPartitions").set(newPartitioning.numPartitions)
     val executionId = rdd.sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
     SQLMetrics.postDriverMetricUpdates(
@@ -145,7 +145,7 @@ object ExecUtil {
                 val newHandle = ColumnarBatches.compose(pidBatch, cb)
                 // Composed batch already hold pidBatch's shared ref, so close is safe.
                 ColumnarBatches.forceClose(pidBatch)
-                (0, ColumnarBatches.create(ColumnarBatches.getRuntime(cb), newHandle))
+                (0, ColumnarBatches.create(newHandle))
             })
         .recyclePayload(p => ColumnarBatches.forceClose(p._2)) // FIXME why force close?
         .create()
@@ -199,7 +199,8 @@ object ExecUtil {
         serializer,
         shuffleWriterProcessor = ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),
         nativePartitioning = nativePartitioning,
-        metrics = metrics
+        metrics = metrics,
+        isSort = isSort
       )
 
     dependency

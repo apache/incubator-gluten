@@ -16,10 +16,10 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.{GlutenPlan, ValidationResult}
-import io.glutenproject.metrics.GlutenTimeMetric
-import io.glutenproject.sql.shims.SparkShimLoader
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.metrics.GlutenTimeMetric
+import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.{broadcast, SparkException}
 import org.apache.spark.launcher.SparkLauncher
@@ -128,7 +128,9 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   override def outputPartitioning: Partitioning = BroadcastPartitioning(mode)
 
   override def doCanonicalize(): SparkPlan = {
-    ColumnarBroadcastExchangeExec(mode.canonicalized, child.canonicalized)
+    val canonicalized =
+      BackendsApiManager.getSparkPlanExecApiInstance.doCanonicalizeForBroadcastMode(mode)
+    ColumnarBroadcastExchangeExec(canonicalized, child.canonicalized)
   }
 
   override protected def doValidateInternal(): ValidationResult = {

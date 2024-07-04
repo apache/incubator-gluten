@@ -16,10 +16,10 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.nmm.NativeMemoryManagers
-import io.glutenproject.sql.shims.SparkShimLoader
-import io.glutenproject.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializerJniWrapper}
+import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.exec.Runtimes
+import org.apache.gluten.sql.shims.SparkShimLoader
+import org.apache.gluten.vectorized.{ColumnarBatchSerializeResult, ColumnarBatchSerializerJniWrapper}
 
 import org.apache.spark.SparkContext
 import org.apache.spark.broadcast.Broadcast
@@ -31,7 +31,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.TaskResources
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer;
 
 // Utility methods to convert Vanilla broadcast relations from/to Velox broadcast relations.
@@ -67,7 +66,7 @@ object BroadcastUtils {
           val rowArray = new ArrayBuffer[InternalRow]
 
           /**
-           * [[io.glutenproject.execution.VeloxColumnarToRowExec.toRowIterator()]] creates a single
+           * [[org.apache.gluten.execution.VeloxColumnarToRowExec.toRowIterator()]] creates a single
            * UnsafeRow. The iterator uses this same unsafe row and keep on changing the pointer to
            * point to new value. If we directly call rowIterator.toArray() then all the elements in
            * array points to same UnsafeRow object resulting in wrong output. here we need to create
@@ -153,17 +152,12 @@ object BroadcastUtils {
     if (filtered.isEmpty) {
       return ColumnarBatchSerializeResult.EMPTY
     }
-    val batchRuntime = ColumnarBatches.getRuntime(filtered.toList.asJava)
     val handleArray = filtered.map(ColumnarBatches.getNativeHandle)
     val serializeResult =
       try {
         ColumnarBatchSerializerJniWrapper
-          .forRuntime(batchRuntime)
-          .serialize(
-            handleArray,
-            NativeMemoryManagers
-              .contextInstance("BroadcastRelation")
-              .getNativeInstanceHandle)
+          .create(Runtimes.contextInstance("BroadcastUtils#serializeStream"))
+          .serialize(handleArray)
       } finally {
         filtered.foreach(ColumnarBatches.release)
       }

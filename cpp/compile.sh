@@ -30,7 +30,19 @@ ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
 VELOX_HOME=
-NPROC=$(nproc --ignore=2)
+# set default number of threads as cpu cores minus 2
+if [[ "$(uname)" == "Darwin" ]]; then
+    physical_cpu_cores=$(sysctl -n hw.physicalcpu)
+    ignore_cores=2
+    if [ "$physical_cpu_cores" -gt "$ignore_cores" ]; then
+        NPROC=${NPROC:-$(($physical_cpu_cores - $ignore_cores))}
+    else
+        NPROC=${NPROC:-$physical_cpu_cores}
+    fi
+else
+    NPROC=${NPROC:-$(nproc --ignore=2)}
+fi
+echo "set default number of threads is ${NPROC}"
 
 for arg in "$@"; do
   case $arg in

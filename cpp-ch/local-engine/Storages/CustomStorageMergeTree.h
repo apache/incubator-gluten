@@ -22,6 +22,7 @@
 #include <Storages/MutationCommands.h>
 #include <Storages/MergeTree/RangesInDataPart.h>
 #include <Processors/QueryPlan/ReadFromMergeTree.h>
+#include <Storages/StorageMergeTree.h>
 
 namespace local_engine
 {
@@ -33,8 +34,11 @@ class CustomStorageMergeTree final : public MergeTreeData
 {
     friend class CustomMergeTreeSink;
 
+    friend class MergeSparkMergeTreeTask;
+
 public:
     static void wrapRangesInDataParts(DB::ReadFromMergeTree & source, DB::RangesInDataParts ranges);
+    void analysisPartsByRanges(DB::ReadFromMergeTree & source, DB::RangesInDataParts ranges_in_data_parts);
     CustomStorageMergeTree(
         const StorageID & table_id_,
         const String & relative_data_path_,
@@ -49,11 +53,12 @@ public:
     std::vector<MergeTreeMutationStatus> getMutationsStatus() const override;
     bool scheduleDataProcessingJob(BackgroundJobsAssignee & executor) override;
     std::map<std::string, MutationCommands> getUnfinishedMutationCommands() const override;
-    DataPartsVector loadDataPartsWithNames(std::unordered_set<std::string> parts);
-
+    std::vector<MergeTreeDataPartPtr> loadDataPartsWithNames(std::unordered_set<std::string> parts);
+    void removePartFromMemory(const MergeTreeData::DataPartPtr & part_to_detach);
 
     MergeTreeDataWriter writer;
     MergeTreeDataSelectExecutor reader;
+    MergeTreeDataMergerMutator merger_mutator;
 
     static std::atomic<int> part_num;
 
@@ -79,6 +84,7 @@ protected:
     bool partIsAssignedToBackgroundOperation(const DataPartPtr & part) const override;
     MutationCommands getAlterMutationCommandsForPart(const DataPartPtr & /*part*/) const override { return {}; }
     void attachRestoredParts(MutableDataPartsVector && /*parts*/) override { throw std::runtime_error("not implement"); }
+
 };
 
 }

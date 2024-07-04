@@ -16,12 +16,13 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution._
-import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.rel.RelBuilder
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution._
+import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.metrics.MetricsUpdater
+import org.apache.gluten.substrait.SubstraitContext
+import org.apache.gluten.substrait.rel.RelBuilder
 
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -64,7 +65,7 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
     child.doExecuteBroadcast()
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
     val operatorId = context.nextOperatorId(nodeName)
     val readRel = RelBuilder.makeReadRelForInputIterator(child.output.asJava, context, operatorId)
     TransformContext(output, output, readRel)
@@ -158,16 +159,18 @@ case class ColumnarCollapseTransformStages(
   }
 }
 
-case class ColumnarInputAdapter(child: SparkPlan) extends UnaryExecNode {
+case class ColumnarInputAdapter(child: SparkPlan)
+  extends InputAdapterGenerateTreeStringShim
+  with Convention.KnownBatchType {
   override def output: Seq[Attribute] = child.output
-  override def supportsColumnar: Boolean = child.supportsColumnar
-  override protected def doExecute(): RDD[InternalRow] =
-    child.execute()
+  override def supportsColumnar: Boolean = true
+  override def batchType(): Convention.BatchType =
+    BackendsApiManager.getSparkPlanExecApiInstance.batchType
+  override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = child.executeColumnar()
   override def outputPartitioning: Partitioning = child.outputPartitioning
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
-  override def vectorTypes: Option[Seq[String]] = child.vectorTypes
-  override protected[sql] def doExecuteBroadcast[T](): Broadcast[T] = child.executeBroadcast()
+  override protected[sql] def doExecuteBroadcast[T](): Broadcast[T] = child.doExecuteBroadcast()
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
     copy(child = newChild)
   // Node name's required to be "InputAdapter" to correctly draw UI graph.

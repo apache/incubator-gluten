@@ -30,7 +30,7 @@ class LocalRssClient : public RssClient {
  public:
   LocalRssClient(std::string dataFile) : dataFile_(dataFile) {}
 
-  int32_t pushPartitionData(int32_t partitionId, char* bytes, int64_t size) {
+  int32_t pushPartitionData(int32_t partitionId, const char* bytes, int64_t size) {
     auto idx = -1;
     auto maybeIdx = partitionIdx_.find(partitionId);
     if (maybeIdx == partitionIdx_.end()) {

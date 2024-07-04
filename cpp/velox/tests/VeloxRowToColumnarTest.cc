@@ -55,9 +55,6 @@ class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBa
     auto vp = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb)->getRowVector();
     velox::test::assertEqualVectors(vector, vp);
   }
-
- private:
-  std::shared_ptr<arrow::MemoryPool> arrowPool_ = defaultArrowMemoryPool();
 };
 
 TEST_F(VeloxRowToColumnarTest, allTypes) {

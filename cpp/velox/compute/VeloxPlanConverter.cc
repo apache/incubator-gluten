@@ -60,6 +60,7 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
   splitInfo->starts.reserve(fileList.size());
   splitInfo->lengths.reserve(fileList.size());
   splitInfo->partitionColumns.reserve(fileList.size());
+  splitInfo->properties.reserve(fileList.size());
   splitInfo->metadataColumns.reserve(fileList.size());
   for (const auto& file : fileList) {
     // Expect all Partitions share the same index.
@@ -80,6 +81,13 @@ std::shared_ptr<SplitInfo> parseScanSplitInfo(
     splitInfo->paths.emplace_back(file.uri_file());
     splitInfo->starts.emplace_back(file.start());
     splitInfo->lengths.emplace_back(file.length());
+
+    facebook::velox::FileProperties fileProps;
+    if (file.has_properties()) {
+      fileProps.fileSize = file.properties().filesize();
+      fileProps.modificationTime = file.properties().modificationtime();
+    }
+    splitInfo->properties.emplace_back(fileProps);
     switch (file.file_format_case()) {
       case SubstraitFileFormatCase::kOrc:
         splitInfo->format = dwio::common::FileFormat::ORC;

@@ -26,20 +26,43 @@
 #include "compute/ResultIterator.h"
 #include "compute/Runtime.h"
 #include "compute/VeloxPlanConverter.h"
-#include "config/GlutenConfig.h"
+#include "config/VeloxConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
+#include "shuffle/VeloxHashBasedShuffleWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
-#include "shuffle/VeloxShuffleWriter.h"
+#include "shuffle/VeloxSortBasedShuffleWriter.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
+
+#ifdef ENABLE_HDFS
+
+#include "operators/writer/VeloxParquetDatasourceHDFS.h"
+
+#endif
+
+#ifdef ENABLE_S3
+#include "operators/writer/VeloxParquetDatasourceS3.h"
+#endif
+
+#ifdef ENABLE_GCS
+#include "operators/writer/VeloxParquetDatasourceGCS.h"
+#endif
+
+#ifdef ENABLE_ABFS
+#include "operators/writer/VeloxParquetDatasourceABFS.h"
+#endif
 
 using namespace facebook;
 
 namespace gluten {
 
-VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap) : Runtime(confMap) {
+VeloxRuntime::VeloxRuntime(
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& confMap)
+    : Runtime(std::make_shared<VeloxMemoryManager>(std::move(listener)), confMap) {
   // Refresh session config.
-  veloxCfg_ = std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap_);
+  vmm_ = dynamic_cast<VeloxMemoryManager*>(memoryManager_.get());
+  veloxCfg_ = std::make_shared<facebook::velox::core::MemConfig>(confMap_);
   debugModeEnabled_ = veloxCfg_->get<bool>(kDebugModeEnabled, false);
   FLAGS_minloglevel = veloxCfg_->get<uint32_t>(kGlogSeverityLevel, FLAGS_minloglevel);
   FLAGS_v = veloxCfg_->get<uint32_t>(kGlogVerboseLevel, FLAGS_v);
@@ -108,15 +131,17 @@ void VeloxRuntime::injectWriteFilesTempPath(const std::string& path) {
   writeFilesTempPath_ = path;
 }
 
+VeloxMemoryManager* VeloxRuntime::memoryManager() {
+  return vmm_;
+}
+
 std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
-    MemoryManager* memoryManager,
     const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
   LOG_IF(INFO, debugModeEnabled_) << "VeloxRuntime session config:" << printConfig(confMap_);
 
-  VeloxPlanConverter veloxPlanConverter(
-      inputs, getLeafVeloxPool(memoryManager).get(), sessionConf, writeFilesTempPath_);
+  VeloxPlanConverter veloxPlanConverter(inputs, vmm_->getLeafMemoryPool().get(), sessionConf, writeFilesTempPath_);
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_, std::move(localFiles_));
 
   // Scan node can be required.
@@ -127,15 +152,14 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   // Separate the scan ids and stream ids, and get the scan infos.
   getInfoAndIds(veloxPlanConverter.splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
-  auto* vmm = toVeloxMemoryManager(memoryManager);
   auto wholestageIter = std::make_unique<WholeStageResultIterator>(
-      vmm, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
+      vmm_, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
   return std::make_shared<ResultIterator>(std::move(wholestageIter), this);
 }
 
-std::shared_ptr<ColumnarToRowConverter> VeloxRuntime::createColumnar2RowConverter(MemoryManager* memoryManager) {
-  auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
-  return std::make_shared<VeloxColumnarToRowConverter>(ctxVeloxPool);
+std::shared_ptr<ColumnarToRowConverter> VeloxRuntime::createColumnar2RowConverter() {
+  auto veloxPool = vmm_->getLeafMemoryPool();
+  return std::make_shared<VeloxColumnarToRowConverter>(veloxPool);
 }
 
 std::shared_ptr<ColumnarBatch> VeloxRuntime::createOrGetEmptySchemaBatch(int32_t numRows) {
@@ -148,76 +172,109 @@ std::shared_ptr<ColumnarBatch> VeloxRuntime::createOrGetEmptySchemaBatch(int32_t
 }
 
 std::shared_ptr<ColumnarBatch> VeloxRuntime::select(
-    MemoryManager* memoryManager,
     std::shared_ptr<ColumnarBatch> batch,
     std::vector<int32_t> columnIndices) {
-  auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
-  auto veloxBatch = gluten::VeloxColumnarBatch::from(ctxVeloxPool.get(), batch);
-  auto outputBatch = veloxBatch->select(ctxVeloxPool.get(), std::move(columnIndices));
+  auto veloxPool = vmm_->getLeafMemoryPool();
+  auto veloxBatch = gluten::VeloxColumnarBatch::from(veloxPool.get(), batch);
+  auto outputBatch = veloxBatch->select(veloxPool.get(), std::move(columnIndices));
   return outputBatch;
 }
 
-std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverter(
-    MemoryManager* memoryManager,
-    struct ArrowSchema* cSchema) {
-  auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
-  return std::make_shared<VeloxRowToColumnarConverter>(cSchema, ctxVeloxPool);
+std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverter(struct ArrowSchema* cSchema) {
+  auto veloxPool = vmm_->getLeafMemoryPool();
+  return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
 }
 
 std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
     int numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
-    ShuffleWriterOptions options,
-    MemoryManager* memoryManager) {
-  auto ctxPool = getLeafVeloxPool(memoryManager);
-  auto arrowPool = memoryManager->getArrowMemoryPool();
+    ShuffleWriterOptions options) {
+  auto veloxPool = vmm_->getLeafMemoryPool();
+  auto arrowPool = vmm_->getArrowMemoryPool();
   GLUTEN_ASSIGN_OR_THROW(
-      auto shuffle_writer,
-      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriter), std::move(options), ctxPool, arrowPool));
-  return shuffle_writer;
+      std::shared_ptr<ShuffleWriter> shuffleWriter,
+      VeloxShuffleWriter::create(
+          options.shuffleWriterType,
+          numPartitions,
+          std::move(partitionWriter),
+          std::move(options),
+          veloxPool,
+          arrowPool));
+  return shuffleWriter;
 }
 
 std::shared_ptr<Datasource> VeloxRuntime::createDatasource(
     const std::string& filePath,
-    MemoryManager* memoryManager,
     std::shared_ptr<arrow::Schema> schema) {
   static std::atomic_uint32_t id{0UL};
-  auto veloxPool = getAggregateVeloxPool(memoryManager)->addAggregateChild("datasource." + std::to_string(id++));
+  auto veloxPool = vmm_->getAggregateMemoryPool()->addAggregateChild("datasource." + std::to_string(id++));
   // Pass a dedicate pool for S3 and GCS sinks as can't share veloxPool
   // with parquet writer.
-  auto s3SinkPool = getLeafVeloxPool(memoryManager);
-  auto gcsSinkPool = getLeafVeloxPool(memoryManager);
-
-  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, s3SinkPool, gcsSinkPool, schema);
+  auto sinkPool = vmm_->getLeafMemoryPool();
+  if (isSupportedHDFSPath(filePath)) {
+#ifdef ENABLE_HDFS
+    return std::make_shared<VeloxParquetDatasourceHDFS>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  } else if (isSupportedS3SdkPath(filePath)) {
+#ifdef ENABLE_S3
+    return std::make_shared<VeloxParquetDatasourceS3>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is S3 path but the S3 haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  } else if (isSupportedGCSPath(filePath)) {
+#ifdef ENABLE_GCS
+    return std::make_shared<VeloxParquetDatasourceGCS>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is GCS path but the GCS haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  } else if (isSupportedABFSPath(filePath)) {
+#ifdef ENABLE_ABFS
+    return std::make_shared<VeloxParquetDatasourceABFS>(filePath, veloxPool, sinkPool, schema);
+#else
+    throw std::runtime_error(
+        "The write path is ABFS path but the ABFS haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  }
+  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, sinkPool, schema);
 }
 
 std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
-    ShuffleReaderOptions options,
-    arrow::MemoryPool* pool,
-    MemoryManager* memoryManager) {
+    ShuffleReaderOptions options) {
   auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
   auto codec = gluten::createArrowIpcCodec(options.compressionType, options.codecBackend);
-  auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
+  auto ctxVeloxPool = vmm_->getLeafMemoryPool();
+  auto veloxCompressionType = facebook::velox::common::stringToCompressionKind(options.compressionTypeStr);
   auto deserializerFactory = std::make_unique<gluten::VeloxColumnarBatchDeserializerFactory>(
-      schema, std::move(codec), rowType, options.batchSize, pool, ctxVeloxPool);
-  return std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
+      schema,
+      std::move(codec),
+      veloxCompressionType,
+      rowType,
+      options.batchSize,
+      vmm_->getArrowMemoryPool(),
+      ctxVeloxPool,
+      options.shuffleWriterType);
+  auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
+  return reader;
 }
 
-std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerializer(
-    MemoryManager* memoryManager,
-    arrow::MemoryPool* arrowPool,
-    struct ArrowSchema* cSchema) {
-  auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
-  return std::make_unique<VeloxColumnarBatchSerializer>(arrowPool, ctxVeloxPool, cSchema);
+std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerializer(struct ArrowSchema* cSchema) {
+  auto arrowPool = vmm_->getArrowMemoryPool();
+  auto veloxPool = vmm_->getLeafMemoryPool();
+  return std::make_unique<VeloxColumnarBatchSerializer>(arrowPool, veloxPool, cSchema);
 }
 
 void VeloxRuntime::dumpConf(const std::string& path) {
-  auto backendConf = VeloxBackend::get()->getBackendConf();
-  auto allConf = backendConf;
+  const auto& backendConfMap = VeloxBackend::get()->getBackendConf()->values();
+  auto allConfMap = backendConfMap;
 
   for (const auto& pair : confMap_) {
-    allConf.insert_or_assign(pair.first, pair.second);
+    allConfMap.insert_or_assign(pair.first, pair.second);
   }
 
   // Open file "velox.conf" for writing, automatically creating it if it doesn't exist,
@@ -230,13 +287,13 @@ void VeloxRuntime::dumpConf(const std::string& path) {
 
   // Calculate the maximum key length for alignment.
   size_t maxKeyLength = 0;
-  for (const auto& pair : allConf) {
+  for (const auto& pair : allConfMap) {
     maxKeyLength = std::max(maxKeyLength, pair.first.length());
   }
 
   // Write each key-value pair to the file with adjusted spacing for alignment
   outFile << "[Backend Conf]" << std::endl;
-  for (const auto& pair : backendConf) {
+  for (const auto& pair : backendConfMap) {
     outFile << std::left << std::setw(maxKeyLength + 1) << pair.first << ' ' << pair.second << std::endl;
   }
   outFile << std::endl << "[Session Conf]" << std::endl;

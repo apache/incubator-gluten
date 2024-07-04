@@ -16,16 +16,16 @@
  */
 package org.apache.spark.api.python
 
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.{TransformContext, TransformSupport, UnaryTransformSupport}
-import io.glutenproject.expression._
-import io.glutenproject.extension.ValidationResult
-import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.`type`._
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression._
-import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.rel._
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.{TransformContext, TransformSupport, UnaryTransformSupport}
+import org.apache.gluten.expression._
+import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.metrics.MetricsUpdater
+import org.apache.gluten.substrait.`type`._
+import org.apache.gluten.substrait.SubstraitContext
+import org.apache.gluten.substrait.expression._
+import org.apache.gluten.substrait.extensions.ExtensionBuilder
+import org.apache.gluten.substrait.rel._
 
 import org.apache.spark.TaskContext
 import org.apache.spark.sql.catalyst.InternalRow
@@ -84,8 +84,8 @@ case class EvalPythonExecTransformer(
     doNativeValidation(context, relNode)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val args = context.registeredFunction
     val operatorId = context.nextOperatorId(this.nodeName)
     val expressionNodes = new JArrayList[ExpressionNode]

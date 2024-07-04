@@ -14,13 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include "FunctionParser.h"
 #include <Core/Field.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
 #include <Parser/TypeParser.h>
 #include <Common/CHUtil.h>
-
-#include "FunctionParser.h"
 
 namespace DB
 {
@@ -80,7 +81,7 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
             func_node,
             // as stated in isTypeMatched， currently we don't change nullability of the result type
             func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, TypeParser::parseType(output_type))->getName()
-                                                 : local_engine::removeNullable(TypeParser::parseType(output_type))->getName(),
+                                                 : DB::removeNullable(TypeParser::parseType(output_type))->getName(),
             func_node->result_name);
     else
         return func_node;

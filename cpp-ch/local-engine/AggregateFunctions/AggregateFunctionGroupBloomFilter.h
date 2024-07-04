@@ -17,18 +17,17 @@
 #pragma once
 
 #include <cstddef>
-#include <AggregateFunctions/IAggregateFunction.h>
+#include <AggregateFunctions/IAggregateFunction_fwd.h>
 #include <Columns/ColumnAggregateFunction.h>
 #include <Columns/ColumnVector.h>
 #include <DataTypes/DataTypesNumber.h>
+#include <IO/VarInt.h>
+#include <base/types.h>
 #include "Common/Exception.h"
 #include <Common/assert_cast.h>
-#include "IO/VarInt.h"
-#include "base/types.h"
 
 
 #include <IO/ReadHelpers.h>
-#include <IO/WriteHelpers.h>
 #include <Interpreters/BloomFilter.h>
 
 namespace local_engine

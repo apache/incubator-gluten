@@ -5,7 +5,9 @@
         *facebook::velox::*;
     };
 
-    Java_io_gluten*;
+    Java_org_apache_gluten_*;
+    JNI_OnLoad;
+    JNI_OnUnload;
   local:
     # Hide symbols of static dependencies
     *;

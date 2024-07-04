@@ -14,7 +14,7 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>io.glutenproject</groupId>
+  <groupId>org.apache.gluten</groupId>
   <artifactId>gluten-parent</artifactId>
   <version>1.2.0-SNAPSHOT</version>
   <packaging>pom</packaging>
@@ -34,26 +34,33 @@
     <module>gluten-ui</module>
     <module>package</module>
     <module>shims</module>
-    <module>gluten-cbo</module>
+    <module>gluten-ras</module>
   </modules>
 
   <properties>
     <java.version>1.8</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
-    <caffeine.version.java8>2.9.3</caffeine.version.java8>
-    <delta.version>2.0.1</delta.version>
-    <delta.binary.version>20</delta.binary.version>
+    <caffeine.version>2.9.3</caffeine.version>
     <scala.binary.version>2.12</scala.binary.version>
     <scala.version>2.12.15</scala.version>
     <spark.major.version>3</spark.major.version>
-    <sparkbundle.version>3.2</sparkbundle.version>
+    <sparkbundle.version>3.4</sparkbundle.version>
     <spark.version>3.4.2</spark.version>
-    <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
-    <celeborn.version>0.3.2-incubating</celeborn.version>
-    <arrow.version>14.0.1</arrow.version>
+    <sparkshim.module.name>spark34</sparkshim.module.name>
+    <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
+    <iceberg.version>1.5.0</iceberg.version>
+    <delta.package.name>delta-core</delta.package.name>
+    <delta.version>2.4.0</delta.version>
+    <delta.binary.version>24</delta.binary.version>
+    <celeborn.version>0.4.1</celeborn.version>
+    <uniffle.version>0.8.0</uniffle.version>
+    <arrow.version>15.0.0</arrow.version>
+    <arrow-gluten.version>15.0.0-gluten</arrow-gluten.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>2.7.4</hadoop.version>
+    <slf4j.version>2.0.7</slf4j.version>
+    <log4j.version>2.20.0</log4j.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.prefix>spark-sql-columnar</project.prefix>
@@ -68,7 +75,7 @@
     <junit.version>4.13.1</junit.version>
 
     <!-- Package name to use when relocating shaded classes -->
-    <gluten.shade.packageName>io.glutenproject.shaded</gluten.shade.packageName>
+    <gluten.shade.packageName>org.apache.gluten.shaded</gluten.shade.packageName>
 
     <!-- The original protobuf version -->
     <protobuf.version>3.23.4</protobuf.version>
@@ -109,6 +116,100 @@
 
   <profiles>
     <profile>
+      <id>scala-2.12</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <!--
+         SPARK-34774 Add this property to ensure change-scala-version.sh can replace the public `scala.version`
+         property correctly.
+        -->
+        <scala.version>2.12.15</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>scala-2.13</id>
+      <properties>
+        <scala.version>2.13.8</scala.version>
+        <scala.binary.version>2.13</scala.binary.version>
+      </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>net.alchim31.maven</groupId>
+              <artifactId>scala-maven-plugin</artifactId>
+              <configuration>
+                <!-- TODO: Fix the plugin scalawarts to support scala 2.13 in IDEA
+                <compilerPlugins>
+                  <compilerPlugin>
+                    <groupId>org.wartremover</groupId>
+                    <artifactId>wartremover_${scala.binary.version}</artifactId>
+                    <version>3.1.6</version>
+                  </compilerPlugin>
+                </compilerPlugins>
+                <dependencies>
+                  <dependency>
+                    <groupId>io.github.zhztheplayer.scalawarts</groupId>
+                    <artifactId>scalawarts_${scala.binary.version}</artifactId>
+                    <version>0.1.2</version>
+                  </dependency>
+                </dependencies> -->
+                <args>
+                  <arg>-unchecked</arg>
+                  <arg>-deprecation</arg>
+                  <arg>-feature</arg>
+                  <arg>-explaintypes</arg>
+                  <arg>-target:jvm-1.8</arg>
+                  <arg>-Wconf:cat=deprecation:wv,any:e</arg>
+                  <arg>-Wunused:imports</arg>
+                  <!--
+                    TODO(SPARK-33805): Undo the corresponding deprecated usage suppression rule after fixed
+                  -->
+                  <arg>-Wconf:cat=scaladoc:wv</arg>
+                  <arg>-Wconf:cat=lint-multiarg-infix:wv</arg>
+                  <arg>-Wconf:cat=other-nullary-override:wv</arg>
+                  <!--
+                    SPARK-33775 Suppress compilation warnings that contain the following contents.
+                    TODO(SPARK-33805): Undo the corresponding deprecated usage suppression rule after fixed.
+                  -->
+                  <arg>-Wconf:msg=^(?=.*?method|value|type|object|trait|inheritance)(?=.*?deprecated)(?=.*?since 2.13).+$:s</arg>
+                  <arg>-Wconf:msg=^(?=.*?Widening conversion from)(?=.*?is deprecated because it loses precision).+$:s</arg>
+                  <arg>-Wconf:msg=Auto-application to \`\(\)\` is deprecated:s</arg>
+                  <arg>-Wconf:msg=method with a single empty parameter list overrides method without any parameter list:s</arg>
+                  <arg>-Wconf:msg=method without a parameter list overrides a method with a single empty one:s</arg>
+                  <!--
+                    SPARK-35574 Prevent the recurrence of compilation warnings related to
+                    `procedure syntax is deprecated`
+                  -->
+                  <arg>-Wconf:cat=deprecation&amp;msg=procedure syntax is deprecated:e</arg>
+                  <!--
+                    SPARK-35496 Upgrade Scala to 2.13.7 and suppress:
+                    1. `The outer reference in this type test cannot be checked at run time`
+                    2. `the type test for pattern TypeA cannot be checked at runtime because it
+                     has type parameters eliminated by erasure`
+                    3. `abstract type TypeA in type pattern Seq[TypeA] (the underlying of
+                    Seq[TypeA]) is unchecked since it is eliminated by erasure`
+                    4. `fruitless type test: a value of TypeA cannot also be a TypeB`
+                  -->
+                  <arg>-Wconf:cat=unchecked&amp;msg=outer reference:s</arg>
+                  <arg>-Wconf:cat=unchecked&amp;msg=eliminated by erasure:s</arg>
+                  <arg>-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s</arg>
+                  <!--
+                  <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+                  -->
+                </args>
+                <compilerPlugins combine.self="override">
+                </compilerPlugins>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+    <profile>
       <id>java-8</id>
       <activation>
         <jdk>1.8</jdk>
@@ -118,24 +219,34 @@
       </properties>
     </profile>
     <profile>
+      <id>java-11</id>
+      <activation>
+        <jdk>11</jdk>
+      </activation>
+      <properties>
+        <java.version>11</java.version>
+        <caffeine.version>3.1.8</caffeine.version>
+      </properties>
+    </profile>
+    <profile>
       <id>java-17</id>
       <activation>
         <jdk>17</jdk>
       </activation>
       <properties>
         <java.version>17</java.version>
+        <caffeine.version>3.1.8</caffeine.version>
       </properties>
     </profile>
     <profile>
       <id>spark-3.2</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
       <properties>
         <sparkbundle.version>3.2</sparkbundle.version>
+        <sparkshim.module.name>spark32</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
         <spark.version>3.2.2</spark.version>
         <iceberg.version>1.3.1</iceberg.version>
+        <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.0.1</delta.version>
         <delta.binary.version>20</delta.binary.version>
       </properties>
@@ -144,21 +255,25 @@
       <id>spark-3.3</id>
       <properties>
         <sparkbundle.version>3.3</sparkbundle.version>
+        <sparkshim.module.name>spark33</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark33</sparkshim.artifactId>
         <spark.version>3.3.1</spark.version>
         <!-- keep using iceberg v1.3.1 for parquet compatibilty. -->
         <iceberg.version>1.3.1</iceberg.version>
-        <delta.version>2.2.0</delta.version>
-        <delta.binary.version>22</delta.binary.version>
+        <delta.package.name>delta-core</delta.package.name>
+        <delta.version>2.3.0</delta.version>
+        <delta.binary.version>23</delta.binary.version>
       </properties>
     </profile>
     <profile>
       <id>spark-3.4</id>
       <properties>
         <sparkbundle.version>3.4</sparkbundle.version>
+        <sparkshim.module.name>spark34</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
         <spark.version>3.4.2</spark.version>
-        <iceberg.version>1.4.3</iceberg.version>
+        <iceberg.version>1.5.0</iceberg.version>
+        <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.4.0</delta.version>
         <delta.binary.version>24</delta.binary.version>
       </properties>
@@ -167,13 +282,30 @@
       <id>spark-3.5</id>
       <properties>
         <sparkbundle.version>3.5</sparkbundle.version>
+        <sparkshim.module.name>spark35</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
         <spark.version>3.5.1</spark.version>
-        <iceberg.version>1.4.3</iceberg.version>
-        <delta.version>2.4.0</delta.version>
-        <delta.binary.version>24</delta.binary.version>
+        <iceberg.version>1.5.0</iceberg.version>
+        <delta.package.name>delta-spark</delta.package.name>
+        <delta.version>3.2.0</delta.version>
+        <delta.binary.version>32</delta.binary.version>
+        <fasterxml.version>2.15.1</fasterxml.version>
         <hadoop.version>3.3.4</hadoop.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+          <version>${slf4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-slf4j2-impl</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>hadoop-2.7.4</id>
@@ -229,12 +361,21 @@
       </properties>
     </profile>
     <profile>
-      <id>rss</id>
+      <id>celeborn</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
         <module>gluten-celeborn</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>uniffle</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>gluten-uniffle</module>
       </modules>
     </profile>
     <profile>
@@ -281,7 +422,7 @@
       <dependency>
         <groupId>com.github.ben-manes.caffeine</groupId>
         <artifactId>caffeine</artifactId>
-        <version>${caffeine.version.java8}</version>
+        <version>${caffeine.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
@@ -473,7 +614,7 @@
       </dependency>
       <dependency>
         <groupId>io.delta</groupId>
-        <artifactId>delta-core_${scala.binary.version}</artifactId>
+        <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
         <version>${delta.version}</version>
         <scope>provided</scope>
         <exclusions>
@@ -490,7 +631,7 @@
       <dependency>
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest_${scala.binary.version}</artifactId>
-        <version>3.2.3</version>
+        <version>3.2.16</version>
         <scope>test</scope>
       </dependency>
       <!-- Fasterxml -->
@@ -594,13 +735,27 @@
           <artifactId>scala-maven-plugin</artifactId>
           <version>${scala.compiler.version}</version>
           <configuration>
+            <compilerPlugins>
+              <compilerPlugin>
+                <groupId>org.wartremover</groupId>
+                <artifactId>wartremover_${scala.binary.version}</artifactId>
+                <version>3.1.6</version>
+              </compilerPlugin>
+            </compilerPlugins>
+            <dependencies>
+              <dependency>
+                <groupId>io.github.zhztheplayer.scalawarts</groupId>
+                <artifactId>scalawarts_${scala.binary.version}</artifactId>
+                <version>0.1.2</version>
+              </dependency>
+            </dependencies>
             <recompileMode>${scala.recompile.mode}</recompileMode>
             <args>
-              <arg>-Wconf:msg=While parsing annotations in:silent</arg>
+              <arg>-Wconf:msg=While parsing annotations in:silent,any:e</arg>
               <arg>-Ywarn-unused:imports</arg>
-              <arg>-Xfatal-warnings</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
+              <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
             </args>
           </configuration>
           <executions>
@@ -724,7 +879,7 @@
 
               <!-- \# refers to the static imports -->
               <importOrder>
-                <order>io.glutenproject,io.substrait.spark,,javax,java,scala,\#</order>
+                <order>org.apache.gluten,io.substrait.spark,,javax,java,scala,\#</order>
               </importOrder>
 
               <removeUnusedImports />

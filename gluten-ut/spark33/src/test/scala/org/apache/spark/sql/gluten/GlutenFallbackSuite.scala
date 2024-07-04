@@ -16,14 +16,16 @@
  */
 package org.apache.spark.sql.gluten
 
-import io.glutenproject.{GlutenConfig, VERSION}
-import io.glutenproject.events.GlutenPlanFallbackEvent
-import io.glutenproject.execution.FileSourceScanExecTransformer
-import io.glutenproject.utils.BackendTestUtils
+import org.apache.gluten.{GlutenConfig, VERSION}
+import org.apache.gluten.events.GlutenPlanFallbackEvent
+import org.apache.gluten.execution.FileSourceScanExecTransformer
+import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
+import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.ui.{GlutenSQLAppStatusStore, SparkListenerSQLExecutionStart}
 import org.apache.spark.status.ElementTrackingStore
 
@@ -43,7 +45,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
         }
       }
       val msgRegex = """Validation failed for plan: Scan parquet default\.t\[QueryId=[0-9]+\],""" +
-        """ due to: columnar FileScan is not enabled in FileSourceScanExec\."""
+        """ due to: \[FallbackByUserOptions\] Validation failed on node Scan parquet default\.t\."""
       assert(testAppender.loggingEvents.exists(_.getMessage.getFormattedMessage.matches(msgRegex)))
     }
   }
@@ -90,7 +92,9 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
         assert(execution.get.numFallbackNodes == 1)
         val fallbackReason = execution.get.fallbackNodeToReason.head
         assert(fallbackReason._1.contains("Scan parquet default.t"))
-        assert(fallbackReason._2.contains("columnar FileScan is not enabled in FileSourceScanExec"))
+        assert(
+          fallbackReason._2.contains(
+            "[FallbackByUserOptions] Validation failed on node Scan parquet default.t"))
       }
     }
 
@@ -153,6 +157,69 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
               _.fallbackNodeToReason.values.exists(
                 _.contains("Timestamp is not fully supported in Filter")))
           }
+        } finally {
+          spark.sparkContext.removeSparkListener(listener)
+        }
+      }
+    }
+  }
+
+  test("Add logical link to rewritten spark plan") {
+    val events = new ArrayBuffer[GlutenPlanFallbackEvent]
+    val listener = new SparkListener {
+      override def onOtherEvent(event: SparkListenerEvent): Unit = {
+        event match {
+          case e: GlutenPlanFallbackEvent => events.append(e)
+          case _ =>
+        }
+      }
+    }
+    spark.sparkContext.addSparkListener(listener)
+    withSQLConf(GlutenConfig.EXPRESSION_BLACK_LIST.key -> "add") {
+      try {
+        val df = spark.sql("select sum(id + 1) from range(10)")
+        df.collect()
+        spark.sparkContext.listenerBus.waitUntilEmpty()
+        val project = find(df.queryExecution.executedPlan) {
+          _.isInstanceOf[ProjectExec]
+        }
+        assert(project.isDefined)
+        assert(
+          events.exists(_.fallbackNodeToReason.values.toSet
+            .exists(_.contains("Not supported to map spark function name"))))
+      } finally {
+        spark.sparkContext.removeSparkListener(listener)
+      }
+    }
+  }
+
+  test("ExpandFallbackPolicy should propagate fallback reason to vanilla SparkPlan") {
+    val events = new ArrayBuffer[GlutenPlanFallbackEvent]
+    val listener = new SparkListener {
+      override def onOtherEvent(event: SparkListenerEvent): Unit = {
+        event match {
+          case e: GlutenPlanFallbackEvent => events.append(e)
+          case _ =>
+        }
+      }
+    }
+    spark.sparkContext.addSparkListener(listener)
+    spark.range(10).selectExpr("id as c1", "id as c2").write.format("parquet").saveAsTable("t")
+    withTable("t") {
+      withSQLConf(
+        GlutenConfig.EXPRESSION_BLACK_LIST.key -> "max",
+        GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1") {
+        try {
+          val df = spark.sql("select c2, max(c1) as id from t group by c2")
+          df.collect()
+          spark.sparkContext.listenerBus.waitUntilEmpty()
+          val agg = collect(df.queryExecution.executedPlan) { case a: HashAggregateExec => a }
+          assert(agg.size == 2)
+          assert(
+            events.count(
+              _.fallbackNodeToReason.values.toSet.exists(_.contains(
+                "Could not find a valid substrait mapping name for max"
+              ))) == 2)
         } finally {
           spark.sparkContext.removeSparkListener(listener)
         }

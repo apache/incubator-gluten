@@ -18,7 +18,9 @@
 #pragma once
 
 #include <arrow/result.h>
+
 #include <memory>
+#include <unordered_map>
 #include <vector>
 #include "shuffle/Partitioning.h"
 
@@ -38,7 +40,13 @@ class Partitioner {
       const int32_t* pidArr,
       const int64_t numRows,
       std::vector<uint32_t>& row2partition,
-      std::vector<uint16_t>& partition2RowCount) = 0;
+      std::vector<uint32_t>& partition2RowCount) = 0;
+
+  virtual arrow::Status compute(
+      const int32_t* pidArr,
+      const int64_t numRows,
+      const int32_t vectorIndex,
+      std::unordered_map<int32_t, std::vector<int64_t>>& rowVectorIndexMap) = 0;
 
  protected:
   Partitioner(int32_t numPartitions, bool hasPid) : numPartitions_(numPartitions), hasPid_(hasPid) {}

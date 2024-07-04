@@ -32,6 +32,7 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/Options.h"
+#include "shuffle/ShuffleWriter.h"
 #include "utils/VeloxArrowUtils.h"
 #include "utils/exception.h"
 #include "velox/common/memory/Memory.h"
@@ -40,6 +41,10 @@ DECLARE_int64(batch_size);
 DECLARE_int32(cpu);
 DECLARE_int32(threads);
 DECLARE_int32(iterations);
+
+namespace gluten {
+
+std::unordered_map<std::string, std::string> defaultConf();
 
 /// Initialize the Velox backend with default value.
 void initVeloxBackend();
@@ -102,3 +107,25 @@ arrow::Status
 setLocalDirsAndDataFileFromEnv(std::string& dataFile, std::vector<std::string>& localDirs, bool& isFromEnv);
 
 void cleanupShuffleOutput(const std::string& dataFile, const std::vector<std::string>& localDirs, bool isFromEnv);
+
+class BenchmarkAllocationListener final : public gluten::AllocationListener {
+ public:
+  BenchmarkAllocationListener(uint64_t limit) : limit_(limit) {}
+
+  void setIterator(gluten::ResultIterator* iterator) {
+    iterator_ = iterator;
+  }
+
+  void setShuffleWriter(gluten::ShuffleWriter* shuffleWriter) {
+    shuffleWriter_ = shuffleWriter;
+  }
+
+  void allocationChanged(int64_t diff) override;
+
+ private:
+  uint64_t usedBytes_{0L};
+  uint64_t limit_{0L};
+  gluten::ResultIterator* iterator_{nullptr};
+  gluten::ShuffleWriter* shuffleWriter_{nullptr};
+};
+} // namespace gluten

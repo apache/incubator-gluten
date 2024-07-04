@@ -16,9 +16,15 @@
  */
 package org.apache.spark.sql
 
-import io.glutenproject.utils.BackendTestSettings
+import org.apache.gluten.utils.BackendTestSettings
 
-trait GlutenTestsBaseTrait {
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
+
+import org.scalactic.source.Position
+import org.scalatest.Tag
+import org.scalatest.funsuite.AnyFunSuiteLike
+
+trait GlutenTestsBaseTrait extends AnyFunSuiteLike {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   protected val basePath: String = rootPath + "unit-tests-working-home"
@@ -30,7 +36,7 @@ trait GlutenTestsBaseTrait {
   // list will never be run with no regard to backend test settings.
   def testNameBlackList: Seq[String] = Seq()
 
-  def shouldRun(testName: String): Boolean = {
+  protected def shouldRun(testName: String): Boolean = {
     if (testNameBlackList.exists(_.equalsIgnoreCase(GlutenTestConstants.IGNORE_ALL))) {
       return false
     }
@@ -39,4 +45,24 @@ trait GlutenTestsBaseTrait {
     }
     BackendTestSettings.shouldRun(getClass.getCanonicalName, testName)
   }
+
+  protected def testGluten(testName: String, testTag: Tag*)(testFun: => Any)(implicit
+      pos: Position): Unit = {
+    test(GLUTEN_TEST + testName, testTag: _*)(testFun)
+  }
+
+  protected def ignoreGluten(testName: String, testTag: Tag*)(testFun: => Any)(implicit
+      pos: Position): Unit = {
+    super.ignore(GLUTEN_TEST + testName, testTag: _*)(testFun)
+  }
+
+  override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(implicit
+      pos: Position): Unit = {
+    if (shouldRun(testName)) {
+      super.test(testName, testTags: _*)(testFun)
+    } else {
+      super.ignore(testName, testTags: _*)(testFun)
+    }
+  }
+
 }

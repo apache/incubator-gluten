@@ -25,14 +25,14 @@
 #include <base/phdr_cache.h>
 #include <base/sleep.h>
 #include <Poco/Exception.h>
+#include <Common/CurrentThread.h>
 #include <Common/GlutenSignalHandler.h>
 #include <Common/MemoryTracker.h>
 #include <Common/PipeFDs.h>
 #include <Common/ThreadStatus.h>
+#include <Common/config_version.h>
 #include <Common/getHashOfLoadedBinary.h>
 #include <Common/logger_useful.h>
-
-#include <Common/config_version.h>
 
 using namespace local_engine;
 

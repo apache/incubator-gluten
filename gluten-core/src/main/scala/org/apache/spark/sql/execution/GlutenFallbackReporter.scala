@@ -16,11 +16,11 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.events.GlutenPlanFallbackEvent
-import io.glutenproject.extension.GlutenPlan
-import io.glutenproject.extension.columnar.{TRANSFORM_UNSUPPORTED, TransformHints}
-import io.glutenproject.utils.LogLevelUtil
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.events.GlutenPlanFallbackEvent
+import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.{FallbackTags, TRANSFORM_UNSUPPORTED}
+import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -57,8 +57,8 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
     val validationLogLevel = glutenConfig.validationLogLevel
     plan.foreachUp {
       case _: GlutenPlan => // ignore
-      case p: SparkPlan if TransformHints.isNotTransformable(p) =>
-        TransformHints.getHint(p) match {
+      case p: SparkPlan if FallbackTags.nonEmpty(p) =>
+        FallbackTags.getTag(p) match {
           case TRANSFORM_UNSUPPORTED(Some(reason), append) =>
             logFallbackReason(validationLogLevel, p.nodeName, reason)
             // With in next round stage in AQE, the physical plan would be a new instance that
@@ -89,6 +89,7 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
                 logicalPlan.setTagValue(FALLBACK_REASON_TAG, newReason)
             }
           case TRANSFORM_UNSUPPORTED(_, _) =>
+            logFallbackReason(validationLogLevel, p.nodeName, "unknown reason")
           case _ =>
             throw new IllegalStateException("Unreachable code")
         }

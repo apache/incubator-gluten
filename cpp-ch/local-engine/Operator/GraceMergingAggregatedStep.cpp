@@ -146,7 +146,7 @@ GraceMergingAggregatedTransform::Status GraceMergingAggregatedTransform::prepare
 {
     auto & output = outputs.front();
     auto & input = inputs.front();
-    if (output.isFinished())
+    if (output.isFinished() || isCancelled())
     {
         input.close();
         return Status::Finished;
@@ -224,7 +224,7 @@ void GraceMergingAggregatedTransform::work()
                 block_converter = prepareBucketOutputBlocks(current_bucket_index);
                 if (block_converter)
                     break;
-                current_bucket_index++;  
+                current_bucket_index++;
             }
         }
         if (!block_converter)
@@ -307,7 +307,7 @@ void GraceMergingAggregatedTransform::rehashDataVariants()
             scattered_blocks[i] = {};
         }
 
-        params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, no_more_keys);
+        params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, no_more_keys, is_cancelled);
     }
     if (block_rows)
         per_key_memory_usage = block_memory_usage * 1.0 / block_rows;
@@ -455,7 +455,7 @@ std::unique_ptr<AggregateDataBlockConverter> GraceMergingAggregatedTransform::pr
             block = {};
         }
     }
-    
+
     if (buffer_file_stream.original_file_stream)
     {
         buffer_file_stream.original_file_stream->finishWriting();
@@ -548,7 +548,7 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block, bool
         if (is_original_block && no_pre_aggregated)
             params->aggregator.executeOnBlock(block, *current_data_variants, key_columns, aggregate_columns, no_more_keys);
         else
-            params->aggregator.mergeOnBlock(block, *current_data_variants, no_more_keys);
+            params->aggregator.mergeOnBlock(block, *current_data_variants, no_more_keys, is_cancelled);
     }
     else
     {
@@ -580,7 +580,7 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block, bool
         }
         else
         {
-            params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, no_more_keys);
+            params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, no_more_keys, is_cancelled);
         }
     }
 }

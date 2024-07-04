@@ -18,6 +18,7 @@
 #include <Parser/FunctionExecutor.h>
 #include <Parser/FunctionParser.h>
 #include <gtest/gtest.h>
+#include <DataTypes/DataTypeNullable.h>
 
 using namespace DB;
 using namespace local_engine;

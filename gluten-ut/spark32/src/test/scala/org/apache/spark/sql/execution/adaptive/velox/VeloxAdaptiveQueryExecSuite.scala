@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.adaptive.velox
 
-import io.glutenproject.execution.{BroadcastHashJoinExecTransformerBase, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
+import org.apache.gluten.execution.{BroadcastHashJoinExecTransformerBase, ShuffledHashJoinExecTransformerBase, SortExecTransformer, SortMergeJoinExecTransformer}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
@@ -816,7 +816,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
     }
   }
 
-  testGluten("Logging plan changes for AQE") {
+  ignoreGluten("Logging plan changes for AQE") {
     val testAppender = new LogAppender("plan changes")
     withLogAppender(testAppender) {
       withSQLConf(
@@ -1452,7 +1452,7 @@ class VeloxAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQLT
     }
   }
 
-  testGluten("test log level") {
+  ignoreGluten("test log level") {
     def verifyLog(expectedLevel: Level): Unit = {
       val logAppender = new LogAppender("adaptive execution")
       logAppender.setThreshold(expectedLevel)

@@ -21,6 +21,9 @@
 
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Storages/StorageMergeTreeFactory.h>
+#include <Common/MergeTreeTool.h>
+
 
 namespace DB
 {
@@ -37,35 +40,43 @@ using namespace DB;
 class MergeTreeRelParser : public RelParser
 {
 public:
-    static std::shared_ptr<CustomStorageMergeTree> parseStorage(
-        const substrait::ReadRel::ExtensionTable & extension_table,
-        ContextMutablePtr context);
+    static CustomStorageMergeTreePtr
+    parseStorage(const substrait::ReadRel::ExtensionTable & extension_table, ContextMutablePtr context);
+    static CustomStorageMergeTreePtr parseStorage(
+        const MergeTreeTable & merge_tree_table, ContextMutablePtr context, bool restore = false);
 
-    explicit MergeTreeRelParser(
-        SerializedPlanParser * plan_paser_, ContextPtr & context_, QueryContext & query_context_, ContextMutablePtr & global_context_)
-        : RelParser(plan_paser_), context(context_), query_context(query_context_), global_context(global_context_)
+    // Create random table name and table path and use default storage policy.
+    // In insert case, mergetree data can be upload after merges in default storage(Local Disk).
+    static CustomStorageMergeTreePtr
+    copyToDefaultPolicyStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context);
+
+    // Use same table path and data path as the originial table.
+    static CustomStorageMergeTreePtr
+    copyToVirtualStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context);
+
+    static MergeTreeTable parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table);
+
+    explicit MergeTreeRelParser(SerializedPlanParser * plan_paser_, const ContextPtr & context_)
+        : RelParser(plan_paser_), context(context_), global_context(plan_paser_->global_context)
     {
     }
 
     ~MergeTreeRelParser() override = default;
 
-    DB::QueryPlanPtr
-    parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override
+    DB::QueryPlanPtr parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override
     {
         throw Exception(ErrorCodes::LOGICAL_ERROR, "MergeTreeRelParser can't call parse(), call parseReadRel instead.");
     }
 
-    DB::QueryPlanPtr
-    parseReadRel(
-        DB::QueryPlanPtr query_plan,
-        const substrait::ReadRel & read_rel,
-        const substrait::ReadRel::ExtensionTable & extension_table,
-        std::list<const substrait::Rel *> & rel_stack_);
+    DB::QueryPlanPtr parseReadRel(
+        DB::QueryPlanPtr query_plan, const substrait::ReadRel & read_rel, const substrait::ReadRel::ExtensionTable & extension_table);
 
     const substrait::Rel & getSingleInput(const substrait::Rel &) override
     {
         throw Exception(ErrorCodes::LOGICAL_ERROR, "MergeTreeRelParser can't call getSingleInput().");
     }
+
+    String filterRangesOnDriver(const substrait::ReadRel & read_rel);
 
     struct Condition
     {
@@ -96,8 +107,7 @@ private:
     void collectColumns(const substrait::Expression & rel, NameSet & columns, Block & block);
     UInt64 getColumnsSize(const NameSet & columns);
 
-    ContextPtr & context;
-    QueryContext & query_context;
+    const ContextPtr & context;
     ContextMutablePtr & global_context;
 };
 

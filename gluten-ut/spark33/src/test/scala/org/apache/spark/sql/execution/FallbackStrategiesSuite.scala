@@ -16,11 +16,13 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.BasicScanExecTransformer
-import io.glutenproject.extension.{ColumnarOverrideRules, GlutenPlan}
-import io.glutenproject.extension.columnar.{FallbackEmptySchemaRelation, InsertTransitions, TRANSFORM_UNSUPPORTED, TransformHints}
-import io.glutenproject.utils.QueryPlanSelector
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.BasicScanExecTransformer
+import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.{FallbackEmptySchemaRelation, FallbackTags, TRANSFORM_UNSUPPORTED}
+import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
+import org.apache.gluten.extension.columnar.transition.InsertTransitions
+import org.apache.gluten.utils.QueryPlanSelector
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{GlutenSQLTestsTrait, SparkSession}
@@ -31,7 +33,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
   testGluten("Fall back the whole query if one unsupported") {
     withSQLConf(("spark.gluten.sql.columnar.query.fallback.threshold", "1")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
-      val rule = ColumnarOverrideRules(spark).withTransformRules(
+      val rule = new HeuristicApplier(spark).withTransformRules(
         List(
           _ =>
             _ => {
@@ -47,7 +49,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
   testGluten("Fall back the whole plan if meeting the configured threshold") {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "1")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
-      val rule = ColumnarOverrideRules(spark)
+      val rule = new HeuristicApplier(spark)
         .enableAdaptiveContext()
         .withTransformRules(
           List(
@@ -65,7 +67,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
   testGluten("Don't fall back the whole plan if NOT meeting the configured threshold") {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "4")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
-      val rule = ColumnarOverrideRules(spark)
+      val rule = new HeuristicApplier(spark)
         .enableAdaptiveContext()
         .withTransformRules(
           List(
@@ -85,7 +87,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
       " transformable)") {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "2")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
-      val rule = ColumnarOverrideRules(spark)
+      val rule = new HeuristicApplier(spark)
         .enableAdaptiveContext()
         .withTransformRules(
           List(
@@ -105,7 +107,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
       "leaf node is transformable)") {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "3")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
-      val rule = ColumnarOverrideRules(spark)
+      val rule = new HeuristicApplier(spark)
         .enableAdaptiveContext()
         .withTransformRules(
           List(
@@ -122,10 +124,10 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
 
   testGluten("Tag not transformable more than once") {
     val originalPlan = UnaryOp1(LeafOp(supportsColumnar = true))
-    TransformHints.tag(originalPlan, TRANSFORM_UNSUPPORTED(Some("fake reason")))
+    FallbackTags.tag(originalPlan, TRANSFORM_UNSUPPORTED(Some("fake reason")))
     val rule = FallbackEmptySchemaRelation()
     val newPlan = rule.apply(originalPlan)
-    val reason = TransformHints.getHint(newPlan).asInstanceOf[TRANSFORM_UNSUPPORTED].reason
+    val reason = FallbackTags.getTag(newPlan).asInstanceOf[TRANSFORM_UNSUPPORTED].reason
     assert(reason.isDefined)
     if (BackendsApiManager.getSettings.fallbackOnEmptySchema(newPlan)) {
       assert(

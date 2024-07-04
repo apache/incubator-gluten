@@ -29,6 +29,10 @@ object SparkSchemaUtil {
     SparkArrowUtil.fromArrowSchema(schema)
   }
 
+  def toArrowSchema(schema: StructType): Schema = {
+    SparkArrowUtil.toArrowSchema(schema, getLocalTimezoneID)
+  }
+
   def toArrowSchema(schema: StructType, timeZoneId: String): Schema = {
     SparkArrowUtil.toArrowSchema(schema, timeZoneId)
   }

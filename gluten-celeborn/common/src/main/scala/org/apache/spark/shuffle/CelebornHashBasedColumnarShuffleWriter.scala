@@ -16,10 +16,11 @@
  */
 package org.apache.spark.shuffle
 
-import io.glutenproject.GlutenConfig
+import org.apache.gluten.GlutenConfig
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.SHUFFLE_COMPRESS
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.storage.BlockManager
@@ -28,6 +29,7 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
+import java.util.Locale
 
 abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
     shuffleId: Int,
@@ -52,6 +54,13 @@ abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
 
   protected val clientPushBufferMaxSize: Int = celebornConf.clientPushBufferMaxSize
 
+  protected val clientPushSortMemoryThreshold: Long = celebornConf.clientPushSortMemoryThreshold
+
+  protected val clientSortMemoryMaxSize: Long = celebornConf.clientPushSortMemoryThreshold
+
+  protected val shuffleWriterType: String =
+    celebornConf.shuffleWriterMode.name.toLowerCase(Locale.ROOT)
+
   protected val celebornPartitionPusher = new CelebornPartitionPusher(
     shuffleId,
     numMappers,
@@ -63,9 +72,14 @@ abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
 
   protected val blockManager: BlockManager = SparkEnv.get.blockManager
 
-  protected val customizedCompressionCodec: String = GlutenShuffleUtils.getCompressionCodec(conf)
+  protected val customizedCompressionCodec: String =
+    if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
+      GlutenShuffleUtils.getCompressionCodec(conf)
+    } else {
+      null // uncompressed
+    }
 
-  protected val compressionLevel =
+  protected val compressionLevel: Int =
     GlutenShuffleUtils.getCompressionLevel(conf, customizedCompressionCodec, null)
 
   protected val bufferCompressThreshold: Int =

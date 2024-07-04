@@ -19,7 +19,6 @@
 
 #include <filesystem>
 #include "compute/VeloxPlanConverter.h"
-#include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "velox/common/base/tests/GTestUtils.h"
 #include "velox/dwio/common/tests/utils/DataFiles.h"
@@ -56,7 +55,7 @@ class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBa
     splits.reserve(paths.size());
 
     for (int i = 0; i < paths.size(); i++) {
-      auto path = fmt::format("{}{}", tmpDir_->path, paths[i]);
+      auto path = fmt::format("{}{}", tmpDir_->getPath(), paths[i]);
       auto start = starts[i];
       auto length = lengths[i];
       auto split = facebook::velox::exec::test::HiveConnectorSplitBuilder(path)
@@ -72,7 +71,7 @@ class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBa
   std::shared_ptr<exec::test::TempDirectoryPath> tmpDir_{exec::test::TempDirectoryPath::create()};
   std::shared_ptr<VeloxPlanConverter> planConverter_ = std::make_shared<VeloxPlanConverter>(
       std::vector<std::shared_ptr<ResultIterator>>(),
-      gluten::defaultLeafVeloxMemoryPool().get(),
+      pool(),
       std::unordered_map<std::string, std::string>());
 };
 
@@ -225,7 +224,7 @@ TEST_F(Substrait2VeloxPlanConversionTest, q6) {
   vectors.emplace_back(makeFlatVector<std::string>(lCommentData));
 
   // Write data into an DWRF file.
-  writeToFile(tmpDir_->path + "/mock_lineitem.dwrf", {makeRowVector(type->names(), vectors)});
+  writeToFile(tmpDir_->getPath() + "/mock_lineitem.dwrf", {makeRowVector(type->names(), vectors)});
 
   // Find and deserialize Substrait plan json file.
   std::string subPlanPath = FilePathGenerator::getDataFilePath("q6_first_stage.json");
@@ -258,8 +257,8 @@ TEST_F(Substrait2VeloxPlanConversionTest, ifthenTest) {
   // Convert to Velox PlanNode.
   auto planNode = planConverter_->toVeloxPlan(substraitPlan, std::vector<::substrait::ReadRel_LocalFiles>{split});
   ASSERT_EQ(
-      "-- Project[expressions: ] -> \n  "
-      "-- TableScan[table: hive_table, range filters: [(hd_demo_sk, Filter(IsNotNull, deterministic, null not allowed)),"
+      "-- Project[1][expressions: ] -> \n  "
+      "-- TableScan[0][table: hive_table, range filters: [(hd_demo_sk, Filter(IsNotNull, deterministic, null not allowed)),"
       " (hd_vehicle_count, BigintRange: [1, 9223372036854775807] no nulls)], remaining filter: "
       "(and(or(equalto(\"hd_buy_potential\",\">10000\"),equalto(\"hd_buy_potential\",\"unknown\")),"
       "if(greaterthan(\"hd_vehicle_count\",0),greaterthan(divide(cast \"hd_dep_count\" as DOUBLE,"
@@ -279,7 +278,7 @@ TEST_F(Substrait2VeloxPlanConversionTest, filterUpper) {
   // Convert to Velox PlanNode.
   auto planNode = planConverter_->toVeloxPlan(substraitPlan, std::vector<::substrait::ReadRel_LocalFiles>{split});
   ASSERT_EQ(
-      "-- Project[expressions: ] -> \n  -- TableScan[table: hive_table, range filters: "
+      "-- Project[1][expressions: ] -> \n  -- TableScan[0][table: hive_table, range filters: "
       "[(key, BigintRange: [-2147483648, 2] no nulls)]] -> n0_0:INTEGER\n",
       planNode->toString(true, true));
 }

@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.hive
 
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.sql.shims.SparkShimLoader
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
@@ -80,9 +80,10 @@ class HivePartitionConverter(hadoopConf: Configuration, session: SparkSession)
         // just like for Apache Spark.
         val uri = p.getDataLocation.toUri
         val partValues: Seq[Any] = {
-          p.getValues.asScala.zip(partitionColTypes).map {
-            case (value, dataType) => castFromString(value, dataType)
-          }
+          p.getValues.asScala
+            .zip(partitionColTypes)
+            .map { case (value, dataType) => castFromString(value, dataType) }
+            .toSeq
         }
         val partValuesAsInternalRow = InternalRow.fromSeq(partValues)
 

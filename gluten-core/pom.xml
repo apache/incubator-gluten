@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>gluten-parent</artifactId>
-    <groupId>io.glutenproject</groupId>
+    <groupId>org.apache.gluten</groupId>
     <version>1.2.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
@@ -20,23 +20,19 @@
 
   <dependencies>
     <dependency>
-      <groupId>io.glutenproject</groupId>
+      <groupId>org.apache.gluten</groupId>
       <artifactId>gluten-ui</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.github.ben-manes.caffeine</groupId>
-      <artifactId>caffeine</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.glutenproject</groupId>
+      <groupId>org.apache.gluten</groupId>
       <artifactId>${sparkshim.artifactId}</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
-      <groupId>io.glutenproject</groupId>
-      <artifactId>gluten-cbo-common</artifactId>
+      <groupId>org.apache.gluten</groupId>
+      <artifactId>gluten-ras-common</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
@@ -88,7 +84,7 @@
     <dependency>
       <groupId>org.scalacheck</groupId>
       <artifactId>scalacheck_${scala.binary.version}</artifactId>
-      <version>1.13.5</version>
+      <version>1.17.0</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -115,13 +111,13 @@
     </dependency>
     <dependency>
       <groupId>org.scalatestplus</groupId>
-      <artifactId>scalatestplus-mockito_2.12</artifactId>
+      <artifactId>scalatestplus-mockito_${scala.binary.version}</artifactId>
       <version>1.0.0-M2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.scalatestplus</groupId>
-      <artifactId>scalatestplus-scalacheck_2.12</artifactId>
+      <artifactId>scalatestplus-scalacheck_${scala.binary.version}</artifactId>
       <version>3.1.0.0-RC2</version>
       <scope>test</scope>
     </dependency>
@@ -180,7 +176,7 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>io.glutenproject</groupId>
+      <groupId>org.apache.gluten</groupId>
       <artifactId>spark-sql-columnar-shims-common</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
@@ -316,7 +312,7 @@
               <protocArtifact>
                 com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
               </protocArtifact>
-              <protoSourceRoot>src/main/resources/io/glutenproject/proto</protoSourceRoot>
+              <protoSourceRoot>src/main/resources/org/apache/gluten/proto</protoSourceRoot>
               <clearOutputDirectory>false</clearOutputDirectory>
             </configuration>
           </execution>
@@ -361,7 +357,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>${maven.jar.plugin}</version>
         <executions>
           <execution>
             <id>prepare-test-jar</id>

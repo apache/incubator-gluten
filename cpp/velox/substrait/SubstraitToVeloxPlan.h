@@ -19,6 +19,7 @@
 
 #include "SubstraitToVeloxExpr.h"
 #include "TypeUtils.h"
+#include "velox/connectors/hive/FileProperties.h"
 #include "velox/connectors/hive/TableHandle.h"
 #include "velox/core/PlanNode.h"
 #include "velox/dwio/common/Options.h"
@@ -51,6 +52,9 @@ struct SplitInfo {
   /// The file format of the files to be scanned.
   dwio::common::FileFormat format;
 
+  /// The file sizes and modification times of the files to be scanned.
+  std::vector<std::optional<facebook::velox::FileProperties>> properties;
+
   /// Make SplitInfo polymorphic
   virtual ~SplitInfo() = default;
 };
@@ -74,8 +78,11 @@ class SubstraitToVeloxPlanConverter {
   /// Used to convert Substrait GenerateRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::GenerateRel& generateRel);
 
-  /// Used to convert Substrait SortRel into Velox PlanNode.
+  /// Used to convert Substrait WindowRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::WindowRel& windowRel);
+
+  /// Used to convert Substrait WindowGroupLimitRel into Velox PlanNode.
+  core::PlanNodePtr toVeloxPlan(const ::substrait::WindowGroupLimitRel& windowGroupLimitRel);
 
   /// Used to convert Substrait JoinRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::JoinRel& joinRel);
@@ -92,9 +99,11 @@ class SubstraitToVeloxPlanConverter {
   /// Convert Substrait FilterRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::FilterRel& filterRel);
 
-  /// Convert Substrait FetchRel into Velox LimitNode or TopNNode according the
-  /// different input of fetchRel.
+  /// Convert Substrait FetchRel into Velox LimitNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::FetchRel& fetchRel);
+
+  /// Convert Substrait TopNRel into Velox TopNNode.
+  core::PlanNodePtr toVeloxPlan(const ::substrait::TopNRel& topNRel);
 
   /// Convert Substrait ReadRel into Velox Values Node.
   core::PlanNodePtr toVeloxPlan(const ::substrait::ReadRel& readRel, const RowTypePtr& type);
@@ -106,6 +115,7 @@ class SubstraitToVeloxPlanConverter {
   /// Index: the index of the partition this item belongs to.
   /// Starts: the start positions in byte to read from the items.
   /// Lengths: the lengths in byte to read from the items.
+  /// FileProperties: the file sizes and modification times of the files to be scanned.
   core::PlanNodePtr toVeloxPlan(const ::substrait::ReadRel& sRead);
 
   core::PlanNodePtr constructValueStreamNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
@@ -311,6 +321,7 @@ class SubstraitToVeloxPlanConverter {
       if (!initialized_) {
         initialized_ = true;
       }
+      forbidsNullSet_ = true;
     }
 
     // Only null is allowed.
@@ -320,6 +331,7 @@ class SubstraitToVeloxPlanConverter {
       if (!initialized_) {
         initialized_ = true;
       }
+      isNullSet_ = true;
     }
 
     // Return the initialization status.
@@ -365,11 +377,23 @@ class SubstraitToVeloxPlanConverter {
       }
     }
 
+    // Set a list of values to be used in the push down of 'not in' expression.
+    void setNotValues(const std::vector<variant>& notValues) {
+      for (const auto& value : notValues) {
+        notValues_.emplace_back(value);
+      }
+      if (!initialized_) {
+        initialized_ = true;
+      }
+    }
+
     // Whether this filter map is initialized.
     bool initialized_ = false;
 
     bool nullAllowed_ = false;
     bool isNull_ = false;
+    bool forbidsNullSet_ = false;
+    bool isNullSet_ = false;
 
     // If true, left bound will be exclusive.
     std::vector<bool> lowerExclusives_;
@@ -388,6 +412,9 @@ class SubstraitToVeloxPlanConverter {
 
     // The list of values used in 'in' expression.
     std::vector<variant> values_;
+
+    // The list of values should not be equal to.
+    std::vector<variant> notValues_;
   };
 
   /// Returns unique ID to use for plan node. Produces sequential numbers
@@ -450,9 +477,11 @@ class SubstraitToVeloxPlanConverter {
       bool reverse = false);
 
   /// Extract SingularOrList and set it to the filter info map.
+  /// If reverse is true, the opposite filter info will be set.
   void setFilterInfo(
       const ::substrait::Expression_SingularOrList& singularOrList,
-      std::vector<FilterInfo>& columnToFilterInfo);
+      std::vector<FilterInfo>& columnToFilterInfo,
+      bool reverse = false);
 
   /// Extract SingularOrList and returns the field index.
   static uint32_t getColumnIndexFromSingularOrList(const ::substrait::Expression_SingularOrList&);
@@ -470,13 +499,15 @@ class SubstraitToVeloxPlanConverter {
   template <TypeKind KIND, typename FilterType>
   void createNotEqualFilter(variant notVariant, bool nullAllowed, std::vector<std::unique_ptr<FilterType>>& colFilters);
 
-  /// Create a values range to handle in filter.
-  /// variants: the list of values extracted from the in expression.
+  /// Create a values range to handle (not) in filter.
+  /// variants: the list of values extracted from the (not) in expression.
+  //  negated: false for IN filter, true for NOT IN filter.
   /// inputName: the column input name.
   template <TypeKind KIND>
   void setInFilter(
       const std::vector<variant>& variants,
       bool nullAllowed,
+      bool negated,
       const std::string& inputName,
       connector::hive::SubfieldFilters& filters);
 
@@ -540,6 +571,12 @@ class SubstraitToVeloxPlanConverter {
     VELOX_CHECK(rel.has_input(), "Child Rel is expected here.");
     return toVeloxPlan(rel.input());
   }
+
+  const core::WindowNode::Frame createWindowFrame(
+      const ::substrait::Expression_WindowFunction_Bound& lower_bound,
+      const ::substrait::Expression_WindowFunction_Bound& upper_bound,
+      const ::substrait::WindowType& type,
+      const RowTypePtr& inputType);
 
   /// The unique identification for each PlanNode.
   int planNodeId_ = 0;

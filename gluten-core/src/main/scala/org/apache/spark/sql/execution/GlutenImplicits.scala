@@ -16,9 +16,9 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.execution.WholeStageTransformer
-import io.glutenproject.extension.GlutenPlan
-import io.glutenproject.utils.PlanUtil
+import org.apache.gluten.execution.WholeStageTransformer
+import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.{AnalysisException, Dataset}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -205,8 +205,8 @@ object GlutenImplicits {
       FallbackSummary(
         totalNumGlutenNodes,
         totalNumFallbackNodes,
-        totalPhysicalPlanDescription,
-        totalFallbackNodeToReason
+        totalPhysicalPlanDescription.toSeq,
+        totalFallbackNodeToReason.toSeq
       )
     }
 

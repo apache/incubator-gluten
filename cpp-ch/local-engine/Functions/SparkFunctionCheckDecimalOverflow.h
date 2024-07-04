@@ -28,6 +28,8 @@ namespace ErrorCodes
 {
     extern const int TYPE_MISMATCH;
     extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+    extern const int DECIMAL_OVERFLOW;
+
 }
 }
 

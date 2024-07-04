@@ -16,12 +16,11 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import io.glutenproject.execution.{FileSourceScanExecTransformer, FilterExecTransformer}
-import io.glutenproject.utils.BackendTestUtils
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, FilterExecTransformer}
 
 import org.apache.spark.sql.{Column, DataFrame, Row}
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructField, StructType}
 
@@ -46,6 +45,7 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
   private val METADATA_FILE_NAME = "_metadata.file_name"
   private val METADATA_FILE_SIZE = "_metadata.file_size"
   private val METADATA_FILE_MODIFICATION_TIME = "_metadata.file_modification_time"
+  private val FILE_FORMAT = "fileFormat"
 
   private def getMetadataForFile(f: File): Map[String, Any] = {
     Map(
@@ -60,7 +60,7 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
       f: (DataFrame, Map[String, Any], Map[String, Any]) => Unit): Unit = {
     Seq("parquet").foreach {
       testFileFormat =>
-        test(s"$GLUTEN_TEST metadata struct ($testFileFormat): " + testName) {
+        testGluten(s"metadata struct ($testFileFormat): " + testName) {
           withTempDir {
             dir =>
               import scala.collection.JavaConverters._
@@ -109,7 +109,7 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
         METADATA_FILE_MODIFICATION_TIME,
         "age")
       dfWithMetadata.collect
-      if (BackendTestUtils.isVeloxBackendLoaded()) {
+      if (BackendsApiManager.getSettings.supportNativeMetadataColumns()) {
         checkOperatorMatch[FileSourceScanExecTransformer](dfWithMetadata)
       } else {
         checkOperatorMatch[FileSourceScanExec](dfWithMetadata)
@@ -134,7 +134,7 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
         .where(Column(METADATA_FILE_NAME) === f0((METADATA_FILE_NAME)))
       val ret = filterDF.collect
       assert(ret.size == 1)
-      if (BackendTestUtils.isVeloxBackendLoaded()) {
+      if (BackendsApiManager.getSettings.supportNativeMetadataColumns()) {
         checkOperatorMatch[FileSourceScanExecTransformer](filterDF)
       } else {
         checkOperatorMatch[FileSourceScanExec](filterDF)
@@ -150,7 +150,7 @@ class GlutenFileMetadataStructSuite extends FileMetadataStructSuite with GlutenS
           Row(f1(METADATA_FILE_PATH))
         )
       )
-      if (BackendTestUtils.isVeloxBackendLoaded()) {
+      if (BackendsApiManager.getSettings.supportNativeMetadataColumns()) {
         checkOperatorMatch[FileSourceScanExecTransformer](filterDF)
       } else {
         checkOperatorMatch[FileSourceScanExec](filterDF)

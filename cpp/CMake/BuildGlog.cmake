@@ -14,10 +14,10 @@
 include_guard(GLOBAL)
 
 set(GLUTEN_GLOG_BUILD_SHA256_CHECKSUM
-  8a83bf982f37bb70825df71a9709fa90ea9f4447fb3c099e1d720a439d88bad6)
+    8a83bf982f37bb70825df71a9709fa90ea9f4447fb3c099e1d720a439d88bad6)
 set(GLUTEN_GLOG_SOURCE_URL
-  "https://github.com/google/glog/archive/refs/tags/v${GLUTEN_GLOG_VERSION}.tar.gz"
-  )
+    "https://github.com/google/glog/archive/refs/tags/v${GLUTEN_GLOG_VERSION}.tar.gz"
+)
 
 resolve_dependency_url(GLOG)
 
@@ -27,7 +27,7 @@ FetchContent_Declare(
   URL ${GLUTEN_GLOG_SOURCE_URL}
   URL_HASH SHA256=${GLUTEN_GLOG_BUILD_SHA256_CHECKSUM}
   PATCH_COMMAND git apply ${CMAKE_CURRENT_LIST_DIR}/glog/glog-no-export.patch
-  && git apply ${CMAKE_CURRENT_LIST_DIR}/glog/glog-config.patch)
+                && git apply ${CMAKE_CURRENT_LIST_DIR}/glog/glog-config.patch)
 
 set(BUILD_SHARED_LIBS OFF)
 set(WITH_UNWIND OFF)
@@ -48,6 +48,6 @@ endif()
 # These headers are missing from the include dir but adding the src dir causes
 # issues with folly so we just copy it to the include dir
 file(COPY ${glog_SOURCE_DIR}/src/glog/platform.h
-  DESTINATION ${glog_BINARY_DIR}/glog)
+     DESTINATION ${glog_BINARY_DIR}/glog)
 file(COPY ${glog_SOURCE_DIR}/src/glog/log_severity.h
-  DESTINATION ${glog_BINARY_DIR}/glog)
+     DESTINATION ${glog_BINARY_DIR}/glog)

@@ -1,4 +1,5 @@
 /*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -16,22 +17,33 @@
  */
 #pragma once
 #include <filesystem>
-#include <Columns/IColumn.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
-#include <DataTypes/Serializations/ISerialization.h>
 #include <Functions/CastOverloadResolver.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context.h>
 #include <Processors/Chunk.h>
-#include <Storages/IStorage.h>
 #include <base/types.h>
 #include <Common/CurrentThread.h>
-#include <Common/logger_useful.h>
+
+namespace DB
+{
+class QueryPipeline;
+class QueryPlan;
+}
 
 namespace local_engine
 {
+static const String MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE = "mergetree.insert_without_local_storage";
+static const String MERGETREE_MERGE_AFTER_INSERT = "mergetree.merge_after_insert";
+static const std::string DECIMAL_OPERATIONS_ALLOW_PREC_LOSS = "spark.sql.decimalOperations.allowPrecisionLoss";
+
+static const std::unordered_set<String> BOOL_VALUE_SETTINGS{
+    MERGETREE_MERGE_AFTER_INSERT, MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, DECIMAL_OPERATIONS_ALLOW_PREC_LOSS};
+static const std::unordered_set<String> LONG_VALUE_SETTINGS{
+    "optimize.maxfilesize", "optimize.minFileSize", "mergetree.max_num_part_per_merge_task"};
+
 class BlockUtil
 {
 public:
@@ -92,18 +104,10 @@ private:
     const DB::ColumnWithTypeAndName * findColumn(const DB::Block & block, const std::string & name) const;
 };
 
-class PlanUtil
+namespace PlanUtil
 {
-public:
-    static std::string explainPlan(DB::QueryPlan & plan);
-};
-
-class MergeTreeUtil
-{
-public:
-    using Path = std::filesystem::path;
-    static std::vector<Path> getAllMergeTreeParts(const Path & storage_path);
-    static DB::NamesAndTypesList getSchemaFromMergeTreePart(const Path & part_path);
+std::string explainPlan(DB::QueryPlan & plan);
+void checkOuputType(const DB::QueryPlan & plan);
 };
 
 class ActionsDAGUtil
@@ -131,12 +135,13 @@ class JNIUtils;
 class BackendInitializerUtil
 {
 public:
+    static DB::Field toField(const String key, const String value);
+
     /// Initialize two kinds of resources
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
-    static void init(std::string * plan);
-    static void init_json(std::string * plan_json);
-    static void updateConfig(const DB::ContextMutablePtr &, std::string *);
+    static void init(const std::string & plan);
+    static void updateConfig(const DB::ContextMutablePtr &, const std::string_view);
 
 
     // use excel text parser
@@ -166,6 +171,11 @@ public:
     inline static const std::string HADOOP_S3_CLIENT_CACHE_IGNORE = "fs.s3a.client.cached.ignore";
     inline static const std::string SPARK_HADOOP_PREFIX = "spark.hadoop.";
     inline static const std::string S3A_PREFIX = "fs.s3a.";
+    inline static const std::string SPARK_DELTA_PREFIX = "spark.databricks.delta.";
+    inline static const std::string SPARK_SESSION_TIME_ZONE = "spark.sql.session.timeZone";
+
+    inline static const String GLUTEN_TASK_OFFHEAP = "spark.gluten.memory.task.offHeap.size.in.bytes";
+    inline static const String CH_TASK_MEMORY = "off_heap_per_task";
 
     /// On yarn mode, native writing on hdfs cluster takes yarn container user as the user passed to libhdfs3, which
     /// will cause permission issue because yarn container user is not the owner of the hdfs dir to be written.
@@ -186,9 +196,10 @@ private:
     static void registerAllFactories();
     static void applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr, DB::Settings &);
     static void updateNewSettings(const DB::ContextMutablePtr &, const DB::Settings &);
+    static std::vector<String> wrapDiskPathConfig(const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config);
 
 
-    static std::map<std::string, std::string> getBackendConfMap(std::string * plan);
+    static std::map<std::string, std::string> getBackendConfMap(const std::string_view plan);
 
     inline static std::once_flag init_flag;
     inline static Poco::Logger * logger;
@@ -202,6 +213,9 @@ public:
 
     /// Release session level resources like StorageJoinBuilder. Invoked every time executor/driver shutdown.
     static void finalizeSessionally();
+
+    static std::vector<String> paths_need_to_clean;
+    static std::mutex paths_mutex;
 };
 
 // Ignore memory track, memory should free before IgnoreMemoryTracker deconstruction
@@ -219,6 +233,7 @@ class DateTimeUtil
 {
 public:
     static Int64 currentTimeMillis();
+    static String convertTimeZone(const String & time_zone);
 };
 
 class MemoryUtil
@@ -226,6 +241,59 @@ class MemoryUtil
 public:
     static UInt64 getCurrentMemoryUsage(size_t depth = 1);
     static UInt64 getMemoryRSS();
+};
+
+template <typename T>
+class ConcurrentDeque
+{
+public:
+    std::optional<T> pop_front()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+
+        if (deq.empty())
+            return {};
+
+        T t = deq.front();
+        deq.pop_front();
+        return t;
+    }
+
+    void emplace_back(T value)
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        deq.emplace_back(value);
+    }
+
+    void emplace_back(std::vector<T> values)
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        deq.insert(deq.end(), values.begin(), values.end());
+    }
+
+    void emplace_front(T value)
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        deq.emplace_front(value);
+    }
+
+    size_t size()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        return deq.size();
+    }
+
+    bool empty()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        return deq.empty();
+    }
+
+    std::deque<T> unsafeGet() { return deq; }
+
+private:
+    std::deque<T> deq;
+    mutable std::mutex mtx;
 };
 
 }

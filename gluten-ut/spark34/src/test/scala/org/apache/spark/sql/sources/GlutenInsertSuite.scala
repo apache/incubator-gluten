@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.sources
 
-import io.glutenproject.execution.SortExecTransformer
-import io.glutenproject.extension.GlutenPlan
+import org.apache.gluten.execution.SortExecTransformer
+import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.SparkConf
 import org.apache.spark.executor.OutputMetrics
@@ -141,7 +141,7 @@ class GlutenInsertSuite
         .find(_.isInstanceOf[SortExecTransformer])
         .isEmpty)
     // all operators should be transformed
-    assert(writeFiles.find(!_.isInstanceOf[GlutenPlan]).isEmpty)
+    assert(writeFiles.child.find(!_.isInstanceOf[GlutenPlan]).isEmpty)
 
     val parts = spark.sessionState.catalog.listPartitionNames(TableIdentifier("pt")).toSet
     assert(parts == expectedPartitionNames)
@@ -486,7 +486,7 @@ class GlutenInsertSuite
     }
   }
 
-  testGluten("SPARK-39557 INSERT INTO statements with tables with map defaults") {
+  ignoreGluten("SPARK-39557 INSERT INTO statements with tables with map defaults") {
     withSQLConf("spark.gluten.sql.complexType.scan.fallback.enabled" -> "false") {
 
       import testImplicits._

@@ -16,14 +16,12 @@
  */
 package org.apache.spark.sql
 
-import io.glutenproject.test.TestStats
+import org.apache.gluten.test.TestStats
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions._
 
-import org.scalactic.source.Position
-import org.scalatest.{Args, Status, Tag}
+import org.scalatest.{Args, Status}
 
 trait GlutenTestsCommonTrait
   extends SparkFunSuite
@@ -47,18 +45,5 @@ trait GlutenTestsCommonTrait
 
     TestStats.endCase(status.succeeds());
     status
-  }
-
-  protected def testGluten(testName: String, testTag: Tag*)(testFun: => Any)(implicit
-      pos: Position): Unit = {
-    test(GLUTEN_TEST + testName, testTag: _*)(testFun)
-  }
-  override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(implicit
-      pos: Position): Unit = {
-    if (shouldRun(testName)) {
-      super.test(testName, testTags: _*)(testFun)
-    } else {
-      super.ignore(testName, testTags: _*)(testFun)
-    }
   }
 }

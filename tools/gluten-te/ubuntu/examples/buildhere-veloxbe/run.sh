@@ -20,7 +20,8 @@ BASEDIR=$(dirname $0)
 
 EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                      -Pbackends-velox \
-                     -Prss \
+                     -Pceleborn \
+                     -Puniffle \
                      -DskipTests \
                      -Dscalastyle.skip=true \
                      -Dcheckstyle.skip=true"

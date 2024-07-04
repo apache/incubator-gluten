@@ -16,11 +16,11 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.{FileSourceScanExecTransformer, WholeStageTransformer}
-import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
-import io.glutenproject.vectorized.JniLibLoader
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, WholeStageTransformer}
+import org.apache.gluten.extension.columnar.transition.Transitions
+import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
+import org.apache.gluten.vectorized.JniLibLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.benchmark.Benchmark
@@ -65,7 +65,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
     val conf = new SparkConf()
       .setAppName("ParquetReadBenchmark")
       .setIfMissing("spark.master", s"local[$thrdNum]")
-      .set("spark.plugins", "io.glutenproject.GlutenPlugin")
+      .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .setIfMissing("spark.memory.offHeap.size", offheapSize)
@@ -124,8 +124,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
     val newWholeStage = wholeStageTransform.withNewChildren(Seq(fileScan))
 
     // generate ColumnarToRow
-    val columnarToRowPlan =
-      BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(newWholeStage)
+    val columnarToRowPlan = Transitions.toRowPlan(newWholeStage)
 
     val newWholeStageRDD = newWholeStage.executeColumnar()
     val newColumnarToRowRDD = columnarToRowPlan.execute()
@@ -166,7 +165,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
     }
 
     if (executedVanilla) {
-      spark.conf.set("spark.gluten.enabled", "false")
+      spark.conf.set(GlutenConfig.GLUTEN_ENABLED.key, "false")
 
       val vanillaParquet = spark.sql(s"""
                                         |select $scanSchema from parquet.`$parquetDir`

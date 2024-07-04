@@ -27,7 +27,19 @@ public class CHDatasourceJniWrapper {
       String uuid,
       String taskId,
       String partition_dir,
+      String bucket_dir,
+      byte[] confArray,
+      long allocId);
+
+  public native String nativeMergeMTParts(
+      byte[] plan,
+      byte[] splitInfo,
+      String uuid,
+      String taskId,
+      String partition_dir,
       String bucket_dir);
+
+  public static native String filterRangesOnDriver(byte[] plan, byte[] read);
 
   public native void write(long instanceId, long blockAddress);
 

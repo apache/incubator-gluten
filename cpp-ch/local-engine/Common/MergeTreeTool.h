@@ -53,6 +53,7 @@ struct MergeTreeTable
     inline static const String TUPLE = "tuple()";
     std::string database;
     std::string table;
+    std::string snapshot_id;
     substrait::NamedStruct schema;
     std::string order_by_key;
     std::string low_card_key;

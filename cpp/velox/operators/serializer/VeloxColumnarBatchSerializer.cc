@@ -50,6 +50,7 @@ VeloxColumnarBatchSerializer::VeloxColumnarBatchSerializer(
     ArrowSchemaRelease(cSchema); // otherwise the c schema leaks memory
   }
   serde_ = std::make_unique<serializer::presto::PrestoVectorSerde>();
+  options_.useLosslessTimestamp = true;
 }
 
 std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBatches(
@@ -60,7 +61,7 @@ std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBa
   auto numRows = firstRowVector->size();
   auto arena = std::make_unique<StreamArena>(veloxPool_.get());
   auto rowType = asRowType(firstRowVector->type());
-  auto serializer = serde_->createIterativeSerializer(rowType, numRows, arena.get(), /* serdeOptions */ nullptr);
+  auto serializer = serde_->createIterativeSerializer(rowType, numRows, arena.get(), &options_);
   for (auto& batch : batches) {
     auto rowVector = VeloxColumnarBatch::from(veloxPool_.get(), batch)->getRowVector();
     numRows = rowVector->size();
@@ -84,7 +85,7 @@ std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBa
 std::shared_ptr<ColumnarBatch> VeloxColumnarBatchSerializer::deserialize(uint8_t* data, int32_t size) {
   RowVectorPtr result;
   auto byteStream = toByteStream(data, size);
-  serde_->deserialize(byteStream.get(), veloxPool_.get(), rowType_, &result, /* serdeOptions */ nullptr);
+  serde_->deserialize(byteStream.get(), veloxPool_.get(), rowType_, &result, &options_);
   return std::make_shared<VeloxColumnarBatch>(result);
 }
 } // namespace gluten

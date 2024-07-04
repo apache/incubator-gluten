@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
-import io.glutenproject.execution.BroadCastHashJoinContext
-import io.glutenproject.vectorized.StorageJoinBuilder
+import org.apache.gluten.execution.BroadCastHashJoinContext
+import org.apache.gluten.vectorized.StorageJoinBuilder
 
 import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.internal.Logging
@@ -104,7 +104,7 @@ object CHHashBuildBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark w
     (
       countsAndBytes.flatMap(_._2),
       countsAndBytes.map(_._1).sum,
-      BroadCastHashJoinContext(Seq(child.output.head), Inner, child.output, "")
+      BroadCastHashJoinContext(Seq(child.output.head), Inner, false, child.output, "")
     )
   }
 }

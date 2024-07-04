@@ -16,12 +16,11 @@
  */
 package org.apache.spark.sql
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecTransformerBase}
-import io.glutenproject.utils.BackendTestUtils
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecTransformerBase}
+import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode.{CODEGEN_ONLY, NO_CODEGEN}
 import org.apache.spark.sql.catalyst.plans.ExistenceJoin
@@ -57,7 +56,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
 
   // === Following cases override super class's cases ===
 
-  ignore(GLUTEN_TEST + "DPP should not be rewritten as an existential join") {
+  ignoreGluten("DPP should not be rewritten as an existential join") {
     // ignored: BroadcastHashJoinExec is from Vanilla Spark
     withSQLConf(
       SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true",
@@ -639,7 +638,7 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
 
         // By default Gluten pushes more filters than vanilla Spark.
         //
-        // See also io.glutenproject.execution.FilterHandler#applyFilterPushdownToScan
+        // See also org.apache.gluten.execution.FilterHandler#applyFilterPushdownToScan
         // See also DynamicPartitionPruningSuite.scala:1362
         if (BackendTestUtils.isCHBackendLoaded()) {
           assert(subqueryIds.size == 2, "Whole plan subquery reusing not working correctly")

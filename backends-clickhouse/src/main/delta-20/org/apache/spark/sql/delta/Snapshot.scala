@@ -27,6 +27,7 @@ import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.stats.{DataSkippingReader, DeltaScan, FileSizeHistogram, StatisticsCollection}
 import org.apache.spark.sql.delta.util.StateCache
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{SerializableConfiguration, Utils}
@@ -404,12 +405,13 @@ class Snapshot(
     s"${getClass.getSimpleName}(path=$path, version=$version, metadata=$metadata, " +
       s"logSegment=$logSegment, checksumOpt=$checksumOpt)"
 
+  // --- modified start
   override def filesForScan(
       projection: Seq[Attribute],
       filters: Seq[Expression],
       keepNumRecords: Boolean): DeltaScan = {
     val deltaScan = ClickhouseSnapshot.deltaScanCache.get(
-      FilterExprsAsKey(path, version, filters, None),
+      FilterExprsAsKey(path, ClickhouseSnapshot.genSnapshotId(this), filters, None),
       () => {
         super.filesForScan(projection, filters, keepNumRecords)
       })
@@ -418,31 +420,36 @@ class Snapshot(
   }
 
   private def replaceWithAddMergeTreeParts(deltaScan: DeltaScan) = {
-    DeltaScan.apply(
-      deltaScan.version,
-      deltaScan.files
-        .map(
-          addFile => {
-            val addFileAsKey = AddFileAsKey(addFile)
+    if (ClickHouseConfig.isMergeTreeFormatEngine(metadata.configuration)) {
+      DeltaScan.apply(
+        deltaScan.version,
+        deltaScan.files
+          .map(
+            addFile => {
+              val addFileAsKey = AddFileAsKey(addFile)
 
-            val ret = ClickhouseSnapshot.addFileToAddMTPCache.get(addFileAsKey)
-            // this is for later use
-            ClickhouseSnapshot.pathToAddMTPCache.put(ret.fullPartPath(), ret)
-            ret
-          }),
-      deltaScan.total,
-      deltaScan.partition,
-      deltaScan.scanned
-    )(
-      deltaScan.scannedSnapshot,
-      deltaScan.partitionFilters,
-      deltaScan.dataFilters,
-      deltaScan.unusedFilters,
-      deltaScan.projection,
-      deltaScan.scanDurationMs,
-      deltaScan.dataSkippingType
-    )
+              val ret = ClickhouseSnapshot.addFileToAddMTPCache.get(addFileAsKey)
+              // this is for later use
+              ClickhouseSnapshot.pathToAddMTPCache.put(ret.fullPartPath(), ret)
+              ret
+            }),
+        deltaScan.total,
+        deltaScan.partition,
+        deltaScan.scanned
+      )(
+        deltaScan.scannedSnapshot,
+        deltaScan.partitionFilters,
+        deltaScan.dataFilters,
+        deltaScan.unusedFilters,
+        deltaScan.projection,
+        deltaScan.scanDurationMs,
+        deltaScan.dataSkippingType
+      )
+    } else {
+      deltaScan
+    }
   }
+  // --- modified end
 
   logInfo(s"Created snapshot $this")
   init()

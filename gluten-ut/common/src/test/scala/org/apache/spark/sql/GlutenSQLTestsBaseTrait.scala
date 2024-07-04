@@ -16,33 +16,16 @@
  */
 package org.apache.spark.sql
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.test.SharedSparkSession
 
-import org.scalactic.source.Position
-import org.scalatest.Tag
-
 /** Basic trait for Gluten SQL test cases. */
 trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTrait {
-
-  protected def testGluten(testName: String, testTag: Tag*)(testFun: => Any)(implicit
-      pos: Position): Unit = {
-    test(GLUTEN_TEST + testName, testTag: _*)(testFun)
-  }
-  override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(implicit
-      pos: Position): Unit = {
-    if (shouldRun(testName)) {
-      super.test(testName, testTags: _*)(testFun)
-    } else {
-      super.ignore(testName, testTags: _*)(testFun)
-    }
-  }
 
   override def sparkConf: SparkConf = {
     GlutenSQLTestsBaseTrait.nativeSparkConf(super.sparkConf, warehouse)
@@ -106,7 +89,7 @@ object GlutenSQLTestsBaseTrait {
       .set("spark.sql.files.maxPartitionBytes", "134217728")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
-      .set("spark.plugins", "io.glutenproject.GlutenPlugin")
+      .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("spark.ui.enabled", "false")

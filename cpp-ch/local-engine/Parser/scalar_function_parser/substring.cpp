@@ -59,7 +59,9 @@ public:
         const auto * const_one_node = addColumnToActionsDAG(actions_dag, index_type, 1);
         const auto * equals_zero_node = toFunctionNode(actions_dag, "equals", {index_arg, const_zero_node});
         const auto * if_node = toFunctionNode(actions_dag, "if", {equals_zero_node, const_one_node, index_arg});
-        const auto * substring_func_node = toFunctionNode(actions_dag, "substringUTF8", {str_arg, if_node, length_arg});
+        const auto * less_zero_node = toFunctionNode(actions_dag, "less", {length_arg, const_zero_node});
+        const auto * if_len_node = toFunctionNode(actions_dag, "if", {less_zero_node, const_zero_node, length_arg});
+        const auto * substring_func_node = toFunctionNode(actions_dag, "substringUTF8", {str_arg, if_node, if_len_node});
         return convertNodeTypeIfNeeded(substrait_func, substring_func_node, actions_dag);
     }
 protected:

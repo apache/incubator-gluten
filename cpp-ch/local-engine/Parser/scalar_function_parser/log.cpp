@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
+#include <Core/Field.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <Parser/FunctionParser.h>
 #include <Common/CHUtil.h>
-#include <Core/Field.h>
-#include <DataTypes/IDataType.h>
 
 namespace DB
 {
@@ -38,7 +38,7 @@ public:
     explicit FunctionParserLog(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
     ~FunctionParserLog() override = default;
 
-    static constexpr auto name = "logarithm";
+    static constexpr auto name = "log";
 
     String getName() const override { return name; }
 

@@ -40,8 +40,15 @@ SortRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, st
     size_t limit = parseLimit(rel_stack_);
     const auto & sort_rel = rel.sort();
     auto sort_descr = parseSortDescription(sort_rel.sorts(), query_plan->getCurrentDataStream().header);
+    SortingStep::Settings settings(*getContext());
+    size_t offheap_per_task = getContext()->getConfigRef().getUInt64("off_heap_per_task");
+    double spill_mem_ratio = getContext()->getConfigRef().getDouble("spill_mem_ratio", 0.9);
+    settings.worth_external_sort = [offheap_per_task, spill_mem_ratio]() -> bool
+    {
+        return CurrentMemoryTracker::current_memory() > offheap_per_task * spill_mem_ratio;
+    };
     auto sorting_step = std::make_unique<DB::SortingStep>(
-        query_plan->getCurrentDataStream(), sort_descr, limit, SortingStep::Settings(*getContext()), false);
+        query_plan->getCurrentDataStream(), sort_descr, limit, settings, false);
     sorting_step->setStepDescription("Sorting step");
     steps.emplace_back(sorting_step.get());
     query_plan->addStep(std::move(sorting_step));

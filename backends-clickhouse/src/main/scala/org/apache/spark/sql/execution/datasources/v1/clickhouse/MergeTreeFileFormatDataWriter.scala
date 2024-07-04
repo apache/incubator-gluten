@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.v1.clickhouse
 
-import io.glutenproject.execution.datasource.GlutenRowSplitter
+import org.apache.gluten.execution.datasource.GlutenRowSplitter
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec}
@@ -117,10 +117,12 @@ abstract class MergeTreeFileFormatDataWriter(
     releaseResources()
     val (taskCommitMessage, taskCommitTime) = Utils.timeTakenMs {
       // committer.commitTask(taskAttemptContext)
-      val statuses = returnedMetrics.map(
-        v => {
-          v._2
-        })
+      val statuses = returnedMetrics
+        .map(
+          v => {
+            v._2
+          })
+        .toSeq
       new TaskCommitMessage(statuses)
     }
 

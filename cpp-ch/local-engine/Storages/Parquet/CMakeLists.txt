@@ -18,13 +18,10 @@ set(ARROW_INCLUDE_DIR "${ClickHouse_SOURCE_DIR}/contrib/arrow/cpp/src")
 add_headers_and_sources(Parquet .)
 add_library(ch_parquet ${Parquet_sources})
 
-target_link_libraries(ch_parquet PUBLIC
-    boost::headers_only
-    clickhouse_common_io
-)
+target_link_libraries(ch_parquet PUBLIC boost::headers_only
+                                        clickhouse_common_io)
 
-target_include_directories(ch_parquet SYSTEM BEFORE PUBLIC 
-    ${ARROW_INCLUDE_DIR}
-    ${CMAKE_BINARY_DIR}/contrib/arrow-cmake/cpp/src
-    ${ClickHouse_SOURCE_DIR}/contrib/arrow-cmake/cpp/src
-)
+target_include_directories(
+  ch_parquet SYSTEM BEFORE
+  PUBLIC ${ARROW_INCLUDE_DIR} ${CMAKE_BINARY_DIR}/contrib/arrow-cmake/cpp/src
+         ${ClickHouse_SOURCE_DIR}/contrib/arrow-cmake/cpp/src)

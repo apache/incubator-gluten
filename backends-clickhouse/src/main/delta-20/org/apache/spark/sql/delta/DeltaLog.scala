@@ -31,6 +31,7 @@ import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.delta.schema.{SchemaMergingUtils, SchemaUtils}
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.storage.LogStoreProvider
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.sources.{BaseRelation, InsertableRelation}
 import org.apache.spark.sql.types.{StructField, StructType}
@@ -81,8 +82,9 @@ class DeltaLog private (
   with SnapshotManagement
   with DeltaFileFormat
   with ReadChecksum {
-
   import org.apache.spark.sql.delta.util.FileNames._
+
+  import DeltaLog._
 
   implicit private lazy val _clock = clock
 
@@ -213,7 +215,9 @@ class DeltaLog private (
    */
   def startTransaction(): OptimisticTransaction = {
     update()
+    // --- modified start
     new ClickhouseOptimisticTransaction(this, None)
+    // --- modified end
   }
 
   /**
@@ -442,8 +446,14 @@ class DeltaLog private (
 
     val fileIndex =
       TahoeLogFileIndex(spark, this, dataPath, snapshotToUse, partitionFilters, isTimeTravelQuery)
-    var bucketSpec: Option[BucketSpec] = None
-    new HadoopFsRelation(
+    // --- modified start
+    val bucketSpec: Option[BucketSpec] =
+      if (ClickHouseConfig.isMergeTreeFormatEngine(snapshotToUse.metadata.configuration)) {
+      ClickHouseTableV2.getTable(this).bucketOption
+    } else {
+      None
+    }
+    new DeltaHadoopFsRelation(
       fileIndex,
       partitionSchema =
         DeltaColumnMapping.dropColumnMappingMetadata(snapshotToUse.metadata.partitionSchema),
@@ -460,28 +470,56 @@ class DeltaLog private (
       // conflict with `DeltaLog.options`.
       snapshotToUse.metadata.format.options ++ options
     )(
-      spark
-    ) with InsertableRelation {
-      def insert(data: DataFrame, overwrite: Boolean): Unit = {
-        val mode = if (overwrite) SaveMode.Overwrite else SaveMode.Append
-        WriteIntoDelta(
-          deltaLog = DeltaLog.this,
-          mode = mode,
-          new DeltaOptions(Map.empty[String, String], spark.sessionState.conf),
-          partitionColumns = Seq.empty,
-          configuration = Map.empty,
-          data = data
-        ).run(spark)
-      }
-    }
+      spark,
+      this
+    )
+    // --- modified end
   }
 
-  override def fileFormat(metadata: Metadata = metadata): FileFormat =
-    ClickHouseTableV2.getTable(this).getFileFormat(metadata)
-
+  override def fileFormat(metadata: Metadata = metadata): FileFormat = {
+    // --- modified start
+    if (ClickHouseConfig.isMergeTreeFormatEngine(metadata.configuration)) {
+      ClickHouseTableV2.getTable(this).getFileFormat(metadata)
+    } else {
+      super.fileFormat(metadata)
+    }
+    // --- modified end
+  }
 }
 
 object DeltaLog extends DeltaLogging {
+  // --- modified start
+  @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
+  private class DeltaHadoopFsRelation(
+      location: FileIndex,
+      partitionSchema: StructType,
+      // The top-level columns in `dataSchema` should match the actual physical file schema,
+      // otherwise the ORC data source may not work with the by-ordinal mode.
+      dataSchema: StructType,
+      bucketSpec: Option[BucketSpec],
+      fileFormat: FileFormat,
+      options: Map[String, String])(sparkSession: SparkSession, deltaLog: DeltaLog)
+    extends HadoopFsRelation(
+      location,
+      partitionSchema,
+      dataSchema,
+      bucketSpec,
+      fileFormat,
+      options)(sparkSession)
+    with InsertableRelation {
+    def insert(data: DataFrame, overwrite: Boolean): Unit = {
+      val mode = if (overwrite) SaveMode.Overwrite else SaveMode.Append
+      WriteIntoDelta(
+        deltaLog = deltaLog,
+        mode = mode,
+        new DeltaOptions(Map.empty[String, String], sparkSession.sessionState.conf),
+        partitionColumns = Seq.empty,
+        configuration = Map.empty,
+        data = data
+      ).run(sparkSession)
+    }
+  }
+  // --- modified end
 
   /**
    * The key type of `DeltaLog` cache. It's a pair of the canonicalized table path and the file

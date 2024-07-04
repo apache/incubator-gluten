@@ -15,15 +15,18 @@
  * limitations under the License.
  */
 #include "AggregateSerializationUtils.h"
-#include <Common/Arena.h>
-
+#include <AggregateFunctions/IAggregateFunction.h>
 #include <Columns/ColumnAggregateFunction.h>
 #include <Columns/ColumnFixedString.h>
 #include <Columns/ColumnString.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeFixedString.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
-
+#include <Functions/FunctionHelpers.h>
+#include <IO/WriteBufferFromVector.h>
+#include <IO/WriteHelpers.h>
+#include <Common/Arena.h>
 
 using namespace DB;
 
@@ -48,7 +51,7 @@ bool isFixedSizeAggregateFunction(const DB::AggregateFunctionPtr& function)
 
 DB::ColumnWithTypeAndName convertAggregateStateToFixedString(const DB::ColumnWithTypeAndName& col)
 {
-    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*col.column);
+    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(&*col.column);
     if (!aggregate_col)
     {
         return col;
@@ -72,7 +75,7 @@ DB::ColumnWithTypeAndName convertAggregateStateToFixedString(const DB::ColumnWit
 
 DB::ColumnWithTypeAndName convertAggregateStateToString(const DB::ColumnWithTypeAndName& col)
 {
-    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*col.column);
+    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(&*col.column);
     if (!aggregate_col)
     {
         return col;
@@ -127,7 +130,7 @@ DB::Block convertAggregateStateInBlock(DB::Block& block)
     {
         if (WhichDataType(item.type).isAggregateFunction())
         {
-            const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*item.column);
+            const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(&*item.column);
             if (isFixedSizeAggregateFunction(aggregate_col->getAggregateFunction()))
                 columns.emplace_back(convertAggregateStateToFixedString(item));
             else

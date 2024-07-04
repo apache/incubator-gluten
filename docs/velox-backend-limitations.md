@@ -47,6 +47,8 @@ In certain cases, Gluten result may be different from Vanilla spark.
 #### JSON functions
 Velox only supports double quotes surrounded strings, not single quotes, in JSON data. If single quotes are used, gluten will produce incorrect result.
 
+Velox doesn't support [*] in path when get_json_object function is called and returns null instead.
+
 #### Parquet read conf
 Gluten supports `spark.files.ignoreCorruptFiles` with default false, if true, the behavior is same as config false.
 Gluten ignores `spark.sql.parquet.datetimeRebaseModeInRead`, it only returns what write in parquet file. It does not consider the difference between legacy
@@ -116,6 +118,10 @@ spark.range(100).toDF("id")
   .saveAsTable("velox_ctas")
 ```
 
+#### HiveFileFormat write
+
+Gluten supports writes of HiveFileFormat when the output file type is of type `parquet` only
+
 #### NaN support
 Velox does NOT support NaN. So unexpected result can be obtained for a few cases, e.g., comparing a number with NaN.
 
@@ -155,3 +161,6 @@ Gluten's.
 - Complex types
   - Parquet scan of nested array with struct or array as element type is not supported in Velox (fallback behavior).
   - Parquet scan of nested map with struct as key type, or array type as value type is not supported in Velox (fallback behavior).
+
+### CSV Read
+The header option should be true. And now we only support DatasourceV1, user should set this setting spark.sql.sources.useV1SourceList=csv. Not support user defined read option, will fallback to vanilla Spark in most case.  Will fallback to vanilla Spark and log warning when user specifies schema is different with file schema.

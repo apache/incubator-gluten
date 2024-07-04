@@ -34,7 +34,6 @@ ENABLE_TESTS=OFF
 # Set to ON for gluten cpp test build.
 BUILD_TEST_UTILS=OFF
 RUN_SETUP_SCRIPT=ON
-COMPILE_ARROW_JAVA=OFF
 NUM_THREADS=""
 OTHER_ARGUMENTS=""
 
@@ -87,10 +86,6 @@ for arg in "$@"; do
     RUN_SETUP_SCRIPT=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
-  --compile_arrow_java=*)
-    COMPILE_ARROW_JAVA=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
   --num_threads=*)
     NUM_THREADS=("${arg#*=}")
     shift # Remove argument name from processing
@@ -114,7 +109,8 @@ function compile {
     fi
   fi
 
-  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF"
+  CXX_FLAGS='-Wno-missing-field-initializers'
+  COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF"
   if [ $BUILD_TEST_UTILS == "ON" ]; then
       COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
   fi
@@ -150,7 +146,9 @@ function compile {
   fi
   echo "NUM_THREADS_OPTS: $NUM_THREADS_OPTS"
 
-  export simdjson_SOURCE=BUNDLED
+  export simdjson_SOURCE=AUTO
+  # Quick fix for CI error due to velox rebase
+  export Arrow_SOURCE=BUNDLED
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE $NUM_THREADS_OPTS EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
@@ -190,7 +188,7 @@ function get_build_summary {
   echo "ENABLE_S3=$ENABLE_S3,ENABLE_GCS=$ENABLE_GCS,ENABLE_HDFS=$ENABLE_HDFS,ENABLE_ABFS=$ENABLE_ABFS,\
 BUILD_TYPE=$BUILD_TYPE,VELOX_HOME=$VELOX_HOME,ENABLE_BENCHMARK=$ENABLE_BENCHMARK,\
 ENABLE_TESTS=$ENABLE_TESTS,BUILD_TEST_UTILS=$BUILD_TEST_UTILS,\
-COMPILE_ARROW_JAVA=$COMPILE_ARROW_JAVA,OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
+OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
 }
 
 function check_commit {
@@ -208,7 +206,7 @@ function check_commit {
     fi
   else
     # Branch-new build requires all untracked files to be deleted. We only need the source code.
-    git clean -dffx :/
+    sudo git clean -dffx :/
   fi
 
   if [ -f ${VELOX_HOME}/velox-build.cache ]; then
@@ -283,22 +281,6 @@ function setup_linux {
   fi
 }
 
-function compile_arrow_java_module() {
-    ARROW_HOME="${VELOX_HOME}/_build/$COMPILE_TYPE/third_party/arrow_ep/src/arrow_ep"
-    ARROW_INSTALL_DIR="${ARROW_HOME}/../../install"
-
-    # Arrow C Data Interface CPP libraries
-    pushd $ARROW_HOME/java
-    mvn generate-resources -P generate-libs-cdata-all-os -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR -N
-    popd
-
-    # Arrow Java libraries
-    pushd $ARROW_HOME/java
-    mvn clean install -P arrow-c-data -pl c -am -DskipTests -Dcheckstyle.skip \
-      -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
-    popd
-}
-
 CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
   pwd
@@ -328,9 +310,5 @@ echo "Target Velox build: $TARGET_BUILD_SUMMARY"
 check_commit
 compile
 
-if [ $COMPILE_ARROW_JAVA == "ON" ]; then
-  compile_arrow_java_module
-fi
-
 echo "Successfully built Velox from Source."
-echo $TARGET_BUILD_SUMMARY >"${VELOX_HOME}/velox-build.cache"
+echo $TARGET_BUILD_SUMMARY > "${VELOX_HOME}/velox-build.cache"

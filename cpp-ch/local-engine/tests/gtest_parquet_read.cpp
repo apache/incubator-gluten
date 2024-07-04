@@ -15,6 +15,9 @@
  * limitations under the License.
  */
 
+#include <Storages/SubstraitSource/ParquetFormatFile.h>
+
+
 #include "config.h"
 
 #if USE_PARQUET
@@ -137,6 +140,32 @@ TEST(ParquetRead, ReadSchema)
 {
     readSchema("alltypes/alltypes_notnull.parquet");
     readSchema("alltypes/alltypes_null.parquet");
+}
+
+TEST(ParquetRead, VerifyPageindexReaderSupport)
+{
+    EXPECT_FALSE(local_engine::ParquetFormatFile::pageindex_reader_support(
+        toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("alltypes/alltypes_notnull.parquet")))));
+    EXPECT_FALSE(local_engine::ParquetFormatFile::pageindex_reader_support(
+        toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("alltypes/alltypes_null.parquet")))));
+
+
+    EXPECT_FALSE(local_engine::ParquetFormatFile::pageindex_reader_support(
+        toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("array.parquet")))));
+    EXPECT_TRUE(local_engine::ParquetFormatFile::pageindex_reader_support(
+        toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("date.parquet")))));
+    EXPECT_TRUE(local_engine::ParquetFormatFile::pageindex_reader_support(
+        toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("datetime64.parquet")))));
+    EXPECT_TRUE(local_engine::ParquetFormatFile::pageindex_reader_support(
+        toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("decimal.parquet")))));
+    EXPECT_TRUE(local_engine::ParquetFormatFile::pageindex_reader_support(
+        toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("iris.parquet")))));
+    EXPECT_FALSE(local_engine::ParquetFormatFile::pageindex_reader_support(
+        toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("map.parquet")))));
+    EXPECT_TRUE(local_engine::ParquetFormatFile::pageindex_reader_support(
+        toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("sample.parquet")))));
+    EXPECT_FALSE(local_engine::ParquetFormatFile::pageindex_reader_support(
+        toBlockRowType(local_engine::test::readParquetSchema(local_engine::test::data_file("struct.parquet")))));
 }
 
 TEST(ParquetRead, ReadDataNotNull)
@@ -344,8 +373,7 @@ TEST(ParquetRead, ArrowRead)
         format_settings.date_time_overflow_behavior,
         format_settings.parquet.case_insensitive_column_matching);
 
-    Chunk chunk;
-    converter.arrowTableToCHChunk(chunk, table, table->num_rows());
+    Chunk chunk = converter.arrowTableToCHChunk(table, table->num_rows());
     Block res = header.cloneWithColumns(chunk.detachColumns());
     EXPECT_EQ(res.rows(), 20);
 

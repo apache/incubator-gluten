@@ -38,7 +38,7 @@ on:
 jobs:
   build-native-lib:
     runs-on: ubuntu-20.04
-    container: inteldpo/gluten-centos-packaging:latest
+    container: apache/gluten:gluten-vcpkg-builder_2024_05_29
     steps:
       - uses: actions/checkout@v2
       - name: Build Gluten velox third party
@@ -53,11 +53,17 @@ jobs:
           export NUM_THREADS=4
           ./dev/builddeps-veloxbe.sh --build_tests=OFF  --build_benchmarks=OFF --enable_s3=OFF \
           --enable_gcs=OFF --enable_hdfs=ON --enable_abfs=OFF
-      - uses: actions/upload-artifact@v2
+      - name: Upload native libs
+        uses: actions/upload-artifact@v2
         with:
           path: ./cpp/build/releases/
           name: velox-native-lib-${{github.sha}}
           retention-days: 1
+      - name: Upload Artifact Arrow Jar
+        uses: actions/upload-artifact@v2
+        with:
+          path: /root/.m2/repository/org/apache/arrow/
+          name: velox-arrow-jar-centos-7-${{github.sha}}
 
   build-bundle-package-ubuntu:
     if: startsWith(github.event.inputs.os, 'ubuntu')
@@ -71,6 +77,11 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
           apt-get update && \
@@ -79,7 +90,7 @@ jobs:
       - name: Build for Spark ${{ github.event.inputs.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ && \
-          mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Prss -DskipTests -Dmaven.source.skip
+          mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Pceleborn -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v2
         with:
@@ -99,6 +110,11 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
           yum update -y && yum install -y java-1.8.0-openjdk-devel wget && \
@@ -110,7 +126,7 @@ jobs:
           cd $GITHUB_WORKSPACE/ && \
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Prss -DskipTests -Dmaven.source.skip
+          mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Pceleborn -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v2
         with:
@@ -130,6 +146,11 @@ jobs:
         with:
           name: velox-native-lib-${{github.sha}}
           path: ./cpp/build/releases
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true && \
@@ -145,7 +166,7 @@ jobs:
           cd $GITHUB_WORKSPACE/ && \
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Prss -DskipTests -Dmaven.source.skip
+          mvn clean install -P${{ github.event.inputs.spark }} -Dhadoop.version=${{ github.event.inputs.hadoop }} -Pbackends-velox -Pceleborn -DskipTests -Dmaven.source.skip
       - name: Upload bundle package
         uses: actions/upload-artifact@v2
         with:

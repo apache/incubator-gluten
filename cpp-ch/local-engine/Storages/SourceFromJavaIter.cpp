@@ -53,12 +53,11 @@ static DB::Block getRealHeader(const DB::Block & header)
 DB::Block * SourceFromJavaIter::peekBlock(JNIEnv * env, jobject java_iter)
 {
     jboolean has_next = safeCallBooleanMethod(env, java_iter, serialized_record_batch_iterator_hasNext);
-    if (has_next)
-    {
-        jbyteArray block = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, serialized_record_batch_iterator_next));
-        return reinterpret_cast<DB::Block *>(byteArrayToLong(env, block));
-    }
-    return nullptr;
+    if (!has_next)
+        return nullptr;
+
+    jbyteArray block = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, serialized_record_batch_iterator_next));
+    return reinterpret_cast<DB::Block *>(byteArrayToLong(env, block));
 }
 
 
@@ -75,6 +74,9 @@ SourceFromJavaIter::SourceFromJavaIter(
 
 DB::Chunk SourceFromJavaIter::generate()
 {
+    if (isCancelled())
+        return {};
+
     GET_JNIENV(env)
     SCOPE_EXIT({CLEAN_JNIENV});
 
@@ -151,6 +153,7 @@ void SourceFromJavaIter::convertNullable(DB::Chunk & chunk)
     }
     chunk.setColumns(columns, rows);
 }
+
 
 DB::ColumnPtr SourceFromJavaIter::convertNestedNullable(const DB::ColumnPtr & column, const DB::DataTypePtr & target_type)
 {

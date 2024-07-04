@@ -23,6 +23,7 @@ static const std::string kSinglePartitioningName = "single";
 static const std::string kRoundRobinPartitioningName = "rr";
 static const std::string kHashPartitioningName = "hash";
 static const std::string kRangePartitioningName = "range";
+static const std::string kRandomPartitioningName = "random";
 } // namespace
 
 namespace gluten {
@@ -38,6 +39,9 @@ Partitioning toPartitioning(std::string name) {
   }
   if (name == kRangePartitioningName) {
     return Partitioning::kRange;
+  }
+  if (name == kRandomPartitioningName) {
+    return Partitioning::kRandom;
   }
   throw GlutenException("Invalid partition name: " + name);
 }

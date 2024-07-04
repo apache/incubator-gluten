@@ -57,7 +57,7 @@ void VeloxColumnarBatch::ensureFlattened() {
     }
     // In case of output from Limit, RowVector size can be smaller than its children size.
     if (child->size() > rowVector_->size()) {
-      child->resize(rowVector_->size());
+      child = child->slice(0, rowVector_->size());
     }
   }
   flattened_ = true;
@@ -143,13 +143,13 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatch::select(
   return std::make_shared<VeloxColumnarBatch>(rowVector);
 }
 
-std::pair<char*, int> VeloxColumnarBatch::getRowBytes(int32_t rowId) const {
+std::vector<char> VeloxColumnarBatch::toUnsafeRow(int32_t rowId) const {
   auto fast = std::make_unique<facebook::velox::row::UnsafeRowFast>(rowVector_);
   auto size = fast->rowSize(rowId);
-  char* rowBytes = new char[size];
-  std::memset(rowBytes, 0, size);
-  fast->serialize(0, rowBytes);
-  return std::make_pair(rowBytes, size);
+  std::vector<char> bytes(size);
+  std::memset(bytes.data(), 0, bytes.size());
+  fast->serialize(0, bytes.data());
+  return bytes;
 }
 
 } // namespace gluten

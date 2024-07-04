@@ -16,11 +16,11 @@
  */
 package org.apache.spark.shuffle
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
-import io.glutenproject.memory.alloc.CHNativeMemoryAllocators
-import io.glutenproject.memory.memtarget.{MemoryTarget, Spiller, Spillers}
-import io.glutenproject.vectorized._
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators
+import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
+import org.apache.gluten.vectorized._
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
@@ -29,7 +29,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, Utils}
 
 import java.io.IOException
-import java.util
 import java.util.{Locale, UUID}
 
 class CHColumnarShuffleWriter[K, V](
@@ -46,6 +45,7 @@ class CHColumnarShuffleWriter[K, V](
 
   private val blockManager = SparkEnv.get.blockManager
   private val localDirs = SparkDirectoryUtil
+    .get()
     .namespace("ch-shuffle-write")
     .mkChildDirs(UUID.randomUUID().toString)
     .map(_.getAbsolutePath)
@@ -58,6 +58,10 @@ class CHColumnarShuffleWriter[K, V](
   private val throwIfMemoryExceed = GlutenConfig.getConf.chColumnarThrowIfMemoryExceed
   private val flushBlockBufferBeforeEvict =
     GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict
+  private val maxSortBufferSize = GlutenConfig.getConf.chColumnarMaxSortBufferSize
+  private val spillFirstlyBeforeStop = GlutenConfig.getConf.chColumnarSpillFirstlyBeforeStop
+  private val forceExternalSortShuffle = GlutenConfig.getConf.chColumnarForceExternalSortShuffle
+  private val forceMemorySortShuffle = GlutenConfig.getConf.chColumnarForceMemorySortShuffle
   private val spillThreshold = GlutenConfig.getConf.chColumnarShuffleSpillThreshold
   private val jniWrapper = new CHShuffleSplitterJniWrapper
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
@@ -108,25 +112,30 @@ class CHColumnarShuffleWriter[K, V](
         spillThreshold,
         CHBackendSettings.shuffleHashAlgorithm,
         throwIfMemoryExceed,
-        flushBlockBufferBeforeEvict
+        flushBlockBufferBeforeEvict,
+        maxSortBufferSize,
+        spillFirstlyBeforeStop,
+        forceExternalSortShuffle,
+        forceMemorySortShuffle
       )
       CHNativeMemoryAllocators.createSpillable(
         "ShuffleWriter",
         new Spiller() {
-          override def spill(self: MemoryTarget, size: Long): Long = {
+          override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
+            if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+              return 0L;
+            }
             if (nativeSplitter == 0) {
               throw new IllegalStateException(
                 "Fatal: spill() called before a shuffle writer " +
                   "is created. This behavior should be optimized by moving memory " +
                   "allocations from make() to split()")
             }
-            logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+            logError(s"Gluten shuffle writer: Trying to spill $size bytes of data")
             val spilled = splitterJniWrapper.evict(nativeSplitter);
-            logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+            logError(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
             spilled
           }
-
-          override def applicablePhases(): util.Set[Spiller.Phase] = Spillers.PHASE_SET_SPILL_ONLY
         }
       )
     }

@@ -20,7 +20,7 @@
 #include <string>
 
 namespace gluten {
-enum Partitioning { kSingle, kRoundRobin, kHash, kRange };
+enum Partitioning { kSingle, kRoundRobin, kHash, kRange, kRandom /*for test only*/ };
 
 Partitioning toPartitioning(std::string name);
 

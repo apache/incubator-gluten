@@ -16,10 +16,10 @@
  */
 package org.apache.spark.util
 
-import org.apache.spark.SparkEnv
+import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 
-import _root_.io.glutenproject.exception.GlutenException
+import _root_.org.apache.gluten.exception.GlutenException
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
 
@@ -30,8 +30,8 @@ import java.nio.file.Paths
  * Manages Gluten's local directories, for storing jars, libs, spill files, or other temporary
  * stuffs.
  */
-object SparkDirectoryUtil extends Logging {
-  private val ROOTS = Utils.getConfiguredLocalDirs(SparkEnv.get.conf).flatMap {
+class SparkDirectoryUtil private (val roots: Array[String]) extends Logging {
+  private val ROOTS: Array[File] = roots.flatMap {
     rootDir =>
       try {
         val localDir = Utils.createDirectory(rootDir, "gluten")
@@ -62,6 +62,33 @@ object SparkDirectoryUtil extends Logging {
     val namespace = new Namespace(ROOTS, name)
     NAMESPACE_MAPPING.put(name, namespace)
     namespace
+  }
+}
+
+object SparkDirectoryUtil extends Logging {
+  private var INSTANCE: SparkDirectoryUtil = _
+
+  def init(conf: SparkConf): Unit = synchronized {
+    val roots = Utils.getConfiguredLocalDirs(conf)
+    init(roots)
+  }
+
+  private def init(roots: Array[String]): Unit = synchronized {
+    if (INSTANCE == null) {
+      INSTANCE = new SparkDirectoryUtil(roots)
+      return
+    }
+    if (INSTANCE.roots.toSet != roots.toSet) {
+      logWarning(
+        s"Reinitialize SparkDirectoryUtil with different root dirs: old: ${INSTANCE.ROOTS
+            .mkString("Array(", ", ", ")")}, new: ${roots.mkString("Array(", ", ", ")")}"
+      )
+    }
+  }
+
+  def get(): SparkDirectoryUtil = synchronized {
+    assert(INSTANCE != null, "Default instance of SparkDirectoryUtil was not set yet")
+    INSTANCE
   }
 }
 

@@ -67,7 +67,8 @@ int64_t initializeQuery(ReservationListenerWrapperPtr listener)
         else
             listener->reserve(size);
     };
-    CurrentMemoryTracker::before_free = [listener](Int64 size) -> void { listener->free(size); };
+    CurrentMemoryTracker::before_free = [listener](Int64 size) -> void { listener->tryFree(size); };
+    CurrentMemoryTracker::current_memory = [listener]() -> Int64 { return listener->currentMemory(); };
     allocator_map.insert(allocator_id, allocator_context);
     return allocator_id;
 }
