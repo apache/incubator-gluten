@@ -258,7 +258,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan);
     const std::string::size_type plan_size = plan_a.length();
     local_engine::LocalExecutor * executor
-        = parser.createExecutor<false>({reinterpret_cast<const char *>(plan_a.elems()), plan_size}).release();
+        = parser.createExecutor({reinterpret_cast<const char *>(plan_a.elems()), plan_size}).release();
     LOG_INFO(&Poco::Logger::get("jni"), "Construct LocalExecutor {}", reinterpret_cast<uintptr_t>(executor));
     executor->setMetric(parser.getMetric());
     executor->setExtraPlanHolder(parser.extra_plan_holder);
@@ -1259,7 +1259,7 @@ Java_org_apache_gluten_vectorized_SimpleExpressionEval_createNativeInstance(JNIE
     const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan);
     const std::string::size_type plan_size = plan_a.length();
     local_engine::LocalExecutor * executor
-        = parser.createExecutor<false>({reinterpret_cast<const char *>(plan_a.elems()), plan_size}).release();    
+        = parser.createExecutor({reinterpret_cast<const char *>(plan_a.elems()), plan_size}).release();
     return reinterpret_cast<jlong>(executor);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }

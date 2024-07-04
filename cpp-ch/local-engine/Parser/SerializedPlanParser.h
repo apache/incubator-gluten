@@ -260,19 +260,17 @@ private:
 
     std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan);
 
-    DB::QueryPlanPtr parse(const std::string_view plan);
-    DB::QueryPlanPtr parse(const substrait::Plan & plan);
+    DB::QueryPlanPtr parse(std::string_view plan);
 
 public:
     explicit SerializedPlanParser(const ContextPtr & context);
 
-    /// UT only
-    DB::QueryPlanPtr parseJson(const std::string_view & json_plan);
-    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan) { return createExecutor(parse((plan))); }
+    /// visible for UT
+    DB::QueryPlanPtr parse(const substrait::Plan & plan);
+    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan) { return createExecutor(parse(plan)); }
+    DB::QueryPipelineBuilderPtr buildQueryPipeline(DB::QueryPlan & query_plan);
     ///
-
-    template <bool JsonPlan>
-    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
+    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan) { return createExecutor(parse(plan)); }
 
     DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
@@ -313,7 +311,7 @@ public:
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
     IQueryPlanStep * addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header);
-    
+
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
 
     static ContextMutablePtr global_context;
@@ -322,7 +320,6 @@ public:
     std::vector<QueryPlanPtr> extra_plan_holder;
 
 private:
-    static DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header);
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
     void
     collectJoinKeys(const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start);
@@ -410,12 +407,6 @@ public:
     const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
 };
 
-template <bool JsonPlan>
-std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)
-{
-    return createExecutor(JsonPlan ? parseJson(plan) : parse(plan));
-}
-
 struct SparkBuffer
 {
     char * address;
@@ -425,7 +416,7 @@ struct SparkBuffer
 class LocalExecutor : public BlockIterator
 {
 public:
-    LocalExecutor(const ContextPtr & context_, QueryPlanPtr query_plan, QueryPipeline && pipeline, const Block & header_);
+    LocalExecutor(QueryPlanPtr query_plan, QueryPipeline && pipeline, bool dump_pipeline_);
     ~LocalExecutor();
 
     SparkRowInfoPtr next();
@@ -449,7 +440,7 @@ private:
     QueryPipeline query_pipeline;
     std::unique_ptr<PullingPipelineExecutor> executor;
     Block header;
-    ContextPtr context;
+    bool dump_pipeline;
     std::unique_ptr<CHColumnToSparkRow> ch_column_to_spark_row;
     std::unique_ptr<SparkBuffer> spark_buffer;
     QueryPlanPtr current_query_plan;
