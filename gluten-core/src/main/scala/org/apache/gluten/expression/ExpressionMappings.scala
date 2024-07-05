@@ -248,6 +248,7 @@ object ExpressionMappings {
     Sig[ArrayFilter](FILTER),
     Sig[ArrayForAll](FORALL),
     Sig[ArrayExists](EXISTS),
+    Sig[ArraySort](ARRAY_SORT),
     Sig[Shuffle](SHUFFLE),
     Sig[ZipWith](ZIP_WITH),
     Sig[Flatten](FLATTEN),
