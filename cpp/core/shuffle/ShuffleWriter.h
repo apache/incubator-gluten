@@ -101,8 +101,7 @@ class ShuffleWriter : public Reclaimable {
         partitionBufferPool_(std::make_unique<ShuffleMemoryPool>(pool)),
         partitionWriter_(std::move(partitionWriter)) {
     GLUTEN_ASSIGN_OR_THROW(
-        partitioner_,
-        partitioner_ = Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId));
+        partitioner_, Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId));
   }
 
   virtual ~ShuffleWriter() = default;
