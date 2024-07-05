@@ -47,7 +47,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     Row(95337, 12, decimal(915.61))
   )
 
-  ignoreGluten("Literal in window partition by and sort") {
+  testGluten("Literal in window partition by and sort") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)
@@ -93,7 +93,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     }
   }
 
-  ignoreGluten("Filter on row number") {
+  testGluten("Filter on row number") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)
@@ -137,7 +137,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     }
   }
 
-  ignoreGluten("Filter on rank") {
+  testGluten("Filter on rank") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)
