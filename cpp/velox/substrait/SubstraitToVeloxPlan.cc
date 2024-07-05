@@ -1046,17 +1046,15 @@ SubstraitToVeloxPlanConverter::processSortField(
     const RowTypePtr& inputType) {
   std::vector<core::FieldAccessTypedExprPtr> sortingKeys;
   std::vector<core::SortOrder> sortingOrders;
-  sortingKeys.reserve(sortFields.size());
-  sortingOrders.reserve(sortFields.size());
-
+  std::unordered_set<std::string> uniqueKeys;
   for (const auto& sort : sortFields) {
-    sortingOrders.emplace_back(toSortOrder(sort));
-
-    if (sort.has_expr()) {
-      auto expression = exprConverter_->toVeloxExpr(sort.expr(), inputType);
-      auto fieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
-      VELOX_USER_CHECK_NOT_NULL(fieldExpr, "Sort Operator only supports field sorting key");
+    GLUTEN_CHECK(sort.has_expr(), "Sort field must have expr");
+    auto expression = exprConverter_->toVeloxExpr(sort.expr(), inputType);
+    auto fieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
+    VELOX_USER_CHECK_NOT_NULL(fieldExpr, "Sort Operator only supports field sorting key");
+    if (uniqueKeys.insert(fieldExpr->name()).second) {
       sortingKeys.emplace_back(fieldExpr);
+      sortingOrders.emplace_back(toSortOrder(sort));
     }
   }
   return {sortingKeys, sortingOrders};

@@ -1197,7 +1197,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameToSchemaSuite]
   enableSuite[GlutenDatasetUnpivotSuite]
   enableSuite[GlutenLateralColumnAliasSuite]
-    .exclude("Aggregate expressions containing no aggregate or grouping expressions still resolves")
   enableSuite[GlutenParametersSuite]
   enableSuite[GlutenResolveDefaultColumnsSuite]
   enableSuite[GlutenSubqueryHintPropagationSuite]

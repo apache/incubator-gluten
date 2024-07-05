@@ -198,6 +198,7 @@ class SubstraitToVeloxPlanConverter {
 
   /// Helper Function to convert Substrait sortField to Velox sortingKeys and
   /// sortingOrders.
+  /// Note that, this method would deduplicate the sorting keys which have the same field name.
   std::pair<std::vector<core::FieldAccessTypedExprPtr>, std::vector<core::SortOrder>> processSortField(
       const ::google::protobuf::RepeatedPtrField<::substrait::SortField>& sortField,
       const RowTypePtr& inputType);
