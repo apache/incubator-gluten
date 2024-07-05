@@ -29,7 +29,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, Utils}
 
 import java.io.IOException
-import java.util
 import java.util.{Locale, UUID}
 
 class CHColumnarShuffleWriter[K, V](
@@ -61,7 +60,8 @@ class CHColumnarShuffleWriter[K, V](
     GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict
   private val maxSortBufferSize = GlutenConfig.getConf.chColumnarMaxSortBufferSize
   private val spillFirstlyBeforeStop = GlutenConfig.getConf.chColumnarSpillFirstlyBeforeStop
-  private val forceSortShuffle = GlutenConfig.getConf.chColumnarForceSortShuffle
+  private val forceExternalSortShuffle = GlutenConfig.getConf.chColumnarForceExternalSortShuffle
+  private val forceMemorySortShuffle = GlutenConfig.getConf.chColumnarForceMemorySortShuffle
   private val spillThreshold = GlutenConfig.getConf.chColumnarShuffleSpillThreshold
   private val jniWrapper = new CHShuffleSplitterJniWrapper
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
@@ -115,25 +115,27 @@ class CHColumnarShuffleWriter[K, V](
         flushBlockBufferBeforeEvict,
         maxSortBufferSize,
         spillFirstlyBeforeStop,
-        forceSortShuffle
+        forceExternalSortShuffle,
+        forceMemorySortShuffle
       )
       CHNativeMemoryAllocators.createSpillable(
         "ShuffleWriter",
         new Spiller() {
-          override def spill(self: MemoryTarget, size: Long): Long = {
+          override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
+            if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+              return 0L;
+            }
             if (nativeSplitter == 0) {
               throw new IllegalStateException(
                 "Fatal: spill() called before a shuffle writer " +
                   "is created. This behavior should be optimized by moving memory " +
                   "allocations from make() to split()")
             }
-            logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+            logError(s"Gluten shuffle writer: Trying to spill $size bytes of data")
             val spilled = splitterJniWrapper.evict(nativeSplitter);
-            logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+            logError(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
             spilled
           }
-
-          override def applicablePhases(): util.Set[Spiller.Phase] = Spillers.PHASE_SET_SPILL_ONLY
         }
       )
     }

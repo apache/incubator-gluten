@@ -22,50 +22,38 @@
 namespace gluten {
 
 bool ListenableMemoryAllocator::allocate(int64_t size, void** out) {
-  listener_->allocationChanged(size);
+  updateUsage(size);
   bool succeed = delegated_->allocate(size, out);
   if (!succeed) {
-    listener_->allocationChanged(-size);
-  }
-  if (succeed) {
-    bytes_ += size;
+    updateUsage(-size);
   }
   return succeed;
 }
 
 bool ListenableMemoryAllocator::allocateZeroFilled(int64_t nmemb, int64_t size, void** out) {
-  listener_->allocationChanged(size * nmemb);
+  updateUsage(size * nmemb);
   bool succeed = delegated_->allocateZeroFilled(nmemb, size, out);
   if (!succeed) {
-    listener_->allocationChanged(-size * nmemb);
-  }
-  if (succeed) {
-    bytes_ += size * nmemb;
+    updateUsage(-size * nmemb);
   }
   return succeed;
 }
 
 bool ListenableMemoryAllocator::allocateAligned(uint64_t alignment, int64_t size, void** out) {
-  listener_->allocationChanged(size);
+  updateUsage(size);
   bool succeed = delegated_->allocateAligned(alignment, size, out);
   if (!succeed) {
-    listener_->allocationChanged(-size);
-  }
-  if (succeed) {
-    bytes_ += size;
+    updateUsage(-size);
   }
   return succeed;
 }
 
 bool ListenableMemoryAllocator::reallocate(void* p, int64_t size, int64_t newSize, void** out) {
   int64_t diff = newSize - size;
-  listener_->allocationChanged(diff);
+  updateUsage(diff);
   bool succeed = delegated_->reallocate(p, size, newSize, out);
   if (!succeed) {
-    listener_->allocationChanged(-diff);
-  }
-  if (succeed) {
-    bytes_ += diff;
+    updateUsage(-diff);
   }
   return succeed;
 }
@@ -77,31 +65,35 @@ bool ListenableMemoryAllocator::reallocateAligned(
     int64_t newSize,
     void** out) {
   int64_t diff = newSize - size;
-  listener_->allocationChanged(diff);
+  updateUsage(diff);
   bool succeed = delegated_->reallocateAligned(p, alignment, size, newSize, out);
   if (!succeed) {
-    listener_->allocationChanged(-diff);
-  }
-  if (succeed) {
-    bytes_ += diff;
+    updateUsage(-diff);
   }
   return succeed;
 }
 
 bool ListenableMemoryAllocator::free(void* p, int64_t size) {
-  listener_->allocationChanged(-size);
+  updateUsage(-size);
   bool succeed = delegated_->free(p, size);
   if (!succeed) {
-    listener_->allocationChanged(size);
-  }
-  if (succeed) {
-    bytes_ -= size;
+    updateUsage(size);
   }
   return succeed;
 }
 
 int64_t ListenableMemoryAllocator::getBytes() const {
-  return bytes_;
+  return usedBytes_;
+}
+
+int64_t ListenableMemoryAllocator::peakBytes() const {
+  return peakBytes_;
+}
+
+void ListenableMemoryAllocator::updateUsage(int64_t size) {
+  listener_->allocationChanged(size);
+  usedBytes_ += size;
+  peakBytes_ = std::max(peakBytes_, usedBytes_);
 }
 
 bool StdMemoryAllocator::allocate(int64_t size, void** out) {
@@ -158,6 +150,10 @@ bool StdMemoryAllocator::free(void* p, int64_t size) {
 
 int64_t StdMemoryAllocator::getBytes() const {
   return bytes_;
+}
+
+int64_t StdMemoryAllocator::peakBytes() const {
+  return 0;
 }
 
 std::shared_ptr<MemoryAllocator> defaultMemoryAllocator() {

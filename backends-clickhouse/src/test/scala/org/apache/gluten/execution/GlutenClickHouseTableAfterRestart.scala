@@ -61,6 +61,9 @@ class GlutenClickHouseTableAfterRestart
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
         "false")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
+        "8192")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -180,9 +183,9 @@ class GlutenClickHouseTableAfterRestart
       // for this run, missing count should not increase
       runTPCHQueryBySQL(1, sqlStr)(_ => {})
       val stats1 = ClickhouseSnapshot.deltaScanCache.stats()
-      assert(stats1.missCount() - oldMissingCount1 == 0)
+      assertResult(oldMissingCount1)(stats1.missCount())
       val stats2 = ClickhouseSnapshot.addFileToAddMTPCache.stats()
-      assert(stats2.missCount() - oldMissingCount2 == 0)
+      assertResult(oldMissingCount2)(stats2.missCount())
     }
 
     val oldMissingCount1 = ClickhouseSnapshot.deltaScanCache.stats().missCount()
@@ -194,10 +197,9 @@ class GlutenClickHouseTableAfterRestart
 
     // after restart, additionally check stats of delta scan cache
     val stats1 = ClickhouseSnapshot.deltaScanCache.stats()
-    assert(stats1.missCount() - oldMissingCount1 == 1)
+    assertResult(oldMissingCount1 + 1)(stats1.missCount())
     val stats2 = ClickhouseSnapshot.addFileToAddMTPCache.stats()
-    assert(stats2.missCount() - oldMissingCount2 == 6)
-
+    assertResult(oldMissingCount2 + 6)(stats2.missCount())
   }
 
   test("test optimize after restart") {
@@ -222,7 +224,8 @@ class GlutenClickHouseTableAfterRestart
     restartSpark()
 
     spark.sql("optimize table_restart_optimize")
-    assert(spark.sql("select count(*) from table_restart_optimize").collect().apply(0).get(0) == 4)
+    assertResult(4)(
+      spark.sql("select count(*) from table_restart_optimize").collect().apply(0).get(0))
   }
 
   test("test vacuum after restart") {
@@ -248,11 +251,10 @@ class GlutenClickHouseTableAfterRestart
 
     restartSpark()
 
-    spark.sql("set spark.gluten.enabled=false")
     spark.sql("vacuum table_restart_vacuum")
-    spark.sql("set spark.gluten.enabled=true")
 
-    assert(spark.sql("select count(*) from table_restart_vacuum").collect().apply(0).get(0) == 4)
+    assertResult(4)(
+      spark.sql("select count(*) from table_restart_vacuum").collect().apply(0).get(0))
   }
 
   test("test update after restart") {
@@ -278,7 +280,8 @@ class GlutenClickHouseTableAfterRestart
 
     spark.sql("update table_restart_update set name = 'tom' where id = 1")
 
-    assert(spark.sql("select count(*) from table_restart_update").collect().apply(0).get(0) == 4)
+    assertResult(4)(
+      spark.sql("select count(*) from table_restart_update").collect().apply(0).get(0))
   }
 
   test("test delete after restart") {
@@ -304,7 +307,8 @@ class GlutenClickHouseTableAfterRestart
 
     spark.sql("delete from table_restart_delete where where id = 1")
 
-    assert(spark.sql("select count(*) from table_restart_delete").collect().apply(0).get(0) == 2)
+    assertResult(2)(
+      spark.sql("select count(*) from table_restart_delete").collect().apply(0).get(0))
   }
 
   test("test drop after restart") {

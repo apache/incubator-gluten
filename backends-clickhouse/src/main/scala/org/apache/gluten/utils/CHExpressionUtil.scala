@@ -44,6 +44,15 @@ case class SequenceValidator() extends FunctionValidator {
   }
 }
 
+case class UtcTimestampValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = expr match {
+    // CH backend doest not support non-const timezone parameter
+    case t: ToUTCTimestamp => t.children(1).isInstanceOf[Literal]
+    case f: FromUTCTimestamp => f.children(1).isInstanceOf[Literal]
+    case _ => false
+  }
+}
+
 case class UnixTimeStampValidator() extends FunctionValidator {
   final val DATE_TYPE = "date"
 
@@ -178,23 +187,27 @@ object CHExpressionUtil {
     ARRAYS_ZIP -> DefaultValidator(),
     DATE_FROM_UNIX_DATE -> DefaultValidator(),
     UNIX_DATE -> DefaultValidator(),
+    UNIX_SECONDS -> DefaultValidator(),
     MONOTONICALLY_INCREASING_ID -> DefaultValidator(),
     SPARK_PARTITION_ID -> DefaultValidator(),
     URL_DECODE -> DefaultValidator(),
     URL_ENCODE -> DefaultValidator(),
     SKEWNESS -> DefaultValidator(),
-    BIT_LENGTH -> DefaultValidator(),
+    SOUNDEX -> DefaultValidator(),
     MAKE_YM_INTERVAL -> DefaultValidator(),
+    MAP_ZIP_WITH -> DefaultValidator(),
+    ZIP_WITH -> DefaultValidator(),
     KURTOSIS -> DefaultValidator(),
     REGR_R2 -> DefaultValidator(),
     REGR_SLOPE -> DefaultValidator(),
     REGR_INTERCEPT -> DefaultValidator(),
     REGR_SXY -> DefaultValidator(),
-    TO_UTC_TIMESTAMP -> DefaultValidator(),
-    FROM_UTC_TIMESTAMP -> DefaultValidator(),
+    TO_UTC_TIMESTAMP -> UtcTimestampValidator(),
+    FROM_UTC_TIMESTAMP -> UtcTimestampValidator(),
     UNIX_MILLIS -> DefaultValidator(),
     UNIX_MICROS -> DefaultValidator(),
     TIMESTAMP_MILLIS -> DefaultValidator(),
-    TIMESTAMP_MICROS -> DefaultValidator()
+    TIMESTAMP_MICROS -> DefaultValidator(),
+    STACK -> DefaultValidator()
   )
 }

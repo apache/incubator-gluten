@@ -250,6 +250,93 @@ cd /path/to/gluten/cpp/build/velox/benchmarks
 --threads 1 --noprint-result --with-shuffle
 ```
 
+Developers can leverage the `--with-shuffle` option to benchmark the shuffle-write process by creating
+a simple pipeline of `table scan + shuffle write` in Gluten. This can be done by dumping the micro benchmark
+inputs from a first stage. The steps are demonstrated as below:
+
+1. Start spark-shell or pyspark
+
+We need to set `spark.gluten.sql.benchmark_task.stageId` and `spark.gluten.saveDir` to dump the inputs.
+Normally, the stage id should be greater than 0. You can run the command in step 2 in advance to get the 
+right stage id in your case. We shall set `spark.default.parallelism` to 1 and `spark.sql.files.maxPartitionBytes`
+large enough to make sure there will be only 1 task in the first stage.
+
+```
+# Start pyspark
+./bin/pyspark --master local[*] \
+--conf spark.gluten.sql.benchmark_task.stageId=1 \
+--conf spark.gluten.saveDir=/path/to/saveDir \
+--conf spark.default.parallelism=1 \
+--conf spark.sql.files.maxPartitionBytes=10g
+... # omit other spark & gluten config
+```
+
+2. Run the table-scan command to dump the plan for the first stage
+
+If simulating single or round-robin partitioning, the first stage can only have the table scan operator.
+
+```
+>>> spark.read.format("parquet").load("file:///example.parquet").show()
+```
+
+If simulating hash partitioning, there will be a projection for generating the hash partitioning key.
+Therefore we need to explicitly run the `repartition` to generate the `scan + project` pipeline for the first stage.
+Note that using different number of shuffle partitions here doesn't change the generated pipeline.
+
+```
+>>> spark.read.format("parquet").load("file:///example.parquet").repartition(10, "key1", "key2").show()
+```
+
+Simuating range partitioning is not supported.
+
+3. Run the micro benchmark with dumped inputs
+
+General configurations for shuffle write:
+
+- `--with-shuffle`: Add shuffle write process at the end of the pipeline
+- `--shuffle-writer`: Specify shuffle writer type. Valid options are sort and hash. Default is hash.
+- `--partitioning`: Specify partitioning type. Valid options are rr, hash and single. Defualt is rr.
+                    The partitioning type should match the command in step 2.
+- `--shuffle-partitions`: Specify number of shuffle partitions.
+- `--compression`: By default, the compression codec for shuffle outputs is lz4. You can switch to other compression codecs
+  or use hardware accelerators Valid options are: lz4, zstd, qat-gzip, qat-zstd and iaa-gzip. The compression levels are fixed (use default compression level 1).
+
+  Note using QAT or IAA codec requires Gluten cpp is built with these features.
+  Please check the corresponding section in [Velox document](../get-started/Velox.md) first for how to
+  setup, build and enable these features in Gluten. For QAT support, please
+  check [Intel® QuickAssist Technology (QAT) support](../get-started/Velox.md#intel-quickassist-technology-qat-support).
+  For IAA support, please
+  check [Intel® In-memory Analytics Accelerator (IAA/IAX) support](../get-started/Velox.md#intel-in-memory-analytics-accelerator-iaaiax-support)
+
+```shell
+cd /path/to/gluten/cpp/build/velox/benchmarks
+./generic_benchmark \
+--plan /path/to/saveDir/plan_1_0.json \
+--conf /path/to/saveDir/conf_1_0.ini \
+--split /path/to/saveDir/split_1_0_0.json \
+--with-shuffle \
+--shuffle-writer sort \
+--partitioning hash \
+--threads 1
+```
+
+### Run shuffle write task only
+
+Developers can only run shuffle write task via specifying `--run-shuffle` and `--data` options.
+The parquet format input will be read from arrow-parquet reader and sent to shuffle writer.
+This option is similar to the `--with-shuffle` option, but it doesn't require the plan and split files.
+The round-robin partitioner is used by default. Besides, random partitioning can be used for testing purpose.
+By specifying option `--partitioning random`, the partitioner will generate a random partition id for each row.
+
+```shell
+cd /path/to/gluten/cpp/build/velox/benchmarks
+./generic_benchmark \
+--run-shuffle \
+--data /path/to/input_for_shuffle_write.parquet
+--shuffle-writer sort \
+--threads 1
+```
+
 ## Simulate write tasks
 
 The last operator for a write task is a file write operator, and the output from Velox pipeline only
@@ -265,20 +352,10 @@ cd /path/to/gluten/cpp/build/velox/benchmarks
 --write-path /absolute_path/<dir>
 ```
 
-By default, the compression codec for shuffle outputs is LZ4. You can switch to other codecs by
-adding one of the following argument flags to the command:
 
-- --zstd: ZSTD codec, compression level 1
-- --qat-gzip: QAT GZIP codec, compression level 1
-- --qat-zstd: QAT ZSTD codec, compression level 1
-- --iaa-gzip: IAA GZIP codec, compression level 1
+## Simulate task spilling
 
-Note using QAT or IAA codec requires Gluten cpp is built with these features.
-Please check the corresponding section in [Velox document](../get-started/Velox.md) first for how to
-setup, build and enable these features in Gluten. For QAT support, please
-check [Intel® QuickAssist Technology (QAT) support](../get-started/Velox.md#intel-quickassist-technology-qat-support).
-For IAA support, please
-check [Intel® In-memory Analytics Accelerator (IAA/IAX) support](../get-started/Velox.md#intel-in-memory-analytics-accelerator-iaaiax-support)
+You can simulate task spilling by specify memory hard limit from `--memory_limit`.
 
 ## Simulate Spark with multiple processes and threads
 

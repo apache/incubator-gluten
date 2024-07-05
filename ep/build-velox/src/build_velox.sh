@@ -34,7 +34,6 @@ ENABLE_TESTS=OFF
 # Set to ON for gluten cpp test build.
 BUILD_TEST_UTILS=OFF
 RUN_SETUP_SCRIPT=ON
-COMPILE_ARROW_JAVA=OFF
 NUM_THREADS=""
 OTHER_ARGUMENTS=""
 
@@ -87,10 +86,6 @@ for arg in "$@"; do
     RUN_SETUP_SCRIPT=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
-  --compile_arrow_java=*)
-    COMPILE_ARROW_JAVA=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
   --num_threads=*)
     NUM_THREADS=("${arg#*=}")
     shift # Remove argument name from processing
@@ -113,6 +108,9 @@ function compile {
       exit 1
     fi
   fi
+
+  # Maybe there is some set option in velox setup script. Run set command again.
+  set -exu  
 
   CXX_FLAGS='-Wno-missing-field-initializers'
   COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF"
@@ -151,7 +149,9 @@ function compile {
   fi
   echo "NUM_THREADS_OPTS: $NUM_THREADS_OPTS"
 
-  export simdjson_SOURCE=BUNDLED
+  export simdjson_SOURCE=AUTO
+  # Quick fix for CI error due to velox rebase
+  export Arrow_SOURCE=BUNDLED
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE $NUM_THREADS_OPTS EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
@@ -191,7 +191,7 @@ function get_build_summary {
   echo "ENABLE_S3=$ENABLE_S3,ENABLE_GCS=$ENABLE_GCS,ENABLE_HDFS=$ENABLE_HDFS,ENABLE_ABFS=$ENABLE_ABFS,\
 BUILD_TYPE=$BUILD_TYPE,VELOX_HOME=$VELOX_HOME,ENABLE_BENCHMARK=$ENABLE_BENCHMARK,\
 ENABLE_TESTS=$ENABLE_TESTS,BUILD_TEST_UTILS=$BUILD_TEST_UTILS,\
-COMPILE_ARROW_JAVA=$COMPILE_ARROW_JAVA,OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
+OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
 }
 
 function check_commit {
@@ -265,6 +265,13 @@ function setup_linux {
     esac
   elif [[ "$LINUX_DISTRIBUTION" == "tencentos" ]]; then
     case "$LINUX_VERSION_ID" in
+    2.4)
+        scripts/setup-centos7.sh
+        set +u
+        export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
+        source /opt/rh/devtoolset-9/enable
+        set -u
+        ;;
     3.2) scripts/setup-centos8.sh ;;
     *)
       echo "Unsupported tencentos version: $LINUX_VERSION_ID"
@@ -275,25 +282,6 @@ function setup_linux {
     echo "Unsupported linux distribution: $LINUX_DISTRIBUTION"
     exit 1
   fi
-}
-
-function compile_arrow_java_module() {
-    ARROW_HOME="${VELOX_HOME}/_build/$COMPILE_TYPE/third_party/arrow_ep/src/arrow_ep"
-    ARROW_INSTALL_DIR="${ARROW_HOME}/../../install"
-
-    pushd $ARROW_HOME/java
-    mvn clean install -pl maven/module-info-compiler-maven-plugin -am \
-          -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip
-
-    # Arrow C Data Interface CPP libraries
-    mvn generate-resources -P generate-libs-cdata-all-os -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR \
-      -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -N
-
-    # Arrow Java libraries
-    mvn clean install -P arrow-c-data -pl c -am -DskipTests -Dcheckstyle.skip \
-      -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib \
-      -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip
-    popd
 }
 
 CURRENT_DIR=$(
@@ -325,9 +313,5 @@ echo "Target Velox build: $TARGET_BUILD_SUMMARY"
 check_commit
 compile
 
-if [ $COMPILE_ARROW_JAVA == "ON" ]; then
-  compile_arrow_java_module
-fi
-
 echo "Successfully built Velox from Source."
-echo $TARGET_BUILD_SUMMARY >"${VELOX_HOME}/velox-build.cache"
+echo $TARGET_BUILD_SUMMARY > "${VELOX_HOME}/velox-build.cache"

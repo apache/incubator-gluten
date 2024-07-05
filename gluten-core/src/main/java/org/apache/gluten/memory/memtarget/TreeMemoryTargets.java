@@ -23,19 +23,14 @@ import org.apache.gluten.proto.MemoryUsageStats;
 import com.google.common.base.Preconditions;
 import org.apache.spark.util.Utils;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class TreeMemoryTargets {
-  public static final List<Spiller.Phase> SPILL_PHASES =
-      Arrays.asList(Spiller.Phase.SHRINK, Spiller.Phase.SPILL);
 
   private TreeMemoryTargets() {
     // enclose factory ctor
@@ -45,26 +40,24 @@ public class TreeMemoryTargets {
       TreeMemoryTarget parent,
       String name,
       long capacity,
-      List<Spiller> spillers,
+      Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-    return new Node(parent, name, capacity, spillers, virtualChildren);
+    return new Node(parent, name, capacity, spiller, virtualChildren);
   }
 
   public static long spillTree(TreeMemoryTarget node, final long bytes) {
     long remainingBytes = bytes;
-    for (Spiller.Phase phase : SPILL_PHASES) {
+    for (Spiller.Phase phase : Spiller.Phase.values()) {
       // First shrink, then if no good, spill.
       if (remainingBytes <= 0) {
         break;
       }
-      remainingBytes -=
-          spillTree(node, remainingBytes, spiller -> spiller.applicablePhases().contains(phase));
+      remainingBytes -= spillTree(node, phase, remainingBytes);
     }
     return bytes - remainingBytes;
   }
 
-  private static long spillTree(
-      TreeMemoryTarget node, final long bytes, Predicate<Spiller> spillerFilter) {
+  private static long spillTree(TreeMemoryTarget node, Spiller.Phase phase, final long bytes) {
     // sort children by used bytes, descending
     Queue<TreeMemoryTarget> q =
         new PriorityQueue<>(
@@ -83,13 +76,9 @@ public class TreeMemoryTargets {
 
     if (remainingBytes > 0) {
       // if still doesn't fit, spill self
-      final List<Spiller> applicableSpillers =
-          node.getNodeSpillers().stream().filter(spillerFilter).collect(Collectors.toList());
-      for (int i = 0; i < applicableSpillers.size() && remainingBytes > 0; i++) {
-        final Spiller spiller = applicableSpillers.get(i);
-        long spilled = spiller.spill(node, remainingBytes);
-        remainingBytes -= spilled;
-      }
+      final Spiller spiller = node.getNodeSpiller();
+      long spilled = spiller.spill(node, phase, remainingBytes);
+      remainingBytes -= spilled;
     }
 
     return bytes - remainingBytes;
@@ -101,7 +90,7 @@ public class TreeMemoryTargets {
     private final TreeMemoryTarget parent;
     private final String name;
     private final long capacity;
-    private final List<Spiller> spillers;
+    private final Spiller spiller;
     private final Map<String, MemoryUsageStatsBuilder> virtualChildren;
     private final SimpleMemoryUsageRecorder selfRecorder = new SimpleMemoryUsageRecorder();
 
@@ -109,7 +98,7 @@ public class TreeMemoryTargets {
         TreeMemoryTarget parent,
         String name,
         long capacity,
-        List<Spiller> spillers,
+        Spiller spiller,
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
       this.parent = parent;
       this.capacity = capacity;
@@ -119,7 +108,7 @@ public class TreeMemoryTargets {
       } else {
         this.name = String.format("%s, %s", uniqueName, Utils.bytesToString(capacity));
       }
-      this.spillers = Collections.unmodifiableList(spillers);
+      this.spiller = spiller;
       this.virtualChildren = virtualChildren;
     }
 
@@ -140,8 +129,8 @@ public class TreeMemoryTargets {
     }
 
     @Override
-    public List<Spiller> getNodeSpillers() {
-      return spillers;
+    public Spiller getNodeSpiller() {
+      return spiller;
     }
 
     private boolean ensureFreeCapacity(long bytesNeeded) {
@@ -209,9 +198,9 @@ public class TreeMemoryTargets {
     public TreeMemoryTarget newChild(
         String name,
         long capacity,
-        List<Spiller> spillers,
+        Spiller spiller,
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-      final Node child = new Node(this, name, capacity, spillers, virtualChildren);
+      final Node child = new Node(this, name, capacity, spiller, virtualChildren);
       if (children.containsKey(child.name())) {
         throw new IllegalArgumentException("Child already registered: " + child.name());
       }

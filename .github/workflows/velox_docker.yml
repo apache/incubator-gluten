@@ -41,15 +41,17 @@ on:
       - 'cpp/core/**'
       - 'dev/**'
 
+env:
+  MVN_CMD: 'mvn -ntp'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
-  build-native-lib:
+  build-native-lib-centos-7:
     runs-on: ubuntu-20.04
-    container: apache/gluten:gluten-vcpkg-builder_2024_03_17 # centos7 with dependencies installed
+    container: apache/gluten:gluten-vcpkg-builder_2024_05_29 # centos7 with dependencies installed
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
@@ -59,25 +61,33 @@ jobs:
         id: cache
         uses: actions/cache/restore@v3
         with:
-          path: ./cpp/build/releases/
+          path: |
+            ./cpp/build/releases/
+            ~/.m2/repository/org/apache/arrow/
           key: cache-velox-build-${{ hashFiles('./cache-key') }}
       - name: Build Gluten Velox third party
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           source dev/ci-velox-buildstatic.sh
-      - uses: actions/upload-artifact@v2
+      - name: Upload Artifact Native
+        uses: actions/upload-artifact@v2
         with:
           path: ./cpp/build/releases/
-          name: velox-native-lib-${{github.sha}}
+          name: velox-native-lib-centos-7-${{github.sha}}
+      - name: Upload Artifact Arrow Jar
+        uses: actions/upload-artifact@v2
+        with:
+          path: /root/.m2/repository/org/apache/arrow/
+          name: velox-arrow-jar-centos-7-${{github.sha}}
 
   run-tpc-test-ubuntu:
-    needs: build-native-lib
+    needs: build-native-lib-centos-7
     strategy:
       fail-fast: false
       matrix:
         os: [ "ubuntu:20.04", "ubuntu:22.04" ]
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
-        java: [ "java-8", "java-17" ]
+        java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
         exclude:
           - spark: spark-3.2
@@ -86,46 +96,69 @@ jobs:
             java: java-17
           - spark: spark-3.5
             java: java-17
+          - spark: spark-3.2
+            java: java-11
+          - spark: spark-3.3
+            java: java-11
+          - spark: spark-3.4
+            java: java-11
           - os: ubuntu:22.04
             java: java-17
+          - os: ubuntu:22.04
+            java: java-11
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Setup tzdata
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu:22.04" ]; then
+            apt-get update
+            TZ="Etc/GMT" DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
+          fi
       - name: Setup java and maven
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
             apt-get update && apt-get install -y openjdk-17-jdk maven
+            apt remove openjdk-11* -y
+          elif [ "${{ matrix.java }}" = "java-11" ]; then
+            apt-get update && apt-get install -y openjdk-11-jdk maven
           else
             apt-get update && apt-get install -y openjdk-8-jdk maven
+            apt remove openjdk-11* -y
           fi
-          apt remove openjdk-11* -y
+          ls -l /root/.m2/repository/org/apache/arrow/arrow-dataset/15.0.0-gluten/
       - name: Build and run TPCH/DS
         run: |
           cd $GITHUB_WORKSPACE/
           export JAVA_HOME=/usr/lib/jvm/${{ matrix.java }}-openjdk-amd64
           echo "JAVA_HOME: $JAVA_HOME"
-          mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} \
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
   run-tpc-test-centos:
-    needs: build-native-lib
+    needs: build-native-lib-centos-7
     strategy:
       fail-fast: false
       matrix:
         os: [ "centos:7", "centos:8" ]
         spark: [ "spark-3.2", "spark-3.3", "spark-3.4", "spark-3.5" ]
-        java: [ "java-8", "java-17" ]
+        java: [ "java-8", "java-11", "java-17" ]
         # Spark supports JDK17 since 3.3 and later, see https://issues.apache.org/jira/browse/SPARK-33772
         exclude:
           - spark: spark-3.2
@@ -134,26 +167,42 @@ jobs:
             java: java-17
           - spark: spark-3.5
             java: java-17
+          - spark: spark-3.2
+            java: java-11
+          - spark: spark-3.3
+            java: java-11
+          - spark: spark-3.4
+            java: java-11
           - os: centos:7
             java: java-17
+          - os: centos:7
+            java: java-11
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
-        if: matrix.os == 'centos:8'
         run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+          if [ "${{ matrix.os }}" = "centos:7" ] || [ "${{ matrix.os }}" = "centos:8" ]; then
+            sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+            sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+          fi
       - name: Setup java and maven
         run: |
           if [ "${{ matrix.java }}" = "java-17" ]; then
             yum update -y && yum install -y java-17-openjdk-devel wget
+          elif [ "${{ matrix.java }}" = "java-11" ]; then
+            yum update -y && yum install -y java-11-openjdk-devel wget
           else
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           fi
@@ -162,10 +211,11 @@ jobs:
           mv apache-maven-3.8.8 /usr/lib/maven
       - name: Set environment variables
         run: |
-          echo "MAVEN_HOME=/usr/lib/maven" >> $GITHUB_ENV
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
           if [ "${{ matrix.java }}" = "java-17" ]; then
             echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk" >> $GITHUB_ENV
+          elif [ "${{ matrix.java }}" = "java-11" ]; then
+            echo "JAVA_HOME=/usr/lib/jvm/java-11-openjdk" >> $GITHUB_ENV
           else
             echo "JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk" >> $GITHUB_ENV
           fi
@@ -173,9 +223,9 @@ jobs:
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
           cd $GITHUB_WORKSPACE/
-          mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          mvn -ntp clean install -P${{ matrix.spark }} -P${{ matrix.java }}
+          $MVN_CMD clean install -P${{ matrix.spark }} -P${{ matrix.java }}
       - name: Run TPC-H / TPC-DS
         run: |
           echo "JAVA_HOME: $JAVA_HOME"
@@ -190,13 +240,13 @@ jobs:
           cd $GITHUB_WORKSPACE/tools/gluten-it
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.sql.ras.enabled=true \
+            --extra-conf=spark.gluten.ras.enabled=true \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.sql.ras.enabled=true 
+            --extra-conf=spark.gluten.ras.enabled=true 
 
   run-tpc-test-ubuntu-oom:
-    needs: build-native-lib
+    needs: build-native-lib-centos-7
     strategy:
       fail-fast: false
       matrix:
@@ -216,11 +266,16 @@ jobs:
           sudo docker image prune --all --force > /dev/null
           df -h
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /home/runner/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
           sudo apt-get update
@@ -231,14 +286,14 @@ jobs:
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ 
-          mvn -ntp clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
+          $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          mvn -ntp clean install -P${{ matrix.spark }}
+          $MVN_CMD clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
       - name: TPC-DS SF30.0 Parquet local spark3.2 Q67/Q95 low memory, memory isolation off
         run: |
           cd tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh parameterized \
+          && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q67,q95 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
             --skip-data-gen -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
@@ -250,7 +305,7 @@ jobs:
       - name: TPC-DS SF30.0 Parquet local spark3.2 Q67 low memory, memory isolation on
         run: |
           cd tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh parameterized \
+          && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q67 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
             --skip-data-gen -m=OffHeapExecutionMemory \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
@@ -261,7 +316,7 @@ jobs:
       - name: (To be fixed) TPC-DS SF30.0 Parquet local spark3.2 Q95 low memory, memory isolation on
         run: |
           cd tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh parameterized \
+          && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q95 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
             --skip-data-gen -m=OffHeapExecutionMemory \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
@@ -272,19 +327,29 @@ jobs:
       - name: TPC-DS SF30.0 Parquet local spark3.2 Q23A/Q23B low memory
         run: |
           cd tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh parameterized \
+          && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q23a,q23b -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
             --skip-data-gen -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
-            -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
             -d=OFFHEAP_SIZE:2g,spark.memory.offHeap.size=2g \
             -d=FLUSH_MODE:DISABLED,spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
             -d=FLUSH_MODE:ABANDONED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
             -d=FLUSH_MODE:FLUSHED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=0.05,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=0.1,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0
-      - name: (To be fixed) TPC-DS SF30.0 Parquet local spark3.2 Q97 low memory # The case currently causes crash with "free: invalid size".
+      - name: (To be fixed) TPC-DS SF30.0 Parquet local spark3.2 Q23A/Q23B low memory, memory isolation on # Disabled as error https://gist.github.com/zhztheplayer/abd5e83ccdc48730678ae7ebae479fcc
         run: |
           cd tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh parameterized \
+          && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q23a,q23b -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
+            --skip-data-gen -m=OffHeapExecutionMemory \
+            -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
+            -d=OFFHEAP_SIZE:2g,spark.memory.offHeap.size=2g \
+            -d=FLUSH_MODE:DISABLED,spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
+            -d=FLUSH_MODE:ABANDONED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
+            -d=FLUSH_MODE:FLUSHED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=0.05,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=0.1,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 || true
+      - name: TPC-DS SF30.0 Parquet local spark3.2 Q97 low memory
+        run: |
+          cd tools/gluten-it \
+          && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q97 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
             --skip-data-gen -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
@@ -293,7 +358,7 @@ jobs:
             -d=OFFHEAP_SIZE:1g,spark.memory.offHeap.size=1g || true
 
   run-tpc-test-ubuntu-randomkill:
-    needs: build-native-lib
+    needs: build-native-lib-centos-7
     strategy:
       fail-fast: false
       matrix:
@@ -313,11 +378,16 @@ jobs:
           sudo docker image prune --all --force > /dev/null
           df -h
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /home/runner/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
           sudo apt-get update
@@ -328,84 +398,89 @@ jobs:
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/ 
-          mvn -ntp clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
+          $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
           cd $GITHUB_WORKSPACE/tools/gluten-it
-          mvn -ntp clean install -P${{ matrix.spark }}
+          $MVN_CMD clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
       - name: TPC-DS SF30.0 Parquet local spark3.2 random kill tasks
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries \
             --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --skip-data-gen  --random-kill-tasks
+            --skip-data-gen  --random-kill-tasks --no-session-reuse
 
-  run-tpc-test-ubuntu-sf30:
-    needs: build-native-lib
-    strategy:
-      fail-fast: false
-      matrix:
-        spark: [ "spark-3.4" ]
-        shard: [ "1/4", "2/4", "3/4", "4/4" ]
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Maximize build disk space
-        shell: bash
-        run: |
-          df -h
-          set -euo pipefail
-          echo "Removing unwanted software... "
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force > /dev/null
-          df -h
-      - uses: actions/checkout@v2
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
-      - name: Setup java and maven
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk maven
-      - name: Set environment variables
-        run: |
-          echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
-      - name: Build for Spark ${{ matrix.spark }}
-        run: |
-          cd $GITHUB_WORKSPACE/ 
-          mvn -ntp clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
-          cd $GITHUB_WORKSPACE/tools/gluten-it
-          mvn -ntp clean install -P${{ matrix.spark }}
-          GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=h -s=30.0 --threads=12
-          GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
-      - name: TPC-H / TPC-DS SF30.0 Parquet local ${{ matrix.spark }}
-        run: |
-          cd tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --skip-data-gen --shard=${{ matrix.shard }} \
-          && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --skip-data-gen --shard=${{ matrix.shard }}
+  # run-tpc-test-ubuntu-sf30:
+  #   needs: build-native-lib-centos-7
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       spark: [ "spark-3.4" ]
+  #       shard: [ "1/4", "2/4", "3/4", "4/4" ]
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: Maximize build disk space
+  #       shell: bash
+  #       run: |
+  #         df -h
+  #         set -euo pipefail
+  #         echo "Removing unwanted software... "
+  #         sudo rm -rf /usr/share/dotnet
+  #         sudo rm -rf /usr/local/lib/android
+  #         sudo rm -rf /opt/ghc
+  #         sudo rm -rf /opt/hostedtoolcache/CodeQL
+  #         sudo docker image prune --all --force > /dev/null
+  #         df -h
+  #     - uses: actions/checkout@v2
+  #     - name: Download All Artifacts
+  #       uses: actions/download-artifact@v2
+  #       with:
+  #         name: velox-native-lib-centos-7-${{github.sha}}
+  #         path: ./cpp/build/releases
+  #     - name: Setup java and maven
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y openjdk-8-jdk maven
+  #     - name: Set environment variables
+  #       run: |
+  #         echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
+  #     - name: Build for Spark ${{ matrix.spark }}
+  #       run: |
+  #         cd $GITHUB_WORKSPACE/ 
+  #         $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
+  #         cd $GITHUB_WORKSPACE/tools/gluten-it
+  #         $MVN_CMD clean install -P${{ matrix.spark }}
+  #         GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=h -s=30.0 --threads=12
+  #         GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
+  #     - name: TPC-H / TPC-DS SF30.0 Parquet local ${{ matrix.spark }}
+  #       run: |
+  #         cd tools/gluten-it \
+  #         && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
+  #           --local --preset=velox --benchmark-type=h --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
+  #           --skip-data-gen --shard=${{ matrix.shard }} \
+  #         && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
+  #           --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
+  #           --skip-data-gen --shard=${{ matrix.shard }}
 
   run-tpc-test-centos8-uniffle:
-    needs: build-native-lib
+    needs: build-native-lib-centos-7
     strategy:
       fail-fast: false
       matrix:
-        spark: ["spark-3.2"]
+        spark: [ "spark-3.2" ]
     runs-on: ubuntu-20.04
     container: centos:8
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
@@ -421,19 +496,19 @@ jobs:
           cd $GITHUB_WORKSPACE/ && \
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          mvn clean install -P${{ matrix.spark }} -Pbackends-velox -Puniffle -DskipTests
+          $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Puniffle -DskipTests
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with uniffle 0.8.0
         run: |
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          export export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
+          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd /opt && \
           git clone -b branch-0.8 https://github.com/apache/incubator-uniffle.git && \
           cd incubator-uniffle && \
           sed -i '250d' ./server/src/main/java/org/apache/uniffle/server/ShuffleTaskManager.java && \
           sed -i '228d' ./server/src/main/java/org/apache/uniffle/server/ShuffleTaskManager.java && \
           sed -i '226d' ./server/src/main/java/org/apache/uniffle/server/ShuffleTaskManager.java && \
-          mvn clean install -Phadoop2.8 -DskipTests
+          $MVN_CMD clean install -Phadoop2.8 -DskipTests
           cd /opt && \
           wget -nv https://archive.apache.org/dist/incubator/uniffle/0.8.0/apache-uniffle-0.8.0-incubating-bin.tar.gz && \
           tar xzf apache-uniffle-0.8.0-incubating-bin.tar.gz -C /opt/ && mv /opt/rss-0.8.0-hadoop2.8 /opt/uniffle && \
@@ -447,80 +522,171 @@ jobs:
           bash -c "echo -e 'rss.coordinator.shuffle.nodes.max 1\nrss.rpc.server.port 19999' > ./conf/coordinator.conf" && \
           bash -c "echo -e 'rss.server.app.expired.withoutHeartbeat 7200000\nrss.server.heartbeat.delay 3000\nrss.rpc.server.port 19997\nrss.jetty.http.port 19996\nrss.server.netty.port 19995\nrss.storage.basePath /opt/uniffle/shuffle_data\nrss.storage.type MEMORY_LOCALFILE\nrss.coordinator.quorum localhost:19999\nrss.server.flush.thread.alive 10\nrss.server.single.buffer.flush.threshold 64m' > ./conf/server.conf" && \
           bash ./bin/start-coordinator.sh && bash ./bin/start-shuffle-server.sh
-          cd $GITHUB_WORKSPACE/tools/gluten-it && mvn clean install -Pspark-3.2 -Puniffle && \
+          cd $GITHUB_WORKSPACE/tools/gluten-it && $MVN_CMD clean install -Pspark-3.2 -Puniffle && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-uniffle --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
   run-tpc-test-ubuntu-2204-celeborn:
-    needs: build-native-lib
+    needs: build-native-lib-centos-7
     strategy:
       fail-fast: false
       matrix:
-        spark: ["spark-3.2"]
-        celeborn: ["celeborn-0.4.0", "celeborn-0.3.2"]
+        spark: [ "spark-3.2" ]
+        celeborn: [ "celeborn-0.5.0", "celeborn-0.4.1", "celeborn-0.3.2-incubating" ]
     runs-on: ubuntu-20.04
     container: ubuntu:22.04
     steps:
       - uses: actions/checkout@v2
-      - name: Download All Artifacts
+      - name: Download All Native Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-native-lib-${{github.sha}}
-          path: ./cpp/build/releases
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/releases/
+      - name: Download All Arrow Jar Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-arrow-jar-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Setup tzdata
+        run: |
+          apt-get update
+          TZ="Etc/GMT" DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
       - name: Setup java and maven
         run: |
           apt-get update && apt-get install -y openjdk-8-jdk maven wget
+          apt remove openjdk-11* -y
+          echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
       - name: Build for Spark ${{ matrix.spark }}
         run: |
           cd $GITHUB_WORKSPACE/
-          mvn clean install -P${{ matrix.spark }} -Pbackends-velox -Pceleborn -DskipTests
+          $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Pceleborn -DskipTests
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with ${{ matrix.celeborn }}
         run: |
-          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           EXTRA_PROFILE=""
-          if [ "${{ matrix.celeborn }}" = "celeborn-0.4.0" ]; then
+          if [ "${{ matrix.celeborn }}" = "celeborn-0.4.1" ]; then
             EXTRA_PROFILE="-Pceleborn-0.4"
+          elif [ "${{ matrix.celeborn }}" = "celeborn-0.5.0" ]; then
+            EXTRA_PROFILE="-Pceleborn-0.5"
           fi
           echo "EXTRA_PROFILE: ${EXTRA_PROFILE}"
           cd /opt && mkdir -p celeborn && \
-          wget https://archive.apache.org/dist/incubator/celeborn/${{ matrix.celeborn }}-incubating/apache-${{ matrix.celeborn }}-incubating-bin.tgz && \
-          tar xzf apache-${{ matrix.celeborn }}-incubating-bin.tgz -C /opt/celeborn --strip-components=1 && cd celeborn && \
+          wget https://archive.apache.org/dist/celeborn/${{ matrix.celeborn }}/apache-${{ matrix.celeborn }}-bin.tgz && \
+          tar xzf apache-${{ matrix.celeborn }}-bin.tgz -C /opt/celeborn --strip-components=1 && cd celeborn && \
           mv ./conf/celeborn-env.sh.template ./conf/celeborn-env.sh && \
           bash -c "echo -e 'CELEBORN_MASTER_MEMORY=4g\nCELEBORN_WORKER_MEMORY=4g\nCELEBORN_WORKER_OFFHEAP_MEMORY=8g' > ./conf/celeborn-env.sh" && \
           bash -c "echo -e 'celeborn.worker.commitFiles.threads 128\nceleborn.worker.sortPartition.threads 64' > ./conf/celeborn-defaults.conf" && \
           bash ./sbin/start-master.sh && bash ./sbin/start-worker.sh && \
-          cd $GITHUB_WORKSPACE/tools/gluten-it && mvn clean install -Pspark-3.2 -Pceleborn ${EXTRA_PROFILE} && \
+          cd $GITHUB_WORKSPACE/tools/gluten-it && $MVN_CMD clean install -Pspark-3.2 -Pceleborn ${EXTRA_PROFILE} && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=8 --iterations=1 && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=8 --iterations=1
 
-  run-spark-test-spark32:
+  build-native-lib-centos-8:
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Generate cache key
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget numactl-devel -y && \
-          cd ep/build-velox/src && \
-          ./get_velox.sh && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
-      - name: Build Gluten CPP library
+          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './github/workflows/*') }} > cache-key
+      - name: Cache
+        id: cache
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            ./cpp/build/releases/
+            /root/.m2/repository/org/apache/arrow/
+          key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
+      - name: Update mirror list
         run: |
-          cd $GITHUB_WORKSPACE/cpp && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup build dependency
+        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
+          # Required by building arrow java.
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz && mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+      - name: Build Gluten Velox third party
+        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        run: |
+          source /opt/rh/gcc-toolset-9/enable
+          source ./dev/build_arrow.sh
+          install_arrow_deps
+          ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_tests=ON \
+              --build_examples=ON --build_benchmarks=ON --build_protobuf=ON
       - name: Gluten CPP Test
         run: |
-          cd $GITHUB_WORKSPACE/cpp/build && \
+          cd ./cpp/build && \
           ctest -V
-      - name: Setup java and maven
+      - uses: actions/upload-artifact@v2
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases/
+      - uses: actions/upload-artifact@v2
+        with:
+          name: udf-example-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
+      - uses: actions/upload-artifact@v2
+        with:
+          name: benchmark-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/benchmarks/
+      - uses: actions/upload-artifact@v2
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+
+  run-spark-test-spark32:
+    needs: build-native-lib-centos-8
+    runs-on: ubuntu-20.04
+    container: ghcr.io/facebookincubator/velox-dev:centos8
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download UDF Example Lib
+        uses: actions/download-artifact@v2
+        with:
+          name: udf-example-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
+      - name: Download Benchmark
+        uses: actions/download-artifact@v2
+        with:
+          name: benchmark-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/benchmarks/
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v2
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
         run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup build dependency
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.2.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -536,16 +702,15 @@ jobs:
           mv sql shims/spark32/spark_home/ && \
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
           pip3 install pyspark==3.2.2 cython && \
           pip3 install pandas pyarrow
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn -ntp clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg -Pdelta -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
-          mvn -ntp test -Pspark-3.2 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
+          $MVN_CMD clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg -Pdelta -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
+          $MVN_CMD test -Pspark-3.2 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -556,30 +721,47 @@ jobs:
         run: |
           # This test depends on example.json generated by the above mvn test.
           cd $GITHUB_WORKSPACE/cpp/build/velox/benchmarks && \
+          sudo chmod +x ./generic_benchmark && \
           ./generic_benchmark --run-example --with-shuffle --threads 1 --iterations 1
 
   run-spark-test-spark32-slow:
+    needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v2
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
-          cd ep/build-velox/src && \
-          ./get_velox.sh && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
-      - name: Build Gluten CPP library
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup build dependency
         run: |
-          cd $GITHUB_WORKSPACE/cpp && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON
-      - name: Setup java and maven
-        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.2.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE// && \
@@ -589,33 +771,52 @@ jobs:
           mv sql shims/spark32/spark_home/
       - name: Build and run unit test for Spark 3.2.2 (slow tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn -ntp clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg -Pdelta -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+          cd $GITHUB_WORKSPACE/
+          $MVN_CMD clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg -Pdelta -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark33:
+    needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download UDF Example Lib
+        uses: actions/download-artifact@v2
+        with:
+          name: udf-example-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v2
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
-          cd ep/build-velox/src && \
-          ./get_velox.sh && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
-      - name: Build Gluten CPP library
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup build dependency
         run: |
-          cd $GITHUB_WORKSPACE/cpp && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
-      - name: Setup java and maven
-        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.3.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -631,16 +832,15 @@ jobs:
           mv sql shims/spark33/spark_home/ && \
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
           pip3 install pyspark==3.3.1 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export SPARK_SCALA_VERSION=2.12 && \
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn -ntp clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
-          mvn -ntp test -Pspark-3.3 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
+          cd $GITHUB_WORKSPACE/
+          export SPARK_SCALA_VERSION=2.12
+          $MVN_CMD clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
+          $MVN_CMD test -Pspark-3.3 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -650,27 +850,43 @@ jobs:
 
 
   run-spark-test-spark33-slow:
+    needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v2
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
-          cd ep/build-velox/src && \
-          ./get_velox.sh && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
-      - name: Build Gluten CPP library
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup build dependency
         run: |
-          cd $GITHUB_WORKSPACE/cpp && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON
-      - name: Setup java and maven
-        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.3.1 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE// && \
@@ -680,33 +896,52 @@ jobs:
           mv sql shims/spark33/spark_home/
       - name: Build and Run unit test for Spark 3.3.1 (slow tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn -ntp clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+          cd $GITHUB_WORKSPACE/
+          $MVN_CMD clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark34:
+    needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download UDF Example Lib
+        uses: actions/download-artifact@v2
+        with:
+          name: udf-example-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v2
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
-          cd ep/build-velox/src && \
-          ./get_velox.sh && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
-      - name: Build Gluten CPP library
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup build dependency
         run: |
-          cd $GITHUB_WORKSPACE/cpp && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
-      - name: Setup java and maven
-        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.4.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -722,16 +957,15 @@ jobs:
           mv sql shims/spark34/spark_home/ && \
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
           pip3 install pyspark==3.4.2 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.4.2 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export SPARK_SCALA_VERSION=2.12 && \
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn -ntp clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
-          mvn -ntp test -Pspark-3.4 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
+          cd $GITHUB_WORKSPACE/
+          export SPARK_SCALA_VERSION=2.12
+          $MVN_CMD clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
+          $MVN_CMD test -Pspark-3.4 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -741,27 +975,43 @@ jobs:
 
 
   run-spark-test-spark34-slow:
+    needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v2
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
-          cd ep/build-velox/src && \
-          ./get_velox.sh && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
-      - name: Build Gluten CPP library
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup build dependency
         run: |
-          cd $GITHUB_WORKSPACE/cpp && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON
-      - name: Setup java and maven
-        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.4.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE// && \
@@ -772,32 +1022,51 @@ jobs:
       - name: Build and Run unit test for Spark 3.4.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          export MAVEN_HOME=/usr/lib/maven
-          export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn -ntp clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+          $MVN_CMD clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark35:
+    needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download UDF Example Lib
+        uses: actions/download-artifact@v2
+        with:
+          name: udf-example-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v2
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
-          cd ep/build-velox/src && \
-          ./get_velox.sh && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
-      - name: Build Gluten CPP library
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup build dependency
         run: |
-          cd $GITHUB_WORKSPACE/cpp && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
-      - name: Setup java and maven
-        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -813,16 +1082,15 @@ jobs:
           mv sql shims/spark35/spark_home/ && \
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
           pip3 install pyspark==3.5.1 cython && \
           pip3 install pandas pyarrow
       - name: Build and Run unit test for Spark 3.5.1 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export SPARK_SCALA_VERSION=2.12 && \
-          export MAVEN_HOME=/usr/lib/maven 
-          export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn -ntp clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
-          mvn -ntp test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
+          cd $GITHUB_WORKSPACE/
+          export SPARK_SCALA_VERSION=2.12
+          $MVN_CMD clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
+          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
       - name: Upload golden files
         if: failure()
         uses: actions/upload-artifact@v4
@@ -831,27 +1099,43 @@ jobs:
           path: /tmp/tpch-approved-plan/**
 
   run-spark-test-spark35-slow:
+    needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:circleci-avx
+    container: ghcr.io/facebookincubator/velox-dev:centos8
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
-      - name: Build Gluten velox third party
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v2
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
         run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y && \
-          cd ep/build-velox/src && \
-          ./get_velox.sh && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./build_velox.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_test_utils=ON
-      - name: Build Gluten CPP library
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup build dependency
         run: |
-          cd $GITHUB_WORKSPACE/cpp && \
-          source /opt/rh/gcc-toolset-9/enable && \
-          ./compile.sh --build_velox_backend=ON --build_protobuf=ON --build_tests=ON --build_examples=ON --build_benchmarks=ON
-      - name: Setup java and maven
-        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/ && \
@@ -868,6 +1152,4 @@ jobs:
       - name: Build and Run unit test for Spark 3.5.1 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          export MAVEN_HOME=/usr/lib/maven
-          export PATH=${PATH}:${MAVEN_HOME}/bin
-          mvn -ntp clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+          $MVN_CMD clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest

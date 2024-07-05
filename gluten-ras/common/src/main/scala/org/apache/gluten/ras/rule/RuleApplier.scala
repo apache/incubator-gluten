@@ -64,7 +64,7 @@ object RuleApplier {
         equiv =>
           closure
             .openFor(cKey)
-            .memorize(equiv, ras.propertySetFactory().get(equiv))
+            .memorize(equiv, ras.anyPropSet())
       }
     }
 

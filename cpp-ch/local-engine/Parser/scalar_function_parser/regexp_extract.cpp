@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#include <stack>
+
 #include <Parser/FunctionParser.h>
 
 namespace DB
@@ -56,10 +58,11 @@ public:
                 size_t expr_size = expr_str.size();
                 if (expr_str.data()[expr_size - 1] == '$')
                     expr_str.replace(expr_str.find_last_of("$"), 1, "(?:(\n)*)$");
-                
-                const auto * regex_expr_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), expr_str);
+
+                String sparkRegexp = adjustSparkRegexpRule(expr_str);
+                const auto * regex_expr_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), sparkRegexp);
                 auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
-                parsed_args[1] =  regex_expr_node;
+                parsed_args[1] = regex_expr_node;
                 const auto * result_node = toFunctionNode(actions_dag, "regexpExtract", parsed_args);
                 return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
             }
@@ -68,6 +71,77 @@ public:
         }
         else
             throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {} 2nd argument's type must be const", getName());
+    }
+
+private:
+    String adjustSparkRegexpRule(String & str) const
+    {
+        const auto left_bracket_pos = str.find('[');
+        const auto right_bracket_pos = str.find(']');
+
+        if (left_bracket_pos == str.npos || right_bracket_pos == str.npos || left_bracket_pos >= right_bracket_pos)
+            return str;
+
+        auto throw_message = [this, &str]() -> void {
+            throw Exception(
+                ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The value of parameter(s) 'regexp' in `{}` is invalid: '{}'", getName(), str);
+        };
+
+        ReadBufferFromString buf(str);
+        std::stack<String> strs;
+        strs.emplace("");
+        bool nead_right_bracket = false;
+
+        while (!buf.eof())
+        {
+            if (*buf.position() == '[')
+            {
+                strs.emplace("");
+            }
+            else if (*buf.position() == ']')
+            {
+                if (strs.size() == 1)
+                {
+                    // "ab]c"
+                    strs.top().append("]");
+                }
+                else
+                {
+                    String back = strs.top();
+                    strs.pop();
+                    if (strs.size() == 1)
+                    {
+                        // "abc[abc]abc"
+                        strs.top().append("[").append(back).append("]");
+                        nead_right_bracket = false;
+                    }
+                    else
+                    {
+                        // "abc[a[abc]c]abc"
+                        strs.top().append(back);
+                        nead_right_bracket = true;
+                    }
+                }
+            }
+            else
+            {
+                strs.top() += *buf.position();
+            }
+
+            ++buf.position();
+        }
+
+        if (nead_right_bracket && strs.size() != 1)
+            throw_message();
+
+        while (strs.size() != 1)
+        {
+            String back = strs.top();
+            strs.pop();
+            strs.top().append("[").append(back);
+        }
+
+        return strs.top();
     }
 };
 

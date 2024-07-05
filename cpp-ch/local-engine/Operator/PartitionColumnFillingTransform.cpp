@@ -21,7 +21,7 @@
 #include <Functions/FunctionHelpers.h>
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
-#include <Common/StringUtils.h>
+#include <Common/GlutenStringUtils.h>
 
 using namespace DB;
 
@@ -77,7 +77,7 @@ ColumnPtr PartitionColumnFillingTransform::createPartitionColumn()
     if (const DataTypeNullable * nullable_type = checkAndGetDataType<DataTypeNullable>(partition_col_type.get()))
     {
         nested_type = nullable_type->getNestedType();
-        if (StringUtils::isNullPartitionValue(partition_col_value))
+        if (GlutenStringUtils::isNullPartitionValue(partition_col_value))
         {
             return nullable_type->createColumnConstWithDefaultValue(1);
         }

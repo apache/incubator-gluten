@@ -36,7 +36,11 @@ object CountDistinctWithoutExpand extends Rule[LogicalPlan] {
       GlutenConfig.getConf.enableGluten && GlutenConfig.getConf.enableCountDistinctWithoutExpand
     ) {
       plan.transformAllExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
-        case ae: AggregateExpression if ae.isDistinct && ae.aggregateFunction.isInstanceOf[Count] =>
+        case ae: AggregateExpression
+            if ae.isDistinct && ae.aggregateFunction.isInstanceOf[Count] &&
+              // The maximum number of arguments for aggregate function with Nullable types in CH
+              // backend is 8
+              ae.aggregateFunction.children.size <= 8 =>
           ae.copy(
             aggregateFunction =
               CountDistinct.apply(ae.aggregateFunction.asInstanceOf[Count].children),

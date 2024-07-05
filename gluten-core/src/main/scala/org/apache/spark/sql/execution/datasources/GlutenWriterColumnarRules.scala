@@ -19,11 +19,12 @@ package org.apache.spark.sql.execution.datasources
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.ColumnarToRowExecBase
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.transition.Transitions
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
@@ -64,11 +65,16 @@ case class FakeRowAdaptor(child: SparkPlan)
     doExecuteColumnar().map(cb => new FakeRow(cb))
   }
 
+  override def outputOrdering: Seq[SortOrder] = child match {
+    case aqe: AdaptiveSparkPlanExec => aqe.executedPlan.outputOrdering
+    case _ => child.outputOrdering
+  }
+
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     if (child.supportsColumnar) {
       child.executeColumnar()
     } else {
-      val r2c = BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
+      val r2c = Transitions.toBackendBatchPlan(child)
       r2c.executeColumnar()
     }
   }
@@ -156,19 +162,28 @@ object GlutenWriterColumnarRules {
           if write.getClass.getName == NOOP_WRITE &&
             BackendsApiManager.getSettings.enableNativeWriteFiles() =>
         injectFakeRowAdaptor(rc, rc.child)
-      case rc @ DataWritingCommandExec(cmd, child)
-          if BackendsApiManager.getSettings.supportNativeWrite(child.output.toStructType.fields) =>
-        val format = getNativeFormat(cmd)
-        session.sparkContext.setLocalProperty(
-          "staticPartitionWriteOnly",
-          BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
-        // FIXME: We should only use context property if having no other approaches.
-        //  Should see if there is another way to pass these options.
-        session.sparkContext.setLocalProperty("isNativeAppliable", format.isDefined.toString)
-        session.sparkContext.setLocalProperty("nativeFormat", format.getOrElse(""))
-        if (format.isDefined) {
-          injectFakeRowAdaptor(rc, child)
+      case rc @ DataWritingCommandExec(cmd, child) =>
+        if (BackendsApiManager.getSettings.supportNativeWrite(child.output.toStructType.fields)) {
+          val format = getNativeFormat(cmd)
+          session.sparkContext.setLocalProperty(
+            "staticPartitionWriteOnly",
+            BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
+          // FIXME: We should only use context property if having no other approaches.
+          //  Should see if there is another way to pass these options.
+          session.sparkContext.setLocalProperty("isNativeAppliable", format.isDefined.toString)
+          session.sparkContext.setLocalProperty("nativeFormat", format.getOrElse(""))
+          if (format.isDefined) {
+            injectFakeRowAdaptor(rc, child)
+          } else {
+            rc.withNewChildren(rc.children.map(apply))
+          }
         } else {
+          session.sparkContext.setLocalProperty(
+            "staticPartitionWriteOnly",
+            BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
+          session.sparkContext.setLocalProperty("isNativeAppliable", "false")
+          session.sparkContext.setLocalProperty("nativeFormat", "")
+
           rc.withNewChildren(rc.children.map(apply))
         }
       case plan: SparkPlan => plan.withNewChildren(plan.children.map(apply))

@@ -29,26 +29,33 @@ import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.util.{InternalRowComparableWrapper, TimestampFormatter}
+import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, InternalRowComparableWrapper, TimestampFormatter}
+import org.apache.spark.sql.catalyst.util.RebaseDateTime.RebaseSpec
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan}
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFilters
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.SQLConf.LegacyBehaviorPolicy
+import org.apache.spark.sql.types.{IntegerType, LongType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
 import java.util.{HashMap => JHashMap, Map => JMap}
@@ -70,7 +77,10 @@ class Spark34Shims extends SparkShims {
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
       Sig[KnownNullable](KNOWN_NULLABLE),
-      Sig[Empty2Null](ExpressionNames.EMPTY2NULL)
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
+      Sig[TimestampAdd](ExpressionNames.TIMESTAMP_ADD),
+      Sig[RoundFloor](ExpressionNames.FLOOR),
+      Sig[RoundCeil](ExpressionNames.CEIL)
     )
   }
 
@@ -205,6 +215,11 @@ class Spark34Shims extends SparkShims {
     case other => other
   }
 
+  override def getFileSizeAndModificationTime(
+      file: PartitionedFile): (Option[Long], Option[Long]) = {
+    (Some(file.fileSize), Some(file.modificationTime))
+  }
+
   override def generateMetadataColumns(
       file: PartitionedFile,
       metadataColumnNames: Seq[String]): JMap[String, String] = {
@@ -228,8 +243,9 @@ class Spark34Shims extends SparkShims {
         case _ =>
       }
     }
-
-    // TODO: row_index metadata support
+    metadataColumn.put(InputFileName().prettyName, file.filePath.toString)
+    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
+    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
     metadataColumn
   }
 
@@ -324,6 +340,37 @@ class Spark34Shims extends SparkShims {
 
   def getFileStatus(partition: PartitionDirectory): Seq[FileStatus] = partition.files
 
+  def isFileSplittable(
+      relation: HadoopFsRelation,
+      filePath: Path,
+      sparkSchema: StructType): Boolean = {
+    // SPARK-39634: Allow file splitting in combination with row index generation once
+    // the fix for PARQUET-2161 is available.
+    relation.fileFormat
+      .isSplitable(relation.sparkSession, relation.options, filePath) &&
+    !(RowIndexUtil.findRowIndexColumnIndexInSchema(sparkSchema) >= 0)
+  }
+
+  def isRowIndexMetadataColumn(name: String): Boolean = {
+    name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME
+  }
+
+  def findRowIndexColumnIndexInSchema(sparkSchema: StructType): Int = {
+    sparkSchema.fields.zipWithIndex.find {
+      case (field: StructField, _: Int) =>
+        field.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME
+    } match {
+      case Some((field: StructField, idx: Int)) =>
+        if (field.dataType != LongType && field.dataType != IntegerType) {
+          throw new RuntimeException(
+            s"${FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME} " +
+              s"must be of LongType or IntegerType")
+        }
+        idx
+      case _ => -1
+    }
+  }
+
   def splitFiles(
       sparkSession: SparkSession,
       file: FileStatus,
@@ -400,6 +447,9 @@ class Spark34Shims extends SparkShims {
   override def withTryEvalMode(expr: Expression): Boolean = {
     expr match {
       case a: Add => a.evalMode == EvalMode.TRY
+      case s: Subtract => s.evalMode == EvalMode.TRY
+      case d: Divide => d.evalMode == EvalMode.TRY
+      case m: Multiply => m.evalMode == EvalMode.TRY
       case _ => false
     }
   }
@@ -407,7 +457,39 @@ class Spark34Shims extends SparkShims {
   override def withAnsiEvalMode(expr: Expression): Boolean = {
     expr match {
       case a: Add => a.evalMode == EvalMode.ANSI
+      case s: Subtract => s.evalMode == EvalMode.ANSI
+      case d: Divide => d.evalMode == EvalMode.ANSI
+      case m: Multiply => m.evalMode == EvalMode.ANSI
       case _ => false
     }
+  }
+
+  override def dateTimestampFormatInReadIsDefaultValue(
+      csvOptions: CSVOptions,
+      timeZone: String): Boolean = {
+    val default = new CSVOptions(CaseInsensitiveMap(Map()), csvOptions.columnPruning, timeZone)
+    csvOptions.dateFormatInRead == default.dateFormatInRead &&
+    csvOptions.timestampFormatInRead == default.timestampFormatInRead &&
+    csvOptions.timestampNTZFormatInRead == default.timestampNTZFormatInRead
+  }
+
+  override def isPlannedV1Write(write: DataWritingCommandExec): Boolean = {
+    write.cmd.isInstanceOf[V1WriteCommand] && SQLConf.get.plannedWriteEnabled
+  }
+
+  override def createParquetFilters(
+      conf: SQLConf,
+      schema: MessageType,
+      caseSensitive: Option[Boolean] = None): ParquetFilters = {
+    new ParquetFilters(
+      schema,
+      conf.parquetFilterPushDownDate,
+      conf.parquetFilterPushDownTimestamp,
+      conf.parquetFilterPushDownDecimal,
+      conf.parquetFilterPushDownStringPredicate,
+      conf.parquetFilterPushDownInFilterThreshold,
+      caseSensitive.getOrElse(conf.caseSensitiveAnalysis),
+      RebaseSpec(LegacyBehaviorPolicy.CORRECTED)
+    )
   }
 }

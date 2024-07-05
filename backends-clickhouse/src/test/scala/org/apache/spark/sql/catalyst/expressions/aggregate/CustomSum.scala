@@ -21,7 +21,6 @@ import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.trees.TreePattern.{SUM, TreePattern}
 import org.apache.spark.sql.catalyst.trees.UnaryLike
-import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -43,8 +42,7 @@ case class CustomSum(child: Expression, failOnError: Boolean = SQLConf.get.ansiE
   override def inputTypes: Seq[AbstractDataType] =
     Seq(TypeCollection(NumericType, YearMonthIntervalType, DayTimeIntervalType))
 
-  override def checkInputDataTypes(): TypeCheckResult =
-    TypeUtils.checkForAnsiIntervalOrNumericType(child.dataType, "sum")
+  override def checkInputDataTypes(): TypeCheckResult = TypeCheckResult.TypeCheckSuccess
 
   final override val nodePatterns: Seq[TreePattern] = Seq(SUM)
 
@@ -141,11 +139,7 @@ case class CustomSum(child: Expression, failOnError: Boolean = SQLConf.get.ansiE
    * overflow has happened. So now, if ansi is enabled, then throw exception, if not then return
    * null. If sum is not null, then return the sum.
    */
-  override lazy val evaluateExpression: Expression = resultType match {
-    case d: DecimalType =>
-      If(isEmpty, Literal.create(null, resultType), CheckOverflowInSum(sum, d, !failOnError))
-    case _ => sum
-  }
+  override lazy val evaluateExpression: Expression = sum
 
   override protected def withNewChildInternal(newChild: Expression): CustomSum =
     copy(child = newChild)

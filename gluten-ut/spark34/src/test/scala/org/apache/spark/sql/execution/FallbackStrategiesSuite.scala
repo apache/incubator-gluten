@@ -19,8 +19,9 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.BasicScanExecTransformer
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.{FallbackEmptySchemaRelation, InsertTransitions, TRANSFORM_UNSUPPORTED, TransformHints}
+import org.apache.gluten.extension.columnar.{FallbackEmptySchemaRelation, FallbackTags, TRANSFORM_UNSUPPORTED}
 import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
+import org.apache.gluten.extension.columnar.transition.InsertTransitions
 import org.apache.gluten.utils.QueryPlanSelector
 
 import org.apache.spark.rdd.RDD
@@ -124,10 +125,10 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
 
   testGluten("Tag not transformable more than once") {
     val originalPlan = UnaryOp1(LeafOp(supportsColumnar = true))
-    TransformHints.tag(originalPlan, TRANSFORM_UNSUPPORTED(Some("fake reason")))
+    FallbackTags.tag(originalPlan, TRANSFORM_UNSUPPORTED(Some("fake reason")))
     val rule = FallbackEmptySchemaRelation()
     val newPlan = rule.apply(originalPlan)
-    val reason = TransformHints.getHint(newPlan).asInstanceOf[TRANSFORM_UNSUPPORTED].reason
+    val reason = FallbackTags.getTag(newPlan).asInstanceOf[TRANSFORM_UNSUPPORTED].reason
     assert(reason.isDefined)
     if (BackendsApiManager.getSettings.fallbackOnEmptySchema(newPlan)) {
       assert(

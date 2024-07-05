@@ -17,15 +17,18 @@
 package org.apache.gluten.vectorized;
 
 import org.apache.gluten.metrics.IMetrics;
+import org.apache.gluten.metrics.NativeMetrics;
 
 import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BatchIterator extends GeneralOutIterator {
   private final long handle;
+  private final AtomicBoolean cancelled = new AtomicBoolean(false);
 
   public BatchIterator(long handle) {
     super();
@@ -46,7 +49,9 @@ public class BatchIterator extends GeneralOutIterator {
 
   private native void nativeClose(long nativeHandle);
 
-  private native IMetrics nativeFetchMetrics(long nativeHandle);
+  private native void nativeCancel(long nativeHandle);
+
+  private native String nativeFetchMetrics(long nativeHandle);
 
   @Override
   public boolean hasNextInternal() throws IOException {
@@ -68,12 +73,19 @@ public class BatchIterator extends GeneralOutIterator {
   }
 
   @Override
-  public IMetrics getMetricsInternal() throws IOException, ClassNotFoundException {
-    return nativeFetchMetrics(handle);
+  public IMetrics getMetricsInternal() {
+    return new NativeMetrics(nativeFetchMetrics(handle));
   }
 
   @Override
   public void closeInternal() {
     nativeClose(handle);
+  }
+
+  // Used to cancel native pipeline execution when spark task is killed
+  public final void cancel() {
+    if (cancelled.compareAndSet(false, true)) {
+      nativeCancel(handle);
+    }
   }
 }

@@ -54,7 +54,7 @@ case class CHGenerateExecTransformer(
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
       "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
       "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
-      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "time")
     )
 
   override def metricsUpdater(): MetricsUpdater = new GenerateMetricsUpdater(metrics)

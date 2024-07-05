@@ -23,7 +23,7 @@ import org.apache.gluten.row.SparkRowInfo
 import org.apache.gluten.vectorized._
 import org.apache.gluten.vectorized.BlockSplitIterator.IteratorOptions
 
-import org.apache.spark.ShuffleDependency
+import org.apache.spark.{Partitioner, ShuffleDependency}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
@@ -33,7 +33,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BindReferences, BoundReference, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.catalyst.plans.physical.{SinglePartition, _}
-import org.apache.spark.sql.execution.{PartitionIdPassthrough, SparkPlan}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleWriteMetricsReporter}
 import org.apache.spark.sql.internal.SQLConf
@@ -353,4 +353,9 @@ object CHExecUtil extends Logging {
 
     dependency
   }
+}
+
+// Copy from the Vanilla Spark
+private class PartitionIdPassthrough(override val numPartitions: Int) extends Partitioner {
+  override def getPartition(key: Any): Int = key.asInstanceOf[Int]
 }

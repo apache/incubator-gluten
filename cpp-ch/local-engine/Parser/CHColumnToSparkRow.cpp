@@ -121,9 +121,9 @@ static void writeFixedLengthNullableValue(
     const std::vector<int64_t> & offsets,
     const MaskVector & masks = nullptr)
 {
-    const auto * nullable_column = checkAndGetColumn<ColumnNullable>(*col.column);
-    const auto & null_map = nullable_column->getNullMapData();
-    const auto & nested_column = nullable_column->getNestedColumn();
+    const auto & nullable_column = checkAndGetColumn<ColumnNullable>(*col.column);
+    const auto & null_map = nullable_column.getNullMapData();
+    const auto & nested_column = nullable_column.getNestedColumn();
     FixedLengthDataWriter writer(col.type);
 
     if (writer.getWhichDataType().isDecimal32())
@@ -215,9 +215,9 @@ static void writeVariableLengthNullableValue(
     std::vector<int64_t> & buffer_cursor,
     const MaskVector & masks = nullptr)
 {
-    const auto * nullable_column = checkAndGetColumn<ColumnNullable>(*col.column);
-    const auto & null_map = nullable_column->getNullMapData();
-    const auto & nested_column = nullable_column->getNestedColumn();
+    const auto & nullable_column = checkAndGetColumn<ColumnNullable>(*col.column);
+    const auto & null_map = nullable_column.getNullMapData();
+    const auto & nested_column = nullable_column.getNestedColumn();
     const auto type_without_nullable{removeNullable(col.type)};
     const bool use_raw_data = BackingDataLengthCalculator::isDataTypeSupportRawData(type_without_nullable);
     const bool big_endian = BackingDataLengthCalculator::isBigEndianInSparkRow(type_without_nullable);
@@ -331,8 +331,7 @@ SparkRowInfo::SparkRowInfo(
             if (BackingDataLengthCalculator::isDataTypeSupportRawData(type_without_nullable))
             {
                 auto column = col.column->convertToFullIfNeeded();
-                const auto * nullable_column = checkAndGetColumn<ColumnNullable>(*column);
-                if (nullable_column)
+                if (const auto * nullable_column = checkAndGetColumn<ColumnNullable>(&*column))
                 {
                     const auto & nested_column = nullable_column->getNestedColumn();
                     const auto & null_map = nullable_column->getNullMapData();
@@ -454,7 +453,7 @@ std::unique_ptr<SparkRowInfo> CHColumnToSparkRow::convertCHColumnToSparkRow(cons
     if (!block.columns())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "A block with empty columns");
     std::unique_ptr<SparkRowInfo> spark_row_info = std::make_unique<SparkRowInfo>(block, masks);
-    spark_row_info->setBufferAddress(reinterpret_cast<char *>(alloc(spark_row_info->getTotalBytes(), 64)));
+    spark_row_info->setBufferAddress(static_cast<char *>(alloc(spark_row_info->getTotalBytes(), 64)));
     // spark_row_info->setBufferAddress(alignedAlloc(spark_row_info->getTotalBytes(), 64));
     memset(spark_row_info->getBufferAddress(), 0, spark_row_info->getTotalBytes());
     for (auto col_idx = 0; col_idx < spark_row_info->getNumCols(); col_idx++)
@@ -819,6 +818,11 @@ int64_t VariableLengthDataWriter::writeStruct(size_t row_idx, const DB::Tuple & 
             {
                 // Fix 'Invalid Field get from type Float64 to type Int64' in debug build.
                 auto v = field_value.get<Float64>();
+                writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
+            }
+            else if (writer.getWhichDataType().isDecimal64() || writer.getWhichDataType().isDateTime64())
+            {
+                auto v = field_value.get<Decimal64>();
                 writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
             }
             else

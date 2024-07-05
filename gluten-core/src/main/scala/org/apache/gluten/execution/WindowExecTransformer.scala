@@ -179,8 +179,8 @@ case class WindowExecTransformer(
     doNativeValidation(substraitContext, relNode)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     if (windowExpression == null || windowExpression.isEmpty) {
       // The computing for this operator is not needed.
@@ -196,17 +196,4 @@ case class WindowExecTransformer(
 
   override protected def withNewChildInternal(newChild: SparkPlan): WindowExecTransformer =
     copy(child = newChild)
-}
-
-object WindowExecTransformer {
-
-  /** Gets lower/upper bound represented in string. */
-  def getFrameBound(bound: Expression): String = {
-    // The lower/upper can be either a foldable Expression or a SpecialFrameBoundary.
-    if (bound.foldable) {
-      bound.eval().toString
-    } else {
-      bound.sql
-    }
-  }
 }

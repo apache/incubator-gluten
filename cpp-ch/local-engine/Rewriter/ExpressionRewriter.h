@@ -38,7 +38,7 @@ public:
 
     void rewrite(substrait::Rel & rel) override
     {
-        if (!rel.has_project())
+        if (!rel.has_filter() && !rel.has_project())
         {
             return;
         }
@@ -51,6 +51,11 @@ private:
     /// Collect all get_json_object functions and group by json strings
     void prepare(const substrait::Rel & rel)
     {
+        if (rel.has_filter())
+        {
+            auto & expr = rel.filter().condition();
+            prepareOnExpression(expr);
+        }
         if (rel.has_project())
         {
             for (auto & expr : rel.project().expressions())
@@ -62,6 +67,12 @@ private:
 
     void rewriteImpl(substrait::Rel & rel)
     {
+        if (rel.has_filter())
+        {
+            auto * filter = rel.mutable_filter();
+            auto * expression = filter->mutable_condition();
+            rewriteExpression(*expression);
+        }
         if (rel.has_project())
         {
             auto * project = rel.mutable_project();

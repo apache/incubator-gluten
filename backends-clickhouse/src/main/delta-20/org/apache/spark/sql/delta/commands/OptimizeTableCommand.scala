@@ -32,6 +32,7 @@ import org.apache.spark.sql.delta.schema.SchemaUtils
 import org.apache.spark.sql.delta.skipping.MultiDimClustering
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.command.{LeafRunnableCommand, RunnableCommand}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSourceUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -127,8 +128,10 @@ case class OptimizeTableCommand(
   override val otherCopyArgs: Seq[AnyRef] = zOrderBy :: Nil
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
+    // --- modified start
     CHDataSourceUtils.ensureClickHouseTableV2(tableId, sparkSession)
     val deltaLog = getDeltaLogClickhouse(sparkSession, path, tableId, "OPTIMIZE")
+    // --- modified end
 
     val partitionColumns = deltaLog.snapshot.metadata.partitionColumns
     // Parse the predicate expression into Catalyst expression and verify only simple filters
@@ -177,6 +180,10 @@ class OptimizeExecutor(
 
   def optimize(): Seq[Row] = {
     recordDeltaOperation(deltaLog, "delta.optimize") {
+      // --- modified start
+      val isMergeTreeFormat = ClickHouseConfig
+        .isMergeTreeFormatEngine(deltaLog.snapshot.metadata.configuration)
+      // --- modified end
       val minFileSize =
         sparkSession.sessionState.conf.getConf(DeltaSQLConf.DELTA_OPTIMIZE_MIN_FILE_SIZE)
       val maxFileSize =
@@ -194,37 +201,59 @@ class OptimizeExecutor(
 
       // select all files in case of multi-dimensional clustering
       val filesToProcess = candidateFiles.filter(_.size < minFileSize || isMultiDimClustering)
-      val partitionsToCompact = filesToProcess
-        .groupBy(file => (file.asInstanceOf[AddMergeTreeParts].bucketNum, file.partitionValues))
-        .toSeq
 
-      val jobs = groupFilesIntoBinsClickhouse(partitionsToCompact, maxFileSize)
-
-      val parallelJobCollection = new ParVector(jobs.toVector)
-
+      // --- modified start
       // Create a task pool to parallelize the submission of optimization jobs to Spark.
       val threadPool = ThreadUtils.newForkJoinPool(
         "OptimizeJob",
         sparkSession.sessionState.conf.getConf(DeltaSQLConf.DELTA_OPTIMIZE_MAX_THREADS))
+      val (updates, jobs) = if (isMergeTreeFormat) {
+        val partitionsToCompact = filesToProcess
+          .groupBy(file => (file.asInstanceOf[AddMergeTreeParts].bucketNum, file.partitionValues))
+          .toSeq
 
-      val updates =
-        try {
+        val jobs = groupFilesIntoBinsClickhouse(partitionsToCompact, maxFileSize)
+
+        val parallelJobCollection = new ParVector(jobs.toVector)
+
+        val updates =
+          try {
+            val forkJoinPoolTaskSupport = new ForkJoinTaskSupport(threadPool)
+            parallelJobCollection.tasksupport = forkJoinPoolTaskSupport
+
+            parallelJobCollection
+              .flatMap(
+                partitionBinGroup =>
+                  runOptimizeBinJobClickhouse(
+                    txn,
+                    partitionBinGroup._1._2,
+                    partitionBinGroup._1._1,
+                    partitionBinGroup._2,
+                    maxFileSize))
+              .seq
+          } finally {
+            threadPool.shutdownNow()
+          }
+        (updates, jobs)
+      } else {
+        val partitionsToCompact = filesToProcess.groupBy(_.partitionValues).toSeq
+
+        val jobs = groupFilesIntoBins(partitionsToCompact, maxFileSize)
+
+        val parallelJobCollection = new ParVector(jobs.toVector)
+
+        val updates = try {
           val forkJoinPoolTaskSupport = new ForkJoinTaskSupport(threadPool)
           parallelJobCollection.tasksupport = forkJoinPoolTaskSupport
 
-          parallelJobCollection
-            .flatMap(
-              partitionBinGroup =>
-                runOptimizeBinJobClickhouse(
-                  txn,
-                  partitionBinGroup._1._2,
-                  partitionBinGroup._1._1,
-                  partitionBinGroup._2,
-                  maxFileSize))
-            .seq
+          parallelJobCollection.flatMap(partitionBinGroup =>
+            runOptimizeBinJob(txn, partitionBinGroup._1, partitionBinGroup._2, maxFileSize)).seq
         } finally {
           threadPool.shutdownNow()
         }
+        (updates, jobs)
+      }
+      // --- modified end
 
       val addedFiles = updates.collect { case a: AddFile => a }
       val removedFiles = updates.collect { case r: RemoveFile => r }

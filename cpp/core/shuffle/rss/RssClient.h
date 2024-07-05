@@ -21,7 +21,7 @@ class RssClient {
  public:
   virtual ~RssClient() = default;
 
-  virtual int32_t pushPartitionData(int32_t partitionId, char* bytes, int64_t size) = 0;
+  virtual int32_t pushPartitionData(int32_t partitionId, const char* bytes, int64_t size) = 0;
 
   virtual void stop() = 0;
 };

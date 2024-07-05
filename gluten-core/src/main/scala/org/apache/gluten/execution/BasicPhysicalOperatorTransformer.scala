@@ -129,8 +129,8 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     doNativeValidation(substraitContext, relNode)
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val remainingCondition = getRemainingCondition
     val operatorId = context.nextOperatorId(this.nodeName)
     if (remainingCondition == null) {
@@ -190,7 +190,7 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(metrics)
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     if ((projectList == null || projectList.isEmpty) && childCtx != null) {
       // The computing for this project is not needed.
@@ -365,7 +365,7 @@ object FilterHandler extends PredicateHelper {
    *   the filter conditions not pushed down into Scan.
    */
   def getRemainingFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] =
-    (ExpressionSet(filters) -- ExpressionSet(scanFilters)).toSeq
+    (filters.toSet -- scanFilters.toSet).toSeq
 
   // Separate and compare the filter conditions in Scan and Filter.
   // Try to push down the remaining conditions in Filter into Scan.

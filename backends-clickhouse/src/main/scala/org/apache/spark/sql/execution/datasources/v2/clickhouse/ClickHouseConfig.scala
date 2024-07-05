@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution.datasources.v2.clickhouse
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.connector.catalog.TableCatalog
 
 import java.util
 
@@ -29,7 +28,8 @@ object ClickHouseConfig {
   val NAME = "clickhouse"
   val ALT_NAME = "clickhouse"
   val METADATA_DIR = "_delta_log"
-  val DEFAULT_ENGINE = "MergeTree"
+  val FORMAT_ENGINE = "engine"
+  val DEFAULT_ENGINE = "mergetree"
   val OPT_NAME_PREFIX = "clickhouse."
 
   @deprecated
@@ -47,16 +47,15 @@ object ClickHouseConfig {
       buckets: Option[BucketSpec] = None): Map[String, String] = {
     val configurations = scala.collection.mutable.Map[String, String]()
     allProperties.asScala.foreach(configurations += _)
-    configurations.put(TableCatalog.PROP_PROVIDER, ClickHouseConfig.NAME)
     if (!configurations.contains("metadata_path")) {
       configurations += ("metadata_path" -> METADATA_DIR)
     }
-    if (!configurations.contains("engine")) {
-      configurations += ("engine" -> DEFAULT_ENGINE)
+    if (!configurations.contains(FORMAT_ENGINE)) {
+      configurations += (FORMAT_ENGINE -> DEFAULT_ENGINE)
     } else {
-      val engineValue = configurations.get("engine")
+      val engineValue = configurations.get(FORMAT_ENGINE)
       if (!engineValue.equals(DEFAULT_ENGINE) && !engineValue.equals("parquet")) {
-        configurations += ("engine" -> DEFAULT_ENGINE)
+        configurations += (FORMAT_ENGINE -> DEFAULT_ENGINE)
       }
     }
     if (!configurations.contains("sampling_key")) {
@@ -78,6 +77,11 @@ object ClickHouseConfig {
       }
     }
     configurations.toMap
+  }
+
+  def isMergeTreeFormatEngine(configuration: Map[String, String]): Boolean = {
+    configuration.contains(FORMAT_ENGINE) &&
+    configuration.get(FORMAT_ENGINE).get.equals(DEFAULT_ENGINE)
   }
 
   /** Get the related clickhouse option when using DataFrameWriter / DataFrameReader */

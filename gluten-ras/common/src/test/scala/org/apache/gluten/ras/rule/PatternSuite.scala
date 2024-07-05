@@ -59,6 +59,29 @@ class PatternSuite extends AnyFunSuite {
     assert(pattern.matches(path, 1))
   }
 
+  test("Match branch") {
+    val ras =
+      Ras[TestNode](
+        PlanModelImpl,
+        CostModelImpl,
+        MetadataModelImpl,
+        PropertyModelImpl,
+        ExplainImpl,
+        RasRule.Factory.none())
+
+    val path1 = MockRasPath.mock(ras, Branch("n1", List()))
+    val path2 = MockRasPath.mock(ras, Branch("n1", List(Leaf("n2", 1))))
+    val path3 = MockRasPath.mock(ras, Branch("n1", List(Leaf("n2", 1), Leaf("n3", 1))))
+
+    val pattern =
+      Pattern.branch2[TestNode](n => n.isInstanceOf[Branch], _ >= 1, _ => Pattern.any).build()
+    assert(!pattern.matches(path1, 1))
+    assert(pattern.matches(path2, 1))
+    assert(pattern.matches(path2, 2))
+    assert(pattern.matches(path3, 1))
+    assert(pattern.matches(path3, 2))
+  }
+
   test("Match unary") {
     val ras =
       Ras[TestNode](
@@ -72,12 +95,12 @@ class PatternSuite extends AnyFunSuite {
     val path = MockRasPath.mock(ras, Unary("n1", Leaf("n2", 1)))
     assert(path.height() == 2)
 
-    val pattern1 = Pattern.node[TestNode](n => n.isInstanceOf[Unary], Pattern.ignore).build()
+    val pattern1 = Pattern.branch[TestNode](n => n.isInstanceOf[Unary], Pattern.ignore).build()
     assert(pattern1.matches(path, 1))
     assert(pattern1.matches(path, 2))
 
     val pattern2 =
-      Pattern.node[TestNode](n => n.asInstanceOf[Unary].name == "foo", Pattern.ignore).build()
+      Pattern.branch[TestNode](n => n.asInstanceOf[Unary].name == "foo", Pattern.ignore).build()
     assert(!pattern2.matches(path, 1))
     assert(!pattern2.matches(path, 2))
   }
@@ -98,11 +121,11 @@ class PatternSuite extends AnyFunSuite {
     assert(path.height() == 4)
 
     val pattern = Pattern
-      .node[TestNode](
+      .branch[TestNode](
         n => n.isInstanceOf[Binary],
-        Pattern.node(
+        Pattern.branch(
           n => n.isInstanceOf[Unary],
-          Pattern.node(
+          Pattern.branch(
             n => n.isInstanceOf[Unary],
             Pattern.ignore
           )
@@ -131,11 +154,11 @@ class PatternSuite extends AnyFunSuite {
     assert(path.height() == 4)
 
     val pattern1 = Pattern
-      .node[TestNode](
+      .branch[TestNode](
         n => n.isInstanceOf[Binary],
-        Pattern.node(
+        Pattern.branch(
           n => n.isInstanceOf[Unary],
-          Pattern.node(
+          Pattern.branch(
             n => n.isInstanceOf[Unary],
             Pattern.leaf(
               _.asInstanceOf[Leaf].name == "foo"
@@ -152,13 +175,13 @@ class PatternSuite extends AnyFunSuite {
     assert(!pattern1.matches(path, 4))
 
     val pattern2 = Pattern
-      .node[TestNode](
+      .branch[TestNode](
         n => n.isInstanceOf[Binary],
-        Pattern.node(
+        Pattern.branch(
           n => n.isInstanceOf[Unary],
-          Pattern.node(
+          Pattern.branch(
             n => n.isInstanceOf[Unary],
-            Pattern.node(
+            Pattern.branch(
               n => n.isInstanceOf[Unary],
               Pattern.ignore
             )
@@ -188,9 +211,9 @@ class PatternSuite extends AnyFunSuite {
     assert(path.height() == 2)
 
     val pattern1 = Pattern
-      .node[TestNode](
+      .branch[TestNode](
         Pattern.Matchers.clazz(classOf[Unary]),
-        Pattern.node(Pattern.Matchers.clazz(classOf[Leaf])))
+        Pattern.branch(Pattern.Matchers.clazz(classOf[Leaf])))
       .build()
     assert(pattern1.matches(path, 1))
     assert(pattern1.matches(path, 2))
@@ -202,19 +225,20 @@ class PatternSuite extends AnyFunSuite {
     assert(!pattern2.matches(path, 2))
 
     val pattern3 = Pattern
-      .node[TestNode](
+      .branch[TestNode](
         Pattern.Matchers
           .or(Pattern.Matchers.clazz(classOf[Unary]), Pattern.Matchers.clazz(classOf[Leaf])),
-        Pattern.node(Pattern.Matchers.clazz(classOf[Leaf])))
+        Pattern.branch(Pattern.Matchers.clazz(classOf[Leaf]))
+      )
       .build()
     assert(pattern3.matches(path, 1))
     assert(pattern3.matches(path, 2))
 
     val pattern4 = Pattern
-      .node[TestNode](
+      .branch[TestNode](
         Pattern.Matchers
           .or(Pattern.Matchers.clazz(classOf[Unary]), Pattern.Matchers.clazz(classOf[Leaf])),
-        Pattern.node(Pattern.Matchers
+        Pattern.branch(Pattern.Matchers
           .or(Pattern.Matchers.clazz(classOf[Unary]), Pattern.Matchers.clazz(classOf[Unary])))
       )
       .build()
@@ -230,15 +254,18 @@ object PatternSuite {
 
   case class Unary(name: String, child: TestNode) extends UnaryLike {
     override def selfCost(): Long = 1
-
     override def withNewChildren(child: TestNode): UnaryLike = copy(child = child)
   }
 
   case class Binary(name: String, left: TestNode, right: TestNode) extends BinaryLike {
     override def selfCost(): Long = 1
-
     override def withNewChildren(left: TestNode, right: TestNode): BinaryLike =
       copy(left = left, right = right)
+  }
+
+  case class Branch(name: String, children: Seq[TestNode]) extends TestNode {
+    override def selfCost(): Long = 1
+    override def withNewChildren(children: Seq[TestNode]): TestNode = copy(children = children)
   }
 
   case class DummyGroup() extends LeafLike {

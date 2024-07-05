@@ -27,15 +27,16 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Count, Sum}
-import org.apache.spark.sql.catalyst.plans.JoinType
+import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -51,7 +52,6 @@ class VeloxBackend extends Backend {
   override def validatorApi(): ValidatorApi = new VeloxValidatorApi
   override def metricsApi(): MetricsApi = new VeloxMetricsApi
   override def listenerApi(): ListenerApi = new VeloxListenerApi
-  override def broadcastApi(): BroadcastApi = new VeloxBroadcastApi
   override def settings(): BackendSettingsApi = VeloxBackendSettings
 }
 
@@ -65,6 +65,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   val GLUTEN_VELOX_UDF_LIB_PATHS = getBackendConfigPrefix() + ".udfLibraryPaths"
   val GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS = getBackendConfigPrefix() + ".driver.udfLibraryPaths"
+  val GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS = getBackendConfigPrefix() + ".internal.udfLibraryPaths"
 
   val MAXIMUM_BATCH_SIZE: Int = 32768
 
@@ -183,6 +184,30 @@ object VeloxBackendSettings extends BackendSettingsApi {
       bucketSpec: Option[BucketSpec],
       options: Map[String, String]): ValidationResult = {
 
+    // Validate if HiveFileFormat write is supported based on output file type
+    def validateHiveFileFormat(hiveFileFormat: HiveFileFormat): Option[String] = {
+      // Reflect to get access to fileSinkConf which contains the output file format
+      val fileSinkConfField = format.getClass.getDeclaredField("fileSinkConf")
+      fileSinkConfField.setAccessible(true)
+      val fileSinkConf = fileSinkConfField.get(hiveFileFormat)
+      val tableInfoField = fileSinkConf.getClass.getDeclaredField("tableInfo")
+      tableInfoField.setAccessible(true)
+      val tableInfo = tableInfoField.get(fileSinkConf)
+      val getOutputFileFormatClassNameMethod = tableInfo.getClass
+        .getDeclaredMethod("getOutputFileFormatClassName")
+      val outputFileFormatClassName = getOutputFileFormatClassNameMethod.invoke(tableInfo)
+
+      // Match based on the output file format class name
+      outputFileFormatClassName match {
+        case "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat" =>
+          None
+        case _ =>
+          Some(
+            "HiveFileFormat is supported only with Parquet as the output file type"
+          ) // Unsupported format
+      }
+    }
+
     def validateCompressionCodec(): Option[String] = {
       // Velox doesn't support brotli and lzo.
       val unSupportedCompressions = Set("brotli", "lzo", "lz4raw", "lz4_raw")
@@ -195,7 +220,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     }
 
     // Validate if all types are supported.
-    def validateDateTypes(): Option[String] = {
+    def validateDataTypes(): Option[String] = {
       val unsupportedTypes = fields.flatMap {
         field =>
           field.dataType match {
@@ -223,8 +248,13 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
     def validateFileFormat(): Option[String] = {
       format match {
-        case _: ParquetFileFormat => None
-        case _: FileFormat => Some("Only parquet fileformat is supported in Velox backend.")
+        case _: ParquetFileFormat => None // Parquet is directly supported
+        case h: HiveFileFormat if GlutenConfig.getConf.enableHiveFileFormatWriter =>
+          validateHiveFileFormat(h) // Parquet via Hive SerDe
+        case _ =>
+          Some(
+            "Only ParquetFileFormat and HiveFileFormat are supported."
+          ) // Unsupported format
       }
     }
 
@@ -251,7 +281,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     validateCompressionCodec()
       .orElse(validateFileFormat())
       .orElse(validateFieldMetadata())
-      .orElse(validateDateTypes())
+      .orElse(validateDataTypes())
       .orElse(validateWriteFilesOptions())
       .orElse(validateBucketSpec()) match {
       case Some(reason) => ValidationResult.notOk(reason)
@@ -271,6 +301,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
   }
 
   override def supportNativeMetadataColumns(): Boolean = true
+
+  override def supportNativeRowIndexColumn(): Boolean = true
+
+  override def supportNativeInputFileRelatedExpr(): Boolean = true
 
   override def supportExpandExec(): Boolean = true
 
@@ -297,15 +331,9 @@ object VeloxBackendSettings extends BackendSettingsApi {
             case _ => throw new GlutenNotSupportException(s"$func is not supported.")
           }
 
-          // Block the offloading by checking Velox's current limitations
-          // when literal bound type is used for RangeFrame.
           def checkLimitations(swf: SpecifiedWindowFrame, orderSpec: Seq[SortOrder]): Unit = {
-            def doCheck(bound: Expression, isUpperBound: Boolean): Unit = {
+            def doCheck(bound: Expression): Unit = {
               bound match {
-                case e if e.foldable =>
-                  throw new GlutenNotSupportException(
-                    "Window frame of type RANGE does" +
-                      " not support constant arguments in velox backend")
                 case _: SpecialFrameBoundary =>
                 case e if e.foldable =>
                   orderSpec.foreach(
@@ -326,17 +354,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
                             "Only integral type & date type are" +
                               " supported for sort key when literal bound type is used!")
                       })
-                  val rawValue = e.eval().toString.toLong
-                  if (isUpperBound && rawValue < 0) {
-                    throw new GlutenNotSupportException("Negative upper bound is not supported!")
-                  } else if (!isUpperBound && rawValue > 0) {
-                    throw new GlutenNotSupportException("Positive lower bound is not supported!")
-                  }
                 case _ =>
               }
             }
-            doCheck(swf.upper, true)
-            doCheck(swf.lower, false)
+            doCheck(swf.upper)
+            doCheck(swf.lower)
           }
 
           windowExpression.windowSpec.frameSpecification match {
@@ -362,9 +384,9 @@ object VeloxBackendSettings extends BackendSettingsApi {
   }
 
   override def supportColumnarShuffleExec(): Boolean = {
-    GlutenConfig.getConf.isUseColumnarShuffleManager ||
-    GlutenConfig.getConf.isUseCelebornShuffleManager ||
-    GlutenConfig.getConf.isUseUniffleShuffleManager
+    GlutenConfig.getConf.enableColumnarShuffle && (GlutenConfig.getConf.isUseColumnarShuffleManager
+      || GlutenConfig.getConf.isUseCelebornShuffleManager
+      || GlutenConfig.getConf.isUseUniffleShuffleManager)
   }
 
   override def enableJoinKeysRewrite(): Boolean = false
@@ -376,13 +398,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
       } else {
         t match {
           // OPPRO-266: For Velox backend, build right and left are both supported for
-          // LeftOuter and LeftSemi.
-          // FIXME Hongze 22/12/06
-          //  HashJoin.scala in shim was not always loaded by class loader.
-          //  The file should be removed and we temporarily disable the improvement
-          //  introduced by OPPRO-266 by commenting out the following prerequisite
-          //  condition.
-//          case LeftOuter | LeftSemi => true
+          // LeftOuter.
+          // TODO: Support LeftSemi after resolve issue
+          // https://github.com/facebookincubator/velox/issues/9980
+          case LeftOuter => true
           case _ => false
         }
       }
@@ -394,12 +413,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       } else {
         t match {
           // OPPRO-266: For Velox backend, build right and left are both supported for RightOuter.
-          // FIXME Hongze 22/12/06
-          //  HashJoin.scala in shim was not always loaded by class loader.
-          //  The file should be removed and we temporarily disable the improvement
-          //  introduced by OPPRO-266 by commenting out the following prerequisite
-          //  condition.
-//          case RightOuter => true
+          case RightOuter => true
           case _ => false
         }
       }
@@ -416,7 +430,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       expr match {
         // Block directly falling back the below functions by FallbackEmptySchemaRelation.
         case alias: Alias => checkExpr(alias.child)
-        case _: Rand | _: Uuid | _: MakeYMInterval => true
+        case _: Rand | _: Uuid | _: MakeYMInterval | _: SparkPartitionID => true
         case _ => false
       }
     }
@@ -449,13 +463,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def fallbackAggregateWithEmptyOutputChild(): Boolean = true
 
   override def recreateJoinExecOnFallback(): Boolean = true
-  override def rescaleDecimalLiteral(): Boolean = true
+  override def rescaleDecimalArithmetic(): Boolean = true
 
   /** Get the config prefix for each backend */
   override def getBackendConfigPrefix(): String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + VeloxBackend.BACKEND_NAME
-
-  override def rescaleDecimalIntegralExpression(): Boolean = true
 
   override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
 
@@ -487,6 +499,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
     )
   }
 
+  override def enableNativeArrowReadFiles(): Boolean = {
+    GlutenConfig.getConf.enableNativeArrowReader
+  }
+
   override def shouldRewriteCount(): Boolean = {
     // Velox backend does not support count if it has more that one child,
     // so we should rewrite it.
@@ -497,13 +513,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportBroadcastNestedLoopJoinExec(): Boolean = true
 
-  override def shouldRewriteTypedImperativeAggregate(): Boolean = {
-    // The intermediate type of collect_list, collect_set in Velox backend is not consistent with
-    // vanilla Spark, we need to rewrite the aggregate to get the correct data type.
-    true
-  }
-
-  override def shouldRewriteCollect(): Boolean = true
+  override def supportSampleExec(): Boolean = true
 
   override def supportColumnarArrowUdf(): Boolean = true
+
+  override def generateHdfsConfForLibhdfs(): Boolean = true
+
+  override def needPreComputeRangeFrameBoundary(): Boolean = true
 }

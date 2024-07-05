@@ -281,6 +281,12 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
   }
 
+  test("Test get_json_object 11") {
+    runQueryAndCompare(
+      "SELECT string_field1 from json_test where" +
+        " get_json_object(string_field1, '$.a') is not null") { _ => }
+  }
+
   test("Test covar_samp") {
     runQueryAndCompare("SELECT covar_samp(double_field1, int_field1) from json_test") { _ => }
   }
@@ -708,4 +714,20 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   }
 
+  test("array functions with lambda") {
+    withTable("tb_array") {
+      sql("create table tb_array(ids array<int>) using parquet")
+      sql("""
+            |insert into tb_array values (array(1,5,2,null, 3)), (array(1,1,3,2)), (null), (array())
+            |""".stripMargin)
+      val transform_sql = "select transform(ids, x -> x + 1) from tb_array"
+      runQueryAndCompare(transform_sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+
+      val filter_sql = "select filter(ids, x -> x % 2 == 1) from tb_array";
+      runQueryAndCompare(filter_sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+
+      val aggregate_sql = "select ids, aggregate(ids, 3, (acc, x) -> acc + x) from tb_array";
+      runQueryAndCompare(aggregate_sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    }
+  }
 }

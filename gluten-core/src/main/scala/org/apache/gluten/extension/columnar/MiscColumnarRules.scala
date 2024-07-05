@@ -16,26 +16,26 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.columnar.ColumnarTransitions.ColumnarToRowLike
+import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, Transitions}
 import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.BroadcastQueryStageExec
-import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec}
+import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike, ShuffleExchangeLike}
+import org.apache.spark.sql.internal.SQLConf
 
 object MiscColumnarRules {
   object TransformPreOverrides {
     def apply(): TransformPreOverrides = {
       TransformPreOverrides(
-        List(TransformFilter()),
+        List(OffloadProject(), OffloadFilter()),
         List(
-          TransformOthers(),
-          TransformAggregate(),
-          TransformExchange(),
-          TransformJoin()
+          OffloadOthers(),
+          OffloadAggregate(),
+          OffloadExchange(),
+          OffloadJoin()
         )
       )
     }
@@ -43,46 +43,114 @@ object MiscColumnarRules {
 
   // This rule will conduct the conversion from Spark plan to the plan transformer.
   case class TransformPreOverrides(
-      topDownRules: Seq[TransformSingleNode],
-      bottomUpRules: Seq[TransformSingleNode])
+      topDownRules: Seq[OffloadSingleNode],
+      bottomUpRules: Seq[OffloadSingleNode])
     extends Rule[SparkPlan]
     with LogLevelUtil {
     @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
     def apply(plan: SparkPlan): SparkPlan = {
       val plan0 =
-        topDownRules.foldLeft(plan)((p, rule) => p.transformDown { case p => rule.impl(p) })
+        topDownRules.foldLeft(plan)((p, rule) => p.transformDown { case p => rule.offload(p) })
       val plan1 =
-        bottomUpRules.foldLeft(plan0)((p, rule) => p.transformUp { case p => rule.impl(p) })
+        bottomUpRules.foldLeft(plan0)((p, rule) => p.transformUp { case p => rule.offload(p) })
       planChangeLogger.logRule(ruleName, plan, plan1)
       plan1
     }
   }
 
-  // This rule will try to convert the row-to-columnar and columnar-to-row
-  // into native implementations.
-  case class TransformPostOverrides() extends Rule[SparkPlan] {
-    @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
-
-    def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = plan.transformDown {
-      case RowToColumnarExec(child) =>
-        logDebug(s"ColumnarPostOverrides RowToColumnarExec(${child.getClass})")
-        BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(child)
-      case c2r @ ColumnarToRowExec(child) if PlanUtil.outputNativeColumnarData(child) =>
-        logDebug(s"ColumnarPostOverrides ColumnarToRowExec(${child.getClass})")
-        val nativeC2r = BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
-        if (nativeC2r.doValidate().isValid) {
-          nativeC2r
-        } else {
-          c2r
-        }
+  // Replaces all SubqueryBroadcastExec used by sub-queries with ColumnarSubqueryBroadcastExec.
+  // This prevents query execution from being failed by fallen-back SubqueryBroadcastExec with
+  // child plan with columnar output (e.g., an adaptive Spark plan that yields final plan that
+  // is full-offloaded). ColumnarSubqueryBroadcastExec is both compatible with row-based and
+  // columnar child plan so is always functional.
+  case class RewriteSubqueryBroadcast() extends Rule[SparkPlan] {
+    override def apply(plan: SparkPlan): SparkPlan = {
+      val out = plan.transformWithSubqueries {
+        case p =>
+          // Since https://github.com/apache/incubator-gluten/pull/1851.
+          //
+          // When AQE is on, the AQE sub-query cache should already be filled with
+          // row-based SubqueryBroadcastExec for reusing. Thus we are doing the same
+          // memorize-and-reuse work here for the replaced columnar version.
+          val reuseRemoved = removeReuses(p)
+          val replaced = replace(reuseRemoved)
+          replaced
+      }
+      out
     }
 
-    // apply for the physical not final plan
-    def apply(plan: SparkPlan): SparkPlan = {
-      val newPlan = replaceWithTransformerPlan(plan)
-      planChangeLogger.logRule(ruleName, plan, newPlan)
-      newPlan
+    private def removeReuses(p: SparkPlan): SparkPlan = {
+      val out = p.transformExpressions {
+        case pe: ExecSubqueryExpression =>
+          val newPlan = pe.plan match {
+            case ReusedSubqueryExec(s: SubqueryBroadcastExec) =>
+              // Remove ReusedSubqueryExec. We will re-create reuses in subsequent method
+              // #replace.
+              //
+              // We assume only meeting reused sub-queries in AQE execution. When AQE is off,
+              // Spark adds reuses only after applying columnar rules by preparation rule
+              // ReuseExchangeAndSubquery.
+              assert(s.child.isInstanceOf[AdaptiveSparkPlanExec])
+              s
+            case other =>
+              other
+          }
+          pe.withNewPlan(newPlan)
+      }
+      out
+    }
+
+    private def replace(p: SparkPlan): SparkPlan = {
+      val out = p.transformExpressions {
+        case pe: ExecSubqueryExpression =>
+          val newPlan = pe.plan match {
+            case s: SubqueryBroadcastExec =>
+              val columnarSubqueryBroadcast = toColumnarSubqueryBroadcast(s)
+              val maybeReused = columnarSubqueryBroadcast.child match {
+                case a: AdaptiveSparkPlanExec if SQLConf.get.subqueryReuseEnabled =>
+                  val cached = a.context.subqueryCache.get(columnarSubqueryBroadcast.canonicalized)
+                  if (cached.nonEmpty) {
+                    // Reuse the one in cache.
+                    ReusedSubqueryExec(cached.get)
+                  } else {
+                    // Place columnar sub-query broadcast into cache, then return it.
+                    a.context.subqueryCache
+                      .update(columnarSubqueryBroadcast.canonicalized, columnarSubqueryBroadcast)
+                    columnarSubqueryBroadcast
+                  }
+                case _ =>
+                  // We are not in AQE.
+                  columnarSubqueryBroadcast
+              }
+              maybeReused
+            case other => other
+          }
+          pe.withNewPlan(newPlan)
+      }
+      out
+    }
+
+    private def toColumnarBroadcastExchange(
+        exchange: BroadcastExchangeExec): ColumnarBroadcastExchangeExec = {
+      val newChild = Transitions.toBackendBatchPlan(exchange.child)
+      ColumnarBroadcastExchangeExec(exchange.mode, newChild)
+    }
+
+    private def toColumnarSubqueryBroadcast(
+        from: SubqueryBroadcastExec): ColumnarSubqueryBroadcastExec = {
+      val newChild = from.child match {
+        case exchange: BroadcastExchangeExec =>
+          toColumnarBroadcastExchange(exchange)
+        case aqe: AdaptiveSparkPlanExec =>
+          // Keeps the child if its is AQE even if its supportsColumnar == false.
+          // ColumnarSubqueryBroadcastExec is compatible with both row-based
+          // and columnar inputs.
+          aqe
+        case other => other
+      }
+      val out = ColumnarSubqueryBroadcastExec(from.name, from.index, from.buildKeys, newChild)
+      out
     }
   }
 

@@ -18,10 +18,8 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.memory.memtarget.MemoryTarget
-import org.apache.gluten.memory.memtarget.Spiller
-import org.apache.gluten.memory.memtarget.Spillers
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
+import org.apache.gluten.exec.Runtimes
+import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.vectorized._
 
 import org.apache.spark._
@@ -38,7 +36,8 @@ class ColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
     handle: BaseShuffleHandle[K, V, V],
     mapId: Long,
-    writeMetrics: ShuffleWriteMetricsReporter)
+    writeMetrics: ShuffleWriteMetricsReporter,
+    isSort: Boolean)
   extends ShuffleWriter[K, V]
   with Logging {
 
@@ -97,7 +96,9 @@ class ColumnarShuffleWriter[K, V](
 
   private val reallocThreshold = GlutenConfig.getConf.columnarShuffleReallocThreshold
 
-  private val jniWrapper = ShuffleWriterJniWrapper.create()
+  private val runtime = Runtimes.contextInstance("ShuffleWriter")
+
+  private val jniWrapper = ShuffleWriterJniWrapper.create(runtime)
 
   private var nativeShuffleWriter: Long = -1L
 
@@ -106,6 +107,8 @@ class ColumnarShuffleWriter[K, V](
   private var partitionLengths: Array[Long] = _
 
   private val taskContext: TaskContext = TaskContext.get()
+
+  private val shuffleWriterType: String = if (isSort) "sort" else "hash"
 
   private def availableOffHeapPerTask(): Long = {
     val perTask =
@@ -150,38 +153,28 @@ class ColumnarShuffleWriter[K, V](
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,
-            NativeMemoryManagers
-              .create(
-                "ShuffleWriter",
-                new Spiller() {
-                  override def spill(self: MemoryTarget, size: Long): Long = {
-                    if (nativeShuffleWriter == -1L) {
-                      throw new IllegalStateException(
-                        "Fatal: spill() called before a shuffle writer " +
-                          "is created. This behavior should be optimized by moving memory " +
-                          "allocations from make() to split()")
-                    }
-                    logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
-                    // fixme pass true when being called by self
-                    val spilled =
-                      jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
-                    logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
-                    spilled
-                  }
-
-                  override def applicablePhases(): java.util.Set[Spiller.Phase] =
-                    Spillers.PHASE_SET_SPILL_ONLY
-                }
-              )
-              .getNativeInstanceHandle,
             reallocThreshold,
             handle,
             taskContext.taskAttemptId(),
-            GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, taskContext.partitionId)
+            GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, taskContext.partitionId),
+            shuffleWriterType
           )
+          runtime.addSpiller(new Spiller() {
+            override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
+              if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+                return 0L
+              }
+              logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+              // fixme pass true when being called by self
+              val spilled =
+                jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+              logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+              spilled
+            }
+          })
         }
         val startTime = System.nanoTime()
-        jniWrapper.split(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
+        jniWrapper.write(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)
@@ -203,10 +196,12 @@ class ColumnarShuffleWriter[K, V](
           splitResult.getTotalWriteTime -
           splitResult.getTotalCompressTime)
     dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
-    dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
     dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
+    if (!isSort) {
+      dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
+    }
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 

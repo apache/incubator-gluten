@@ -18,8 +18,7 @@ package org.apache.gluten.vectorized
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.exec.Runtimes
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.utils.ArrowAbiUtil
 
 import org.apache.spark.SparkEnv
@@ -47,11 +46,13 @@ class ColumnarBatchSerializer(
     schema: StructType,
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
-    decompressTime: SQLMetric,
-    ipcTime: SQLMetric,
-    deserializeTime: SQLMetric)
+    deserializeTime: SQLMetric,
+    decompressTime: Option[SQLMetric],
+    isSort: Boolean)
   extends Serializer
   with Serializable {
+
+  private val shuffleWriterType = if (isSort) "sort" else "hash"
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
@@ -59,9 +60,9 @@ class ColumnarBatchSerializer(
       schema,
       readBatchNumRows,
       numOutputRows,
+      deserializeTime,
       decompressTime,
-      ipcTime,
-      deserializeTime)
+      shuffleWriterType)
   }
 
   override def supportsRelocationOfSerializedObjects: Boolean = true
@@ -71,13 +72,12 @@ private class ColumnarBatchSerializerInstance(
     schema: StructType,
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
-    decompressTime: SQLMetric,
-    ipcTime: SQLMetric,
-    deserializeTime: SQLMetric)
+    deserializeTime: SQLMetric,
+    decompressTime: Option[SQLMetric],
+    shuffleWriterType: String)
   extends SerializerInstance
   with Logging {
 
-  private val nmm = NativeMemoryManagers.contextInstance("ShuffleReader")
   private val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators
       .contextInstance(classOf[ColumnarBatchSerializerInstance].getSimpleName)
@@ -96,13 +96,14 @@ private class ColumnarBatchSerializerInstance(
     val compressionCodecBackend =
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
     val batchSize = GlutenConfig.getConf.maxBatchSize
-    val jniWrapper = ShuffleReaderJniWrapper.create()
+    val runtime = Runtimes.contextInstance("ShuffleReader")
+    val jniWrapper = ShuffleReaderJniWrapper.create(runtime)
     val shuffleReaderHandle = jniWrapper.make(
       cSchema.memoryAddress(),
-      nmm.getNativeInstanceHandle,
       compressionCodec,
       compressionCodecBackend,
-      batchSize)
+      batchSize,
+      shuffleWriterType)
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that
     // was used to create all buffers read from shuffle reader. The pool
@@ -111,9 +112,11 @@ private class ColumnarBatchSerializerInstance(
       // Collect Metrics
       val readerMetrics = new ShuffleReaderMetrics()
       jniWrapper.populateMetrics(shuffleReaderHandle, readerMetrics)
-      decompressTime += readerMetrics.getDecompressTime
-      ipcTime += readerMetrics.getIpcTime
       deserializeTime += readerMetrics.getDeserializeTime
+      decompressTime match {
+        case Some(t) => t += readerMetrics.getDecompressTime
+        case None =>
+      }
 
       jniWrapper.close(shuffleReaderHandle)
       cSchema.release()
@@ -131,12 +134,12 @@ private class ColumnarBatchSerializerInstance(
     extends DeserializationStream
     with TaskResource {
     private val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
+    private val runtime = Runtimes.contextInstance("ShuffleReader")
     private val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
-      Runtimes.contextInstance(),
+      runtime,
       ShuffleReaderJniWrapper
-        .create()
-        .readStream(shuffleReaderHandle, byteIn),
-      nmm)
+        .create(runtime)
+        .readStream(shuffleReaderHandle, byteIn))
 
     private var cb: ColumnarBatch = _
 

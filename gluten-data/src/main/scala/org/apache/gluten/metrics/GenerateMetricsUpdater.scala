@@ -23,6 +23,12 @@ class GenerateMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metric
     if (operatorMetrics != null) {
       val nativeMetrics = operatorMetrics.asInstanceOf[OperatorMetrics]
       metrics("numOutputRows") += nativeMetrics.outputRows
+      metrics("numOutputVectors") += nativeMetrics.outputVectors
+      metrics("numOutputBytes") += nativeMetrics.outputBytes
+      metrics("cpuCount") += nativeMetrics.cpuCount
+      metrics("wallNanos") += nativeMetrics.wallNanos
+      metrics("peakMemoryBytes") += nativeMetrics.peakMemoryBytes
+      metrics("numMemoryAllocations") += nativeMetrics.numMemoryAllocations
     }
   }
 }

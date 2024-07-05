@@ -73,7 +73,9 @@ trait MetricsApi extends Serializable {
 
   def genCustomExpandMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
-  def genColumnarShuffleExchangeMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
+  def genColumnarShuffleExchangeMetrics(
+      sparkContext: SparkContext,
+      isSort: Boolean): Map[String, SQLMetric]
 
   def genWindowTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
@@ -110,6 +112,10 @@ trait MetricsApi extends Serializable {
   def genNestedLoopJoinTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
   def genNestedLoopJoinTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
+
+  def genSampleTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
+
+  def genSampleTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 
   def genColumnarInMemoryTableMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))

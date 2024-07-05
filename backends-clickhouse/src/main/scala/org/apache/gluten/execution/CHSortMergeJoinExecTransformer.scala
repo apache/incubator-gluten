@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.extension.ValidationResult
-import org.apache.gluten.utils.CHJoinValidateUtil
+import org.apache.gluten.utils.{CHJoinValidateUtil, SortMergeJoinStrategy}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans._
@@ -44,7 +44,11 @@ case class CHSortMergeJoinExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     val shouldFallback =
-      CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition, true)
+      CHJoinValidateUtil.shouldFallback(
+        SortMergeJoinStrategy(joinType),
+        left.outputSet,
+        right.outputSet,
+        condition)
     if (shouldFallback) {
       return ValidationResult.notOk("ch join validate fail")
     }

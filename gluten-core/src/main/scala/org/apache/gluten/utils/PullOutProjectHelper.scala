@@ -16,11 +16,13 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.execution.aggregate._
+import org.apache.spark.sql.types.{ByteType, DateType, IntegerType, LongType, ShortType}
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -61,7 +63,12 @@ trait PullOutProjectHelper {
       replaceBoundReference: Boolean = false): Expression =
     expr match {
       case alias: Alias =>
-        projectExprsMap.getOrElseUpdate(alias.child.canonicalized, alias).toAttribute
+        alias.child match {
+          case _: Literal =>
+            projectExprsMap.getOrElseUpdate(alias, alias).toAttribute
+          case _ =>
+            projectExprsMap.getOrElseUpdate(alias.child.canonicalized, alias).toAttribute
+        }
       case attr: Attribute => attr
       case e: BoundReference if !replaceBoundReference => e
       case other =>
@@ -138,8 +145,49 @@ trait PullOutProjectHelper {
     ae.copy(aggregateFunction = newAggFunc, filter = newFilter)
   }
 
+  private def needPreComputeRangeFrameBoundary(bound: Expression): Boolean = {
+    bound match {
+      case _: PreComputeRangeFrameBound => false
+      case _ if !bound.foldable => false
+      case _ => true
+    }
+  }
+
+  private def preComputeRangeFrameBoundary(
+      bound: Expression,
+      orderSpec: SortOrder,
+      expressionMap: mutable.HashMap[Expression, NamedExpression]): Expression = {
+    bound match {
+      case _: PreComputeRangeFrameBound => bound
+      case _ if !bound.foldable => bound
+      case _ if bound.foldable =>
+        val a = expressionMap
+          .getOrElseUpdate(
+            bound.canonicalized,
+            Alias(Add(orderSpec.child, bound), generatePreAliasName)())
+        PreComputeRangeFrameBound(a.asInstanceOf[Alias], bound)
+    }
+  }
+
+  protected def needPreComputeRangeFrame(swf: SpecifiedWindowFrame): Boolean = {
+    BackendsApiManager.getSettings.needPreComputeRangeFrameBoundary &&
+    swf.frameType == RangeFrame &&
+    (needPreComputeRangeFrameBoundary(swf.lower) || needPreComputeRangeFrameBoundary(swf.upper))
+  }
+
+  protected def supportPreComputeRangeFrame(sortOrders: Seq[SortOrder]): Boolean = {
+    sortOrders.forall {
+      _.dataType match {
+        case ByteType | ShortType | IntegerType | LongType | DateType => true
+        // Only integral type & date type are supported for sort key with Range Frame
+        case _ => false
+      }
+    }
+  }
+
   protected def rewriteWindowExpression(
       we: WindowExpression,
+      orderSpecs: Seq[SortOrder],
       expressionMap: mutable.HashMap[Expression, NamedExpression]): WindowExpression = {
     val newWindowFunc = we.windowFunction match {
       case windowFunc: WindowFunction =>
@@ -151,6 +199,22 @@ trait PullOutProjectHelper {
       case ae: AggregateExpression => rewriteAggregateExpression(ae, expressionMap)
       case other => other
     }
-    we.copy(windowFunction = newWindowFunc)
+
+    val newWindowSpec = we.windowSpec.frameSpecification match {
+      case swf: SpecifiedWindowFrame if needPreComputeRangeFrame(swf) =>
+        // This is guaranteed by Spark, but we still check it here
+        if (orderSpecs.size != 1) {
+          throw new GlutenException(
+            s"A range window frame with value boundaries expects one and only one " +
+              s"order by expression: ${orderSpecs.mkString(",")}")
+        }
+        val orderSpec = orderSpecs.head
+        val lowerFrameCol = preComputeRangeFrameBoundary(swf.lower, orderSpec, expressionMap)
+        val upperFrameCol = preComputeRangeFrameBoundary(swf.upper, orderSpec, expressionMap)
+        val newFrame = swf.copy(lower = lowerFrameCol, upper = upperFrameCol)
+        we.windowSpec.copy(frameSpecification = newFrame)
+      case _ => we.windowSpec
+    }
+    we.copy(windowFunction = newWindowFunc, windowSpec = newWindowSpec)
   }
 }

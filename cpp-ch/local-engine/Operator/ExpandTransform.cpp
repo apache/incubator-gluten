@@ -48,7 +48,7 @@ ExpandTransform::Status ExpandTransform::prepare()
     auto & output = outputs.front();
     auto & input = inputs.front();
 
-    if (output.isFinished())
+    if (output.isFinished() || isCancelled())
     {
         input.close();
         return Status::Finished;
@@ -79,12 +79,12 @@ ExpandTransform::Status ExpandTransform::prepare()
 
         if (!input.hasData())
             return Status::NeedData;
-        
+
         input_chunk = input.pull(true);
         has_input = true;
         expand_expr_iterator = 0;
     }
-    
+
     return Status::Ready;
 }
 
@@ -92,6 +92,7 @@ void ExpandTransform::work()
 {
     if (expand_expr_iterator >= project_set_exprs.getExpandRows())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "expand_expr_iterator >= project_set_exprs.getExpandRows()");
+
     const auto & original_cols = input_chunk.getColumns();
     size_t rows = input_chunk.getNumRows();
     DB::Columns cols;
@@ -103,7 +104,7 @@ void ExpandTransform::work()
 
         if (kind == EXPAND_FIELD_KIND_SELECTION)
         {
-            const auto & original_col = original_cols[field.get<Int32>()];
+            const auto & original_col = original_cols.at(field.get<Int32>());
             if (type->isNullable() == original_col->isNullable())
             {
                 cols.push_back(original_col);
@@ -139,8 +140,9 @@ void ExpandTransform::work()
         }
     }
     output_chunk = DB::Chunk(cols, rows);
-    expand_expr_iterator += 1;
-    has_output = expand_expr_iterator <= project_set_exprs.getExpandRows();
+    has_output = true;
+
+    ++expand_expr_iterator;
     has_input = expand_expr_iterator < project_set_exprs.getExpandRows();
 }
 }

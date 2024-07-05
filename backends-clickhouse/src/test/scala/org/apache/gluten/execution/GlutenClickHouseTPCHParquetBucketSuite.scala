@@ -627,7 +627,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         }
         val touchedBuckets = scanExec.head.getPartitions
           .flatMap(partition => partition.asInstanceOf[FilePartition].files)
-          .flatMap(f => BucketingUtils.getBucketId(new Path(f.filePath).getName))
+          .flatMap(f => BucketingUtils.getBucketId(new Path(f.filePath.toString()).getName))
           .distinct
         // two files from part0-0,part0-1,part1-0,part1-1
         assert(touchedBuckets.size == 1)

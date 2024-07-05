@@ -1,4 +1,4 @@
-DOCKER_IMAGE=gluten-builder-vcpkg
+DOCKER_IMAGE=apache/gluten:gluten-vcpkg-builder_2024_05_22
 GLUTEN_REPO=$(shell realpath -L ../..)
 
 CCACHE_DIR=$(HOME)/.ccache
@@ -8,12 +8,14 @@ MAVEN_M2_DIR=$(HOME)/.m2
 $(info $(GLUTEN_REPO))
 
 .PHONY: docker-image build
-build: docker-image | $(CCACHE_DIR) $(VCPKG_BINARY_CACHE_DIR) $(MAVEN_M2_DIR)
+build: $(CCACHE_DIR) $(VCPKG_BINARY_CACHE_DIR) $(MAVEN_M2_DIR)
 	docker run --rm -ti \
 		-v $(GLUTEN_REPO):$(GLUTEN_REPO) \
-		-v $(VCPKG_BINARY_CACHE_DIR):/home/build/.cache/vcpkg \
-		-v $(MAVEN_M2_DIR):/home/build/.m2 \
-		-v $(CCACHE_DIR):/home/build/.ccache \
+		-v $(VCPKG_BINARY_CACHE_DIR):/root/.cache/vcpkg \
+		-v $(MAVEN_M2_DIR):/root/.m2 \
+		-v $(CCACHE_DIR):/root/.ccache \
+		-e http_proxy \
+		-e https_proxy \
 		--workdir $(GLUTEN_REPO) \
 		-ti \
 		$(DOCKER_IMAGE) \

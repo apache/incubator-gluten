@@ -16,23 +16,21 @@
  */
 package org.apache.spark.sql.errors
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenQueryExecutionErrorsSuite
   extends QueryExecutionErrorsSuite
   with GlutenSQLTestsBaseTrait {
-  override protected def getResourceParquetFilePath(name: String): String = {
-    getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + name
+
+  override def sparkConf: SparkConf = {
+    // Disables VeloxAppendBatches in which GeneralOutIterator wraps vanilla Spark's exceptions
+    // with GlutenException.
+    super.sparkConf
+      .set("spark.gluten.sql.columnar.backend.velox.coalesceBatchesBeforeShuffle", "false")
   }
 
-  testGluten(
-    "SCALAR_SUBQUERY_TOO_MANY_ROWS: " +
-      "More than one row returned by a subquery used as an expression") {
-    val exception = intercept[IllegalStateException] {
-      sql("select (select a from (select 1 as a union all select 2 as a) t) as b").collect()
-    }
-    assert(
-      exception.getMessage.contains("more than one row returned by a subquery" +
-        " used as an expression"))
+  override protected def getResourceParquetFilePath(name: String): String = {
+    getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + name
   }
 }

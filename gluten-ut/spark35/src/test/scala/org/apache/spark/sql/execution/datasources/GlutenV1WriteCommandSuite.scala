@@ -16,12 +16,13 @@
  */
 package org.apache.spark.sql.execution.datasources
 
+import org.apache.gluten.GlutenColumnarWriteTestSupport
 import org.apache.gluten.execution.SortExecTransformer
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.catalyst.expressions.{Ascending, AttributeReference, NullsFirst, SortOrder}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Sort}
-import org.apache.spark.sql.execution.{QueryExecution, SortExec, VeloxColumnarWriteFilesExec}
+import org.apache.spark.sql.execution.{QueryExecution, SortExec}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{IntegerType, StringType}
@@ -96,7 +97,8 @@ trait GlutenV1WriteCommandSuiteBase extends V1WriteCommandSuiteBase {
 class GlutenV1WriteCommandSuite
   extends V1WriteCommandSuite
   with GlutenV1WriteCommandSuiteBase
-  with GlutenSQLTestsBaseTrait {
+  with GlutenSQLTestsBaseTrait
+  with GlutenColumnarWriteTestSupport {
 
   testGluten(
     "SPARK-41914: v1 write with AQE and in-partition sorted - non-string partition column") {
@@ -122,8 +124,7 @@ class GlutenV1WriteCommandSuite
             val executedPlan = FileFormatWriter.executedPlan.get
 
             val plan = if (enabled) {
-              assert(executedPlan.isInstanceOf[VeloxColumnarWriteFilesExec])
-              executedPlan.asInstanceOf[VeloxColumnarWriteFilesExec].child
+              checkWriteFilesAndGetChild(executedPlan)
             } else {
               executedPlan.transformDown { case a: AdaptiveSparkPlanExec => a.executedPlan }
             }
@@ -204,8 +205,7 @@ class GlutenV1WriteCommandSuite
           val executedPlan = FileFormatWriter.executedPlan.get
 
           val plan = if (enabled) {
-            assert(executedPlan.isInstanceOf[VeloxColumnarWriteFilesExec])
-            executedPlan.asInstanceOf[VeloxColumnarWriteFilesExec].child
+            checkWriteFilesAndGetChild(executedPlan)
           } else {
             executedPlan.transformDown { case a: AdaptiveSparkPlanExec => a.executedPlan }
           }

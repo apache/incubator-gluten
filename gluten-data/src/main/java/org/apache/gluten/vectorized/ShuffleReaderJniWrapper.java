@@ -18,7 +18,6 @@ package org.apache.gluten.vectorized;
 
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.RuntimeAware;
-import org.apache.gluten.exec.Runtimes;
 
 public class ShuffleReaderJniWrapper implements RuntimeAware {
   private final Runtime runtime;
@@ -27,8 +26,8 @@ public class ShuffleReaderJniWrapper implements RuntimeAware {
     this.runtime = runtime;
   }
 
-  public static ShuffleReaderJniWrapper create() {
-    return new ShuffleReaderJniWrapper(Runtimes.contextInstance());
+  public static ShuffleReaderJniWrapper create(Runtime runtime) {
+    return new ShuffleReaderJniWrapper(runtime);
   }
 
   @Override
@@ -38,10 +37,10 @@ public class ShuffleReaderJniWrapper implements RuntimeAware {
 
   public native long make(
       long cSchema,
-      long memoryManagerHandle,
       String compressionType,
       String compressionCodecBackend,
-      int batchSize);
+      int batchSize,
+      String shuffleWriterType);
 
   public native long readStream(long shuffleReaderHandle, JniByteInputStream jniIn);
 

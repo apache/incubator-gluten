@@ -21,6 +21,8 @@ import org.apache.gluten.expression.ConverterUtils;
 import org.apache.gluten.substrait.type.*;
 
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.expressions.Attribute;
+import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.catalyst.util.MapData;
 import org.apache.spark.sql.types.*;
@@ -264,9 +266,10 @@ public class ExpressionBuilder {
       List<ExpressionNode> expressionNodes,
       String columnName,
       TypeNode outputTypeNode,
-      String upperBound,
-      String lowerBound,
-      String frameType) {
+      Expression upperBound,
+      Expression lowerBound,
+      String frameType,
+      List<Attribute> originalInputAttributes) {
     return makeWindowFunction(
         functionId,
         expressionNodes,
@@ -275,7 +278,8 @@ public class ExpressionBuilder {
         upperBound,
         lowerBound,
         frameType,
-        false);
+        false,
+        originalInputAttributes);
   }
 
   public static WindowFunctionNode makeWindowFunction(
@@ -283,10 +287,11 @@ public class ExpressionBuilder {
       List<ExpressionNode> expressionNodes,
       String columnName,
       TypeNode outputTypeNode,
-      String upperBound,
-      String lowerBound,
+      Expression upperBound,
+      Expression lowerBound,
       String frameType,
-      boolean ignoreNulls) {
+      boolean ignoreNulls,
+      List<Attribute> originalInputAttributes) {
     return new WindowFunctionNode(
         functionId,
         expressionNodes,
@@ -295,6 +300,7 @@ public class ExpressionBuilder {
         upperBound,
         lowerBound,
         frameType,
-        ignoreNulls);
+        ignoreNulls,
+        originalInputAttributes);
   }
 }

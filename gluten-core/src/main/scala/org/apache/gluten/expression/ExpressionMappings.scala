@@ -76,6 +76,7 @@ object ExpressionMappings {
     Sig[Length](LENGTH),
     Sig[Lower](LOWER),
     Sig[Upper](UPPER),
+    Sig[SoundEx](SOUNDEX),
     Sig[StringLocate](LOCATE),
     Sig[StringTrimLeft](LTRIM),
     Sig[StringTrimRight](RTRIM),
@@ -100,6 +101,10 @@ object ExpressionMappings {
     Sig[Encode](ENCODE),
     Sig[Uuid](UUID),
     Sig[BitLength](BIT_LENGTH),
+    Sig[OctetLength](OCTET_LENGTH),
+    Sig[Levenshtein](LEVENSHTEIN),
+    Sig[UnBase64](UNBASE64),
+    Sig[Base64](BASE64),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
@@ -148,6 +153,7 @@ object ExpressionMappings {
     Sig[Remainder](REMAINDER),
     Sig[Factorial](FACTORIAL),
     Sig[Rand](RAND),
+    Sig[Rint](RINT),
     // PrestoSQL Math functions
     Sig[Acos](ACOS),
     Sig[Asin](ASIN),
@@ -189,10 +195,12 @@ object ExpressionMappings {
     Sig[MakeYMInterval](MAKE_YM_INTERVAL),
     Sig[ToUTCTimestamp](TO_UTC_TIMESTAMP),
     Sig[FromUTCTimestamp](FROM_UTC_TIMESTAMP),
+    Sig[UnixSeconds](UNIX_SECONDS),
     Sig[UnixMillis](UNIX_MILLIS),
     Sig[UnixMicros](UNIX_MICROS),
     Sig[MillisToTimestamp](TIMESTAMP_MILLIS),
     Sig[MicrosToTimestamp](TIMESTAMP_MICROS),
+    Sig[PreciseTimestampConversion](PRECYSE_TIMESTAMP_CONVERSION),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
@@ -213,6 +221,8 @@ object ExpressionMappings {
     Sig[Sequence](SEQUENCE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
+    // JsonTupleExplode' behavior are the same with Explode
+    Sig[JsonTupleExplode](EXPLODE),
     Sig[Inline](INLINE),
     Sig[ArrayAggregate](AGGREGATE),
     Sig[LambdaFunction](LAMBDAFUNCTION),
@@ -238,7 +248,10 @@ object ExpressionMappings {
     Sig[ArrayFilter](FILTER),
     Sig[ArrayForAll](FORALL),
     Sig[ArrayExists](EXISTS),
+    Sig[ArraySort](ARRAY_SORT),
     Sig[Shuffle](SHUFFLE),
+    Sig[ZipWith](ZIP_WITH),
+    Sig[Flatten](FLATTEN),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),
@@ -246,6 +259,7 @@ object ExpressionMappings {
     Sig[MapValues](MAP_VALUES),
     Sig[MapFromArrays](MAP_FROM_ARRAYS),
     Sig[MapEntries](MAP_ENTRIES),
+    Sig[MapZipWith](MAP_ZIP_WITH),
     Sig[StringToMap](STR_TO_MAP),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
@@ -268,8 +282,12 @@ object ExpressionMappings {
     Sig[PromotePrecision](PROMOTE_PRECISION),
     Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
+    Sig[WidthBucket](WIDTH_BUCKET),
+    Sig[ReplicateRows](REPLICATE_ROWS),
     // Decimal
-    Sig[UnscaledValue](UNSCALED_VALUE)
+    Sig[UnscaledValue](UNSCALED_VALUE),
+    // Generator function
+    Sig[Stack](STACK)
   ) ++ SparkShimLoader.getSparkShims.scalarExpressionMappings
 
   /** Mapping Spark aggregate expression to Substrait function name */
@@ -284,8 +302,6 @@ object ExpressionMappings {
     Sig[MinBy](MIN_BY),
     Sig[StddevSamp](STDDEV_SAMP),
     Sig[StddevPop](STDDEV_POP),
-    Sig[CollectList](COLLECT_LIST),
-    Sig[CollectSet](COLLECT_SET),
     Sig[VarianceSamp](VAR_SAMP),
     Sig[VariancePop](VAR_POP),
     Sig[BitAndAgg](BIT_AND_AGG),

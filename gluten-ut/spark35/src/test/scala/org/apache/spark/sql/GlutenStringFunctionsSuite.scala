@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql
 
-import org.apache.gluten.utils.FallbackUtil
+import org.apache.gluten.test.FallbackUtil
 
 import org.apache.spark.sql.catalyst.expressions.ExpressionEvalHelper
 import org.apache.spark.sql.functions._
@@ -29,10 +29,6 @@ class GlutenStringFunctionsSuite
   with ExpressionEvalHelper {
 
   import testImplicits._
-
-  override def testNameBlackList: Seq[String] = super.testNameBlackList ++ Seq(
-    "string / binary length function"
-  )
 
   testGluten("string split function with no limit and regex pattern") {
     val df1 = Seq(("aaAbbAcc4")).toDF("a").select(split($"a", "A"))

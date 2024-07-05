@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.types._
 
 import java.sql.Timestamp
@@ -35,8 +36,11 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  test("Test bit_get function") {
+  test("Test bit_get and getbit function") {
     runQueryAndCompare("SELECT bit_get(l_partkey, 0) from lineitem limit 1") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT getbit(l_partkey, 0) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -97,6 +101,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  testWithSpecifiedSparkVersion("null input for array_size", Some("3.3")) {
+    runQueryAndCompare("SELECT array_size(null)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("chr function") {
     val df = runQueryAndCompare(
       "SELECT chr(l_orderkey + 64) " +
@@ -153,23 +163,27 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     checkLengthAndPlan(df, 1)
   }
 
-  test("greatest function") {
-    val df = runQueryAndCompare(
-      "SELECT greatest(l_orderkey, l_orderkey)" +
-        "from lineitem limit 1")(checkGlutenOperatorMatch[ProjectExecTransformer])
-  }
-
-  test("least function") {
-    val df = runQueryAndCompare(
-      "SELECT least(l_orderkey, l_orderkey)" +
-        "from lineitem limit 1")(checkGlutenOperatorMatch[ProjectExecTransformer])
-  }
-
   test("Test greatest function") {
     runQueryAndCompare(
       "SELECT greatest(l_orderkey, l_orderkey)" +
         "from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    withTempPath {
+      path =>
+        spark
+          .sql("""SELECT *
+                FROM VALUES (CAST(5.345 AS DECIMAL(6, 2)), CAST(5.35 AS DECIMAL(5, 4))),
+                (CAST(5.315 AS DECIMAL(6, 2)), CAST(5.355 AS DECIMAL(5, 4))),
+                (CAST(3.345 AS DECIMAL(6, 2)), CAST(4.35 AS DECIMAL(5, 4))) AS data(a, b);""")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+        runQueryAndCompare("SELECT greatest(a, b) from view") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 
@@ -178,6 +192,22 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
       "SELECT least(l_orderkey, l_orderkey)" +
         "from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    withTempPath {
+      path =>
+        spark
+          .sql("""SELECT *
+                FROM VALUES (CAST(5.345 AS DECIMAL(6, 2)), CAST(5.35 AS DECIMAL(5, 4))),
+                (CAST(5.315 AS DECIMAL(6, 2)), CAST(5.355 AS DECIMAL(5, 4))),
+                (CAST(3.345 AS DECIMAL(6, 2)), CAST(4.35 AS DECIMAL(5, 4))) AS data(a, b);""")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+
+        runQueryAndCompare("SELECT least(a, b) from view") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 
@@ -265,6 +295,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
 
   test("Test log10 function") {
     runQueryAndCompare("SELECT log10(l_orderkey) from lineitem limit 1") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test log function") {
+    runQueryAndCompare("SELECT log(10, l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -517,6 +553,83 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("map_zip_with") {
+    withTempPath {
+      path =>
+        Seq((Map("a" -> 1, "b" -> 2), Map("a" -> 2, "b" -> 3)))
+          .toDF("m1", "m2")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        runQueryAndCompare(
+          "select map_zip_with(m1, m2, (k, v1, v2) -> k == v1 + v2) from map_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("test transform_keys function") {
+    withTempPath {
+      path =>
+        Seq(
+          Map[String, Int]("a" -> 1, "b" -> 2),
+          Map[String, Int]("a" -> 2, "b" -> 3),
+          null
+        )
+          .toDF("m")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        runQueryAndCompare("select transform_keys(m, (k, v) -> upper(k)) from map_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("test transform_values function") {
+    withTempPath {
+      path =>
+        Seq(
+          Map[String, Int]("a" -> 1, "b" -> 2),
+          Map[String, Int]("a" -> 2, "b" -> 3),
+          null
+        )
+          .toDF("m")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        runQueryAndCompare("select transform_values(m, (k, v) -> v + 1) from map_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("zip_with") {
+    withTempPath {
+      path =>
+        Seq[(Seq[Integer], Seq[Integer])](
+          (Seq(9001, 9002, 9003), Seq(4, 5, 6)),
+          (Seq(1, 2), Seq(3, 4)),
+          (Seq.empty, Seq.empty),
+          (null, null)
+        ).toDF("val1", "val2")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select zip_with(val1, val2, (x, y) -> x + y) from array_tbl") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("Test isnan function") {
     runQueryAndCompare(
       "SELECT isnan(l_orderkey), isnan(cast('NaN' as double)), isnan(0.0F/0.0F)" +
@@ -543,8 +656,26 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("Test input_file_name function") {
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("Test spark_partition_id function") {
     runQueryAndCompare("""SELECT spark_partition_id(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("""SELECT spark_partition_id()
+                         |from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  testWithSpecifiedSparkVersion("Test width_bucket function", Some("3.4")) {
+    runQueryAndCompare("""SELECT width_bucket(2, 0, 4, 3), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -588,6 +719,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
 
   test("Test unhex function") {
     runQueryAndCompare("SELECT unhex(hex(l_shipmode)) FROM lineitem limit 1") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("soundex") {
+    runQueryAndCompare("select soundex(c_comment) from customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -669,6 +806,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
 
   test("Test uuid function") {
     runQueryAndCompare("""SELECT uuid() from lineitem limit 100""".stripMargin, false) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test rand function") {
+    runQueryAndCompare("""SELECT rand() from lineitem limit 100""".stripMargin, false) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -780,6 +923,30 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  testWithSpecifiedSparkVersion("try_subtract", Some("3.3")) {
+    runQueryAndCompare(
+      "select try_subtract(2147483647, cast(l_orderkey as int)), " +
+        "try_subtract(-2147483648, cast(l_orderkey as int)) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("try_divide") {
+    runQueryAndCompare(
+      "select try_divide(cast(l_orderkey as int), 0) from lineitem",
+      noFallBack = false) {
+      _ => // Spark would always cast inputs to double for this function.
+    }
+  }
+
+  testWithSpecifiedSparkVersion("try_multiply", Some("3.3")) {
+    runQueryAndCompare(
+      "select try_multiply(2147483647, cast(l_orderkey as int)), " +
+        "try_multiply(-2147483648, cast(l_orderkey as int)) from lineitem") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("test array forall") {
     withTempPath {
       path =>
@@ -838,9 +1005,40 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("test shuffle") {
+    withTempPath {
+      path =>
+        Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
+          .toDF("value")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select shuffle(value) from array_tbl;", false) {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
   test("negative") {
     runQueryAndCompare("select negative(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("unix_seconds") {
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2024-08-22 10:10:10.010")
+        val t2 = Timestamp.valueOf("2014-12-31 00:00:00.012")
+        val t3 = Timestamp.valueOf("1968-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("t").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("select unix_seconds(t) from view") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
     }
   }
 
@@ -886,4 +1084,109 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("test flatten nested array") {
+    withTempPath {
+      path =>
+        Seq[Seq[Seq[Integer]]](
+          Seq(Seq(1, 2), Seq(4, 5)),
+          null,
+          Seq(null, Seq(1, 2)),
+          Seq(null, null),
+          Seq(Seq(1, 2, null), Seq(null, null), Seq(3, 4), Seq.empty))
+          .toDF("arrays")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select flatten(arrays) as res from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  testWithSpecifiedSparkVersion("get", Some("3.4")) {
+    withTempPath {
+      path =>
+        Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
+          .toDF("value")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare(
+          "select get(value, 0), get(value, 1), get(value, 2), get(value, 3) from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("length") {
+    runQueryAndCompare(
+      "select length(c_comment), length(cast(c_comment as binary))" +
+        " from customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("rint") {
+    withTempPath {
+      path =>
+        Seq(1.2, 1.5, 1.9).toDF("d").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("double")
+        runQueryAndCompare("select rint(d) from double") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("arrays_overlap") {
+    withTempPath {
+      path =>
+        Seq[(Seq[Integer], Seq[Integer])]((Seq(1, 2, 3), Seq(3, 4)), (Seq(5, null), Seq()))
+          .toDF("v1", "v2")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select arrays_overlap(v1, v2) from array_tbl;") {
+          checkGlutenOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
+
+  test("PreciseTimestampConversion") {
+    withTempPath {
+      path =>
+        val df = spark
+          .sql(
+            "select * from VALUES ('A1', TIMESTAMP'2021-01-01 00:00:00'), " +
+              "('A1', TIMESTAMP'2021-01-01 00:04:30'), ('A1', TIMESTAMP'2021-01-01 00:06:00'), " +
+              "('A2', TIMESTAMP'2021-01-01 00:01:00') AS tab(a, b)")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("string_timestamp")
+
+        runQueryAndCompare(
+          "SELECT a, window.start, window.end, count(*) as cnt FROM" +
+            " string_timestamp GROUP by a, window(b, '5 minutes') ORDER BY a, start;") {
+          df =>
+            val executedPlan = getExecutedPlan(df)
+            assert(
+              executedPlan.exists(plan => plan.isInstanceOf[ProjectExecTransformer]),
+              s"Expect ProjectExecTransformer exists " +
+                s"in executedPlan:\n ${executedPlan.last}"
+            )
+            assert(
+              !executedPlan.exists(plan => plan.isInstanceOf[ProjectExec]),
+              s"Expect ProjectExec doesn't exist " +
+                s"in executedPlan:\n ${executedPlan.last}"
+            )
+        }
+    }
+  }
 }

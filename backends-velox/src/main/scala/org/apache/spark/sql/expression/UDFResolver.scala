@@ -18,9 +18,7 @@ package org.apache.spark.sql.expression
 
 import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, Transformable}
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
-import org.apache.gluten.substrait.expression.ExpressionBuilder
+import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, GenericExpressionTransformer, Transformable}
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.vectorized.JniWorkspace
 
@@ -29,15 +27,13 @@ import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, ExpressionInfo}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, ExpressionInfo, Unevaluable}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.util.Utils
-
-import com.google.common.collect.Lists
 
 import java.io.File
 import java.net.URI
@@ -53,6 +49,7 @@ case class UserDefinedAggregateFunction(
     children: Seq[Expression],
     override val aggBufferAttributes: Seq[AttributeReference])
   extends AggregateFunction {
+  override def prettyName: String = name
 
   override def aggBufferSchema: StructType =
     StructType(
@@ -97,7 +94,8 @@ case class UDFExpression(
     dataType: DataType,
     nullable: Boolean,
     children: Seq[Expression])
-  extends Transformable {
+  extends Unevaluable
+  with Transformable {
   override protected def withNewChildrenInternal(
       newChildren: IndexedSeq[Expression]): Expression = {
     this.copy(children = newChildren)
@@ -110,19 +108,8 @@ case class UDFExpression(
         this.getClass.getSimpleName +
           ": getTransformer called before children transformer initialized.")
     }
-    (args: Object) => {
-      val transformers = childrenTransformers.map(_.doTransform(args))
-      val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-      val functionId = ExpressionBuilder.newScalarFunction(
-        functionMap,
-        ConverterUtils.makeFuncName(name, children.map(_.dataType), FunctionConfig.REQ))
 
-      val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
-      ExpressionBuilder.makeScalarFunction(
-        functionId,
-        Lists.newArrayList(transformers: _*),
-        typeNode)
-    }
+    GenericExpressionTransformer(name, childrenTransformers, this)
   }
 }
 
@@ -189,12 +176,16 @@ object UDFResolver extends Logging {
       intermediateTypes: ExpressionType,
       variableArity: Boolean): Unit = {
     assert(argTypes.dataType.isInstanceOf[StructType])
-    assert(intermediateTypes.dataType.isInstanceOf[StructType])
 
-    val aggBufferAttributes =
-      intermediateTypes.dataType.asInstanceOf[StructType].fields.zipWithIndex.map {
-        case (f, index) =>
-          AttributeReference(s"inter_$index", f.dataType, f.nullable)()
+    val aggBufferAttributes: Seq[AttributeReference] =
+      intermediateTypes.dataType match {
+        case StructType(fields) =>
+          fields.zipWithIndex.map {
+            case (f, index) =>
+              AttributeReference(s"agg_inter_$index", f.dataType, f.nullable)()
+          }
+        case t =>
+          Seq(AttributeReference(s"agg_inter", t)())
       }
 
     val v =
@@ -240,8 +231,9 @@ object UDFResolver extends Logging {
 
     udfLibPaths match {
       case Some(paths) =>
+        // Set resolved paths to the internal config to parse on native side.
         sparkConf.set(
-          VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS,
+          VeloxBackendSettings.GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS,
           getAllLibraries(sparkConf, isDriver, paths))
       case None =>
     }
@@ -336,7 +328,7 @@ object UDFResolver extends Logging {
       case None =>
         Seq.empty
       case Some(_) =>
-        new UdfJniWrapper().getFunctionSignatures()
+        UdfJniWrapper.getFunctionSignatures()
 
         UDFNames.map {
           name =>

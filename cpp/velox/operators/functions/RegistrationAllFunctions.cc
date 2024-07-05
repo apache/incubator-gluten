@@ -15,25 +15,33 @@
  * limitations under the License.
  */
 #include "operators/functions/RegistrationAllFunctions.h"
+
 #include "operators/functions/Arithmetic.h"
-#include "operators/functions/RowConstructorWithAllNull.h"
 #include "operators/functions/RowConstructorWithNull.h"
 #include "operators/functions/RowFunctionWithNull.h"
-
 #include "velox/expression/SpecialFormRegistry.h"
 #include "velox/expression/VectorFunction.h"
+#include "velox/functions/lib/CheckedArithmetic.h"
 #include "velox/functions/lib/RegistrationHelpers.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
-#include "velox/functions/sparksql/Bitwise.h"
 #include "velox/functions/sparksql/Hash.h"
+#include "velox/functions/sparksql/Rand.h"
 #include "velox/functions/sparksql/Register.h"
 #include "velox/functions/sparksql/aggregates/Register.h"
 #include "velox/functions/sparksql/window/WindowFunctionsRegistration.h"
 
 using namespace facebook;
 
+namespace facebook::velox::functions {
+void registerPrestoVectorFunctions() {
+  // Presto function. To be removed.
+  VELOX_REGISTER_VECTOR_FUNCTION(udf_arrays_overlap, "arrays_overlap");
+  VELOX_REGISTER_VECTOR_FUNCTION(udf_transform_keys, "transform_keys");
+  VELOX_REGISTER_VECTOR_FUNCTION(udf_transform_values, "transform_values");
+}
+} // namespace facebook::velox::functions
 namespace gluten {
 namespace {
 void registerFunctionOverwrite() {
@@ -45,30 +53,30 @@ void registerFunctionOverwrite() {
   velox::registerFunction<RoundFunction, double, double, int32_t>({"round"});
   velox::registerFunction<RoundFunction, float, float, int32_t>({"round"});
 
+  auto kRowConstructorWithNull = RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull;
   velox::exec::registerVectorFunction(
-      "row_constructor_with_null",
+      kRowConstructorWithNull,
       std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
       std::make_unique<RowFunctionWithNull</*allNull=*/false>>(),
       RowFunctionWithNull</*allNull=*/false>::metadata());
   velox::exec::registerFunctionCallToSpecialForm(
-      RowConstructorWithNullCallToSpecialForm::kRowConstructorWithNull,
-      std::make_unique<RowConstructorWithNullCallToSpecialForm>());
+      kRowConstructorWithNull, std::make_unique<RowConstructorWithNullCallToSpecialForm>(kRowConstructorWithNull));
+
+  auto kRowConstructorWithAllNull = RowConstructorWithNullCallToSpecialForm::kRowConstructorWithAllNull;
   velox::exec::registerVectorFunction(
-      "row_constructor_with_all_null",
+      kRowConstructorWithAllNull,
       std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
       std::make_unique<RowFunctionWithNull</*allNull=*/true>>(),
       RowFunctionWithNull</*allNull=*/true>::metadata());
   velox::exec::registerFunctionCallToSpecialForm(
-      RowConstructorWithAllNullCallToSpecialForm::kRowConstructorWithAllNull,
-      std::make_unique<RowConstructorWithAllNullCallToSpecialForm>());
-  velox::functions::sparksql::registerBitwiseFunctions("spark_");
+      kRowConstructorWithAllNull,
+      std::make_unique<RowConstructorWithNullCallToSpecialForm>(kRowConstructorWithAllNull));
+
+  velox::functions::registerPrestoVectorFunctions();
 }
 } // namespace
 
 void registerAllFunctions() {
-  // The registration order matters. Spark sql functions are registered after
-  // presto sql functions to overwrite the registration for same named functions.
-  velox::functions::prestosql::registerAllScalarFunctions();
   velox::functions::sparksql::registerFunctions("");
   velox::aggregate::prestosql::registerAllAggregateFunctions(
       "", true /*registerCompanionFunctions*/, false /*onlyPrestoSignatures*/, true /*overwrite*/);
@@ -76,7 +84,8 @@ void registerAllFunctions() {
       "", true /*registerCompanionFunctions*/, true /*overwrite*/);
   velox::window::prestosql::registerAllWindowFunctions();
   velox::functions::window::sparksql::registerWindowFunctions("");
-  // Using function overwrite to handle function names mismatch between Spark and Velox.
+  // Using function overwrite to handle function names mismatch between Spark
+  // and Velox.
   registerFunctionOverwrite();
 }
 

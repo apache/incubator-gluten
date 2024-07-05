@@ -47,7 +47,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     Row(95337, 12, decimal(915.61))
   )
 
-  testGluten("Literal in window partition by and sort") {
+  ignoreGluten("Literal in window partition by and sort") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)

@@ -1,0 +1,273 @@
+{
+  "extensions": [{
+    "extensionFunction": {
+      "functionAnchor": 1,
+      "name": "is_not_null:str"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 2,
+      "name": "equal:str_str"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 3,
+      "name": "is_not_null:i64"
+    }
+  }, {
+    "extensionFunction": {
+      "name": "and:bool_bool"
+    }
+  }],
+  "relations": [{
+    "root": {
+      "input": {
+        "project": {
+          "common": {
+            "emit": {
+              "outputMapping": [2]
+            }
+          },
+          "input": {
+            "filter": {
+              "common": {
+                "direct": {
+                }
+              },
+              "input": {
+                "read": {
+                  "common": {
+                    "direct": {
+                    }
+                  },
+                  "baseSchema": {
+                    "names": ["r_regionkey", "r_name"],
+                    "struct": {
+                      "types": [{
+                        "i64": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }, {
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }]
+                    },
+                    "columnTypes": ["NORMAL_COL", "NORMAL_COL"]
+                  },
+                  "filter": {
+                    "scalarFunction": {
+                      "outputType": {
+                        "bool": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      "arguments": [{
+                        "value": {
+                          "scalarFunction": {
+                            "outputType": {
+                              "bool": {
+                                "nullability": "NULLABILITY_NULLABLE"
+                              }
+                            },
+                            "arguments": [{
+                              "value": {
+                                "scalarFunction": {
+                                  "functionReference": 1,
+                                  "outputType": {
+                                    "bool": {
+                                      "nullability": "NULLABILITY_REQUIRED"
+                                    }
+                                  },
+                                  "arguments": [{
+                                    "value": {
+                                      "selection": {
+                                        "directReference": {
+                                          "structField": {
+                                            "field": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }]
+                                }
+                              }
+                            }, {
+                              "value": {
+                                "scalarFunction": {
+                                  "functionReference": 2,
+                                  "outputType": {
+                                    "bool": {
+                                      "nullability": "NULLABILITY_NULLABLE"
+                                    }
+                                  },
+                                  "arguments": [{
+                                    "value": {
+                                      "selection": {
+                                        "directReference": {
+                                          "structField": {
+                                            "field": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }, {
+                                    "value": {
+                                      "literal": {
+                                        "string": "EUROPE"
+                                      }
+                                    }
+                                  }]
+                                }
+                              }
+                            }]
+                          }
+                        }
+                      }, {
+                        "value": {
+                          "scalarFunction": {
+                            "functionReference": 3,
+                            "outputType": {
+                              "bool": {
+                                "nullability": "NULLABILITY_REQUIRED"
+                              }
+                            },
+                            "arguments": [{
+                              "value": {
+                                "selection": {
+                                  "directReference": {
+                                    "structField": {
+                                    }
+                                  }
+                                }
+                              }
+                            }]
+                          }
+                        }
+                      }]
+                    }
+                  },
+                  "advancedExtension": {
+                    "optimization": {
+                      "@type": "type.googleapis.com/google.protobuf.StringValue",
+                      "value": "isMergeTree\u003d0\n"
+                    }
+                  }
+                }
+              },
+              "condition": {
+                "scalarFunction": {
+                  "outputType": {
+                    "bool": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  "arguments": [{
+                    "value": {
+                      "scalarFunction": {
+                        "outputType": {
+                          "bool": {
+                            "nullability": "NULLABILITY_NULLABLE"
+                          }
+                        },
+                        "arguments": [{
+                          "value": {
+                            "scalarFunction": {
+                              "functionReference": 1,
+                              "outputType": {
+                                "bool": {
+                                  "nullability": "NULLABILITY_REQUIRED"
+                                }
+                              },
+                              "arguments": [{
+                                "value": {
+                                  "selection": {
+                                    "directReference": {
+                                      "structField": {
+                                        "field": 1
+                                      }
+                                    }
+                                  }
+                                }
+                              }]
+                            }
+                          }
+                        }, {
+                          "value": {
+                            "scalarFunction": {
+                              "functionReference": 2,
+                              "outputType": {
+                                "bool": {
+                                  "nullability": "NULLABILITY_NULLABLE"
+                                }
+                              },
+                              "arguments": [{
+                                "value": {
+                                  "selection": {
+                                    "directReference": {
+                                      "structField": {
+                                        "field": 1
+                                      }
+                                    }
+                                  }
+                                }
+                              }, {
+                                "value": {
+                                  "literal": {
+                                    "string": "EUROPE"
+                                  }
+                                }
+                              }]
+                            }
+                          }
+                        }]
+                      }
+                    }
+                  }, {
+                    "value": {
+                      "scalarFunction": {
+                        "functionReference": 3,
+                        "outputType": {
+                          "bool": {
+                            "nullability": "NULLABILITY_REQUIRED"
+                          }
+                        },
+                        "arguments": [{
+                          "value": {
+                            "selection": {
+                              "directReference": {
+                                "structField": {
+                                }
+                              }
+                            }
+                          }
+                        }]
+                      }
+                    }
+                  }]
+                }
+              }
+            }
+          },
+          "expressions": [{
+            "selection": {
+              "directReference": {
+                "structField": {
+                }
+              }
+            }
+          }]
+        }
+      },
+      "names": ["r_regionkey#72"],
+      "outputSchema": {
+        "types": [{
+          "i64": {
+            "nullability": "NULLABILITY_NULLABLE"
+          }
+        }],
+        "nullability": "NULLABILITY_REQUIRED"
+      }
+    }
+  }]
+}

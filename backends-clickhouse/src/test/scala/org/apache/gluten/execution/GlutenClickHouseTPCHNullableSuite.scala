@@ -19,7 +19,8 @@ package org.apache.gluten.execution
 import org.apache.gluten.GlutenConfig
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.catalyst.expressions.Alias
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 
 class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -65,7 +66,11 @@ class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuit
           val shjBuildLeft = df.queryExecution.executedPlan.collect {
             case shj: ShuffledHashJoinExecTransformerBase if shj.joinBuildSide == BuildLeft => shj
           }
-          assert(shjBuildLeft.size == 2)
+          assert(shjBuildLeft.size == 1)
+          val shjBuildRight = df.queryExecution.executedPlan.collect {
+            case shj: ShuffledHashJoinExecTransformerBase if shj.joinBuildSide == BuildRight => shj
+          }
+          assert(shjBuildRight.size == 1)
       }
     }
   }
@@ -235,7 +240,14 @@ class GlutenClickHouseTPCHNullableSuite extends GlutenClickHouseTPCHAbstractSuit
                 case project: ProjectExecTransformer => project
               }
               assert(project.size == 1)
-              assert(project.apply(0).projectList.toString().contains("from_unixtime") == conf._2)
+              assert(
+                project
+                  .apply(0)
+                  .projectList(0)
+                  .asInstanceOf[Alias]
+                  .child
+                  .toString()
+                  .contains("from_unixtime") == conf._2)
             })
         }
       })

@@ -16,13 +16,16 @@
 cmake_minimum_required(VERSION 3.16)
 message(STATUS "Building using CMake version: ${CMAKE_VERSION}")
 
-# The set(CACHE) command does not remove any normal variable of the same name from the current scope
-# https://cmake.org/cmake/help/latest/policy/CMP0126.html
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# The set(CACHE) command does not remove any normal variable of the same name
+# from the current scope https://cmake.org/cmake/help/latest/policy/CMP0126.html
 if(POLICY CMP0126)
   cmake_policy(SET CMP0126 NEW)
 endif()
 
-if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
   cmake_policy(SET CMP0135 NEW)
 endif()
 
@@ -33,7 +36,9 @@ if(NOT DEFINED CMAKE_BUILD_TYPE)
 endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
+set(CMAKE_EXPORT_COMPILE_COMMANDS
+    ON
+    CACHE INTERNAL "")
 
 project(gluten)
 
@@ -57,15 +62,19 @@ option(ENABLE_ABFS "Enable ABFS" OFF)
 set(root_directory ${PROJECT_BINARY_DIR})
 get_filename_component(GLUTEN_HOME ${CMAKE_SOURCE_DIR} DIRECTORY)
 
-if (NOT DEFINED VELOX_HOME)
+if(NOT DEFINED VELOX_HOME)
   set(VELOX_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep)
   message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
 endif()
 
-if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-  set(ARROW_HOME ${VELOX_HOME}/_build/debug/third_party/arrow_ep)
+if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+  set(ARROW_HOME
+      ${VELOX_HOME}/_build/debug/CMake/resolve_dependency_modules/arrow/arrow_ep/
+  )
 else()
-  set(ARROW_HOME ${VELOX_HOME}/_build/release/third_party/arrow_ep)
+  set(ARROW_HOME
+      ${VELOX_HOME}/_build/release/CMake/resolve_dependency_modules/arrow/arrow_ep
+  )
 endif()
 
 include(ResolveDependency)
@@ -74,53 +83,67 @@ include(ResolveDependency)
 # Compiler flags
 #
 
-if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -O0")
   message(STATUS "CMAKE_CXX_FLAGS_DEBUG=${CMAKE_CXX_FLAGS_DEBUG}")
-else ()
+else()
   add_definitions(-DNDEBUG)
   message(STATUS "Add definition NDEBUG")
 endif()
 
-add_compile_options(-Wall)
-add_compile_options(-Wno-sign-compare)
-add_compile_options(-Wno-comment)
-
-add_compile_options(-Werror)
-add_compile_options(-Wno-error=parentheses)
-add_compile_options(-Wno-error=unused-function)
-add_compile_options(-Wno-error=unused-variable)
-add_compile_options(-Wno-strict-aliasing)
+set(KNOWN_WARNINGS
+    "-Wall \
+       -Wno-sign-compare \
+       -Wno-comment \
+       -Werror \
+       -Wno-error=parentheses \
+       -Wno-error=unused-function \
+       -Wno-error=unused-variable \
+       -Wno-strict-aliasing \
+       -Wno-ignored-qualifiers")
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  add_compile_options(-Wno-error=unused-but-set-variable)
+  set(KNOWN_WARNINGS "-Wno-error=unused-but-set-variable \
+      ${KNOWN_WARNINGS}")
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
-    add_compile_options(-Wno-error=maybe-uninitialized)
+    set(KNOWN_WARNINGS "-Wno-error=maybe-uninitialized \
+      ${KNOWN_WARNINGS}")
   endif()
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   # Experimental
-  add_compile_options(-Wno-implicit-int-float-conversion)
-  add_compile_options(-Wno-nullability-completeness)
-  add_compile_options(-Wno-mismatched-tags)
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+  set(KNOWN_WARNINGS
+      "-Wno-implicit-int-float-conversion \
+      -Wno-nullability-completeness \
+      -Wno-mismatched-tags \
+      ${KNOWN_WARNINGS}")
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
   # Experimental
-  add_compile_options(-Wno-implicit-int-float-conversion)
-  add_compile_options(-Wno-nullability-completeness)
-  add_compile_options(-Wno-mismatched-tags)
+  set(KNOWN_WARNINGS
+      "-Wno-implicit-int-float-conversion \
+      -Wno-nullability-completeness \
+      -Wno-mismatched-tags \
+      -Wno-error=unused-private-field \
+      -Wno-error=pessimizing-move \
+      ${KNOWN_WARNINGS}")
 else()
   message(FATAL_ERROR "Unsupported compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 endif()
 
 # see https://issues.apache.org/jira/browse/ARROW-4665
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  add_compile_options(-Wno-macro-redefined)
-  add_compile_options(-Wno-nullability-completeness)
-  add_compile_options(-Wno-pessimizing-move)
-  add_compile_options(-Wno-mismatched-tags)
-  # Specific definition for an issue with boost/stacktrace when building on macOS.
-  # See https://github.com/boostorg/stacktrace/issues/88 and comments therein.
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  set(KNOWN_WARNINGS
+      "-Wno-macro-redefined \
+      -Wno-nullability-completeness \
+      -Wno-pessimizing-move \
+      -Wno-mismatched-tags \
+      ${KNOWN_WARNINGS}")
+  # Specific definition for an issue with boost/stacktrace when building on
+  # macOS. See https://github.com/boostorg/stacktrace/issues/88 and comments
+  # therein.
   add_compile_definitions(_GNU_SOURCE)
 endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KNOWN_WARNINGS}")
 
 #
 # Dependencies
@@ -148,17 +171,11 @@ endif()
 function(ADD_TEST_CASE TEST_NAME)
   set(options)
   set(one_value_args)
-  set(multi_value_args
-      SOURCES
-      EXTRA_LINK_LIBS
-      EXTRA_INCLUDES
-      EXTRA_DEPENDENCIES)
+  set(multi_value_args SOURCES EXTRA_LINK_LIBS EXTRA_INCLUDES
+                       EXTRA_DEPENDENCIES)
 
-  cmake_parse_arguments(ARG
-      "${options}"
-      "${one_value_args}"
-      "${multi_value_args}"
-      ${ARGN})
+  cmake_parse_arguments(ARG "${options}" "${one_value_args}"
+                        "${multi_value_args}" ${ARGN})
 
   if(ARG_SOURCES)
     set(SOURCES ${ARG_SOURCES})
@@ -167,7 +184,8 @@ function(ADD_TEST_CASE TEST_NAME)
   endif()
 
   add_executable(${TEST_NAME} ${SOURCES})
-  target_link_libraries(${TEST_NAME} gluten google::glog GTest::gtest GTest::gtest_main Threads::Threads)
+  target_link_libraries(${TEST_NAME} gluten google::glog GTest::gtest
+                        GTest::gtest_main Threads::Threads)
   target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/core)
 
   if(ARG_EXTRA_LINK_LIBS)

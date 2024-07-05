@@ -39,6 +39,8 @@ class HbwMemoryAllocator final : public MemoryAllocator {
 
   int64_t getBytes() const override;
 
+  int64_t peakBytes() const override;
+
  private:
   std::atomic_int64_t bytes_{0};
 };

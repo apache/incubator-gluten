@@ -62,14 +62,14 @@ ActionsDAGPtr parseFilter(const std::string & filter, const AnotherRowType & nam
         size_limits_for_set,
         static_cast<size_t>(0),
         name_and_types,
-        std::make_shared<ActionsDAG>(name_and_types),
+        ActionsDAG(name_and_types),
         prepared_sets /* prepared_sets */,
         false /* no_subqueries */,
         false /* no_makeset */,
         false /* only_consts */,
         info);
     ActionsVisitor(visitor_data).visit(ast_exp);
-    return ActionsDAG::buildFilterActionsDAG({visitor_data.getActions()->getOutputs().back()}, node_name_to_input_column);
+    return ActionsDAG::buildFilterActionsDAG({visitor_data.getActions().getOutputs().back()}, node_name_to_input_column);
 }
 
 const char * get_data_dir()

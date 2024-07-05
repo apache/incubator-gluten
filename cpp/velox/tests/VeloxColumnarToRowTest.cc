@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#include "jni/JniError.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
@@ -35,7 +34,7 @@ class VeloxColumnarToRowTest : public ::testing::Test, public test::VectorTestBa
   }
 
   void testRowBufferAddr(velox::RowVectorPtr vector, uint8_t* expectArr, int32_t expectArrSize) {
-    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool_);
+    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(pool_);
 
     auto cb = std::make_shared<VeloxColumnarBatch>(vector);
     columnarToRowConverter->convert(cb);
@@ -45,9 +44,6 @@ class VeloxColumnarToRowTest : public ::testing::Test, public test::VectorTestBa
       ASSERT_EQ(*(address + i), *(expectArr + i));
     }
   }
-
- private:
-  std::shared_ptr<velox::memory::MemoryPool> veloxPool_ = defaultLeafVeloxMemoryPool();
 };
 
 TEST_F(VeloxColumnarToRowTest, Buffer_int8_int16) {

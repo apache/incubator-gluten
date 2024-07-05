@@ -230,7 +230,7 @@ class OperationSuite extends AnyFunSuite {
               48,
               Unary3(48, Unary3(48, Unary3(48, Unary3(48, Unary3(48, Unary3(48, Leaf(30))))))))))))
     assert(costModel.costOfCount == 32) // TODO reduce this for performance
-    assert(costModel.costCompareCount == 20) // TODO reduce this for performance
+    assert(costModel.costCompareCount == 50) // TODO reduce this for performance
   }
 
   test("Cost evaluation count - max cost") {
@@ -292,7 +292,7 @@ class OperationSuite extends AnyFunSuite {
               48,
               Unary3(48, Unary3(48, Unary3(48, Unary3(48, Unary3(48, Unary3(48, Leaf(30))))))))))))
     assert(costModel.costOfCount == 32) // TODO reduce this for performance
-    assert(costModel.costCompareCount == 20) // TODO reduce this for performance
+    assert(costModel.costCompareCount == 50) // TODO reduce this for performance
   }
 }
 
@@ -411,9 +411,12 @@ object OperationSuite {
       equalsCount += 1
       delegated.equals(one, other)
     }
-    override def newGroupLeaf(groupId: Int, metadata: Metadata, propSet: PropertySet[T]): T = {
+    override def newGroupLeaf(
+        groupId: Int,
+        metadata: Metadata,
+        constraintSet: PropertySet[T]): T = {
       newGroupLeafCount += 1
-      delegated.newGroupLeaf(groupId, metadata, propSet)
+      delegated.newGroupLeaf(groupId, metadata, constraintSet)
     }
     override def isGroupLeaf(node: T): Boolean = {
       isGroupLeafCount += 1

@@ -18,10 +18,8 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.memory.memtarget.MemoryTarget
-import org.apache.gluten.memory.memtarget.Spiller
-import org.apache.gluten.memory.memtarget.Spillers
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
+import org.apache.gluten.exec.Runtimes
+import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.vectorized._
 
 import org.apache.spark._
@@ -35,7 +33,6 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
-import java.util
 
 class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
     shuffleId: Int,
@@ -52,7 +49,9 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
     client,
     writeMetrics) {
 
-  private val jniWrapper = ShuffleWriterJniWrapper.create()
+  private val runtime = Runtimes.contextInstance("CelebornShuffleWriter")
+
+  private val jniWrapper = ShuffleWriterJniWrapper.create(runtime)
 
   private var splitResult: SplitResult = _
 
@@ -67,6 +66,12 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
     } else {
       bufferSize
     }
+  }
+
+  private val memoryLimit: Long = if ("sort".equals(shuffleWriterType)) {
+    Math.min(clientSortMemoryMaxSize, clientPushBufferMaxSize * numPartitions)
+  } else {
+    availableOffHeapPerTask()
   }
 
   private def availableOffHeapPerTask(): Long = {
@@ -97,41 +102,31 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
             bufferCompressThreshold,
             GlutenConfig.getConf.columnarShuffleCompressionMode,
             clientPushBufferMaxSize,
+            clientPushSortMemoryThreshold,
             celebornPartitionPusher,
-            NativeMemoryManagers
-              .create(
-                "CelebornShuffleWriter",
-                new Spiller() {
-                  override def spill(self: MemoryTarget, size: Long): Long = {
-                    if (nativeShuffleWriter == -1L) {
-                      throw new IllegalStateException(
-                        "Fatal: spill() called before a celeborn shuffle writer " +
-                          "is created. This behavior should be" +
-                          "optimized by moving memory " +
-                          "allocations from make() to split()")
-                    }
-                    logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
-                    // fixme pass true when being called by self
-                    val pushed =
-                      jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
-                    logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
-                    pushed
-                  }
-
-                  override def applicablePhases(): util.Set[Spiller.Phase] =
-                    Spillers.PHASE_SET_SPILL_ONLY
-                }
-              )
-              .getNativeInstanceHandle,
             handle,
             context.taskAttemptId(),
             GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
             "celeborn",
+            shuffleWriterType,
             GlutenConfig.getConf.columnarShuffleReallocThreshold
           )
+          runtime.addSpiller(new Spiller() {
+            override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
+              if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+                return 0L
+              }
+              logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
+              // fixme pass true when being called by self
+              val pushed =
+                jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+              logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
+              pushed
+            }
+          })
         }
         val startTime = System.nanoTime()
-        jniWrapper.split(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
+        jniWrapper.write(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
         dep.metrics("inputBatches").add(1)

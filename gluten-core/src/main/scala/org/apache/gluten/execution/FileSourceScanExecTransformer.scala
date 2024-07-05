@@ -19,9 +19,9 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, PlanExpression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
@@ -30,7 +30,6 @@ import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
 
 case class FileSourceScanExecTransformer(
@@ -103,20 +102,20 @@ abstract class FileSourceScanExecTransformerBase(
 
   override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
 
-  def getPartitionFilters(): Seq[Expression] = partitionFilters
-
   override def outputAttributes(): Seq[Attribute] = output
 
   override def getPartitions: Seq[InputPartition] = {
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
+      requiredSchema,
       dynamicallySelectedPartitions,
       output,
       bucketedScan,
       optionalBucketSet,
       optionalNumCoalescedBuckets,
       disableBucketedScan,
-      filterExprs())
+      filterExprs()
+    )
   }
 
   override def getPartitionSchema: StructType = relation.partitionSchema
@@ -134,6 +133,13 @@ abstract class FileSourceScanExecTransformerBase(
       return ValidationResult.notOk(s"Unsupported metadata columns scan in native.")
     }
 
+    if (
+      SparkShimLoader.getSparkShims.findRowIndexColumnIndexInSchema(schema) > 0 &&
+      !BackendsApiManager.getSettings.supportNativeRowIndexColumn()
+    ) {
+      return ValidationResult.notOk("Unsupported row index column scan in native.")
+    }
+
     if (hasUnsupportedColumns) {
       return ValidationResult.notOk(s"Unsupported columns scan in native.")
     }
@@ -145,10 +151,6 @@ abstract class FileSourceScanExecTransformerBase(
           s"by field ids in native scan.")
     }
     super.doValidateInternal()
-  }
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    doExecuteColumnarInternal()
   }
 
   override def metricsUpdater(): MetricsUpdater =
@@ -183,6 +185,7 @@ abstract class FileSourceScanExecTransformerBase(
     relation.fileFormat.getClass.getSimpleName match {
       case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
       case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
+      case "DeltaParquetFileFormat" => ReadFileFormat.ParquetReadFormat
       case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
       case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
       case "CSVFileFormat" => ReadFileFormat.TextReadFormat

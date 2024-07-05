@@ -54,10 +54,13 @@ object MetricsUtil extends Logging {
           MetricsUpdaterTree(
             smj.metricsUpdater(),
             Seq(treeifyMetricsUpdaters(smj.bufferedPlan), treeifyMetricsUpdaters(smj.streamedPlan)))
+        case t: TransformSupport if t.metricsUpdater() == MetricsUpdater.None =>
+          assert(t.children.size == 1, "MetricsUpdater.None can only be used on unary operator")
+          treeifyMetricsUpdaters(t.children.head)
         case t: TransformSupport =>
           MetricsUpdaterTree(t.metricsUpdater(), t.children.map(treeifyMetricsUpdaters))
         case _ =>
-          MetricsUpdaterTree(NoopMetricsUpdater, Seq())
+          MetricsUpdaterTree(MetricsUpdater.Terminate, Seq())
       }
     }
 
@@ -180,6 +183,8 @@ object MetricsUtil extends Logging {
     )
   }
 
+  // FIXME: Metrics updating code is too magical to maintain. Tree-walking algorithm should be made
+  //  more declarative than by counting down these counters that don't have fixed definition.
   /**
    * @return
    *   operator index and metrics index
@@ -192,6 +197,9 @@ object MetricsUtil extends Logging {
       metricsIdx: Int,
       joinParamsMap: JMap[JLong, JoinParams],
       aggParamsMap: JMap[JLong, AggregationParams]): (JLong, Int) = {
+    if (mutNode.updater == MetricsUpdater.Terminate) {
+      return (operatorIdx, metricsIdx)
+    }
     val operatorMetrics = new JArrayList[OperatorMetrics]()
     var curMetricsIdx = metricsIdx
     relMap
@@ -245,18 +253,16 @@ object MetricsUtil extends Logging {
 
     mutNode.children.foreach {
       child =>
-        if (child.updater != NoopMetricsUpdater) {
-          val result = updateTransformerMetricsInternal(
-            child,
-            relMap,
-            newOperatorIdx,
-            metrics,
-            newMetricsIdx,
-            joinParamsMap,
-            aggParamsMap)
-          newOperatorIdx = result._1
-          newMetricsIdx = result._2
-        }
+        val result = updateTransformerMetricsInternal(
+          child,
+          relMap,
+          newOperatorIdx,
+          metrics,
+          newMetricsIdx,
+          joinParamsMap,
+          aggParamsMap)
+        newOperatorIdx = result._1
+        newMetricsIdx = result._2
     }
 
     (newOperatorIdx, newMetricsIdx)
@@ -292,8 +298,6 @@ object MetricsUtil extends Logging {
         val numNativeMetrics = metrics.inputRows.length
         if (numNativeMetrics == 0) {
           ()
-        } else if (mutNode.updater == NoopMetricsUpdater) {
-          ()
         } else {
           updateTransformerMetricsInternal(
             mutNode,
@@ -305,7 +309,7 @@ object MetricsUtil extends Logging {
             aggParamsMap)
         }
       } catch {
-        case e: Throwable =>
+        case e: Exception =>
           logWarning(s"Updating native metrics failed due to ${e.getCause}.")
           ()
       }

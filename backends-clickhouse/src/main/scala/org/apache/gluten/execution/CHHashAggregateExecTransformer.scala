@@ -81,8 +81,8 @@ case class CHHashAggregateExecTransformer(
     }
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
 
     val aggParams = new AggregationParams
@@ -294,7 +294,7 @@ case class CHHashAggregateExecTransformer(
             ._1
             .get
         } else {
-          AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc).get
+          AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc)
         }
       ConverterUtils.genColumnNameWithExprId(resultAttr) + "#Partial#" + aggFunctionName
     }
@@ -411,13 +411,9 @@ case class CHHashAggregateExecTransformer(
 }
 
 case class CHHashAggregateExecPullOutHelper(
-    groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
     aggregateAttributes: Seq[Attribute])
-  extends HashAggregateExecPullOutBaseHelper(
-    groupingExpressions,
-    aggregateExpressions,
-    aggregateAttributes) {
+  extends HashAggregateExecPullOutBaseHelper {
 
   /** This method calculates the output attributes of Aggregation. */
   override protected def getAttrForAggregateExprs: List[Attribute] = {

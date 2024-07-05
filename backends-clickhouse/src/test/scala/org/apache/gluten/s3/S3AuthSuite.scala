@@ -102,7 +102,7 @@ class S3AuthSuite extends AnyFunSuite {
     }
 
     def withGluten(enable: Boolean): Builder = {
-      builder.config("spark.gluten.enabled", enable.toString)
+      builder.config(GlutenConfig.GLUTEN_ENABLED.key, enable.toString)
     }
   }
 

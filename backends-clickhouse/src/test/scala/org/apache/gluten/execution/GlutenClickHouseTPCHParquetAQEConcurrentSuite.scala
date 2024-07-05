@@ -24,6 +24,7 @@ import org.apache.spark.sql.types.DoubleType
 import java.util.concurrent.ForkJoinPool
 
 import scala.collection.parallel.ForkJoinTaskSupport
+import scala.collection.parallel.immutable.ParVector
 
 class GlutenClickHouseTPCHParquetAQEConcurrentSuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -74,7 +75,7 @@ class GlutenClickHouseTPCHParquetAQEConcurrentSuite
 
   test("fix race condition at the global variable of ColumnarOverrideRules::isAdaptiveContext") {
 
-    val queries = ((1 to 22) ++ (1 to 22) ++ (1 to 22) ++ (1 to 22)).par
+    val queries = ParVector((1 to 22) ++ (1 to 22) ++ (1 to 22) ++ (1 to 22): _*)
     queries.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(22))
     queries.map(queryId => runTPCHQuery(queryId) { df => })
 

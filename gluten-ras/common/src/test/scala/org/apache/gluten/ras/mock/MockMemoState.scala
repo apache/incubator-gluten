@@ -102,7 +102,7 @@ object MockMemoState {
       nodeBuffer ++= nodes
     }
 
-    override def nodes(): Seq[CanonicalNode[T]] = nodeBuffer
+    override def nodes(): Seq[CanonicalNode[T]] = nodeBuffer.toSeq
   }
 
   object MockMutableCluster {
@@ -121,7 +121,7 @@ object MockMemoState {
   class MockMutableGroup[T <: AnyRef] private (
       override val id: Int,
       override val clusterKey: RasClusterKey,
-      override val propSet: PropertySet[T],
+      override val constraintSet: PropertySet[T],
       override val self: T)
     extends RasGroup[T] {
     private val nodes: mutable.ArrayBuffer[CanonicalNode[T]] = mutable.ArrayBuffer()
@@ -153,7 +153,7 @@ object MockMemoState {
         group
       }
 
-      def allGroups(): Seq[MockMutableGroup[T]] = groupBuffer
+      def allGroups(): Seq[MockMutableGroup[T]] = groupBuffer.toSeq
     }
 
     object Factory {

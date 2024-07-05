@@ -60,7 +60,6 @@
       "dependencies": [
         {
           "name": "aws-sdk-cpp",
-	  "version>=": "1.11.169",
           "features": [
             "identity-management",
             "s3",
@@ -118,7 +117,6 @@
   },
   "overrides": [
     { "name": "fmt", "version": "10.1.1" },
-    { "name": "xsimd", "version": "10.0.0" },
-    { "name": "simdjson", "version": "3.2.0" }
+    { "name": "xsimd", "version": "10.0.0" }
   ]
 }

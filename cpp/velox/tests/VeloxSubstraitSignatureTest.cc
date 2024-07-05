@@ -138,6 +138,13 @@ TEST_F(VeloxSubstraitSignatureTest, fromSubstraitSignature) {
   ASSERT_EQ(type->childAt(0)->childAt(0)->childAt(1)->kind(), TypeKind::VARCHAR);
   type = fromSubstraitSignature("struct<struct<struct<i8,dec<19,2>>>>");
   ASSERT_EQ(type->childAt(0)->childAt(0)->childAt(1)->kind(), TypeKind::HUGEINT);
+  type = fromSubstraitSignature("struct<fp32,struct<struct<i8,dec<19,2>,list<i32>,map<i16,i32>>>>");
+  ASSERT_EQ(type->childAt(0)->kind(), TypeKind::REAL);
+  ASSERT_EQ(type->childAt(1)->childAt(0)->childAt(0)->kind(), TypeKind::TINYINT);
+  ASSERT_EQ(type->childAt(1)->childAt(0)->childAt(1)->kind(), TypeKind::HUGEINT);
+  ASSERT_EQ(type->childAt(1)->childAt(0)->childAt(2)->childAt(0)->kind(), TypeKind::INTEGER);
+  ASSERT_EQ(type->childAt(1)->childAt(0)->childAt(3)->childAt(0)->kind(), TypeKind::SMALLINT);
+  ASSERT_EQ(type->childAt(1)->childAt(0)->childAt(3)->childAt(1)->kind(), TypeKind::INTEGER);
   ASSERT_ANY_THROW(fromSubstraitSignature("other")->kind());
 
   // Map type test.

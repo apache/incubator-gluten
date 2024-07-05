@@ -28,10 +28,19 @@ Gluten CPP coding, there are a few Philosophical rules as the following.
 ## Code Formatting
 
 Many aspects of C++ coding style will be covered by clang-format, such as spacing,
-line width, indentation and ordering (for includes, using directives and etc). 
+line width, indentation and ordering (for includes, using directives and etc).
 
-* Always ensure your code is compatible with clang-format-12 for Velox backend.
+* Always ensure your code is compatible with clang-format-15 for Velox backend.
 * `dev/formatcppcode.sh` is provided for formatting Velox CPP code.
+
+To format cmake files like CMakeLists.txt & *.cmake, `cmake-format` is required to
+be installed. Here is an example.
+
+```
+apt install python3-pip -y
+pip3 install --user cmake-format
+cmake-format --first-comment-is-literal True --in-place cpp/velox/CMakeLists.txt
+```
 
 ## Naming Conventions
 

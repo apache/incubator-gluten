@@ -26,7 +26,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, DenseRank, Lag, Lead, NamedExpression, Rank, RowNumber}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
@@ -49,7 +49,6 @@ class CHBackend extends Backend {
   override def validatorApi(): ValidatorApi = new CHValidatorApi
   override def metricsApi(): MetricsApi = new CHMetricsApi
   override def listenerApi(): ListenerApi = new CHListenerApi
-  override def broadcastApi(): BroadcastApi = new CHBroadcastApi
   override def settings(): BackendSettingsApi = CHBackendSettings
 }
 
@@ -127,7 +126,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   val GLUTEN_MAX_SHUFFLE_READ_BYTES: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".runtime_config.max_source_concatenate_bytes"
-  val GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT = -1
+  val GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT = GLUTEN_MAX_BLOCK_SIZE_DEFAULT * 256
 
   def affinityMode: String = {
     SparkEnv.get.conf
@@ -190,7 +189,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     }
   }
 
-  override def utilizeShuffledHashJoinHint(): Boolean = true
   override def supportShuffleWithProject(
       outputPartitioning: Partitioning,
       child: SparkPlan): Boolean = {
@@ -226,10 +224,25 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         func => {
           val aliasExpr = func.asInstanceOf[Alias]
           val wExpression = WindowFunctionsBuilder.extractWindowExpression(aliasExpr.child)
+
+          def checkLagOrLead(third: Expression): Unit = {
+            third match {
+              case _: Literal =>
+                allSupported = allSupported
+              case _ =>
+                logInfo("Not support lag/lead function with default value not literal null")
+                allSupported = false
+                break
+            }
+          }
+
           wExpression.windowFunction match {
-            case _: RowNumber | _: AggregateExpression | _: Rank | _: Lead | _: Lag |
-                _: DenseRank =>
+            case _: RowNumber | _: AggregateExpression | _: Rank | _: DenseRank | _: NTile =>
               allSupported = allSupported
+            case l: Lag =>
+              checkLagOrLead(l.third)
+            case l: Lead =>
+              checkLagOrLead(l.third)
             case _ =>
               logDebug(s"Not support window function: ${wExpression.getClass}")
               allSupported = false
@@ -256,7 +269,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def shuffleSupportedCodec(): Set[String] = GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
   override def needOutputSchemaForPlan(): Boolean = true
 
-  override def allowDecimalArithmetic: Boolean = !SQLConf.get.decimalOperationsAllowPrecisionLoss
+  override def transformCheckOverflow: Boolean = false
 
   override def requiredInputFilePaths(): Boolean = true
 

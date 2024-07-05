@@ -53,16 +53,16 @@ SortedPartitionDataMerger::SortedPartitionDataMerger(
 
 int64_t searchLastPartitionIdIndex(ColumnPtr column, size_t start, size_t partition_id)
 {
-    const auto * int64_column = checkAndGetColumn<ColumnUInt64>(*column);
-    int64_t low = start, high = int64_column->size() - 1;
+    const auto & int64_column = checkAndGetColumn<ColumnUInt64>(*column);
+    int64_t low = start, high = int64_column.size() - 1;
     while (low <= high)
     {
         int64_t mid = low + (high - low) / 2;
-        if (int64_column->get64(mid) > partition_id)
+        if (int64_column.get64(mid) > partition_id)
             high = mid - 1;
         else
             low = mid + 1;
-        if (int64_column->get64(high) == partition_id)
+        if (int64_column.get64(high) == partition_id)
             return high;
     }
     return -1;

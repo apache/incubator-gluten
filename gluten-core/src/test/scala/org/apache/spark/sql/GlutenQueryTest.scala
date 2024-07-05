@@ -20,10 +20,10 @@ package org.apache.spark.sql
  * Why we need a GlutenQueryTest when we already have QueryTest?
  *   1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
  */
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SPARK_VERSION_SHORT
-import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -60,13 +60,13 @@ abstract class GlutenQueryTest extends PlanTest {
       minSparkVersion: Option[String] = None,
       maxSparkVersion: Option[String] = None): Boolean = {
     var shouldRun = true
-    if (!minSparkVersion.isEmpty) {
+    if (minSparkVersion.isDefined) {
       shouldRun = isSparkVersionGE(minSparkVersion.get)
-      if (!maxSparkVersion.isEmpty) {
+      if (maxSparkVersion.isDefined) {
         shouldRun = shouldRun && isSparkVersionLE(maxSparkVersion.get)
       }
     } else {
-      if (!maxSparkVersion.isEmpty) {
+      if (maxSparkVersion.isDefined) {
         shouldRun = isSparkVersionLE(maxSparkVersion.get)
       }
     }
@@ -339,7 +339,7 @@ object GlutenQueryTest extends Assertions {
       SQLExecution.withExecutionId(df.sparkSession, executionId) {
         df.rdd.count() // Also attempt to deserialize as an RDD [SPARK-15791]
       }
-      GlutenDriverEndpoint.invalidateResourceRelation(executionId)
+      BackendsApiManager.getTransformerApiInstance.invalidateSQLExecutionResource(executionId)
     }
 
     val sparkAnswer =

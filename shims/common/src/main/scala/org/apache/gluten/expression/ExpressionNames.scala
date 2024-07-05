@@ -83,7 +83,10 @@ object ExpressionNames {
   final val IS_NAN = "isnan"
   final val NANVL = "nanvl"
   final val TRY_EVAL = "try"
-  final val TRY_ADD = "try_add"
+  final val CHECKED_ADD = "checked_add"
+  final val CHECKED_SUBTRACT = "checked_subtract"
+  final val CHECKED_DIVIDE = "checked_divide"
+  final val CHECKED_MULTIPLY = "checked_multiply"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
@@ -113,6 +116,7 @@ object ExpressionNames {
   final val LEFT = "left"
   final val REPEAT = "repeat"
   final val TRANSLATE = "translate"
+  final val SOUNDEX = "soundex"
   final val SPACE = "space"
   final val EMPTY2NULL = "empty2null"
   final val INITCAP = "initcap"
@@ -123,6 +127,10 @@ object ExpressionNames {
   final val ENCODE = "encode"
   final val UUID = "uuid"
   final val BIT_LENGTH = "bit_length"
+  final val OCTET_LENGTH = "octet_length"
+  final val LEVENSHTEIN = "levenshteinDistance"
+  final val UNBASE64 = "unbase64"
+  final val BASE64 = "base64"
 
   // URL functions
   final val PARSE_URL = "parse_url"
@@ -167,14 +175,15 @@ object ExpressionNames {
   final val SIGN = "sign"
   final val LOG1P = "log1p"
   final val LOG2 = "log2"
-  final val LOG = "log"
-  final val LOGARITHM = "logarithm"
+  final val LOG = "ln"
+  final val LOGARITHM = "log"
   final val RADIANS = "radians"
   final val GREATEST = "greatest"
   final val LEAST = "least"
   final val REMAINDER = "modulus"
   final val FACTORIAL = "factorial"
   final val RAND = "rand"
+  final val RINT = "rint"
 
   // PrestoSQL Math functions
   final val ACOS = "acos"
@@ -209,10 +218,12 @@ object ExpressionNames {
   final val MAKE_YM_INTERVAL = "make_ym_interval"
   final val TO_UTC_TIMESTAMP = "to_utc_timestamp"
   final val FROM_UTC_TIMESTAMP = "from_utc_timestamp"
+  final val UNIX_SECONDS = "unix_seconds"
   final val UNIX_MILLIS = "unix_millis"
   final val UNIX_MICROS = "unix_micros"
   final val TIMESTAMP_MILLIS = "timestamp_millis"
   final val TIMESTAMP_MICROS = "timestamp_micros"
+  final val PRECYSE_TIMESTAMP_CONVERSION = "precise_timestamp_conversion"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
@@ -250,12 +261,15 @@ object ExpressionNames {
   final val ARRAY_EXCEPT = "array_except"
   final val ARRAY_REPEAT = "array_repeat"
   final val ARRAY_REMOVE = "array_remove"
+  final val ARRAY_SORT = "array_sort"
   final val ARRAYS_ZIP = "arrays_zip"
   final val FILTER = "filter"
   final val FORALL = "forall"
   final val EXISTS = "exists"
   final val TRANSFORM = "transform"
   final val SHUFFLE = "shuffle"
+  final val ZIP_WITH = "zip_with"
+  final val FLATTEN = "flatten"
 
   // Map functions
   final val CREATE_MAP = "map"
@@ -264,6 +278,9 @@ object ExpressionNames {
   final val MAP_VALUES = "map_values"
   final val MAP_FROM_ARRAYS = "map_from_arrays"
   final val MAP_ENTRIES = "map_entries"
+  final val MAP_ZIP_WITH = "map_zip_with"
+  final val TRANSFORM_KEYS = "transform_keys"
+  final val TRANSFORM_VALUES = "transform_values"
   final val STR_TO_MAP = "str_to_map"
 
   // struct functions
@@ -289,6 +306,7 @@ object ExpressionNames {
   final val AGGREGATE = "aggregate"
   final val LAMBDAFUNCTION = "lambdafunction"
   final val EXPLODE = "explode"
+  final val STACK = "stack"
   final val INLINE = "inline"
   final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"
@@ -296,6 +314,8 @@ object ExpressionNames {
   final val PROMOTE_PRECISION = "promote_precision"
   final val SPARK_PARTITION_ID = "spark_partition_id"
   final val MONOTONICALLY_INCREASING_ID = "monotonically_increasing_id"
+  final val WIDTH_BUCKET = "width_bucket"
+  final val REPLICATE_ROWS = "replicaterows"
 
   // Directly use child expression transformer
   final val KNOWN_NULLABLE = "known_nullable"
@@ -319,4 +339,5 @@ object ExpressionNames {
 
   // A placeholder for native UDF functions
   final val UDF_PLACEHOLDER = "udf_placeholder"
+  final val UDAF_PLACEHOLDER = "udaf_placeholder"
 }

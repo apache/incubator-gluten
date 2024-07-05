@@ -21,9 +21,9 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
-import org.apache.gluten.memory.arrowalloc.ArrowBufferAllocators
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
-import org.apache.gluten.utils.{ArrowAbiUtil, Iterators}
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
+import org.apache.gluten.utils.ArrowAbiUtil
+import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.ColumnarBatchSerializerJniWrapper
 
 import org.apache.spark.internal.Logging
@@ -149,8 +149,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
           numInputRows,
           numOutputBatches,
           convertTime,
-          numRows
-        )
+          numRows)
     }
     convertColumnarBatchToCachedBatch(rddColumnarBatch, schema, storageLevel, conf)
   }
@@ -185,8 +184,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
           selectedAttributes,
           numOutputRows,
           numInputBatches,
-          convertTime
-        )
+          convertTime)
     }
   }
 
@@ -197,10 +195,6 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
       conf: SQLConf): RDD[CachedBatch] = {
     input.mapPartitions {
       it =>
-        val nativeMemoryManagerHandle = NativeMemoryManagers
-          .contextInstance("ColumnarCachedBatchSerializer serialize")
-          .getNativeInstanceHandle
-
         new Iterator[CachedBatch] {
           override def hasNext: Boolean = it.hasNext
 
@@ -208,11 +202,8 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
             val batch = it.next()
             val results =
               ColumnarBatchSerializerJniWrapper
-                .create()
-                .serialize(
-                  Array(ColumnarBatches.getNativeHandle(batch)),
-                  nativeMemoryManagerHandle
-                )
+                .create(Runtimes.contextInstance("ColumnarCachedBatchSerializer#serialize"))
+                .serialize(Array(ColumnarBatches.getNativeHandle(batch)))
             CachedColumnarBatch(
               results.getNumRows.toInt,
               results.getSerialized.length,
@@ -236,19 +227,15 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
     val timezoneId = SQLConf.get.sessionLocalTimeZone
     input.mapPartitions {
       it =>
+        val runtime = Runtimes.contextInstance("ColumnarCachedBatchSerializer#read")
         val jniWrapper = ColumnarBatchSerializerJniWrapper
-          .create()
-        val nmm = NativeMemoryManagers
-          .contextInstance("ColumnarCachedBatchSerializer read")
+          .create(runtime)
         val schema = SparkArrowUtil.toArrowSchema(localSchema, timezoneId)
         val arrowAlloc = ArrowBufferAllocators.contextInstance()
         val cSchema = ArrowSchema.allocateNew(arrowAlloc)
         ArrowAbiUtil.exportSchema(arrowAlloc, schema, cSchema)
         val deserializerHandle = jniWrapper
-          .init(
-            cSchema.memoryAddress(),
-            nmm.getNativeInstanceHandle
-          )
+          .init(cSchema.memoryAddress())
         cSchema.close()
 
         Iterators
@@ -260,10 +247,10 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
               val batchHandle =
                 jniWrapper
                   .deserialize(deserializerHandle, cachedBatch.bytes)
-              val batch = ColumnarBatches.create(Runtimes.contextInstance(), batchHandle)
+              val batch = ColumnarBatches.create(batchHandle)
               if (shouldSelectAttributes) {
                 try {
-                  ColumnarBatches.select(nmm, batch, requestedColumnIndices.toArray)
+                  ColumnarBatches.select(batch, requestedColumnIndices.toArray)
                 } finally {
                   batch.close()
                 }

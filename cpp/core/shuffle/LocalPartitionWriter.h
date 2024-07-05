@@ -42,6 +42,8 @@ class LocalPartitionWriter : public PartitionWriter {
       bool reuseBuffers,
       bool hasComplexType) override;
 
+  arrow::Status evict(uint32_t partitionId, int64_t rawSize, const char* data, int64_t length) override;
+
   /// The stop function performs several tasks:
   /// 1. Opens the final data file.
   /// 2. Iterates over each partition ID (pid) to:
@@ -110,5 +112,7 @@ class LocalPartitionWriter : public PartitionWriter {
   int64_t totalBytesWritten_{0};
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_;
+
+  uint32_t lastEvictPid_{0};
 };
 } // namespace gluten

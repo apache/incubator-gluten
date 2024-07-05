@@ -25,14 +25,13 @@ import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.utils._
 import org.apache.gluten.vectorized.{JniLibLoader, JniWorkspace}
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
-import org.apache.spark.sql.internal.GlutenConfigUtil
-import org.apache.spark.sql.internal.StaticSQLConf
+import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
 import org.apache.spark.util.SparkDirectoryUtil
 
-import VeloxListenerApi.initializeNative
 import org.apache.commons.lang3.StringUtils
 
 import scala.sys.process._
@@ -40,22 +39,21 @@ import scala.sys.process._
 class VeloxListenerApi extends ListenerApi {
   private val ARROW_VERSION = "1500"
 
-  override def onDriverStart(conf: SparkConf): Unit = {
+  override def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {
+    val conf = pc.conf()
     // sql table cache serializer
     if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = false)) {
       conf.set(
         StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
         "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
     }
-    UDFResolver.resolveUdfConf(conf, isDriver = true)
-    initialize(conf)
+    initialize(conf, isDriver = true)
   }
 
   override def onDriverShutdown(): Unit = shutdown()
 
-  override def onExecutorStart(conf: SparkConf): Unit = {
-    UDFResolver.resolveUdfConf(conf, isDriver = false)
-    initialize(conf)
+  override def onExecutorStart(pc: PluginContext): Unit = {
+    initialize(pc.conf(), isDriver = false)
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
@@ -80,7 +78,11 @@ class VeloxListenerApi extends ListenerApi {
       new SharedLibraryLoaderCentos8
     } else if (systemName.contains("Anolis") && systemVersion.startsWith("7")) {
       new SharedLibraryLoaderCentos7
+    } else if (system.contains("tencentos") && system.contains("2.4")) {
+      new SharedLibraryLoaderCentos7
     } else if (system.contains("tencentos") && system.contains("3.2")) {
+      new SharedLibraryLoaderCentos8
+    } else if (systemName.contains("Red Hat") && systemVersion.startsWith("9")) {
       new SharedLibraryLoaderCentos8
     } else if (systemName.contains("Red Hat") && systemVersion.startsWith("8")) {
       new SharedLibraryLoaderCentos8
@@ -94,7 +96,7 @@ class VeloxListenerApi extends ListenerApi {
       throw new GlutenException(
         s"Found unsupported OS($systemName, $systemVersion)! Currently, Gluten's Velox backend" +
           " only supports Ubuntu 20.04/22.04, CentOS 7/8, " +
-          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8, " +
+          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 2.4/3.2, RedHat 7/8, " +
           "Debian 11/12.")
     }
   }
@@ -134,36 +136,18 @@ class VeloxListenerApi extends ListenerApi {
     ) {
       loadLibFromJar(loader, conf)
     }
-    loader
-      .newTransaction()
-      .loadAndCreateLink(s"libarrow.so.$ARROW_VERSION.0.0", s"libarrow.so.$ARROW_VERSION", false)
-      .loadAndCreateLink(
-        s"libparquet.so.$ARROW_VERSION.0.0",
-        s"libparquet.so.$ARROW_VERSION",
-        false)
-      .commit()
   }
 
   private def loadLibWithMacOS(loader: JniLibLoader): Unit = {
-    loader
-      .newTransaction()
-      .loadAndCreateLink(
-        s"libarrow.$ARROW_VERSION.0.0.dylib",
-        s"libarrow.$ARROW_VERSION.dylib",
-        false)
-      .loadAndCreateLink(
-        s"libparquet.$ARROW_VERSION.0.0.dylib",
-        s"libparquet.$ARROW_VERSION.dylib",
-        false)
-      .commit()
+    // Placeholder for loading shared libs on MacOS if user needs.
   }
 
-  private def initialize(conf: SparkConf): Unit = {
+  private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     SparkDirectoryUtil.init(conf)
-    val debugJni = conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_MODE, defaultValue = false) &&
-      conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)
-    if (debugJni) {
-      JniWorkspace.enableDebug()
+    UDFResolver.resolveUdfConf(conf, isDriver = isDriver)
+    if (conf.getBoolean(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE, defaultValue = false)) {
+      val debugDir = conf.get(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE_DIR)
+      JniWorkspace.enableDebug(debugDir)
     }
     val loader = JniWorkspace.getDefault.libLoader
 
@@ -191,7 +175,7 @@ class VeloxListenerApi extends ListenerApi {
     }
 
     val parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
-    initializeNative(parsed)
+    NativeBackendInitializer.initializeBackend(parsed)
 
     // inject backend-specific implementations to override spark classes
     // FIXME: The following set instances twice in local mode?
@@ -205,19 +189,4 @@ class VeloxListenerApi extends ListenerApi {
   }
 }
 
-object VeloxListenerApi {
-  // Spark DriverPlugin/ExecutorPlugin will only invoke ContextInitializer#initialize method once
-  // in its init method.
-  // In cluster mode, ContextInitializer#initialize only will be invoked in different JVM.
-  // In local mode, ContextInitializer#initialize will be invoked twice in same thread,
-  // driver first then executor, initFlag ensure only invoke initializeBackend once,
-  // so there are no race condition here.
-  private var initFlag: Boolean = false
-  def initializeNative(conf: Map[String, String]): Unit = {
-    if (initFlag) {
-      return
-    }
-    NativeBackendInitializer.initializeBackend(conf)
-    initFlag = true
-  }
-}
+object VeloxListenerApi {}

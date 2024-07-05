@@ -17,28 +17,31 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.execution.{FilterHandler, TransformSupport}
-import org.apache.gluten.extension.columnar.TransformHints
+import org.apache.gluten.extension.columnar.validator.Validator
 import org.apache.gluten.ras.path.Pattern._
 import org.apache.gluten.ras.path.Pattern.Matchers._
 import org.apache.gluten.ras.rule.{RasRule, Shape}
 import org.apache.gluten.ras.rule.Shapes._
 
-import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarToRowTransition, FileSourceScanExec, FilterExec, SparkPlan}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
-object PushFilterToScan extends RasRule[SparkPlan] {
+// TODO: Match on Vanilla filter + Gluten scan.
+class PushFilterToScan(validator: Validator) extends RasRule[SparkPlan] {
   override def shift(node: SparkPlan): Iterable[SparkPlan] = node match {
     case FilterAndScan(filter, scan) =>
-      if (!TransformHints.isTransformable(scan)) {
-        return List.empty
-      }
-      val newScan =
-        FilterHandler.pushFilterToScan(filter.condition, scan)
-      newScan match {
-        case ts: TransformSupport if ts.doValidate().isValid =>
-          List(filter.withNewChildren(List(ts)))
-        case _ =>
+      validator.validate(scan) match {
+        case Validator.Failed(reason) =>
           List.empty
+        case Validator.Passed =>
+          val newScan =
+            FilterHandler.pushFilterToScan(filter.condition, scan)
+          newScan match {
+            case ts: TransformSupport if ts.doValidate().isValid =>
+              List(filter.withNewChildren(List(ts)))
+            case _ =>
+              List.empty
+          }
       }
     case _ =>
       List.empty
@@ -47,16 +50,16 @@ object PushFilterToScan extends RasRule[SparkPlan] {
   override def shape(): Shape[SparkPlan] =
     anyOf(
       pattern(
-        node[SparkPlan](
+        branch[SparkPlan](
           clazz(classOf[FilterExec]),
           leaf(
             or(clazz(classOf[FileSourceScanExec]), clazz(classOf[BatchScanExec]))
           )
         ).build()),
       pattern(
-        node[SparkPlan](
+        branch[SparkPlan](
           clazz(classOf[FilterExec]),
-          node(
+          branch(
             clazz(classOf[ColumnarToRowTransition]),
             leaf(
               or(clazz(classOf[FileSourceScanExec]), clazz(classOf[BatchScanExec]))
@@ -68,11 +71,17 @@ object PushFilterToScan extends RasRule[SparkPlan] {
   private object FilterAndScan {
     def unapply(node: SparkPlan): Option[(FilterExec, SparkPlan)] = node match {
       case f @ FilterExec(cond, ColumnarToRowExec(scan)) =>
+        ensureScan(scan)
         Some(f, scan)
       case f @ FilterExec(cond, scan) =>
+        ensureScan(scan)
         Some(f, scan)
       case _ =>
         None
+    }
+
+    private def ensureScan(node: SparkPlan): Unit = {
+      assert(node.isInstanceOf[FileSourceScanExec] || node.isInstanceOf[BatchScanExec])
     }
   }
 }

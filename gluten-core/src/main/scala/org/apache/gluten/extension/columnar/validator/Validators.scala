@@ -19,7 +19,7 @@ package org.apache.gluten.extension.columnar.validator
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, BackendSettingsApi}
 import org.apache.gluten.expression.ExpressionUtils
-import org.apache.gluten.extension.columnar.{TRANSFORM_UNSUPPORTED, TransformHints}
+import org.apache.gluten.extension.columnar.{FallbackTags, TRANSFORM_UNSUPPORTED}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution._
@@ -82,6 +82,11 @@ object Validators {
       this
     }
 
+    def fallbackByTestInjects(): Builder = {
+      buffer += new FallbackByTestInjects()
+      this
+    }
+
     /** Add a custom validator to pipeline. */
     def add(validator: Validator): Builder = {
       buffer += validator
@@ -92,7 +97,7 @@ object Validators {
       if (buffer.isEmpty) {
         NoopValidator
       } else {
-        new ValidatorPipeline(buffer)
+        new ValidatorPipeline(buffer.toSeq)
       }
     }
   }
@@ -103,8 +108,8 @@ object Validators {
 
   private object FallbackByHint extends Validator {
     override def validate(plan: SparkPlan): Validator.OutCome = {
-      if (TransformHints.isNotTransformable(plan)) {
-        val hint = TransformHints.getHint(plan).asInstanceOf[TRANSFORM_UNSUPPORTED]
+      if (FallbackTags.nonEmpty(plan)) {
+        val hint = FallbackTags.getTag(plan).asInstanceOf[TRANSFORM_UNSUPPORTED]
         return fail(hint.reason.getOrElse("Reason not recorded"))
       }
       pass()
@@ -187,7 +192,19 @@ object Validators {
       case p
           if HiveTableScanExecTransformer.isHiveTableScan(p) && !conf.enableColumnarHiveTableScan =>
         fail(p)
+      case p: SampleExec
+          if !(conf.enableColumnarSample && BackendsApiManager.getSettings.supportSampleExec()) =>
+        fail(p)
       case _ => pass()
+    }
+  }
+
+  private class FallbackByTestInjects() extends Validator {
+    override def validate(plan: SparkPlan): Validator.OutCome = {
+      if (FallbackInjects.shouldFallback(plan)) {
+        return fail(plan)
+      }
+      pass()
     }
   }
 

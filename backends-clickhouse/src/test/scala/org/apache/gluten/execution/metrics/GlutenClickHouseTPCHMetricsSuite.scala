@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.InputIteratorTransformer
 import scala.collection.JavaConverters._
 
 class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite {
-
+  private val parquetMaxBlockSize = 4096;
   override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
@@ -38,6 +38,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
   protected val metricsJsonFilePath: String = rootPath + "metrics-json"
   protected val substraitPlansDatPath: String = rootPath + "substrait-plans"
 
+  // scalastyle:off line.size.limit
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -45,10 +46,15 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
+      // .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "DEBUG")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
+        s"$parquetMaxBlockSize")
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_config.enable_streaming_aggregating",
         "true")
   }
+  // scalastyle:on line.size.limit
 
   override protected def createTPCHNotNullTables(): Unit = {
     createNotNullTPCHTablesInParquet(tablesPath)
@@ -73,6 +79,33 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         // Execute Sort operator, it will read the data twice.
         assert(plans(0).metrics("numOutputRows").value === 4)
         assert(plans(0).metrics("outputVectors").value === 1)
+    }
+  }
+
+  test("test simple limit query scan metrics") {
+    val sql = "select * from nation limit 5"
+    runSql(sql) {
+      df =>
+        val plans = df.queryExecution.executedPlan.collect {
+          case scanExec: BasicScanExecTransformer => scanExec
+        }
+        assert(plans.size == 1)
+        assert(plans.head.metrics("numOutputRows").value === 25)
+        assert(plans.head.metrics("outputVectors").value === 1)
+        assert(plans.head.metrics("outputBytes").value > 0)
+    }
+
+    val sql2 = "select * from lineitem limit 3"
+    runSql(sql2) {
+      df =>
+        val plans = df.queryExecution.executedPlan.collect {
+          case scanExec: BasicScanExecTransformer => scanExec
+        }
+        assert(plans.size == 1)
+        // 1 block keep in SubstraitFileStep, and 4 blocks keep in other steps
+        assert(plans.head.metrics("numOutputRows").value === 5 * parquetMaxBlockSize)
+        assert(plans.head.metrics("outputVectors").value === 1)
+        assert(plans.head.metrics("outputBytes").value > 0)
     }
   }
 

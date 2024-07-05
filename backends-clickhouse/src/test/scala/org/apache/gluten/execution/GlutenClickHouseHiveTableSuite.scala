@@ -111,6 +111,7 @@ class GlutenClickHouseHiveTableSuite
         getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
       .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
       .set("spark.gluten.supported.hive.udfs", "my_add")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
       .setMaster("local[*]")
   }
 
@@ -1235,17 +1236,45 @@ class GlutenClickHouseHiveTableSuite
   }
 
   test("GLUTEN-3452: Bug fix decimal divide") {
-    withSQLConf((SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key, "false")) {
-      val table_create_sql =
-        """
-          | create table test_tbl_3452(d1 decimal(12,2), d2 decimal(15,3)) stored as parquet;
-          |""".stripMargin
-      val data_insert_sql = "insert into test_tbl_3452 values(13.0, 0),(11, NULL), (12.3, 200)"
-      val select_sql = "select d1/d2, d1/0, d1/cast(0 as decimal) from test_tbl_3452"
-      spark.sql(table_create_sql);
-      spark.sql(data_insert_sql)
-      compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
-      spark.sql("drop table test_tbl_3452")
+    val table_create_sql =
+      """
+        | create table test_tbl_3452(d1 decimal(12,2), d2 decimal(15,3)) stored as parquet;
+        |""".stripMargin
+    val data_insert_sql = "insert into test_tbl_3452 values(13.0, 0),(11, NULL), (12.3, 200)"
+    spark.sql(table_create_sql)
+    spark.sql(data_insert_sql)
+    Seq("true", "false").foreach {
+      s =>
+        withSQLConf((SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key, s)) {
+          val select_sql = "select d1/d2, d1/0, d1/cast(0 as decimal) from test_tbl_3452"
+          compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+        }
     }
+    spark.sql("drop table test_tbl_3452")
+  }
+
+  test("GLUTEN-6235: Fix crash on ExpandTransform::work()") {
+    val tbl = "test_tbl_6235"
+    sql(s"drop table if exists $tbl")
+    val createSql =
+      s"""
+         |create table $tbl
+         |stored as textfile
+         |as select 1 as a1, 2 as a2, 3 as a3, 4 as a4, 5 as a5, 6 as a6, 7 as a7, 8 as a8, 9 as a9
+         |""".stripMargin
+    sql(createSql)
+    val select_sql =
+      s"""
+         |select
+         |a5,a6,a7,a8,a3,a4,a9
+         |,count(distinct a2) as a2
+         |,count(distinct a1) as a1
+         |,count(distinct if(a3=1,a2,null)) as a33
+         |,count(distinct if(a4=2,a1,null)) as a43
+         |from $tbl
+         |group by a5,a6,a7,a8,a3,a4,a9 with cube
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    sql(s"drop table if exists $tbl")
   }
 }

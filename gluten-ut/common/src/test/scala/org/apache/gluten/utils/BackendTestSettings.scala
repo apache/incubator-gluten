@@ -94,36 +94,12 @@ abstract class BackendTestSettings {
       exclusion.add(Exclude(testNames: _*))
       this
     }
-    def includeGlutenTest(testName: String*): SuiteSettings = {
-      inclusion.add(IncludeGlutenTest(testName: _*))
-      this
-    }
-    def excludeGlutenTest(testName: String*): SuiteSettings = {
-      exclusion.add(ExcludeGlutenTest(testName: _*))
-      this
-    }
     def includeByPrefix(prefixes: String*): SuiteSettings = {
       inclusion.add(IncludeByPrefix(prefixes: _*))
       this
     }
     def excludeByPrefix(prefixes: String*): SuiteSettings = {
       exclusion.add(ExcludeByPrefix(prefixes: _*))
-      this
-    }
-    def includeGlutenTestsByPrefix(prefixes: String*): SuiteSettings = {
-      inclusion.add(IncludeGlutenTestByPrefix(prefixes: _*))
-      this
-    }
-    def excludeGlutenTestsByPrefix(prefixes: String*): SuiteSettings = {
-      exclusion.add(ExcludeGlutenTestByPrefix(prefixes: _*))
-      this
-    }
-    def includeAllGlutenTests(): SuiteSettings = {
-      inclusion.add(IncludeByPrefix(GLUTEN_TEST))
-      this
-    }
-    def excludeAllGlutenTests(): SuiteSettings = {
-      exclusion.add(ExcludeByPrefix(GLUTEN_TEST))
       this
     }
 
@@ -133,6 +109,40 @@ abstract class BackendTestSettings {
         case None => Some(reason)
       }
       this
+    }
+  }
+
+  object SuiteSettings {
+    implicit class SuiteSettingsImplicits(settings: SuiteSettings) {
+      def includeGlutenTest(testName: String*): SuiteSettings = {
+        settings.include(testName.map(GLUTEN_TEST + _): _*)
+        settings
+      }
+
+      def excludeGlutenTest(testName: String*): SuiteSettings = {
+        settings.exclude(testName.map(GLUTEN_TEST + _): _*)
+        settings
+      }
+
+      def includeGlutenTestsByPrefix(prefixes: String*): SuiteSettings = {
+        settings.includeByPrefix(prefixes.map(GLUTEN_TEST + _): _*)
+        settings
+      }
+
+      def excludeGlutenTestsByPrefix(prefixes: String*): SuiteSettings = {
+        settings.excludeByPrefix(prefixes.map(GLUTEN_TEST + _): _*)
+        settings
+      }
+
+      def includeAllGlutenTests(): SuiteSettings = {
+        settings.include(GLUTEN_TEST)
+        settings
+      }
+
+      def excludeAllGlutenTests(): SuiteSettings = {
+        settings.exclude(GLUTEN_TEST)
+        settings
+      }
     }
   }
 
@@ -150,14 +160,6 @@ abstract class BackendTestSettings {
     val nameSet: Set[String] = Set(testNames: _*)
     override def isExcluded(testName: String): Boolean = nameSet.contains(testName)
   }
-  private case class IncludeGlutenTest(testNames: String*) extends IncludeBase {
-    val nameSet: Set[String] = testNames.map(name => GLUTEN_TEST + name).toSet
-    override def isIncluded(testName: String): Boolean = nameSet.contains(testName)
-  }
-  private case class ExcludeGlutenTest(testNames: String*) extends ExcludeBase {
-    val nameSet: Set[String] = testNames.map(name => GLUTEN_TEST + name).toSet
-    override def isExcluded(testName: String): Boolean = nameSet.contains(testName)
-  }
   private case class IncludeByPrefix(prefixes: String*) extends IncludeBase {
     override def isIncluded(testName: String): Boolean = {
       if (prefixes.exists(prefix => testName.startsWith(prefix))) {
@@ -169,22 +171,6 @@ abstract class BackendTestSettings {
   private case class ExcludeByPrefix(prefixes: String*) extends ExcludeBase {
     override def isExcluded(testName: String): Boolean = {
       if (prefixes.exists(prefix => testName.startsWith(prefix))) {
-        return true
-      }
-      false
-    }
-  }
-  private case class IncludeGlutenTestByPrefix(prefixes: String*) extends IncludeBase {
-    override def isIncluded(testName: String): Boolean = {
-      if (prefixes.exists(prefix => testName.startsWith(GLUTEN_TEST + prefix))) {
-        return true
-      }
-      false
-    }
-  }
-  private case class ExcludeGlutenTestByPrefix(prefixes: String*) extends ExcludeBase {
-    override def isExcluded(testName: String): Boolean = {
-      if (prefixes.exists(prefix => testName.startsWith(GLUTEN_TEST + prefix))) {
         return true
       }
       false

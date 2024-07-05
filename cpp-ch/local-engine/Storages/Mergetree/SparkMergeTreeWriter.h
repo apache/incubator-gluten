@@ -15,13 +15,15 @@
  * limitations under the License.
  */
 #pragma once
+
 #include <Interpreters/Context.h>
-#include <Interpreters/SquashingTransform.h>
-#include <Storages/MergeTree/MergeTreeDataWriter.h>
+#include <Interpreters/Squashing.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
+#include <Storages/MergeTree/MergeTreeDataWriter.h>
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
+#include <Common/MergeTreeTool.h>
 
 namespace DB
 {
@@ -51,44 +53,57 @@ class SparkMergeTreeWriter
 public:
     static String partInfosToJson(const std::vector<PartInfo> & part_infos);
     SparkMergeTreeWriter(
-        CustomStorageMergeTreePtr storage_,
-        const DB::StorageMetadataPtr & metadata_snapshot_,
+        const MergeTreeTable & merge_tree_table,
         const DB::ContextPtr & context_,
-        const String & uuid_,
+        const String & part_name_prefix_,
         const String & partition_dir_ = "",
         const String & bucket_dir_ = "");
 
-    void write(DB::Block & block);
+    void write(const DB::Block & block);
     void finalize();
     std::vector<PartInfo> getAllPartInfo();
 
 private:
-    void
-    writeTempPart(MergeTreeDataWriter::TemporaryPart & temp_part, DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot);
+    void writeTempPart(
+        MergeTreeDataWriter::TemporaryPart & temp_part,
+        DB::BlockWithPartition & block_with_partition,
+        const DB::StorageMetadataPtr & metadata_snapshot);
     DB::MergeTreeDataWriter::TemporaryPart
     writeTempPartAndFinalize(DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot);
     void checkAndMerge(bool force = false);
     void safeEmplaceBackPart(DB::MergeTreeDataPartPtr);
     void safeAddPart(DB::MergeTreeDataPartPtr);
     void manualFreeMemory(size_t before_write_memory);
+    void saveMetadata();
+    void commitPartToRemoteStorageIfNeeded();
+    void finalizeMerge();
+    bool chunkToPart(Chunk && chunk);
+    bool blockToPart(Block & block);
+    bool useLocalStorage() const;
 
-    String uuid;
+    CustomStorageMergeTreePtr storage = nullptr;
+    CustomStorageMergeTreePtr dest_storage = nullptr;
+    CustomStorageMergeTreePtr temp_storage = nullptr;
+    DB::StorageMetadataPtr metadata_snapshot = nullptr;
+
+    String part_name_prefix;
     String partition_dir;
     String bucket_dir;
-    CustomStorageMergeTreePtr storage;
-    DB::StorageMetadataPtr metadata_snapshot;
+
     DB::ContextPtr context;
-    std::unique_ptr<DB::SquashingTransform> squashing_transform;
+    std::unique_ptr<DB::Squashing> squashing;
     int part_num = 1;
     ConcurrentDeque<DB::MergeTreeDataPartPtr> new_parts;
     std::unordered_map<String, String> partition_values;
     std::unordered_set<String> tmp_parts;
     DB::Block header;
     bool merge_after_insert;
+    bool insert_without_local_storage;
     FreeThreadPool thread_pool;
     size_t merge_min_size = 1024 * 1024 * 1024;
     size_t merge_limit_parts = 10;
     std::mutex memory_mutex;
+    bool isRemoteStorage = false;
 };
 
 }

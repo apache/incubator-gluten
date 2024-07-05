@@ -37,12 +37,16 @@ class ShuffleWriter : public Reclaimable {
  public:
   static constexpr int64_t kMinMemLimit = 128LL * 1024 * 1024;
 
-  virtual arrow::Status split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
+  virtual arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
 
   virtual arrow::Status stop() = 0;
 
   int32_t numPartitions() const {
     return numPartitions_;
+  }
+
+  ShuffleWriterOptions& options() {
+    return options_;
   }
 
   int64_t partitionBufferSize() const {
@@ -81,7 +85,9 @@ class ShuffleWriter : public Reclaimable {
     return metrics_.rawPartitionLengths;
   }
 
-  virtual const uint64_t cachedPayloadSize() const = 0;
+  const int64_t rawPartitionBytes() {
+    return std::accumulate(metrics_.rawPartitionLengths.begin(), metrics_.rawPartitionLengths.end(), 0LL);
+  }
 
  protected:
   ShuffleWriter(
@@ -107,6 +113,8 @@ class ShuffleWriter : public Reclaimable {
   std::unique_ptr<ShuffleMemoryPool> partitionBufferPool_;
 
   std::unique_ptr<PartitionWriter> partitionWriter_;
+
+  std::vector<int64_t> rowVectorLengths_;
 
   std::shared_ptr<arrow::Schema> schema_;
 

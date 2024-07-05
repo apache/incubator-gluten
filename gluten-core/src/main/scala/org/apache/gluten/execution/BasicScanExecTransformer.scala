@@ -19,22 +19,20 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
-import org.apache.gluten.substrait.plan.PlanBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.{BooleanType, StringType, StructField, StructType}
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import com.google.common.collect.Lists
 import com.google.protobuf.StringValue
+import io.substrait.proto.NamedStruct
 
 import scala.collection.JavaConverters._
 
@@ -75,28 +73,6 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         .genSplitInfo(_, getPartitionSchema, fileFormat, getMetadataColumns.map(_.name)))
   }
 
-  def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
-    val numOutputRows = longMetric("numOutputRows")
-    val numOutputVectors = longMetric("outputVectors")
-    val scanTime = longMetric("scanTime")
-    val substraitContext = new SubstraitContext
-    val transformContext = doTransform(substraitContext)
-    val outNames =
-      filteRedundantField(outputAttributes()).map(ConverterUtils.genColumnNameWithExprId).asJava
-    val planNode =
-      PlanBuilder.makePlan(substraitContext, Lists.newArrayList(transformContext.root), outNames)
-
-    BackendsApiManager.getIteratorApiInstance.genNativeFileScanRDD(
-      sparkContext,
-      WholeStageTransformContext(planNode, substraitContext),
-      getSplitInfos,
-      this,
-      numOutputRows,
-      numOutputVectors,
-      scanTime
-    )
-  }
-
   override protected def doValidateInternal(): ValidationResult = {
     var fields = schema.fields
 
@@ -117,7 +93,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
 
     val substraitContext = new SubstraitContext
-    val relNode = doTransform(substraitContext).root
+    val relNode = transform(substraitContext).root
 
     doNativeValidation(substraitContext, relNode)
   }
@@ -133,18 +109,20 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
   }
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val output = filteRedundantField(outputAttributes())
+  override protected def doTransform(context: SubstraitContext): TransformContext = {
+    val output = outputAttributes()
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val columnTypeNodes = output.map {
       attr =>
         if (getPartitionSchema.exists(_.name.equals(attr.name))) {
-          new ColumnTypeNode(1)
+          new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL_VALUE)
+        } else if (SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)) {
+          new ColumnTypeNode(NamedStruct.ColumnType.ROWINDEX_COL_VALUE)
         } else if (attr.isMetadataCol) {
-          new ColumnTypeNode(2)
+          new ColumnTypeNode(NamedStruct.ColumnType.METADATA_COL_VALUE)
         } else {
-          new ColumnTypeNode(0)
+          new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL_VALUE)
         }
     }.asJava
     // Will put all filter expressions into an AND expression
@@ -177,22 +155,5 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       context,
       context.nextOperatorId(this.nodeName))
     TransformContext(output, output, readNode)
-  }
-
-  def filteRedundantField(outputs: Seq[Attribute]): Seq[Attribute] = {
-    var final_output: List[Attribute] = List()
-    val outputList = outputs.toArray
-    for (i <- 0 to outputList.size - 1) {
-      var dup = false
-      for (j <- 0 to i - 1) {
-        if (outputList(i).name == outputList(j).name) {
-          dup = true
-        }
-      }
-      if (!dup) {
-        final_output = final_output :+ outputList(i)
-      }
-    }
-    final_output.toSeq
   }
 }

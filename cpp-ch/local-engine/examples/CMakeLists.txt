@@ -13,5 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-clickhouse_add_executable (signal_demo signal_demo.cpp)
-target_link_libraries(signal_demo PRIVATE gluten_clickhouse_backend_libs loggers)
+clickhouse_add_executable(signal_demo signal_demo.cpp)
+target_link_libraries(signal_demo PRIVATE gluten_clickhouse_backend_libs
+                                          loggers)

@@ -16,11 +16,12 @@
  */
 package org.apache.gluten.backendsapi
 
-import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
+import org.apache.spark.api.plugin.PluginContext
 
 trait ListenerApi {
-  def onDriverStart(conf: SparkConf): Unit = {}
+  def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {}
   def onDriverShutdown(): Unit = {}
-  def onExecutorStart(conf: SparkConf): Unit = {}
+  def onExecutorStart(pc: PluginContext): Unit = {}
   def onExecutorShutdown(): Unit = {}
 }

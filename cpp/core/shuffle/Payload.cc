@@ -266,6 +266,10 @@ arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
       RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
       RETURN_NOT_OK(outputStream->Write(std::move(buffers_[0])));
     } break;
+    case Type::kRaw: {
+      ScopedTimer timer(&writeTime_);
+      RETURN_NOT_OK(outputStream->Write(std::move(buffers_[0])));
+    } break;
   }
   buffers_.clear();
   return arrow::Status::OK();
@@ -323,6 +327,8 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> BlockPayload::deseria
       case arrow::ListType::type_id: {
         hasComplexDataType = true;
       } break;
+      case arrow::NullType::type_id:
+        break;
       default: {
         buffers.emplace_back();
         ARROW_ASSIGN_OR_RAISE(buffers.back(), readBuffer());
@@ -497,6 +503,7 @@ arrow::Status UncompressedDiskBlockPayload::serialize(arrow::io::OutputStream* o
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> UncompressedDiskBlockPayload::readUncompressedBuffer() {
+  ScopedTimer timer(&writeTime_);
   readPos_++;
   int64_t bufferLength;
   RETURN_NOT_OK(inputStream_->Read(sizeof(int64_t), &bufferLength));
@@ -519,6 +526,7 @@ CompressedDiskBlockPayload::CompressedDiskBlockPayload(
     : Payload(Type::kCompressed, numRows, isValidityBuffer), inputStream_(inputStream), rawSize_(rawSize) {}
 
 arrow::Status CompressedDiskBlockPayload::serialize(arrow::io::OutputStream* outputStream) {
+  ScopedTimer timer(&writeTime_);
   ARROW_ASSIGN_OR_RAISE(auto block, inputStream_->Read(rawSize_));
   RETURN_NOT_OK(outputStream->Write(block));
   return arrow::Status::OK();
