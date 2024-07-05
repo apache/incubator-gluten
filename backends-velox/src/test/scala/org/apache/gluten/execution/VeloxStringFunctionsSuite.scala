@@ -268,7 +268,7 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
         s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
-  ignore("locate") {
+  test("locate") {
     runQueryAndCompare(
       s"select l_orderkey, locate(l_comment, 'a', 1) " +
         s"from $LINEITEM_TABLE limit $LENGTH")(checkGlutenOperatorMatch[ProjectExecTransformer])
