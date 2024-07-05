@@ -61,7 +61,9 @@
         <configuration>
           <args>
             <arg>-Wconf:cat=deprecation:silent</arg>
+            <!--
             <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+            -->
           </args>
         </configuration>
       </plugin>

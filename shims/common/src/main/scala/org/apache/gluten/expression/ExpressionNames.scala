@@ -261,6 +261,7 @@ object ExpressionNames {
   final val ARRAY_EXCEPT = "array_except"
   final val ARRAY_REPEAT = "array_repeat"
   final val ARRAY_REMOVE = "array_remove"
+  final val ARRAY_SORT = "array_sort"
   final val ARRAYS_ZIP = "arrays_zip"
   final val FILTER = "filter"
   final val FORALL = "forall"
@@ -314,6 +315,7 @@ object ExpressionNames {
   final val SPARK_PARTITION_ID = "spark_partition_id"
   final val MONOTONICALLY_INCREASING_ID = "monotonically_increasing_id"
   final val WIDTH_BUCKET = "width_bucket"
+  final val REPLICATE_ROWS = "replicaterows"
 
   // Directly use child expression transformer
   final val KNOWN_NULLABLE = "known_nullable"

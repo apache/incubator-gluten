@@ -15,17 +15,15 @@
  * limitations under the License.
  */
 #include "StorageJoinFromReadBuffer.h"
-#include <algorithm>
 
 #include <DataTypes/DataTypeNullable.h>
 #include <Interpreters/Context.h>
-#include <Interpreters/HashJoin.h>
+#include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
 #include <QueryPipeline/ProfileInfo.h>
 #include <Storages/IO/NativeReader.h>
 #include <Common/Exception.h>
 
-#include <Poco/Logger.h>
 #include <Common/logger_useful.h>
 
 namespace DB

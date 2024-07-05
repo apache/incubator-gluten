@@ -1135,6 +1135,32 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     df.select(max(col("txn"))).collect
 
   }
+
+  test("drop redundant partial sort which has pre-project when offload sortAgg") {
+    // Spark 3.2 does not have this configuration, but it does not affect the test results.
+    withSQLConf("spark.sql.test.forceApplySortAggregate" -> "true") {
+      withTempView("t1") {
+        Seq((-1, 2), (-1, 3), (2, 3), (3, 4), (-3, 5), (4, 5))
+          .toDF("c1", "c2")
+          .createOrReplaceTempView("t1")
+        runQueryAndCompare("select c2, sum(if(c1<0,0,c1)) from t1 group by c2") {
+          df =>
+            {
+              assert(
+                getExecutedPlan(df).count(
+                  plan => {
+                    plan.isInstanceOf[HashAggregateExecTransformer]
+                  }) == 2)
+              assert(
+                getExecutedPlan(df).count(
+                  plan => {
+                    plan.isInstanceOf[SortExecTransformer]
+                  }) == 0)
+            }
+        }
+      }
+    }
+  }
 }
 
 class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {

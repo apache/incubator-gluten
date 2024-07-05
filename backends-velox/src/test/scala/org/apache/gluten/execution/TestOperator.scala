@@ -1892,4 +1892,29 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
         }
     }
   }
+
+  test("fix non-deterministic filter executed twice when push down to scan") {
+    val df = sql("select * from lineitem where rand() <= 0.5")
+    // plan check
+    val plan = df.queryExecution.executedPlan
+    val scans = plan.collect { case scan: FileSourceScanExecTransformer => scan }
+    val filters = plan.collect { case filter: FilterExecTransformer => filter }
+    assert(scans.size == 1)
+    assert(filters.size == 1)
+    assert(scans(0).dataFilters.size == 1)
+    val remainingFilters = FilterHandler.getRemainingFilters(
+      scans(0).dataFilters,
+      splitConjunctivePredicates(filters(0).condition))
+    assert(remainingFilters.size == 0)
+
+    // result length check, table lineitem has 60,000 rows
+    val resultLength = df.collect().length
+    assert(resultLength > 25000 && resultLength < 35000)
+  }
+
+  test("Deduplicate sorting keys") {
+    runQueryAndCompare("select * from lineitem order by l_orderkey, l_orderkey") {
+      checkGlutenOperatorMatch[SortExecTransformer]
+    }
+  }
 }
