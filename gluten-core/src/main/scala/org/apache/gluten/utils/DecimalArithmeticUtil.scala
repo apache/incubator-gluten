@@ -28,8 +28,14 @@ import org.apache.spark.sql.utils.DecimalTypeUtil
 
 object DecimalArithmeticUtil {
 
+  val MIN_ADJUSTED_SCALE = 6
+  val MAX_PRECISION = 38
+  val MAX_SCALE = 38
+
   // Returns the result decimal type of a decimal arithmetic computing.
   def getResultType(expr: BinaryArithmetic, type1: DecimalType, type2: DecimalType): DecimalType = {
+
+    val allowPrecisionLoss = SQLConf.get.decimalOperationsAllowPrecisionLoss
     var resultScale = 0
     var resultPrecision = 0
     expr match {
@@ -45,13 +51,34 @@ object DecimalArithmeticUtil {
         resultScale = type1.scale + type2.scale
         resultPrecision = type1.precision + type2.precision + 1
       case _: Divide =>
-        resultScale =
-          Math.max(DecimalType.MINIMUM_ADJUSTED_SCALE, type1.scale + type2.precision + 1)
-        resultPrecision = type1.precision - type1.scale + type2.scale + resultScale
+        if (allowPrecisionLoss) {
+          resultScale = Math.max(MIN_ADJUSTED_SCALE, type1.scale + type2.precision + 1)
+          resultPrecision = type1.precision - type1.scale + type2.scale + resultScale
+        } else {
+          var intDig = Math.min(MAX_SCALE, type1.precision - type1.scale + type2.scale)
+          var decDig = Math.min(MAX_SCALE, Math.max(6, type1.scale + type2.precision + 1))
+          val diff = (intDig + decDig) - MAX_SCALE
+          if (diff > 0) {
+            decDig -= diff / 2 + 1
+            intDig = MAX_SCALE - decDig
+          }
+          resultPrecision = intDig + decDig
+          resultScale = decDig
+        }
       case other =>
         throw new GlutenNotSupportException(s"$other is not supported.")
     }
-    DecimalTypeUtil.adjustPrecisionScale(resultPrecision, resultScale)
+
+    if (allowPrecisionLoss) {
+      DecimalTypeUtil.adjustPrecisionScale(resultPrecision, resultScale)
+    } else {
+      bounded(resultPrecision, resultScale)
+    }
+
+  }
+
+  def bounded(precision: Int, scale: Int): DecimalType = {
+    DecimalType(Math.min(precision, MAX_PRECISION), Math.min(scale, MAX_SCALE))
   }
 
   // If casting between DecimalType, unnecessary cast is skipped to avoid data loss,

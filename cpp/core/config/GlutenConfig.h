@@ -32,6 +32,8 @@ const std::string kCaseSensitive = "spark.sql.caseSensitive";
 
 const std::string kSessionTimezone = "spark.sql.session.timeZone";
 
+const std::string kAllowPrecisionLoss = "spark.sql.decimalOperations.allowPrecisionLoss";
+
 const std::string kIgnoreMissingFiles = "spark.sql.files.ignoreMissingFiles";
 
 const std::string kDefaultSessionTimezone = "spark.gluten.sql.session.timeZone.default";
