@@ -26,10 +26,10 @@ import org.apache.arrow.vector.types.pojo.Schema
 
 import java.util.concurrent.{ArrayBlockingQueue, TimeUnit}
 
-class VeloxColumnarBatchIterator(schema: Schema, allocator: BufferAllocator)
+class VeloxColumnarBatchIterator(schema: Schema, allocator: BufferAllocator, queueSize: Int)
   extends Iterator[ColumnarBatch]
   with AutoCloseable {
-  private val writeQueue = new ArrayBlockingQueue[ColumnarBatch](64)
+  private val writeQueue = new ArrayBlockingQueue[ColumnarBatch](queueSize)
   private var currentBatch: Option[ColumnarBatch] = None
 
   def enqueue(batch: ColumnarBatch): Unit = {
