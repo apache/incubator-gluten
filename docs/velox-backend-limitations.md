@@ -125,8 +125,6 @@ Gluten supports writes of HiveFileFormat when the output file type is of type `p
 #### NaN support
 Velox does NOT support NaN. So unexpected result can be obtained for a few cases, e.g., comparing a number with NaN.
 
-
-
 #### Configuration
 
 Parquet write only support three configs, other will not take effect.
@@ -163,4 +161,5 @@ Gluten's.
   - Parquet scan of nested map with struct as key type, or array type as value type is not supported in Velox (fallback behavior).
 
 ### CSV Read
-The header option should be true. And now we only support DatasourceV1, user should set this setting spark.sql.sources.useV1SourceList=csv. Not support user defined read option, will fallback to vanilla Spark in most case.  Will fallback to vanilla Spark and log warning when user specifies schema is different with file schema.
+The header option should be true. And now we only support DatasourceV1, i.e., user should set `spark.sql.sources.useV1SourceList=csv`. User defined read option is not supported, which will make CSV read fall back to vanilla Spark in most case.
+CSV read will also fall back to vanilla Spark and log warning when user specifies schema is different with file schema.
