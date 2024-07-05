@@ -60,7 +60,10 @@ abstract class Suite(
     .setWarningOnOverriding("spark.storage.blockManagerSlaveTimeoutMs", "3600000")
   sessionSwitcher
     .defaultConf()
-    .setWarningOnOverriding("spark.executor.heartbeatInterval", "1s") // for keeping metrics updated
+    .setWarningOnOverriding("spark.executor.heartbeatInterval", "10s")
+  sessionSwitcher
+    .defaultConf()
+    .setWarningOnOverriding("spark.worker.timeout", "3600")
   sessionSwitcher
     .defaultConf()
     .setWarningOnOverriding("spark.executor.metrics.pollingInterval", "0")

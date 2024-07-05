@@ -55,7 +55,7 @@ class DeltaMergeTreeFileFormat(protocol: Protocol, metadata: Metadata)
       setIndexKeyOption: Option[Seq[String]],
       primaryKeyOption: Option[Seq[String]],
       clickhouseTableConfigs: Map[String, String],
-      partitionColumns: Seq[String]) {
+      partitionColumns: Seq[String]) = {
     this(protocol, metadata)
     this.database = database
     this.tableName = tableName

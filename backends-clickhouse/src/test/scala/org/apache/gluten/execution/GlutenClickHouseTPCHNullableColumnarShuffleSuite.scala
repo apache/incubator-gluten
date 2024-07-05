@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 
 class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseTPCHAbstractSuite {
 
@@ -63,7 +63,11 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
           val shjBuildLeft = df.queryExecution.executedPlan.collect {
             case shj: ShuffledHashJoinExecTransformerBase if shj.joinBuildSide == BuildLeft => shj
           }
-          assert(shjBuildLeft.size == 2)
+          assert(shjBuildLeft.size == 1)
+          val shjBuildRight = df.queryExecution.executedPlan.collect {
+            case shj: ShuffledHashJoinExecTransformerBase if shj.joinBuildSide == BuildRight => shj
+          }
+          assert(shjBuildRight.size == 1)
       }
     }
   }

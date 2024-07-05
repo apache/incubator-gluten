@@ -32,7 +32,7 @@ import org.apache.spark.sql.hive.HiveUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
-trait Transformable extends Unevaluable {
+trait Transformable {
   def getTransformer(childrenTransformers: Seq[ExpressionTransformer]): ExpressionTransformer
 }
 
@@ -396,14 +396,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           r
         )
       case size: Size =>
-        if (size.legacySizeOfNull != SQLConf.get.legacySizeOfNull) {
-          throw new GlutenNotSupportException(
-            "The value of legacySizeOfNull field of size is " +
-              "not equals to legacySizeOfNull of SQLConf, this case is not supported yet")
-        }
-        BackendsApiManager.getSparkPlanExecApiInstance.genSizeExpressionTransformer(
+        // Covers Spark ArraySize which is replaced by Size(child, false).
+        val child =
+          replaceWithExpressionTransformerInternal(size.child, attributeSeq, expressionsMap)
+        GenericExpressionTransformer(
           substraitExprName,
-          replaceWithExpressionTransformerInternal(size.child, attributeSeq, expressionsMap),
+          Seq(child, LiteralTransformer(size.legacySizeOfNull)),
           size)
       case namedStruct: CreateNamedStruct =>
         BackendsApiManager.getSparkPlanExecApiInstance.genNamedStructTransformer(
@@ -558,13 +556,26 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             expressionsMap),
           arrayTransform
         )
+      case arraySort: ArraySort =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArraySortTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(
+            arraySort.argument,
+            attributeSeq,
+            expressionsMap),
+          replaceWithExpressionTransformerInternal(
+            arraySort.function,
+            attributeSeq,
+            expressionsMap),
+          arraySort
+        )
       case tryEval @ TryEval(a: Add) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
           substraitExprName,
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           tryEval,
-          ExpressionNames.CHECK_ADD
+          ExpressionNames.CHECKED_ADD
         )
       case tryEval @ TryEval(a: Subtract) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
@@ -572,7 +583,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           tryEval,
-          ExpressionNames.CHECK_SUBTRACT
+          ExpressionNames.CHECKED_SUBTRACT
         )
       case tryEval @ TryEval(a: Divide) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
@@ -580,7 +591,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           tryEval,
-          ExpressionNames.CHECK_DIVIDE
+          ExpressionNames.CHECKED_DIVIDE
         )
       case tryEval @ TryEval(a: Multiply) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
@@ -588,7 +599,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           tryEval,
-          ExpressionNames.CHECK_MULTIPLY
+          ExpressionNames.CHECKED_MULTIPLY
         )
       case a: Add =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
@@ -596,7 +607,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           a,
-          ExpressionNames.CHECK_ADD
+          ExpressionNames.CHECKED_ADD
         )
       case a: Subtract =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
@@ -604,7 +615,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           a,
-          ExpressionNames.CHECK_SUBTRACT
+          ExpressionNames.CHECKED_SUBTRACT
         )
       case a: Multiply =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
@@ -612,7 +623,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           a,
-          ExpressionNames.CHECK_MULTIPLY
+          ExpressionNames.CHECKED_MULTIPLY
         )
       case a: Divide =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
@@ -620,7 +631,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           a,
-          ExpressionNames.CHECK_DIVIDE
+          ExpressionNames.CHECKED_DIVIDE
         )
       case tryEval: TryEval =>
         // This is a placeholder to handle try_eval(other expressions).
@@ -655,6 +666,21 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           Seq(replaceWithExpressionTransformerInternal(c.child, attributeSeq, expressionsMap)),
           c
+        )
+      case t: TransformKeys =>
+        // default is `EXCEPTION`
+        val mapKeyDedupPolicy = SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
+        if (mapKeyDedupPolicy == SQLConf.MapKeyDedupPolicy.LAST_WIN.toString) {
+          // TODO: Remove after fix ready for
+          //  https://github.com/facebookincubator/velox/issues/10219
+          throw new GlutenNotSupportException(
+            "LAST_WIN policy is not supported yet in native to deduplicate map keys"
+          )
+        }
+        GenericExpressionTransformer(
+          substraitExprName,
+          t.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
+          t
         )
       case expr =>
         GenericExpressionTransformer(

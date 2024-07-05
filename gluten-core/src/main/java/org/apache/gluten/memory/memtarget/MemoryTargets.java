@@ -22,7 +22,6 @@ import org.apache.gluten.memory.memtarget.spark.TreeMemoryConsumers;
 
 import org.apache.spark.memory.TaskMemoryManager;
 
-import java.util.List;
 import java.util.Map;
 
 public final class MemoryTargets {
@@ -54,7 +53,7 @@ public final class MemoryTargets {
   public static MemoryTarget newConsumer(
       TaskMemoryManager tmm,
       String name,
-      List<Spiller> spillers,
+      Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
     final TreeMemoryConsumers.Factory factory;
     if (GlutenConfig.getConf().memoryIsolation()) {
@@ -63,6 +62,6 @@ public final class MemoryTargets {
       factory = TreeMemoryConsumers.shared();
     }
 
-    return dynamicOffHeapSizingIfEnabled(factory.newConsumer(tmm, name, spillers, virtualChildren));
+    return factory.newConsumer(tmm, name, spiller, virtualChildren);
   }
 }

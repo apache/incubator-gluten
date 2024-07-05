@@ -59,7 +59,8 @@ std::unordered_map<String, String> TypeParser::type_names_mapping
        {"FloatType", "Float32"},
        {"DoubleType", "Float64"},
        {"StringType", "String"},
-       {"DateType", "Date32"}};
+       {"DateType", "Date32"},
+       {"TimestampType", "DateTime64"}};
 
 String TypeParser::getCHTypeName(const String & spark_type_name)
 {

@@ -32,16 +32,11 @@ void GlutenDiskHDFS::createDirectory(const String & path)
     hdfsCreateDirectory(hdfs_object_storage->getHDFSFS(), path.c_str());
 }
 
-String GlutenDiskHDFS::path2AbsPath(const String & path)
-{
-    return getObjectStorage()->generateObjectKeyForPath(path).serialize();
-}
-
 void GlutenDiskHDFS::createDirectories(const String & path)
 {
     DiskObjectStorage::createDirectories(path);
-    auto* hdfs = hdfs_object_storage->getHDFSFS();
-    fs::path p = path;
+    auto * hdfs = hdfs_object_storage->getHDFSFS();
+    fs::path p = "/" + path;
     std::vector<std::string> paths_created;
     while (hdfsExists(hdfs, p.c_str()) < 0)
     {
@@ -57,7 +52,15 @@ void GlutenDiskHDFS::createDirectories(const String & path)
 void GlutenDiskHDFS::removeDirectory(const String & path)
 {
     DiskObjectStorage::removeDirectory(path);
-    hdfsDelete(hdfs_object_storage->getHDFSFS(), path.c_str(), 1);
+    String abs_path = "/" + path;
+    hdfsDelete(hdfs_object_storage->getHDFSFS(), abs_path.c_str(), 1);
+}
+
+void GlutenDiskHDFS::removeRecursive(const String & path)
+{
+    DiskObjectStorage::removeRecursive(path);
+    String abs_path = "/" + path;
+    hdfsDelete(hdfs_object_storage->getHDFSFS(), abs_path.c_str(), 1);
 }
 
 DiskObjectStoragePtr GlutenDiskHDFS::createDiskObjectStorage()
@@ -69,7 +72,8 @@ DiskObjectStoragePtr GlutenDiskHDFS::createDiskObjectStorage()
         getMetadataStorage(),
         getObjectStorage(),
         SerializedPlanParser::global_context->getConfigRef(),
-        config_prefix);
+        config_prefix,
+        object_storage_creator);
 }
 
 std::unique_ptr<DB::WriteBufferFromFileBase> GlutenDiskHDFS::writeFile(

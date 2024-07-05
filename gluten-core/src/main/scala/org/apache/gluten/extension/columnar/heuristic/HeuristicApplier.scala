@@ -40,7 +40,12 @@ class HeuristicApplier(session: SparkSession)
   with Logging
   with LogLevelUtil {
   // This is an empirical value, may need to be changed for supporting other versions of spark.
-  private val aqeStackTraceIndex = 19
+  private val aqeStackTraceIndex =
+    if (scala.util.Properties.releaseVersion.exists(_.startsWith("2.12"))) {
+      19
+    } else {
+      17
+    }
   private val adaptiveContext = AdaptiveContext(session, aqeStackTraceIndex)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
@@ -96,14 +101,14 @@ class HeuristicApplier(session: SparkSession)
       (spark: SparkSession) => FallbackOnANSIMode(spark),
       (spark: SparkSession) => FallbackMultiCodegens(spark),
       (spark: SparkSession) => PlanOneRowRelation(spark),
-      (_: SparkSession) => FallbackEmptySchemaRelation(),
       (_: SparkSession) => RewriteSubqueryBroadcast()
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
       List(
+        (_: SparkSession) => FallbackEmptySchemaRelation(),
         (spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark),
         (_: SparkSession) => RewriteSparkPlanRulesManager(),
-        (_: SparkSession) => AddTransformHintRule()
+        (_: SparkSession) => AddFallbackTagRule()
       ) :::
       List((_: SparkSession) => TransformPreOverrides()) :::
       List(
@@ -150,7 +155,7 @@ class HeuristicApplier(session: SparkSession)
       // when columnar table cache is enabled.
       (s: SparkSession) => RemoveGlutenTableCacheColumnarToRow(s),
       (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
-      (_: SparkSession) => RemoveTransformHintRule()
+      (_: SparkSession) => RemoveFallbackTagRule()
     )
   }
 

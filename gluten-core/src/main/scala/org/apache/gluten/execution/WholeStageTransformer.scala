@@ -265,7 +265,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     }
 
     transformChildren(child, basicScanExecTransformers)
-    basicScanExecTransformers
+    basicScanExecTransformers.toSeq
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {

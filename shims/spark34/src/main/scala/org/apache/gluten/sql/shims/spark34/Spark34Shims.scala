@@ -77,7 +77,10 @@ class Spark34Shims extends SparkShims {
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
       Sig[KnownNullable](KNOWN_NULLABLE),
-      Sig[Empty2Null](ExpressionNames.EMPTY2NULL)
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
+      Sig[TimestampAdd](ExpressionNames.TIMESTAMP_ADD),
+      Sig[RoundFloor](ExpressionNames.FLOOR),
+      Sig[RoundCeil](ExpressionNames.CEIL)
     )
   }
 
@@ -240,8 +243,9 @@ class Spark34Shims extends SparkShims {
         case _ =>
       }
     }
-
-    // TODO: row_index metadata support
+    metadataColumn.put(InputFileName().prettyName, file.filePath.toString)
+    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
+    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
     metadataColumn
   }
 

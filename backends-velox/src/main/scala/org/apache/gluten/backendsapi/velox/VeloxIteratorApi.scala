@@ -25,6 +25,7 @@ import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel.{LocalFilesBuilder, LocalFilesNode, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.utils._
+import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized._
 
 import org.apache.spark.{SparkConf, TaskContext}
@@ -35,7 +36,7 @@ import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.types.{BinaryType, DateType, Decimal, DecimalType, StructType, TimestampType}
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
@@ -112,7 +113,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     val fileSizes = new JArrayList[JLong]()
     val modificationTimes = new JArrayList[JLong]()
     val partitionColumns = new JArrayList[JMap[String, String]]
-    var metadataColumns = new JArrayList[JMap[String, String]]
+    val metadataColumns = new JArrayList[JMap[String, String]]
     files.foreach {
       file =>
         // The "file.filePath" in PartitionedFile is not the original encoded path, so the decoded

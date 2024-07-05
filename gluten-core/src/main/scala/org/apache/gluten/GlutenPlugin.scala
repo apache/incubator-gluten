@@ -22,7 +22,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.events.GlutenBuildInfoEvent
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression.ExpressionMappings
-import org.apache.gluten.extension.{ColumnarOverrides, OthersExtensionOverrides, QueryStagePrepOverrides, StrategyOverrides}
+import org.apache.gluten.extension.{ColumnarOverrides, OthersExtensionOverrides, QueryStagePrepOverrides}
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.TaskListener
 
@@ -142,6 +142,12 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       s"$GLUTEN_SESSION_EXTENSION_NAME"
     }
     conf.set(SPARK_SESSION_EXTS_KEY, extensions)
+
+    // adaptive custom cost evaluator class
+    if (GlutenConfig.getConf.enableGluten && GlutenConfig.getConf.enableGlutenCostEvaluator) {
+      val costEvaluator = "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator"
+      conf.set(SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS.key, costEvaluator)
+    }
 
     // check memory off-heap enabled and size
     val minOffHeapSize = "1MB"
@@ -294,7 +300,7 @@ private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions =>
 }
 
 private[gluten] trait GlutenSparkExtensionsInjector {
-  def inject(extensions: SparkSessionExtensions)
+  def inject(extensions: SparkSessionExtensions): Unit
 }
 
 private[gluten] object GlutenPlugin {
@@ -306,7 +312,6 @@ private[gluten] object GlutenPlugin {
   val DEFAULT_INJECTORS: List[GlutenSparkExtensionsInjector] = List(
     QueryStagePrepOverrides,
     ColumnarOverrides,
-    StrategyOverrides,
     OthersExtensionOverrides
   )
 }

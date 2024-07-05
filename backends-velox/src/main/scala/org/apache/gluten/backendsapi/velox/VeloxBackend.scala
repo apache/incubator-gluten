@@ -65,6 +65,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   val GLUTEN_VELOX_UDF_LIB_PATHS = getBackendConfigPrefix() + ".udfLibraryPaths"
   val GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS = getBackendConfigPrefix() + ".driver.udfLibraryPaths"
+  val GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS = getBackendConfigPrefix() + ".internal.udfLibraryPaths"
 
   val MAXIMUM_BATCH_SIZE: Int = 32768
 
@@ -302,6 +303,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def supportNativeMetadataColumns(): Boolean = true
 
   override def supportNativeRowIndexColumn(): Boolean = true
+
+  override def supportNativeInputFileRelatedExpr(): Boolean = true
 
   override def supportExpandExec(): Boolean = true
 

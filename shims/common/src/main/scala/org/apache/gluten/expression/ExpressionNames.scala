@@ -83,10 +83,10 @@ object ExpressionNames {
   final val IS_NAN = "isnan"
   final val NANVL = "nanvl"
   final val TRY_EVAL = "try"
-  final val CHECK_ADD = "check_add"
-  final val CHECK_SUBTRACT = "check_subtract"
-  final val CHECK_DIVIDE = "check_divide"
-  final val CHECK_MULTIPLY = "check_multiply"
+  final val CHECKED_ADD = "checked_add"
+  final val CHECKED_SUBTRACT = "checked_subtract"
+  final val CHECKED_DIVIDE = "checked_divide"
+  final val CHECKED_MULTIPLY = "checked_multiply"
 
   // SparkSQL String functions
   final val ASCII = "ascii"
@@ -127,6 +127,8 @@ object ExpressionNames {
   final val ENCODE = "encode"
   final val UUID = "uuid"
   final val BIT_LENGTH = "bit_length"
+  final val OCTET_LENGTH = "octet_length"
+  final val LEVENSHTEIN = "levenshteinDistance"
   final val UNBASE64 = "unbase64"
   final val BASE64 = "base64"
 
@@ -173,8 +175,8 @@ object ExpressionNames {
   final val SIGN = "sign"
   final val LOG1P = "log1p"
   final val LOG2 = "log2"
-  final val LOG = "log"
-  final val LOGARITHM = "logarithm"
+  final val LOG = "ln"
+  final val LOGARITHM = "log"
   final val RADIANS = "radians"
   final val GREATEST = "greatest"
   final val LEAST = "least"
@@ -259,6 +261,7 @@ object ExpressionNames {
   final val ARRAY_EXCEPT = "array_except"
   final val ARRAY_REPEAT = "array_repeat"
   final val ARRAY_REMOVE = "array_remove"
+  final val ARRAY_SORT = "array_sort"
   final val ARRAYS_ZIP = "arrays_zip"
   final val FILTER = "filter"
   final val FORALL = "forall"
@@ -276,6 +279,8 @@ object ExpressionNames {
   final val MAP_FROM_ARRAYS = "map_from_arrays"
   final val MAP_ENTRIES = "map_entries"
   final val MAP_ZIP_WITH = "map_zip_with"
+  final val TRANSFORM_KEYS = "transform_keys"
+  final val TRANSFORM_VALUES = "transform_values"
   final val STR_TO_MAP = "str_to_map"
 
   // struct functions
@@ -310,6 +315,7 @@ object ExpressionNames {
   final val SPARK_PARTITION_ID = "spark_partition_id"
   final val MONOTONICALLY_INCREASING_ID = "monotonically_increasing_id"
   final val WIDTH_BUCKET = "width_bucket"
+  final val REPLICATE_ROWS = "replicaterows"
 
   // Directly use child expression transformer
   final val KNOWN_NULLABLE = "known_nullable"

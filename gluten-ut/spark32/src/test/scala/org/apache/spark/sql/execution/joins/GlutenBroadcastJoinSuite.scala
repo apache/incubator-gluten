@@ -22,7 +22,6 @@ import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
 import org.apache.spark.sql.catalyst.optimizer._
-import org.apache.spark.sql.execution.exchange.EnsureRequirements
 import org.apache.spark.sql.functions.broadcast
 import org.apache.spark.sql.internal.SQLConf
 
@@ -40,8 +39,6 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
   /**
    * Create a new [[SparkSession]] running in local-cluster mode with unsafe and codegen enabled.
    */
-
-  private val EnsureRequirements = new EnsureRequirements()
 
   private val isVeloxBackend = BackendTestUtils.isVeloxBackendLoaded()
 
@@ -232,22 +229,6 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       } finally {
         spark.catalog.clearCache()
       }
-    }
-  }
-
-  testGluten("broadcast hint isn't propagated after a join") {
-    withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
-      val df1 = Seq((1, "4"), (2, "2")).toDF("key", "value")
-      val df2 = Seq((1, "1"), (2, "2")).toDF("key", "value")
-      val df3 = df1.join(broadcast(df2), Seq("key"), "inner").drop(df2("key"))
-
-      val df4 = Seq((1, "5"), (2, "5")).toDF("key", "value")
-      val df5 = df4.join(df3, Seq("key"), "inner")
-
-      val plan = EnsureRequirements.apply(df5.queryExecution.sparkPlan)
-
-      assert(plan.collect { case p: BroadcastHashJoinExec => p }.size === 1)
-      assert(plan.collect { case p: ShuffledHashJoinExec => p }.size === 1)
     }
   }
 

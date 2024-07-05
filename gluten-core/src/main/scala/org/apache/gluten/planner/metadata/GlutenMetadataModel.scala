@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.planner.metadata
 
-import org.apache.gluten.planner.metadata.GlutenMetadata.Schema
 import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
 import org.apache.gluten.ras.{Metadata, MetadataModel}
 
@@ -31,18 +30,22 @@ object GlutenMetadataModel extends Logging {
   private object MetadataModelImpl extends MetadataModel[SparkPlan] {
     override def metadataOf(node: SparkPlan): Metadata = node match {
       case g: GroupLeafExec => throw new UnsupportedOperationException()
-      case other => GlutenMetadata(Schema(other.output))
+      case other =>
+        GlutenMetadata(
+          Schema(other.output),
+          other.logicalLink.map(LogicalLink(_)).getOrElse(LogicalLink.notFound))
     }
 
-    override def dummy(): Metadata = GlutenMetadata(Schema(List()))
+    override def dummy(): Metadata = GlutenMetadata(Schema(List()), LogicalLink.notFound)
     override def verify(one: Metadata, other: Metadata): Unit = (one, other) match {
-      case (left: GlutenMetadata, right: GlutenMetadata) if left.schema() != right.schema() =>
-        // We apply loose restriction on schema. Since Gluten still have some customized
-        // logics causing schema of an operator to change after being transformed.
-        // For example: https://github.com/apache/incubator-gluten/pull/5171
-        logWarning(s"Warning: Schema mismatch: one: ${left.schema()}, other: ${right.schema()}")
-      case (left: GlutenMetadata, right: GlutenMetadata) if left == right =>
+      case (left: GlutenMetadata, right: GlutenMetadata) =>
+        implicitly[Verifier[Schema]].verify(left.schema(), right.schema())
+        implicitly[Verifier[LogicalLink]].verify(left.logicalLink(), right.logicalLink())
       case _ => throw new IllegalStateException(s"Metadata mismatch: one: $one, other $other")
     }
+  }
+
+  trait Verifier[T <: Any] {
+    def verify(one: T, other: T): Unit
   }
 }

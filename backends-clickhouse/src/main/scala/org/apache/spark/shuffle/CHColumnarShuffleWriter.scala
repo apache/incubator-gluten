@@ -29,7 +29,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, Utils}
 
 import java.io.IOException
-import java.util
 import java.util.{Locale, UUID}
 
 class CHColumnarShuffleWriter[K, V](
@@ -122,7 +121,10 @@ class CHColumnarShuffleWriter[K, V](
       CHNativeMemoryAllocators.createSpillable(
         "ShuffleWriter",
         new Spiller() {
-          override def spill(self: MemoryTarget, size: Long): Long = {
+          override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
+            if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+              return 0L;
+            }
             if (nativeSplitter == 0) {
               throw new IllegalStateException(
                 "Fatal: spill() called before a shuffle writer " +
@@ -134,8 +136,6 @@ class CHColumnarShuffleWriter[K, V](
             logError(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
             spilled
           }
-
-          override def applicablePhases(): util.Set[Spiller.Phase] = Spillers.PHASE_SET_SPILL_ONLY
         }
       )
     }

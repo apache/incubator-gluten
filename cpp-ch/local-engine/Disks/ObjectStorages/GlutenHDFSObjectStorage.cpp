@@ -38,7 +38,7 @@ DB::ObjectStorageKey local_engine::GlutenHDFSObjectStorage::generateObjectKeyFor
     initializeHDFSFS();
     /// what ever data_source_description.description value is, consider that key as relative key
     chassert(data_directory.starts_with("/"));
-    return ObjectStorageKey::createAsRelative(fs::path(url_without_path) / data_directory.substr(1) / path);
+    return ObjectStorageKey::createAsRelative(fs::path(url_without_path) / data_directory.substr(1), path);
 }
 }
 #endif

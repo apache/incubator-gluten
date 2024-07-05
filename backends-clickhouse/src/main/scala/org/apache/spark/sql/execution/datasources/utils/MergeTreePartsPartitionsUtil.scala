@@ -127,7 +127,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         sparkSession
       )
     }
-    partitions
+    partitions.toSeq
   }
 
   def genInputPartitionSeq(

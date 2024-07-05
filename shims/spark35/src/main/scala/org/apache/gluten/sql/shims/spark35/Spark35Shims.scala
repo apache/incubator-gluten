@@ -43,7 +43,7 @@ import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Sca
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetFilters, ParquetRowIndexUtil}
+import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetFilters}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
@@ -76,7 +76,12 @@ class Spark35Shims extends SparkShims {
       Sig[SplitPart](ExpressionNames.SPLIT_PART),
       Sig[Sec](ExpressionNames.SEC),
       Sig[Csc](ExpressionNames.CSC),
-      Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
+      Sig[KnownNullable](ExpressionNames.KNOWN_NULLABLE),
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
+      Sig[TimestampAdd](ExpressionNames.TIMESTAMP_ADD),
+      Sig[RoundFloor](ExpressionNames.FLOOR),
+      Sig[RoundCeil](ExpressionNames.CEIL)
+    )
   }
 
   override def aggregateExpressionMappings: Seq[Sig] = {
@@ -236,8 +241,9 @@ class Spark35Shims extends SparkShims {
         case _ =>
       }
     }
-
-    // TODO row_index metadata support
+    metadataColumn.put(InputFileName().prettyName, file.filePath.toString)
+    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
+    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
     metadataColumn
   }
 

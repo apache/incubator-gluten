@@ -238,6 +238,7 @@ endif()
 
 find_arrow_lib(${ARROW_LIB_NAME})
 find_arrow_lib(${PARQUET_LIB_NAME})
+find_arrow_lib(${ARROW_BUNDLED_DEPS})
 
 if(ENABLE_HBM)
   include(BuildMemkind)
@@ -300,16 +301,6 @@ target_include_directories(
 set_target_properties(gluten PROPERTIES LIBRARY_OUTPUT_DIRECTORY
                                         ${root_directory}/releases)
 
-include(Findjemalloc_pic)
-# Build Jemalloc
-if(BUILD_JEMALLOC)
-  build_jemalloc(${STATIC_JEMALLOC})
-  message(STATUS "Building Jemalloc: ${STATIC_JEMALLOC}")
-else() #
-  find_jemalloc()
-  message(STATUS "Use existing Jemalloc libraries")
-endif()
-
 if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
@@ -324,7 +315,8 @@ else()
   set(LIBHDFS3_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-target_link_libraries(gluten PUBLIC Arrow::arrow Arrow::parquet)
+target_link_libraries(gluten PUBLIC Arrow::parquet Arrow::arrow
+                                    Arrow::arrow_bundled_dependencies)
 target_link_libraries(gluten PRIVATE google::glog)
 
 install(TARGETS gluten DESTINATION ${CMAKE_INSTALL_LIBDIR})

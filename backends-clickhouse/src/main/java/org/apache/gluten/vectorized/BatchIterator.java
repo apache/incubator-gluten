@@ -17,6 +17,7 @@
 package org.apache.gluten.vectorized;
 
 import org.apache.gluten.metrics.IMetrics;
+import org.apache.gluten.metrics.NativeMetrics;
 
 import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
@@ -50,7 +51,7 @@ public class BatchIterator extends GeneralOutIterator {
 
   private native void nativeCancel(long nativeHandle);
 
-  private native IMetrics nativeFetchMetrics(long nativeHandle);
+  private native String nativeFetchMetrics(long nativeHandle);
 
   @Override
   public boolean hasNextInternal() throws IOException {
@@ -72,8 +73,8 @@ public class BatchIterator extends GeneralOutIterator {
   }
 
   @Override
-  public IMetrics getMetricsInternal() throws IOException, ClassNotFoundException {
-    return nativeFetchMetrics(handle);
+  public IMetrics getMetricsInternal() {
+    return new NativeMetrics(nativeFetchMetrics(handle));
   }
 
   @Override

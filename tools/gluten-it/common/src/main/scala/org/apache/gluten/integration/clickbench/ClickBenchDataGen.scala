@@ -31,7 +31,10 @@ class ClickBenchDataGen(val spark: SparkSession, dir: String) extends DataGen {
     // Directly download from official URL.
     val target = new File(dir + File.separator + FILE_NAME)
     FileUtils.forceMkdirParent(target)
-    val code = Process(s"wget -P $dir $DATA_URL") !;
+    val cmd =
+      s"wget --no-verbose --show-progress --progress=bar:force:noscroll -O $target $DATA_URL"
+    println(s"Executing command: $cmd")
+    val code = Process(cmd) !;
     if (code != 0) {
       throw new RuntimeException("Download failed")
     }

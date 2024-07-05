@@ -23,6 +23,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
+import org.apache.spark.sql.execution.joins.SortMergeJoinExec
 
 class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -238,6 +239,28 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
               }.nonEmpty == ignoreRowToColumnar.toBoolean)
           }
         }
+    }
+  }
+
+  test("fallback with smj") {
+    val sql = "SELECT /*+ SHUFFLE_MERGE(tmp1) */ * FROM tmp1 join tmp2 on tmp1.c1 = tmp2.c1"
+    withSQLConf(
+      GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "true",
+      GlutenConfig.COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
+      runQueryAndCompare(sql) {
+        df =>
+          val plan = df.queryExecution.executedPlan
+          assert(collect(plan) { case smj: SortMergeJoinExec => smj }.size == 1)
+      }
+    }
+    withSQLConf(
+      GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
+      GlutenConfig.COLUMNAR_SORTMERGEJOIN_ENABLED.key -> "false") {
+      runQueryAndCompare(sql) {
+        df =>
+          val plan = df.queryExecution.executedPlan
+          assert(collect(plan) { case smj: SortMergeJoinExec => smj }.size == 1)
+      }
     }
   }
 }

@@ -258,6 +258,15 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("all_match is not supported")
   }
 
+  /** Transform array array_sort to Substrait. */
+  def genArraySortTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArraySort): ExpressionTransformer = {
+    throw new GlutenNotSupportException("array_sort(on array) is not supported")
+  }
+
   /** Transform array exists to Substrait */
   def genArrayExistsTransformer(
       substraitExprName: String,
@@ -430,7 +439,9 @@ trait SparkPlanExecApi {
    *
    * @return
    */
-  def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
+  def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
+    SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
+  }
 
   def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]]
 
@@ -460,13 +471,6 @@ trait SparkPlanExecApi {
       substraitExprName,
       Seq(srcExpr, matchingExpr, replaceExpr),
       original)
-  }
-
-  def genSizeExpressionTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Size): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(child), original)
   }
 
   def genLikeTransformer(

@@ -194,7 +194,6 @@ object CHExpressionUtil {
     URL_ENCODE -> DefaultValidator(),
     SKEWNESS -> DefaultValidator(),
     SOUNDEX -> DefaultValidator(),
-    BIT_LENGTH -> DefaultValidator(),
     MAKE_YM_INTERVAL -> DefaultValidator(),
     MAP_ZIP_WITH -> DefaultValidator(),
     ZIP_WITH -> DefaultValidator(),
@@ -209,8 +208,6 @@ object CHExpressionUtil {
     UNIX_MICROS -> DefaultValidator(),
     TIMESTAMP_MILLIS -> DefaultValidator(),
     TIMESTAMP_MICROS -> DefaultValidator(),
-    FLATTEN -> DefaultValidator(),
-    RINT -> DefaultValidator(),
     STACK -> DefaultValidator()
   )
 }

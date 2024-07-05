@@ -21,8 +21,8 @@ import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
-import org.apache.gluten.utils.{ArrowAbiUtil, Iterators}
+import org.apache.gluten.utils.ArrowAbiUtil
+import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized._
 
 import org.apache.spark.broadcast.Broadcast
@@ -70,8 +70,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
           numInputRows,
           numOutputBatches,
           convertTime,
-          numRows
-        )
+          numRows)
     }
   }
 
@@ -96,9 +95,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
           numInputRows,
           numOutputBatches,
           convertTime,
-          numRows
-        )
-    )
+          numRows))
   }
 
   // For spark 3.2.
@@ -120,16 +117,16 @@ object RowToVeloxColumnarExec {
 
     val arrowSchema =
       SparkArrowUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
-    val jniWrapper = NativeRowToColumnarJniWrapper.create()
+    val runtime = Runtimes.contextInstance("RowToColumnar")
+    val jniWrapper = NativeRowToColumnarJniWrapper.create(runtime)
     val arrowAllocator = ArrowBufferAllocators.contextInstance()
-    val memoryManager = NativeMemoryManagers.contextInstance("RowToColumnar")
     val cSchema = ArrowSchema.allocateNew(arrowAllocator)
     val factory = UnsafeProjection
     val converter = factory.create(schema)
     val r2cHandle =
       try {
         ArrowAbiUtil.exportSchema(arrowAllocator, arrowSchema, cSchema)
-        jniWrapper.init(cSchema.memoryAddress(), memoryManager.getNativeInstanceHandle)
+        jniWrapper.init(cSchema.memoryAddress())
       } finally {
         cSchema.close()
       }
@@ -219,7 +216,7 @@ object RowToVeloxColumnarExec {
         try {
           val handle = jniWrapper
             .nativeConvertRowToColumnar(r2cHandle, rowLength.toArray, arrowBuf.memoryAddress())
-          val cb = ColumnarBatches.create(Runtimes.contextInstance(), handle)
+          val cb = ColumnarBatches.create(handle)
           convertTime += System.currentTimeMillis() - startNative
           cb
         } finally {

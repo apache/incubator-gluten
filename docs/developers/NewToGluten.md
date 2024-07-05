@@ -43,7 +43,7 @@ export PATH="$PATH:$JAVA_HOME/bin"
 
 ## OpenJDK 17
 
-By default, Gluten compiles package using JDK8. Enable maven profile by `-Pjava-17` to use JDK17, and please make sure your JAVA_HOME points to jdk17.
+By default, Gluten compiles package using JDK8. Enable maven profile by `-Pjava-17` to use JDK17 or `-Pjava-11` to use JDK 11, and please make sure your JAVA_HOME points to jdk17 or jdk11 respectively.
 
 Apache Spark and Arrow requires setting java args `-Dio.netty.tryReflectionSetAccessible=true`, see [SPARK-29924](https://issues.apache.org/jira/browse/SPARK-29924) and [ARROW-6206](https://issues.apache.org/jira/browse/ARROW-6206).
 So please add following configs in `spark-defaults.conf`:
