@@ -101,7 +101,8 @@ TEST(LocalExecutor, StorageObjectStorageSink)
 
     /// 2. Create Chunk
     /// 3. comsume
-    sink.consume(testChunk());
+    Chunk data = testChunk();
+    sink.consume(data);
     sink.onFinish();
 }
 
