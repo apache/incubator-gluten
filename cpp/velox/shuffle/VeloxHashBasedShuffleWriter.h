@@ -325,13 +325,13 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
   // subscript: The index of row in the current input RowVector
   // value: Partition ID
   // Updated for each input RowVector.
-  std::vector<std::vector<uint32_t>> row2Partition_;
+  std::list<std::vector<uint32_t>> row2Partition_;
 
   // Partition ID -> Row Count
   // subscript: Partition ID
   // value: How many rows does this partition have in the current input RowVector
   // Updated for each input RowVector.
-  std::vector<std::vector<uint32_t>> partitionNumRows_;
+  std::list<std::vector<uint32_t>> partitionNumRows_;
 
   // Partition ID -> Row Count
   // subscript: Partition ID
@@ -387,9 +387,9 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
 
   facebook::velox::serializer::presto::PrestoVectorSerde serde_;
 
-  std::vector<facebook::velox::RowVectorPtr> inputs_;
-  uint32_t currentInput_;
+  std::list<facebook::velox::RowVectorPtr> inputs_;
   uint64_t retainedSize_{0};
+  uint64_t retainedRows_{0};
 
   SplitState splitState_{kInit};
 }; // class VeloxHashBasedShuffleWriter
