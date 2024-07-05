@@ -107,33 +107,3 @@ case class VeloxHashExpressionTransformer(
     ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
   }
 }
-
-case class VeloxStringSplitTransformer(
-    substraitExprName: String,
-    srcExpr: ExpressionTransformer,
-    regexExpr: ExpressionTransformer,
-    limitExpr: ExpressionTransformer,
-    original: StringSplit)
-  extends ExpressionTransformer {
-  // TODO: split function support limit arg
-  override def children: Seq[ExpressionTransformer] = srcExpr :: regexExpr :: Nil
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    if (
-      !regexExpr.isInstanceOf[LiteralTransformer] ||
-      !limitExpr.isInstanceOf[LiteralTransformer]
-    ) {
-      throw new GlutenNotSupportException(
-        "Gluten only supports literal input as limit/regex for split function.")
-    }
-
-    val limit = limitExpr.doTransform(args).asInstanceOf[IntLiteralNode].getValue
-    val regex = regexExpr.doTransform(args).asInstanceOf[StringLiteralNode].getValue
-    if (limit > 0 || regex.length > 1) {
-      throw new GlutenNotSupportException(
-        s"$original supported single-length regex and negative limit, but given $limit and $regex")
-    }
-
-    super.doTransform(args)
-  }
-}

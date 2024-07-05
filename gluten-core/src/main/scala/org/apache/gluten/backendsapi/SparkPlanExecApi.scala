@@ -164,16 +164,6 @@ trait SparkPlanExecApi {
       original: Expression): ExpressionTransformer =
     AliasTransformer(substraitExprName, child, original)
 
-  /** Generate SplitTransformer. */
-  def genStringSplitTransformer(
-      substraitExprName: String,
-      srcExpr: ExpressionTransformer,
-      regexExpr: ExpressionTransformer,
-      limitExpr: ExpressionTransformer,
-      original: StringSplit): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
-  }
-
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
   def genGetMapValueTransformer(
       substraitExprName: String,

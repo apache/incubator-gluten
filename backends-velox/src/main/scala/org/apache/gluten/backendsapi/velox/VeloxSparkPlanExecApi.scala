@@ -661,17 +661,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    * * Expressions.
    */
 
-  /** Generate StringSplit transformer. */
-  override def genStringSplitTransformer(
-      substraitExprName: String,
-      srcExpr: ExpressionTransformer,
-      regexExpr: ExpressionTransformer,
-      limitExpr: ExpressionTransformer,
-      original: StringSplit): ExpressionTransformer = {
-    // In velox, split function just support tow args, not support limit arg for now
-    VeloxStringSplitTransformer(substraitExprName, srcExpr, regexExpr, limitExpr, original)
-  }
-
   /**
    * Generate Alias transformer.
    *
