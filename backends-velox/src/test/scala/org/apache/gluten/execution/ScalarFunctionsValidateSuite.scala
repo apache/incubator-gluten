@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.SparkException
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.types._
 
@@ -661,6 +662,18 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
+  }
+
+  test("Test raise_error, assert_true function") {
+    runQueryAndCompare("""SELECT assert_true(l_orderkey >= 1), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    val e = intercept[SparkException] {
+      sql("""SELECT assert_true(l_orderkey >= 100), l_orderkey from
+            | lineitem limit 100""".stripMargin).collect()
+    }
+    assert(e.getMessage.contains("l_orderkey"))
   }
 
   test("Test spark_partition_id function") {
