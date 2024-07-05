@@ -180,9 +180,10 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
     inputVectorLargeBinary2_ = makeRowVector(childrenLargeBinary2_);
   }
 
-  arrow::Status splitRowVector(VeloxShuffleWriter& shuffleWriter, facebook::velox::RowVectorPtr vector) {
+  arrow::Status
+  splitRowVector(VeloxShuffleWriter& shuffleWriter, facebook::velox::RowVectorPtr vector, int64_t memLimit = 0) {
     std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
-    return shuffleWriter.write(cb, ShuffleWriter::kMinMemLimit);
+    return shuffleWriter.write(cb, memLimit);
   }
 
   // Create multiple local dirs and join with comma.

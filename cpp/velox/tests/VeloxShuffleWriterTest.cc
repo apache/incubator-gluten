@@ -264,8 +264,7 @@ TEST_P(HashPartitioningShuffleWriter, hashLargeVectors) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
   // calculate maxBatchSize_
-  std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(hashInputVector1_);
-  ASSERT_NOT_OK(shuffleWriter->write(cb, 0));
+  ASSERT_NOT_OK(splitRowVector(*shuffleWriter, hashInputVector1_));
   if (GetParam().shuffleWriterType == kHashShuffle) {
     VELOX_CHECK_EQ(shuffleWriter->maxBatchSize(), expectedMaxBatchSize);
   }
@@ -463,7 +462,8 @@ TEST_F(VeloxShuffleWriterMemoryTest, spillFailWithOutOfMemory) {
 
   auto shuffleWriter = createShuffleWriter(pool.get());
 
-  auto status = splitRowVector(*shuffleWriter, inputVector1_);
+  std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(inputVector1_);
+  auto status = shuffleWriter->write(cb, 0);
 
   // Should return OOM status because there's no partition buffer to spill.
   ASSERT_TRUE(status.IsOutOfMemory());
