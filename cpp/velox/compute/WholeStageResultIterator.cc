@@ -456,7 +456,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
 
     // To align with Spark's behavior, allow decimal precision loss or not.
-    configs[velox::core::QueryConfig::kSparkDecimalOperationsAllowPrecisionLoss] = veloxCfg_->get<std::string>(kAllowPrecisionLoss, "true");
+    configs[velox::core::QueryConfig::kSparkDecimalOperationsAllowPrecisionLoss] =
+        veloxCfg_->get<std::string>(kAllowPrecisionLoss, "true");
 
     {
       // partial aggregation memory config
