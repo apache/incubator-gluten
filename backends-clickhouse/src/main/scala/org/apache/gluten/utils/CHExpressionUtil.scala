@@ -159,6 +159,13 @@ case class EncodeDecodeValidator() extends FunctionValidator {
   }
 }
 
+case class ArrayJoinValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = expr match {
+    case t: ArrayJoin => !t.children.head.isInstanceOf[Literal]
+    case _ => true
+  }
+}
+
 object CHExpressionUtil {
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
@@ -167,6 +174,7 @@ object CHExpressionUtil {
   )
 
   final val CH_BLACKLIST_SCALAR_FUNCTION: Map[String, FunctionValidator] = Map(
+    ARRAY_JOIN -> ArrayJoinValidator(),
     SPLIT_PART -> DefaultValidator(),
     TO_UNIX_TIMESTAMP -> UnixTimeStampValidator(),
     UNIX_TIMESTAMP -> UnixTimeStampValidator(),

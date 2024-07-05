@@ -60,7 +60,11 @@ public:
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} must have 2 or 3 arguments", getName());
 
         const auto * arg_null_col = checkAndGetColumn<ColumnNullable>(arguments[0].column.get());
-        const auto * array_col = checkAndGetColumn<ColumnArray>(arg_null_col->getNestedColumnPtr().get());
+        const ColumnArray * array_col;
+        if (!arg_null_col)
+            array_col = checkAndGetColumn<ColumnArray>(arguments[0].column.get());
+        else
+            array_col = checkAndGetColumn<ColumnArray>(arg_null_col->getNestedColumnPtr().get());
         if (!array_col)
             throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {} 1st argument must be array type", getName());
 
