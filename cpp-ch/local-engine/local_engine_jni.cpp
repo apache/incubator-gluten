@@ -27,6 +27,7 @@
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Shuffle/CachedShuffleWriter.h>
 #include <Shuffle/NativeSplitter.h>
 #include <Shuffle/NativeWriterInMemory.h>
@@ -254,8 +255,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
 
     const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan);
     const std::string::size_type plan_size = plan_a.length();
-    local_engine::LocalExecutor * executor
-        = parser.createExecutor({reinterpret_cast<const char *>(plan_a.elems()), plan_size}).release();
+    local_engine::LocalExecutor * executor = parser.createExecutor({reinterpret_cast<const char *>(plan_a.elems()), plan_size}).release();
     LOG_INFO(&Poco::Logger::get("jni"), "Construct LocalExecutor {}", reinterpret_cast<uintptr_t>(executor));
     executor->setMetric(parser.getMetric());
     executor->setExtraPlanHolder(parser.extra_plan_holder);
@@ -285,7 +285,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_BatchIterator_nativeCHNext(JNI
 JNIEXPORT void Java_org_apache_gluten_vectorized_BatchIterator_nativeCancel(JNIEnv * env, jobject /*obj*/, jlong executor_address)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    auto *executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
+    auto * executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
     executor->cancel();
     LOG_INFO(&Poco::Logger::get("jni"), "Cancel LocalExecutor {}", reinterpret_cast<uintptr_t>(executor));
     LOCAL_ENGINE_JNI_METHOD_END(env, )
@@ -294,7 +294,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_BatchIterator_nativeCancel(JNIE
 JNIEXPORT void Java_org_apache_gluten_vectorized_BatchIterator_nativeClose(JNIEnv * env, jobject /*obj*/, jlong executor_address)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    auto *executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
+    auto * executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
     LOG_INFO(&Poco::Logger::get("jni"), "Finalize LocalExecutor {}", reinterpret_cast<intptr_t>(executor));
     delete executor;
     LOCAL_ENGINE_JNI_METHOD_END(env, )
@@ -898,23 +898,12 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     const auto bucket_dir = jstring2string(env, bucket_dir_);
 
     const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan_);
-
-    /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
-    /// Parsing may fail when the number of recursive layers is large.
-    /// Here, set a limit large enough to avoid this problem.
-    /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
-    google::protobuf::io::CodedInputStream coded_in(plan_a.elems(), plan_a.length());
-    coded_in.SetRecursionLimit(100000);
-
-    substrait::Plan plan_ptr;
-    if (!plan_ptr.ParseFromCodedStream(&coded_in))
-        throw DB::Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
+    auto plan_ptr = local_engine::BinaryToMessage<substrait::Plan>(
+        {reinterpret_cast<const char *>(plan_a.elems()), static_cast<size_t>(plan_a.length())});
 
     const auto split_info_a = local_engine::getByteArrayElementsSafe(env, split_info_);
-    const std::string::size_type split_info_size = split_info_a.length();
-    std::string split_info_str{reinterpret_cast<const char *>(split_info_a.elems()), split_info_size};
-
-    substrait::ReadRel::ExtensionTable extension_table = local_engine::SerializedPlanParser::parseExtensionTable(split_info_str);
+    auto extension_table = local_engine::BinaryToMessage<substrait::ReadRel::ExtensionTable>(
+        {reinterpret_cast<const char *>(split_info_a.elems()), static_cast<size_t>(split_info_a.length())});
 
     auto merge_tree_table = local_engine::MergeTreeRelParser::parseMergeTreeTable(extension_table);
     auto uuid = uuid_str + "_" + task_id;
@@ -930,24 +919,12 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 {
     LOCAL_ENGINE_JNI_METHOD_START
     const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan_);
-    const std::string::size_type plan_size = plan_a.length();
-
-    substrait::Plan plan_ptr;
-    if (!plan_ptr.ParseFromString({reinterpret_cast<const char *>(plan_a.elems()), plan_size}))
-        throw Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
+    auto plan_ptr = local_engine::BinaryToMessage<substrait::Plan>(
+        {reinterpret_cast<const char *>(plan_a.elems()), static_cast<size_t>(plan_a.length())});
 
     const auto read_a = local_engine::getByteArrayElementsSafe(env, read_);
-    /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
-    /// Parsing may fail when the number of recursive layers is large.
-    /// Here, set a limit large enough to avoid this problem.
-    /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
-    google::protobuf::io::CodedInputStream coded_in(read_a.elems(), read_a.length());
-    coded_in.SetRecursionLimit(100000);
-
-    substrait::Rel read_ptr;
-    if (!read_ptr.ParseFromCodedStream(&coded_in))
-        throw Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Expression from string failed");
-
+    auto read_ptr = local_engine::BinaryToMessage<substrait::Rel>(
+        {reinterpret_cast<const char *>(read_a.elems()), static_cast<size_t>(read_a.length())});
 
     local_engine::SerializedPlanParser parser(local_engine::SerializedPlanParser::global_context);
     parser.parseExtensions(plan_ptr.extensions());
@@ -1023,23 +1000,13 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     const auto bucket_dir = jstring2string(env, bucket_dir_);
 
     const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan_);
-
-    /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
-    /// Parsing may fail when the number of recursive layers is large.
-    /// Here, set a limit large enough to avoid this problem.
-    /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
-    google::protobuf::io::CodedInputStream coded_in(plan_a.elems(), plan_a.length());
-    coded_in.SetRecursionLimit(100000);
-
-    substrait::Plan plan_ptr;
-    if (!plan_ptr.ParseFromCodedStream(&coded_in))
-        throw DB::Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
+    auto plan_ptr = local_engine::BinaryToMessage<substrait::Plan>(
+        {reinterpret_cast<const char *>(plan_a.elems()), static_cast<size_t>(plan_a.length())});
 
     const auto split_info_a = local_engine::getByteArrayElementsSafe(env, split_info_);
-    const std::string::size_type split_info_size = split_info_a.length();
-    std::string split_info_str{reinterpret_cast<const char *>(split_info_a.elems()), split_info_size};
+    auto extension_table = local_engine::BinaryToMessage<substrait::ReadRel::ExtensionTable>(
+        {reinterpret_cast<const char *>(split_info_a.elems()), static_cast<size_t>(split_info_a.length())});
 
-    substrait::ReadRel::ExtensionTable extension_table = local_engine::SerializedPlanParser::parseExtensionTable(split_info_str);
     google::protobuf::StringValue table;
     table.ParseFromString(extension_table.detail().value());
     auto merge_tree_table = local_engine::parseMergeTreeTableString(table.value());
@@ -1255,8 +1222,7 @@ Java_org_apache_gluten_vectorized_SimpleExpressionEval_createNativeInstance(JNIE
     parser.addInputIter(iter, false);
     const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan);
     const std::string::size_type plan_size = plan_a.length();
-    local_engine::LocalExecutor * executor
-        = parser.createExecutor({reinterpret_cast<const char *>(plan_a.elems()), plan_size}).release();
+    local_engine::LocalExecutor * executor = parser.createExecutor({reinterpret_cast<const char *>(plan_a.elems()), plan_size}).release();
     return reinterpret_cast<jlong>(executor);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }

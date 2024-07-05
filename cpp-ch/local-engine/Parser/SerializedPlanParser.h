@@ -258,28 +258,23 @@ private:
     friend class MergeTreeRelParser;
     friend class ProjectRelParser;
 
-    std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan);
-
-    DB::QueryPlanPtr parse(std::string_view plan);
+    std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan);
 
 public:
     explicit SerializedPlanParser(const ContextPtr & context);
 
     /// visible for UT
     DB::QueryPlanPtr parse(const substrait::Plan & plan);
-    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan) { return createExecutor(parse(plan)); }
+    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan) { return createExecutor(parse(plan), plan); }
     DB::QueryPipelineBuilderPtr buildQueryPipeline(DB::QueryPlan & query_plan);
     ///
-    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan) { return createExecutor(parse(plan)); }
+    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
 
     DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
     static bool isReadFromMergeTree(const substrait::ReadRel & rel);
-
-    static substrait::ReadRel::LocalFiles parseLocalFiles(const std::string & split_info);
-    static substrait::ReadRel::ExtensionTable parseExtensionTable(const std::string & split_info);
 
     void addInputIter(jobject iter, bool materialize_input)
     {
@@ -416,7 +411,7 @@ struct SparkBuffer
 class LocalExecutor : public BlockIterator
 {
 public:
-    LocalExecutor(QueryPlanPtr query_plan, QueryPipeline && pipeline, bool dump_pipeline_);
+    LocalExecutor(QueryPlanPtr query_plan, QueryPipeline && pipeline, bool dump_pipeline_ = false);
     ~LocalExecutor();
 
     SparkRowInfoPtr next();

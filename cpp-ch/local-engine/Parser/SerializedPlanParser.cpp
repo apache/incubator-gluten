@@ -55,6 +55,7 @@
 #include <Parser/FunctionParser.h>
 #include <Parser/MergeTreeRelParser.h>
 #include <Parser/RelParser.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
@@ -292,7 +293,7 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
     if (rel.has_local_files())
         local_files = rel.local_files();
     else
-        local_files = parseLocalFiles(split_infos.at(nextSplitInfoIndex()));
+        local_files = BinaryToMessage<substrait::ReadRel::LocalFiles>(split_infos.at(nextSplitInfoIndex()));
     auto source = std::make_shared<SubstraitFileSource>(context, header, local_files);
     auto source_pipe = Pipe(source);
     auto source_step = std::make_unique<SubstraitFileSourceStep>(context, std::move(source_pipe), "substrait local files");
@@ -469,6 +470,18 @@ QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
     std::list<const substrait::Rel *> rel_stack;
     auto query_plan = parseOp(root_rel.root().input(), rel_stack);
     adjustOutput(query_plan, root_rel);
+
+#ifndef NDEBUG
+    PlanUtil::checkOuputType(*query_plan);
+#endif
+
+    auto * logger = &Poco::Logger::get("SerializedPlanParser");
+    if (logger->debug())
+    {
+        auto out = PlanUtil::explainPlan(*query_plan);
+        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
+    }
+
     return query_plan;
 }
 
@@ -522,7 +535,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
                 if (read.has_extension_table())
                     extension_table = read.extension_table();
                 else
-                    extension_table = parseExtensionTable(split_infos.at(nextSplitInfoIndex()));
+                    extension_table = BinaryToMessage<substrait::ReadRel::ExtensionTable>(split_infos.at(nextSplitInfoIndex()));
 
                 MergeTreeRelParser mergeTreeParser(this, context);
                 query_plan = mergeTreeParser.parseReadRel(std::make_unique<QueryPlan>(), read, extension_table);
@@ -1683,34 +1696,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
     }
 }
 
-substrait::ReadRel::ExtensionTable SerializedPlanParser::parseExtensionTable(const std::string & split_info)
-{
-    substrait::ReadRel::ExtensionTable extension_table;
-    google::protobuf::io::CodedInputStream coded_in(
-        reinterpret_cast<const uint8_t *>(split_info.data()), static_cast<int>(split_info.size()));
-    coded_in.SetRecursionLimit(100000);
-
-    auto ok = extension_table.ParseFromCodedStream(&coded_in);
-    if (!ok)
-        throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::ReadRel::ExtensionTable from string failed");
-    logDebugMessage(extension_table, "extension_table");
-    return extension_table;
-}
-
-substrait::ReadRel::LocalFiles SerializedPlanParser::parseLocalFiles(const std::string & split_info)
-{
-    substrait::ReadRel::LocalFiles local_files;
-    google::protobuf::io::CodedInputStream coded_in(
-        reinterpret_cast<const uint8_t *>(split_info.data()), static_cast<int>(split_info.size()));
-    coded_in.SetRecursionLimit(100000);
-
-    auto ok = local_files.ParseFromCodedStream(&coded_in);
-    if (!ok)
-        throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::ReadRel::LocalFiles from string failed");
-    logDebugMessage(local_files, "local_files");
-    return local_files;
-}
-
 DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPlan & query_plan)
 {
     const Settings & settings = context->getSettingsRef();
@@ -1719,7 +1704,7 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         context,
         "",
         context->getClientInfo(),
-        priorities.insert(static_cast<int>(settings.priority)),
+        priorities.insert(settings.priority),
         CurrentThread::getGroup(),
         IAST::QueryKind::Select,
         settings,
@@ -1733,7 +1718,13 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
             .process_list_element = query_status});
 }
 
-std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPlanPtr query_plan)
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)
+{
+    const auto s_plan = BinaryToMessage<substrait::Plan>(plan);
+    return createExecutor(parse(s_plan), s_plan);
+}
+
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan)
 {
     Stopwatch stopwatch;
 
@@ -1750,34 +1741,6 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
 
     bool dump_pipeline = context->getConfigRef().getBool("dump_pipeline", false);
     return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(pipeline), dump_pipeline);
-}
-
-QueryPlanPtr SerializedPlanParser::parse(std::string_view plan)
-{
-    substrait::Plan s_plan;
-    /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
-    /// Parsing may fail when the number of recursive layers is large.
-    /// Here, set a limit large enough to avoid this problem.
-    /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
-    google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(plan.data()), static_cast<int>(plan.size()));
-    coded_in.SetRecursionLimit(100000);
-
-    if (!s_plan.ParseFromCodedStream(&coded_in))
-        throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
-
-    auto res = parse(s_plan);
-
-#ifndef NDEBUG
-    PlanUtil::checkOuputType(*res);
-#endif
-
-    auto * logger = &Poco::Logger::get("SerializedPlanParser");
-    if (logger->debug())
-    {
-        auto out = PlanUtil::explainPlan(*res);
-        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
-    }
-    return res;
 }
 
 SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_) : context(context_)
