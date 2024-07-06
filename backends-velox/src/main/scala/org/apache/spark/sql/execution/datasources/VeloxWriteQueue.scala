@@ -40,9 +40,10 @@ class VeloxWriteQueue(
     schema: Schema,
     allocator: BufferAllocator,
     datasourceJniWrapper: DatasourceJniWrapper,
-    outputFileURI: String)
+    outputFileURI: String,
+    queueSize: Int)
   extends AutoCloseable {
-  private val scanner = new VeloxColumnarBatchIterator(schema, allocator)
+  private val scanner = new VeloxColumnarBatchIterator(schema, allocator, queueSize)
   private val writeException = new AtomicReference[Throwable]
 
   private val writeThread = new Thread(
