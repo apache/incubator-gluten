@@ -296,6 +296,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("sliding range between with aggregation")
     .exclude("store and retrieve column stats in different time zones")
   enableSuite[GlutenColumnExpressionSuite]
+    // Velox raise_error('errMsg') throws a velox_user_error exception with the message 'errMsg'.
+    // The final caught Spark exception's getCause().getMessage() contains 'errMsg' but does not
+    // equal 'errMsg' exactly. The following two tests will be skipped and overridden in Gluten.
+    .exclude("raise_error")
+    .exclude("assert_true")
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
   enableSuite[GlutenDataFrameTimeWindowingSuite]
