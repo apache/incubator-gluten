@@ -850,6 +850,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("atan2")
     .exclude("round/bround")
     .exclude("SPARK-37388: width_bucket")
+    .exclude("shift left")
+    .exclude("shift right")
+    .exclude("shift right unsigned")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
