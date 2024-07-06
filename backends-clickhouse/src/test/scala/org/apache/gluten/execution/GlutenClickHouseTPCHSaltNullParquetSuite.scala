@@ -978,6 +978,22 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("window ntile") {
+    val sql =
+      """
+        | select n_regionkey, n_nationkey,
+        |   first_value(n_nationkey) over (partition by n_regionkey order by n_nationkey) as
+        |   first_v,
+        |   ntile(4) over (partition by n_regionkey order by n_nationkey) as ntile_v
+        | from
+        |   (
+        |     select n_regionkey, if(n_nationkey = 1, null, n_nationkey) as n_nationkey from nation
+        |   ) as t
+        | order by n_regionkey, n_nationkey
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("window first value with nulls") {
     val sql =
       """
@@ -1323,6 +1339,13 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     runQueryAndCompare(
       "select bit_and(l_partkey), bit_or(l_suppkey), bit_xor(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[CHHashAggregateExecTransformer]
+    }
+  }
+
+  test("bit_get/bit_count") {
+    runQueryAndCompare(
+      "select bit_count(id), bit_get(id, 0), bit_get(id, 1), bit_get(id, 2), bit_get(id, 3) from range(100)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 

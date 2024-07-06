@@ -468,7 +468,7 @@ String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
 
 using namespace DB;
 
-std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string & plan)
+std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string_view plan)
 {
     std::map<std::string, std::string> ch_backend_conf;
     if (plan.empty())
@@ -822,7 +822,7 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t index_uncompressed_cache_size = config->getUInt64("index_uncompressed_cache_size", DEFAULT_INDEX_UNCOMPRESSED_CACHE_MAX_SIZE);
         double index_uncompressed_cache_size_ratio = config->getDouble("index_uncompressed_cache_size_ratio", DEFAULT_INDEX_UNCOMPRESSED_CACHE_SIZE_RATIO);
         global_context->setIndexUncompressedCache(index_uncompressed_cache_policy, index_uncompressed_cache_size, index_uncompressed_cache_size_ratio);
-
+        
         String index_mark_cache_policy = config->getString("index_mark_cache_policy", DEFAULT_INDEX_MARK_CACHE_POLICY);
         size_t index_mark_cache_size = config->getUInt64("index_mark_cache_size", DEFAULT_INDEX_MARK_CACHE_MAX_SIZE);
         double index_mark_cache_size_ratio = config->getDouble("index_mark_cache_size_ratio", DEFAULT_INDEX_MARK_CACHE_SIZE_RATIO);
@@ -972,7 +972,7 @@ void BackendInitializerUtil::init(const std::string & plan)
         });
 }
 
-void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, const std::string & plan)
+void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, const std::string_view plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
 
@@ -986,10 +986,7 @@ void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context,
 
 void BackendFinalizerUtil::finalizeGlobally()
 {
-    /// Make sure that all active LocalExecutor stop before spark executor shutdown, otherwise crash map happen.
-    LocalExecutor::cancelAll();
-
-    /// Make sure client caches release before ClientCacheRegistry
+    // Make sure client caches release before ClientCacheRegistry
     ReadBufferBuilderFactory::instance().clean();
     StorageMergeTreeFactory::clear();
     auto & global_context = SerializedPlanParser::global_context;

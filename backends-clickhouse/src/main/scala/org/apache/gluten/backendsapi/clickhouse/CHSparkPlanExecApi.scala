@@ -22,7 +22,7 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.{CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, RewriteToDateExpresstionRule}
-import org.apache.gluten.extension.columnar.AddTransformHintRule
+import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -146,7 +146,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
 
     child match {
       case scan: FileSourceScanExec if (checkMergeTreeFileFormat(scan.relation)) =>
-        // For the validation phase of the AddTransformHintRule
+        // For the validation phase of the AddFallbackTagRule
         CHFilterExecTransformer(condition, child)
       case scan: FileSourceScanExecTransformerBase if (checkMergeTreeFileFormat(scan.relation)) =>
         // For the transform phase, the FileSourceScanExec is already transformed
@@ -226,7 +226,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         // FIXME: The operation happens inside ReplaceSingleNode().
         //  Caller may not know it adds project on top of the shuffle.
         val project = TransformPreOverrides().apply(
-          AddTransformHintRule().apply(
+          AddFallbackTagRule().apply(
             ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
         var newExprs = Seq[Expression]()
         for (i <- exprs.indices) {
@@ -251,7 +251,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         // FIXME: The operation happens inside ReplaceSingleNode().
         //  Caller may not know it adds project on top of the shuffle.
         val project = TransformPreOverrides().apply(
-          AddTransformHintRule().apply(
+          AddFallbackTagRule().apply(
             ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
         var newOrderings = Seq[SortOrder]()
         for (i <- orderings.indices) {
@@ -612,13 +612,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHStringTranslateTransformer(substraitExprName, srcExpr, matchingExpr, replaceExpr, original)
   }
 
-  override def genSizeExpressionTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Size): ExpressionTransformer = {
-    CHSizeExpressionTransformer(substraitExprName, child, original)
-  }
-
   override def genLikeTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,
@@ -711,7 +704,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         val columnName = s"${aliasExpr.name}_${aliasExpr.exprId.id}"
         val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
         wExpression.windowFunction match {
-          case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
+          case wf @ (RowNumber() | Rank(_) | DenseRank(_)) =>
             val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
@@ -802,6 +795,22 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
               originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
+          case wf @ NTile(buckets: Expression) =>
+            val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
+            val childrenNodeList = new JArrayList[ExpressionNode]()
+            val literal = buckets.asInstanceOf[Literal]
+            childrenNodeList.add(LiteralTransformer(literal).doTransform(args))
+            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+              WindowFunctionsBuilder.create(args, wf).toInt,
+              childrenNodeList,
+              columnName,
+              ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
+              frame.upper,
+              frame.lower,
+              frame.frameType.sql,
+              originalInputAttributes.asJava
+            )
+            windowExpressionNodes.add(windowFunctionNode)
           case _ =>
             throw new GlutenNotSupportException(
               "unsupported window function type: " +
@@ -847,6 +856,33 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       child: SparkPlan
   ): GenerateExecTransformerBase = {
     CHGenerateExecTransformer(generator, requiredChildOutput, outer, generatorOutput, child)
+  }
+
+  /** Transform array filter to Substrait. */
+  override def genArrayFilterTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayFilter): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
+  }
+
+  /** Transform array transform to Substrait. */
+  override def genArrayTransformTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArrayTransform): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
+  }
+
+  /** Transform array sort to Substrait. */
+  override def genArraySortTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArraySort): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
   }
 
   override def genPreProjectForGenerate(generate: GenerateExec): SparkPlan = generate

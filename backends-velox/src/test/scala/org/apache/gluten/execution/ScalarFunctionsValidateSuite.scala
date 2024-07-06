@@ -101,6 +101,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  testWithSpecifiedSparkVersion("null input for array_size", Some("3.3")) {
+    runQueryAndCompare("SELECT array_size(null)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("chr function") {
     val df = runQueryAndCompare(
       "SELECT chr(l_orderkey + 64) " +
@@ -289,6 +295,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
 
   test("Test log10 function") {
     runQueryAndCompare("SELECT log10(l_orderkey) from lineitem limit 1") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test log function") {
+    runQueryAndCompare("SELECT log(10, l_orderkey) from lineitem limit 1") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
@@ -645,13 +657,9 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
   }
 
   test("Test input_file_name function") {
-    withSQLConf(
-      "spark.gluten.sql.enableInputFileNameReplaceRule" -> "true"
-    ) {
-      runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                           | from lineitem limit 100""".stripMargin) {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 

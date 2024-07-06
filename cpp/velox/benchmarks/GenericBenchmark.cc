@@ -98,11 +98,8 @@ void setUpBenchmark(::benchmark::internal::Benchmark* bm) {
   }
 }
 
-std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
-    Runtime* runtime,
-    VeloxMemoryManager* memoryManager,
-    const std::string& dataFile,
-    const std::vector<std::string>& localDirs) {
+std::shared_ptr<VeloxShuffleWriter>
+createShuffleWriter(Runtime* runtime, const std::string& dataFile, const std::vector<std::string>& localDirs) {
   PartitionWriterOptions partitionWriterOptions{};
 
   // Configure compression.
@@ -131,13 +128,13 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
     partitionWriter = std::make_unique<RssPartitionWriter>(
         FLAGS_shuffle_partitions,
         std::move(partitionWriterOptions),
-        memoryManager->getArrowMemoryPool(),
+        runtime->memoryManager()->getArrowMemoryPool(),
         std::move(rssClient));
   } else {
     partitionWriter = std::make_unique<LocalPartitionWriter>(
         FLAGS_shuffle_partitions,
         std::move(partitionWriterOptions),
-        memoryManager->getArrowMemoryPool(),
+        runtime->memoryManager()->getArrowMemoryPool(),
         dataFile,
         localDirs);
   }
@@ -147,8 +144,8 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
   if (FLAGS_shuffle_writer == "sort") {
     options.shuffleWriterType = gluten::kSortShuffle;
   }
-  auto shuffleWriter = runtime->createShuffleWriter(
-      FLAGS_shuffle_partitions, std::move(partitionWriter), std::move(options), memoryManager);
+  auto shuffleWriter =
+      runtime->createShuffleWriter(FLAGS_shuffle_partitions, std::move(partitionWriter), std::move(options));
 
   return std::reinterpret_pointer_cast<VeloxShuffleWriter>(shuffleWriter);
 }
@@ -178,7 +175,6 @@ void setCpu(::benchmark::State& state) {
 
 void runShuffle(
     Runtime* runtime,
-    VeloxMemoryManager* memoryManager,
     BenchmarkAllocationListener* listener,
     const std::shared_ptr<gluten::ResultIterator>& resultIter,
     WriterMetrics& metrics) {
@@ -187,7 +183,7 @@ void runShuffle(
   bool isFromEnv;
   GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFileFromEnv(dataFile, localDirs, isFromEnv));
 
-  auto shuffleWriter = createShuffleWriter(runtime, memoryManager, dataFile, localDirs);
+  auto shuffleWriter = createShuffleWriter(runtime, dataFile, localDirs);
   listener->setShuffleWriter(shuffleWriter.get());
 
   int64_t totalTime = 0;
@@ -226,18 +222,19 @@ void updateBenchmarkMetrics(
 
 } // namespace
 
+using RuntimeFactory = std::function<VeloxRuntime*(std::unique_ptr<AllocationListener> listener)>;
+
 auto BM_Generic = [](::benchmark::State& state,
                      const std::string& planFile,
                      const std::vector<std::string>& splitFiles,
                      const std::vector<std::string>& dataFiles,
-                     Runtime* runtime,
+                     RuntimeFactory runtimeFactory,
                      FileReaderType readerType) {
   setCpu(state);
 
   auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
   auto* listenerPtr = listener.get();
-  auto memoryManager = std::make_unique<gluten::VeloxMemoryManager>(
-      "generic_benchmark", gluten::defaultMemoryAllocator(), std::move(listener));
+  auto runtime = runtimeFactory(std::move(listener));
 
   auto plan = getPlanFromFile("Plan", planFile);
   std::vector<std::string> splits{};
@@ -271,18 +268,17 @@ auto BM_Generic = [](::benchmark::State& state,
       for (auto& split : splits) {
         runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), std::nullopt);
       }
-      auto resultIter = runtime->createResultIterator(
-          memoryManager.get(), "/tmp/test-spill", std::move(inputIters), runtime->getConfMap());
+      auto resultIter = runtime->createResultIterator("/tmp/test-spill", std::move(inputIters), runtime->getConfMap());
       listenerPtr->setIterator(resultIter.get());
 
       if (FLAGS_with_shuffle) {
-        runShuffle(runtime, memoryManager.get(), listenerPtr, resultIter, writerMetrics);
+        runShuffle(runtime, listenerPtr, resultIter, writerMetrics);
       } else {
         // May write the output into file.
         auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
 
         ArrowSchema cSchema;
-        toArrowSchema(veloxPlan->outputType(), memoryManager->getLeafMemoryPool().get(), &cSchema);
+        toArrowSchema(veloxPlan->outputType(), runtime->memoryManager()->getLeafMemoryPool().get(), &cSchema);
         GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
         ArrowWriter writer{FLAGS_save_output};
         state.PauseTiming();
@@ -328,33 +324,36 @@ auto BM_Generic = [](::benchmark::State& state,
   }
 
   updateBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics);
+  Runtime::release(runtime);
 };
 
-auto BM_ShuffleWrite =
-    [](::benchmark::State& state, const std::string& inputFile, Runtime* runtime, FileReaderType readerType) {
-      setCpu(state);
+auto BM_ShuffleWrite = [](::benchmark::State& state,
+                          const std::string& inputFile,
+                          RuntimeFactory runtimeFactory,
+                          FileReaderType readerType) {
+  setCpu(state);
 
-      auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
-      auto* listenerPtr = listener.get();
-      auto memoryManager = std::make_unique<gluten::VeloxMemoryManager>(
-          "generic_benchmark", gluten::defaultMemoryAllocator(), std::move(listener));
+  auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
+  auto* listenerPtr = listener.get();
+  auto runtime = runtimeFactory(std::move(listener));
 
-      WriterMetrics writerMetrics{};
-      int64_t readInputTime = 0;
-      int64_t elapsedTime = 0;
-      {
-        ScopedTimer timer(&elapsedTime);
-        for (auto _ : state) {
-          auto resultIter = getInputIteratorFromFileReader(inputFile, readerType);
-          runShuffle(runtime, memoryManager.get(), listenerPtr, resultIter, writerMetrics);
+  WriterMetrics writerMetrics{};
+  int64_t readInputTime = 0;
+  int64_t elapsedTime = 0;
+  {
+    ScopedTimer timer(&elapsedTime);
+    for (auto _ : state) {
+      auto resultIter = getInputIteratorFromFileReader(inputFile, readerType);
+      runShuffle(runtime, listenerPtr, resultIter, writerMetrics);
 
-          auto reader = static_cast<FileReaderIterator*>(resultIter->getInputIter());
-          readInputTime += reader->getCollectBatchTime();
-        }
-      }
+      auto reader = static_cast<FileReaderIterator*>(resultIter->getInputIter());
+      readInputTime += reader->getCollectBatchTime();
+    }
+  }
 
-      updateBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics);
-    };
+  updateBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics);
+  Runtime::release(runtime);
+};
 
 int main(int argc, char** argv) {
   ::benchmark::Initialize(&argc, argv);
@@ -512,22 +511,26 @@ int main(int argc, char** argv) {
     }
   }
 
-  auto runtime = Runtime::create(kVeloxRuntimeKind, sessionConf);
+  RuntimeFactory runtimeFactory = [=](std::unique_ptr<AllocationListener> listener) {
+    return dynamic_cast<VeloxRuntime*>(Runtime::create(kVeloxRuntimeKind, std::move(listener), sessionConf));
+  };
 
 #define GENERIC_BENCHMARK(READER_TYPE)                                                                             \
   do {                                                                                                             \
-    auto* bm = ::benchmark::RegisterBenchmark(                                                                     \
-                   "GenericBenchmark", BM_Generic, substraitJsonFile, splitFiles, dataFiles, runtime, READER_TYPE) \
-                   ->MeasureProcessCPUTime()                                                                       \
-                   ->UseRealTime();                                                                                \
+    auto* bm =                                                                                                     \
+        ::benchmark::RegisterBenchmark(                                                                            \
+            "GenericBenchmark", BM_Generic, substraitJsonFile, splitFiles, dataFiles, runtimeFactory, READER_TYPE) \
+            ->MeasureProcessCPUTime()                                                                              \
+            ->UseRealTime();                                                                                       \
     setUpBenchmark(bm);                                                                                            \
   } while (0)
 
 #define SHUFFLE_WRITE_BENCHMARK(READER_TYPE)                                                                       \
   do {                                                                                                             \
-    auto* bm = ::benchmark::RegisterBenchmark("ShuffleWrite", BM_ShuffleWrite, dataFiles[0], runtime, READER_TYPE) \
-                   ->MeasureProcessCPUTime()                                                                       \
-                   ->UseRealTime();                                                                                \
+    auto* bm =                                                                                                     \
+        ::benchmark::RegisterBenchmark("ShuffleWrite", BM_ShuffleWrite, dataFiles[0], runtimeFactory, READER_TYPE) \
+            ->MeasureProcessCPUTime()                                                                              \
+            ->UseRealTime();                                                                                       \
     setUpBenchmark(bm);                                                                                            \
   } while (0)
 
@@ -561,7 +564,6 @@ int main(int argc, char** argv) {
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
 
-  Runtime::release(runtime);
   gluten::VeloxBackend::get()->tearDown();
 
   return 0;

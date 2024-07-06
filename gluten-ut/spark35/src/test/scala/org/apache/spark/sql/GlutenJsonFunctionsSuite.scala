@@ -89,13 +89,13 @@ class GlutenJsonFunctionsSuite extends JsonFunctionsSuite with GlutenSQLTestsTra
     runTest("[\"a\",\"b\"]", "$[1]", "b")
     runTest("[[\"a\",\"b\"]]", "$[0][1]", "b")
 
-    runTest("[1,2,3]", "[0]", "1")
-    // runTest("[1,2,3]", "$0", null) crashes in velox
+    runTest("[1,2,3]", "[0]", null)
+    runTest("[1,2,3]", "$0", null)
     runTest("[1,2,3]", "0", null)
     runTest("[1,2,3]", "$.", null)
 
-    // runTest("[1,2,3]", "$", "[1,2,3]") crashes in velox
-    // runTest("{\"a\":4}", "$", "{\"a\":4}") crashes in velox
+    runTest("[1,2,3]", "$", "[1,2,3]")
+    runTest("{\"a\":4}", "$", "{\"a\":4}")
 
     def runTest(json: String, path: String, exp: String): Unit = {
       checkAnswer(Seq(json).toDF().selectExpr(s"get_json_object(value, '$path')"), Row(exp))

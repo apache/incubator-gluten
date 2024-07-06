@@ -94,6 +94,8 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"bitwise_and", "bitAnd"},
        {"bitwise_or", "bitOr"},
        {"bitwise_xor", "bitXor"},
+       {"bit_get", "bitTest"},
+       {"bit_count", "bitCount"},
        {"sqrt", "sqrt"},
        {"cbrt", "cbrt"},
        {"degrees", "degrees"},
@@ -128,12 +130,9 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
        {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
        {"strpos", "positionUTF8"},
-       {"char_length",
-        "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
        {"replace", "replaceAll"},
        {"regexp_replace", "replaceRegexpAll"},
        {"regexp_extract_all", "regexpExtractAllSpark"},
-       {"chr", "char"},
        {"rlike", "match"},
        {"ascii", "ascii"},
        {"split", "splitByRegexp"},
@@ -256,10 +255,11 @@ private:
     friend class NonNullableColumnsResolver;
     friend class JoinRelParser;
     friend class MergeTreeRelParser;
+    friend class ProjectRelParser;
 
     std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan);
 
-    DB::QueryPlanPtr parse(const std::string_view & plan);
+    DB::QueryPlanPtr parse(const std::string_view plan);
     DB::QueryPlanPtr parse(const substrait::Plan & plan);
 
 public:
@@ -271,7 +271,7 @@ public:
     ///
 
     template <bool JsonPlan>
-    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view & plan);
+    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
 
     DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
@@ -305,11 +305,15 @@ public:
     std::shared_ptr<DB::ActionsDAG> expressionsToActionsDAG(
         const std::vector<substrait::Expression> & expressions, const DB::Block & header, const DB::Block & read_schema);
     RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
+    const std::unordered_map<std::string, std::string> & getFunctionMapping() { return function_mapping; }
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
+    std::optional<std::string> getFunctionSignatureName(UInt32 function_ref) const;
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
     IQueryPlanStep * addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header);
+    
+    static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
 
     static ContextMutablePtr global_context;
     static Context::ConfigurationPtr config;
@@ -384,10 +388,11 @@ private:
     // remove nullable after isNotNull
     void removeNullableForRequiredColumns(const std::set<String> & require_columns, const ActionsDAGPtr & actions_dag) const;
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
-    static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     void wrapNullable(
         const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
+
+    bool isFunction(substrait::Expression_ScalarFunction rel, String function_name);
 
     int name_no = 0;
     std::unordered_map<std::string, std::string> function_mapping;
@@ -405,7 +410,7 @@ public:
 };
 
 template <bool JsonPlan>
-std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view & plan)
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)
 {
     return createExecutor(JsonPlan ? parseJson(plan) : parse(plan));
 }
@@ -434,15 +439,8 @@ public:
     void setMetric(RelMetricPtr metric_) { metric = metric_; }
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
 
-    static void cancelAll();
-    static void addExecutor(LocalExecutor * executor);
-    static void removeExecutor(Int64 handle);
-
 private:
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(const DB::Block & block) const;
-
-    void asyncCancel();
-    void waitCancelFinished();
 
     /// Dump processor runtime information to log
     std::string dumpPipeline() const;
@@ -456,11 +454,6 @@ private:
     QueryPlanPtr current_query_plan;
     RelMetricPtr metric;
     std::vector<QueryPlanPtr> extra_plan_holder;
-    std::atomic<bool> is_cancelled{false};
-
-    /// Record all active LocalExecutor in current executor to cancel them when executor receives shutdown command from driver.
-    static std::unordered_map<Int64, LocalExecutor *> executors;
-    static std::mutex executors_mutex;
 };
 
 

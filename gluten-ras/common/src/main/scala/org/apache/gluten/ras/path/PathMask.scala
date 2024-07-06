@@ -96,7 +96,7 @@ object PathMask {
           return None
         }
 
-        PathMask(buffer)
+        PathMask(buffer.toSeq)
     }
 
     Some(out)
@@ -168,7 +168,7 @@ object PathMask {
 
       dfs(0, 0)
 
-      PathMask(buffer)
+      PathMask(buffer.toSeq)
     }
 
     // Return the sub-mask whose root node is the node at the input index

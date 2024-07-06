@@ -257,7 +257,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     // reuse the ParquetWriteConverter for batches caused system % increase a lot
     auto fileName = "velox_parquet_write.parquet";
 
-    auto runtime = Runtime::create(kVeloxRuntimeKind);
+    auto runtime = Runtime::create(kVeloxRuntimeKind, AllocationListener::noop());
     auto memoryManager = getDefaultMemoryManager();
     auto veloxPool = memoryManager->getAggregateMemoryPool();
 

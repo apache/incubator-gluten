@@ -396,14 +396,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           r
         )
       case size: Size =>
-        if (size.legacySizeOfNull != SQLConf.get.legacySizeOfNull) {
-          throw new GlutenNotSupportException(
-            "The value of legacySizeOfNull field of size is " +
-              "not equals to legacySizeOfNull of SQLConf, this case is not supported yet")
-        }
-        BackendsApiManager.getSparkPlanExecApiInstance.genSizeExpressionTransformer(
+        // Covers Spark ArraySize which is replaced by Size(child, false).
+        val child =
+          replaceWithExpressionTransformerInternal(size.child, attributeSeq, expressionsMap)
+        GenericExpressionTransformer(
           substraitExprName,
-          replaceWithExpressionTransformerInternal(size.child, attributeSeq, expressionsMap),
+          Seq(child, LiteralTransformer(size.legacySizeOfNull)),
           size)
       case namedStruct: CreateNamedStruct =>
         BackendsApiManager.getSparkPlanExecApiInstance.genNamedStructTransformer(
@@ -557,6 +555,19 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             attributeSeq,
             expressionsMap),
           arrayTransform
+        )
+      case arraySort: ArraySort =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArraySortTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(
+            arraySort.argument,
+            attributeSeq,
+            expressionsMap),
+          replaceWithExpressionTransformerInternal(
+            arraySort.function,
+            attributeSeq,
+            expressionsMap),
+          arraySort
         )
       case tryEval @ TryEval(a: Add) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(

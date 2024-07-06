@@ -13,7 +13,7 @@ BUILD_TESTS=OFF
 BUILD_EXAMPLES=OFF
 BUILD_BENCHMARKS=OFF
 BUILD_JEMALLOC=OFF
-BUILD_PROTOBUF=ON
+BUILD_PROTOBUF=OFF
 BUILD_VELOX_TESTS=OFF
 BUILD_VELOX_BENCHMARKS=OFF
 ENABLE_QAT=OFF
@@ -24,14 +24,13 @@ ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
 ENABLE_EP_CACHE=OFF
-ARROW_ENABLE_CUSTOM_CODEC=OFF
 ENABLE_VCPKG=OFF
 RUN_SETUP_SCRIPT=ON
 VELOX_REPO=""
 VELOX_BRANCH=""
 VELOX_HOME=""
 VELOX_PARAMETER=""
-COMPILE_ARROW_JAVA=ON
+BUILD_ARROW=ON
 SPARK_VERSION=ALL
 
 # set default number of threads as cpu cores minus 2
@@ -72,12 +71,10 @@ do
         ;;
         --enable_qat=*)
         ENABLE_QAT=("${arg#*=}")
-        ARROW_ENABLE_CUSTOM_CODEC=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_iaa=*)
         ENABLE_IAA=("${arg#*=}")
-        ARROW_ENABLE_CUSTOM_CODEC=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_hbm=*)
@@ -136,8 +133,8 @@ do
         BUILD_VELOX_BENCHMARKS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
-        --compile_arrow_java=*)
-        COMPILE_ARROW_JAVA=("${arg#*=}")
+        --build_arrow=*)
+        BUILD_ARROW=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --num_threads=*)
@@ -189,30 +186,45 @@ fi
 
 concat_velox_param
 
+function build_arrow {
+  echo "Start to build Arrow"
+  export SUDO=sudo
+  cd $GLUTEN_DIR/dev
+  source build_arrow.sh
+  prepare_arrow_build
+  build_arrow_cpp
+  echo "Finished building arrow CPP"
+  build_arrow_java
+  echo "Finished building arrow Java"
+}
+
 function build_velox {
   echo "Start to build Velox"
   cd $GLUTEN_DIR/ep/build-velox/src
-  ./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --enable_abfs=$ENABLE_ABFS $VELOX_PARAMETER
+  ./get_velox.sh --enable_hdfs=$ENABLE_HDFS --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --enable_abfs=$ENABLE_ABFS $VELOX_PARAMETER
   # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
   ./build_velox.sh --run_setup_script=$RUN_SETUP_SCRIPT --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
                    --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_test_utils=$BUILD_TESTS --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS \
-                   --compile_arrow_java=$COMPILE_ARROW_JAVA  --num_threads=$NUM_THREADS
+                   --num_threads=$NUM_THREADS
 }
 
-## compile gluten cpp
 function build_gluten_cpp {
-  echo "Start to Gluten CPP"
+  echo "Start to build Gluten CPP"
   cd $GLUTEN_DIR/cpp
   rm -rf build
   mkdir build
   cd build
   cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
         -DBUILD_TESTS=$BUILD_TESTS -DBUILD_EXAMPLES=$BUILD_EXAMPLES -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DBUILD_JEMALLOC=$BUILD_JEMALLOC \
-        -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DENABLE_IAA=$ENABLE_IAA -DENABLE_GCS=$ENABLE_GCS -DENABLE_S3=$ENABLE_S3 -DENABLE_HDFS=$ENABLE_HDFS -DENABLE_ABFS=$ENABLE_ABFS ..
+        -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DENABLE_IAA=$ENABLE_IAA -DBUILD_PROTOBUF=$BUILD_PROTOBUF -DENABLE_GCS=$ENABLE_GCS \
+        -DENABLE_S3=$ENABLE_S3 -DENABLE_HDFS=$ENABLE_HDFS -DENABLE_ABFS=$ENABLE_ABFS ..
   make -j $NUM_THREADS
 }
 
 function build_velox_backend {
+  if [ $BUILD_ARROW == "ON" ]; then
+    build_arrow
+  fi
   build_velox
   build_gluten_cpp
 }

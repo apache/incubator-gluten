@@ -222,13 +222,13 @@ Currently there are several ways to asscess S3 in Spark. Please refer [Velox S3]
 
 ## Celeborn support
 
-Gluten with velox backend supports [Celeborn](https://github.com/apache/celeborn) as remote shuffle service. Currently, the supported Celeborn versions are `0.3.x` and `0.4.0`.
+Gluten with velox backend supports [Celeborn](https://github.com/apache/celeborn) as remote shuffle service. Currently, the supported Celeborn versions are `0.3.x`, `0.4.x` and `0.5.0`.
 
-Below introduction is used to enable this feature
+Below introduction is used to enable this feature.
 
 First refer to this URL(https://github.com/apache/celeborn) to setup a celeborn cluster.
 
-When compiling the Gluten Java module, it's required to enable `rss` profile, as follows:
+When compiling the Gluten Java module, it's required to enable `celeborn` profile, as follows:
 
 ```
 mvn clean package -Pbackends-velox -Pspark-3.3 -Pceleborn -DskipTests

@@ -142,7 +142,7 @@ const String & RelMetric::getName() const
     return name;
 }
 
-std::string RelMetricSerializer::serializeRelMetric(RelMetricPtr rel_metric, bool flatten)
+std::string RelMetricSerializer::serializeRelMetric(const RelMetricPtr & rel_metric, bool flatten)
 {
     StringBuffer result;
     Writer<StringBuffer> writer(result);

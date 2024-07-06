@@ -102,7 +102,7 @@ object MockMemoState {
       nodeBuffer ++= nodes
     }
 
-    override def nodes(): Seq[CanonicalNode[T]] = nodeBuffer
+    override def nodes(): Seq[CanonicalNode[T]] = nodeBuffer.toSeq
   }
 
   object MockMutableCluster {
@@ -153,7 +153,7 @@ object MockMemoState {
         group
       }
 
-      def allGroups(): Seq[MockMutableGroup[T]] = groupBuffer
+      def allGroups(): Seq[MockMutableGroup[T]] = groupBuffer.toSeq
     }
 
     object Factory {

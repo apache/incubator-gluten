@@ -238,6 +238,7 @@ endif()
 
 find_arrow_lib(${ARROW_LIB_NAME})
 find_arrow_lib(${PARQUET_LIB_NAME})
+find_arrow_lib(${ARROW_BUNDLED_DEPS})
 
 if(ENABLE_HBM)
   include(BuildMemkind)
@@ -314,7 +315,8 @@ else()
   set(LIBHDFS3_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-target_link_libraries(gluten PUBLIC Arrow::arrow Arrow::parquet)
+target_link_libraries(gluten PUBLIC Arrow::parquet Arrow::arrow
+                                    Arrow::arrow_bundled_dependencies)
 target_link_libraries(gluten PRIVATE google::glog)
 
 install(TARGETS gluten DESTINATION ${CMAKE_INSTALL_LIBDIR})

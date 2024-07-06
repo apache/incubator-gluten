@@ -77,7 +77,7 @@ private:
     void saveMetadata();
     void commitPartToRemoteStorageIfNeeded();
     void finalizeMerge();
-    bool chunkToPart(Chunk && chunk);
+    bool chunkToPart(Chunk && plan_chunk);
     bool blockToPart(Block & block);
     bool useLocalStorage() const;
 

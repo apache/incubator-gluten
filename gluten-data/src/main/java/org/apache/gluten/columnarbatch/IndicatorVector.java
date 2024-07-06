@@ -16,148 +16,45 @@
  */
 package org.apache.gluten.columnarbatch;
 
-import org.apache.gluten.exec.Runtime;
-
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.Decimal;
-import org.apache.spark.sql.vectorized.ColumnVector;
-import org.apache.spark.sql.vectorized.ColumnarArray;
-import org.apache.spark.sql.vectorized.ColumnarMap;
-import org.apache.spark.unsafe.types.UTF8String;
+import org.apache.spark.util.TaskResources;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class IndicatorVector extends ColumnVector {
-  private final Runtime runtime;
-  private final long handle;
+public class IndicatorVector extends IndicatorVectorBase {
+  private final IndicatorVectorPool pool;
   private final AtomicLong refCnt = new AtomicLong(1L);
 
-  protected IndicatorVector(Runtime runtime, long handle) {
-    super(DataTypes.NullType);
-    this.runtime = runtime;
-    this.handle = handle;
+  protected IndicatorVector(IndicatorVectorPool pool, long handle) {
+    super(handle);
+    this.pool = pool;
   }
 
-  public Runtime runtime() {
-    return runtime;
+  static IndicatorVector obtain(long handle) {
+    final IndicatorVectorPool pool =
+        TaskResources.addResourceIfNotRegistered(
+            IndicatorVectorPool.class.getName(), IndicatorVectorPool::new);
+    return pool.obtain(handle);
   }
 
-  public String getType() {
-    return ColumnarBatchJniWrapper.forRuntime(runtime).getType(handle);
-  }
-
-  public long getNumColumns() {
-    return ColumnarBatchJniWrapper.forRuntime(runtime).numColumns(handle);
-  }
-
-  public long getNumRows() {
-    return ColumnarBatchJniWrapper.forRuntime(runtime).numRows(handle);
-  }
-
-  public long refCnt() {
+  @Override
+  long refCnt() {
     return refCnt.get();
   }
 
-  public void retain() {
+  @Override
+  void retain() {
     refCnt.getAndIncrement();
   }
 
   @Override
-  public void close() {
+  void release() {
     if (refCnt.get() == 0) {
       // TODO use stronger restriction (IllegalStateException probably)
       return;
     }
     if (refCnt.decrementAndGet() == 0) {
-      ColumnarBatchJniWrapper.forRuntime(runtime).close(handle);
+      pool.remove(handle);
+      jniWrapper.close(handle);
     }
-  }
-
-  public boolean isClosed() {
-    return refCnt.get() == 0;
-  }
-
-  @Override
-  public boolean hasNull() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public int numNulls() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public boolean isNullAt(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public boolean getBoolean(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public byte getByte(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public short getShort(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public int getInt(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public long getLong(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public float getFloat(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public double getDouble(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public ColumnarArray getArray(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public ColumnarMap getMap(int ordinal) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public Decimal getDecimal(int rowId, int precision, int scale) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public UTF8String getUTF8String(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public byte[] getBinary(int rowId) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public ColumnVector getChild(int ordinal) {
-    throw new UnsupportedOperationException();
-  }
-
-  public long handle() {
-    return handle;
   }
 }

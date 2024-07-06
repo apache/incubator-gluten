@@ -141,7 +141,7 @@ public:
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
     static void init(const std::string & plan);
-    static void updateConfig(const DB::ContextMutablePtr &, const std::string &);
+    static void updateConfig(const DB::ContextMutablePtr &, const std::string_view);
 
 
     // use excel text parser
@@ -199,7 +199,7 @@ private:
     static std::vector<String> wrapDiskPathConfig(const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config);
 
 
-    static std::map<std::string, std::string> getBackendConfMap(const std::string & plan);
+    static std::map<std::string, std::string> getBackendConfMap(const std::string_view plan);
 
     inline static std::once_flag init_flag;
     inline static Poco::Logger * logger;

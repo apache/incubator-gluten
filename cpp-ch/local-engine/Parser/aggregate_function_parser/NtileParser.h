@@ -14,18 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.memory.nmm;
+#pragma once
+#include <Parser/AggregateFunctionParser.h>
 
-import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
-import org.apache.gluten.memory.memtarget.NoopMemoryTarget;
-
-public interface ReservationListener {
-  ReservationListener NOOP =
-      new ManagedReservationListener(new NoopMemoryTarget(), new SimpleMemoryUsageRecorder());
-
-  long reserve(long size);
-
-  long unreserve(long size);
-
-  long getUsedBytes();
+namespace local_engine
+{
+class NtileParser : public AggregateFunctionParser
+{
+public:
+    explicit NtileParser(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
+    ~NtileParser() override = default;
+    static constexpr auto name = "ntile";
+    String getName() const override { return name; }
+    String getCHFunctionName(const CommonFunctionInfo &) const override { return "ntile"; }
+    String getCHFunctionName(DB::DataTypes &) const override { return "ntile"; }
+    DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
+        const CommonFunctionInfo & func_info, const String & ch_func_name, DB::ActionsDAGPtr & actions_dag) const override;
+};
 }

@@ -177,10 +177,12 @@ object MetricsUtil extends Logging {
 
   /** Get all processors */
   def getAllProcessorList(metricData: MetricsData): Seq[MetricsProcessor] = {
-    metricData.steps.asScala.flatMap(
-      step => {
-        step.processors.asScala
-      })
+    metricData.steps.asScala
+      .flatMap(
+        step => {
+          step.processors.asScala
+        })
+      .toSeq
   }
 
   /** Update extra time metric by the processors */

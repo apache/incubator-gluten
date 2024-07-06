@@ -37,7 +37,6 @@ case class GlutenNumaBindingInfo(
 class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
-  def enableInputFileNameReplaceRule: Boolean = conf.getConf(INPUT_FILE_NAME_REPLACE_RULE_ENABLED)
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
   def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
@@ -153,9 +152,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def logicalJoinOptimizationThrottle: Integer =
     conf.getConf(COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_THROTTLE)
-
-  def enableLogicalJoinOptimize: Boolean =
-    conf.getConf(COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_ENABLED)
 
   def enableScanOnly: Boolean = conf.getConf(COLUMNAR_SCAN_ONLY_ENABLED)
 
@@ -640,6 +636,7 @@ object GlutenConfig {
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
       "spark.io.compression.codec",
+      "spark.sql.decimalOperations.allowPrecisionLoss",
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key,
@@ -721,6 +718,7 @@ object GlutenConfig {
       ("spark.hadoop.input.write.timeout", "180000"),
       ("spark.hadoop.dfs.client.log.severity", "INFO"),
       ("spark.sql.orc.compression.codec", "snappy"),
+      ("spark.sql.decimalOperations.allowPrecisionLoss", "true"),
       (
         COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key,
         COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString),
@@ -766,16 +764,6 @@ object GlutenConfig {
         " Recommend to enable/disable Gluten through the setting for spark.plugins.")
       .booleanConf
       .createWithDefault(GLUTEN_ENABLE_BY_DEFAULT)
-
-  val INPUT_FILE_NAME_REPLACE_RULE_ENABLED =
-    buildConf("spark.gluten.sql.enableInputFileNameReplaceRule")
-      .internal()
-      .doc(
-        "Experimental: This config apply for velox backend to specify whether to enable " +
-          "inputFileNameReplaceRule to support offload input_file_name " +
-          "expression to native.")
-      .booleanConf
-      .createWithDefault(false)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =
@@ -1017,13 +1005,6 @@ object GlutenConfig {
       .doc("Fallback to row operators if there are several continuous joins.")
       .intConf
       .createWithDefault(12)
-
-  val COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_ENABLED =
-    buildConf("spark.gluten.sql.columnar.logicalJoinOptimizeEnable")
-      .internal()
-      .doc("Enable or disable columnar logicalJoinOptimize.")
-      .booleanConf
-      .createWithDefault(false)
 
   val COLUMNAR_SCAN_ONLY_ENABLED =
     buildConf("spark.gluten.sql.columnar.scanOnly")
@@ -1617,6 +1598,13 @@ object GlutenConfig {
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
       .createOptional
+
+  val VELOX_WRITER_QUEUE_SIZE =
+    buildConf("spark.gluten.sql.velox.writer.queue.size")
+      .internal()
+      .doc("This is config to specify the velox writer queue size")
+      .intConf
+      .createWithDefault(64)
 
   val NATIVE_HIVEFILEFORMAT_WRITER_ENABLED =
     buildConf("spark.gluten.sql.native.hive.writer.enabled")

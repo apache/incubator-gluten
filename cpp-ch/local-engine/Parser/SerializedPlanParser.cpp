@@ -564,6 +564,16 @@ NamesAndTypesList SerializedPlanParser::blockToNameAndTypeList(const Block & hea
     return types;
 }
 
+std::optional<String> SerializedPlanParser::getFunctionSignatureName(UInt32 function_ref) const
+{
+    auto it = function_mapping.find(std::to_string(function_ref));
+    if (it == function_mapping.end())
+        return {};
+    auto function_signature = it->second;
+    auto pos = function_signature.find(':');
+    return function_signature.substr(0, pos);
+}
+
 std::string
 SerializedPlanParser::getFunctionName(const std::string & function_signature, const substrait::Expression_ScalarFunction & function)
 {
@@ -647,15 +657,6 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         auto null_on_overflow = args.at(1).value().literal().boolean();
         if (null_on_overflow)
             ch_function_name = ch_function_name + "OrNull";
-    }
-    else if (function_name == "char_length")
-    {
-        /// In Spark
-        /// char_length returns the number of bytes when input is binary type, corresponding to CH length function
-        /// char_length returns the number of characters when input is string type, corresponding to CH char_length function
-        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
-        if (function_signature.find("vbin") != std::string::npos)
-            ch_function_name = "length";
     }
     else if (function_name == "reverse")
     {
@@ -1131,8 +1132,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionArgument(
     {
         std::string arg_name;
         bool keep_arg = FUNCTION_NEED_KEEP_ARGUMENTS.contains(function_name);
-        parseFunctionWithDAG(arg.value(), arg_name, actions_dag, keep_arg);
-        res = &actions_dag->getNodes().back();
+        res = parseFunctionWithDAG(arg.value(), arg_name, actions_dag, keep_arg);
     }
     else
     {
@@ -1160,6 +1160,12 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::convertStructFieldType(const
     UINT_CONVERT(type, field, Int64)
     throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Not valid interger type: {}", type->getName());
 #undef UINT_CONVERT
+}
+
+bool SerializedPlanParser::isFunction(substrait::Expression_ScalarFunction rel, String function_name)
+{
+    auto func_signature = function_mapping[std::to_string(rel.function_reference())];
+    return func_signature.starts_with(function_name + ":");
 }
 
 ActionsDAGPtr SerializedPlanParser::parseFunction(
@@ -1742,7 +1748,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
         context, std::move(query_plan), std::move(pipeline), query_plan->getCurrentDataStream().header.cloneEmpty());
 }
 
-QueryPlanPtr SerializedPlanParser::parse(const std::string_view & plan)
+QueryPlanPtr SerializedPlanParser::parse(const std::string_view plan)
 {
     substrait::Plan s_plan;
     /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
@@ -2027,33 +2033,6 @@ void SerializedPlanParser::wrapNullable(
 
 SharedContextHolder SerializedPlanParser::shared_context;
 
-std::unordered_map<Int64, LocalExecutor *> LocalExecutor::executors;
-std::mutex LocalExecutor::executors_mutex;
-
-void LocalExecutor::cancelAll()
-{
-    std::lock_guard lock{executors_mutex};
-
-    for (auto & [handle, executor] : executors)
-        executor->asyncCancel();
-
-    for (auto & [handle, executor] : executors)
-        executor->waitCancelFinished();
-}
-
-void LocalExecutor::addExecutor(LocalExecutor * executor)
-{
-    std::lock_guard lock{executors_mutex};
-    Int64 handle = reinterpret_cast<Int64>(executor);
-    executors.emplace(handle, executor);
-}
-
-void LocalExecutor::removeExecutor(Int64 handle)
-{
-    std::lock_guard lock{executors_mutex};
-    executors.erase(handle);
-}
-
 LocalExecutor::~LocalExecutor()
 {
     if (context->getConfigRef().getBool("dump_pipeline", false))
@@ -2121,35 +2100,8 @@ Block * LocalExecutor::nextColumnar()
 
 void LocalExecutor::cancel()
 {
-    asyncCancel();
-    waitCancelFinished();
-}
-
-void LocalExecutor::asyncCancel()
-{
-    if (executor && !is_cancelled)
-    {
-        LOG_INFO(&Poco::Logger::get("LocalExecutor"), "Cancel LocalExecutor {}", reinterpret_cast<intptr_t>(this));
+    if (executor)
         executor->cancel();
-    }
-}
-
-void LocalExecutor::waitCancelFinished()
-{
-    if (executor && !is_cancelled)
-    {
-        Stopwatch watch;
-        Chunk chunk;
-        while (executor->pull(chunk))
-            ;
-        is_cancelled = true;
-
-        LOG_INFO(
-            &Poco::Logger::get("LocalExecutor"),
-            "Finish cancel LocalExecutor {}, takes {} ms",
-            reinterpret_cast<intptr_t>(this),
-            watch.elapsedMilliseconds());
-    }
 }
 
 Block & LocalExecutor::getHeader()

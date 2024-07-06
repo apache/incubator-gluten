@@ -629,19 +629,26 @@ public read-only account：gluten/hN2xX3uQ4m
 
 ### Celeborn support
 
-Gluten with clickhouse backend has not yet supportted [Celeborn](https://github.com/apache/celeborn) natively as remote shuffle service using columar shuffle. However, you can still use Celeborn with row shuffle, which means a ColumarBatch will be converted to a row during shuffle.
-Below introduction is used to enable this feature:
+Gluten with clickhouse backend supports [Celeborn](https://github.com/apache/celeborn) as remote shuffle service. Currently, the supported Celeborn versions are `0.3.x`, `0.4.x` and `0.5.0`.
+
+Below introduction is used to enable this feature.
 
 First refer to this URL(https://github.com/apache/celeborn) to setup a celeborn cluster.
+
+When compiling the Gluten Java module, it's required to enable `celeborn` profile, as follows:
+
+```
+mvn clean package -Pbackends-clickhouse -Pspark-3.3 -Pceleborn -DskipTests
+```
 
 Then add the Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
 
 - Celeborn: celeborn-client-spark-3-shaded_2.12-[celebornVersion].jar
 
-Currently to use Celeborn following configurations are required in `spark-defaults.conf`
+Currently to use Gluten following configurations are required in `spark-defaults.conf`
 
 ```
-spark.shuffle.manager org.apache.spark.shuffle.celeborn.SparkShuffleManager
+spark.shuffle.manager org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager
 
 # celeborn master
 spark.celeborn.master.endpoints clb-master:9097
@@ -668,24 +675,6 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 # If you want to use dynamic resource allocation,
 # please refer to this URL (https://github.com/apache/celeborn/tree/main/assets/spark-patch) to apply the patch into your own Spark.
 spark.dynamicAllocation.enabled false
-```
-
-#### Celeborn Columnar Shuffle Support
-Currently, the supported Celeborn versions are `0.3.x` and `0.4.0`.
-The native Celeborn support can be enabled by the following configuration
-```
-spark.shuffle.manager=org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager
-```
-
-quickly start a celeborn cluster
-```shell
-wget https://archive.apache.org/dist/celeborn/celeborn-0.3.2-incubating/apache-celeborn-0.3.2-incubating-bin.tgz && \
-tar -zxvf apache-celeborn-0.3.2-incubating-bin.tgz && \
-mv apache-celeborn-0.3.2-incubating-bin/conf/celeborn-defaults.conf.template apache-celeborn-0.3.2-incubating-bin/conf/celeborn-defaults.conf && \
-mv apache-celeborn-0.3.2-incubating-bin/conf/log4j2.xml.template apache-celeborn-0.3.2-incubating-bin/conf/log4j2.xml && \
-mkdir /opt/hadoop && chmod 777 /opt/hadoop && \
-echo -e "celeborn.worker.flusher.threads 4\nceleborn.worker.storage.dirs /tmp\nceleborn.worker.monitor.disk.enabled false" > apache-celeborn-0.3.2-incubating-bin/conf/celeborn-defaults.conf && \
-bash apache-celeborn-0.3.2-incubating-bin/sbin/start-master.sh && bash apache-celeborn-0.3.2-incubating-bin/sbin/start-worker.sh
 ```
 
 ### Columnar shuffle mode

@@ -215,12 +215,8 @@ public class CelebornShuffleManager implements ShuffleManager {
 
   @Override
   public boolean unregisterShuffle(int shuffleId) {
-    if (columnarShuffleIds.contains(shuffleId)) {
-      if (columnarShuffleManager().unregisterShuffle(shuffleId)) {
-        return columnarShuffleIds.remove(shuffleId);
-      } else {
-        return false;
-      }
+    if (columnarShuffleIds.remove(shuffleId)) {
+      return columnarShuffleManager().unregisterShuffle(shuffleId);
     }
     return CelebornUtils.unregisterShuffle(
         lifecycleManager,
@@ -311,7 +307,6 @@ public class CelebornShuffleManager implements ShuffleManager {
           return vanillaCelebornShuffleManager().getWriter(handle, mapId, context, metrics);
         }
       } else {
-        columnarShuffleIds.add(handle.shuffleId());
         return columnarShuffleManager().getWriter(handle, mapId, context, metrics);
       }
     } catch (Exception e) {
