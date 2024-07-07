@@ -198,7 +198,6 @@ function process_setup_alinux3 {
   sed -i 's/python39 python39-devel python39-pip //g' scripts/setup-centos8.sh
   sed -i "s/.*pip.* install/#&/" scripts/setup-centos8.sh
   sed -i 's/ADDITIONAL_FLAGS=""/ADDITIONAL_FLAGS="-Wno-stringop-overflow"/g' scripts/setup-helper-functions.sh
-  sed -i "s/\${CMAKE_INSTALL_LIBDIR}/lib64/" third_party/CMakeLists.txt
 }
 
 function process_setup_tencentos32 {
