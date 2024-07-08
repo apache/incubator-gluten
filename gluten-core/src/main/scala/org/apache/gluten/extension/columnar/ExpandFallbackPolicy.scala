@@ -26,11 +26,13 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.{ColumnarToRowTransition, _}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec, QueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.ExecutedCommandExec
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 // spotless:off
 /**
@@ -71,6 +73,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
 
   private def countTransitionCost(plan: SparkPlan): Int = {
     val ignoreRowToColumnar = GlutenConfig.getConf.fallbackIgnoreRowToColumnar
+    val ignoreScanFallbackCost = GlutenConfig.getConf.ignoreScanFallbackCost
     var transitionCost = 0
     def countFallbackInternal(plan: SparkPlan): Unit = {
       plan match {
@@ -86,9 +89,22 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
           // which is a kind of `ColumnarToRowExec`.
           transitionCost = transitionCost + 1
           countFallbackInternal(u.child)
+        // Ignore vanilla Spark's ColumnarToRow, used for its vectorized reader.
         case ColumnarToRowLike(p: GlutenPlan) =>
           logDebug(s"Find a columnar to row for gluten plan:\n$p")
-          transitionCost = transitionCost + 1
+          if (ignoreScanFallbackCost) {
+            child match {
+              // Vanilla row-based scan.
+              case _: BatchScanExec =>
+              case _: FileSourceScanExec =>
+              case p if HiveTableScanExecTransformer.isHiveTableScan(p) =>
+              // Vanilla columnar-based scan.
+              case _: ColumnarToRowTransition =>
+              case _ => transitionCost = transitionCost + 1
+            }
+          } else {
+            transitionCost = transitionCost + 1
+          }
           countFallbackInternal(p)
         case RowToColumnarLike(child) =>
           if (!ignoreRowToColumnar) {
@@ -240,11 +256,6 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     planWithTransitions
   }
 
-  private def countTransitionCostForVanillaSparkPlan(plan: SparkPlan): Int = {
-    // Vanilla Spark should only contains `ColumnarToRowExec`
-    plan.collect { case c: ColumnarToRowExec => c }.size
-  }
-
   override def apply(plan: SparkPlan): SparkPlan = {
     // By default, the outputsColumnar is always false.
     // The outputsColumnar will be true if it is a cached plan and we are going to
@@ -253,25 +264,11 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     val outputsColumnar = plan.supportsColumnar
     val fallbackInfo = fallback(plan)
     if (fallbackInfo.shouldFallback) {
-      // If the transition cost of vanilla Spark plan is not smaller than Gluten plan,
-      // then we prefer to use Gluten even if Gluten plan contains `ColumnarToRow`.
-      // For example, use Gluten parquet scan rather than vanilla Spark parquet scan:
-      //  Scan Parquet
-      //       |
-      //  ColumnarToRow
       val vanillaSparkPlan = fallbackToRowBasedPlan(outputsColumnar)
-      val vanillaSparkTransitionCost = countTransitionCostForVanillaSparkPlan(vanillaSparkPlan)
-      if (
-        GlutenConfig.getConf.fallbackPreferColumnar &&
-        fallbackInfo.netTransitionCost <= vanillaSparkTransitionCost
-      ) {
-        plan
-      } else {
-        TransformHints.tagAllNotTransformable(
-          vanillaSparkPlan,
-          TRANSFORM_UNSUPPORTED(fallbackInfo.reason, appendReasonIfExists = false))
-        FallbackNode(vanillaSparkPlan)
-      }
+      TransformHints.tagAllNotTransformable(
+        vanillaSparkPlan,
+        TRANSFORM_UNSUPPORTED(fallbackInfo.reason, appendReasonIfExists = false))
+      FallbackNode(vanillaSparkPlan)
     } else {
       plan
     }

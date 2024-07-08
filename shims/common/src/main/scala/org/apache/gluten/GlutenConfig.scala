@@ -217,6 +217,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def fallbackIgnoreRowToColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR)
 
+  def ignoreScanFallbackCost: Boolean = conf.getConf(COLUMNAR_IGNORE_SCAN_FALLBACK_COST)
+
   def fallbackExpressionsThreshold: Int = conf.getConf(COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD)
 
   def fallbackPreferColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_PREFER_COLUMNAR)
@@ -1099,7 +1101,7 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.wholeStage.fallback.threshold")
       .internal()
       .doc("The threshold for whether whole stage will fall back in AQE supported case " +
-        "by counting the number of ColumnarToRow & vanilla leaf node.")
+        "by counting the transition cost, i.e., the number of ColumnarToRow & RowToColumnar.")
       .intConf
       .createWithDefault(-1)
 
@@ -1110,6 +1112,13 @@ object GlutenConfig {
         "When true, the fallback policy ignores the RowToColumnar when counting fallback number.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_IGNORE_SCAN_FALLBACK_COST =
+    buildConf("spark.gluten.sql.columnar.ignoreScanFallbackCost")
+      .internal()
+      .doc("When true, the fallback policy ignores the transition cost for scan that falls back.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_FALLBACK_EXPRESSIONS_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.fallback.expressions.threshold")
