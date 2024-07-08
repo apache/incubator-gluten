@@ -580,6 +580,12 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
     auto args = function.arguments();
     auto pos = function_signature.find(':');
     auto function_name = function_signature.substr(0, pos);
+#if 1
+    auto function_parser = FunctionParserFactory::instance().tryGet(function_name, this);
+    if (!function_parser)
+        throw DB::Exception(DB::ErrorCodes::UNKNOWN_FUNCTION, "Unsupported function: {}", function_name);
+    return function_parser->getCHFunctionName(function);
+#else
     if (!SCALAR_FUNCTIONS.contains(function_name))
         throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unsupported function {}", function_name);
 
@@ -669,6 +675,7 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
         ch_function_name = SCALAR_FUNCTIONS.at(function_name);
 
     return ch_function_name;
+#endif
 }
 
 void SerializedPlanParser::parseArrayJoinArguments(
@@ -1847,8 +1854,7 @@ ASTPtr ASTParser::parseToAST(const Names & names, const substrait::Expression & 
 
         auto substrait_name = function_signature.substr(0, function_signature.find(':'));
         auto func_parser = FunctionParserFactory::instance().tryGet(substrait_name, plan_parser);
-        String function_name
-            = func_parser ? func_parser->getName() : SerializedPlanParser::getFunctionName(function_signature, scalar_function);
+        String function_name = func_parser->getName();
 
         ASTs ast_args;
         parseFunctionArgumentsToAST(names, scalar_function, ast_args);

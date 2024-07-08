@@ -39,6 +39,10 @@ using namespace DB;
 
 String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const
 {
+#if 1
+    // no meaning
+    return getName();
+#else
     auto func_signature = plan_parser->function_mapping.at(std::to_string(substrait_func.function_reference()));
     auto pos = func_signature.find(':');
     auto func_name = func_signature.substr(0, pos);
@@ -47,6 +51,7 @@ String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunct
     if (it == SCALAR_FUNCTIONS.end())
         throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unsupported substrait function: {}", func_name);
     return it->second;
+#endif
 }
 
 ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(

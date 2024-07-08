@@ -133,7 +133,7 @@ public:
     RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
     const std::unordered_map<std::string, std::string> & getFunctionMapping() { return function_mapping; }
 
-    static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
+    std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
     std::optional<std::string> getFunctionSignatureName(UInt32 function_ref) const;
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
