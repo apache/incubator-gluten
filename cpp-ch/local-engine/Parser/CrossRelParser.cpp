@@ -112,19 +112,21 @@ DB::QueryPlanPtr CrossRelParser::parseOp(const substrait::Rel & rel, std::list<c
 
 void CrossRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & right, const StorageJoinFromReadBuffer & storage_join)
 {
+    ActionsDAGPtr project = nullptr;
     /// To support mixed join conditions, we must make sure that the column names in the right be the same as
     /// storage_join's right sample block.
-    ActionsDAGPtr project = ActionsDAG::makeConvertingActions(
-        right.getCurrentDataStream().header.getColumnsWithTypeAndName(),
-        storage_join.getRightSampleBlock().getColumnsWithTypeAndName(),
-        ActionsDAG::MatchColumnsMode::Position);
-
-    if (project)
+    auto right_ori_header = right.getCurrentDataStream().header.getColumnsWithTypeAndName();
+    if (right_ori_header.size() > 0 && right_ori_header[0].name != BlockUtil::VIRTUAL_ROW_COUNT_COLUMN)
     {
-        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), project);
-        project_step->setStepDescription("Rename Broadcast Table Name");
-        steps.emplace_back(project_step.get());
-        right.addStep(std::move(project_step));
+        project = ActionsDAG::makeConvertingActions(
+            right_ori_header, storage_join.getRightSampleBlock().getColumnsWithTypeAndName(), ActionsDAG::MatchColumnsMode::Position);
+        if (project)
+        {
+            QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), project);
+            project_step->setStepDescription("Rename Broadcast Table Name");
+            steps.emplace_back(project_step.get());
+            right.addStep(std::move(project_step));
+        }
     }
 
     /// If the columns name in right table is duplicated with left table, we need to rename the left table's columns,
@@ -134,27 +136,22 @@ void CrossRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & rig
     const auto & right_header = right.getCurrentDataStream().header;
     auto left_prefix = getUniqueName("left");
     for (const auto & col : left.getCurrentDataStream().header)
-    {
         if (right_header.has(col.name))
-        {
             new_left_cols.emplace_back(col.column, col.type, left_prefix + col.name);
-        }
         else
-        {
             new_left_cols.emplace_back(col.column, col.type, col.name);
-        }
-    }
-    project = ActionsDAG::makeConvertingActions(
-        left.getCurrentDataStream().header.getColumnsWithTypeAndName(),
-        new_left_cols,
-        ActionsDAG::MatchColumnsMode::Position);
-
-    if (project)
+    auto left_header = left.getCurrentDataStream().header.getColumnsWithTypeAndName();
+    if (left_header.size() > 0 && left_header[0].name != BlockUtil::VIRTUAL_ROW_COUNT_COLUMN)
     {
-        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), project);
-        project_step->setStepDescription("Rename Left Table Name for broadcast join");
-        steps.emplace_back(project_step.get());
-        left.addStep(std::move(project_step));
+        project = ActionsDAG::makeConvertingActions(left_header, new_left_cols, ActionsDAG::MatchColumnsMode::Position);
+
+        if (project)
+        {
+            QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), project);
+            project_step->setStepDescription("Rename Left Table Name for broadcast join");
+            steps.emplace_back(project_step.get());
+            left.addStep(std::move(project_step));
+        }
     }
 }
 
@@ -199,7 +196,15 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
     extra_plan_holder.emplace_back(std::move(right));
 
     addPostFilter(*query_plan, join);
-    JoinUtil::reorderJoinOutput(*query_plan, after_join_names);
+    Names cols;
+    for (auto after_join_name : after_join_names)
+    {
+        if (BlockUtil::VIRTUAL_ROW_COUNT_COLUMN == after_join_name)
+            continue;
+
+        cols.emplace_back(after_join_name);
+    }
+    JoinUtil::reorderJoinOutput(*query_plan, cols);
 
     return query_plan;
 }

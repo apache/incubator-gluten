@@ -144,10 +144,7 @@ trait BackendSettingsApi {
 
   def supportCartesianProductExec(): Boolean = false
 
-  def supportBroadcastNestedJoinJoinType: JoinType => Boolean = {
-    case _: InnerLike | LeftOuter | RightOuter => true
-    case _ => false
-  }
+  def supportBroadcastNestedLoopJoinExec(): Boolean = true
 
   def supportSampleExec(): Boolean = false
 

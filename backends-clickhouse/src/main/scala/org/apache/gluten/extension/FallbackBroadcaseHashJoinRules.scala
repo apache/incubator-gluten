@@ -89,9 +89,57 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
           // Skip. This might be the case that the exchange was already
           // executed in earlier stage
         }
+      case bnlj: BroadcastNestedLoopJoinExec => applyBNLJPrepQueryStage(bnlj)
       case _ =>
     }
     plan
+  }
+
+  private def applyBNLJPrepQueryStage(bnlj: BroadcastNestedLoopJoinExec) = {
+    val buildSidePlan = bnlj.buildSide match {
+      case BuildLeft => bnlj.left
+      case BuildRight => bnlj.right
+    }
+    val maybeExchange = buildSidePlan.find {
+      case BroadcastExchangeExec(_, _) => true
+      case _ => false
+    }
+    maybeExchange match {
+      case Some(exchange @ BroadcastExchangeExec(mode, child)) =>
+        val isTransformable =
+          if (
+            !GlutenConfig.getConf.enableColumnarBroadcastExchange ||
+            !GlutenConfig.getConf.enableColumnarBroadcastJoin
+          ) {
+            ValidationResult.notOk(
+              "columnar broadcast exchange is disabled or " +
+                "columnar broadcast join is disabled")
+          } else {
+            if (FallbackTags.nonEmpty(bnlj)) {
+              ValidationResult.notOk("broadcast join is already tagged as not transformable")
+            } else {
+              val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+                .genBroadcastNestedLoopJoinExecTransformer(
+                  bnlj.left,
+                  bnlj.right,
+                  bnlj.buildSide,
+                  bnlj.joinType,
+                  bnlj.condition)
+              val isTransformable = transformer.doValidate()
+              if (isTransformable.isValid) {
+                val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
+                exchangeTransformer.doValidate()
+              } else {
+                isTransformable
+              }
+            }
+          }
+        FallbackTags.add(bnlj, isTransformable)
+        FallbackTags.add(exchange, isTransformable)
+      case _ =>
+      // Skip. This might be the case that the exchange was already
+      // executed in earlier stage
+    }
   }
 }
 

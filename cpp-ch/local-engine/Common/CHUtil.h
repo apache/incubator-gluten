@@ -50,6 +50,7 @@ static const std::unordered_set<String> LONG_VALUE_SETTINGS{
 class BlockUtil
 {
 public:
+    static constexpr auto VIRTUAL_ROW_COUNT_COLUMN = "__VIRTUAL_ROW_COUNT_COLUMN__";
     static constexpr auto RIHGT_COLUMN_PREFIX = "broadcast_right_";
 
     // Build a header block with a virtual column which will be

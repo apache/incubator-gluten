@@ -31,7 +31,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 
-import com.google.protobuf.{Any, StringValue}
+import com.google.protobuf.Any
 import io.substrait.proto.CrossRel
 
 abstract class BroadcastNestedLoopJoinExecTransformer(
@@ -110,19 +110,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       }
   }
 
-  def genJoinParameters(): Any = {
-    // for ch
-    val joinParametersStr = new StringBuffer("JoinParameters:")
-    joinParametersStr
-      .append("buildHashTableId=")
-      .append(buildBroadcastTableId)
-      .append("\n")
-    val message = StringValue
-      .newBuilder()
-      .setValue(joinParametersStr.toString)
-      .build()
-    BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
-  }
+  def genJoinParameters(): Any = Any.getDefaultInstance
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val streamedPlanContext = streamedPlan.asInstanceOf[TransformSupport].transform(context)
@@ -156,8 +144,8 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     val projectRelPostJoinRel = JoinUtils.createProjectRelPostJoinRel(
       needSwitchChildren,
       joinType,
-      inputStreamedOutput,
-      inputBuildOutput,
+      streamedPlan.output,
+      buildPlan.output,
       context,
       operatorId,
       crossRel,
@@ -174,11 +162,15 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   }
 
   def validateJoinTypeAndBuildSide(): ValidationResult = {
-    joinType match {
+    val result = joinType match {
       case _: InnerLike | LeftOuter | RightOuter => ValidationResult.ok
       case _ =>
         ValidationResult.notOk(
           s"Broadcast Nested Loop join is not supported join type $joinType in this backend")
+    }
+
+    if (!result.isValid) {
+      return result
     }
 
     (joinType, buildSide) match {

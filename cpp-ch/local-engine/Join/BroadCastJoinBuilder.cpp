@@ -141,9 +141,15 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
             for (size_t i = 0; i < block.columns(); ++i)
             {
                 const auto & column = block.getByPosition(i);
-                columns.emplace_back(BlockUtil::convertColumnAsNecessary(column, header.getByPosition(i)));
                 if (only_one_column)
+                {
+                    auto virtual_block = BlockUtil::buildRowCountBlock(column.column->size()).getColumnsWithTypeAndName();
+                    header = virtual_block;
+                    columns.emplace_back(virtual_block.back());
                     break;
+                }
+
+                columns.emplace_back(BlockUtil::convertColumnAsNecessary(column, header.getByPosition(i)));
             }
 
             DB::Block final_block(columns);

@@ -16,16 +16,19 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.ValidationResult
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
-import org.apache.spark.sql.catalyst.plans.{InnerLike, JoinType}
+import org.apache.spark.sql.catalyst.plans.{InnerLike, JoinType, LeftSemi}
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import com.google.protobuf.{Any, StringValue}
 
 case class CHBroadcastNestedLoopJoinExecTransformer(
     left: SparkPlan,
@@ -56,7 +59,6 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
     val context =
       BroadCastHashJoinContext(Seq.empty, joinType, false, buildPlan.output, buildBroadcastTableId)
     val broadcastRDD = CHBroadcastBuildSideRDD(sparkContext, broadcast, context)
-    // FIXME: Do we have to make build side a RDD?
     streamedRDD :+ broadcastRDD
   }
 
@@ -77,11 +79,25 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
     res
   }
 
+  override def genJoinParameters(): Any = {
+    // for ch
+    val joinParametersStr = new StringBuffer("JoinParameters:")
+    joinParametersStr
+      .append("buildHashTableId=")
+      .append(buildBroadcastTableId)
+      .append("\n")
+    val message = StringValue
+      .newBuilder()
+      .setValue(joinParametersStr.toString)
+      .build()
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
+  }
+
   override def validateJoinTypeAndBuildSide(): ValidationResult = {
     joinType match {
       case _: InnerLike =>
       case _ =>
-        if (condition.isDefined) {
+        if (joinType == LeftSemi || condition.isDefined) {
           return ValidationResult.notOk(
             s"Broadcast Nested Loop join is not supported join type $joinType with conditions")
         }

@@ -84,8 +84,6 @@ extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
 
 namespace local_engine
 {
-constexpr auto VIRTUAL_ROW_COUNT_COLUMN = "__VIRTUAL_ROW_COUNT_COLUMN__";
-
 namespace fs = std::filesystem;
 
 DB::Block BlockUtil::buildRowCountHeader()
