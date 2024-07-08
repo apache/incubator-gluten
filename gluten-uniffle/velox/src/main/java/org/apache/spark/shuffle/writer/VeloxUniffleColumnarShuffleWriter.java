@@ -197,7 +197,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
     if (nativeShuffleWriter == -1L) {
       throw new IllegalStateException("nativeShuffleWriter should not be -1L");
     }
-    splitResult = jniWrapper.stop(nativeShuffleWriter);
+    splitResult = jniWrapper.stop(nativeShuffleWriter, availableOffHeapPerTask());
     columnarDep
         .metrics()
         .get("splitTime")
