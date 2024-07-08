@@ -21,7 +21,8 @@ apt-get update
 
 #install gcc and libraries to build arrow
 apt install software-properties-common
-apt install maven build-essential cmake libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git ninja-build uuid-dev autoconf-archive curl zip unzip tar pkg-config bison libtool flex vim
+apt install maven build-essential libssl-dev libre2-dev libcurl4-openssl-dev clang lldb lld libz-dev git ninja-build uuid-dev autoconf-archive curl zip unzip tar pkg-config bison libtool flex vim python3-pip
+pip3 install cmake==3.28.3
 
 #velox script needs sudo to install dependency libraries
 apt install sudo
@@ -57,4 +58,8 @@ cd incubator-gluten/
 # It's suggested to build using static link, enabled by `--enable_vcpkg=ON`
 # For developer, it's suggested to enable Debug info, by --build_type=RelWithDebInfo. Note RelWithDebInfo uses -o2, release uses -o3
 ./dev/buildbundle-veloxbe.sh --enable_vcpkg=ON --build_type=RelWithDebInfo
+
+# If you meet the error like `epoll_wait: Function not implemented` when running tests,
+# Please enable epoll_pwait by,
+export EVENT_NOEPOLL=1
 ```
