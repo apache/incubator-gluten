@@ -38,11 +38,21 @@ object UTSystemParameters {
 
   private val TPCDS_DATA_PATH_KEY = "tpcds.data.path"
   private val TPCDS_RELATIVE_DATA_PATH = "tpcds-data-sf1"
+  private val TPCDS_DECIMAL_RELATIVE_DATA_PATH = "tpcds-data-sf1-decimal"
 
   def tpcdsDataPath: String = {
     val result = System.getProperty(UTSystemParameters.TPCDS_DATA_PATH_KEY, null)
     if (result == null) {
       s"$testDataPath/$TPCDS_RELATIVE_DATA_PATH"
+    } else {
+      result
+    }
+  }
+
+  def tpcdsDecimalDataPath: String = {
+    val result = System.getProperty(UTSystemParameters.TPCDS_DATA_PATH_KEY, null)
+    if (result == null) {
+      s"$testDataPath/$TPCDS_DECIMAL_RELATIVE_DATA_PATH"
     } else {
       result
     }

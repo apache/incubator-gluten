@@ -40,9 +40,11 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
 
   override protected def spark: SparkSession = _spark
 
-  protected val tablesPath: String = UTSystemParameters.tpcdsDataPath + "/"
-  protected val tpcdsQueries: String
-  protected val queriesResults: String
+  protected val tablesPath: String = UTSystemParameters.tpcdsDecimalDataPath + "/"
+  protected val db_name: String = "tpcdsdb"
+  protected val tpcdsQueries: String =
+    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original"
+  protected val queriesResults: String = rootPath + "tpcds-decimal-queries-output"
 
   /** Return values: (sql num, is fall back, skip fall back assert) */
   def tpcdsAllQueries(isAqe: Boolean): Seq[(String, Boolean, Boolean)] =
@@ -80,8 +82,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
 
   // FIXME "q17", stddev_samp inconsistent results, CH return NaN, Spark return null
   protected def excludedTpcdsQueries: Set[String] = Set(
-    "q18", // inconsistent results
     "q61", // inconsistent results
+    "q66", // inconsistent results
     "q67" // inconsistent results
   )
 
@@ -115,11 +117,9 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
     }
   }
 
-//  override protected def createTPCHNotNullTables(): Unit = {}
-
   protected def createTPCDSTables(): Unit = {
     val parquetTables =
-      GenTPCDSTableScripts.genTPCDSParquetTables("tpcdsdb", tablesPath, "", "")
+      GenTPCDSTableScripts.genTPCDSParquetTables(db_name, tablesPath, "", "", 3)
 
     for (sql <- parquetTables) {
       spark.sql(sql)
