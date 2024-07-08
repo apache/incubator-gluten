@@ -26,6 +26,29 @@ install_maven_from_source() {
     fi
 }
 
+install_gcc9_from_source() {
+     cur_gcc_version=$(gcc -dumpversion)
+     if [ "$(semver "$cur_gcc_version")" -lt "$(semver 9.0.0)" ]; then
+            gcc_version=gcc-9.4.0
+            gcc_install_dir=/usr/local/${gcc_version}
+            cd /tmp
+            if [ ! -d $gcc_version ]; then
+                wget https://ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
+                tar -xvf ${gcc_version}.tar.gz
+            fi
+            cd ${gcc_version}
+            sed -i 's/ftp/https/g' contrib/download_prerequisites
+            ./contrib/download_prerequisites
+
+            mkdir gcc-build && cd gcc-build
+            ../configure --prefix=${gcc_install_dir} --disable-multilib --enable-languages=c,c++
+            make -j$(nproc)
+            make install
+
+            update-alternatives --install /usr/bin/gcc gcc /usr/local/${gcc_version}/bin/gcc 900 --slave /usr/bin/g++ g++ /usr/local/${gcc_version}/bin/g++
+     fi
+}
+
 install_centos_7() {
     export PATH=/usr/local/bin:$PATH
 
@@ -163,6 +186,25 @@ install_tencentos_3.2() {
         java-8-konajdk
 
     install_maven_from_source
+}
+
+install_debian_10() {
+    apt-get -y install \
+        wget curl tar zip unzip git apt-transport-https \
+        build-essential ccache cmake ninja-build pkg-config autoconf autoconf-archive libtool \
+        flex bison python3
+
+    # Download the Eclipse Adoptium GPG key
+    wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null
+
+    # Configure the Eclipse Adoptium repository
+    echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list
+
+    # Install JDK
+    apt update && apt-get -y install temurin-8-jdk
+
+    install_maven_from_source
+    install_gcc9_from_source
 }
 
 install_debian_11() {
