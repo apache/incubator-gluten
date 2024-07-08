@@ -9,7 +9,7 @@ vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO facebook/folly
     REF "v${VERSION}"
-    SHA512 6f4fa9b30ff0aba4c1c89619ada2cafd8943ba9a06b6ac4086fba212f26f0df606c8735485110eec6977900d45fc33ddcfdb8095dc6728b8c12b5cac65672e12
+    SHA512 a305ac3d76a248b47428907a2e1115ca08bfd17f1e109ef187b1a52a1c121031495af61ffac1ffb9760e584f86df5b255f0eb9c0c19f75b1a1be01c9aec85a66
     HEAD_REF main
     PATCHES
         boost-1.70.patch
