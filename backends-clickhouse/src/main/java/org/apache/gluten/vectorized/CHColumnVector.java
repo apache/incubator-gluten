@@ -25,7 +25,7 @@ import org.apache.spark.unsafe.types.UTF8String;
 
 public class CHColumnVector extends ColumnVector {
   private final int columnPosition;
-  private long blockAddress;
+  private final long blockAddress;
 
   public CHColumnVector(DataType type, long blockAddress, int columnPosition) {
     super(type);
