@@ -1979,7 +1979,7 @@ object GlutenConfig {
       .internal()
       .doc("Force fallback for complex type scan, including struct, map, array.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK =
     buildConf("spark.gluten.sql.orc.charType.scan.fallback.enabled")
