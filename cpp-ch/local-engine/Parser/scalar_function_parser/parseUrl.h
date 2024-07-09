@@ -31,7 +31,6 @@ protected:
 
     DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
-        const String & ch_func_name,
         DB::ActionsDAGPtr & actions_dag) const override;
 
     const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(

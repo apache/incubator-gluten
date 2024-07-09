@@ -43,11 +43,11 @@ public:
         /// But in CH, the first arg is trimStr, the second arg is srcStr
         if (args.size() > 1)
         {
-            parsed_args.emplace_back(parseFunctionArgument(actions_dag, ch_function_name, args[1]));
-            parsed_args.emplace_back(parseFunctionArgument(actions_dag, ch_function_name, args[0]));
+            parsed_args.emplace_back(parseExpression(actions_dag, args[1].value()));
+            parsed_args.emplace_back(parseExpression(actions_dag, args[0].value()));
         }
         else
-            parsed_args.emplace_back(parseFunctionArgument(actions_dag, ch_function_name, args[0]));
+            parsed_args.emplace_back(parseExpression(actions_dag, args[0].value()));
 
         const auto * func_node = toFunctionNode(actions_dag, ch_function_name, parsed_args);
         return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
@@ -80,11 +80,11 @@ public:
         /// But in CH, the first arg is trimStr, the second arg is srcStr
         if (args.size() > 1)
         {
-            parsed_args.emplace_back(parseFunctionArgument(actions_dag, ch_function_name, args[1]));
-            parsed_args.emplace_back(parseFunctionArgument(actions_dag, ch_function_name, args[0]));
+            parsed_args.emplace_back(parseExpression(actions_dag, args[1].value()));
+            parsed_args.emplace_back(parseExpression(actions_dag, args[0].value()));
         }
         else
-            parsed_args.emplace_back(parseFunctionArgument(actions_dag, ch_function_name, args[0]));
+            parsed_args.emplace_back(parseExpression(actions_dag, args[0].value()));
 
         const auto * func_node = toFunctionNode(actions_dag, ch_function_name, parsed_args);
         return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
@@ -116,11 +116,11 @@ public:
         /// But in CH, the first arg is trimStr, the second arg is srcStr
         if (args.size() > 1)
         {
-            parsed_args.emplace_back(parseFunctionArgument(actions_dag, ch_function_name, args[1]));
-            parsed_args.emplace_back(parseFunctionArgument(actions_dag, ch_function_name, args[0]));
+            parsed_args.emplace_back(parseExpression(actions_dag, args[1].value()));
+            parsed_args.emplace_back(parseExpression(actions_dag, args[0].value()));
         }
         else
-            parsed_args.emplace_back(parseFunctionArgument(actions_dag, ch_function_name, args[0]));
+            parsed_args.emplace_back(parseExpression(actions_dag, args[0].value()));
 
         const auto * func_node = toFunctionNode(actions_dag, ch_function_name, parsed_args);
         return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);

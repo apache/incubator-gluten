@@ -51,15 +51,15 @@ public:
 
     virtual String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const;
 protected:
-    /// Call plan_parse method directly.
-    const DB::ActionsDAG::Node * parseFunctionArgument(DB::ActionsDAGPtr & actions_dag, const String & ch_function_name, const substrait::FunctionArgument & arg) const
-    {
-        return plan_parser->parseFunctionArgument(actions_dag, ch_function_name, arg);
-    }
-
     virtual DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
-        const String & ch_func_name,
+        const String & /*function_name*/,
+        DB::ActionsDAGPtr & actions_dag) const
+    {
+        return parseFunctionArguments(substrait_func, actions_dag);
+    }
+    virtual DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
+        const substrait::Expression_ScalarFunction & substrait_func,
         DB::ActionsDAGPtr & actions_dag) const;
 
     virtual const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(

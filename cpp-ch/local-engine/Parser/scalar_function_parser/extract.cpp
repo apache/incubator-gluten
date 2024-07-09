@@ -92,7 +92,7 @@ public:
  
         /// Skip the first arg of extract in substrait
         for (int i = 1; i < args.size(); i++)
-            parsed_args.emplace_back(parseFunctionArgument(actions_dag, ch_function_name, args[i]));
+            parsed_args.emplace_back(parseExpression(actions_dag, args[i].value()));
 
         /// Append extra mode argument for extract(WEEK_DAY from date) or extract(DAY_OF_WEEK from date) in substrait
         if (ch_function_name == "toDayOfWeek" || ch_function_name == "DAYOFWEEK")

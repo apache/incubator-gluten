@@ -45,7 +45,7 @@ public:
     ActionsDAGPtr & actions_dag) const override
     {
         /// Parse encode(str, charset) as convertCharset(str, 'UTF-8', charset)
-        auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 2)
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
 

@@ -73,7 +73,6 @@ protected:
 
     DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
-        const String & ch_func_name,
         DB::ActionsDAGPtr & actions_dag) const override
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "parseFunctionArguments is not implemented for LambdaFunction");
@@ -187,7 +186,6 @@ protected:
 
     DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
-        const String & ch_func_name,
         DB::ActionsDAGPtr & actions_dag) const override
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "parseFunctionArguments is not implemented for NamedLambdaVariable");

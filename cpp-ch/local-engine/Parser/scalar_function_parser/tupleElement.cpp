@@ -39,7 +39,7 @@ namespace local_engine
             DB::ActionsDAG::NodeRawConstPtrs parsed_args; \
             auto ch_function_name = getCHFunctionName(substrait_func); \
             const auto & args = substrait_func.arguments(); \
-            parsed_args.emplace_back(parseFunctionArgument(actions_dag, ch_function_name, args[0])); \
+            parsed_args.emplace_back(parseExpression(actions_dag, args[0].value())); \
             if (!args[1].value().has_literal()) \
                 throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "{}'s sceond argument must be a literal", #substrait_name); \
             auto [data_type, field] = parseLiteral(args[1].value().literal()); \

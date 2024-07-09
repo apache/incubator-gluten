@@ -55,7 +55,7 @@ public:
                 2) if args have size 1, return identity(args[0])
                 3) otherwise return concat(args)
         */
-        auto args = parseFunctionArguments(substrait_func, "", actions_dag);
+        auto args = parseFunctionArguments(substrait_func, actions_dag);
         const auto & output_type = substrait_func.output_type();
         const ActionsDAG::Node * result_node = nullptr;
         if (output_type.has_list())

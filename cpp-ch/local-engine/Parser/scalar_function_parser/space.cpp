@@ -39,7 +39,7 @@ public:
         auto ch_function_name = getCHFunctionName(substrait_func);
         const auto & args = substrait_func.arguments();
 
-        const auto * repeat_times_node = parseFunctionArgument(actions_dag, "repeate", args[0]);
+        const auto * repeat_times_node = parseExpression(actions_dag, args[0].value());
         const auto * space_str_node = addColumnToActionsDAG(actions_dag, std::make_shared<DB::DataTypeString>(), " ");
         parsed_args = {space_str_node, repeat_times_node};
         const auto * func_node = toFunctionNode(actions_dag, ch_function_name, parsed_args);

@@ -189,15 +189,7 @@ private:
     void parseFunctionArguments(
         DB::ActionsDAGPtr & actions_dag,
         ActionsDAG::NodeRawConstPtrs & parsed_args,
-        std::string & function_name,
         const substrait::Expression_ScalarFunction & scalar_function);
-    void parseFunctionArgument(
-        DB::ActionsDAGPtr & actions_dag,
-        ActionsDAG::NodeRawConstPtrs & parsed_args,
-        const std::string & function_name,
-        const substrait::FunctionArgument & arg);
-    const DB::ActionsDAG::Node *
-    parseFunctionArgument(DB::ActionsDAGPtr & actions_dag, const std::string & function_name, const substrait::FunctionArgument & arg);
 
     void parseArrayJoinArguments(
         DB::ActionsDAGPtr & actions_dag,

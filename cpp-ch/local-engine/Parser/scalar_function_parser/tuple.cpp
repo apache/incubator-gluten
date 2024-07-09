@@ -39,7 +39,7 @@ public:
         // We don't need to care the field names here.
         for (int i = 1; i < args.size(); i += 2)
         {
-            parsed_args.emplace_back(parseFunctionArgument(actions_dag, ch_function_name, args[i]));
+            parsed_args.emplace_back(parseExpression(actions_dag, args[i].value()));
         }
         const auto * func_node = toFunctionNode(actions_dag, ch_function_name, parsed_args);
         return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);

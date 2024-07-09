@@ -51,7 +51,7 @@ public:
         
         const String & arg1_literal = arg1.literal().string();
         String time_zone_val = DateTimeUtil::convertTimeZone(arg1_literal);
-        auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         auto nullable_string_type = DB::makeNullable(std::make_shared<DB::DataTypeString>());
         const auto * time_zone_node = addColumnToActionsDAG(actions_dag, nullable_string_type, time_zone_val);
         const auto * result_node = toFunctionNode(actions_dag, getCHFunctionName(substrait_func), {parsed_args[0], time_zone_node});

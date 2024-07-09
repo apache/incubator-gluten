@@ -39,29 +39,18 @@ using namespace DB;
 
 String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const
 {
-#if 1
     // no meaning
-    return getName();
-#else
-    auto func_signature = plan_parser->function_mapping.at(std::to_string(substrait_func.function_reference()));
-    auto pos = func_signature.find(':');
-    auto func_name = func_signature.substr(0, pos);
-
-    auto it = SCALAR_FUNCTIONS.find(func_name);
-    if (it == SCALAR_FUNCTIONS.end())
-        throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unsupported substrait function: {}", func_name);
-    return it->second;
-#endif
+    /// There is no any simple equivalent ch function.
+    return "";
 }
 
 ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
-    const substrait::Expression_ScalarFunction & substrait_func, const String & ch_func_name, ActionsDAGPtr & actions_dag) const
+    const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const
 {
     ActionsDAG::NodeRawConstPtrs parsed_args;
     const auto & args = substrait_func.arguments();
     parsed_args.reserve(args.size());
-    for (const auto & arg : args)
-        plan_parser->parseFunctionArgument(actions_dag, parsed_args, ch_func_name, arg);
+    plan_parser->parseFunctionArguments(actions_dag, parsed_args, substrait_func);
     return parsed_args;
 }
 
@@ -71,7 +60,7 @@ const ActionsDAG::Node *
 FunctionParser::parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const
 {
     auto ch_func_name = getCHFunctionName(substrait_func);
-    auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag);
+    auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
     const auto * func_node = toFunctionNode(actions_dag, ch_func_name, parsed_args);
     return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
 }
