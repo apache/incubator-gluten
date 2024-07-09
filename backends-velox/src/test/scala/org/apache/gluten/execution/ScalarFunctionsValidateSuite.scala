@@ -673,6 +673,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
       sql("""SELECT assert_true(l_orderkey >= 100), l_orderkey from
             | lineitem limit 100""".stripMargin).collect()
     }
+    assert(e.getCause.isInstanceOf[RuntimeException])
     assert(e.getMessage.contains("l_orderkey"))
   }
 

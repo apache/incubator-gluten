@@ -284,7 +284,6 @@ object ExpressionMappings {
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
     Sig[WidthBucket](WIDTH_BUCKET),
     Sig[ReplicateRows](REPLICATE_ROWS),
-    Sig[RaiseError](RAISE_ERROR),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE),
     // Generator function
