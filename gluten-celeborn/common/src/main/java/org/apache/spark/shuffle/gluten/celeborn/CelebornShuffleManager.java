@@ -54,6 +54,12 @@ public class CelebornShuffleManager implements ShuffleManager {
   private static final String LOCAL_SHUFFLE_READER_KEY =
       "spark.sql.adaptive.localShuffleReader.enabled";
 
+  private static final String CELEBORN_COMPRESSION_CODEC_KEY =
+      CelebornConf.SHUFFLE_COMPRESSION_CODEC().key();
+
+  private static final String SPARK_CELEBORN_COMPRESSION_CODEC_KEY =
+      "spark." + CELEBORN_COMPRESSION_CODEC_KEY;
+
   private static final CelebornShuffleWriterFactory writerFactory;
 
   static {
@@ -89,6 +95,8 @@ public class CelebornShuffleManager implements ShuffleManager {
       ConcurrentHashMap.newKeySet();
   private final CelebornShuffleFallbackPolicyRunner fallbackPolicyRunner;
 
+  private final String celebornDefaultCodec;
+
   // for Celeborn 0.4.0
   private final Object shuffleIdTracker;
 
@@ -110,6 +118,8 @@ public class CelebornShuffleManager implements ShuffleManager {
         CelebornUtils.createInstance(CelebornUtils.EXECUTOR_SHUFFLE_ID_TRACKER_NAME);
 
     this.throwsFetchFailure = CelebornUtils.getThrowsFetchFailure(celebornConf);
+
+    this.celebornDefaultCodec = CelebornConf.SHUFFLE_COMPRESSION_CODEC().defaultValueString();
   }
 
   private boolean isDriver() {
@@ -132,6 +142,11 @@ public class CelebornShuffleManager implements ShuffleManager {
     if (_vanillaCelebornShuffleManager == null) {
       synchronized (this) {
         if (_vanillaCelebornShuffleManager == null) {
+          if ("none"
+              .equalsIgnoreCase(
+                  conf.get(SPARK_CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec))) {
+            conf.set(SPARK_CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec);
+          }
           _vanillaCelebornShuffleManager =
               SparkUtils.instantiateClass(VANILLA_CELEBORN_SHUFFLE_MANAGER_NAME, conf, isDriver());
         }
@@ -330,6 +345,12 @@ public class CelebornShuffleManager implements ShuffleManager {
     if (handle instanceof CelebornShuffleHandle) {
       @SuppressWarnings("unchecked")
       CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
+      if (_vanillaCelebornShuffleManager != null
+          && "none"
+              .equalsIgnoreCase(
+                  celebornConf.get(CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec))) {
+        celebornConf.set(CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec);
+      }
       return CelebornUtils.getCelebornShuffleReader(
           h,
           startPartition,
