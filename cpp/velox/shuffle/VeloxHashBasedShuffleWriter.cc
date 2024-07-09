@@ -919,7 +919,7 @@ uint32_t VeloxHashBasedShuffleWriter::calculatePartitionBufferSize(int64_t memLi
     bytesPerRow += binaryArrayTotalSizeBytes_[i] / totalInputNumRows_;
   }
 
-  memLimit += cachedPayloadSize();
+  memLimit = memLimit - retainedSize_ + cachedPayloadSize();
   // make sure split buffer uses 128M memory at least, let's hardcode it here for now
   if (memLimit < kMinMemLimit) {
     memLimit = kMinMemLimit;

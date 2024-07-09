@@ -437,8 +437,6 @@ int main(int argc, char** argv) {
     std::string errorMsg{};
     if (FLAGS_data.empty()) {
       errorMsg = "Missing '--split' or '--data' option.";
-    } else if (FLAGS_partitioning != "rr" && FLAGS_partitioning != "random") {
-      errorMsg = "--run-shuffle only support round-robin partitioning and random partitioning.";
     }
     if (errorMsg.empty()) {
       try {
