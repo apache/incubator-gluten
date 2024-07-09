@@ -18,47 +18,31 @@ package org.apache.spark.sql
 
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.functions.{expr, input_file_name}
-import org.apache.spark.sql.types._
 
 class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTestsTrait {
+  import testImplicits._
   testGluten(
     "input_file_name, input_file_block_start, input_file_block_length with scan is fallback") {
-    withTempPath {
-      dir =>
-        val rawData = Seq(
-          Row(1, "Alice", Seq(Row(Seq(1, 2, 3)))),
-          Row(2, "Bob", Seq(Row(Seq(4, 5)))),
-          Row(3, "Charlie", Seq(Row(Seq(6, 7, 8, 9))))
-        )
-        val schema = StructType(
-          Array(
-            StructField("id", IntegerType, nullable = false),
-            StructField("name", StringType, nullable = false),
-            StructField(
-              "nested_column",
-              ArrayType(
-                StructType(Array(
-                  StructField("array_in_struct", ArrayType(IntegerType), nullable = true)
-                ))),
-              nullable = true)
-          ))
-        val data: DataFrame = spark.createDataFrame(sparkContext.parallelize(rawData), schema)
-        data.write.parquet(dir.getCanonicalPath)
+    withSQLConf(("spark.gluten.sql.columnar.filescan", "false")) {
+      withTempPath {
+        dir =>
+          val data = sparkContext.parallelize(0 to 10).toDF("id")
+          data.write.parquet(dir.getCanonicalPath)
 
-        val q =
-          spark.read
-            .parquet(dir.getCanonicalPath)
-            .select(
-              input_file_name(),
-              expr("input_file_block_start()"),
-              expr("input_file_block_length()"),
-              expr("nested_column"))
-        val firstRow = q.head()
-        assert(firstRow.getString(0).contains(dir.toURI.getPath))
-        assert(firstRow.getLong(1) == 0)
-        assert(firstRow.getLong(2) > 0)
-        val project = q.queryExecution.executedPlan.collect { case p: ProjectExec => p }
-        assert(project.size == 1)
+          val q =
+            spark.read
+              .parquet(dir.getCanonicalPath)
+              .select(
+                input_file_name(),
+                expr("input_file_block_start()"),
+                expr("input_file_block_length()"))
+          val firstRow = q.head()
+          assert(firstRow.getString(0).contains(dir.toURI.getPath))
+          assert(firstRow.getLong(1) == 0)
+          assert(firstRow.getLong(2) > 0)
+          val project = q.queryExecution.executedPlan.collect { case p: ProjectExec => p }
+          assert(project.size == 1)
+      }
     }
   }
 }
