@@ -659,6 +659,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
   enableSuite[GlutenParquetV2FilterSuite]
+    // Velox parquet write doesn't support rebaseMode being CORRECT with complex type.
+    .exclude("Gluten - filter pushdown - date")
     // Rewrite.
     .exclude("Filter applied on merged Parquet schema with new column should work")
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")

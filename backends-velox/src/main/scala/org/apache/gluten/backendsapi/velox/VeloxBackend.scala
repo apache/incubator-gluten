@@ -44,14 +44,22 @@ import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends Backend {
   override def name(): String = VeloxBackend.BACKEND_NAME
+
   override def buildInfo(): BackendBuildInfo =
     BackendBuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
+
   override def iteratorApi(): IteratorApi = new VeloxIteratorApi
+
   override def sparkPlanExecApi(): SparkPlanExecApi = new VeloxSparkPlanExecApi
+
   override def transformerApi(): TransformerApi = new VeloxTransformerApi
+
   override def validatorApi(): ValidatorApi = new VeloxValidatorApi
+
   override def metricsApi(): MetricsApi = new VeloxMetricsApi
+
   override def listenerApi(): ListenerApi = new VeloxListenerApi
+
   override def settings(): BackendSettingsApi = VeloxBackendSettings
 }
 
@@ -223,14 +231,22 @@ object VeloxBackendSettings extends BackendSettingsApi {
     def validateDataTypes(): Option[String] = {
       val unsupportedTypes = fields.flatMap {
         field =>
-          field.dataType match {
+          def checkType(dataType: DataType): Option[String] = dataType match {
             case _: TimestampType => Some("TimestampType")
-            case _: StructType => Some("StructType")
-            case _: ArrayType => Some("ArrayType")
-            case _: MapType => Some("MapType")
+            case structType: StructType =>
+              structType.fields
+                .flatMap(f => checkType(f.dataType))
+                .headOption
+                .map(_ => "StructType")
+            case arrayType: ArrayType =>
+              checkType(arrayType.elementType).map(_ => "ArrayType")
+            case mapType: MapType =>
+              checkType(mapType.keyType).orElse(checkType(mapType.valueType)).map(_ => "MapType")
             case _: YearMonthIntervalType => Some("YearMonthIntervalType")
             case _ => None
           }
+
+          checkType(field.dataType)
       }
       if (unsupportedTypes.nonEmpty) {
         Some(unsupportedTypes.mkString("Found unsupported type:", ",", ""))
@@ -293,7 +309,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     fields.map {
       field =>
         field.dataType match {
-          case _: TimestampType | _: StructType | _: ArrayType | _: MapType => return false
+          case _: TimestampType => return false
           case _ =>
         }
     }
@@ -357,6 +373,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
                 case _ =>
               }
             }
+
             doCheck(swf.upper)
             doCheck(swf.lower)
           }
@@ -406,6 +423,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
         }
       }
   }
+
   override def supportHashBuildJoinTypeOnRight: JoinType => Boolean = {
     t =>
       if (super.supportHashBuildJoinTypeOnRight(t)) {
@@ -422,8 +440,9 @@ object VeloxBackendSettings extends BackendSettingsApi {
   /**
    * Check whether a plan needs to be offloaded even though they have empty input schema, e.g,
    * Sum(1), Count(1), rand(), etc.
-   * @param plan:
-   *   The Spark plan to check.
+   *
+   * @param plan
+   *   : The Spark plan to check.
    */
   private def mayNeedOffload(plan: SparkPlan): Boolean = {
     def checkExpr(expr: Expression): Boolean = {
@@ -463,6 +482,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def fallbackAggregateWithEmptyOutputChild(): Boolean = true
 
   override def recreateJoinExecOnFallback(): Boolean = true
+
   override def rescaleDecimalArithmetic(): Boolean = true
 
   /** Get the config prefix for each backend */
