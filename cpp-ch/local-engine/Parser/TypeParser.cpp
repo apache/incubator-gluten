@@ -192,9 +192,9 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
                 struct_field_types[i] = parseType(types[i]);
 
             const auto & names = substrait_type.struct_().names();
-            for (int i = 0; i < names.size(); ++i)
-                if (!names[i].empty())
-                    struct_field_names.push_back(names[i]);
+            for (const auto & name : names)
+                if (!name.empty())
+                    struct_field_names.push_back(name);
         }
 
         if (!struct_field_names.empty())
@@ -239,31 +239,39 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
 }
 
 
-DB::Block TypeParser::buildBlockFromNamedStruct(
-    const substrait::NamedStruct & struct_,
-    const std::string & low_card_cols)
+DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & struct_, const std::string & low_card_cols)
 {
     std::unordered_set<std::string> low_card_columns;
     Poco::StringTokenizer tokenizer(low_card_cols, ",");
     for (const auto & token : tokenizer)
         low_card_columns.insert(token);
 
+    assert(struct_.column_types_size() == struct_.names_size());
+    assert(struct_.column_types_size() == struct_.struct_().types_size());
+
+    std::set<int> non_normal_col_set;
+    for (int i = 0; i < struct_.column_types_size(); ++i)
+        if (struct_.column_types(i) != ::substrait::NamedStruct::NORMAL_COL)
+            non_normal_col_set.insert(i);
+
     DB::ColumnsWithTypeAndName internal_cols;
     internal_cols.reserve(struct_.names_size());
     std::list<std::string> field_names;
     for (int i = 0; i < struct_.names_size(); ++i)
-        field_names.emplace_back(struct_.names(i));
+        if (!non_normal_col_set.contains(i))
+            field_names.emplace_back(struct_.names(i));
 
     for (int i = 0; i < struct_.struct_().types_size(); ++i)
     {
+        if (non_normal_col_set.contains(i))
+            continue;
+
         auto name = field_names.front();
         const auto & substrait_type = struct_.struct_().types(i);
         auto ch_type = parseType(substrait_type, &field_names);
 
         if (low_card_columns.contains(name))
-        {
             ch_type = std::make_shared<DB::DataTypeLowCardinality>(ch_type);
-        }
 
         // This is a partial aggregate data column.
         // It's type is special, must be a struct type contains all arguments types.
@@ -286,8 +294,8 @@ DB::Block TypeParser::buildBlockFromNamedStruct(
             auto agg_function_name = function_parser->getCHFunctionName(args_types);
             auto action = NullsAction::EMPTY;
             ch_type = AggregateFunctionFactory::instance()
-                      .get(agg_function_name, action, args_types, function_parser->getDefaultFunctionParameters(), properties)
-                      ->getStateType();
+                          .get(agg_function_name, action, args_types, function_parser->getDefaultFunctionParameters(), properties)
+                          ->getStateType();
         }
 
         internal_cols.push_back(ColumnWithTypeAndName(ch_type, name));
