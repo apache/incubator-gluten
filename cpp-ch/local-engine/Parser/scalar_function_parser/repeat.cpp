@@ -40,7 +40,8 @@ public:
         DB::ActionsDAG::NodeRawConstPtrs parsed_args;
         auto ch_function_name = getCHFunctionName(substrait_func);
         const auto & args = substrait_func.arguments();
-        const auto * repeat_times_node = parseExpression(actions_dag, args[0].value());
+        parsed_args.emplace_back(parseExpression(actions_dag, args[0].value()));
+        const auto * repeat_times_node = parseExpression(actions_dag, args[1].value());
         DB::DataTypeNullable target_type(std::make_shared<DB::DataTypeUInt32>());
         repeat_times_node = ActionsDAGUtil::convertNodeType(actions_dag, repeat_times_node, target_type.getName());
         parsed_args.emplace_back(repeat_times_node);

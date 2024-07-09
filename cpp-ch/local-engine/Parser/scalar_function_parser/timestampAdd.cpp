@@ -42,6 +42,7 @@ public:
     static constexpr auto name = "timestamp_add";
 
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return "timestamp_add"; }
 
     const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const override
     {

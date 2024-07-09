@@ -115,7 +115,8 @@ public:
                 }
             }
         }
-        else
+
+        if (!func_node)
             func_node = toFunctionNode(actions_dag, ch_function_name, parsed_args);
         return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
     }

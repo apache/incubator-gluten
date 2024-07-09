@@ -42,6 +42,7 @@ public:
     static constexpr auto name = "concat_ws";
 
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return name; }
 
     const ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,

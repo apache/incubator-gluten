@@ -191,6 +191,7 @@ public:
 
     static constexpr auto name = "add";
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "plus"; }
 
 protected:
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
@@ -206,6 +207,7 @@ public:
 
     static constexpr auto name = "subtract";
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "minus"; }
 
 protected:
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
@@ -220,6 +222,7 @@ public:
     explicit FunctionParserMultiply(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
     static constexpr auto name = "multiply";
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "multiply"; }
 
 protected:
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
@@ -234,6 +237,7 @@ public:
     explicit FunctionParserModulo(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
     static constexpr auto name = "modulus";
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "modulo"; }
 
 protected:
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
@@ -248,6 +252,7 @@ public:
     explicit FunctionParserDivide(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
     static constexpr auto name = "divide";
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "divide"; }
 
 protected:
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override

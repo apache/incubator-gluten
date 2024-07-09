@@ -649,7 +649,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     const auto & scalar_function = rel.scalar_function();
 
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
-    auto function_name = getFunctionName(function_signature, scalar_function);
+    String function_name = "arrayJoin";
 
     /// Whether the input argument of explode/posexplode is map type
     bool is_map;
@@ -879,7 +879,7 @@ ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
 
     const auto & scalar_function = rel.scalar_function();
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
-    auto function_name = getFunctionName(function_signature, scalar_function);
+    String function_name = "json_tuple";
     auto args = scalar_function.arguments();
     if (args.size() < 2)
     {

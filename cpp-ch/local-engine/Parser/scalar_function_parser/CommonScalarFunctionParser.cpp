@@ -60,16 +60,9 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Cast, cast, CAST);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(GetTimestamp, get_timestamp, parseDateTimeInJodaSyntaxOrNull);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Quarter, quarter, toQuarter);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ToUnixTimestamp, to_unix_timestamp, parseDateTimeInJodaSyntaxOrNull);
-//REGISTER_COMMON_SCALAR_FUNCTION_PARSER(DateFormat, date_format, formatDateTimeInJodaSyntax);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(TimestampAdd, timestamp_add, timestamp_add);
 
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Substract, substract, minus);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Multiply, multiply, multiply);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Add, add, plus);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Divide, divide, divide);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Position, positive, identity);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Negative, negative, negate);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Modulus, modulus, modulo);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Pmod, pmod, pmod);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(abs, abs, abs);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Ceil, ceil, ceil);
@@ -97,7 +90,7 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(BitwiseXor, bitwise_xor, bitXor);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(BitGet, bit_get, bitTest);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(BitCount, bit_count, bitCount);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Sqrt, sqrt, sqrt);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Cbrc, cbrc, cbrt);
+REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Cbrc, cbrt, cbrt);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Degrees, degrees, degrees);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(E, e, e);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Pi, pi, pi);
@@ -110,7 +103,6 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Greatest, greatest, sparkGreatest);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Least, least, sparkLeast);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ShiftLeft, shiftleft, bitShiftLeft);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ShiftRight, shiftright, bitShiftRight);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(CheckOverflow, check_overflow, checkDecimalOverflowSpark);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Rand, rand, randCanonical);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Bin, bin, sparkBin);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Rint, rint, sparkRint);
@@ -120,7 +112,6 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(NotLike, not_like, notLike);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(StartsWith, starts_with, startsWithUTF8);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(EndsWith, ends_with, endsWithUTF8);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Contains, contains, countSubstrings);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Substring, substring, substringUTF8);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(SubstringIndex, substring_index, substringIndexUTF8);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Lower, lower, lowerUTF8);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Upper, upper, upperUTF8);
@@ -130,7 +121,6 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(RegexpReplace, regexp_replace, replaceReg
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(RegexpExtractAll, regexp_extract_all, regexpExtractAllSpark);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Rlike, rlike, match);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Ascii, ascii, ascii);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ConcatWs, concat_ws, concat_ws);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Base64, base64, base64Encode);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Unbase64, unbase64, base64Decode);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Lpad, lpad, leftPadUTF8);
@@ -166,6 +156,7 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Array, array, array);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Shuffle, shuffle, arrayShuffle);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Range, range, range);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Flatten, flatten, sparkArrayFlatten);
+REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ArrayJoin, array_join, sparkArrayJoin);
 
 // map functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Map, map, map);
@@ -177,11 +168,9 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MapFromArrays, map_from_arrays, mapFromAr
 
 // json functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(FlattenJsonStringOnRequired, flattenJSONStringOnRequired, flattenJSONStringOnRequired);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(GetJsonObject, get_json_object, get_json_object);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ToJson, to_json, toJSONString);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(JsonTuple, json_tuple, json_tuple);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(JsonArrayLen, json_array_length, JSONArrayLength);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MakeDecimal, make_decimal, makeDecimalSpark);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(UnscaledValue, unscaled_value, unscaleValueSpark);
 
 // runtime filter

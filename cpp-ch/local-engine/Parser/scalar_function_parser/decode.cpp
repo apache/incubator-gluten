@@ -41,8 +41,8 @@ public:
     String getName() const override { return name; }
 
     const ActionsDAG::Node * parse(
-    const substrait::Expression_ScalarFunction & substrait_func,
-    ActionsDAGPtr & actions_dag) const override
+        const substrait::Expression_ScalarFunction & substrait_func,
+        ActionsDAGPtr & actions_dag) const override
     {
         /// Parse decode(bin, charset) as convertCharset(bin, charset, 'UTF-8')
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);

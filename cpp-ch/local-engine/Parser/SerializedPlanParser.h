@@ -34,7 +34,6 @@
 
 namespace local_engine
 {
-static const std::set<std::string> FUNCTION_NEED_KEEP_ARGUMENTS = {"alias"};
 
 DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type);
 DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type);
@@ -138,7 +137,7 @@ public:
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
     IQueryPlanStep * addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header);
-    
+
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
 
     static ContextMutablePtr global_context;
