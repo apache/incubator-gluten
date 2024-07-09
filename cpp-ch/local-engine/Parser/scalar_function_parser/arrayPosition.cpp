@@ -92,7 +92,7 @@ public:
         const auto * if_node = toFunctionNode(actions_dag, "if", {or_condition_node, null_const_node, wrap_index_of_node});
         return convertNodeTypeIfNeeded(substrait_func, if_node, actions_dag);
     }
-protected:
+
     String getCHFunctionName(const substrait::Expression_ScalarFunction & /*substrait_func*/) const override
     {
         return "indexOf";

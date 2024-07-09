@@ -51,6 +51,7 @@ public:
 
     virtual String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const;
 protected:
+    /// Deprecated method
     virtual DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
         const String & /*function_name*/,

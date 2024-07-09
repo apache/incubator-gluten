@@ -26,8 +26,8 @@ public:
     ~ParseURLParser() override = default;
     String getName() const override { return name; }
 
-protected:
     String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override;
+protected:
 
     DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,

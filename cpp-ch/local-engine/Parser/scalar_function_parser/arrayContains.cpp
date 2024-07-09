@@ -108,7 +108,7 @@ public:
         });
         return convertNodeTypeIfNeeded(substrait_func, multi_if_node, actions_dag);
     }
-protected:
+
     String getCHFunctionName(const substrait::Expression_ScalarFunction & /*substrait_func*/) const override
     {
         return "has";

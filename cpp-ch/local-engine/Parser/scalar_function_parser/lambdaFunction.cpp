@@ -65,7 +65,7 @@ public:
     ~LambdaFunction() override = default;
 
     String getName() const override { return name; }
-protected:
+
     String getCHFunctionName(const substrait::Expression_ScalarFunction & scalar_function) const override
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "getCHFunctionName is not implemented for LambdaFunction");
@@ -178,7 +178,7 @@ public:
     ~NamedLambdaVariable() override = default;
 
     String getName() const override { return name; }
-protected:
+
     String getCHFunctionName(const substrait::Expression_ScalarFunction & scalar_function) const override
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "getCHFunctionName is not implemented for NamedLambdaVariable");

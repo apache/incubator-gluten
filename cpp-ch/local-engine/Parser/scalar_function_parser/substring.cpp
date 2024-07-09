@@ -64,7 +64,7 @@ public:
         const auto * substring_func_node = toFunctionNode(actions_dag, "substringUTF8", {str_arg, if_node, if_len_node});
         return convertNodeTypeIfNeeded(substrait_func, substring_func_node, actions_dag);
     }
-protected:
+
     String getCHFunctionName(const substrait::Expression_ScalarFunction & /*substrait_func*/) const override
     {
         return "substringUTF8";
