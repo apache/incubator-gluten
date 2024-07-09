@@ -636,6 +636,7 @@ object GlutenConfig {
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
       "spark.io.compression.codec",
+      "spark.sql.decimalOperations.allowPrecisionLoss",
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key,
@@ -717,6 +718,7 @@ object GlutenConfig {
       ("spark.hadoop.input.write.timeout", "180000"),
       ("spark.hadoop.dfs.client.log.severity", "INFO"),
       ("spark.sql.orc.compression.codec", "snappy"),
+      ("spark.sql.decimalOperations.allowPrecisionLoss", "true"),
       (
         COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key,
         COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString),
@@ -1596,6 +1598,13 @@ object GlutenConfig {
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
       .createOptional
+
+  val VELOX_WRITER_QUEUE_SIZE =
+    buildConf("spark.gluten.sql.velox.writer.queue.size")
+      .internal()
+      .doc("This is config to specify the velox writer queue size")
+      .intConf
+      .createWithDefault(64)
 
   val NATIVE_HIVEFILEFORMAT_WRITER_ENABLED =
     buildConf("spark.gluten.sql.native.hive.writer.enabled")

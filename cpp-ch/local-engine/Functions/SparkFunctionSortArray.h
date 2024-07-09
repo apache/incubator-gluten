@@ -32,7 +32,7 @@ namespace ErrorCodes
 /** Sort arrays, by values of its elements, or by values of corresponding elements of calculated expression (known as "schwartzsort").
   */
 template <bool positive>
-struct SparkArraySortImpl
+struct SparkSortArrayImpl
 {
     static bool needBoolean() { return false; }
     static bool needExpression() { return false; }
@@ -67,16 +67,16 @@ struct SparkArraySortImpl
         const ColumnWithTypeAndName * fixed_arguments [[maybe_unused]] = nullptr);
 };
 
-struct NameArraySort
+struct NameSortArray
 {
-    static constexpr auto name = "arraySortSpark";
+    static constexpr auto name = "sortArraySpark";
 };
-struct NameArrayReverseSort
+struct NameReverseSortArray
 {
-    static constexpr auto name = "arrayReverseSortSpark";
+    static constexpr auto name = "reverseSortArraySpark";
 };
 
-using SparkFunctionArraySort = FunctionArrayMapped<SparkArraySortImpl<true>, NameArraySort>;
-using SparkFunctionArrayReverseSort = FunctionArrayMapped<SparkArraySortImpl<false>, NameArrayReverseSort>;
+using SparkFunctionSortArray = FunctionArrayMapped<SparkSortArrayImpl<true>, NameSortArray>;
+using SparkFunctionReverseSortArray = FunctionArrayMapped<SparkSortArrayImpl<false>, NameReverseSortArray>;
 
 }

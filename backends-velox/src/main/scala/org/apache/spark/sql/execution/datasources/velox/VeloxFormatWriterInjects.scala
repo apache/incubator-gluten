@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.velox
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.datasource.DatasourceJniWrapper
 import org.apache.gluten.exception.GlutenException
@@ -73,6 +74,9 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
       cSchema.close()
     }
 
+    // FIXME: remove this once we support push-based write.
+    val queueSize = context.getConfiguration.getInt(GlutenConfig.VELOX_WRITER_QUEUE_SIZE.key, 64)
+
     val writeQueue =
       new VeloxWriteQueue(
         TaskResources.getLocalTaskContext(),
@@ -80,7 +84,8 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
         arrowSchema,
         allocator,
         datasourceJniWrapper,
-        filePath)
+        filePath,
+        queueSize)
 
     new OutputWriter {
       override def write(row: InternalRow): Unit = {

@@ -199,6 +199,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
             case d: DecimalType =>
               val decimal = row.getDecimal(i, d.precision, d.scale).toString()
               node.put("value", decimal)
+            case _: TimestampType => node.put("value", row.getLong(i))
             case _ =>
               throw new IllegalArgumentException(
                 s"Unsupported data type ${ordering.dataType.toString}")
@@ -244,6 +245,7 @@ object RangePartitionerBoundsGenerator {
       case _: StringType => true
       case _: DateType => true
       case _: DecimalType => true
+      case _: TimestampType => true
       case _ => false
     }
   }

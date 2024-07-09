@@ -1911,4 +1911,10 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     val resultLength = df.collect().length
     assert(resultLength > 25000 && resultLength < 35000)
   }
+
+  test("Deduplicate sorting keys") {
+    runQueryAndCompare("select * from lineitem order by l_orderkey, l_orderkey") {
+      checkGlutenOperatorMatch[SortExecTransformer]
+    }
+  }
 }
