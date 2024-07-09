@@ -24,7 +24,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.StructField
 
 import org.apache.commons.io.FileUtils
 
@@ -196,7 +196,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       skipFallBackAssert: Boolean = false)(customCheck: DataFrame => Unit): Unit = {
 
     val sqlFile = tpcdsQueries + "/" + queryNum + ".sql"
-    val df = spark.sql(Source.fromFile(new File(sqlFile), "UTF-8").mkString)
+    val sql = Source.fromFile(new File(sqlFile), "UTF-8").mkString
+    val df = spark.sql(sql)
 
     if (compareResult) {
       val fields = new util.ArrayList[StructField]()
@@ -208,13 +209,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
 
       var expectedAnswer: Seq[Row] = null
       withSQLConf(vanillaSparkConfs(): _*) {
-        expectedAnswer = spark.read
-          .option("delimiter", "|-|")
-          .option("nullValue", "null")
-          .schema(StructType.apply(fields))
-          .csv(queriesResults + "/" + queryNum + ".out")
-          .toDF()
-          .collect()
+        expectedAnswer = spark.sql(sql).collect()
       }
       checkAnswer(df, expectedAnswer)
       // using WARN to guarantee printed
