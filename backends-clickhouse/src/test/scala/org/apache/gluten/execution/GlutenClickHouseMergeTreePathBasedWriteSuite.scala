@@ -20,6 +20,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
+import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.functions._
@@ -1304,6 +1305,35 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
 
     dataFileList = dataPathFile.list(fileFilter)
     assertResult(6)(dataFileList.length)
+  }
+
+  test("GLUTEN-6378: Support delta count optimizer for the MergeTree format") {
+    val dataPath = s"$basePath/lineitem_mergetree_count_opti"
+    clearDataPath(dataPath)
+
+    val sourceDF = spark.sql(s"""
+                                |select * from lineitem
+                                |""".stripMargin)
+
+    sourceDF.write
+      .format("clickhouse")
+      .partitionBy("l_shipdate", "l_returnflag")
+      .option("clickhouse.orderByKey", "l_orderkey")
+      .option("clickhouse.primaryKey", "l_orderkey")
+      .mode(SaveMode.Append)
+      .save(dataPath)
+
+    val df = spark.read
+      .format("clickhouse")
+      .load(dataPath)
+      .groupBy()
+      .count()
+    val result = df.collect()
+    assertResult(600572)(result(0).getLong(0))
+    // Spark 3.2 + Delta 2.0 does not support this feature
+    if (!sparkVersion.equals("3.2")) {
+      assert(df.queryExecution.executedPlan.isInstanceOf[LocalTableScanExec])
+    }
   }
 }
 // scalastyle:off line.size.limit

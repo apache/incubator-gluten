@@ -739,8 +739,13 @@ class GlutenClickHouseTPCHBucketSuite
     runSql(SQL6)(
       df => {
         checkResult(df, Array(Row(600572)))
-        // there is a shuffle between two phase hash aggregates.
-        checkHashAggregateCount(df, 2)
+        if (sparkVersion.equals("3.2")) {
+          // there is a shuffle between two phase hash aggregate.
+          checkHashAggregateCount(df, 2)
+        } else {
+          // the delta will use the delta log meta to response this sql
+          checkHashAggregateCount(df, 0)
+        }
       })
 
     // test sort aggregates
