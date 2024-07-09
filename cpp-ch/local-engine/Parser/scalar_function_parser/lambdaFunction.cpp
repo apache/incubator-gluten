@@ -71,21 +71,6 @@ public:
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "getCHFunctionName is not implemented for LambdaFunction");
     }
 
-    DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
-        const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAGPtr & actions_dag) const override
-    {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "parseFunctionArguments is not implemented for LambdaFunction");
-    }
- 
-    const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
-        const substrait::Expression_ScalarFunction & substrait_func,
-        const DB::ActionsDAG::Node * func_node,
-        DB::ActionsDAGPtr & actions_dag) const override
-    {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "convertNodeTypeIfNeeded is not implemented for NamedLambdaVariable");
-    }
-
     const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAGPtr & actions_dag) const override
     {
         /// Some special cases, for example, `transform(arr, x -> concat(arr, array(x)))` refers to
@@ -165,6 +150,21 @@ public:
         const auto * result = &actions_dag->addFunction(function_capture, lambda_children, lambda_body_node->result_name);
         return result;
     }
+protected:
+    DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
+        const substrait::Expression_ScalarFunction & substrait_func,
+        DB::ActionsDAGPtr & actions_dag) const override
+    {
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "parseFunctionArguments is not implemented for LambdaFunction");
+    }
+ 
+    const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
+        const substrait::Expression_ScalarFunction & substrait_func,
+        const DB::ActionsDAG::Node * func_node,
+        DB::ActionsDAGPtr & actions_dag) const override
+    {
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "convertNodeTypeIfNeeded is not implemented for NamedLambdaVariable");
+    }
 };
 
 static FunctionParserRegister<LambdaFunction> register_lambda_function;
@@ -184,21 +184,6 @@ public:
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "getCHFunctionName is not implemented for NamedLambdaVariable");
     }
 
-    DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
-        const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAGPtr & actions_dag) const override
-    {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "parseFunctionArguments is not implemented for NamedLambdaVariable");
-    }
-
-    const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
-        const substrait::Expression_ScalarFunction & substrait_func,
-        const DB::ActionsDAG::Node * func_node,
-        DB::ActionsDAGPtr & actions_dag) const override
-    {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "convertNodeTypeIfNeeded is not implemented for NamedLambdaVariable");
-    }
-
     const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAGPtr & actions_dag) const override
     {
         auto [_, col_name_field] = parseLiteral(substrait_func.arguments()[0].value().literal());
@@ -212,6 +197,21 @@ public:
             return &(actions_dag->addInput(col_name, type));
         }
         return *it;
+    }
+protected:
+    DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
+        const substrait::Expression_ScalarFunction & substrait_func,
+        DB::ActionsDAGPtr & actions_dag) const override
+    {
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "parseFunctionArguments is not implemented for NamedLambdaVariable");
+    }
+
+    const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
+        const substrait::Expression_ScalarFunction & substrait_func,
+        const DB::ActionsDAG::Node * func_node,
+        DB::ActionsDAGPtr & actions_dag) const override
+    {
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "convertNodeTypeIfNeeded is not implemented for NamedLambdaVariable");
     }
 };
 

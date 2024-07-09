@@ -112,7 +112,6 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ShiftLeft, shiftleft, bitShiftLeft);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ShiftRight, shiftright, bitShiftRight);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(CheckOverflow, check_overflow, checkDecimalOverflowSpark);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Rand, rand, randCanonical);
-//REGISTER_COMMON_SCALAR_FUNCTION_PARSER(IsNaN, isnan, isNaN);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Bin, bin, sparkBin);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Rint, rint, sparkRint);
 
@@ -131,15 +130,12 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(RegexpReplace, regexp_replace, replaceReg
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(RegexpExtractAll, regexp_extract_all, regexpExtractAllSpark);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Rlike, rlike, match);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Ascii, ascii, ascii);
-//REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Split, split, splitByRegexp);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ConcatWs, concat_ws, concat_ws);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Base64, base64, base64Encode);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Unbase64, unbase64, base64Decode);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Lpad, lpad, leftPadUTF8);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Rpad, rpad, rightPadUTF8);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Translate, translate, translateUTF8);
-//REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Repeat, repeat, repeat);
-//REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Space, space, space);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Initcap, initcap, initcapUTF8);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Conv, conv, sparkConv);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Uuid, uuid, generateUUIDv4);
@@ -178,16 +174,11 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MapKeys, map_keys, mapKeys);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MapValues, map_values, mapValues);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MapFromArrays, map_from_arrays, mapFromArrays);
 
-// tuple functions
-//REGISTER_COMMON_SCALAR_FUNCTION_PARSER(GetStructField, get_struct_field, sparkTupleElement);
-//REGISTER_COMMON_SCALAR_FUNCTION_PARSER(GetArrayStructFields, get_array_struct_fields, sparkTupleElement);
-//REGISTER_COMMON_SCALAR_FUNCTION_PARSER(NamedStruct, named_struct, tuple);
 
 // json functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(FlattenJsonStringOnRequired, flattenJSONStringOnRequired, flattenJSONStringOnRequired);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(GetJsonObject, get_json_object, get_json_object);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ToJson, to_json, toJSONString);
-//REGISTER_COMMON_SCALAR_FUNCTION_PARSER(FromJson, from_json, JSONExtract);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(JsonTuple, json_tuple, json_tuple);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(JsonArrayLen, json_array_length, JSONArrayLength);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MakeDecimal, make_decimal, makeDecimalSpark);
