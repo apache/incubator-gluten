@@ -190,9 +190,10 @@ void runShuffle(
   {
     gluten::ScopedTimer timer(&totalTime);
     while (resultIter->hasNext()) {
-      GLUTEN_THROW_NOT_OK(shuffleWriter->write(resultIter->next(), ShuffleWriter::kMinMemLimit));
+      GLUTEN_THROW_NOT_OK(
+          shuffleWriter->write(resultIter->next(), ShuffleWriter::kMaxMemLimit - shuffleWriter->cachedPayloadSize()));
     }
-    GLUTEN_THROW_NOT_OK(shuffleWriter->stop(ShuffleWriter::kMinMemLimit));
+    GLUTEN_THROW_NOT_OK(shuffleWriter->stop(ShuffleWriter::kMaxMemLimit - shuffleWriter->cachedPayloadSize()));
   }
 
   populateWriterMetrics(shuffleWriter, totalTime, metrics);

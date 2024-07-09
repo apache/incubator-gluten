@@ -37,6 +37,8 @@ class ShuffleWriter : public Reclaimable {
  public:
   static constexpr int64_t kMinMemLimit = 128LL * 1024 * 1024;
 
+  static constexpr int64_t kMaxMemLimit = 1024LL * 1024 * 1024;
+
   virtual arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
 
   virtual arrow::Status stop(int64_t memLimit) = 0;
