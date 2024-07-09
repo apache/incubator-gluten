@@ -51,6 +51,8 @@ public:
         throttler = std::make_shared<DB::Throttler>(max_speed);
     }
 
+    DB::DiskTransactionPtr createTransaction() override;
+
     void createDirectory(const String & path) override;
 
     void createDirectories(const String & path) override;
