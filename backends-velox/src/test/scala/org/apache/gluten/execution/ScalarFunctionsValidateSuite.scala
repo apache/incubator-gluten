@@ -1189,4 +1189,16 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
         }
     }
   }
+
+  test("levenshtein") {
+    runQueryAndCompare("select levenshtein(c_comment, c_address) from customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  testWithSpecifiedSparkVersion("levenshtein with limit", Some("3.5")) {
+    runQueryAndCompare("select levenshtein(c_comment, c_address, 3) from customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
 }
