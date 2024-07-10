@@ -159,7 +159,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   @deprecated def broadcastCacheTimeout: Int = conf.getConf(COLUMNAR_BROADCAST_CACHE_TIMEOUT)
 
-  def columnarShuffleSortThreshold: Int = conf.getConf(COLUMNAR_SHUFFLE_SORT_THRESHOLD)
+  def columnarShuffleSortPartitionsThreshold: Int =
+    conf.getConf(COLUMNAR_SHUFFLE_SORT_PARTITIONS_THRESHOLD)
+
+  def columnarShuffleSortColumnsThreshold: Int =
+    conf.getConf(COLUMNAR_SHUFFLE_SORT_COLUMNS_THRESHOLD)
 
   def columnarShuffleReallocThreshold: Double = conf.getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
 
@@ -956,11 +960,19 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_SHUFFLE_SORT_THRESHOLD =
-    buildConf("spark.gluten.sql.columnar.shuffle.sort.threshold")
+  val COLUMNAR_SHUFFLE_SORT_PARTITIONS_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.shuffle.sort.partitions.threshold")
       .internal()
       .doc("The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
         "shuffle will be used if the number of partitions is greater than this threshold.")
+      .intConf
+      .createWithDefault(100000)
+
+  val COLUMNAR_SHUFFLE_SORT_COLUMNS_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.shuffle.sort.columns.threshold")
+      .internal()
+      .doc("The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
+        "shuffle will be used if the number of columns is greater than this threshold.")
       .intConf
       .createWithDefault(100000)
 

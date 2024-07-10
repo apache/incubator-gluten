@@ -18,12 +18,16 @@ package org.apache.gluten.vectorized;
 
 public class GlutenSplitResult extends SplitResult {
   private final long splitBufferSize;
+  private final long sortTime;
+  private final long c2rTime;
 
   public GlutenSplitResult(
       long totalComputePidTime,
       long totalWriteTime,
       long totalEvictTime,
       long totalCompressTime,
+      long totalSortTime,
+      long totalC2RTime,
       long totalBytesWritten,
       long totalBytesEvicted,
       long splitBufferSize,
@@ -39,9 +43,19 @@ public class GlutenSplitResult extends SplitResult {
         partitionLengths,
         rawPartitionLengths);
     this.splitBufferSize = splitBufferSize;
+    this.sortTime = totalSortTime;
+    this.c2rTime = totalC2RTime;
   }
 
   public long getSplitBufferSize() {
     return splitBufferSize;
+  }
+
+  public long getSortTime() {
+    return sortTime;
+  }
+
+  public long getC2RTime() {
+    return c2rTime;
   }
 }

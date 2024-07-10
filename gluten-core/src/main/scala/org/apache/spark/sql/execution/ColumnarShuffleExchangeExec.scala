@@ -52,15 +52,15 @@ case class ColumnarShuffleExchangeExec(
   private[sql] lazy val readMetrics =
     SQLColumnarShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
 
-  val isSortBasedShuffle: Boolean =
-    outputPartitioning.numPartitions > GlutenConfig.getConf.columnarShuffleSortThreshold
+  val useSortBasedShuffle: Boolean =
+    ColumnarShuffleExchangeExec.useSortBasedShuffle(outputPartitioning, output)
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance
       .genColumnarShuffleExchangeMetrics(
         sparkContext,
-        isSortBasedShuffle) ++ readMetrics ++ writeMetrics
+        useSortBasedShuffle) ++ readMetrics ++ writeMetrics
 
   @transient lazy val inputColumnarRDD: RDD[ColumnarBatch] = child.executeColumnar()
 
@@ -88,7 +88,7 @@ case class ColumnarShuffleExchangeExec(
       serializer,
       writeMetrics,
       metrics,
-      isSortBasedShuffle)
+      useSortBasedShuffle)
   }
 
   // 'shuffleDependency' is only needed when enable AQE.
@@ -109,7 +109,7 @@ case class ColumnarShuffleExchangeExec(
 
   // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
-    .createColumnarBatchSerializer(schema, metrics, isSortBasedShuffle)
+    .createColumnarBatchSerializer(schema, metrics, useSortBasedShuffle)
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
@@ -209,6 +209,12 @@ object ColumnarShuffleExchangeExec extends Logging {
       writeMetrics,
       metrics,
       isSortBasedShuffle)
+  }
+
+  def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean = {
+    partitioning != SinglePartition &&
+    (partitioning.numPartitions >= GlutenConfig.getConf.columnarShuffleSortPartitionsThreshold ||
+      output.size >= GlutenConfig.getConf.columnarShuffleSortColumnsThreshold)
   }
 
   class DummyPairRDDWithPartitions(@transient private val sc: SparkContext, numPartitions: Int)

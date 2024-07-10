@@ -318,6 +318,11 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
     std::optional<uint32_t>& partitionBufferInUse_;
   };
 
+  std::shared_ptr<arrow::Schema> schema_;
+
+  // Column index, partition id, buffers.
+  std::vector<std::vector<std::vector<std::shared_ptr<arrow::ResizableBuffer>>>> partitionBuffers_;
+
   BinaryArrayResizeState binaryArrayResizeState_{};
 
   bool hasComplexType_ = false;

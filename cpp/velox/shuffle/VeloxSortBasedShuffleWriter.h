@@ -102,6 +102,7 @@ class VeloxSortBasedShuffleWriter final : public VeloxShuffleWriter {
   uint32_t currentInputColumnBytes_ = 0;
 
   SortState sortState_{kSortInit};
+  bool stopped_{false};
 }; // class VeloxSortBasedShuffleWriter
 
 } // namespace gluten

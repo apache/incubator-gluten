@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "shuffle/Payload.h"
 #include "shuffle/ShuffleReader.h"
 #include "velox/type/Type.h"
@@ -41,7 +42,7 @@ class VeloxColumnarBatchDeserializer final : public ColumnarBatchIterator {
       int64_t& deserializeTime,
       int64_t& decompressTime);
 
-  std::shared_ptr<ColumnarBatch> next();
+  std::shared_ptr<ColumnarBatch> next() override;
 
  private:
   std::shared_ptr<arrow::io::InputStream> in_;
@@ -59,6 +60,45 @@ class VeloxColumnarBatchDeserializer final : public ColumnarBatchIterator {
 
   std::unique_ptr<InMemoryPayload> merged_{nullptr};
   bool reachEos_{false};
+};
+
+class VeloxRowVectorDeserializer final : public ColumnarBatchIterator {
+ public:
+  VeloxRowVectorDeserializer(
+      std::shared_ptr<arrow::io::InputStream> in,
+      const std::shared_ptr<arrow::Schema>& schema,
+      const std::shared_ptr<arrow::util::Codec>& codec,
+      const facebook::velox::RowTypePtr& rowType,
+      int32_t batchSize,
+      arrow::MemoryPool* memoryPool,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+      int64_t& deserializeTime,
+      int64_t& decompressTime);
+
+  std::shared_ptr<ColumnarBatch> next() override;
+
+ private:
+  std::shared_ptr<arrow::io::InputStream> in_;
+  std::shared_ptr<arrow::Schema> schema_;
+  std::shared_ptr<arrow::Schema> serializedSchema_;
+  std::shared_ptr<arrow::util::Codec> codec_;
+  facebook::velox::RowTypePtr rowType_;
+  uint32_t batchSize_;
+  arrow::MemoryPool* arrowPool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  int64_t& deserializeTime_;
+  int64_t& decompressTime_;
+
+  std::shared_ptr<VeloxColumnarBatchSerializer> deserializer_;
+
+  std::list<std::pair<uint32_t, facebook::velox::BufferPtr>> cachedInputs_;
+  uint32_t cachedRows_{0};
+  bool reachEos_{false};
+
+  uint32_t rowOffset_{0};
+  size_t byteOffset_{0};
+
+  std::shared_ptr<ColumnarBatch> deserializeToBatch();
 };
 
 class VeloxInputStream : public facebook::velox::ByteInputStream {

@@ -47,7 +47,7 @@ class ColumnarBatchSerializer(
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
     deserializeTime: SQLMetric,
-    decompressTime: Option[SQLMetric],
+    decompressTime: SQLMetric,
     isSort: Boolean)
   extends Serializer
   with Serializable {
@@ -73,7 +73,7 @@ private class ColumnarBatchSerializerInstance(
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
     deserializeTime: SQLMetric,
-    decompressTime: Option[SQLMetric],
+    decompressTime: SQLMetric,
     shuffleWriterType: String)
   extends SerializerInstance
   with Logging {
@@ -113,10 +113,7 @@ private class ColumnarBatchSerializerInstance(
       val readerMetrics = new ShuffleReaderMetrics()
       jniWrapper.populateMetrics(shuffleReaderHandle, readerMetrics)
       deserializeTime += readerMetrics.getDeserializeTime
-      decompressTime match {
-        case Some(t) => t += readerMetrics.getDecompressTime
-        case None =>
-      }
+      decompressTime += readerMetrics.getDecompressTime
 
       jniWrapper.close(shuffleReaderHandle)
       cSchema.release()

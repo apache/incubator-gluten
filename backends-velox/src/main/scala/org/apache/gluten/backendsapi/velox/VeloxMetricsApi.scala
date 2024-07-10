@@ -258,27 +258,30 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       sparkContext: SparkContext,
       isSort: Boolean): Map[String, SQLMetric] = {
     val baseMetrics = Map(
-      "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
       "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions"),
+      "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
       "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
-      "splitBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "split buffer size"),
-      "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split"),
-      "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to spill"),
-      "deserializeTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to deserialize"),
       "avgReadBatchNumRows" -> SQLMetrics
         .createAverageMetric(sparkContext, "avg read batch num rows"),
       "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
       "numOutputRows" -> SQLMetrics
         .createMetric(sparkContext, "number of output rows"),
       "inputBatches" -> SQLMetrics
-        .createMetric(sparkContext, "number of input batches")
+        .createMetric(sparkContext, "number of input batches"),
+      "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to spill"),
+      "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to compress"),
+      "decompressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to decompress"),
+      "deserializeTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to deserialize")
     )
     if (isSort) {
-      baseMetrics
+      baseMetrics ++ Map(
+        "sortTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to shuffle sort"),
+        "c2rTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to shuffle c2r")
+      )
     } else {
       baseMetrics ++ Map(
-        "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to compress"),
-        "decompressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to decompress")
+        "splitBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "split buffer size"),
+        "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split")
       )
     }
   }

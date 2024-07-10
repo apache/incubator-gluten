@@ -77,6 +77,14 @@ class ShuffleWriter : public Reclaimable {
     return metrics_.totalCompressTime;
   }
 
+  virtual int64_t totalSortTime() const {
+    return 0;
+  }
+
+  virtual int64_t totalC2RTime() const {
+    return 0;
+  }
+
   const std::vector<int64_t>& partitionLengths() const {
     return metrics_.partitionLengths;
   }
@@ -99,7 +107,9 @@ class ShuffleWriter : public Reclaimable {
         options_(std::move(options)),
         pool_(pool),
         partitionBufferPool_(std::make_unique<ShuffleMemoryPool>(pool)),
-        partitionWriter_(std::move(partitionWriter)) {}
+        partitionWriter_(std::move(partitionWriter)) {
+    partitioner_ = Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId);
+  }
 
   virtual ~ShuffleWriter() = default;
 
@@ -113,13 +123,6 @@ class ShuffleWriter : public Reclaimable {
   std::unique_ptr<ShuffleMemoryPool> partitionBufferPool_;
 
   std::unique_ptr<PartitionWriter> partitionWriter_;
-
-  std::vector<int64_t> rowVectorLengths_;
-
-  std::shared_ptr<arrow::Schema> schema_;
-
-  // Column index, partition id, buffers.
-  std::vector<std::vector<std::vector<std::shared_ptr<arrow::ResizableBuffer>>>> partitionBuffers_;
 
   std::shared_ptr<Partitioner> partitioner_;
 

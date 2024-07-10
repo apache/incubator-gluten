@@ -175,7 +175,9 @@ class ColumnarShuffleWriter[K, V](
         }
         val startTime = System.nanoTime()
         jniWrapper.write(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
-        dep.metrics("splitTime").add(System.nanoTime() - startTime)
+        if (!isSort) {
+          dep.metrics("splitTime").add(System.nanoTime() - startTime)
+        }
         dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
@@ -188,20 +190,22 @@ class ColumnarShuffleWriter[K, V](
     assert(nativeShuffleWriter != -1L)
     splitResult = jniWrapper.stop(nativeShuffleWriter)
     closeShuffleWriter()
-
-    dep
-      .metrics("splitTime")
-      .add(
-        System.nanoTime() - startTime - splitResult.getTotalSpillTime -
-          splitResult.getTotalWriteTime -
-          splitResult.getTotalCompressTime)
+    if (!isSort) {
+      dep
+        .metrics("splitTime")
+        .add(
+          System.nanoTime() - startTime - splitResult.getTotalSpillTime -
+            splitResult.getTotalWriteTime -
+            splitResult.getTotalCompressTime)
+      dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
+    } else {
+      dep.metrics("sortTime").add(splitResult.getSortTime)
+      dep.metrics("c2rTime").add(splitResult.getC2RTime)
+    }
     dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
-    dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
-    if (!isSort) {
-      dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
-    }
+    dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
