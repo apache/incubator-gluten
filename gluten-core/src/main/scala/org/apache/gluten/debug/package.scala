@@ -21,7 +21,7 @@ import org.apache.gluten.execution.WholeStageTransformer
 import org.apache.spark.sql.execution.QueryExecution
 
 package object debug {
-  implicit class queryExecutionImplicit(qe: QueryExecution) {
+  implicit class QueryExecutionImplicit(qe: QueryExecution) {
     def debugWholeStageTransform(): Unit = {
       val executedPlan = qe.executedPlan
       executedPlan.foreach {
