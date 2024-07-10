@@ -230,9 +230,9 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     WholeStageTransformContext(planNode, substraitContext)
   }
 
-  def doWholeStageTransform(): WholeStageTransformContext = {
+  def doWholeStageTransform(forceCacheContent: Boolean = false): WholeStageTransformContext = {
     val context = generateWholeStageTransformContext()
-    if (conf.getConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT)) {
+    if (forceCacheContent || conf.getConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT)) {
       wholeStageTransformerContext = Some(context)
     }
     context

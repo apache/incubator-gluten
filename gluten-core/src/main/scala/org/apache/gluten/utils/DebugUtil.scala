@@ -17,8 +17,9 @@
 package org.apache.gluten.utils
 
 import org.apache.gluten.GlutenConfig
-
+import org.apache.gluten.execution.WholeStageTransformer
 import org.apache.spark.TaskContext
+import org.apache.spark.sql.execution.QueryExecution
 
 object DebugUtil {
   // if specify taskId, then only do that task partition
@@ -40,5 +41,22 @@ object DebugUtil {
     }
 
     false
+  }
+
+  object debug {
+
+    implicit class queryExecutionImplicit(qe: QueryExecution) {
+      def debugWholeStageTransform(): Unit = {
+        val executionPlan = qe.executedPlan
+        executionPlan.foreach {
+          case w: WholeStageTransformer => w.doWholeStageTransform(true)
+          case _ =>
+        }
+
+        // scalastyle:off println
+        println(executionPlan.treeString)
+        // scalastyle:on println
+      }
+    }
   }
 }
