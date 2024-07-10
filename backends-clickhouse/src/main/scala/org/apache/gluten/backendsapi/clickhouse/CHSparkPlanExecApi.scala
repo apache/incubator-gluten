@@ -704,7 +704,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         val columnName = s"${aliasExpr.name}_${aliasExpr.exprId.id}"
         val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
         wExpression.windowFunction match {
-          case wf @ (RowNumber() | Rank(_) | DenseRank(_)) =>
+          case wf @ (RowNumber() | Rank(_) | DenseRank(_) | PercentRank(_)) =>
             val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
