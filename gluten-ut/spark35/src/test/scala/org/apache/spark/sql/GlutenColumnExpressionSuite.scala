@@ -22,7 +22,8 @@ import org.apache.spark.sql.functions.{expr, input_file_name}
 class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTestsTrait {
   import testImplicits._
   testGluten(
-    "input_file_name, input_file_block_start and input_file_block_length should fall back if scan falls back") {
+    "input_file_name, input_file_block_start and input_file_block_length " +
+      "should fall back if scan falls back") {
     withSQLConf(("spark.gluten.sql.columnar.filescan", "false")) {
       withTempPath {
         dir =>
