@@ -84,6 +84,8 @@ public class CelebornShuffleManager implements ShuffleManager {
 
   private final SparkConf conf;
   private final CelebornConf celebornConf;
+  private final SparkConf rowBasedConf;
+  private final CelebornConf rowBasedCelebornConf;
   // either be "{appId}_{appAttemptId}" or "{appId}"
   private String appUniqueId;
 
@@ -120,6 +122,14 @@ public class CelebornShuffleManager implements ShuffleManager {
     this.throwsFetchFailure = CelebornUtils.getThrowsFetchFailure(celebornConf);
 
     this.celebornDefaultCodec = CelebornConf.SHUFFLE_COMPRESSION_CODEC().defaultValueString();
+
+    this.rowBasedConf = conf.clone();
+    this.rowBasedCelebornConf = celebornConf.clone();
+    if ("none"
+        .equalsIgnoreCase(conf.get(SPARK_CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec))) {
+      rowBasedConf.set(SPARK_CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec);
+      rowBasedCelebornConf.set(CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec);
+    }
   }
 
   private boolean isDriver() {
@@ -142,13 +152,9 @@ public class CelebornShuffleManager implements ShuffleManager {
     if (_vanillaCelebornShuffleManager == null) {
       synchronized (this) {
         if (_vanillaCelebornShuffleManager == null) {
-          if ("none"
-              .equalsIgnoreCase(
-                  conf.get(SPARK_CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec))) {
-            conf.set(SPARK_CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec);
-          }
           _vanillaCelebornShuffleManager =
-              SparkUtils.instantiateClass(VANILLA_CELEBORN_SHUFFLE_MANAGER_NAME, conf, isDriver());
+              SparkUtils.instantiateClass(
+                  VANILLA_CELEBORN_SHUFFLE_MANAGER_NAME, rowBasedConf, isDriver());
         }
       }
     }
@@ -345,11 +351,9 @@ public class CelebornShuffleManager implements ShuffleManager {
     if (handle instanceof CelebornShuffleHandle) {
       @SuppressWarnings("unchecked")
       CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
-      if (_vanillaCelebornShuffleManager != null
-          && "none"
-              .equalsIgnoreCase(
-                  celebornConf.get(CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec))) {
-        celebornConf.set(CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec);
+      CelebornConf readerConf = celebornConf;
+      if (_vanillaCelebornShuffleManager != null) {
+        readerConf = rowBasedCelebornConf;
       }
       return CelebornUtils.getCelebornShuffleReader(
           h,
@@ -358,7 +362,7 @@ public class CelebornShuffleManager implements ShuffleManager {
           startMapIndex,
           endMapIndex,
           context,
-          celebornConf,
+          readerConf,
           metrics,
           shuffleIdTracker);
     }
