@@ -762,6 +762,8 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
     settings.set("precise_float_parsing", true);
+    settings.set("enable_named_columns_in_function_tuple", false);
+
     if (backend_conf_map.contains(GLUTEN_TASK_OFFHEAP))
     {
         auto task_memory = std::stoull(backend_conf_map.at(GLUTEN_TASK_OFFHEAP));

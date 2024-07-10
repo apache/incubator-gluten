@@ -29,12 +29,12 @@ namespace debug
 {
 void headBlock(const DB::Block & block, size_t count)
 {
-    std::cerr << "============Block============" << std::endl;
-    std::cerr << block.dumpStructure() << std::endl;
+    std::cout << "============Block============" << std::endl;
+    std::cout << block.dumpStructure() << std::endl;
     // print header
     for (const auto & name : block.getNames())
-        std::cerr << name << "\t";
-    std::cerr << std::endl;
+        std::cout << name << "\t";
+    std::cout << std::endl;
 
     // print rows
     for (size_t row = 0; row < std::min(count, block.rows()); ++row)
@@ -45,36 +45,36 @@ void headBlock(const DB::Block & block, size_t count)
             auto col = block.getByPosition(column).column;
 
             if (column > 0)
-                std::cerr << "\t";
+                std::cout << "\t";
             DB::WhichDataType which(type);
             if (which.isAggregateFunction())
             {
-                std::cerr << "Nan";
+                std::cout << "Nan";
             }
             else if (col->isNullAt(row))
             {
-                std::cerr << "null";
+                std::cout << "null";
             }
             else
             {
-                std::cerr << toString((*col)[row]);
+                std::cout << toString((*col)[row]);
             }
         }
-        std::cerr << std::endl;
+        std::cout << std::endl;
     }
 }
 
 void headColumn(const DB::ColumnPtr & column, size_t count)
 {
-    std::cerr << "============Column============" << std::endl;
+    std::cout << "============Column============" << std::endl;
 
     // print header
-    std::cerr << column->getName() << "\t";
-    std::cerr << std::endl;
+    std::cout << column->getName() << "\t";
+    std::cout << std::endl;
 
     // print rows
     for (size_t row = 0; row < std::min(count, column->size()); ++row)
-        std::cerr << toString((*column)[row]) << std::endl;
+        std::cout << toString((*column)[row]) << std::endl;
 }
 
 }
