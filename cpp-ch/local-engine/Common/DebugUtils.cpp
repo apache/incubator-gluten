@@ -48,17 +48,11 @@ void headBlock(const DB::Block & block, size_t count)
                 std::cout << "\t";
             DB::WhichDataType which(type);
             if (which.isAggregateFunction())
-            {
                 std::cout << "Nan";
-            }
             else if (col->isNullAt(row))
-            {
                 std::cout << "null";
-            }
             else
-            {
                 std::cout << toString((*col)[row]);
-            }
         }
         std::cout << std::endl;
     }

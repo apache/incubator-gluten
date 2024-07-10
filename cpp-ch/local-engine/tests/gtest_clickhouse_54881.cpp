@@ -34,8 +34,7 @@ TEST(Clickhouse, PR54881)
     const auto context1 = DB::Context::createCopy(SerializedPlanParser::global_context);
     // context1->setSetting("enable_named_columns_in_function_tuple", DB::Field(true));
     auto settingxs = context1->getSettingsRef();
-    EXPECT_FALSE(settingxs.enable_named_columns_in_function_tuple) <<
-        "GLUTEN NEED set enable_named_columns_in_function_tuple to false";
+    EXPECT_FALSE(settingxs.enable_named_columns_in_function_tuple) << "GLUTEN NEED set enable_named_columns_in_function_tuple to false";
 
     const std::string split_template
         = R"({"items":[{"uriFile":"{replace_local_files}","partitionIndex":"0","length":"1529","parquet":{},"schema":{},"metadataColumns":[{}]}]})";
@@ -46,7 +45,7 @@ TEST(Clickhouse, PR54881)
     parser.addSplitInfo(test::pb_util::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
 
     const auto local_executor = parser.createExecutor<true>(
-       {reinterpret_cast<const char *>(gresource_embedded_pr_54881_jsonData), gresource_embedded_pr_54881_jsonSize});
+        {reinterpret_cast<const char *>(gresource_embedded_pr_54881_jsonData), gresource_embedded_pr_54881_jsonSize});
 
     EXPECT_TRUE(local_executor->hasNext());
     const Block & block = *local_executor->nextColumnar();
@@ -56,12 +55,12 @@ TEST(Clickhouse, PR54881)
     EXPECT_EQ(2, block.columns());
     const auto & col_0 = *(block.getColumns()[0]);
     EXPECT_EQ(col_0.getInt(0), 9);
-    EXPECT_EQ(col_0.getInt(1),10);
+    EXPECT_EQ(col_0.getInt(1), 10);
 
     Field field;
     const auto & col_1 = *(block.getColumns()[1]);
     col_1.get(0, field);
-    const Tuple& row_0 = field.get<DB::Tuple>();
+    const Tuple & row_0 = field.get<DB::Tuple>();
     EXPECT_EQ(2, row_0.size());
 
     Int64 actual{-1};
@@ -72,7 +71,7 @@ TEST(Clickhouse, PR54881)
     EXPECT_EQ(10, actual);
 
     col_1.get(1, field);
-    const Tuple& row_1 = field.get<DB::Tuple>();
+    const Tuple & row_1 = field.get<DB::Tuple>();
     EXPECT_EQ(2, row_1.size());
     EXPECT_TRUE(row_1[0].tryGet<Int64>(actual));
     EXPECT_EQ(10, actual);
