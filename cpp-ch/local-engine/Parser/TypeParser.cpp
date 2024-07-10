@@ -280,10 +280,13 @@ DB::Block TypeParser::buildBlockFromNamedStruct(
             auto args_types = tuple_type->getElements();
             AggregateFunctionProperties properties;
             auto tmp_ctx = DB::Context::createCopy(SerializedPlanParser::global_context);
+            SerializedPlanParser tmp_plan_parser(tmp_ctx);
+            auto function_parser = AggregateFunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
             /// This may remove elements from args_types, because some of them are used to determine CH function name, but not needed for the following
             /// call `AggregateFunctionFactory::instance().get`
-            ch_type = RelParser::getAggregateFunction(name_parts[3], args_types, properties)
-                      ->getStateType();
+            auto agg_function_name = function_parser->getCHFunctionName(args_types);
+            ch_type = RelParser::getAggregateFunction(agg_function_name, args_types, properties, function_parser->getDefaultFunctionParameters())
+                                 ->getStateType();
         }
 
         internal_cols.push_back(ColumnWithTypeAndName(ch_type, name));
