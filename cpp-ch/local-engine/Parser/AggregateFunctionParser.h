@@ -92,7 +92,7 @@ public:
 
     /// In most cases, arguments size and types are enough to determine the CH function implementation.
     /// It is only be used in TypeParser::buildBlockFromNamedStruct
-    /// Users are allowed to modify arg types to make it fit for ggregateFunctionFactory::instance().get(...) in TypeParser::buildBlockFromNamedStruct
+    /// Users are allowed to modify arg types to make it fit for AggregateFunctionFactory::instance().get(...) in TypeParser::buildBlockFromNamedStruct
     virtual String getCHFunctionName(DB::DataTypes & args) const = 0;
 
     /// Do some preprojections for the function arguments, and return the necessary arguments for the CH function.

@@ -21,27 +21,27 @@ namespace local_engine
 {
 
 /*
-spark: approx_percentile(col, percentage [, accuracy])
-1. When percentage is an array literal, spark returns an array of percentiles, corresponding to CH: quantilesGK(accuracy, percentage[0], ...)(col)
-1. Otherwise spark return a single percentile, corresponding to CH: quantileGK(accuracy, percentage)(col)
+spark: percentile(col, percentage, [, frequency])
+1. When percentage is an array literal, spark returns an array of percentiles, corresponding to CH: quantilesExact(percentage[0], ...)(col)
+1. Otherwise spark return a single percentile, corresponding to CH: quantileExact(percentage)(col)
 */
-class ApproxPercentileParser : public PercentileParserBase
+class PercentileParser : public PercentileParserBase
 {
 public:
-    static constexpr auto name = "approx_percentile";
+    static constexpr auto name = "percentile";
 
-    explicit ApproxPercentileParser(SerializedPlanParser * plan_parser_) : PercentileParserBase(plan_parser_) { }
+    explicit PercentileParser(SerializedPlanParser * plan_parser_) : PercentileParserBase(plan_parser_) { }
 
     String getName() const override { return name; }
-    String getCHSingularName() const override { return "quantileGK"; }
-    String getCHPluralName() const override { return "quantilesGK"; }
+    String getCHSingularName() const override { return "quantileExact"; }
+    String getCHPluralName() const override { return "quantilesExact"; }
 
     size_t expectedArgumentsNumberInFirstStage() const override { return 3; }
     size_t expectedTupleElementsNumberInSecondStage() const override { return 2; }
 
-    ColumnNumbers getArgumentsThatAreParameters() const override { return {2, 1}; }
-    DB::Array getDefaultFunctionParametersImpl() const override { return {10000, 1}; }
+    ColumnNumbers getArgumentsThatAreParameters() const override { return {1}; }
+    DB::Array getDefaultFunctionParametersImpl() const override { return {1}; }
 };
 
-static const AggregateFunctionParserRegister<ApproxPercentileParser> register_approx_percentile;
+static const AggregateFunctionParserRegister<PercentileParser> register_percentile;
 }
