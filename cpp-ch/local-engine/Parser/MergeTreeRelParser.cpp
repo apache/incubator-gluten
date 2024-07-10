@@ -383,13 +383,7 @@ void MergeTreeRelParser::collectColumns(const substrait::Expression & rel, NameS
 String MergeTreeRelParser::getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func)
 {
     auto func_signature = getPlanParser()->function_mapping.at(std::to_string(substrait_func.function_reference()));
-    auto pos = func_signature.find(':');
-    auto func_name = func_signature.substr(0, pos);
-
-    auto it = SCALAR_FUNCTIONS.find(func_name);
-    if (it == SCALAR_FUNCTIONS.end())
-        throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unsupported substrait function on mergetree prewhere parser: {}", func_name);
-    return it->second;
+    return getPlanParser()->getFunctionName(func_signature, substrait_func);
 }
 
 

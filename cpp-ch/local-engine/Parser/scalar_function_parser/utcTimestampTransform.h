@@ -44,14 +44,14 @@ public:
         /// Convert timezone value to clickhouse backend supported, i.e. GMT+8 -> Etc/GMT-8, +08:00 -> Etc/GMT-8
         if (substrait_func.arguments_size() != 2)
             throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s must have 2 arguments", getName());
-        
+
         const substrait::Expression & arg1 = substrait_func.arguments()[1].value();
         if (!arg1.has_literal() || !arg1.literal().has_string())
             throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,  "Function {}'s 2nd argument should be string literal", getName());
-        
+
         const String & arg1_literal = arg1.literal().string();
         String time_zone_val = DateTimeUtil::convertTimeZone(arg1_literal);
-        auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         auto nullable_string_type = DB::makeNullable(std::make_shared<DB::DataTypeString>());
         const auto * time_zone_node = addColumnToActionsDAG(actions_dag, nullable_string_type, time_zone_val);
         const auto * result_node = toFunctionNode(actions_dag, getCHFunctionName(substrait_func), {parsed_args[0], time_zone_node});

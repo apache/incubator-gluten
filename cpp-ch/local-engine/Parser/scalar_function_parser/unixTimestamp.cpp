@@ -53,7 +53,7 @@ public:
         2. If expr type is date/TIMESTAMP, ch function = toUnixTimestamp(expr, format)
         3. Otherwise, throw exception
         */
-        auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 2)
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
 

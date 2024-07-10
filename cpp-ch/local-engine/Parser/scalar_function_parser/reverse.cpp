@@ -14,21 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <Parser/AggregateFunctionParser.h>
+#include <Parser/FunctionParser.h>
+#include <Common/Exception.h>
+
+namespace DB
+{
+namespace ErrorCodes
+{
+    extern const int BAD_ARGUMENTS;
+}
+}
 
 namespace local_engine
 {
-class NtileParser : public AggregateFunctionParser
+class SparkFunctionReverseParser : public FunctionParser
 {
 public:
-    explicit NtileParser(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
-    ~NtileParser() override = default;
-    static constexpr auto name = "ntile";
+    SparkFunctionReverseParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    ~SparkFunctionReverseParser() override = default;
+
+    static constexpr auto name = "reverse";
     String getName() const override { return name; }
-    String getCHFunctionName(const CommonFunctionInfo &) const override { return "ntile"; }
-    String getCHFunctionName(DB::DataTypes &) const override { return "ntile"; }
-    DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
-        const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const override;
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & func) const override
+    {
+        if (func.output_type().has_list())
+            return "arrayReverse";
+        return "reverseUTF8";
+    }
 };
+static FunctionParserRegister<SparkFunctionReverseParser> register_reverse;
 }
