@@ -165,8 +165,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
     val result = joinType match {
       case _: InnerLike | LeftOuter | RightOuter => ValidationResult.ok
       case _ =>
-        ValidationResult.notOk(
-          s"$joinType join is not supported with BroadcastNestedLoopJoin")
+        ValidationResult.notOk(s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
 
     if (!result.isValid) {
