@@ -166,7 +166,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       case _: InnerLike | LeftOuter | RightOuter => ValidationResult.ok
       case _ =>
         ValidationResult.notOk(
-          s"Broadcast Nested Loop join is not supported join type $joinType in this backend")
+          s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
 
     if (!result.isValid) {

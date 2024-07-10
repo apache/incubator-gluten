@@ -141,17 +141,14 @@ void CrossRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & rig
         else
             new_left_cols.emplace_back(col.column, col.type, col.name);
     auto left_header = left.getCurrentDataStream().header.getColumnsWithTypeAndName();
-    if (left_header.size() > 0 && left_header[0].name != BlockUtil::VIRTUAL_ROW_COUNT_COLUMN)
-    {
-        project = ActionsDAG::makeConvertingActions(left_header, new_left_cols, ActionsDAG::MatchColumnsMode::Position);
+    project = ActionsDAG::makeConvertingActions(left_header, new_left_cols, ActionsDAG::MatchColumnsMode::Position);
 
-        if (project)
-        {
-            QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), project);
-            project_step->setStepDescription("Rename Left Table Name for broadcast join");
-            steps.emplace_back(project_step.get());
-            left.addStep(std::move(project_step));
-        }
+    if (project)
+    {
+        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), project);
+        project_step->setStepDescription("Rename Left Table Name for broadcast join");
+        steps.emplace_back(project_step.get());
+        left.addStep(std::move(project_step));
     }
 }
 
