@@ -59,7 +59,7 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
       "Just a dummy plan.")
   }
 
-  private val allDataTypes: Seq[DataType] =
+  private val allPrimitiveDataTypes: Seq[DataType] =
     Seq(
       ByteType,
       ShortType,
@@ -73,6 +73,14 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
       DateType,
       TimestampType)
 
+  private val allComplexDataTypes: Seq[DataType] = Seq(
+    // Currently, only check certain inner types, assuming they are representative
+    // for checking most expressions.
+    ArrayType(IntegerType),
+    MapType(StringType, IntegerType),
+    StructType(Seq(StructField("a", StringType), StructField("b", IntegerType)))
+  )
+
   def generateChildExpression(t: DataType): Expression = {
     t match {
       case _: IntegralType => Literal(null, t)
@@ -80,7 +88,10 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
       case StringType | BinaryType => Literal("123")
       case DateType => Literal(null, t)
       case TimestampType => Literal(null, t)
-      case _ => throw new UnsupportedOperationException
+      case ArrayType(_, _) => Literal(null, t)
+      case MapType(_, _, _) => Literal(null, t)
+      case StructType(_) => Literal(null, t)
+      case _ => throw new UnsupportedOperationException("Not supported type: " + t)
     }
   }
   def generateGlutenProjectPlan(expr: Expression): GlutenPlan = {
@@ -89,8 +100,8 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
   }
 
   test("cast") {
-    for (from <- allDataTypes) {
-      for (to <- allDataTypes) {
+    for (from <- allPrimitiveDataTypes ++ allComplexDataTypes) {
+      for (to <- allPrimitiveDataTypes ++ allComplexDataTypes) {
         if (to != from) {
           val castExpr = Cast(generateChildExpression(from), to)
           if (castExpr.checkInputDataTypes().isSuccess) {
@@ -124,8 +135,8 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
       if (
         expr != null && expr.isInstanceOf[ExpectsInputTypes] && expr.isInstanceOf[UnaryExpression]
       ) {
-        val acceptedTypes =
-          allDataTypes.filter(expr.asInstanceOf[ExpectsInputTypes].inputTypes.head.acceptsType(_))
+        val acceptedTypes = allPrimitiveDataTypes.filter(
+          expr.asInstanceOf[ExpectsInputTypes].inputTypes.head.acceptsType(_))
         if (acceptedTypes.isEmpty) {
           logWarning("Any given type is not supported for " + expr.getClass.getSimpleName)
         }
