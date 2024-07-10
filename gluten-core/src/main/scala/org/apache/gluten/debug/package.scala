@@ -23,14 +23,14 @@ import org.apache.spark.sql.execution.QueryExecution
 package object debug {
   implicit class queryExecutionImplicit(qe: QueryExecution) {
     def debugWholeStageTransform(): Unit = {
-      val executionPlan = qe.executedPlan
-      executionPlan.foreach {
+      val executedPlan = qe.executedPlan
+      executedPlan.foreach {
         case w: WholeStageTransformer => w.doWholeStageTransform(true)
         case _ =>
       }
 
       // scalastyle:off println
-      println(executionPlan.treeString)
+      println(executedPlan.treeString)
       // scalastyle:on println
     }
   }
