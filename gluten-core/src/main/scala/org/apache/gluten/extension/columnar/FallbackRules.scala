@@ -117,21 +117,24 @@ object FallbackTags {
     val tagOption = getOption(plan)
     val newTagOption = converter.from(t)
 
-    tagOption
-      .flatMap(
-        tag =>
-          newTagOption.map(
-            newTag => {
-              // New tag comes while the plan was already tagged, merge.
-              (tag, newTag) match {
-                case (_, exclusive: FallbackTag.Exclusive) =>
-                  exclusive
-                case (exclusive: FallbackTag.Exclusive, _) =>
-                  exclusive
-                case (l: FallbackTag.Appendable, r: FallbackTag.Appendable) =>
-                  FallbackTag.Appendable(s"${l.reason}; ${r.reason}")
-              }
-            }))
+    val mergedTagOption
+        : Option[FallbackTag] = // New tag comes while the plan was already tagged, merge.
+      (tagOption, newTagOption) match {
+        case (None, None) => None
+        case (None, tag) => tag
+        case (tag, None) => tag
+        case (Some(tag), Some(newTag)) =>
+          val mergedTag = (tag, newTag) match {
+            case (_, exclusive: FallbackTag.Exclusive) =>
+              exclusive
+            case (exclusive: FallbackTag.Exclusive, _) =>
+              exclusive
+            case (l: FallbackTag.Appendable, r: FallbackTag.Appendable) =>
+              FallbackTag.Appendable(s"${l.reason}; ${r.reason}")
+          }
+          Some(mergedTag)
+      }
+    mergedTagOption
       .foreach(mergedTag => plan.setTagValue(TAG, mergedTag))
   }
 
