@@ -169,14 +169,10 @@ case class ArrayJoinValidator() extends FunctionValidator {
 
 case class PercentileValidator() extends FunctionValidator {
   override def doValidate(expr: Expression): Boolean = {
+    // Currently clickhouse backend doesn't support quantileExact with frequency argument
+    // unless frequencyExpression is literal
     val freqExpr = expr.asInstanceOf[Percentile].frequencyExpression
     if (!freqExpr.isInstanceOf[Literal]) {
-      return false
-    }
-
-    // Currently clickhouse backend doesn't support quantileExact with frequency argument
-    val freqLiteral = freqExpr.asInstanceOf[Literal]
-    if (freqLiteral.value.asInstanceOf[Int] != 1) {
       return false
     }
 
