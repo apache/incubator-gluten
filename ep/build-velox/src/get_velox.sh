@@ -93,7 +93,9 @@ function process_setup_ubuntu {
   sed -i '/^function install_folly.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-ubuntu.sh
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-ubuntu.sh
   if [ $ENABLE_HDFS == "ON" ]; then
-    sed -i '/^function install_folly.*/i function install_libhdfs3 {\n  github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-ubuntu.sh
+    # TODO: The 'modify_libhdfs3.patch' will be removed once the following PR is merged into the oap-project/libhdfs.
+    # Track: https://github.com/oap-project/libhdfs3/pull/2
+    sed -i '/^function install_folly.*/i function install_libhdfs3 {\n  github_checkout oap-project/libhdfs3 master \n git apply ../../../src/modify_libhdfs3.patch\n cmake_install\n}\n' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
     sed -i '/ccache /a\  yasm \\' scripts/setup-ubuntu.sh
   fi
@@ -132,7 +134,9 @@ function process_setup_centos8 {
   sed -i '/cd protobuf/{n;s/\.\/configure --prefix=\/usr/\.\/configure CXXFLAGS="-fPIC" --prefix=\/usr\/local/;}' scripts/setup-centos8.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
-    sed -i '/^function install_gflags.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master\n cmake_install\n}\n' scripts/setup-centos8.sh
+    # TODO: The 'modify_libhdfs3.patch' will be removed once the following PR is merged into the oap-project/libhdfs.
+    # Track: https://github.com/oap-project/libhdfs3/pull/2
+    sed -i '/^function install_gflags.*/i function install_libhdfs3 {\n github_checkout oap-project/libhdfs3 master\n git apply ../../../src/modify_libhdfs3.patch\n cmake_install\n}\n' scripts/setup-centos8.sh
     sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_libhdfs3' scripts/setup-centos8.sh
     sed -i '/^  dnf_install ninja-build/a\  dnf_install yasm\' scripts/setup-centos8.sh
   fi
@@ -166,7 +170,9 @@ function process_setup_centos7 {
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
   if [ $ENABLE_HDFS = "ON" ]; then
-    sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos7.sh
+    # TODO: The 'modify_libhdfs3.patch' will be removed once the following PR is merged into the oap-project/libhdfs.
+    # Track: https://github.com/oap-project/libhdfs3/pull/2
+    sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n github_checkout oap-project/libhdfs3 master \n git apply ../../../src/modify_libhdfs3.patch\n cmake_install\n}\n' scripts/setup-centos7.sh
     sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
     sed -i '/^dnf_install ccache/a\ \ yasm \\' scripts/setup-centos7.sh
   fi
