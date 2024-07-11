@@ -35,6 +35,7 @@
 #include <arrow/record_batch.h>
 #include <arrow/result.h>
 #include <arrow/type.h>
+#include <set>
 
 #include "VeloxShuffleWriter.h"
 #include "memory/VeloxMemoryManager.h"
@@ -131,7 +132,7 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) override;
 
-  arrow::Status stop() override;
+  arrow::Status stop(int64_t memLimit) override;
 
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 
@@ -141,53 +142,6 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
 
   // For test only.
   void setPartitionBufferSize(uint32_t newSize) override;
-
-  // for debugging
-  void printColumnsInfo() const {
-    VS_PRINT_FUNCTION_SPLIT_LINE();
-    VS_PRINTLF(fixed_width_column_count_);
-
-    VS_PRINT_CONTAINER(simple_column_indices_);
-    VS_PRINT_CONTAINER(binary_column_indices_);
-    VS_PRINT_CONTAINER(complex_column_indices_);
-
-    VS_PRINT_VECTOR_2_STRING(velox_column_types_);
-    VS_PRINT_VECTOR_TO_STRING(arrow_column_types_);
-  }
-
-  void printPartition() const {
-    VS_PRINT_FUNCTION_SPLIT_LINE();
-    // row ID -> partition ID
-    VS_PRINT_VECTOR_MAPPING(row_2_partition_);
-
-    // partition -> row count
-    VS_PRINT_VECTOR_MAPPING(partition_2_row_count_);
-  }
-
-  void printPartitionBuffer() const {
-    VS_PRINT_FUNCTION_SPLIT_LINE();
-    VS_PRINT_VECTOR_MAPPING(partition_2_buffer_size_);
-    VS_PRINT_VECTOR_MAPPING(partitionBufferBase_);
-  }
-
-  void printPartition2Row() const {
-    VS_PRINT_FUNCTION_SPLIT_LINE();
-    VS_PRINT_VECTOR_MAPPING(partition2RowOffsetBase_);
-
-#if VELOX_SHUFFLE_WRITER_PRINT
-    for (auto pid = 0; pid < numPartitions_; ++pid) {
-      auto begin = partition2RowOffsetBase_[pid];
-      auto end = partition2RowOffsetBase_[pid + 1];
-      VsPrint("partition", pid);
-      VsPrintVectorRange(rowOffset2RowId_, begin, end);
-    }
-#endif
-  }
-
-  void printInputHasNull() const {
-    VS_PRINT_FUNCTION_SPLIT_LINE();
-    VS_PRINT_CONTAINER(input_has_null_);
-  }
 
  private:
   VeloxHashBasedShuffleWriter(
@@ -202,23 +156,29 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
 
   arrow::Status initPartitions();
 
-  arrow::Status initColumnTypes(const facebook::velox::RowVector& rv);
+  arrow::Status initColumnTypes(const facebook::velox::RowVectorPtr& rv);
 
-  arrow::Status splitRowVector(const facebook::velox::RowVector& rv);
+  arrow::Status splitRowVector();
 
-  arrow::Status initFromRowVector(const facebook::velox::RowVector& rv);
+  void finishSplit();
 
-  arrow::Status buildPartition2Row(uint32_t rowNum);
+  arrow::Status initFromRowVector(const facebook::velox::RowVectorPtr& rv);
 
-  arrow::Status updateInputHasNull(const facebook::velox::RowVector& rv);
+  void buildPartition2Row();
+
+  void updateInputHasNull();
+
+  void updatePartitionInUse();
+
+  void updatePartitionBufferNumRows();
 
   void setSplitState(SplitState state);
 
-  arrow::Status doSplit(const facebook::velox::RowVector& rv, int64_t memLimit);
+  arrow::Status doSplit(int64_t memLimit);
 
   bool beyondThreshold(uint32_t partitionId, uint32_t newSize);
 
-  uint32_t calculatePartitionBufferSize(const facebook::velox::RowVector& rv, int64_t memLimit);
+  uint32_t calculatePartitionBufferSize(int64_t memLimit);
 
   arrow::Status preAllocPartitionBuffers(uint32_t preAllocBufferSize);
 
@@ -249,8 +209,8 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
 
   template <typename T>
   arrow::Status splitFixedType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
-    for (auto& pid : partitionUsed_) {
-      auto dstPidBase = (T*)(dstAddrs[pid] + partitionBufferBase_[pid] * sizeof(T));
+    for (auto& pid : currentPartitionInUse_) {
+      auto dstPidBase = (T*)(dstAddrs[pid] + partitionBufferWritePos_[pid] * sizeof(T));
       auto pos = partition2RowOffsetBase_[pid];
       auto end = partition2RowOffsetBase_[pid + 1];
       for (; pos < end; ++pos) {
@@ -297,11 +257,24 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
 
   bool evictPartitionBuffersAfterSpill() const;
 
-  arrow::Result<uint32_t> partitionBufferSizeAfterShrink(uint32_t partitionId) const;
+  bool isExtremelyLargeBatch(int32_t batchSize) const;
 
-  bool isExtremelyLargeBatch(facebook::velox::RowVectorPtr& rv) const;
+  arrow::Result<facebook::velox::RowVectorPtr> getPeeledRowVector(
+      const std::shared_ptr<ColumnarBatch>& cb,
+      facebook::velox::VectorPtr& pidArr);
 
-  arrow::Status partitioningAndDoSplit(facebook::velox::RowVectorPtr rv, int64_t memLimit);
+  arrow::Status computePartitionId(
+      facebook::velox::VectorPtr pidArr,
+      facebook::velox::vector_size_t size,
+      std::vector<uint32_t>& row2Partition,
+      std::vector<uint32_t>& partitionNumRows);
+
+  bool shouldSplit(uint64_t inputSize, const std::vector<uint32_t> partitionNumRows, int64_t memLimit);
+
+  std::shared_ptr<arrow::Schema> schema_;
+
+  // Column index, partition id, buffers.
+  std::vector<std::vector<std::vector<std::shared_ptr<arrow::ResizableBuffer>>>> partitionBuffers_;
 
   BinaryArrayResizeState binaryArrayResizeState_{};
 
@@ -342,19 +315,29 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
 
   // Records which partitions are actually occurred in the current input RowVector.
   // Most of the loops can loop on this array to avoid visiting unused partition id.
-  std::vector<uint32_t> partitionUsed_;
+  std::vector<uint32_t> currentPartitionInUse_;
+
+  // Records which partitions are actually occurred in all cached inputs.
+  // Used by partition buffer allocation.
+  std::vector<uint32_t> partitionInUse_;
 
   // Row ID -> Partition ID
   // subscript: The index of row in the current input RowVector
   // value: Partition ID
   // Updated for each input RowVector.
-  std::vector<uint32_t> row2Partition_;
+  std::list<std::vector<uint32_t>> row2Partition_;
 
   // Partition ID -> Row Count
   // subscript: Partition ID
   // value: How many rows does this partition have in the current input RowVector
   // Updated for each input RowVector.
-  std::vector<uint32_t> partition2RowCount_;
+  std::list<std::vector<uint32_t>> partitionNumRows_;
+
+  // Partition ID -> Row Count
+  // subscript: Partition ID
+  // value: How many rows does this partition have in all cached input RowVector
+  // Used by partition buffer allocation.
+  std::vector<uint32_t> partitionTotalRows_;
 
   // Note: partition2RowOffsetBase_ and rowOffset2RowId_ are the optimization of flattening the 2-dimensional vector
   // into single dimension.
@@ -379,11 +362,15 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
   std::vector<uint32_t> rowOffset2RowId_;
 
   // Partition buffers are used for holding the intermediate data during split.
-  // Partition ID -> Partition buffer size(unit is row)
+  // Partition ID -> Partition buffer allocated rows.
   std::vector<uint32_t> partitionBufferSize_;
 
-  // The write position of partition buffer. Updated after split. Reset when partition buffers are reallocated.
-  std::vector<uint32_t> partitionBufferBase_;
+  // The expected number of rows after split of partition buffer. Updated before split.
+  std::vector<uint32_t> partitionBufferNumRows_;
+
+  // The write position of partition buffer. Updated after each round of splitRowVector. Reset when partition buffers
+  // are reallocated.
+  std::vector<uint32_t> partitionBufferWritePos_;
 
   // Used by all simple types. Stores raw pointers of partition buffers.
   std::vector<std::vector<uint8_t*>> partitionValidityAddrs_;
@@ -399,6 +386,10 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
   std::shared_ptr<const facebook::velox::RowType> complexWriteType_;
 
   facebook::velox::serializer::presto::PrestoVectorSerde serde_;
+
+  std::list<facebook::velox::RowVectorPtr> inputs_;
+  uint64_t retainedSize_{0};
+  uint64_t retainedRows_{0};
 
   SplitState splitState_{kInit};
 }; // class VeloxHashBasedShuffleWriter

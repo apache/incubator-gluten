@@ -133,6 +133,7 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeContinuous) {
 
   {
     int numRows = 8;
+    std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
     ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
     ASSERT_EQ(getPidSelection(), 8);
     std::vector<uint32_t> row2Part(numRows);
@@ -144,6 +145,7 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeContinuous) {
 
   {
     int numRows = 10;
+    std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
     ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
     ASSERT_EQ(getPidSelection(), 8);
     std::vector<uint32_t> row2Part(numRows);
@@ -153,6 +155,7 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeContinuous) {
 
   {
     int numRows = 12;
+    std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
     ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
     ASSERT_EQ(getPidSelection(), 0);
     std::vector<uint32_t> row2Part(numRows);
@@ -164,6 +167,7 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeContinuous) {
 
   {
     int numRows = 22;
+    std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
     ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
     ASSERT_EQ(getPidSelection(), 2);
     std::vector<uint32_t> row2Part(numRows);

@@ -190,9 +190,10 @@ void runShuffle(
   {
     gluten::ScopedTimer timer(&totalTime);
     while (resultIter->hasNext()) {
-      GLUTEN_THROW_NOT_OK(shuffleWriter->write(resultIter->next(), ShuffleWriter::kMinMemLimit));
+      GLUTEN_THROW_NOT_OK(
+          shuffleWriter->write(resultIter->next(), ShuffleWriter::kMaxMemLimit - shuffleWriter->cachedPayloadSize()));
     }
-    GLUTEN_THROW_NOT_OK(shuffleWriter->stop());
+    GLUTEN_THROW_NOT_OK(shuffleWriter->stop(ShuffleWriter::kMaxMemLimit - shuffleWriter->cachedPayloadSize()));
   }
 
   populateWriterMetrics(shuffleWriter, totalTime, metrics);
@@ -437,8 +438,6 @@ int main(int argc, char** argv) {
     std::string errorMsg{};
     if (FLAGS_data.empty()) {
       errorMsg = "Missing '--split' or '--data' option.";
-    } else if (FLAGS_partitioning != "rr" && FLAGS_partitioning != "random") {
-      errorMsg = "--run-shuffle only support round-robin partitioning and random partitioning.";
     }
     if (errorMsg.empty()) {
       try {

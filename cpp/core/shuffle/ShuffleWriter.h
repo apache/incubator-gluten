@@ -37,9 +37,11 @@ class ShuffleWriter : public Reclaimable {
  public:
   static constexpr int64_t kMinMemLimit = 128LL * 1024 * 1024;
 
+  static constexpr int64_t kMaxMemLimit = 1024LL * 1024 * 1024;
+
   virtual arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
 
-  virtual arrow::Status stop() = 0;
+  virtual arrow::Status stop(int64_t memLimit) = 0;
 
   int32_t numPartitions() const {
     return numPartitions_;
@@ -99,7 +101,10 @@ class ShuffleWriter : public Reclaimable {
         options_(std::move(options)),
         pool_(pool),
         partitionBufferPool_(std::make_unique<ShuffleMemoryPool>(pool)),
-        partitionWriter_(std::move(partitionWriter)) {}
+        partitionWriter_(std::move(partitionWriter)) {
+    GLUTEN_ASSIGN_OR_THROW(
+        partitioner_, Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId));
+  }
 
   virtual ~ShuffleWriter() = default;
 
@@ -113,13 +118,6 @@ class ShuffleWriter : public Reclaimable {
   std::unique_ptr<ShuffleMemoryPool> partitionBufferPool_;
 
   std::unique_ptr<PartitionWriter> partitionWriter_;
-
-  std::vector<int64_t> rowVectorLengths_;
-
-  std::shared_ptr<arrow::Schema> schema_;
-
-  // Column index, partition id, buffers.
-  std::vector<std::vector<std::vector<std::shared_ptr<arrow::ResizableBuffer>>>> partitionBuffers_;
 
   std::shared_ptr<Partitioner> partitioner_;
 

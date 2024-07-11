@@ -21,6 +21,7 @@
 #include "shuffle/RandomPartitioner.h"
 #include "shuffle/RoundRobinPartitioner.h"
 #include "shuffle/SinglePartitioner.h"
+#include "utils/exception.h"
 
 namespace gluten {
 

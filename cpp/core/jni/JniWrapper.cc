@@ -918,7 +918,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
 JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrapper_stop( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlong shuffleWriterHandle) {
+    jlong shuffleWriterHandle,
+    jlong memLimit) {
   JNI_METHOD_START
   auto shuffleWriter = ObjectStore::retrieve<ShuffleWriter>(shuffleWriterHandle);
   if (!shuffleWriter) {
@@ -926,7 +927,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrap
     throw gluten::GlutenException(errorMessage);
   }
 
-  gluten::arrowAssertOkOrThrow(shuffleWriter->stop(), "Native shuffle write: ShuffleWriter stop failed");
+  gluten::arrowAssertOkOrThrow(shuffleWriter->stop(memLimit), "Native shuffle write: ShuffleWriter stop failed");
 
   const auto& partitionLengths = shuffleWriter->partitionLengths();
   auto partitionLengthArr = env->NewLongArray(partitionLengths.size());

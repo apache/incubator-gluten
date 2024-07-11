@@ -41,7 +41,7 @@ class VeloxColumnarBatchDeserializer final : public ColumnarBatchIterator {
       int64_t& deserializeTime,
       int64_t& decompressTime);
 
-  std::shared_ptr<ColumnarBatch> next();
+  std::shared_ptr<ColumnarBatch> next() override;
 
  private:
   std::shared_ptr<arrow::io::InputStream> in_;
