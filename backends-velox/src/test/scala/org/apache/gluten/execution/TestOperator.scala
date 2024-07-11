@@ -1840,37 +1840,6 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
-  test("Test substring_index") {
-    withTempView("t") {
-      Seq[(String, String, Int)](
-        ("www.apache.org", ".", 3),
-        ("www.apache.org", ".", 2),
-        ("www.apache.org", ".", 1),
-        ("www.apache.org", ".", 0),
-        ("www.apache.org", ".", -1),
-        ("www.apache.org", ".", -2),
-        ("www.apache.org", ".", -3),
-        ("www.apache.org", "", 1),
-        ("www.apache.org", "#", 1),
-        ("www||apache||org", "||", 2),
-        ("www||apache||org", "||", -2),
-        ("", ".", 1),
-        ("大千世界大千世界", "千", 2),
-        ("||||||", "|||", 3),
-        ("||||||", "|||", -4)
-      )
-        .toDF("str", "delim", "count")
-        .createOrReplaceTempView("t")
-      runQueryAndCompare(
-        """
-          |select substring_index(str, delim, count) from t
-          |""".stripMargin
-      ) {
-        checkGlutenOperatorMatch[ProjectExecTransformer]
-      }
-    }
-  }
-
   test("Fix shuffle with null type failure") {
     // single and other partitioning
     Seq("1", "2").foreach {

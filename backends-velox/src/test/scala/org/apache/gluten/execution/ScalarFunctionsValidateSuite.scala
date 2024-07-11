@@ -1211,4 +1211,40 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("Test substring_index") {
+    withTempView("substring_index_table") {
+      withTempPath {
+        path =>
+          Seq[(String, String, Int)](
+            ("www.apache.org", ".", 3),
+            ("www.apache.org", ".", 2),
+            ("www.apache.org", ".", 1),
+            ("www.apache.org", ".", 0),
+            ("www.apache.org", ".", -1),
+            ("www.apache.org", ".", -2),
+            ("www.apache.org", ".", -3),
+            ("www.apache.org", "", 1),
+            ("www.apache.org", "#", 1),
+            ("www||apache||org", "||", 2),
+            ("www||apache||org", "||", -2),
+            ("", ".", 1),
+            ("大千世界大千世界", "千", 2),
+            ("||||||", "|||", 3),
+            ("||||||", "|||", -4)
+          )
+            .toDF("str", "delim", "count")
+            .write
+            .parquet(path.getCanonicalPath)
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("substring_index_table")
+          runQueryAndCompare(
+            """
+              |select substring_index(str, delim, count) from substring_index_table
+              |""".stripMargin
+          ) {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
+    }
+  }
 }
