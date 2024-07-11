@@ -109,7 +109,6 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
             if (glutenProject.doValidate().isValid) {
               logInfo("## cast validation passes: cast from " + from + " to " + to)
             } else {
-              // scalastyle:off
               logInfo("!! cast validation fails: cast from " + from + " to " + to)
             }
           }
@@ -138,12 +137,12 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
         val acceptedTypes = allPrimitiveDataTypes.filter(
           expr.asInstanceOf[ExpectsInputTypes].inputTypes.head.acceptsType(_))
         if (acceptedTypes.isEmpty) {
-          logWarning("Any given type is not supported for " + expr.getClass.getSimpleName)
+          logWarning("Any given type is not accepted for " + expr.getClass.getSimpleName)
         }
         acceptedTypes.foreach(
           t => {
             val child = generateChildExpression(t)
-            // Builds an expression whose child's type is really supported in Spark.
+            // Builds an expression whose child's type is really accepted in Spark.
             val targetExpr = builder(Seq(child))
             val glutenProject = generateGlutenProjectPlan(targetExpr)
             if (glutenProject.doValidate().isValid) {
