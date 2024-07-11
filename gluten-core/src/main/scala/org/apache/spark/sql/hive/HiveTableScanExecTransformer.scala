@@ -45,7 +45,7 @@ import java.net.URI
 case class HiveTableScanExecTransformer(
     requestedAttributes: Seq[Attribute],
     relation: HiveTableRelation,
-    partitionPruningPred: Seq[Expression])(session: SparkSession)
+    partitionPruningPred: Seq[Expression])(@transient session: SparkSession)
   extends AbstractHiveTableScanExec(requestedAttributes, relation, partitionPruningPred)(session)
   with BasicScanExecTransformer {
 
