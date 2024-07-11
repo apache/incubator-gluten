@@ -277,7 +277,9 @@ class Spark32Shims extends SparkShims {
     )
   }
 
-  override def genDecimalRoundExpressionOutput(decimalType: DecimalType, toScale: Int): DecimalType = {
+  override def genDecimalRoundExpressionOutput(
+      decimalType: DecimalType,
+      toScale: Int): DecimalType = {
     val p = decimalType.precision
     val s = decimalType.scale
     DecimalType(p, if (toScale > s) s else toScale)
