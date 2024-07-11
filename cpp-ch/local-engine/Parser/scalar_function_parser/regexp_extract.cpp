@@ -61,7 +61,7 @@ public:
 
                 String sparkRegexp = adjustSparkRegexpRule(expr_str);
                 const auto * regex_expr_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), sparkRegexp);
-                auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
+                auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
                 parsed_args[1] = regex_expr_node;
                 const auto * result_node = toFunctionNode(actions_dag, "regexpExtract", parsed_args);
                 return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);

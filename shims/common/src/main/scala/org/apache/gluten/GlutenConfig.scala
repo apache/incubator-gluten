@@ -1599,6 +1599,13 @@ object GlutenConfig {
       .booleanConf
       .createOptional
 
+  val VELOX_WRITER_QUEUE_SIZE =
+    buildConf("spark.gluten.sql.velox.writer.queue.size")
+      .internal()
+      .doc("This is config to specify the velox writer queue size")
+      .intConf
+      .createWithDefault(64)
+
   val NATIVE_HIVEFILEFORMAT_WRITER_ENABLED =
     buildConf("spark.gluten.sql.native.hive.writer.enabled")
       .internal()

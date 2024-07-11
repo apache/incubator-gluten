@@ -39,7 +39,6 @@ namespace local_engine
 
 DB::ActionsDAG::NodeRawConstPtrs AggregateFunctionParser::parseFunctionArguments(
     const CommonFunctionInfo & func_info,
-    const String & /*ch_func_name*/,
     DB::ActionsDAGPtr & actions_dag) const
 {
     DB::ActionsDAG::NodeRawConstPtrs collected_args;

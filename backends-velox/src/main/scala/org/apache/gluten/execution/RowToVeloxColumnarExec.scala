@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenException
@@ -56,9 +57,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
     val numInputRows = longMetric("numInputRows")
     val numOutputBatches = longMetric("numOutputBatches")
     val convertTime = longMetric("convertTime")
-    // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
-    // combine with some of the Arrow conversion tools we will need to unify some of the configs.
-    val numRows = conf.columnBatchSize
+    val numRows = GlutenConfig.getConf.maxBatchSize
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = schema
@@ -78,9 +77,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
     val numInputRows = longMetric("numInputRows")
     val numOutputBatches = longMetric("numOutputBatches")
     val convertTime = longMetric("convertTime")
-    // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
-    // combine with some of the Arrow conversion tools we will need to unify some of the configs.
-    val numRows = conf.columnBatchSize
+    val numRows = GlutenConfig.getConf.maxBatchSize
     val mode = BroadcastUtils.getBroadcastMode(outputPartitioning)
     val relation = child.executeBroadcast()
     BroadcastUtils.sparkToVeloxUnsafe(

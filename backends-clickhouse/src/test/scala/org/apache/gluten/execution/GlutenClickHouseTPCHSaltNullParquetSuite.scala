@@ -978,6 +978,17 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("window percent_rank") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | percent_rank(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_rank
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("window ntile") {
     val sql =
       """

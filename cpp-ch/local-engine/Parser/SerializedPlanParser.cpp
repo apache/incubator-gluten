@@ -580,95 +580,10 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
     auto args = function.arguments();
     auto pos = function_signature.find(':');
     auto function_name = function_signature.substr(0, pos);
-    if (!SCALAR_FUNCTIONS.contains(function_name))
-        throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unsupported function {}", function_name);
-
-    std::string ch_function_name;
-    if (function_name == "trim")
-        ch_function_name = args.size() == 1 ? "trimBoth" : "trimBothSpark";
-    else if (function_name == "ltrim")
-        ch_function_name = args.size() == 1 ? "trimLeft" : "trimLeftSpark";
-    else if (function_name == "rtrim")
-        ch_function_name = args.size() == 1 ? "trimRight" : "trimRightSpark";
-    else if (function_name == "extract")
-    {
-        if (args.size() != 2)
-            throw Exception(
-                ErrorCodes::BAD_ARGUMENTS, "Spark function extract requires two args, function:{}", function.ShortDebugString());
-
-        // Get the first arg: field
-        const auto & extract_field = args.at(0);
-
-        if (extract_field.value().has_literal())
-        {
-            const auto & field_value = extract_field.value().literal().string();
-            if (field_value == "YEAR")
-                ch_function_name = "toYear"; // spark: extract(YEAR FROM) or year
-            else if (field_value == "YEAR_OF_WEEK")
-                ch_function_name = "toISOYear"; // spark: extract(YEAROFWEEK FROM)
-            else if (field_value == "QUARTER")
-                ch_function_name = "toQuarter"; // spark: extract(QUARTER FROM) or quarter
-            else if (field_value == "MONTH")
-                ch_function_name = "toMonth"; // spark: extract(MONTH FROM) or month
-            else if (field_value == "WEEK_OF_YEAR")
-                ch_function_name = "toISOWeek"; // spark: extract(WEEK FROM) or weekofyear
-            else if (field_value == "WEEK_DAY")
-                /// Spark WeekDay(date) (0 = Monday, 1 = Tuesday, ..., 6 = Sunday)
-                /// Substrait: extract(WEEK_DAY from date)
-                /// CH: toDayOfWeek(date, 1)
-                ch_function_name = "toDayOfWeek";
-            else if (field_value == "DAY_OF_WEEK")
-                /// Spark: DayOfWeek(date) (1 = Sunday, 2 = Monday, ..., 7 = Saturday)
-                /// Substrait: extract(DAY_OF_WEEK from date)
-                /// CH: toDayOfWeek(date, 3)
-                /// DAYOFWEEK is alias of function toDayOfWeek.
-                /// This trick is to distinguish between extract fields DAY_OF_WEEK and WEEK_DAY in latter codes
-                ch_function_name = "DAYOFWEEK";
-            else if (field_value == "DAY")
-                ch_function_name = "toDayOfMonth"; // spark: extract(DAY FROM) or dayofmonth
-            else if (field_value == "DAY_OF_YEAR")
-                ch_function_name = "toDayOfYear"; // spark: extract(DOY FROM) or dayofyear
-            else if (field_value == "HOUR")
-                ch_function_name = "toHour"; // spark: extract(HOUR FROM) or hour
-            else if (field_value == "MINUTE")
-                ch_function_name = "toMinute"; // spark: extract(MINUTE FROM) or minute
-            else if (field_value == "SECOND")
-                ch_function_name = "toSecond"; // spark: extract(SECOND FROM) or secondwithfraction
-            else
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "The first arg of spark extract function is wrong.");
-        }
-        else
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "The first arg of spark extract function is wrong.");
-    }
-    else if (function_name == "check_overflow")
-    {
-        if (args.size() < 2)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "check_overflow function requires at least two args.");
-        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
-        auto null_on_overflow = args.at(1).value().literal().boolean();
-        if (null_on_overflow)
-            ch_function_name = ch_function_name + "OrNull";
-    }
-    else if (function_name == "make_decimal")
-    {
-        if (args.size() < 2)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 2 args.");
-        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
-        auto null_on_overflow = args.at(1).value().literal().boolean();
-        if (null_on_overflow)
-            ch_function_name = ch_function_name + "OrNull";
-    }
-    else if (function_name == "reverse")
-    {
-        if (function.output_type().has_list())
-            ch_function_name = "arrayReverse";
-        else
-            ch_function_name = "reverseUTF8";
-    }
-    else
-        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
-
-    return ch_function_name;
+    auto function_parser = FunctionParserFactory::instance().tryGet(function_name, this);
+    if (!function_parser)
+        throw DB::Exception(DB::ErrorCodes::UNKNOWN_FUNCTION, "Unsupported function: {}", function_name);
+    return function_parser->getCHFunctionName(function);
 }
 
 void SerializedPlanParser::parseArrayJoinArguments(
@@ -690,8 +605,7 @@ void SerializedPlanParser::parseArrayJoinArguments(
         throw Exception(
             ErrorCodes::BAD_ARGUMENTS, "Argument number of arrayJoin should be 1 instead of {}", scalar_function.arguments_size());
 
-    auto function_name_copy = function_name;
-    parseFunctionArguments(actions_dag, parsed_args, function_name_copy, scalar_function);
+    parseFunctionArguments(actions_dag, parsed_args, scalar_function);
 
     auto arg = parsed_args[0];
     auto arg_type = removeNullable(arg->result_type);
@@ -735,7 +649,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     const auto & scalar_function = rel.scalar_function();
 
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
-    auto function_name = getFunctionName(function_signature, scalar_function);
+    String function_name = "arrayJoin";
 
     /// Whether the input argument of explode/posexplode is map type
     bool is_map;
@@ -856,289 +770,29 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
     auto pos = function_signature.find(':');
     auto func_name = function_signature.substr(0, pos);
 
-    if (auto func_parser = FunctionParserFactory::instance().tryGet(func_name, this))
-    {
-        LOG_DEBUG(
-            &Poco::Logger::get("SerializedPlanParser"), "parse function {} by function parser: {}", func_name, func_parser->getName());
-        const auto * result_node = func_parser->parse(scalar_function, actions_dag);
-        if (keep_result)
-            actions_dag->addOrReplaceInOutputs(*result_node);
-
-        result_name = result_node->result_name;
-        return result_node;
-    }
-
-    auto ch_func_name = getFunctionName(function_signature, scalar_function);
-    ActionsDAG::NodeRawConstPtrs args;
-    parseFunctionArguments(actions_dag, args, ch_func_name, scalar_function);
-
-    /// If the first argument of function formatDateTimeInJodaSyntax is integer, replace formatDateTimeInJodaSyntax with fromUnixTimestampInJodaSyntax
-    /// to avoid exception
-    if (ch_func_name == "formatDateTimeInJodaSyntax")
-    {
-        if (args.size() > 1 && isInteger(removeNullable(args[0]->result_type)))
-            ch_func_name = "fromUnixTimestampInJodaSyntax";
-    }
-
-    if (ch_func_name == "alias")
-    {
-        result_name = args[0]->result_name;
-        actions_dag->addOrReplaceInOutputs(*args[0]);
-        return &actions_dag->addAlias(actions_dag->findInOutputs(result_name), result_name);
-    }
-
-    if (ch_func_name == "toYear")
-    {
-        const ActionsDAG::Node * arg_node = args[0];
-        const String & arg_func_name = arg_node->function ? arg_node->function->getName() : "";
-        if ((arg_func_name == "sparkToDate" || arg_func_name == "sparkToDateTime") && arg_node->children.size() > 0)
-        {
-            const ActionsDAG::Node * child_node = arg_node->children[0];
-            if (child_node && isString(removeNullable(child_node->result_type)))
-            {
-                auto extract_year_builder = FunctionFactory::instance().get("sparkExtractYear", context);
-                auto func_result_name = "sparkExtractYear(" + child_node->result_name + ")";
-                return &actions_dag->addFunction(extract_year_builder, {child_node}, func_result_name);
-            }
-        }
-    }
-
-    const ActionsDAG::Node * result_node;
-
-    if (ch_func_name == "splitByRegexp")
-    {
-        if (args.size() >= 2)
-        {
-            /// In Spark: split(str, regex [, limit] )
-            /// In CH: splitByRegexp(regexp, str [, limit])
-            std::swap(args[0], args[1]);
-        }
-    }
-
-    /// TODO: FunctionParser for check_overflow and make_decimal
-    if (function_signature.find("check_overflow:", 0) != String::npos)
-    {
-        if (scalar_function.arguments().size() < 2)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "check_overflow function requires at least two args.");
-
-        ActionsDAG::NodeRawConstPtrs new_args;
-        new_args.reserve(3);
-        new_args.emplace_back(args[0]);
-
-        UInt32 precision = rel.scalar_function().output_type().decimal().precision();
-        UInt32 scale = rel.scalar_function().output_type().decimal().scale();
-        auto uint32_type = std::make_shared<DataTypeUInt32>();
-        new_args.emplace_back(&actions_dag->addColumn(
-            ColumnWithTypeAndName(uint32_type->createColumnConst(1, precision), uint32_type, getUniqueName(toString(precision)))));
-        new_args.emplace_back(&actions_dag->addColumn(
-            ColumnWithTypeAndName(uint32_type->createColumnConst(1, scale), uint32_type, getUniqueName(toString(scale)))));
-        args = std::move(new_args);
-    }
-    else if (startsWith(function_signature, "make_decimal:"))
-    {
-        if (scalar_function.arguments().size() < 2)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 2 args.");
-
-        ActionsDAG::NodeRawConstPtrs new_args;
-        new_args.reserve(3);
-        new_args.emplace_back(args[0]);
-
-        UInt32 precision = rel.scalar_function().output_type().decimal().precision();
-        UInt32 scale = rel.scalar_function().output_type().decimal().scale();
-        auto uint32_type = std::make_shared<DataTypeUInt32>();
-        new_args.emplace_back(&actions_dag->addColumn(
-            ColumnWithTypeAndName(uint32_type->createColumnConst(1, precision), uint32_type, getUniqueName(toString(precision)))));
-        new_args.emplace_back(&actions_dag->addColumn(
-            ColumnWithTypeAndName(uint32_type->createColumnConst(1, scale), uint32_type, getUniqueName(toString(scale)))));
-        args = std::move(new_args);
-    }
-
-    auto function_builder = FunctionFactory::instance().get(ch_func_name, context);
-    std::string args_name = join(args, ',');
-    result_name = ch_func_name + "(" + args_name + ")";
-    const auto * function_node = &actions_dag->addFunction(function_builder, args, result_name);
-    result_node = function_node;
-    if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type))
-    {
-        auto result_type = TypeParser::parseType(rel.scalar_function().output_type());
-        if (isDecimalOrNullableDecimal(result_type))
-        {
-            result_node = ActionsDAGUtil::convertNodeType(
-                actions_dag,
-                function_node,
-                // as stated in isTypeMatched， currently we don't change nullability of the result type
-                function_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)->getName()
-                                                         : local_engine::removeNullable(result_type)->getName(),
-                function_node->result_name,
-                CastType::accurateOrNull);
-        }
-        else
-        {
-            result_node = ActionsDAGUtil::convertNodeType(
-                actions_dag,
-                function_node,
-                // as stated in isTypeMatched， currently we don't change nullability of the result type
-                function_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)->getName()
-                                                         : local_engine::removeNullable(result_type)->getName(),
-                function_node->result_name);
-        }
-    }
-
+    auto func_parser = FunctionParserFactory::instance().tryGet(func_name, this);
+    if (!func_parser)
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not found function parser for {}", func_name);
+    LOG_DEBUG(&Poco::Logger::get("SerializedPlanParser"), "parse function {} by function parser: {}", func_name, func_parser->getName());
+    const auto * result_node = func_parser->parse(scalar_function, actions_dag);
     if (keep_result)
         actions_dag->addOrReplaceInOutputs(*result_node);
 
+    result_name = result_node->result_name;
     return result_node;
 }
 
 void SerializedPlanParser::parseFunctionArguments(
     ActionsDAGPtr & actions_dag,
     ActionsDAG::NodeRawConstPtrs & parsed_args,
-    std::string & function_name,
     const substrait::Expression_ScalarFunction & scalar_function)
 {
     auto function_signature = function_mapping.at(std::to_string(scalar_function.function_reference()));
     const auto & args = scalar_function.arguments();
     parsed_args.reserve(args.size());
+    for (const auto & arg : args)
+        parsed_args.emplace_back(parseExpression(actions_dag, arg.value()));
 
-    // Some functions need to be handled specially.
-    if (function_name == "JSONExtract")
-    {
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
-        auto data_type = TypeParser::parseType(scalar_function.output_type());
-        parsed_args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeString>(), data_type->getName()));
-    }
-    else if (function_name == "sparkTupleElement" || function_name == "tupleElement")
-    {
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
-
-        if (!args[1].value().has_literal())
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "get_struct_field's second argument must be a literal");
-
-        auto [data_type, field] = parseLiteral(args[1].value().literal());
-        if (data_type->getTypeId() != TypeIndex::Int32)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "get_struct_field's second argument must be i32");
-
-        // tuple indecies start from 1, in spark, start from 0
-        Int32 field_index = static_cast<Int32>(field.get<Int32>() + 1);
-        const auto * index_node = addColumn(actions_dag, std::make_shared<DataTypeUInt32>(), field_index);
-        parsed_args.emplace_back(index_node);
-    }
-    else if (function_name == "tuple")
-    {
-        // Arguments in the format, (<field name>, <value expression>[, <field name>, <value expression> ...])
-        // We don't need to care the field names here.
-        for (int index = 1; index < args.size(); index += 2)
-            parseFunctionArgument(actions_dag, parsed_args, function_name, args[index]);
-    }
-    else if (function_name == "repeat")
-    {
-        // repeat. the field index must be unsigned integer in CH, cast the signed integer in substrait
-        // which must be a positive value into unsigned integer here.
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
-        const ActionsDAG::Node * repeat_times_node = parseFunctionArgument(actions_dag, function_name, args[1]);
-        DataTypeNullable target_type(std::make_shared<DataTypeUInt32>());
-        repeat_times_node = ActionsDAGUtil::convertNodeType(actions_dag, repeat_times_node, target_type.getName());
-        parsed_args.emplace_back(repeat_times_node);
-    }
-    else if (function_name == "isNaN")
-    {
-        // the result of isNaN(NULL) is NULL in CH, but false in Spark
-        const ActionsDAG::Node * arg_node = nullptr;
-        if (args[0].value().has_cast())
-        {
-            arg_node = parseExpression(actions_dag, args[0].value().cast().input());
-            const auto * res_type = arg_node->result_type.get();
-            if (res_type->isNullable())
-            {
-                res_type = typeid_cast<const DataTypeNullable *>(res_type)->getNestedType().get();
-            }
-            if (isString(*res_type))
-            {
-                ActionsDAG::NodeRawConstPtrs cast_func_args = {arg_node};
-                arg_node = toFunctionNode(actions_dag, "toFloat64OrZero", cast_func_args);
-            }
-            else
-            {
-                arg_node = parseFunctionArgument(actions_dag, function_name, args[0]);
-            }
-        }
-        else
-        {
-            arg_node = parseFunctionArgument(actions_dag, function_name, args[0]);
-        }
-
-        ActionsDAG::NodeRawConstPtrs ifnull_func_args = {arg_node, addColumn(actions_dag, std::make_shared<DataTypeInt32>(), 0)};
-        parsed_args.emplace_back(toFunctionNode(actions_dag, "IfNull", ifnull_func_args));
-    }
-    else if (function_name == "space")
-    {
-        // convert space function to repeat
-        const ActionsDAG::Node * repeat_times_node = parseFunctionArgument(actions_dag, "repeat", args[0]);
-        const ActionsDAG::Node * space_str_node = addColumn(actions_dag, std::make_shared<DataTypeString>(), " ");
-        function_name = "repeat";
-        parsed_args.emplace_back(space_str_node);
-        parsed_args.emplace_back(repeat_times_node);
-    }
-    else if (function_name == "trimBothSpark" || function_name == "trimLeftSpark" || function_name == "trimRightSpark")
-    {
-        /// In substrait, the first arg is srcStr, the second arg is trimStr
-        /// But in CH, the first arg is trimStr, the second arg is srcStr
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[1]);
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
-    }
-    else if (startsWith(function_signature, "extract:"))
-    {
-        /// Skip the first arg of extract in substrait
-        for (int i = 1; i < args.size(); i++)
-            parseFunctionArgument(actions_dag, parsed_args, function_name, args[i]);
-
-        /// Append extra mode argument for extract(WEEK_DAY from date) or extract(DAY_OF_WEEK from date) in substrait
-        if (function_name == "toDayOfWeek" || function_name == "DAYOFWEEK")
-        {
-            UInt8 mode = function_name == "toDayOfWeek" ? 1 : 3;
-            auto mode_type = std::make_shared<DataTypeUInt8>();
-            ColumnWithTypeAndName mode_col(mode_type->createColumnConst(1, mode), mode_type, getUniqueName(std::to_string(mode)));
-            const auto & mode_node = actions_dag->addColumn(std::move(mode_col));
-            parsed_args.emplace_back(&mode_node);
-        }
-    }
-    else if (startsWith(function_signature, "sha2:"))
-    {
-        for (int i = 0; i < args.size() - 1; i++)
-            parseFunctionArgument(actions_dag, parsed_args, function_name, args[i]);
-    }
-    else
-    {
-        // Default handle
-        for (const auto & arg : args)
-            parseFunctionArgument(actions_dag, parsed_args, function_name, arg);
-    }
-}
-
-void SerializedPlanParser::parseFunctionArgument(
-    ActionsDAGPtr & actions_dag,
-    ActionsDAG::NodeRawConstPtrs & parsed_args,
-    const std::string & function_name,
-    const substrait::FunctionArgument & arg)
-{
-    parsed_args.emplace_back(parseFunctionArgument(actions_dag, function_name, arg));
-}
-
-const ActionsDAG::Node * SerializedPlanParser::parseFunctionArgument(
-    ActionsDAGPtr & actions_dag, const std::string & function_name, const substrait::FunctionArgument & arg)
-{
-    const ActionsDAG::Node * res;
-    if (arg.value().has_scalar_function())
-    {
-        std::string arg_name;
-        bool keep_arg = FUNCTION_NEED_KEEP_ARGUMENTS.contains(function_name);
-        res = parseFunctionWithDAG(arg.value(), arg_name, actions_dag, keep_arg);
-    }
-    else
-    {
-        res = parseExpression(actions_dag, arg.value());
-    }
-    return res;
 }
 
 // Convert signed integer index into unsigned integer index
@@ -1225,7 +879,7 @@ ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
 
     const auto & scalar_function = rel.scalar_function();
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
-    auto function_name = getFunctionName(function_signature, scalar_function);
+    String function_name = "json_tuple";
     auto args = scalar_function.arguments();
     if (args.size() < 2)
     {
@@ -1847,8 +1501,7 @@ ASTPtr ASTParser::parseToAST(const Names & names, const substrait::Expression & 
 
         auto substrait_name = function_signature.substr(0, function_signature.find(':'));
         auto func_parser = FunctionParserFactory::instance().tryGet(substrait_name, plan_parser);
-        String function_name
-            = func_parser ? func_parser->getName() : SerializedPlanParser::getFunctionName(function_signature, scalar_function);
+        String function_name = func_parser->getName();
 
         ASTs ast_args;
         parseFunctionArgumentsToAST(names, scalar_function, ast_args);

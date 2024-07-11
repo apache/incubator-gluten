@@ -71,35 +71,30 @@ class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTe
     assert(e3.getCause.getMessage contains "'('a > 'b)' is not true!")
   }
 
-  testGluten("input_file_name with scan is fallback") {
+  testGluten(
+  "input_file_name, input_file_block_start and input_file_block_length " +
+    "should fall back if scan falls back") {
+  withSQLConf(("spark.gluten.sql.columnar.filescan", "false")) {
     withTempPath {
       dir =>
-        val rawData = Seq(
-          Row(1, "Alice", Seq(Row(Seq(1, 2, 3)))),
-          Row(2, "Bob", Seq(Row(Seq(4, 5)))),
-          Row(3, "Charlie", Seq(Row(Seq(6, 7, 8, 9))))
-        )
-        val schema = StructType(
-          Array(
-            StructField("id", IntegerType, nullable = false),
-            StructField("name", StringType, nullable = false),
-            StructField(
-              "nested_column",
-              ArrayType(
-                StructType(Array(
-                  StructField("array_in_struct", ArrayType(IntegerType), nullable = true)
-                ))),
-              nullable = true)
-          ))
-        val data: DataFrame = spark.createDataFrame(sparkContext.parallelize(rawData), schema)
+        val data = sparkContext.parallelize(0 to 10).toDF("id")
         data.write.parquet(dir.getCanonicalPath)
 
         val q =
-          spark.read.parquet(dir.getCanonicalPath).select(input_file_name(), expr("nested_column"))
+          spark.read
+            .parquet(dir.getCanonicalPath)
+            .select(
+              input_file_name(),
+              expr("input_file_block_start()"),
+              expr("input_file_block_length()"))
         val firstRow = q.head()
         assert(firstRow.getString(0).contains(dir.toURI.getPath))
+        assert(firstRow.getLong(1) == 0)
+        assert(firstRow.getLong(2) > 0)
         val project = q.queryExecution.executedPlan.collect { case p: ProjectExec => p }
         assert(project.size == 1)
     }
   }
 }
+}
+

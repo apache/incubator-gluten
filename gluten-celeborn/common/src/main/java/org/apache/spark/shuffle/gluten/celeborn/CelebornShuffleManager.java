@@ -93,7 +93,7 @@ public class CelebornShuffleManager implements ShuffleManager {
   private final Object shuffleIdTracker;
 
   // for Celeborn 0.4.0
-  private boolean throwsFetchFailure;
+  private final boolean throwsFetchFailure;
 
   public CelebornShuffleManager(SparkConf conf) {
     if (conf.getBoolean(LOCAL_SHUFFLE_READER_KEY, true)) {
@@ -244,9 +244,13 @@ public class CelebornShuffleManager implements ShuffleManager {
       lifecycleManager.stop();
       lifecycleManager = null;
     }
-    if (columnarShuffleManager() != null) {
-      columnarShuffleManager().stop();
+    if (_columnarShuffleManager != null) {
+      _columnarShuffleManager.stop();
       _columnarShuffleManager = null;
+    }
+    if (_vanillaCelebornShuffleManager != null) {
+      _vanillaCelebornShuffleManager.stop();
+      _vanillaCelebornShuffleManager = null;
     }
   }
 

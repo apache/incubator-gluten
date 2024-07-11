@@ -21,6 +21,18 @@
 
   <name>Gluten Parent Pom</name>
   <url>https://github.com/apache/incubator-gluten.git</url>
+  <description>Apache Gluten(incubating)</description>
+
+  <organization>
+        <name>Apache</name>
+        <url>http://gluten.apache.org</url>
+  </organization>
+
+  <scm>
+    <connection>scm:git:git://github.com/apache/incubator-gluten.git</connection>
+    <developerConnection>scm:git:ssh://github.com:apache/incubator-gluten.git</developerConnection>
+    <url>http://github.com/apache/incubator-gluten/tree/main</url>
+  </scm>
 
   <licenses>
     <license>
@@ -415,6 +427,55 @@
         <module>gluten-ut</module>
       </modules>
     </profile>
+    <profile>
+      <!-- this profile for apache release. -->
+      <id>apache-release</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-release-plugin</artifactId>
+            <configuration>
+              <dryRun>false</dryRun>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <configuration>
+              <skip>false</skip>
+              <interactive>true</interactive>
+            </configuration>
+          </plugin>
+          <plugin>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>source-release-assembly</id>
+                <phase>none</phase>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+                <configuration>
+                  <tarLongFileMode>gnu</tarLongFileMode>
+                  <runOnlyAtExecutionRoot>true</runOnlyAtExecutionRoot>
+                  <appendAssemblyId>true</appendAssemblyId>
+                  <descriptors>
+                    <descriptor>
+                    src/assembly/source-assembly.xml
+                    </descriptor>
+                  </descriptors>
+                  <finalName>apache-gluten-${project.version}</finalName>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+	</plugins>
+      </build>
+    </profile>
   </profiles>
 
   <dependencyManagement>
@@ -695,7 +756,7 @@
               </goals>
               <configuration>
                 <classifier>${scala.binary.version}</classifier>
-                <classifier>${sparkbundle.version}</classifier>
+		<classifier>${sparkbundle.version}</classifier>
               </configuration>
             </execution>
           </executions>

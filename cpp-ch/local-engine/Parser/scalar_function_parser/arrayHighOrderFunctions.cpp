@@ -51,7 +51,7 @@ public:
         DB::ActionsDAGPtr & actions_dag) const
     {
         auto ch_func_name = getCHFunctionName(substrait_func);
-        auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         assert(parsed_args.size() == 2);
         if (collectLambdaArguments(*plan_parser, substrait_func.arguments()[1].value().scalar_function()).size() == 1)
             return toFunctionNode(actions_dag, ch_func_name, {parsed_args[1], parsed_args[0]});
@@ -86,7 +86,7 @@ public:
     {
         auto ch_func_name = getCHFunctionName(substrait_func);
         auto lambda_args = collectLambdaArguments(*plan_parser, substrait_func.arguments()[1].value().scalar_function());
-        auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         assert(parsed_args.size() == 2);
         if (lambda_args.size() == 1)
         {
@@ -121,7 +121,7 @@ public:
         DB::ActionsDAGPtr & actions_dag) const
     {
         auto ch_func_name = getCHFunctionName(substrait_func);
-        auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         assert(parsed_args.size() == 3);
         const auto * function_type = typeid_cast<const DataTypeFunction *>(parsed_args[2]->result_type.get());
         if (!function_type)
@@ -166,7 +166,7 @@ public:
         DB::ActionsDAGPtr & actions_dag) const
     {
         auto ch_func_name = getCHFunctionName(substrait_func);
-        auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
 
         if (parsed_args.size() != 2)
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "array_sort function must have two arguments");
