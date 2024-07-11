@@ -29,6 +29,6 @@ public:
     String getCHFunctionName(const CommonFunctionInfo &) const override { return "ntile"; }
     String getCHFunctionName(DB::DataTypes &) const override { return "ntile"; }
     DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
-        const CommonFunctionInfo & func_info, const String & ch_func_name, DB::ActionsDAGPtr & actions_dag) const override;
+        const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const override;
 };
 }

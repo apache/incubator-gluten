@@ -663,6 +663,16 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("Test E function") {
+    runQueryAndCompare("""SELECT E() from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("""SELECT E(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("Test spark_partition_id function") {
     runQueryAndCompare("""SELECT spark_partition_id(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
@@ -1187,6 +1197,18 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
                 s"in executedPlan:\n ${executedPlan.last}"
             )
         }
+    }
+  }
+
+  test("levenshtein") {
+    runQueryAndCompare("select levenshtein(c_comment, c_address) from customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  testWithSpecifiedSparkVersion("levenshtein with limit", Some("3.5")) {
+    runQueryAndCompare("select levenshtein(c_comment, c_address, 3) from customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 }

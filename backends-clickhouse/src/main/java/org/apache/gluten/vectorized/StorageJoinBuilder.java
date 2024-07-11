@@ -74,12 +74,20 @@ public class StorageJoinBuilder {
                   return converter.genColumnNameWithExprId(attr);
                 })
             .collect(Collectors.joining(","));
+
+    int joinType;
+    if (broadCastContext.buildHashTableId().startsWith("BuiltBNLJBroadcastTable-")) {
+      joinType = SubstraitUtil.toCrossRelSubstrait(broadCastContext.joinType()).ordinal();
+    } else {
+      joinType = SubstraitUtil.toSubstrait(broadCastContext.joinType()).ordinal();
+    }
+
     return nativeBuild(
         broadCastContext.buildHashTableId(),
         batches,
         rowCount,
         joinKey,
-        SubstraitUtil.toSubstrait(broadCastContext.joinType()).ordinal(),
+        joinType,
         broadCastContext.hasMixedFiltCondition(),
         toNameStruct(output).toByteArray());
   }

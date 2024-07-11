@@ -54,6 +54,12 @@ public class CelebornShuffleManager implements ShuffleManager {
   private static final String LOCAL_SHUFFLE_READER_KEY =
       "spark.sql.adaptive.localShuffleReader.enabled";
 
+  private static final String CELEBORN_COMPRESSION_CODEC_KEY =
+      CelebornConf.SHUFFLE_COMPRESSION_CODEC().key();
+
+  private static final String SPARK_CELEBORN_COMPRESSION_CODEC_KEY =
+      "spark." + CELEBORN_COMPRESSION_CODEC_KEY;
+
   private static final CelebornShuffleWriterFactory writerFactory;
 
   static {
@@ -78,6 +84,8 @@ public class CelebornShuffleManager implements ShuffleManager {
 
   private final SparkConf conf;
   private final CelebornConf celebornConf;
+  private final SparkConf rowBasedConf;
+  private final CelebornConf rowBasedCelebornConf;
   // either be "{appId}_{appAttemptId}" or "{appId}"
   private String appUniqueId;
 
@@ -88,6 +96,8 @@ public class CelebornShuffleManager implements ShuffleManager {
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> columnarShuffleIds =
       ConcurrentHashMap.newKeySet();
   private final CelebornShuffleFallbackPolicyRunner fallbackPolicyRunner;
+
+  private final String celebornDefaultCodec;
 
   // for Celeborn 0.4.0
   private final Object shuffleIdTracker;
@@ -110,6 +120,16 @@ public class CelebornShuffleManager implements ShuffleManager {
         CelebornUtils.createInstance(CelebornUtils.EXECUTOR_SHUFFLE_ID_TRACKER_NAME);
 
     this.throwsFetchFailure = CelebornUtils.getThrowsFetchFailure(celebornConf);
+
+    this.celebornDefaultCodec = CelebornConf.SHUFFLE_COMPRESSION_CODEC().defaultValueString();
+
+    this.rowBasedConf = conf.clone();
+    this.rowBasedCelebornConf = celebornConf.clone();
+    if ("none"
+        .equalsIgnoreCase(conf.get(SPARK_CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec))) {
+      rowBasedConf.set(SPARK_CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec);
+      rowBasedCelebornConf.set(CELEBORN_COMPRESSION_CODEC_KEY, celebornDefaultCodec);
+    }
   }
 
   private boolean isDriver() {
@@ -133,7 +153,8 @@ public class CelebornShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (_vanillaCelebornShuffleManager == null) {
           _vanillaCelebornShuffleManager =
-              SparkUtils.instantiateClass(VANILLA_CELEBORN_SHUFFLE_MANAGER_NAME, conf, isDriver());
+              SparkUtils.instantiateClass(
+                  VANILLA_CELEBORN_SHUFFLE_MANAGER_NAME, rowBasedConf, isDriver());
         }
       }
     }
@@ -330,6 +351,10 @@ public class CelebornShuffleManager implements ShuffleManager {
     if (handle instanceof CelebornShuffleHandle) {
       @SuppressWarnings("unchecked")
       CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
+      CelebornConf readerConf = celebornConf;
+      if (!(h.dependency() instanceof ColumnarShuffleDependency)) {
+        readerConf = rowBasedCelebornConf;
+      }
       return CelebornUtils.getCelebornShuffleReader(
           h,
           startPartition,
@@ -337,7 +362,7 @@ public class CelebornShuffleManager implements ShuffleManager {
           startMapIndex,
           endMapIndex,
           context,
-          celebornConf,
+          readerConf,
           metrics,
           shuffleIdTracker);
     }

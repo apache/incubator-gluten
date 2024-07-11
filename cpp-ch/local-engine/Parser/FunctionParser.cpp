@@ -20,6 +20,7 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
+#include <Functions/FunctionHelpers.h>
 #include <Parser/TypeParser.h>
 #include <Common/CHUtil.h>
 
@@ -39,24 +40,18 @@ using namespace DB;
 
 String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const
 {
-    auto func_signature = plan_parser->function_mapping.at(std::to_string(substrait_func.function_reference()));
-    auto pos = func_signature.find(':');
-    auto func_name = func_signature.substr(0, pos);
-
-    auto it = SCALAR_FUNCTIONS.find(func_name);
-    if (it == SCALAR_FUNCTIONS.end())
-        throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unsupported substrait function: {}", func_name);
-    return it->second;
+    // no meaning
+    /// There is no any simple equivalent ch function.
+    return "";
 }
 
 ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
-    const substrait::Expression_ScalarFunction & substrait_func, const String & ch_func_name, ActionsDAGPtr & actions_dag) const
+    const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const
 {
     ActionsDAG::NodeRawConstPtrs parsed_args;
     const auto & args = substrait_func.arguments();
     parsed_args.reserve(args.size());
-    for (const auto & arg : args)
-        plan_parser->parseFunctionArgument(actions_dag, parsed_args, ch_func_name, arg);
+    plan_parser->parseFunctionArguments(actions_dag, parsed_args, substrait_func);
     return parsed_args;
 }
 
@@ -66,7 +61,7 @@ const ActionsDAG::Node *
 FunctionParser::parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const
 {
     auto ch_func_name = getCHFunctionName(substrait_func);
-    auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag);
+    auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
     const auto * func_node = toFunctionNode(actions_dag, ch_func_name, parsed_args);
     return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
 }
@@ -76,13 +71,30 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
 {
     const auto & output_type = substrait_func.output_type();
     if (!TypeParser::isTypeMatched(output_type, func_node->result_type))
-        return ActionsDAGUtil::convertNodeType(
-            actions_dag,
-            func_node,
-            // as stated in isTypeMatched， currently we don't change nullability of the result type
-            func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, TypeParser::parseType(output_type))->getName()
-                                                 : DB::removeNullable(TypeParser::parseType(output_type))->getName(),
-            func_node->result_name);
+    {
+        auto result_type = TypeParser::parseType(substrait_func.output_type());
+        if (DB::isDecimalOrNullableDecimal(result_type))
+        {
+            return ActionsDAGUtil::convertNodeType(
+                actions_dag,
+                func_node,
+                // as stated in isTypeMatched， currently we don't change nullability of the result type
+                func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)->getName()
+                                                         : local_engine::removeNullable(result_type)->getName(),
+                func_node->result_name,
+                CastType::accurateOrNull);
+        }
+        else
+        {
+            return ActionsDAGUtil::convertNodeType(
+                actions_dag,
+                func_node,
+                // as stated in isTypeMatched， currently we don't change nullability of the result type
+                func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, TypeParser::parseType(output_type))->getName()
+                                                     : DB::removeNullable(TypeParser::parseType(output_type))->getName(),
+                func_node->result_name);
+        }
+    }
     else
         return func_node;
 }
