@@ -1,3 +1,18 @@
+From 6c75bed5ee98d25a9ebdacf0ea3cdd97f961e3f8 Mon Sep 17 00:00:00 2001
+From: yan ma <yan.ma@intel.com>
+Date: Thu, 11 Jul 2024 16:55:16 +0800
+Subject: [PATCH] modify velox
+
+---
+ CMake/Findlz4.cmake                           | 27 ++++++++++---------
+ .../arrow/CMakeLists.txt                      | 11 ++++++--
+ CMakeLists.txt                                | 15 +++++++----
+ velox/common/process/tests/CMakeLists.txt     |  2 +-
+ .../abfs/RegisterAbfsFileSystem.cpp           |  1 -
+ .../hdfs/tests/HdfsMiniCluster.cpp            |  2 +-
+ .../parquet/writer/arrow/tests/CMakeLists.txt |  4 ++-
+ 7 files changed, 38 insertions(+), 24 deletions(-)
+
 diff --git a/CMake/Findlz4.cmake b/CMake/Findlz4.cmake
 index d49115f12..1aaa8e532 100644
 --- a/CMake/Findlz4.cmake
@@ -36,11 +51,11 @@ index d49115f12..1aaa8e532 100644
 +  endif()
  endif()
 diff --git a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
-index 3f01df2fd..a8da374a2 100644
+index 56b673e87..aedd460ae 100644
 --- a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
 +++ b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
 @@ -23,7 +23,11 @@ if(VELOX_ENABLE_ARROW)
-
+ 
    set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep")
    set(ARROW_CMAKE_ARGS
 -      -DARROW_PARQUET=OFF
@@ -56,12 +71,12 @@ index 3f01df2fd..a8da374a2 100644
        -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}/install
        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
        -DARROW_BUILD_STATIC=ON
--      -DThrift_SOURCE=${THRIFT_SOURCE})
-+      -DARROW_BUILD_SHARED=OFF)
+-      -DThrift_SOURCE=${THRIFT_SOURCE}
++      -DARROW_BUILD_SHARED=OFF
+       -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH})
    set(ARROW_LIBDIR ${ARROW_PREFIX}/install/${CMAKE_INSTALL_LIBDIR})
-
-   add_library(thrift STATIC IMPORTED GLOBAL)
-@@ -66,6 +70,9 @@ if(VELOX_ENABLE_ARROW)
+ 
+@@ -67,6 +71,9 @@ if(VELOX_ENABLE_ARROW)
      arrow_ep
      PREFIX ${ARROW_PREFIX}
      URL ${VELOX_ARROW_SOURCE_URL}
@@ -77,7 +92,7 @@ index bb7c49907..3372d48b4 100644
 +++ b/CMakeLists.txt
 @@ -234,10 +234,15 @@ if(VELOX_ENABLE_ABFS)
  endif()
-
+ 
  if(VELOX_ENABLE_HDFS)
 -  find_library(
 -    LIBHDFS3
@@ -94,10 +109,10 @@ index bb7c49907..3372d48b4 100644
 +  endif()
    add_definitions(-DVELOX_ENABLE_HDFS3)
  endif()
-
+ 
 @@ -378,7 +383,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
-
+ 
  set_source(gflags)
 -resolve_dependency(gflags COMPONENTS ${VELOX_GFLAGS_TYPE})
 +resolve_dependency(gflags)
@@ -110,7 +125,7 @@ index 6797697a1..3e241f8f7 100644
 +++ b/velox/common/process/tests/CMakeLists.txt
 @@ -18,4 +18,4 @@ add_executable(velox_process_test ProfilerTest.cpp ThreadLocalRegistryTest.cpp
  add_test(velox_process_test velox_process_test)
-
+ 
  target_link_libraries(velox_process_test PRIVATE velox_process fmt::fmt gtest
 -                                                 velox_time gtest_main)
 +                                                 velox_time gtest_main glog::glog gflags::gflags)
@@ -119,7 +134,7 @@ index e2a638df6..e383cf205 100644
 --- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 +++ b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 @@ -38,7 +38,6 @@ std::shared_ptr<FileSystem> abfsFileSystemGenerator(
-
+ 
  void registerAbfsFileSystem() {
  #ifdef VELOX_ENABLE_ABFS
 -  LOG(INFO) << "Register ABFS";
@@ -138,7 +153,7 @@ index 10ee508ba..027a58ecc 100644
 +  hadoopHomeDirectory.remove_filename().remove_filename();
    setupEnvironment(hadoopHomeDirectory.string());
  }
-
+ 
 diff --git a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
 index 2cabfc29a..54329ce23 100644
 --- a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
@@ -154,3 +169,6 @@ index 2cabfc29a..54329ce23 100644
  
  add_library(
    velox_dwio_arrow_parquet_writer_test_lib
+-- 
+2.25.1
+
