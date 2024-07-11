@@ -19,7 +19,6 @@ package org.apache.spark.sql
 import org.apache.spark.SparkException
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.functions.{assert_true, expr, input_file_name, lit, raise_error}
-import org.apache.spark.sql.types.{ArrayType, IntegerType, StringType, StructField, StructType}
 
 class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTestsTrait {
   import testImplicits._
@@ -72,29 +71,28 @@ class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTe
   }
 
   testGluten(
-  "input_file_name, input_file_block_start and input_file_block_length " +
-    "should fall back if scan falls back") {
-  withSQLConf(("spark.gluten.sql.columnar.filescan", "false")) {
-    withTempPath {
-      dir =>
-        val data = sparkContext.parallelize(0 to 10).toDF("id")
-        data.write.parquet(dir.getCanonicalPath)
+    "input_file_name, input_file_block_start and input_file_block_length " +
+      "should fall back if scan falls back") {
+    withSQLConf(("spark.gluten.sql.columnar.filescan", "false")) {
+      withTempPath {
+        dir =>
+          val data = sparkContext.parallelize(0 to 10).toDF("id")
+          data.write.parquet(dir.getCanonicalPath)
 
-        val q =
-          spark.read
-            .parquet(dir.getCanonicalPath)
-            .select(
-              input_file_name(),
-              expr("input_file_block_start()"),
-              expr("input_file_block_length()"))
-        val firstRow = q.head()
-        assert(firstRow.getString(0).contains(dir.toURI.getPath))
-        assert(firstRow.getLong(1) == 0)
-        assert(firstRow.getLong(2) > 0)
-        val project = q.queryExecution.executedPlan.collect { case p: ProjectExec => p }
-        assert(project.size == 1)
+          val q =
+            spark.read
+              .parquet(dir.getCanonicalPath)
+              .select(
+                input_file_name(),
+                expr("input_file_block_start()"),
+                expr("input_file_block_length()"))
+          val firstRow = q.head()
+          assert(firstRow.getString(0).contains(dir.toURI.getPath))
+          assert(firstRow.getLong(1) == 0)
+          assert(firstRow.getLong(2) > 0)
+          val project = q.queryExecution.executedPlan.collect { case p: ProjectExec => p }
+          assert(project.size == 1)
+      }
     }
   }
 }
-}
-

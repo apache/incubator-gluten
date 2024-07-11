@@ -19,7 +19,6 @@ package org.apache.spark.sql
 import org.apache.spark.SparkException
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.functions.{assert_true, expr, input_file_name, lit, raise_error}
-import org.apache.spark.sql.types._
 
 class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTestsTrait {
   import testImplicits._
