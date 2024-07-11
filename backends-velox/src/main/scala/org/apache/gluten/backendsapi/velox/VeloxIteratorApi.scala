@@ -22,7 +22,7 @@ import org.apache.gluten.execution._
 import org.apache.gluten.metrics.IMetrics
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.plan.PlanNode
-import org.apache.gluten.substrait.rel.{LocalFilesBuilder, LocalFilesNode, SplitInfo}
+import org.apache.gluten.substrait.rel.{LocalFilesBuilder, RawSplitInfo, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.utils._
 import org.apache.gluten.utils.iterator.Iterators
@@ -30,7 +30,6 @@ import org.apache.gluten.vectorized._
 
 import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.internal.Logging
-import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.connector.read.InputPartition
@@ -58,30 +57,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       properties: Map[String, String]): SplitInfo = {
     partition match {
       case f: FilePartition =>
-        val (
-          paths,
-          starts,
-          lengths,
-          fileSizes,
-          modificationTimes,
-          partitionColumns,
-          metadataColumns) =
-          constructSplitInfo(partitionSchema, f.files, metadataColumnNames)
-        val preferredLocations =
-          SoftAffinity.getFilePartitionLocations(f)
-        LocalFilesBuilder.makeLocalFiles(
-          f.index,
-          paths,
-          starts,
-          lengths,
-          fileSizes,
-          modificationTimes,
-          partitionColumns,
-          metadataColumns,
-          fileFormat,
-          preferredLocations.toList.asJava,
-          mapAsJavaMap(properties)
-        )
+        new RawSplitInfo(f, partitionSchema, fileFormat, metadataColumnNames.asJava)
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition.")
     }
@@ -97,13 +73,45 @@ class VeloxIteratorApi extends IteratorApi with Logging {
 
     splitInfos.zipWithIndex.map {
       case (splitInfos, index) =>
-        GlutenPartition(
+        GlutenRawPartition(
           index,
           planByteArray,
-          splitInfos.map(_.asInstanceOf[LocalFilesNode].toProtobuf.toByteArray).toArray,
-          splitInfos.flatMap(_.preferredLocations().asScala).toArray
+          splitInfos.map(_.asInstanceOf[RawSplitInfo])
         )
     }
+  }
+
+  private def toSplitInfoByteArray(splitInfos: Seq[RawSplitInfo]): Array[Array[Byte]] = {
+    splitInfos.map {
+      splitInfo =>
+        val (
+          paths,
+          starts,
+          lengths,
+          fileSizes,
+          modificationTimes,
+          partitionColumns,
+          metadataColumns) =
+          constructSplitInfo(
+            splitInfo.getPartitionSchema,
+            splitInfo.getFilePartition.files,
+            splitInfo.getMetadataColumn.asScala)
+        LocalFilesBuilder
+          .makeLocalFiles(
+            splitInfo.getFilePartition.index,
+            paths,
+            starts,
+            lengths,
+            fileSizes,
+            modificationTimes,
+            partitionColumns,
+            metadataColumns,
+            splitInfo.getFileFormat,
+            new JArrayList[String]()
+          )
+          .toProtobuf
+          .toByteArray
+    }.toArray
   }
 
   private def constructSplitInfo(
@@ -179,8 +187,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       partitionIndex: Int,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     assert(
-      inputPartition.isInstanceOf[GlutenPartition],
-      "Velox backend only accept GlutenPartition.")
+      inputPartition.isInstanceOf[GlutenRawPartition],
+      "Velox backend only accept GlutenRawPartition.")
 
     val columnarNativeIterators =
       new JArrayList[GeneralInIterator](inputIterators.map {
@@ -188,9 +196,10 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       }.asJava)
     val transKernel = NativePlanEvaluator.create()
 
-    val splitInfoByteArray = inputPartition
-      .asInstanceOf[GlutenPartition]
-      .splitInfosByteArray
+    val splitInfoByteArray = toSplitInfoByteArray(
+      inputPartition
+        .asInstanceOf[GlutenRawPartition]
+        .splitInfos)
     val resIter: GeneralOutIterator =
       transKernel.createKernelWithBatchIterator(
         inputPartition.plan,
