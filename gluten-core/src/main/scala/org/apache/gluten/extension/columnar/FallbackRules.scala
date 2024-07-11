@@ -117,9 +117,9 @@ object FallbackTags {
     val tagOption = getOption(plan)
     val newTagOption = converter.from(t)
 
-    val mergedTagOption
-        : Option[FallbackTag] = // New tag comes while the plan was already tagged, merge.
+    val mergedTagOption: Option[FallbackTag] =
       (tagOption ++ newTagOption).reduceOption {
+        // New tag comes while the plan was already tagged, merge.
         case (_, exclusive: FallbackTag.Exclusive) =>
           exclusive
         case (exclusive: FallbackTag.Exclusive, _) =>
