@@ -485,7 +485,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def alwaysFailOnMapExpression(): Boolean = true
 
-  override def requiredChildOrderingForWindow(): Boolean = true
+  override def requiredChildOrderingForWindow(): Boolean = {
+    GlutenConfig.getConf.veloxColumnarWindowType.equals("streaming")
+  }
+
+  override def requiredChildOrderingForWindowGroupLimit(): Boolean = false
 
   override def staticPartitionWriteOnly(): Boolean = true
 
