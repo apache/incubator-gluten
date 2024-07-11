@@ -69,6 +69,7 @@ jobs:
       - name: Build Gluten Velox third party
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
+          df -a
           source dev/ci-velox-buildstatic.sh
       - name: Upload Artifact Native
         uses: actions/upload-artifact@v2
