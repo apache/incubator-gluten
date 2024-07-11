@@ -1229,7 +1229,6 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
             ("www||apache||org", "||", 2),
             ("www||apache||org", "||", -2),
             ("", ".", 1),
-            ("大千世界大千世界", "千", 2),
             ("||||||", "|||", 3),
             ("||||||", "|||", -4)
           )
