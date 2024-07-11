@@ -65,7 +65,13 @@ trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelU
   final def doValidate(): ValidationResult = {
     try {
       TransformerState.enterValidation
-      val res = doValidateInternal()
+      val res = BackendsApiManager.getValidatorApiInstance
+        .doSchemaValidate(schema)
+        .map {
+          reason =>
+            ValidationResult.notOk(s"Found schema check failure for $schema, due to: $reason")
+        }
+        .getOrElse(doValidateInternal())
       if (!res.isValid) {
         TestStats.addFallBackClassName(this.getClass.toString)
       }

@@ -311,15 +311,6 @@ case class ColumnarUnionExec(children: Seq[SparkPlan]) extends SparkPlan with Gl
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
-
-  override protected def doValidateInternal(): ValidationResult = {
-    BackendsApiManager.getValidatorApiInstance
-      .doSchemaValidate(schema)
-      .map {
-        reason => ValidationResult.notOk(s"Found schema check failure for $schema, due to: $reason")
-      }
-      .getOrElse(ValidationResult.ok)
-  }
 }
 
 /**
