@@ -261,6 +261,8 @@ object ExpressionMappings {
     Sig[MapEntries](MAP_ENTRIES),
     Sig[MapZipWith](MAP_ZIP_WITH),
     Sig[StringToMap](STR_TO_MAP),
+    Sig[TransformKeys](TRANSFORM_KEYS),
+    Sig[TransformValues](TRANSFORM_VALUES),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
     Sig[CreateNamedStruct](NAMED_STRUCT),
@@ -284,6 +286,7 @@ object ExpressionMappings {
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
     Sig[WidthBucket](WIDTH_BUCKET),
     Sig[ReplicateRows](REPLICATE_ROWS),
+    Sig[RaiseError](RAISE_ERROR),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE),
     // Generator function

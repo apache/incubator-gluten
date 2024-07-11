@@ -17,9 +17,10 @@
 package org.apache.spark.sql
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.utils.{BackendTestSettings, BackendTestUtils, SystemParameters}
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator
 import org.apache.spark.sql.catalyst.plans.SQLHelper
 import org.apache.spark.sql.catalyst.rules.RuleExecutor
@@ -39,6 +40,7 @@ import java.util.Locale
 import scala.collection.mutable.ArrayBuffer
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.Try
+import scala.util.control.NonFatal
 
 /**
  * End-to-end test cases for SQL queries.
@@ -759,6 +761,47 @@ class GlutenSQLQueryTestSuite
       logWarning(codegenInfo)
     } finally {
       super.afterAll()
+    }
+  }
+
+  /**
+   * This method handles exceptions occurred during query execution as they may need special care to
+   * become comparable to the expected output.
+   *
+   * @param result
+   *   a function that returns a pair of schema and output
+   */
+  override protected def handleExceptions(
+      result: => (String, Seq[String])): (String, Seq[String]) = {
+    try {
+      result
+    } catch {
+      case a: AnalysisException =>
+        // Do not output the logical plan tree which contains expression IDs.
+        // Also implement a crude way of masking expression IDs in the error message
+        // with a generic pattern "###".
+        val msg = if (a.plan.nonEmpty) a.getSimpleMessage else a.getMessage
+        (emptySchema, Seq(a.getClass.getName, msg.replaceAll("#\\d+", "#x")))
+      case s: SparkException if s.getCause != null =>
+        // For a runtime exception, it is hard to match because its message contains
+        // information of stage, task ID, etc.
+        // To make result matching simpler, here we match the cause of the exception if it exists.
+        s.getCause match {
+          case e: GlutenException =>
+            val reasonPattern = "Reason: (.*)".r
+            val reason = reasonPattern.findFirstMatchIn(e.getMessage).map(_.group(1))
+
+            reason match {
+              case Some(r) =>
+                (emptySchema, Seq(e.getClass.getName, r))
+              case None => (emptySchema, Seq())
+            }
+          case cause =>
+            (emptySchema, Seq(cause.getClass.getName, cause.getMessage))
+        }
+      case NonFatal(e) =>
+        // If there is an exception, put the exception class followed by the message.
+        (emptySchema, Seq(e.getClass.getName, e.getMessage))
     }
   }
 }
