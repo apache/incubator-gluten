@@ -67,7 +67,8 @@ trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelU
     val schemaVaidationResult = BackendsApiManager.getValidatorApiInstance
       .doSchemaValidate(schema)
       .map {
-        reason => ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
+        reason =>
+          ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
       }
       .getOrElse(ValidationResult.succeeded)
     if (!schemaVaidationResult.ok()) {
