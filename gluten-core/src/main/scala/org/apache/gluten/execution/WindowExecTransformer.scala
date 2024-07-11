@@ -67,11 +67,7 @@ case class WindowExecTransformer(
   }
 
   override def requiredChildOrdering: Seq[Seq[SortOrder]] = {
-    if (
-      BackendsApiManager.getSettings.requiredChildOrderingForWindow()
-      && GlutenConfig.getConf.veloxColumnarWindowType.equals("streaming")
-    ) {
-      // Velox StreamingWindow need to require child order.
+    if (BackendsApiManager.getSettings.requiredChildOrderingForWindow()) {
       Seq(partitionSpec.map(SortOrder(_, Ascending)) ++ orderSpec)
     } else {
       Seq(Nil)

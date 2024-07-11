@@ -87,9 +87,9 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
         case _: TransformSupport =>
           // If the child is transformable, transform aggregation as well.
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)()
+          HashAggregateExecBaseTransformer.from(plan)
         case p: SparkPlan if PlanUtil.isGlutenTableCache(p) =>
-          HashAggregateExecBaseTransformer.from(plan)()
+          HashAggregateExecBaseTransformer.from(plan)
         case _ =>
           // If the child is not transformable, do not transform the agg.
           FallbackTags.add(plan, "child output schema is empty")
@@ -97,7 +97,7 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
       }
     } else {
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      HashAggregateExecBaseTransformer.from(plan)()
+      HashAggregateExecBaseTransformer.from(plan)
     }
   }
 }
@@ -425,10 +425,10 @@ object OffloadOthers {
           ColumnarCoalesceExec(plan.numPartitions, plan.child)
         case plan: SortAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)(SortUtils.dropPartialSort)
+          HashAggregateExecBaseTransformer.from(plan)
         case plan: ObjectHashAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)()
+          HashAggregateExecBaseTransformer.from(plan)
         case plan: UnionExec =>
           val children = plan.children
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")

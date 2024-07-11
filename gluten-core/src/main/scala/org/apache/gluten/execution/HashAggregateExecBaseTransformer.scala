@@ -185,8 +185,7 @@ object HashAggregateExecBaseTransformer {
     case a: SortAggregateExec => a.initialInputBufferOffset
   }
 
-  def from(agg: BaseAggregateExec)(
-      childConverter: SparkPlan => SparkPlan = p => p): HashAggregateExecBaseTransformer = {
+  def from(agg: BaseAggregateExec): HashAggregateExecBaseTransformer = {
     BackendsApiManager.getSparkPlanExecApiInstance
       .genHashAggregateExecTransformer(
         agg.requiredChildDistributionExpressions,
@@ -195,7 +194,7 @@ object HashAggregateExecBaseTransformer {
         agg.aggregateAttributes,
         getInitialInputBufferOffset(agg),
         agg.resultExpressions,
-        childConverter(agg.child)
+        agg.child
       )
   }
 }

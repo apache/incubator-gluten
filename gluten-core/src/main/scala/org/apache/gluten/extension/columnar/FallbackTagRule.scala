@@ -344,13 +344,13 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
             .genFilterExecTransformer(plan.condition, plan.child)
           transformer.doValidate().tagOnFallback(plan)
         case plan: HashAggregateExec =>
-          val transformer = HashAggregateExecBaseTransformer.from(plan)()
+          val transformer = HashAggregateExecBaseTransformer.from(plan)
           transformer.doValidate().tagOnFallback(plan)
         case plan: SortAggregateExec =>
-          val transformer = HashAggregateExecBaseTransformer.from(plan)()
+          val transformer = HashAggregateExecBaseTransformer.from(plan)
           transformer.doValidate().tagOnFallback(plan)
         case plan: ObjectHashAggregateExec =>
-          val transformer = HashAggregateExecBaseTransformer.from(plan)()
+          val transformer = HashAggregateExecBaseTransformer.from(plan)
           transformer.doValidate().tagOnFallback(plan)
         case plan: UnionExec =>
           val transformer = ColumnarUnionExec(plan.children)
