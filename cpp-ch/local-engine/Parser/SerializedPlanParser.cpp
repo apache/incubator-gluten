@@ -1781,9 +1781,9 @@ std::string LocalExecutor::dumpPipeline() const
         WriteBufferFromOwnString buffer;
         auto data_stats = processor->getProcessorDataStats();
         buffer << "(";
-        buffer << "\nexcution time: " << processor->getElapsedUs() << " us.";
-        buffer << "\ninput wait time: " << processor->getInputWaitElapsedUs() << " us.";
-        buffer << "\noutput wait time: " << processor->getOutputWaitElapsedUs() << " us.";
+        buffer << "\nexcution time: " << processor->getElapsedNs() / 1000U << " us.";
+        buffer << "\ninput wait time: " << processor->getInputWaitElapsedNs() / 1000U << " us.";
+        buffer << "\noutput wait time: " << processor->getOutputWaitElapsedNs() / 1000U << " us.";
         buffer << "\ninput rows: " << data_stats.input_rows;
         buffer << "\ninput bytes: " << data_stats.input_bytes;
         buffer << "\noutput rows: " << data_stats.output_rows;
