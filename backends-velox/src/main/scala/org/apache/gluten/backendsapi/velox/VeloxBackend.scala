@@ -374,7 +374,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
             case _: RowNumber | _: Rank | _: CumeDist | _: DenseRank | _: PercentRank |
                 _: NthValue | _: NTile | _: Lag | _: Lead =>
             case aggrExpr: AggregateExpression
-                if !aggrExpr.aggregateFunction.isInstanceOf[ApproximatePercentile] && !aggrExpr.aggregateFunction.isInstanceOf[Percentile] =>
+                if !aggrExpr.aggregateFunction.isInstanceOf[ApproximatePercentile]
+                  && !aggrExpr.aggregateFunction.isInstanceOf[Percentile] =>
             case _ =>
               allSupported = false
           }
