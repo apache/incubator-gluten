@@ -1121,13 +1121,12 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
     const auto named_struct_a = local_engine::getByteArrayElementsSafe(env, named_struct);
     const std::string::size_type struct_size = named_struct_a.length();
     std::string struct_string{reinterpret_cast<const char *>(named_struct_a.elems()), struct_size};
-    const auto join_type = static_cast<substrait::JoinRel_JoinType>(join_type_);
     const jsize length = env->GetArrayLength(in);
     local_engine::ReadBufferFromByteArray read_buffer_from_java_array(in, length);
     DB::CompressedReadBuffer input(read_buffer_from_java_array);
     local_engine::configureCompressedReadBuffer(input);
     const auto * obj = make_wrapper(local_engine::BroadCastJoinBuilder::buildJoin(
-        hash_table_id, input, row_count_, join_key, join_type, has_mixed_join_condition, struct_string));
+        hash_table_id, input, row_count_, join_key, join_type_, has_mixed_join_condition, struct_string));
     return obj->instance();
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }

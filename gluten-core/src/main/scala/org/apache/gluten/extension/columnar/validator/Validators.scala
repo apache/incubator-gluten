@@ -147,8 +147,6 @@ object Validators {
       case p: SortAggregateExec if !settings.replaceSortAggWithHashAgg =>
         fail(p)
       case p: CartesianProductExec if !settings.supportCartesianProductExec() => fail(p)
-      case p: BroadcastNestedLoopJoinExec if !settings.supportBroadcastNestedLoopJoinExec() =>
-        fail(p)
       case p: TakeOrderedAndProjectExec if !settings.supportColumnarShuffleExec() => fail(p)
       case _ => pass()
     }
