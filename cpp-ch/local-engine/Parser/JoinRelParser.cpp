@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "JoinRelParser.h"
+
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
@@ -30,6 +31,7 @@
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/JoinStep.h>
 #include <google/protobuf/wrappers.pb.h>
+#include <Common/CHUtil.h>
 
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
@@ -98,51 +100,15 @@ JoinOptimizationInfo parseJoinOptimizationInfo(const substrait::JoinRel & join)
     return info;
 }
 
-
-void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
-{
-    ActionsDAGPtr project = std::make_shared<ActionsDAG>(plan.getCurrentDataStream().header.getNamesAndTypesList());
-    NamesWithAliases project_cols;
-    for (const auto & col : cols)
-    {
-        project_cols.emplace_back(NameWithAlias(col, col));
-    }
-    project->project(project_cols);
-    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), project);
-    project_step->setStepDescription("Reorder Join Output");
-    plan.addStep(std::move(project_step));
-}
-
 namespace local_engine
 {
-
-std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type)
-{
-    switch (join_type)
-    {
-        case substrait::JoinRel_JoinType_JOIN_TYPE_INNER:
-            return {DB::JoinKind::Inner, DB::JoinStrictness::All};
-        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_SEMI:
-            return {DB::JoinKind::Left, DB::JoinStrictness::Semi};
-        case substrait::JoinRel_JoinType_JOIN_TYPE_ANTI:
-            return {DB::JoinKind::Left, DB::JoinStrictness::Anti};
-        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
-            return {DB::JoinKind::Left, DB::JoinStrictness::All};
-        case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT:
-            return {DB::JoinKind::Right, DB::JoinStrictness::All};
-        case substrait::JoinRel_JoinType_JOIN_TYPE_OUTER:
-            return {DB::JoinKind::Full, DB::JoinStrictness::All};
-        default:
-            throw Exception(ErrorCodes::UNKNOWN_TYPE, "unsupported join type {}.", magic_enum::enum_name(join_type));
-    }
-}
 std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type)
 {
     auto & global_context = SerializedPlanParser::global_context;
     auto table_join = std::make_shared<TableJoin>(
         global_context->getSettings(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
 
-    std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = getJoinKindAndStrictness(join_type);
+    std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = JoinUtil::getJoinKindAndStrictness(join_type);
     table_join->setKind(kind_and_strictness.first);
     table_join->setStrictness(kind_and_strictness.second);
     return table_join;
@@ -436,7 +402,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         query_plan = std::make_unique<QueryPlan>();
         query_plan->unitePlans(std::move(join_step), {std::move(plans)});
     }
-    reorderJoinOutput(*query_plan, after_join_names);
+    JoinUtil::reorderJoinOutput(*query_plan, after_join_names);
 
     return query_plan;
 }

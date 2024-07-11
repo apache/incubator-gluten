@@ -682,6 +682,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           t.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           t
         )
+      case e: EulerNumber =>
+        LiteralTransformer(Literal(Math.E))
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
