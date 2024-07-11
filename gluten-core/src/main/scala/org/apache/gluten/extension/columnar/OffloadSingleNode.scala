@@ -278,6 +278,17 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
         p.copy(genNewProjectList(projectList), addMetadataCol(child, replacedExprs))
       case p @ ProjectExecTransformer(projectList, child) =>
         p.copy(genNewProjectList(projectList), addMetadataCol(child, replacedExprs))
+      case u @ UnionExec(children) =>
+        val newFirstChild = addMetadataCol(children.head, replacedExprs)
+        val newOtherChildren = children.tail.map {
+          child =>
+            // Make sure exprId is unique in each child of Union.
+            val newReplacedExprs = replacedExprs.map {
+              expr => (expr._1, AttributeReference(expr._2.name, expr._2.dataType, false)())
+            }
+            addMetadataCol(child, newReplacedExprs)
+        }
+        u.copy(children = newFirstChild +: newOtherChildren)
       case _ => plan.withNewChildren(plan.children.map(addMetadataCol(_, replacedExprs)))
     }
   }
