@@ -352,7 +352,7 @@ public class CelebornShuffleManager implements ShuffleManager {
       @SuppressWarnings("unchecked")
       CelebornShuffleHandle<K, ?, C> h = (CelebornShuffleHandle<K, ?, C>) handle;
       CelebornConf readerConf = celebornConf;
-      if (_vanillaCelebornShuffleManager != null) {
+      if (!(h.dependency() instanceof ColumnarShuffleDependency)) {
         readerConf = rowBasedCelebornConf;
       }
       return CelebornUtils.getCelebornShuffleReader(
