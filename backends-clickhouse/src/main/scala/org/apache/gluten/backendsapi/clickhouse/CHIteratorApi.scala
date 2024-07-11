@@ -76,7 +76,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         }
         .map(it => new ColumnarNativeIterator(it.asJava).asInstanceOf[GeneralInIterator])
         .asJava
-    new CHNativeExpressionEvaluator().createKernelWithBatchIterator(
+    CHNativeExpressionEvaluator.createKernelWithBatchIterator(
       wsPlan,
       splitInfoByteArray,
       listIterator,

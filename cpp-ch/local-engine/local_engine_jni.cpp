@@ -201,7 +201,7 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
     env->DeleteGlobalRef(local_engine::ReservationListenerWrapper::reservation_listener_class);
 }
 
-JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jobject, jbyteArray conf_plan)
+JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jclass, jbyteArray conf_plan)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     const auto conf_plan_a = local_engine::getByteArrayElementsSafe(env, conf_plan);
@@ -210,7 +210,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeFinalizeNative(JNIEnv * env)
+JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeFinalizeNative(JNIEnv * env, jclass)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::BackendFinalizerUtil::finalizeSessionally();
@@ -219,7 +219,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
 
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
     JNIEnv * env,
-    jobject /*obj*/,
+    jclass ,
     jlong allocator_id,
     jbyteArray plan,
     jobjectArray split_infos,
