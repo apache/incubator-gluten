@@ -258,6 +258,16 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     checkLengthAndPlan(df, 5)
   }
 
+  testWithSpecifiedSparkVersion("coalesce validation", Some("3.5")) {
+    withTempPath {
+      path =>
+        val data = "2019-09-09 01:02:03.456789"
+        val df = Seq(data).toDF("strTs").selectExpr(s"CAST(strTs AS TIMESTAMP_NTZ) AS ts")
+        df.coalesce(1).write.format("parquet").save(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).collect
+    }
+  }
+
   test("groupby") {
     val df = runQueryAndCompare(
       "select l_orderkey, sum(l_partkey) as sum from lineitem " +

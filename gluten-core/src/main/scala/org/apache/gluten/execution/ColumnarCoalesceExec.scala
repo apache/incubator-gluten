@@ -16,7 +16,9 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.ValidationResult
 
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -31,6 +33,16 @@ case class ColumnarCoalesceExec(numPartitions: Int, child: SparkPlan)
   with GlutenPlan {
 
   override def supportsColumnar: Boolean = true
+
+  override protected def doValidateInternal(): ValidationResult = {
+    BackendsApiManager.getValidatorApiInstance
+      .doSchemaValidate(child.schema)
+      .map {
+        reason =>
+          ValidationResult.notOk(s"Found schema check failure for ${child.schema}, due to: $reason")
+      }
+      .getOrElse(ValidationResult.ok)
+  }
 
   override def output: Seq[Attribute] = child.output
 
