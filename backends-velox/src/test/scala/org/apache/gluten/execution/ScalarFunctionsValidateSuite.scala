@@ -675,6 +675,15 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
     assert(e.getCause.isInstanceOf[RuntimeException])
     assert(e.getMessage.contains("l_orderkey"))
+
+  test("Test E function") {
+    runQueryAndCompare("""SELECT E() from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("""SELECT E(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
   }
 
   test("Test spark_partition_id function") {

@@ -17,7 +17,6 @@
 #pragma once
 
 #include <memory>
-#include <unordered_set>
 #include <Parser/RelParser.h>
 #include <substrait/algebra.pb.h>
 
@@ -31,11 +30,12 @@ namespace local_engine
 
 class StorageJoinFromReadBuffer;
 
-class JoinRelParser : public RelParser
+
+class CrossRelParser : public RelParser
 {
 public:
-    explicit JoinRelParser(SerializedPlanParser * plan_paser_);
-    ~JoinRelParser() override = default;
+    explicit CrossRelParser(SerializedPlanParser * plan_paser_);
+    ~CrossRelParser() override = default;
 
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr query_plan, const substrait::Rel & sort_rel, std::list<const substrait::Rel *> & rel_stack_) override;
@@ -50,23 +50,12 @@ private:
     std::vector<QueryPlanPtr> & extra_plan_holder;
 
 
-    DB::QueryPlanPtr parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right);
+    DB::QueryPlanPtr parseJoin(const substrait::CrossRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right);
     void renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & right, const StorageJoinFromReadBuffer & storage_join);
     void addConvertStep(TableJoin & table_join, DB::QueryPlan & left, DB::QueryPlan & right);
-    void collectJoinKeys(
-        TableJoin & table_join, const substrait::JoinRel & join_rel, const DB::Block & left_header, const DB::Block & right_header);
-
+    void addPostFilter(DB::QueryPlan & query_plan, const substrait::CrossRel & join);
     bool applyJoinFilter(
-        DB::TableJoin & table_join,
-        const substrait::JoinRel & join_rel,
-        DB::QueryPlan & left_plan,
-        DB::QueryPlan & right_plan,
-        bool allow_mixed_condition);
-
-    void addPostFilter(DB::QueryPlan & plan, const substrait::JoinRel & join);
-
-    static std::unordered_set<DB::JoinTableSide> extractTableSidesFromExpression(
-        const substrait::Expression & expr, const DB::Block & left_header, const DB::Block & right_header);
+        DB::TableJoin & table_join, const substrait::CrossRel & join_rel, DB::QueryPlan & left, DB::QueryPlan & right, bool allow_mixed_condition);
 };
 
 }

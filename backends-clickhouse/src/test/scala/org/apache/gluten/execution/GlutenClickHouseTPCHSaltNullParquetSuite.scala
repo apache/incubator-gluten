@@ -1754,7 +1754,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql1, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
 
     val sql2 =
       """
@@ -1775,7 +1775,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql2, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
 
     val sql3 =
       """
@@ -1796,7 +1796,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql3, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
 
     val sql4 =
       """
@@ -1817,7 +1817,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql4, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => })
 
     val sql5 =
       """
@@ -1838,7 +1838,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql5, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql5, true, { _ => })
   }
 
   test("GLUTEN-1874 not null in one stream") {
