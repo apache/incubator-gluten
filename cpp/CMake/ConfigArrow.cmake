@@ -36,7 +36,11 @@ function(FIND_ARROW_LIB LIB_NAME)
     find_library(
       ARROW_LIB_${LIB_NAME}
       NAMES ${ARROW_LIB_FULL_NAME}
-      PATHS ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR})
+      PATHS ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR}
+      NO_DEFAULT_PATH)
+    if(NOT ARROW_LIB_${LIB_NAME})
+      find_library(ARROW_LIB_${LIB_NAME} NAMES ${ARROW_LIB_FULL_NAME})
+    endif()
     if(NOT ARROW_LIB_${LIB_NAME})
       message(FATAL_ERROR "Arrow library Not Found: ${ARROW_LIB_FULL_NAME}")
     endif()
