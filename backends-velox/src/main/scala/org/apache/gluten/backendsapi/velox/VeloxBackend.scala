@@ -28,7 +28,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFo
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, EulerNumber, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Pi, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Count, Sum}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Percentile, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
@@ -374,7 +374,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
             case _: RowNumber | _: Rank | _: CumeDist | _: DenseRank | _: PercentRank |
                 _: NthValue | _: NTile | _: Lag | _: Lead =>
             case aggrExpr: AggregateExpression
-                if !aggrExpr.aggregateFunction.isInstanceOf[ApproximatePercentile] =>
+                if !aggrExpr.aggregateFunction.isInstanceOf[ApproximatePercentile] && !aggrExpr.aggregateFunction.isInstanceOf[Percentile] =>
             case _ =>
               allSupported = false
           }
