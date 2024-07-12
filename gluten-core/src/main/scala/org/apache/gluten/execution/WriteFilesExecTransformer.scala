@@ -150,8 +150,8 @@ case class WriteFilesExecTransformer(
         finalChildOutput.toStructType.fields,
         bucketSpec,
         caseInsensitiveOptions)
-    if (!validationResult.isValid) {
-      return ValidationResult.notOk("Unsupported native write: " + validationResult.reason.get)
+    if (!validationResult.ok()) {
+      return ValidationResult.failed("Unsupported native write: " + validationResult.reason())
     }
 
     val substraitContext = new SubstraitContext

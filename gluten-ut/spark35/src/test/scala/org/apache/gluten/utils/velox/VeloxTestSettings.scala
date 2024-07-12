@@ -969,6 +969,11 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
   enableSuite[GlutenColumnExpressionSuite]
+    // Velox raise_error('errMsg') throws a velox_user_error exception with the message 'errMsg'.
+    // The final caught Spark exception's getCause().getMessage() contains 'errMsg' but does not
+    // equal 'errMsg' exactly. The following two tests will be skipped and overridden in Gluten.
+    .exclude("raise_error")
+    .exclude("assert_true")
   enableSuite[GlutenComplexTypeSuite]
   enableSuite[GlutenConfigBehaviorSuite]
     // Will be fixed by cleaning up ColumnarShuffleExchangeExec.

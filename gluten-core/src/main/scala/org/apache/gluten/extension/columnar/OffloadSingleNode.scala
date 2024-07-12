@@ -87,9 +87,9 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
         case _: TransformSupport =>
           // If the child is transformable, transform aggregation as well.
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)()
+          HashAggregateExecBaseTransformer.from(plan)
         case p: SparkPlan if PlanUtil.isGlutenTableCache(p) =>
-          HashAggregateExecBaseTransformer.from(plan)()
+          HashAggregateExecBaseTransformer.from(plan)
         case _ =>
           // If the child is not transformable, do not transform the agg.
           FallbackTags.add(plan, "child output schema is empty")
@@ -97,7 +97,7 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
       }
     } else {
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      HashAggregateExecBaseTransformer.from(plan)()
+      HashAggregateExecBaseTransformer.from(plan)
     }
   }
 }
@@ -379,7 +379,7 @@ case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
           val newScan =
             FilterHandler.pushFilterToScan(filter.condition, scan)
           newScan match {
-            case ts: TransformSupport if ts.doValidate().isValid => ts
+            case ts: TransformSupport if ts.doValidate().ok() => ts
             case _ => scan
           }
         } else scan
@@ -425,10 +425,10 @@ object OffloadOthers {
           ColumnarCoalesceExec(plan.numPartitions, plan.child)
         case plan: SortAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)(SortUtils.dropPartialSort)
+          HashAggregateExecBaseTransformer.from(plan)
         case plan: ObjectHashAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)()
+          HashAggregateExecBaseTransformer.from(plan)
         case plan: UnionExec =>
           val children = plan.children
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -550,12 +550,12 @@ object OffloadOthers {
       case plan: FileSourceScanExec =>
         val transformer = ScanTransformerFactory.createFileSourceScanTransformer(plan)
         val validationResult = transformer.doValidate()
-        if (validationResult.isValid) {
+        if (validationResult.ok()) {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           transformer
         } else {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-          FallbackTags.add(plan, validationResult.reason.get)
+          FallbackTags.add(plan, validationResult.reason())
           plan
         }
       case plan: BatchScanExec =>
@@ -565,12 +565,12 @@ object OffloadOthers {
         val hiveTableScanExecTransformer =
           BackendsApiManager.getSparkPlanExecApiInstance.genHiveTableScanExecTransformer(plan)
         val validateResult = hiveTableScanExecTransformer.doValidate()
-        if (validateResult.isValid) {
+        if (validateResult.ok()) {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           return hiveTableScanExecTransformer
         }
         logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-        FallbackTags.add(plan, validateResult.reason.get)
+        FallbackTags.add(plan, validateResult.reason())
         plan
       case other =>
         throw new GlutenNotSupportException(s"${other.getClass.toString} is not supported.")

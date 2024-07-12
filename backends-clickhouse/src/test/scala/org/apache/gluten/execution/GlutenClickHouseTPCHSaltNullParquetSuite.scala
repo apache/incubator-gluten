@@ -978,6 +978,17 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("window percent_rank") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | percent_rank(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_rank
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("window ntile") {
     val sql =
       """
@@ -1743,7 +1754,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql1, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
 
     val sql2 =
       """
@@ -1764,7 +1775,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql2, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
 
     val sql3 =
       """
@@ -1785,7 +1796,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql3, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
 
     val sql4 =
       """
@@ -1806,7 +1817,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql4, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => })
 
     val sql5 =
       """
@@ -1827,7 +1838,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql5, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql5, true, { _ => })
   }
 
   test("GLUTEN-1874 not null in one stream") {

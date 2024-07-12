@@ -27,7 +27,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, EulerNumber, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Pi, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
@@ -79,9 +79,9 @@ object VeloxBackendSettings extends BackendSettingsApi {
       // Collect unsupported types.
       val unsupportedDataTypeReason = fields.collect(validatorFunc)
       if (unsupportedDataTypeReason.isEmpty) {
-        ValidationResult.ok
+        ValidationResult.succeeded
       } else {
-        ValidationResult.notOk(
+        ValidationResult.failed(
           s"Found unsupported data type in $format: ${unsupportedDataTypeReason.mkString(", ")}.")
       }
     }
@@ -135,10 +135,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
         } else {
           validateTypes(parquetTypeValidatorWithComplexTypeFallback)
         }
-      case DwrfReadFormat => ValidationResult.ok
+      case DwrfReadFormat => ValidationResult.succeeded
       case OrcReadFormat =>
         if (!GlutenConfig.getConf.veloxOrcScanEnabled) {
-          ValidationResult.notOk(s"Velox ORC scan is turned off.")
+          ValidationResult.failed(s"Velox ORC scan is turned off.")
         } else {
           val typeValidator: PartialFunction[StructField, String] = {
             case StructField(_, arrayType: ArrayType, _, _)
@@ -164,7 +164,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
             validateTypes(orcTypeValidatorWithComplexTypeFallback)
           }
         }
-      case _ => ValidationResult.notOk(s"Unsupported file format for $format.")
+      case _ => ValidationResult.failed(s"Unsupported file format for $format.")
     }
   }
 
@@ -284,8 +284,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
       .orElse(validateDataTypes())
       .orElse(validateWriteFilesOptions())
       .orElse(validateBucketSpec()) match {
-      case Some(reason) => ValidationResult.notOk(reason)
-      case _ => ValidationResult.ok
+      case Some(reason) => ValidationResult.failed(reason)
+      case _ => ValidationResult.succeeded
     }
   }
 
@@ -430,7 +430,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
       expr match {
         // Block directly falling back the below functions by FallbackEmptySchemaRelation.
         case alias: Alias => checkExpr(alias.child)
-        case _: Rand | _: Uuid | _: MakeYMInterval | _: SparkPartitionID => true
+        case _: Rand | _: Uuid | _: MakeYMInterval | _: SparkPartitionID | _: EulerNumber | _: Pi =>
+          true
         case _ => false
       }
     }
@@ -485,7 +486,11 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def alwaysFailOnMapExpression(): Boolean = true
 
-  override def requiredChildOrderingForWindow(): Boolean = true
+  override def requiredChildOrderingForWindow(): Boolean = {
+    GlutenConfig.getConf.veloxColumnarWindowType.equals("streaming")
+  }
+
+  override def requiredChildOrderingForWindowGroupLimit(): Boolean = false
 
   override def staticPartitionWriteOnly(): Boolean = true
 
