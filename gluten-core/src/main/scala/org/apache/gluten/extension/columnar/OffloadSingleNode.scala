@@ -315,7 +315,7 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
       // https://github.com/apache/spark/blob/e459674127e7b21e2767cc62d10ea6f1f941936c
       // /sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/rules.scala#L519
       val leafScans = findScanNodes(projectExec)
-      if (leafScans.isEmpty || leafScans.forall(FallbackTags.nonEmpty)) {
+      if (leafScans.isEmpty || leafScans.exists(FallbackTags.nonEmpty)) {
         // It means
         // 1. projectExec has `input_file_name` but no scan child.
         // 2. It has scan children node but the scan node fallback.
