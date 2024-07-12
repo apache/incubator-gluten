@@ -224,7 +224,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
       val unsupportedTypes = fields.flatMap {
         field =>
           field.dataType match {
-            case _: TimestampType => Some("TimestampType")
             case _: StructType => Some("StructType")
             case _: ArrayType => Some("ArrayType")
             case _: MapType => Some("MapType")
