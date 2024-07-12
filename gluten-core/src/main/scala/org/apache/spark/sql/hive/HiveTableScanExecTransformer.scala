@@ -202,7 +202,7 @@ object HiveTableScanExecTransformer {
           hiveTableScan.relation,
           hiveTableScan.partitionPruningPred)(hiveTableScan.session)
         hiveTableScanTransformer.doValidate()
-      case _ => ValidationResult.notOk("Is not a Hive scan")
+      case _ => ValidationResult.failed("Is not a Hive scan")
     }
   }
 
