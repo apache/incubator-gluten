@@ -1,18 +1,3 @@
-From 6c75bed5ee98d25a9ebdacf0ea3cdd97f961e3f8 Mon Sep 17 00:00:00 2001
-From: yan ma <yan.ma@intel.com>
-Date: Thu, 11 Jul 2024 16:55:16 +0800
-Subject: [PATCH] modify velox
-
----
- CMake/Findlz4.cmake                           | 27 ++++++++++---------
- .../arrow/CMakeLists.txt                      | 11 ++++++--
- CMakeLists.txt                                | 15 +++++++----
- velox/common/process/tests/CMakeLists.txt     |  2 +-
- .../abfs/RegisterAbfsFileSystem.cpp           |  1 -
- .../hdfs/tests/HdfsMiniCluster.cpp            |  2 +-
- .../parquet/writer/arrow/tests/CMakeLists.txt |  4 ++-
- 7 files changed, 38 insertions(+), 24 deletions(-)
-
 diff --git a/CMake/Findlz4.cmake b/CMake/Findlz4.cmake
 index d49115f12..1aaa8e532 100644
 --- a/CMake/Findlz4.cmake
@@ -51,11 +36,20 @@ index d49115f12..1aaa8e532 100644
 +  endif()
  endif()
 diff --git a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
-index 56b673e87..aedd460ae 100644
+index 56b673e87..21a3b6a32 100644
 --- a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
 +++ b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
-@@ -23,7 +23,11 @@ if(VELOX_ENABLE_ARROW)
+@@ -14,16 +14,13 @@
+ project(Arrow)
  
+ if(VELOX_ENABLE_ARROW)
+-  find_package(Thrift)
+-  if(Thrift_FOUND)
+-    set(THRIFT_SOURCE "SYSTEM")
+-  else()
+-    set(THRIFT_SOURCE "BUNDLED")
+-  endif()
+-
    set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep")
    set(ARROW_CMAKE_ARGS
 -      -DARROW_PARQUET=OFF
@@ -67,7 +61,7 @@ index 56b673e87..aedd460ae 100644
        -DARROW_WITH_THRIFT=ON
        -DARROW_WITH_LZ4=ON
        -DARROW_WITH_SNAPPY=ON
-@@ -37,7 +41,7 @@ if(VELOX_ENABLE_ARROW)
+@@ -37,7 +34,7 @@ if(VELOX_ENABLE_ARROW)
        -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}/install
        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
        -DARROW_BUILD_STATIC=ON
@@ -76,7 +70,7 @@ index 56b673e87..aedd460ae 100644
        -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH})
    set(ARROW_LIBDIR ${ARROW_PREFIX}/install/${CMAKE_INSTALL_LIBDIR})
  
-@@ -67,6 +71,9 @@ if(VELOX_ENABLE_ARROW)
+@@ -67,6 +64,9 @@ if(VELOX_ENABLE_ARROW)
      arrow_ep
      PREFIX ${ARROW_PREFIX}
      URL ${VELOX_ARROW_SOURCE_URL}
@@ -169,6 +163,3 @@ index 2cabfc29a..54329ce23 100644
  
  add_library(
    velox_dwio_arrow_parquet_writer_test_lib
--- 
-2.25.1
-
