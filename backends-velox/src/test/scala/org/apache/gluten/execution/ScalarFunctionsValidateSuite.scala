@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.sql.catalyst.optimizer.NullPropagation
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.types._
 
@@ -660,6 +661,15 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     runQueryAndCompare("""SELECT input_file_name(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test sequence function") {
+    withSQLConf(("spark.sql.optimizer.excludedRules", NullPropagation.ruleName)) {
+      runQueryAndCompare("""SELECT sequence(1, 5), l_orderkey
+                           | from lineitem limit 100""".stripMargin) {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
     }
   }
 
