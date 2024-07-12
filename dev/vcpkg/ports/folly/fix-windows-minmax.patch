@@ -1,5 +1,5 @@
 diff --git a/CMake/FollyCompilerMSVC.cmake b/CMake/FollyCompilerMSVC.cmake
-index ec2ce1a1d..16deda71c 100644
+index ad03039aa..1c76e0f00 100644
 --- a/CMake/FollyCompilerMSVC.cmake
 +++ b/CMake/FollyCompilerMSVC.cmake
 @@ -289,6 +289,7 @@ function(apply_folly_compile_options_to_target THETARGET)
