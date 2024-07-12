@@ -14,20 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.extension
+package org.apache.gluten.extension
 
 import org.apache.gluten.GlutenConfig
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.{DateType, LongType, StringType}
 import org.apache.spark.unsafe.types.UTF8String
-
-import java.lang.IllegalArgumentException
 
 // For readable, people usually convert a unix timestamp into date, and compare it with another
 // date. For example
