@@ -172,20 +172,20 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     format match {
       case ParquetReadFormat =>
         if (validateFilePath) {
-          ValidationResult.ok
+          ValidationResult.succeeded
         } else {
-          ValidationResult.notOk("Validate file path failed.")
+          ValidationResult.failed("Validate file path failed.")
         }
-      case OrcReadFormat => ValidationResult.ok
-      case MergeTreeReadFormat => ValidationResult.ok
+      case OrcReadFormat => ValidationResult.succeeded
+      case MergeTreeReadFormat => ValidationResult.succeeded
       case TextReadFormat =>
         if (!hasComplexType) {
-          ValidationResult.ok
+          ValidationResult.succeeded
         } else {
-          ValidationResult.notOk("Has complex type.")
+          ValidationResult.failed("Has complex type.")
         }
-      case JsonReadFormat => ValidationResult.ok
-      case _ => ValidationResult.notOk(s"Unsupported file format $format")
+      case JsonReadFormat => ValidationResult.succeeded
+      case _ => ValidationResult.failed(s"Unsupported file format $format")
     }
   }
 
@@ -291,7 +291,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String]): ValidationResult =
-    ValidationResult.notOk("CH backend is unsupported.")
+    ValidationResult.failed("CH backend is unsupported.")
 
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(false)

@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.validate;
 
+import org.apache.gluten.extension.ValidationResult;
+
 import java.util.Vector;
 
 public class NativePlanValidationInfo {
@@ -30,11 +32,13 @@ public class NativePlanValidationInfo {
     }
   }
 
-  public boolean isSupported() {
-    return isSupported == 1;
-  }
-
-  public Vector<String> getFallbackInfo() {
-    return fallbackInfo;
+  public ValidationResult asResult() {
+    if (isSupported == 1) {
+      return ValidationResult.succeeded();
+    }
+    return ValidationResult.failed(
+        String.format(
+            "Native validation failed: %n%s",
+            fallbackInfo.stream().reduce((l, r) -> l + "\n" + r)));
   }
 }

@@ -163,34 +163,35 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
 
   def validateJoinTypeAndBuildSide(): ValidationResult = {
     val result = joinType match {
-      case _: InnerLike | LeftOuter | RightOuter => ValidationResult.ok
+      case _: InnerLike | LeftOuter | RightOuter => ValidationResult.succeeded
       case _ =>
-        ValidationResult.notOk(s"$joinType join is not supported with BroadcastNestedLoopJoin")
+        ValidationResult.failed(s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
 
-    if (!result.isValid) {
+    if (!result.ok()) {
       return result
     }
 
     (joinType, buildSide) match {
       case (LeftOuter, BuildLeft) | (RightOuter, BuildRight) =>
-        ValidationResult.notOk(s"$joinType join is not supported with $buildSide")
-      case _ => ValidationResult.ok // continue
+        ValidationResult.failed(s"$joinType join is not supported with $buildSide")
+      case _ => ValidationResult.succeeded // continue
     }
   }
 
   override protected def doValidateInternal(): ValidationResult = {
     if (!GlutenConfig.getConf.broadcastNestedLoopJoinTransformerTransformerEnabled) {
-      return ValidationResult.notOk(
+      return ValidationResult.failed(
         s"Config ${GlutenConfig.BROADCAST_NESTED_LOOP_JOIN_TRANSFORMER_ENABLED.key} not enabled")
     }
 
     if (substraitJoinType == CrossRel.JoinType.UNRECOGNIZED) {
-      return ValidationResult.notOk(s"$joinType join is not supported with BroadcastNestedLoopJoin")
+      return ValidationResult.failed(
+        s"$joinType join is not supported with BroadcastNestedLoopJoin")
     }
 
     val validateResult = validateJoinTypeAndBuildSide()
-    if (!validateResult.isValid) {
+    if (!validateResult.ok()) {
       return validateResult
     }
 

@@ -133,18 +133,18 @@ abstract class BatchScanExecTransformerBase(
 
   override def doValidateInternal(): ValidationResult = {
     if (pushedAggregate.nonEmpty) {
-      return ValidationResult.notOk(s"Unsupported aggregation push down for $scan.")
+      return ValidationResult.failed(s"Unsupported aggregation push down for $scan.")
     }
 
     if (
       SparkShimLoader.getSparkShims.findRowIndexColumnIndexInSchema(schema) > 0 &&
       !BackendsApiManager.getSettings.supportNativeRowIndexColumn()
     ) {
-      return ValidationResult.notOk("Unsupported row index column scan in native.")
+      return ValidationResult.failed("Unsupported row index column scan in native.")
     }
 
     if (hasUnsupportedColumns) {
-      return ValidationResult.notOk(s"Unsupported columns scan in native.")
+      return ValidationResult.failed(s"Unsupported columns scan in native.")
     }
 
     super.doValidateInternal()
