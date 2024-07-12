@@ -24,7 +24,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
-import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.{StructField, StructType}
 
 import org.apache.commons.io.FileUtils
 
@@ -209,7 +209,13 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
 
       var expectedAnswer: Seq[Row] = null
       withSQLConf(vanillaSparkConfs(): _*) {
-        expectedAnswer = spark.sql(sql).collect()
+        expectedAnswer = spark.read
+          .option("delimiter", "|-|")
+          .option("nullValue", "null")
+          .schema(StructType.apply(fields))
+          .csv(queriesResults + "/" + queryNum + ".out")
+          .toDF()
+          .collect()
       }
       checkAnswer(df, expectedAnswer)
       // using WARN to guarantee printed
