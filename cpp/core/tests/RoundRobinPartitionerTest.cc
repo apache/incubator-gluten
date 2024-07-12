@@ -27,6 +27,7 @@ class RoundRobinPartitionerTest : public ::testing::Test {
     row2Partition_.clear();
     partition2RowCount_.clear();
     partition2RowCount_.resize(numPart);
+    std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
   }
 
   void checkResult(const std::vector<uint32_t>& expectRow2Part, const std::vector<uint32_t>& expectPart2RowCount)

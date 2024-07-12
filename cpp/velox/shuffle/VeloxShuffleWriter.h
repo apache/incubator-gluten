@@ -75,10 +75,10 @@ class VeloxShuffleWriter : public ShuffleWriter {
         rv.pool(), newRowType, facebook::velox::BufferPtr(nullptr), length, std::move(children));
   }
 
-  const int32_t* getFirstColumn(const facebook::velox::RowVector& rv) {
-    VELOX_CHECK(rv.childrenSize() > 0, "RowVector missing partition id column.");
+  facebook::velox::VectorPtr getFirstColumn(const facebook::velox::RowVectorPtr& rv) {
+    VELOX_CHECK(rv->childrenSize() > 0, "RowVector missing partition id column.");
 
-    auto& firstChild = rv.childAt(0);
+    const auto& firstChild = rv->childAt(0);
     VELOX_CHECK(firstChild->isFlatEncoding(), "Partition id (field 0) is not flat encoding.");
     VELOX_CHECK(
         firstChild->type()->isInteger(),
@@ -86,7 +86,7 @@ class VeloxShuffleWriter : public ShuffleWriter {
         firstChild->type()->toString());
 
     // first column is partition key hash value or pid
-    return firstChild->asFlatVector<int32_t>()->rawValues();
+    return firstChild;
   }
 
   // For test only.

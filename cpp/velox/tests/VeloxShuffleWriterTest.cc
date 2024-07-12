@@ -165,21 +165,12 @@ TEST_P(HashPartitioningShuffleWriter, hashPart1Vector) {
           nullEvery(5)),
   });
 
-  auto dataVector = makeRowVector({
-      makeNullableFlatVector<int8_t>({1, 2, 3, std::nullopt}),
-      makeFlatVector<int64_t>({1, 2, 3, 4}),
-      makeFlatVector<velox::StringView>({"nn", "re", "fr", "juiu"}),
-      makeFlatVector<int64_t>({232, 34567235, 1212, 4567}, DECIMAL(12, 4)),
-      makeFlatVector<int128_t>({232, 34567235, 1212, 4567}, DECIMAL(20, 4)),
-      makeFlatVector<int32_t>(
-          4, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
-      makeFlatVector<Timestamp>(
-          4,
-          [](vector_size_t row) {
-            return Timestamp{row % 2, 0};
-          },
-          nullEvery(5)),
-  });
+  auto rowType = facebook::velox::asRowType(vector->type());
+  auto children = rowType->children();
+  auto names = rowType->names();
+  children.erase(children.begin());
+  names.erase(names.begin());
+  auto dataType = facebook::velox::ROW(std::move(names), std::move(children));
 
   auto firstBlock = makeRowVector({
       makeNullableFlatVector<int8_t>({2, std::nullopt}),
@@ -201,7 +192,7 @@ TEST_P(HashPartitioningShuffleWriter, hashPart1Vector) {
       makeNullableFlatVector<Timestamp>({std::nullopt, Timestamp(0, 0)}),
   });
 
-  testShuffleWriteMultiBlocks(*shuffleWriter, {vector}, 2, dataVector->type(), {{firstBlock}, {secondBlock}});
+  testShuffleWriteMultiBlocks(*shuffleWriter, {vector}, 2, dataType, {{firstBlock}, {secondBlock}});
 }
 
 TEST_P(HashPartitioningShuffleWriter, hashPart1VectorComplexType) {
@@ -371,7 +362,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceRealloc) {
   // No data got evicted so the cached size is 0.
   ASSERT_EQ(shuffleWriter->cachedPayloadSize(), 0);
 
-  ASSERT_NOT_OK(shuffleWriter->stop());
+  ASSERT_NOT_OK(shuffleWriter->stop(ShuffleWriter::kMinMemLimit));
 }
 
 TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceReuse) {
@@ -406,7 +397,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceReuse) {
   // resized.
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputStringHasNull));
 
-  ASSERT_NOT_OK(shuffleWriter->stop());
+  ASSERT_NOT_OK(shuffleWriter->stop(ShuffleWriter::kMinMemLimit));
 }
 
 TEST_P(RoundRobinPartitioningShuffleWriter, spillVerifyResult) {
@@ -457,7 +448,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, memoryLeak) {
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector2_));
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
 
-  ASSERT_NOT_OK(shuffleWriter->stop());
+  ASSERT_NOT_OK(shuffleWriter->stop(ShuffleWriter::kMinMemLimit));
 
   ASSERT_TRUE(pool->bytes_allocated() == 0);
   shuffleWriter.reset();
@@ -471,7 +462,8 @@ TEST_F(VeloxShuffleWriterMemoryTest, spillFailWithOutOfMemory) {
 
   auto shuffleWriter = createShuffleWriter(pool.get());
 
-  auto status = splitRowVector(*shuffleWriter, inputVector1_);
+  std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(inputVector1_);
+  auto status = shuffleWriter->write(cb, 0);
 
   // Should return OOM status because there's no partition buffer to spill.
   ASSERT_TRUE(status.IsOutOfMemory());
@@ -544,7 +536,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kInit) {
     ASSERT_EQ(evicted, 0);
   }
 
-  ASSERT_NOT_OK(shuffleWriter->stop());
+  ASSERT_NOT_OK(shuffleWriter->stop(ShuffleWriter::kMinMemLimit));
 }
 
 TEST_F(VeloxShuffleWriterMemoryTest, kInitSingle) {
@@ -566,7 +558,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kInitSingle) {
     ASSERT_EQ(shuffleWriter->cachedPayloadSize(), 0);
   }
 
-  ASSERT_NOT_OK(shuffleWriter->stop());
+  ASSERT_NOT_OK(shuffleWriter->stop(ShuffleWriter::kMinMemLimit));
 }
 
 TEST_F(VeloxShuffleWriterMemoryTest, kSplit) {
@@ -588,7 +580,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kSplit) {
     ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
   }));
 
-  ASSERT_NOT_OK(shuffleWriter->stop());
+  ASSERT_NOT_OK(shuffleWriter->stop(ShuffleWriter::kMinMemLimit));
 }
 
 TEST_F(VeloxShuffleWriterMemoryTest, kSplitSingle) {
@@ -606,7 +598,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kSplitSingle) {
   ASSERT_TRUE(pool.checkEvict(
       shuffleWriter->cachedPayloadSize(), [&] { ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_)); }));
 
-  ASSERT_NOT_OK(shuffleWriter->stop());
+  ASSERT_NOT_OK(shuffleWriter->stop(ShuffleWriter::kMinMemLimit));
 }
 
 TEST_F(VeloxShuffleWriterMemoryTest, kStop) {
@@ -627,7 +619,8 @@ TEST_F(VeloxShuffleWriterMemoryTest, kStop) {
 
     // Trigger spill during stop.
     // For single partitioning, spill is triggered by allocating buffered output stream.
-    ASSERT_TRUE(pool.checkEvict(pool.bytes_allocated(), [&] { ASSERT_NOT_OK(shuffleWriter->stop()); }));
+    ASSERT_TRUE(pool.checkEvict(
+        pool.bytes_allocated(), [&] { ASSERT_NOT_OK(shuffleWriter->stop(ShuffleWriter::kMinMemLimit)); }));
   }
 }
 
@@ -695,7 +688,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, resizeBinaryBufferTriggerSpill) {
     // Split second input vector. Large average string length.
     ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVectorLargeBinary2_));
   }));
-  ASSERT_NOT_OK(shuffleWriter->stop());
+  ASSERT_NOT_OK(shuffleWriter->stop(ShuffleWriter::kMinMemLimit));
 }
 
 INSTANTIATE_TEST_SUITE_P(

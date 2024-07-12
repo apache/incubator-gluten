@@ -186,7 +186,7 @@ class ColumnarShuffleWriter[K, V](
 
     val startTime = System.nanoTime()
     assert(nativeShuffleWriter != -1L)
-    splitResult = jniWrapper.stop(nativeShuffleWriter)
+    splitResult = jniWrapper.stop(nativeShuffleWriter, availableOffHeapPerTask())
     closeShuffleWriter()
 
     dep

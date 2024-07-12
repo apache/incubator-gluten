@@ -180,9 +180,10 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
     inputVectorLargeBinary2_ = makeRowVector(childrenLargeBinary2_);
   }
 
-  arrow::Status splitRowVector(VeloxShuffleWriter& shuffleWriter, facebook::velox::RowVectorPtr vector) {
+  arrow::Status
+  splitRowVector(VeloxShuffleWriter& shuffleWriter, facebook::velox::RowVectorPtr vector, int64_t memLimit = 0) {
     std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
-    return shuffleWriter.write(cb, ShuffleWriter::kMinMemLimit);
+    return shuffleWriter.write(cb, memLimit);
   }
 
   // Create multiple local dirs and join with comma.
@@ -258,19 +259,18 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
       ShuffleWriterOptions shuffleWriterOptions,
       uint32_t numPartitions,
       int32_t bufferSize) {
-    std::shared_ptr<VeloxShuffleWriter> shuffleWriter;
-    if (GetParam().shuffleWriterType == kHashShuffle) {
+    if (shuffleWriterOptions.shuffleWriterType == ShuffleWriterType::kHashShuffle) {
       shuffleWriterOptions.bufferSize = bufferSize;
-      GLUTEN_ASSIGN_OR_THROW(
-          shuffleWriter,
-          VeloxHashBasedShuffleWriter::create(
-              numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions), pool_, arrowPool));
-    } else if (GetParam().shuffleWriterType == kSortShuffle) {
-      GLUTEN_ASSIGN_OR_THROW(
-          shuffleWriter,
-          VeloxSortBasedShuffleWriter::create(
-              numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions), pool_, arrowPool));
     }
+    GLUTEN_ASSIGN_OR_THROW(
+        auto shuffleWriter,
+        VeloxShuffleWriter::create(
+            GetParam().shuffleWriterType,
+            numPartitions,
+            std::move(partitionWriter),
+            std::move(shuffleWriterOptions),
+            pool_,
+            arrowPool));
     return shuffleWriter;
   }
 
@@ -358,7 +358,7 @@ class SinglePartitioningShuffleWriter : public VeloxShuffleWriterTest {
     for (auto& vector : vectors) {
       ASSERT_NOT_OK(splitRowVector(shuffleWriter, vector));
     }
-    ASSERT_NOT_OK(shuffleWriter.stop());
+    ASSERT_NOT_OK(shuffleWriter.stop(ShuffleWriter::kMinMemLimit));
     // verify data file
     checkFileExists(dataFile_);
     // verify output temporary files
@@ -395,7 +395,7 @@ class MultiplePartitioningShuffleWriter : public VeloxShuffleWriterTest {
       int32_t expectPartitionLength,
       facebook::velox::TypePtr dataType,
       std::vector<std::vector<facebook::velox::RowVectorPtr>> expectedVectors) { /* blockId = pid, rowVector in block */
-    ASSERT_NOT_OK(shuffleWriter.stop());
+    ASSERT_NOT_OK(shuffleWriter.stop(ShuffleWriter::kMinMemLimit));
     // verify data file
     checkFileExists(dataFile_);
     // verify output temporary files

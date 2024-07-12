@@ -18,6 +18,7 @@
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/VeloxHashBasedShuffleWriter.h"
 #include "shuffle/VeloxSortBasedShuffleWriter.h"
+#include "shuffle/VeloxSortShuffleWriter.h"
 
 namespace gluten {
 arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
@@ -34,6 +35,9 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
           numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
     case kSortShuffle:
       return VeloxSortBasedShuffleWriter::create(
+          numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
+    case kSortShuffleV2:
+      return VeloxSortShuffleWriter::create(
           numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool);
     default:
       return arrow::Status::Invalid("Unsupported shuffle writer type: ", std::to_string(type));
