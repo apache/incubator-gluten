@@ -218,17 +218,16 @@ public class ExpressionBuilder {
   public static LiteralNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
     TypeNode typeNode = ConverterUtils.getTypeNode(dataType, nullable);
     if (obj instanceof UnsafeArrayData) {
-      UnsafeArrayData unsafeArrayData = (UnsafeArrayData) obj;
-      int numElements = unsafeArrayData.numElements();
+      UnsafeArrayData oldObj = (UnsafeArrayData) obj;
+      int numElements = oldObj.numElements();
       Object[] elements = new Object[numElements];
       DataType elementType = ((ArrayType) dataType).elementType();
 
       for (int i = 0; i < numElements; i++) {
-        elements[i] = unsafeArrayData.get(i, elementType);
+        elements[i] = oldObj.get(i, elementType);
       }
 
       GenericArrayData newObj = new GenericArrayData(elements);
-      newObj.array();
       return makeListLiteral(newObj, typeNode);
     }
     return makeLiteral(obj, typeNode);
