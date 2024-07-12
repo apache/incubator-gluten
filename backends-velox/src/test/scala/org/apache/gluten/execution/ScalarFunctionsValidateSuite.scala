@@ -687,6 +687,16 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("Test Pi function") {
+    runQueryAndCompare("""SELECT Pi() from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("""SELECT Pi(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("Test spark_partition_id function") {
     runQueryAndCompare("""SELECT spark_partition_id(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
@@ -1223,6 +1233,41 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
   testWithSpecifiedSparkVersion("levenshtein with limit", Some("3.5")) {
     runQueryAndCompare("select levenshtein(c_comment, c_address, 3) from customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test substring_index") {
+    withTempView("substring_index_table") {
+      withTempPath {
+        path =>
+          Seq[(String, String, Int)](
+            ("www.apache.org", ".", 3),
+            ("www.apache.org", ".", 2),
+            ("www.apache.org", ".", 1),
+            ("www.apache.org", ".", 0),
+            ("www.apache.org", ".", -1),
+            ("www.apache.org", ".", -2),
+            ("www.apache.org", ".", -3),
+            ("www.apache.org", "", 1),
+            ("www.apache.org", "#", 1),
+            ("www||apache||org", "||", 2),
+            ("www||apache||org", "||", -2),
+            ("", ".", 1),
+            ("||||||", "|||", 3),
+            ("||||||", "|||", -4)
+          )
+            .toDF("str", "delim", "count")
+            .write
+            .parquet(path.getCanonicalPath)
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("substring_index_table")
+          runQueryAndCompare(
+            """
+              |select substring_index(str, delim, count) from substring_index_table
+              |""".stripMargin
+          ) {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
     }
   }
 }

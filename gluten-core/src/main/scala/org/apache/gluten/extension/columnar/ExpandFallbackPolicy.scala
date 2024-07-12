@@ -243,7 +243,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
         originalPlan
           .find(_.logicalLink.exists(_.fastEquals(p.logicalLink.get)))
           .filterNot(FallbackTags.nonEmpty)
-          .foreach(origin => FallbackTags.tag(origin, FallbackTags.getTag(p)))
+          .foreach(origin => FallbackTags.add(origin, FallbackTags.get(p)))
       case _ =>
     }
 
@@ -280,7 +280,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
       } else {
         FallbackTags.addRecursively(
           vanillaSparkPlan,
-          TRANSFORM_UNSUPPORTED(fallbackInfo.reason, appendReasonIfExists = false))
+          FallbackTag.Exclusive(fallbackInfo.reason.getOrElse("Unknown reason")))
         FallbackNode(vanillaSparkPlan)
       }
     } else {

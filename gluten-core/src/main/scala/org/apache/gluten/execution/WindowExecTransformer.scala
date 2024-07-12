@@ -165,7 +165,7 @@ case class WindowExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportWindowExec(windowExpression)) {
       return ValidationResult
-        .notOk(s"Found unsupported window expression: ${windowExpression.mkString(", ")}")
+        .failed(s"Found unsupported window expression: ${windowExpression.mkString(", ")}")
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)

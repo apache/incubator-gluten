@@ -24,6 +24,7 @@ import org.apache.gluten.vectorized._
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.SHUFFLE_COMPRESS
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
@@ -76,7 +77,7 @@ private class CelebornColumnarBatchSerializerInstance(
     ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
     val conf = SparkEnv.get.conf
     val compressionCodec =
-      if (conf.getBoolean("spark.shuffle.compress", true)) {
+      if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
         GlutenShuffleUtils.getCompressionCodec(conf)
       } else {
         null // uncompressed

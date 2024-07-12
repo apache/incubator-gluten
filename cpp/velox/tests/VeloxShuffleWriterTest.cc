@@ -207,50 +207,13 @@ TEST_P(HashPartitioningShuffleWriter, hashPart1Vector) {
 TEST_P(HashPartitioningShuffleWriter, hashPart1VectorComplexType) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
-  std::vector<VectorPtr> children = {
-      makeNullableFlatVector<int32_t>({std::nullopt, 1}),
-      makeRowVector({
-          makeFlatVector<int32_t>({1, 3}),
-          makeNullableFlatVector<velox::StringView>({std::nullopt, "de"}),
-      }),
-      makeNullableFlatVector<StringView>({std::nullopt, "10 I'm not inline string"}),
-      makeArrayVector<int64_t>({
-          {1, 2, 3, 4, 5},
-          {1, 2, 3},
-      }),
-      makeMapVector<int32_t, StringView>({{{1, "str1000"}, {2, "str2000"}}, {{3, "str3000"}, {4, "str4000"}}}),
-  };
-  auto dataVector = makeRowVector(children);
+  auto children = childrenComplex_;
   children.insert((children.begin()), makeFlatVector<int32_t>({1, 2}));
   auto vector = makeRowVector(children);
+  auto firstBlock = takeRows({inputVectorComplex_}, {{1}});
+  auto secondBlock = takeRows({inputVectorComplex_}, {{0}});
 
-  auto firstBlock = makeRowVector({
-      makeConstant<int32_t>(1, 1),
-      makeRowVector({
-          makeConstant<int32_t>(3, 1),
-          makeFlatVector<velox::StringView>({"de"}),
-      }),
-      makeFlatVector<StringView>({"10 I'm not inline string"}),
-      makeArrayVector<int64_t>({
-          {1, 2, 3},
-      }),
-      makeMapVector<int32_t, StringView>({{{3, "str3000"}, {4, "str4000"}}}),
-  });
-
-  auto secondBlock = makeRowVector({
-      makeNullConstant(TypeKind::INTEGER, 1),
-      makeRowVector({
-          makeConstant<int32_t>(1, 1),
-          makeNullableFlatVector<velox::StringView>({std::nullopt}),
-      }),
-      makeNullableFlatVector<StringView>({std::nullopt}),
-      makeArrayVector<int64_t>({
-          {1, 2, 3, 4, 5},
-      }),
-      makeMapVector<int32_t, StringView>({{{1, "str1000"}, {2, "str2000"}}}),
-  });
-
-  testShuffleWriteMultiBlocks(*shuffleWriter, {vector}, 2, dataVector->type(), {{firstBlock}, {secondBlock}});
+  testShuffleWriteMultiBlocks(*shuffleWriter, {vector}, 2, inputVectorComplex_->type(), {{firstBlock}, {secondBlock}});
 }
 
 TEST_P(HashPartitioningShuffleWriter, hashPart3Vectors) {
@@ -629,6 +592,27 @@ TEST_F(VeloxShuffleWriterMemoryTest, kStop) {
     // For single partitioning, spill is triggered by allocating buffered output stream.
     ASSERT_TRUE(pool.checkEvict(pool.bytes_allocated(), [&] { ASSERT_NOT_OK(shuffleWriter->stop()); }));
   }
+}
+
+TEST_F(VeloxShuffleWriterMemoryTest, kStopComplex) {
+  ASSERT_NOT_OK(initShuffleWriterOptions());
+  shuffleWriterOptions_.bufferSize = 4;
+  auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get(), false);
+  auto shuffleWriter = createShuffleWriter(&pool);
+
+  pool.setEvictable(shuffleWriter.get());
+  for (int i = 0; i < 3; ++i) {
+    ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVectorComplex_));
+  }
+
+  // Reclaim from PartitionWriter to free cached bytes.
+  auto payloadSize = shuffleWriter->cachedPayloadSize();
+  int64_t evicted;
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(payloadSize, &evicted));
+  ASSERT_EQ(evicted, payloadSize);
+
+  // When evicting partitioning buffers in stop, spill will be triggered by complex types allocating extra memory.
+  ASSERT_TRUE(pool.checkEvict(pool.bytes_allocated(), [&] { ASSERT_NOT_OK(shuffleWriter->stop()); }));
 }
 
 TEST_F(VeloxShuffleWriterMemoryTest, evictPartitionBuffers) {

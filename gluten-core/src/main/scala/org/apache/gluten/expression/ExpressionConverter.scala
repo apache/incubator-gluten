@@ -684,6 +684,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         )
       case e: EulerNumber =>
         LiteralTransformer(Literal(Math.E))
+      case p: Pi =>
+        LiteralTransformer(Literal(Math.PI))
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
