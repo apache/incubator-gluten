@@ -65,9 +65,9 @@ abstract class CyclicSearchSpaceSuite extends AnyFunSuite {
       PathFinder.builder(ras, mockState).depth(depth).build().find(can)
     }
 
-    assert(find(node1, 1).map(p => p.plan()) == List(Unary("node1", Group(0))))
-    assert(find(node1, 2).map(p => p.plan()) == List(Unary("node1", Leaf("node2", 1))))
-    assert(find(node1, 3).map(p => p.plan()) == List(Unary("node1", Leaf("node2", 1))))
+    assert(find(node1, 1).map(p => p.plan()).toList == List(Unary("node1", Group(0))))
+    assert(find(node1, 2).map(p => p.plan()).toList == List(Unary("node1", Leaf("node2", 1))))
+    assert(find(node1, 3).map(p => p.plan()).toList == List(Unary("node1", Leaf("node2", 1))))
     assert(
       find(node1, RasPath.INF_DEPTH).map(p => p.plan()) == List(Unary("node1", Leaf("node2", 1))))
   }
