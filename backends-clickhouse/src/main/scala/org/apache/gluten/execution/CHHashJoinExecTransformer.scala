@@ -60,7 +60,7 @@ case class CHShuffledHashJoinExecTransformer(
         right.outputSet,
         condition)
     if (shouldFallback) {
-      return ValidationResult.notOk("ch join validate fail")
+      return ValidationResult.failed("ch join validate fail")
     }
     super.doValidateInternal()
   }
@@ -118,10 +118,10 @@ case class CHBroadcastHashJoinExecTransformer(
         condition)
 
     if (shouldFallback) {
-      return ValidationResult.notOk("ch join validate fail")
+      return ValidationResult.failed("ch join validate fail")
     }
     if (isNullAwareAntiJoin) {
-      return ValidationResult.notOk("ch does not support NAAJ")
+      return ValidationResult.failed("ch does not support NAAJ")
     }
     super.doValidateInternal()
   }

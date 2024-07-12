@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -131,19 +131,6 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     val canonicalized =
       BackendsApiManager.getSparkPlanExecApiInstance.doCanonicalizeForBroadcastMode(mode)
     ColumnarBroadcastExchangeExec(canonicalized, child.canonicalized)
-  }
-
-  override protected def doValidateInternal(): ValidationResult = {
-    BackendsApiManager.getValidatorApiInstance
-      .doSchemaValidate(schema)
-      .map {
-        reason =>
-          {
-            ValidationResult.notOk(
-              s"Unsupported schema in broadcast exchange: $schema, reason: $reason")
-          }
-      }
-      .getOrElse(ValidationResult.ok)
   }
 
   override def doPrepare(): Unit = {

@@ -22,7 +22,6 @@ import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
-import org.apache.gluten.expression.ExpressionNames.{TRANSFORM_KEYS, TRANSFORM_VALUES}
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar.FallbackTags
@@ -367,7 +366,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ child.output
         val projectTransformer = ProjectExecTransformer(projectList, child)
         val validationResult = projectTransformer.doValidate()
-        if (validationResult.isValid) {
+        if (validationResult.ok()) {
           val newChild = maybeAddAppendBatchesExec(projectTransformer)
           ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output.drop(1))
         } else {
@@ -393,7 +392,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
             val projectTransformer = ProjectExecTransformer(projectList, child)
             val projectBeforeSortValidationResult = projectTransformer.doValidate()
             // Make sure we support offload hash expression
-            val projectBeforeSort = if (projectBeforeSortValidationResult.isValid) {
+            val projectBeforeSort = if (projectBeforeSortValidationResult.ok()) {
               projectTransformer
             } else {
               val project = ProjectExec(projectList, child)
@@ -406,7 +405,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
             val dropSortColumnTransformer =
               ProjectExecTransformer(projectList.drop(1), sortByHashCode)
             val validationResult = dropSortColumnTransformer.doValidate()
-            if (validationResult.isValid) {
+            if (validationResult.ok()) {
               val newChild = maybeAddAppendBatchesExec(dropSortColumnTransformer)
               ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output)
             } else {
@@ -835,8 +834,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       Sig[VeloxCollectSet](ExpressionNames.COLLECT_SET),
       Sig[VeloxBloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
       Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG),
-      Sig[TransformKeys](TRANSFORM_KEYS),
-      Sig[TransformValues](TRANSFORM_VALUES),
       // For test purpose.
       Sig[VeloxDummyExpression](VeloxDummyExpression.VELOX_DUMMY_EXPRESSION)
     )
@@ -891,7 +888,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       case p @ LimitTransformer(SortExecTransformer(sortOrder, _, child, _), 0, count) =>
         val global = child.outputPartitioning.satisfies(AllTuples)
         val topN = TopNTransformer(count, sortOrder, global, child)
-        if (topN.doValidate().isValid) {
+        if (topN.doValidate().ok()) {
           topN
         } else {
           p

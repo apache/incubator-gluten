@@ -95,11 +95,11 @@ object ScanTransformerFactory {
         transformer.setPushDownFilters(allPushDownFilters.get)
         // Validate again if allPushDownFilters is defined.
         val validationResult = transformer.doValidate()
-        if (validationResult.isValid) {
+        if (validationResult.ok()) {
           transformer
         } else {
           val newSource = batchScan.copy(runtimeFilters = transformer.runtimeFilters)
-          FallbackTags.add(newSource, validationResult.reason.get)
+          FallbackTags.add(newSource, validationResult.reason())
           newSource
         }
       } else {

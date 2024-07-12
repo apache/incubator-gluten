@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.spark.SparkException
 import org.apache.spark.sql.catalyst.optimizer.NullPropagation
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.types._
@@ -673,11 +674,34 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("Test raise_error, assert_true function") {
+    runQueryAndCompare("""SELECT assert_true(l_orderkey >= 1), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    val e = intercept[SparkException] {
+      sql("""SELECT assert_true(l_orderkey >= 100), l_orderkey from
+            | lineitem limit 100""".stripMargin).collect()
+    }
+    assert(e.getCause.isInstanceOf[RuntimeException])
+    assert(e.getMessage.contains("l_orderkey"))
+  }
+
   test("Test E function") {
     runQueryAndCompare("""SELECT E() from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
     runQueryAndCompare("""SELECT E(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test Pi function") {
+    runQueryAndCompare("""SELECT Pi() from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("""SELECT Pi(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
@@ -1218,6 +1242,47 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
 
   testWithSpecifiedSparkVersion("levenshtein with limit", Some("3.5")) {
     runQueryAndCompare("select levenshtein(c_comment, c_address, 3) from customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test substring_index") {
+    withTempView("substring_index_table") {
+      withTempPath {
+        path =>
+          Seq[(String, String, Int)](
+            ("www.apache.org", ".", 3),
+            ("www.apache.org", ".", 2),
+            ("www.apache.org", ".", 1),
+            ("www.apache.org", ".", 0),
+            ("www.apache.org", ".", -1),
+            ("www.apache.org", ".", -2),
+            ("www.apache.org", ".", -3),
+            ("www.apache.org", "", 1),
+            ("www.apache.org", "#", 1),
+            ("www||apache||org", "||", 2),
+            ("www||apache||org", "||", -2),
+            ("", ".", 1),
+            ("||||||", "|||", 3),
+            ("||||||", "|||", -4)
+          )
+            .toDF("str", "delim", "count")
+            .write
+            .parquet(path.getCanonicalPath)
+          spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("substring_index_table")
+          runQueryAndCompare(
+            """
+              |select substring_index(str, delim, count) from substring_index_table
+              |""".stripMargin
+          ) {
+            checkGlutenOperatorMatch[ProjectExecTransformer]
+          }
+      }
+    }
+  }
+
+  test("repeat") {
+    runQueryAndCompare("select repeat(c_comment, 5) from customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }

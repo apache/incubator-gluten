@@ -112,7 +112,7 @@ case class CartesianProductExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportCartesianProductExec()) {
-      return ValidationResult.notOk("Cartesian product is not supported in this backend")
+      return ValidationResult.failed("Cartesian product is not supported in this backend")
     }
     val substraitContext = new SubstraitContext
     val expressionNode = condition.map {
