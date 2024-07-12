@@ -106,7 +106,7 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
           val castExpr = Cast(generateChildExpression(from), to)
           if (castExpr.checkInputDataTypes().isSuccess) {
             val glutenProject = generateGlutenProjectPlan(castExpr)
-            if (glutenProject.doValidate().isValid) {
+            if (glutenProject.doValidate().ok()) {
               logInfo("## cast validation passes: cast from " + from + " to " + to)
             } else {
               logInfo("!! cast validation fails: cast from " + from + " to " + to)
@@ -145,7 +145,7 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
             // Builds an expression whose child's type is really accepted in Spark.
             val targetExpr = builder(Seq(child))
             val glutenProject = generateGlutenProjectPlan(targetExpr)
-            if (glutenProject.doValidate().isValid) {
+            if (glutenProject.doValidate().ok()) {
               logInfo("## validation passes: " + targetExpr.getClass.getSimpleName + "(" + t + ")")
             } else {
               logInfo("!! validation fails: " + targetExpr.getClass.getSimpleName + "(" + t + ")")
