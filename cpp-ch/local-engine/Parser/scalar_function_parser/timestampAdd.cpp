@@ -42,10 +42,11 @@ public:
     static constexpr auto name = "timestamp_add";
 
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return "timestamp_add"; }
 
     const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const override
     {
-        auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 4)
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly four arguments", getName());
 

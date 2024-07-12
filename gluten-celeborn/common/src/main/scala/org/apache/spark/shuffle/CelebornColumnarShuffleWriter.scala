@@ -31,7 +31,7 @@ import org.apache.celeborn.common.CelebornConf
 import java.io.IOException
 import java.util.Locale
 
-abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
+abstract class CelebornColumnarShuffleWriter[K, V](
     shuffleId: Int,
     handle: CelebornShuffleHandle[K, V, V],
     context: TaskContext,

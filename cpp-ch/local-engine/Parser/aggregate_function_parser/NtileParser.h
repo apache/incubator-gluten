@@ -14,20 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+#pragma once
+#include <Parser/AggregateFunctionParser.h>
 
-import org.apache.gluten.extension.columnar.rewrite.RewrittenNodeWall
-
-import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan}
-
-object SortUtils {
-  def dropPartialSort(plan: SparkPlan): SparkPlan = plan match {
-    case RewrittenNodeWall(p) => RewrittenNodeWall(dropPartialSort(p))
-    case sort: SortExec if !sort.global => sort.child
-    // from pre/post project-pulling
-    case ProjectExec(_, SortExec(_, false, ProjectExec(_, p), _))
-        if plan.outputSet == p.outputSet =>
-      p
-    case _ => plan
-  }
+namespace local_engine
+{
+class NtileParser : public AggregateFunctionParser
+{
+public:
+    explicit NtileParser(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
+    ~NtileParser() override = default;
+    static constexpr auto name = "ntile";
+    String getName() const override { return name; }
+    String getCHFunctionName(const CommonFunctionInfo &) const override { return "ntile"; }
+    String getCHFunctionName(DB::DataTypes &) const override { return "ntile"; }
+    DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
+        const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const override;
+};
 }

@@ -162,4 +162,26 @@ class GlutenClickHouseDatetimeExpressionSuite
          |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+
+  test("support range partition by timestamp") {
+    import testImplicits._
+    val df = Seq(
+      (1, Timestamp.valueOf("2015-07-22 10:01:40.123456")),
+      (2, Timestamp.valueOf("2014-12-31 05:29:06.123456")),
+      (3, Timestamp.valueOf("2015-07-22 16:01:40.123456")),
+      (4, Timestamp.valueOf("2012-02-29 23:01:40.123456"))
+    ).toDF("i", "t")
+
+    df.createOrReplaceTempView("test")
+
+    val sql =
+      s"""
+         | select
+         | /** repartition(2) */
+         | *
+         | from test
+         | order by t
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, { _ => })
+  }
 }

@@ -50,7 +50,7 @@ case class CHSortMergeJoinExecTransformer(
         right.outputSet,
         condition)
     if (shouldFallback) {
-      return ValidationResult.notOk("ch join validate fail")
+      return ValidationResult.failed("ch join validate fail")
     }
     super.doValidateInternal()
   }

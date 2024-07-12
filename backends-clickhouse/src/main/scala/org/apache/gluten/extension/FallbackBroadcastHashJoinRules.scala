@@ -28,7 +28,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.BroadcastQueryStageExec
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike, ReusedExchangeExec}
-import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
+import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, BroadcastNestedLoopJoinExec}
 
 import scala.util.control.Breaks.{break, breakable}
 
@@ -57,12 +57,12 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
                 !columnarConf.enableColumnarBroadcastExchange ||
                 !columnarConf.enableColumnarBroadcastJoin
               ) {
-                ValidationResult.notOk(
+                ValidationResult.failed(
                   "columnar broadcast exchange is disabled or " +
                     "columnar broadcast join is disabled")
               } else {
                 if (FallbackTags.nonEmpty(bhj)) {
-                  ValidationResult.notOk("broadcast join is already tagged as not transformable")
+                  ValidationResult.failed("broadcast join is already tagged as not transformable")
                 } else {
                   val bhjTransformer = BackendsApiManager.getSparkPlanExecApiInstance
                     .genBroadcastHashJoinExecTransformer(
@@ -75,7 +75,7 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
                       bhj.right,
                       bhj.isNullAwareAntiJoin)
                   val isBhjTransformable = bhjTransformer.doValidate()
-                  if (isBhjTransformable.isValid) {
+                  if (isBhjTransformable.ok()) {
                     val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
                     exchangeTransformer.doValidate()
                   } else {
@@ -89,9 +89,57 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
           // Skip. This might be the case that the exchange was already
           // executed in earlier stage
         }
+      case bnlj: BroadcastNestedLoopJoinExec => applyBNLJPrepQueryStage(bnlj)
       case _ =>
     }
     plan
+  }
+
+  private def applyBNLJPrepQueryStage(bnlj: BroadcastNestedLoopJoinExec) = {
+    val buildSidePlan = bnlj.buildSide match {
+      case BuildLeft => bnlj.left
+      case BuildRight => bnlj.right
+    }
+    val maybeExchange = buildSidePlan.find {
+      case BroadcastExchangeExec(_, _) => true
+      case _ => false
+    }
+    maybeExchange match {
+      case Some(exchange @ BroadcastExchangeExec(mode, child)) =>
+        val isTransformable =
+          if (
+            !GlutenConfig.getConf.enableColumnarBroadcastExchange ||
+            !GlutenConfig.getConf.enableColumnarBroadcastJoin
+          ) {
+            ValidationResult.failed(
+              "columnar broadcast exchange is disabled or " +
+                "columnar broadcast join is disabled")
+          } else {
+            if (FallbackTags.nonEmpty(bnlj)) {
+              ValidationResult.failed("broadcast join is already tagged as not transformable")
+            } else {
+              val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+                .genBroadcastNestedLoopJoinExecTransformer(
+                  bnlj.left,
+                  bnlj.right,
+                  bnlj.buildSide,
+                  bnlj.joinType,
+                  bnlj.condition)
+              val isTransformable = transformer.doValidate()
+              if (isTransformable.ok()) {
+                val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
+                exchangeTransformer.doValidate()
+              } else {
+                isTransformable
+              }
+            }
+          }
+        FallbackTags.add(bnlj, isTransformable)
+        FallbackTags.add(exchange, isTransformable)
+      case _ =>
+      // Skip. This might be the case that the exchange was already
+      // executed in earlier stage
+    }
   }
 }
 
@@ -101,6 +149,10 @@ case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPl
 
   private val enableColumnarBroadcastJoin: Boolean =
     GlutenConfig.getConf.enableColumnarBroadcastJoin &&
+      GlutenConfig.getConf.enableColumnarBroadcastExchange
+
+  private val enableColumnarBroadcastNestedLoopJoin: Boolean =
+    GlutenConfig.getConf.broadcastNestedLoopJoinTransformerTransformerEnabled &&
       GlutenConfig.getConf.enableColumnarBroadcastExchange
 
   override def apply(plan: SparkPlan): SparkPlan = {
@@ -138,63 +190,9 @@ case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPl
                   case BuildRight => bhj.right
                 }
 
-                val maybeExchange = buildSidePlan
-                  .find {
-                    case BroadcastExchangeExec(_, _) => true
-                    case _ => false
-                  }
-                  .map(_.asInstanceOf[BroadcastExchangeExec])
-
-                maybeExchange match {
-                  case Some(exchange @ BroadcastExchangeExec(mode, child)) =>
-                    isBhjTransformable.tagOnFallback(bhj)
-                    if (!isBhjTransformable.isValid) {
-                      FallbackTags.add(exchange, isBhjTransformable)
-                    }
-                  case None =>
-                    // we are in AQE, find the hidden exchange
-                    // FIXME did we consider the case that AQE: OFF && Reuse: ON ?
-                    var maybeHiddenExchange: Option[BroadcastExchangeLike] = None
-                    breakable {
-                      buildSidePlan.foreach {
-                        case e: BroadcastExchangeLike =>
-                          maybeHiddenExchange = Some(e)
-                          break
-                        case t: BroadcastQueryStageExec =>
-                          t.plan.foreach {
-                            case e2: BroadcastExchangeLike =>
-                              maybeHiddenExchange = Some(e2)
-                              break
-                            case r: ReusedExchangeExec =>
-                              r.child match {
-                                case e2: BroadcastExchangeLike =>
-                                  maybeHiddenExchange = Some(e2)
-                                  break
-                                case _ =>
-                              }
-                            case _ =>
-                          }
-                        case _ =>
-                      }
-                    }
-                    // restriction to force the hidden exchange to be found
-                    val exchange = maybeHiddenExchange.get
-                    // to conform to the underlying exchange's type, columnar or vanilla
-                    exchange match {
-                      case BroadcastExchangeExec(mode, child) =>
-                        FallbackTags.add(
-                          bhj,
-                          "it's a materialized broadcast exchange or reused broadcast exchange")
-                      case ColumnarBroadcastExchangeExec(mode, child) =>
-                        if (!isBhjTransformable.isValid) {
-                          throw new IllegalStateException(
-                            s"BroadcastExchange has already been" +
-                              s" transformed to columnar version but BHJ is determined as" +
-                              s" non-transformable: ${bhj.toString()}")
-                        }
-                    }
-                }
+                preTagBroadcastExchangeFallback(bhj, buildSidePlan, isBhjTransformable)
               }
+            case bnlj: BroadcastNestedLoopJoinExec => applyBNLJFallback(bnlj)
             case _ =>
           }
         } catch {
@@ -206,5 +204,89 @@ case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPl
         }
     }
     plan
+  }
+
+  private def applyBNLJFallback(bnlj: BroadcastNestedLoopJoinExec) = {
+    if (!enableColumnarBroadcastNestedLoopJoin) {
+      FallbackTags.add(bnlj, "columnar BroadcastJoin is not enabled in BroadcastNestedLoopJoinExec")
+    }
+
+    val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+      .genBroadcastNestedLoopJoinExecTransformer(
+        bnlj.left,
+        bnlj.right,
+        bnlj.buildSide,
+        bnlj.joinType,
+        bnlj.condition)
+
+    val isBNLJTransformable = transformer.doValidate()
+    val buildSidePlan = bnlj.buildSide match {
+      case BuildLeft => bnlj.left
+      case BuildRight => bnlj.right
+    }
+
+    preTagBroadcastExchangeFallback(bnlj, buildSidePlan, isBNLJTransformable)
+  }
+
+  private def preTagBroadcastExchangeFallback(
+      plan: SparkPlan,
+      buildSidePlan: SparkPlan,
+      isTransformable: ValidationResult): Unit = {
+    val maybeExchange = buildSidePlan
+      .find {
+        case BroadcastExchangeExec(_, _) => true
+        case _ => false
+      }
+      .map(_.asInstanceOf[BroadcastExchangeExec])
+
+    maybeExchange match {
+      case Some(exchange @ BroadcastExchangeExec(_, _)) =>
+        isTransformable.tagOnFallback(plan)
+        if (!isTransformable.ok) {
+          FallbackTags.add(exchange, isTransformable)
+        }
+      case None =>
+        // we are in AQE, find the hidden exchange
+        // FIXME did we consider the case that AQE: OFF && Reuse: ON ?
+        var maybeHiddenExchange: Option[BroadcastExchangeLike] = None
+        breakable {
+          buildSidePlan.foreach {
+            case e: BroadcastExchangeLike =>
+              maybeHiddenExchange = Some(e)
+              break
+            case t: BroadcastQueryStageExec =>
+              t.plan.foreach {
+                case e2: BroadcastExchangeLike =>
+                  maybeHiddenExchange = Some(e2)
+                  break
+                case r: ReusedExchangeExec =>
+                  r.child match {
+                    case e2: BroadcastExchangeLike =>
+                      maybeHiddenExchange = Some(e2)
+                      break
+                    case _ =>
+                  }
+                case _ =>
+              }
+            case _ =>
+          }
+        }
+        // restriction to force the hidden exchange to be found
+        val exchange = maybeHiddenExchange.get
+        // to conform to the underlying exchange's type, columnar or vanilla
+        exchange match {
+          case BroadcastExchangeExec(mode, child) =>
+            FallbackTags.add(
+              plan,
+              "it's a materialized broadcast exchange or reused broadcast exchange")
+          case ColumnarBroadcastExchangeExec(mode, child) =>
+            if (!isTransformable.ok) {
+              throw new IllegalStateException(
+                s"BroadcastExchange has already been" +
+                  s" transformed to columnar version but BHJ is determined as" +
+                  s" non-transformable: ${plan.toString()}")
+            }
+        }
+    }
   }
 }

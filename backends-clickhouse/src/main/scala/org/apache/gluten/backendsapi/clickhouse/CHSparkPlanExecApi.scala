@@ -373,8 +373,13 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       buildSide: BuildSide,
       joinType: JoinType,
       condition: Option[Expression]): BroadcastNestedLoopJoinExecTransformer =
-    throw new GlutenNotSupportException(
-      "BroadcastNestedLoopJoinExecTransformer is not supported in ch backend.")
+    CHBroadcastNestedLoopJoinExecTransformer(
+      left,
+      right,
+      buildSide,
+      joinType,
+      condition
+    )
 
   override def genSampleExecTransformer(
       lowerBound: Double,
@@ -460,16 +465,23 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       child: SparkPlan,
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation = {
-    val hashedRelationBroadcastMode = mode.asInstanceOf[HashedRelationBroadcastMode]
+
+    val buildKeys: Seq[Expression] = mode match {
+      case mode1: HashedRelationBroadcastMode =>
+        mode1.key
+      case _ =>
+        // IdentityBroadcastMode
+        Seq.empty
+    }
+
     val (newChild, newOutput, newBuildKeys) =
       if (
-        hashedRelationBroadcastMode.key
+        buildKeys
           .forall(k => k.isInstanceOf[AttributeReference] || k.isInstanceOf[BoundReference])
       ) {
         (child, child.output, Seq.empty[Expression])
       } else {
         // pre projection in case of expression join keys
-        val buildKeys = hashedRelationBroadcastMode.key
         val appendedProjections = new ArrayBuffer[NamedExpression]()
         val preProjectionBuildKeys = buildKeys.zipWithIndex.map {
           case (e, idx) =>
@@ -704,7 +716,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         val columnName = s"${aliasExpr.name}_${aliasExpr.exprId.id}"
         val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
         wExpression.windowFunction match {
-          case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
+          case wf @ (RowNumber() | Rank(_) | DenseRank(_) | PercentRank(_)) =>
             val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
@@ -795,6 +807,22 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
               originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
+          case wf @ NTile(buckets: Expression) =>
+            val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
+            val childrenNodeList = new JArrayList[ExpressionNode]()
+            val literal = buckets.asInstanceOf[Literal]
+            childrenNodeList.add(LiteralTransformer(literal).doTransform(args))
+            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
+              WindowFunctionsBuilder.create(args, wf).toInt,
+              childrenNodeList,
+              columnName,
+              ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
+              frame.upper,
+              frame.lower,
+              frame.frameType.sql,
+              originalInputAttributes.asJava
+            )
+            windowExpressionNodes.add(windowFunctionNode)
           case _ =>
             throw new GlutenNotSupportException(
               "unsupported window function type: " +
@@ -857,6 +885,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       argument: ExpressionTransformer,
       function: ExpressionTransformer,
       expr: ArrayTransform): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
+  }
+
+  /** Transform array sort to Substrait. */
+  override def genArraySortTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArraySort): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
   }
 

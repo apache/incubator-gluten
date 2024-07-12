@@ -76,7 +76,8 @@
           "name": "google-cloud-cpp",
           "features": [
             "storage"
-          ]
+          ],
+          "version>=": "2.22.0"
         }
       ]
     },

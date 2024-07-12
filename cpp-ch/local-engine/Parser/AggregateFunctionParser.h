@@ -97,12 +97,7 @@ public:
 
     /// Do some preprojections for the function arguments, and return the necessary arguments for the CH function.
     virtual DB::ActionsDAG::NodeRawConstPtrs
-    parseFunctionArguments(const CommonFunctionInfo & func_info, const String & ch_func_name, DB::ActionsDAGPtr & actions_dag) const;
-
-    DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const
-    {
-        return parseFunctionArguments(func_info, getCHFunctionName(func_info), actions_dag);
-    }
+    parseFunctionArguments(const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const;
 
     // `PartialMerge` is applied on the merging stages.
     // `If` is applied when the aggreate function has a filter. This should only happen on the 1st stage.

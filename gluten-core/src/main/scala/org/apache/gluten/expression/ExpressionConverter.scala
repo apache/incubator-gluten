@@ -556,6 +556,19 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             expressionsMap),
           arrayTransform
         )
+      case arraySort: ArraySort =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArraySortTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(
+            arraySort.argument,
+            attributeSeq,
+            expressionsMap),
+          replaceWithExpressionTransformerInternal(
+            arraySort.function,
+            attributeSeq,
+            expressionsMap),
+          arraySort
+        )
       case tryEval @ TryEval(a: Add) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
           substraitExprName,
@@ -669,6 +682,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           t.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           t
         )
+      case e: EulerNumber =>
+        LiteralTransformer(Literal(Math.E))
+      case p: Pi =>
+        LiteralTransformer(Literal(Math.PI))
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,

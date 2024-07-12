@@ -45,7 +45,7 @@ public:
         ActionsDAGPtr & actions_dag) const override
     {
         /// parse array_union(a, b) as arrayDistinctSpark(arrayConcat(a, b))
-        auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 2)
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
 

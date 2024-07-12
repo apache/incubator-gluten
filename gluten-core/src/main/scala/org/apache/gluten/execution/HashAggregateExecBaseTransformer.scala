@@ -117,7 +117,7 @@ abstract class HashAggregateExecBaseTransformer(
 
     val unsupportedAggExprs = aggregateAttributes.filterNot(attr => checkType(attr.dataType))
     if (unsupportedAggExprs.nonEmpty) {
-      return ValidationResult.notOk(
+      return ValidationResult.failed(
         "Found unsupported data type in aggregation expression: " +
           unsupportedAggExprs
             .map(attr => s"${attr.name}#${attr.exprId.id}:${attr.dataType}")
@@ -125,7 +125,7 @@ abstract class HashAggregateExecBaseTransformer(
     }
     val unsupportedGroupExprs = groupingExpressions.filterNot(attr => checkType(attr.dataType))
     if (unsupportedGroupExprs.nonEmpty) {
-      return ValidationResult.notOk(
+      return ValidationResult.failed(
         "Found unsupported data type in grouping expression: " +
           unsupportedGroupExprs
             .map(attr => s"${attr.name}#${attr.exprId.id}:${attr.dataType}")
@@ -185,8 +185,7 @@ object HashAggregateExecBaseTransformer {
     case a: SortAggregateExec => a.initialInputBufferOffset
   }
 
-  def from(agg: BaseAggregateExec)(
-      childConverter: SparkPlan => SparkPlan = p => p): HashAggregateExecBaseTransformer = {
+  def from(agg: BaseAggregateExec): HashAggregateExecBaseTransformer = {
     BackendsApiManager.getSparkPlanExecApiInstance
       .genHashAggregateExecTransformer(
         agg.requiredChildDistributionExpressions,
@@ -195,7 +194,7 @@ object HashAggregateExecBaseTransformer {
         agg.aggregateAttributes,
         getInitialInputBufferOffset(agg),
         agg.resultExpressions,
-        childConverter(agg.child)
+        agg.child
       )
   }
 }

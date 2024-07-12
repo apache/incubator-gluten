@@ -32,11 +32,17 @@ class RowVectorStream {
       : iterator_(std::move(iterator)), outputType_(outputType), pool_(pool) {}
 
   bool hasNext() {
-    return iterator_->hasNext();
+    if (!finished_) {
+      finished_ = !iterator_->hasNext();
+    }
+    return !finished_;
   }
 
   // Convert arrow batch to rowvector and use new output columns
   facebook::velox::RowVectorPtr next() {
+    if (finished_) {
+      return nullptr;
+    }
     const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(pool_, iterator_->next());
     auto vp = vb->getRowVector();
     VELOX_DCHECK(vp != nullptr);
@@ -45,17 +51,18 @@ class RowVectorStream {
   }
 
  private:
+  bool finished_{false};
   std::shared_ptr<ResultIterator> iterator_;
   const facebook::velox::RowTypePtr outputType_;
   facebook::velox::memory::MemoryPool* pool_;
 };
 
-class ValueStreamNode : public facebook::velox::core::PlanNode {
+class ValueStreamNode final : public facebook::velox::core::PlanNode {
  public:
   ValueStreamNode(
       const facebook::velox::core::PlanNodeId& id,
       const facebook::velox::RowTypePtr& outputType,
-      std::shared_ptr<RowVectorStream> valueStream)
+      std::unique_ptr<RowVectorStream> valueStream)
       : facebook::velox::core::PlanNode(id), outputType_(outputType), valueStream_(std::move(valueStream)) {
     VELOX_CHECK_NOT_NULL(valueStream_);
   }
@@ -68,8 +75,8 @@ class ValueStreamNode : public facebook::velox::core::PlanNode {
     return kEmptySources;
   };
 
-  const std::shared_ptr<RowVectorStream>& rowVectorStream() const {
-    return valueStream_;
+  RowVectorStream* rowVectorStream() const {
+    return valueStream_.get();
   }
 
   std::string_view name() const override {
@@ -84,7 +91,7 @@ class ValueStreamNode : public facebook::velox::core::PlanNode {
   void addDetails(std::stringstream& stream) const override{};
 
   const facebook::velox::RowTypePtr outputType_;
-  std::shared_ptr<RowVectorStream> valueStream_;
+  std::unique_ptr<RowVectorStream> valueStream_;
   const std::vector<facebook::velox::core::PlanNodePtr> kEmptySources;
 };
 
@@ -99,11 +106,14 @@ class ValueStream : public facebook::velox::exec::SourceOperator {
             valueStreamNode->outputType(),
             operatorId,
             valueStreamNode->id(),
-            "ValueStream") {
+            valueStreamNode->name().data()) {
     valueStream_ = valueStreamNode->rowVectorStream();
   }
 
   facebook::velox::RowVectorPtr getOutput() override {
+    if (finished_) {
+      return nullptr;
+    }
     if (valueStream_->hasNext()) {
       return valueStream_->next();
     } else {
@@ -122,12 +132,14 @@ class ValueStream : public facebook::velox::exec::SourceOperator {
 
  private:
   bool finished_ = false;
-  std::shared_ptr<RowVectorStream> valueStream_;
+  RowVectorStream* valueStream_;
 };
 
 class RowVectorStreamOperatorTranslator : public facebook::velox::exec::Operator::PlanNodeTranslator {
-  std::unique_ptr<facebook::velox::exec::Operator>
-  toOperator(facebook::velox::exec::DriverCtx* ctx, int32_t id, const facebook::velox::core::PlanNodePtr& node) {
+  std::unique_ptr<facebook::velox::exec::Operator> toOperator(
+      facebook::velox::exec::DriverCtx* ctx,
+      int32_t id,
+      const facebook::velox::core::PlanNodePtr& node) override {
     if (auto valueStreamNode = std::dynamic_pointer_cast<const ValueStreamNode>(node)) {
       return std::make_unique<ValueStream>(id, ctx, valueStreamNode);
     }

@@ -291,6 +291,11 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
                     int val = field_value.convert<Int32>();
                     col->insert(val);
                 }
+                else if (const auto * timestamp = dynamic_cast<const DB::DataTypeDateTime64 *>(type_info.inner_type.get()))
+                {
+                    auto value = field_value.convert<Int64>();
+                    col->insert(DecimalField<DateTime64>(value, 6));
+                }
                 else if (const auto * decimal32 = dynamic_cast<const DB::DataTypeDecimal<DB::Decimal32> *>(type_info.inner_type.get()))
                 {
                     auto value = decimal32->parseFromString(field_value.convert<std::string>());

@@ -16,8 +16,9 @@
 
 set -exu
 
+
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_07_02
+VELOX_BRANCH=2024_07_11
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -197,7 +198,6 @@ function process_setup_alinux3 {
   sed -i 's/python39 python39-devel python39-pip //g' scripts/setup-centos8.sh
   sed -i "s/.*pip.* install/#&/" scripts/setup-centos8.sh
   sed -i 's/ADDITIONAL_FLAGS=""/ADDITIONAL_FLAGS="-Wno-stringop-overflow"/g' scripts/setup-helper-functions.sh
-  sed -i "s/\${CMAKE_INSTALL_LIBDIR}/lib64/" third_party/CMakeLists.txt
 }
 
 function process_setup_tencentos32 {
@@ -286,6 +286,7 @@ function setup_linux {
     esac
   elif [[ "$LINUX_DISTRIBUTION" == "tencentos" ]]; then
     case "$LINUX_VERSION_ID" in
+      2.4) process_setup_centos7 ;;
       3.2) process_setup_tencentos32 ;;
       *)
         echo "Unsupport tencentos version: $LINUX_VERSION_ID"

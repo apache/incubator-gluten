@@ -19,14 +19,12 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.events.GlutenPlanFallbackEvent
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.{FallbackTags, TRANSFORM_UNSUPPORTED}
+import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.catalyst.util.StringUtils.PlanStringConcat
-import org.apache.spark.sql.execution.GlutenFallbackReporter.FALLBACK_REASON_TAG
 import org.apache.spark.sql.execution.ui.GlutenEventUtils
 
 /**
@@ -58,41 +56,14 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
     plan.foreachUp {
       case _: GlutenPlan => // ignore
       case p: SparkPlan if FallbackTags.nonEmpty(p) =>
-        FallbackTags.getTag(p) match {
-          case TRANSFORM_UNSUPPORTED(Some(reason), append) =>
-            logFallbackReason(validationLogLevel, p.nodeName, reason)
-            // With in next round stage in AQE, the physical plan would be a new instance that
-            // can not preserve the tag, so we need to set the fallback reason to logical plan.
-            // Then we can be aware of the fallback reason for the whole plan.
-            // If a logical plan mapping to several physical plan, we add all reason into
-            // that logical plan to make sure we do not lose any fallback reason.
-            p.logicalLink.foreach {
-              logicalPlan =>
-                val newReason = logicalPlan
-                  .getTagValue(FALLBACK_REASON_TAG)
-                  .map {
-                    lastReason =>
-                      if (!append) {
-                        lastReason
-                      } else if (lastReason.contains(reason)) {
-                        // use the last reason, as the reason is redundant
-                        lastReason
-                      } else if (reason.contains(lastReason)) {
-                        // overwrite the reason
-                        reason
-                      } else {
-                        // add the new reason
-                        lastReason + "; " + reason
-                      }
-                  }
-                  .getOrElse(reason)
-                logicalPlan.setTagValue(FALLBACK_REASON_TAG, newReason)
-            }
-          case TRANSFORM_UNSUPPORTED(_, _) =>
-            logFallbackReason(validationLogLevel, p.nodeName, "unknown reason")
-          case _ =>
-            throw new IllegalStateException("Unreachable code")
-        }
+        val tag = FallbackTags.get(p)
+        logFallbackReason(validationLogLevel, p.nodeName, tag.reason())
+        // With in next round stage in AQE, the physical plan would be a new instance that
+        // can not preserve the tag, so we need to set the fallback reason to logical plan.
+        // Then we can be aware of the fallback reason for the whole plan.
+        // If a logical plan mapping to several physical plan, we add all reason into
+        // that logical plan to make sure we do not lose any fallback reason.
+        p.logicalLink.foreach(logicalPlan => FallbackTags.add(logicalPlan, tag))
       case _ =>
     }
   }
@@ -119,7 +90,4 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
   }
 }
 
-object GlutenFallbackReporter {
-  // A tag used to inject to logical plan to preserve the fallback reason
-  val FALLBACK_REASON_TAG = new TreeNodeTag[String]("GLUTEN_FALLBACK_REASON")
-}
+object GlutenFallbackReporter {}

@@ -72,11 +72,11 @@ case class GenerateExecTransformer(
       generator: Generator,
       outer: Boolean): ValidationResult = {
     if (!supportsGenerate(generator, outer)) {
-      ValidationResult.notOk(
+      ValidationResult.failed(
         s"Velox backend does not support this generator: ${generator.getClass.getSimpleName}" +
           s", outer: $outer")
     } else {
-      ValidationResult.ok
+      ValidationResult.succeeded
     }
   }
 

@@ -99,7 +99,7 @@ String ParseURLParser::selectCHFunctionName(const substrait::Expression_ScalarFu
 }
 
 DB::ActionsDAG::NodeRawConstPtrs ParseURLParser::parseFunctionArguments(
-    const substrait::Expression_ScalarFunction & substrait_func, const String & /*ch_func_name*/, DB::ActionsDAGPtr & actions_dag) const
+    const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAGPtr & actions_dag) const
 {
     DB::ActionsDAG::NodeRawConstPtrs arg_nodes;
     arg_nodes.push_back(parseExpression(actions_dag, substrait_func.arguments(0).value()));

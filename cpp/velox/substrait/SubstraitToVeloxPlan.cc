@@ -18,6 +18,7 @@
 #include "SubstraitToVeloxPlan.h"
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
+#include "operators/plannodes/RowVectorStream.h"
 #include "velox/connectors/hive/HiveDataSink.h"
 #include "velox/exec/TableWriter.h"
 #include "velox/type/Filter.h"
@@ -1046,17 +1047,15 @@ SubstraitToVeloxPlanConverter::processSortField(
     const RowTypePtr& inputType) {
   std::vector<core::FieldAccessTypedExprPtr> sortingKeys;
   std::vector<core::SortOrder> sortingOrders;
-  sortingKeys.reserve(sortFields.size());
-  sortingOrders.reserve(sortFields.size());
-
+  std::unordered_set<std::string> uniqueKeys;
   for (const auto& sort : sortFields) {
-    sortingOrders.emplace_back(toSortOrder(sort));
-
-    if (sort.has_expr()) {
-      auto expression = exprConverter_->toVeloxExpr(sort.expr(), inputType);
-      auto fieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
-      VELOX_USER_CHECK_NOT_NULL(fieldExpr, "Sort Operator only supports field sorting key");
+    GLUTEN_CHECK(sort.has_expr(), "Sort field must have expr");
+    auto expression = exprConverter_->toVeloxExpr(sort.expr(), inputType);
+    auto fieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
+    VELOX_USER_CHECK_NOT_NULL(fieldExpr, "Sort Operator only supports field sorting key");
+    if (uniqueKeys.insert(fieldExpr->name()).second) {
       sortingKeys.emplace_back(fieldExpr);
+      sortingOrders.emplace_back(toSortOrder(sort));
     }
   }
   return {sortingKeys, sortingOrders};
@@ -1109,7 +1108,13 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
   }
 
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
-  auto node = valueStreamNodeFactory_(nextPlanNodeId(), pool_, streamIdx, outputType);
+  std::shared_ptr<ResultIterator> iterator;
+  if (!validationMode_) {
+    VELOX_CHECK_LT(streamIdx, inputIters_.size(), "Could not find stream index {} in input iterator list.", streamIdx);
+    iterator = inputIters_[streamIdx];
+  }
+  auto valueStream = std::make_unique<RowVectorStream>(pool_, iterator, outputType);
+  auto node = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(valueStream));
 
   auto splitInfo = std::make_shared<SplitInfo>();
   splitInfo->isStream = true;
