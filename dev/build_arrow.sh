@@ -64,6 +64,21 @@ function build_arrow_cpp() {
 function build_arrow_java() {
     ARROW_INSTALL_DIR="${ARROW_PREFIX}/install"
 
+    # set default number of threads as cpu cores minus 2
+    if [[ "$(uname)" == "Darwin" ]]; then
+        physical_cpu_cores=$(sysctl -n hw.physicalcpu)
+        ignore_cores=2
+        if [ "$physical_cpu_cores" -gt "$ignore_cores" ]; then
+            NPROC=${NPROC:-$(($physical_cpu_cores - $ignore_cores))}
+        else
+            NPROC=${NPROC:-$physical_cpu_cores}
+        fi
+    else
+        NPROC=${NPROC:-$(nproc --ignore=2)}
+    fi
+    echo "set cmake build level to ${NPROC}"
+    export CMAKE_BUILD_PARALLEL_LEVEL=$NPROC
+
     pushd $ARROW_PREFIX/java
     # Because arrow-bom module need the -DprocessAllModules
     mvn versions:set -DnewVersion=15.0.0-gluten -DprocessAllModules
