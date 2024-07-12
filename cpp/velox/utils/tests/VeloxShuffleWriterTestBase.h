@@ -172,12 +172,27 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
         makeNullableFlatVector<facebook::velox::StringView>(
             std::vector<std::optional<facebook::velox::StringView>>(2048, std::nullopt)),
     };
+    childrenComplex_ = {
+        makeNullableFlatVector<int32_t>({std::nullopt, 1}),
+        makeRowVector({
+            makeFlatVector<int32_t>({1, 3}),
+            makeNullableFlatVector<facebook::velox::StringView>({std::nullopt, "de"}),
+        }),
+        makeNullableFlatVector<facebook::velox::StringView>({std::nullopt, "10 I'm not inline string"}),
+        makeArrayVector<int64_t>({
+            {1, 2, 3, 4, 5},
+            {1, 2, 3},
+        }),
+        makeMapVector<int32_t, facebook::velox::StringView>(
+            {{{1, "str1000"}, {2, "str2000"}}, {{3, "str3000"}, {4, "str4000"}}}),
+    };
 
     inputVector1_ = makeRowVector(children1_);
     inputVector2_ = makeRowVector(children2_);
     inputVectorNoNull_ = makeRowVector(childrenNoNull_);
     inputVectorLargeBinary1_ = makeRowVector(childrenLargeBinary1_);
     inputVectorLargeBinary2_ = makeRowVector(childrenLargeBinary2_);
+    inputVectorComplex_ = makeRowVector(childrenComplex_);
   }
 
   arrow::Status splitRowVector(VeloxShuffleWriter& shuffleWriter, facebook::velox::RowVectorPtr vector) {
@@ -217,6 +232,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
   std::vector<facebook::velox::VectorPtr> childrenNoNull_;
   std::vector<facebook::velox::VectorPtr> childrenLargeBinary1_;
   std::vector<facebook::velox::VectorPtr> childrenLargeBinary2_;
+  std::vector<facebook::velox::VectorPtr> childrenComplex_;
 
   facebook::velox::RowVectorPtr inputVector1_;
   facebook::velox::RowVectorPtr inputVector2_;
@@ -225,6 +241,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
   std::string largeString2_;
   facebook::velox::RowVectorPtr inputVectorLargeBinary1_;
   facebook::velox::RowVectorPtr inputVectorLargeBinary2_;
+  facebook::velox::RowVectorPtr inputVectorComplex_;
 };
 
 class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams>, public VeloxShuffleWriterTestBase {
