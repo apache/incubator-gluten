@@ -1270,4 +1270,10 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
       }
     }
   }
+
+  test("repeat") {
+    runQueryAndCompare("select repeat(c_comment, 5) from customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
 }
