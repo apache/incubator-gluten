@@ -22,6 +22,9 @@ on:
   schedule:
     - cron: '0 20 * * 0'
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
   cancel-in-progress: true
@@ -37,7 +40,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Update mirror list
-        if: matrix.os == 'centos:8'
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
@@ -53,7 +55,7 @@ jobs:
             yum install -y devtoolset-9
             source /opt/rh/devtoolset-9/enable || exit 1
           fi
-          yum install -y java-1.8.0-openjdk-devel patch wget git && \
+          yum install -y java-1.8.0-openjdk-devel patch wget git curl && \
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           export PATH=$JAVA_HOME/bin:$PATH && \
           wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
@@ -77,6 +79,6 @@ jobs:
         run: |
           # To avoid the prompt for region selection during installing tzdata.
           export DEBIAN_FRONTEND="noninteractive"
-          apt-get update && apt-get install -y sudo openjdk-8-jdk maven wget git
+          apt-get update && apt-get install -y sudo openjdk-8-jdk maven wget git curl
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh
