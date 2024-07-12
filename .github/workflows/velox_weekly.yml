@@ -18,9 +18,9 @@ name: Velox backend nightly job
 on:
   pull_request:
     paths:
-      - '.github/workflows/velox_nightly.yml'
+      - '.github/workflows/velox_weekly.yml'
   schedule:
-    - cron: '0 20 * * *'
+    - cron: '0 20 * * 0'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
