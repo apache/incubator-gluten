@@ -147,7 +147,7 @@ object SparkArrowUtil {
   }
 
   def fromArrowSchema(schema: Schema): StructType = {
-    StructType(schema.getFields.asScala.map {
+    StructType(schema.getFields.asScala.toSeq.map {
       field =>
         val dt = fromArrowField(field)
         StructField(field.getName, dt, field.isNullable)
