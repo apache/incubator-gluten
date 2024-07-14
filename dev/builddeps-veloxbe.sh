@@ -233,19 +233,12 @@ function build_velox_backend {
   ./get_velox.sh --enable_hdfs=$ENABLE_HDFS --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --enable_abfs=$ENABLE_ABFS $VELOX_PARAMETER
 )
 
-CURRENT_DIR=$(
-  cd "$(dirname "$BASH_SOURCE")"
-  pwd
-)
-
-source dev/setup-dependencies-helper.sh
 if [ "$VELOX_HOME" == "" ]; then
-  VELOX_HOME="$CURRENT_DIR/../ep/build-velox/build/velox_ep"
+  VELOX_HOME="$GLUTEN_DIR/ep/build-velox/build/velox_ep"
 fi
 
-# Maybe there is some set option in velox setup script. Run set command again.
-set -exu
 OS=`uname -s`
+source $GLUTEN_DIR/dev/build_helper_functions.sh
 if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
   (
     echo "Start to install dependencies"
