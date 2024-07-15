@@ -27,7 +27,7 @@ import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BinaryExpression, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BinaryExpression, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName}
 import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggregate
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution}
@@ -46,7 +46,7 @@ import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.LegacyBehaviorPolicy
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.{DecimalType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
@@ -236,8 +236,13 @@ class Spark32Shims extends SparkShims {
 
   override def generateMetadataColumns(
       file: PartitionedFile,
-      metadataColumnNames: Seq[String]): JMap[String, String] =
-    new JHashMap[String, String]()
+      metadataColumnNames: Seq[String]): JMap[String, String] = {
+    val metadataColumn = new JHashMap[String, String]()
+    metadataColumn.put(InputFileName().prettyName, file.filePath)
+    metadataColumn.put(InputFileBlockStart().prettyName, file.start.toString)
+    metadataColumn.put(InputFileBlockLength().prettyName, file.length.toString)
+    metadataColumn
+  }
 
   def getAnalysisExceptionPlan(ae: AnalysisException): Option[LogicalPlan] = {
     ae.plan
@@ -270,5 +275,13 @@ class Spark32Shims extends SparkShims {
       caseSensitive.getOrElse(conf.caseSensitiveAnalysis),
       RebaseSpec(LegacyBehaviorPolicy.CORRECTED)
     )
+  }
+
+  override def genDecimalRoundExpressionOutput(
+      decimalType: DecimalType,
+      toScale: Int): DecimalType = {
+    val p = decimalType.precision
+    val s = decimalType.scale
+    DecimalType(p, if (toScale > s) s else toScale)
   }
 }

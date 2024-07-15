@@ -35,6 +35,6 @@ trait RewriteSingleNode {
 
 object RewriteSingleNode {
   def allRules(): Seq[RewriteSingleNode] = {
-    Seq(RewriteIn, RewriteMultiChildrenCount, PullOutPreProject, PullOutPostProject)
+    Seq(RewriteIn, RewriteMultiChildrenCount, RewriteJoin, PullOutPreProject, PullOutPostProject)
   }
 }

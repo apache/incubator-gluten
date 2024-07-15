@@ -296,6 +296,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("sliding range between with aggregation")
     .exclude("store and retrieve column stats in different time zones")
   enableSuite[GlutenColumnExpressionSuite]
+    // Velox raise_error('errMsg') throws a velox_user_error exception with the message 'errMsg'.
+    // The final caught Spark exception's getCause().getMessage() contains 'errMsg' but does not
+    // equal 'errMsg' exactly. The following two tests will be skipped and overridden in Gluten.
+    .exclude("raise_error")
+    .exclude("assert_true")
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
   enableSuite[GlutenDataFrameTimeWindowingSuite]
@@ -331,7 +336,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Shouldn't change broadcast join buildSide if user clearly specified")
     .exclude("Shouldn't bias towards build right if user didn't specify")
     .exclude("SPARK-23192: broadcast hint should be retained after using the cached data")
-    .exclude("broadcast hint isn't propagated after a join")
     .exclude("broadcast join where streamed side's output partitioning is HashPartitioning")
     .exclude("broadcast join where streamed side's output partitioning is PartitioningCollection")
   enableSuite[GlutenSQLQuerySuite]

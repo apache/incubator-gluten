@@ -17,6 +17,7 @@
 
 #include "CHUtil.h"
 #include <filesystem>
+#include <format>
 #include <memory>
 #include <optional>
 #include <unistd.h>
@@ -50,6 +51,7 @@
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Processors/Chunk.h>
+#include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
@@ -59,7 +61,6 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <google/protobuf/util/json_util.h>
-#include <google/protobuf/wrappers.pb.h>
 #include <sys/resource.h>
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
@@ -83,8 +84,6 @@ extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
 
 namespace local_engine
 {
-constexpr auto VIRTUAL_ROW_COUNT_COLUMN = "__VIRTUAL_ROW_COUNT_COLUMN__";
-
 namespace fs = std::filesystem;
 
 DB::Block BlockUtil::buildRowCountHeader()
@@ -125,6 +124,27 @@ DB::Block BlockUtil::buildHeader(const DB::NamesAndTypesList & names_types_list)
         cols.emplace_back(col);
     }
     return DB::Block(cols);
+}
+
+/// The column names may be different in two blocks.
+/// and the nullability also could be different, with TPCDS-Q1 as an example.
+DB::ColumnWithTypeAndName
+BlockUtil::convertColumnAsNecessary(const DB::ColumnWithTypeAndName & column, const DB::ColumnWithTypeAndName & sample_column)
+{
+    if (sample_column.type->equals(*column.type))
+        return {column.column, column.type, sample_column.name};
+    else if (sample_column.type->isNullable() && !column.type->isNullable() && DB::removeNullable(sample_column.type)->equals(*column.type))
+    {
+        auto nullable_column = column;
+        DB::JoinCommon::convertColumnToNullable(nullable_column);
+        return {nullable_column.column, sample_column.type, sample_column.name};
+    }
+    else
+        throw DB::Exception(
+            DB::ErrorCodes::LOGICAL_ERROR,
+            "Columns have different types. original:{} expected:{}",
+            column.dumpStructure(),
+            sample_column.dumpStructure());
 }
 
 /**
@@ -467,7 +487,7 @@ String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
 
 using namespace DB;
 
-std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string & plan)
+std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string_view plan)
 {
     std::map<std::string, std::string> ch_backend_conf;
     if (plan.empty())
@@ -527,6 +547,50 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(con
     return ch_backend_conf;
 }
 
+std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
+    const String & path_prefix,
+    const String & path_suffix,
+    Poco::Util::AbstractConfiguration & config)
+{
+    std::vector<String> changed_paths;
+    if (path_prefix.empty() && path_suffix.empty())
+        return changed_paths;
+    Poco::Util::AbstractConfiguration::Keys disks;
+    std::unordered_set<String> disk_types = {"s3", "hdfs_gluten", "cache"};
+    config.keys("storage_configuration.disks", disks);
+
+    std::ranges::for_each(
+        disks,
+        [&](const auto & disk_name)
+        {
+            String disk_prefix = "storage_configuration.disks." + disk_name;
+            String disk_type = config.getString(disk_prefix + ".type", "");
+            if (!disk_types.contains(disk_type))
+                return;
+            if (disk_type == "cache")
+            {
+                String path = config.getString(disk_prefix + ".path", "");
+                if (!path.empty())
+                {
+                    String final_path = path_prefix + path + path_suffix;
+                    config.setString(disk_prefix + ".path", final_path);
+                    changed_paths.emplace_back(final_path);
+                }
+            }
+            else if (disk_type == "s3" || disk_type == "hdfs_gluten")
+            {
+                String metadata_path = config.getString(disk_prefix + ".metadata_path", "");
+                if (!metadata_path.empty())
+                {
+                    String final_path = path_prefix + metadata_path + path_suffix;
+                    config.setString(disk_prefix + ".metadata_path", final_path);
+                    changed_paths.emplace_back(final_path);
+                }
+            }
+        });
+    return changed_paths;
+}
+
 DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::string, std::string> & backend_conf_map)
 {
     DB::Context::ConfigurationPtr config;
@@ -566,6 +630,25 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
         config->setString(CH_TASK_MEMORY, backend_conf_map.at(GLUTEN_TASK_OFFHEAP));
     }
 
+    const bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
+    char buffer[PATH_MAX];
+    if (use_current_directory_as_tmp && getcwd(buffer, sizeof(buffer)) != nullptr)
+    {
+        wrapDiskPathConfig(String(buffer), "", *config);
+    }
+
+    const bool reuse_disk_cache = config->getBool("reuse_disk_cache", true);
+
+    if (!reuse_disk_cache)
+    {
+        String pid = std::to_string(static_cast<Int64>(getpid()));
+        auto path_need_clean = wrapDiskPathConfig("", "/" + pid, *config);
+        std::lock_guard lock(BackendFinalizerUtil::paths_mutex);
+        BackendFinalizerUtil::paths_need_to_clean.insert(
+            BackendFinalizerUtil::paths_need_to_clean.end(),
+            path_need_clean.begin(),
+            path_need_clean.end());
+    }
     return config;
 }
 
@@ -683,6 +766,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("input_format_parquet_import_nested", true);
     settings.set("input_format_json_read_numbers_as_strings", true);
     settings.set("input_format_json_read_bools_as_numbers", false);
+    settings.set("input_format_json_ignore_key_case", true);
     settings.set("input_format_csv_trim_whitespaces", false);
     settings.set("input_format_csv_allow_cr_end_of_line", true);
     settings.set("output_format_orc_string_as_string", true);
@@ -697,6 +781,8 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
     settings.set("precise_float_parsing", true);
+    settings.set("enable_named_columns_in_function_tuple", false);
+
     if (backend_conf_map.contains(GLUTEN_TASK_OFFHEAP))
     {
         auto task_memory = std::stoull(backend_conf_map.at(GLUTEN_TASK_OFFHEAP));
@@ -758,7 +844,7 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t index_uncompressed_cache_size = config->getUInt64("index_uncompressed_cache_size", DEFAULT_INDEX_UNCOMPRESSED_CACHE_MAX_SIZE);
         double index_uncompressed_cache_size_ratio = config->getDouble("index_uncompressed_cache_size_ratio", DEFAULT_INDEX_UNCOMPRESSED_CACHE_SIZE_RATIO);
         global_context->setIndexUncompressedCache(index_uncompressed_cache_policy, index_uncompressed_cache_size, index_uncompressed_cache_size_ratio);
-
+        
         String index_mark_cache_policy = config->getString("index_mark_cache_policy", DEFAULT_INDEX_MARK_CACHE_POLICY);
         size_t index_mark_cache_size = config->getUInt64("index_mark_cache_size", DEFAULT_INDEX_MARK_CACHE_MAX_SIZE);
         double index_mark_cache_size_ratio = config->getDouble("index_mark_cache_size_ratio", DEFAULT_INDEX_MARK_CACHE_SIZE_RATIO);
@@ -908,7 +994,7 @@ void BackendInitializerUtil::init(const std::string & plan)
         });
 }
 
-void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, const std::string & plan)
+void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, const std::string_view plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
 
@@ -922,10 +1008,7 @@ void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context,
 
 void BackendFinalizerUtil::finalizeGlobally()
 {
-    /// Make sure that all active LocalExecutor stop before spark executor shutdown, otherwise crash map happen.
-    LocalExecutor::cancelAll();
-
-    /// Make sure client caches release before ClientCacheRegistry
+    // Make sure client caches release before ClientCacheRegistry
     ReadBufferBuilderFactory::instance().clean();
     StorageMergeTreeFactory::clear();
     auto & global_context = SerializedPlanParser::global_context;
@@ -936,11 +1019,22 @@ void BackendFinalizerUtil::finalizeGlobally()
         global_context.reset();
         shared_context.reset();
     }
+    std::lock_guard lock(paths_mutex);
+    std::ranges::for_each(paths_need_to_clean, [](const auto & path)
+    {
+        if (fs::exists(path))
+            fs::remove_all(path);
+    });
+    paths_need_to_clean.clear();
 }
 
 void BackendFinalizerUtil::finalizeSessionally()
 {
 }
+
+std::vector<String> BackendFinalizerUtil::paths_need_to_clean;
+
+std::mutex BackendFinalizerUtil::paths_mutex;
 
 Int64 DateTimeUtil::currentTimeMillis()
 {
@@ -979,6 +1073,55 @@ UInt64 MemoryUtil::getMemoryRSS()
     fscanf(fp, "%*s%ld", &rss);
     fclose(fp);
     return rss * sysconf(_SC_PAGESIZE);
+}
+
+
+void JoinUtil::reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
+{
+    ActionsDAGPtr project = std::make_shared<ActionsDAG>(plan.getCurrentDataStream().header.getNamesAndTypesList());
+    NamesWithAliases project_cols;
+    for (const auto & col : cols)
+    {
+        project_cols.emplace_back(NameWithAlias(col, col));
+    }
+    project->project(project_cols);
+    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), project);
+    project_step->setStepDescription("Reorder Join Output");
+    plan.addStep(std::move(project_step));
+}
+
+std::pair<DB::JoinKind, DB::JoinStrictness> JoinUtil::getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type)
+{
+    switch (join_type)
+    {
+        case substrait::JoinRel_JoinType_JOIN_TYPE_INNER:
+            return {DB::JoinKind::Inner, DB::JoinStrictness::All};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_SEMI:
+            return {DB::JoinKind::Left, DB::JoinStrictness::Semi};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_ANTI:
+            return {DB::JoinKind::Left, DB::JoinStrictness::Anti};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
+            return {DB::JoinKind::Left, DB::JoinStrictness::All};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT:
+            return {DB::JoinKind::Right, DB::JoinStrictness::All};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_OUTER:
+            return {DB::JoinKind::Full, DB::JoinStrictness::All};
+        default:
+            throw Exception(ErrorCodes::UNKNOWN_TYPE, "unsupported join type {}.", magic_enum::enum_name(join_type));
+    }
+}
+
+std::pair<DB::JoinKind, DB::JoinStrictness> JoinUtil::getCrossJoinKindAndStrictness(substrait::CrossRel_JoinType join_type)
+{
+    switch (join_type)
+    {
+        case substrait::CrossRel_JoinType_JOIN_TYPE_INNER:
+        case substrait::CrossRel_JoinType_JOIN_TYPE_LEFT:
+        case substrait::CrossRel_JoinType_JOIN_TYPE_OUTER:
+            return {DB::JoinKind::Cross, DB::JoinStrictness::All};
+        default:
+            throw Exception(ErrorCodes::UNKNOWN_TYPE, "unsupported join type {}.", magic_enum::enum_name(join_type));
+    }
 }
 
 }

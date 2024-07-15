@@ -239,11 +239,11 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     // Propagate fallback reason to vanilla SparkPlan
     glutenPlan.foreach {
       case _: GlutenPlan =>
-      case p: SparkPlan if TransformHints.isNotTransformable(p) && p.logicalLink.isDefined =>
+      case p: SparkPlan if FallbackTags.nonEmpty(p) && p.logicalLink.isDefined =>
         originalPlan
           .find(_.logicalLink.exists(_.fastEquals(p.logicalLink.get)))
-          .filterNot(TransformHints.isNotTransformable)
-          .foreach(origin => TransformHints.tag(origin, TransformHints.getHint(p)))
+          .filterNot(FallbackTags.nonEmpty)
+          .foreach(origin => FallbackTags.add(origin, FallbackTags.get(p)))
       case _ =>
     }
 
@@ -278,9 +278,9 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
       ) {
         plan
       } else {
-        TransformHints.tagAllNotTransformable(
+        FallbackTags.addRecursively(
           vanillaSparkPlan,
-          TRANSFORM_UNSUPPORTED(fallbackInfo.reason, appendReasonIfExists = false))
+          FallbackTag.Exclusive(fallbackInfo.reason.getOrElse("Unknown reason")))
         FallbackNode(vanillaSparkPlan)
       }
     } else {

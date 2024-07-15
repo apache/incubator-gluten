@@ -47,7 +47,7 @@ import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-import org.apache.spark.sql.types.{LongType, NullType, StructType}
+import org.apache.spark.sql.types.{DecimalType, LongType, NullType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.lang.{Long => JLong}
@@ -258,6 +258,15 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("all_match is not supported")
   }
 
+  /** Transform array array_sort to Substrait. */
+  def genArraySortTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArraySort): ExpressionTransformer = {
+    throw new GlutenNotSupportException("array_sort(on array) is not supported")
+  }
+
   /** Transform array exists to Substrait */
   def genArrayExistsTransformer(
       substraitExprName: String,
@@ -462,13 +471,6 @@ trait SparkPlanExecApi {
       substraitExprName,
       Seq(srcExpr, matchingExpr, replaceExpr),
       original)
-  }
-
-  def genSizeExpressionTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Size): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(child), original)
   }
 
   def genLikeTransformer(
@@ -710,4 +712,23 @@ trait SparkPlanExecApi {
     arrowEvalPythonExec
 
   def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = plan
+
+  def genDecimalRoundExpressionOutput(decimalType: DecimalType, toScale: Int): DecimalType = {
+    val p = decimalType.precision
+    val s = decimalType.scale
+    // After rounding we may need one more digit in the integral part,
+    // e.g. `ceil(9.9, 0)` -> `10`, `ceil(99, -1)` -> `100`.
+    val integralLeastNumDigits = p - s + 1
+    if (toScale < 0) {
+      // negative scale means we need to adjust `-scale` number of digits before the decimal
+      // point, which means we need at lease `-scale + 1` digits (after rounding).
+      val newPrecision = math.max(integralLeastNumDigits, -toScale + 1)
+      // We have to accept the risk of overflow as we can't exceed the max precision.
+      DecimalType(math.min(newPrecision, DecimalType.MAX_PRECISION), 0)
+    } else {
+      val newScale = math.min(s, toScale)
+      // We have to accept the risk of overflow as we can't exceed the max precision.
+      DecimalType(math.min(integralLeastNumDigits + newScale, 38), newScale)
+    }
+  }
 }

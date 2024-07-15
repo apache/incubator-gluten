@@ -101,6 +101,7 @@ object ExpressionMappings {
     Sig[Encode](ENCODE),
     Sig[Uuid](UUID),
     Sig[BitLength](BIT_LENGTH),
+    Sig[OctetLength](OCTET_LENGTH),
     Sig[Levenshtein](LEVENSHTEIN),
     Sig[UnBase64](UNBASE64),
     Sig[Base64](BASE64),
@@ -247,6 +248,7 @@ object ExpressionMappings {
     Sig[ArrayFilter](FILTER),
     Sig[ArrayForAll](FORALL),
     Sig[ArrayExists](EXISTS),
+    Sig[ArraySort](ARRAY_SORT),
     Sig[Shuffle](SHUFFLE),
     Sig[ZipWith](ZIP_WITH),
     Sig[Flatten](FLATTEN),
@@ -259,6 +261,8 @@ object ExpressionMappings {
     Sig[MapEntries](MAP_ENTRIES),
     Sig[MapZipWith](MAP_ZIP_WITH),
     Sig[StringToMap](STR_TO_MAP),
+    Sig[TransformKeys](TRANSFORM_KEYS),
+    Sig[TransformValues](TRANSFORM_VALUES),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
     Sig[CreateNamedStruct](NAMED_STRUCT),
@@ -281,6 +285,8 @@ object ExpressionMappings {
     Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
     Sig[WidthBucket](WIDTH_BUCKET),
+    Sig[ReplicateRows](REPLICATE_ROWS),
+    Sig[RaiseError](RAISE_ERROR),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE),
     // Generator function

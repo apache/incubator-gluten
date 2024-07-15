@@ -978,6 +978,33 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("window percent_rank") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | percent_rank(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_rank
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window ntile") {
+    val sql =
+      """
+        | select n_regionkey, n_nationkey,
+        |   first_value(n_nationkey) over (partition by n_regionkey order by n_nationkey) as
+        |   first_v,
+        |   ntile(4) over (partition by n_regionkey order by n_nationkey) as ntile_v
+        | from
+        |   (
+        |     select n_regionkey, if(n_nationkey = 1, null, n_nationkey) as n_nationkey from nation
+        |   ) as t
+        | order by n_regionkey, n_nationkey
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("window first value with nulls") {
     val sql =
       """
@@ -1323,6 +1350,13 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     runQueryAndCompare(
       "select bit_and(l_partkey), bit_or(l_suppkey), bit_xor(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[CHHashAggregateExecTransformer]
+    }
+  }
+
+  test("bit_get/bit_count") {
+    runQueryAndCompare(
+      "select bit_count(id), bit_get(id, 0), bit_get(id, 1), bit_get(id, 2), bit_get(id, 3) from range(100)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -1720,7 +1754,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql1, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
 
     val sql2 =
       """
@@ -1741,7 +1775,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql2, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
 
     val sql3 =
       """
@@ -1762,7 +1796,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql3, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
 
     val sql4 =
       """
@@ -1783,7 +1817,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql4, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => })
 
     val sql5 =
       """
@@ -1804,7 +1838,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql5, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql5, true, { _ => })
   }
 
   test("GLUTEN-1874 not null in one stream") {

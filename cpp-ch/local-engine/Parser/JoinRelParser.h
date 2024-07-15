@@ -31,8 +31,6 @@ namespace local_engine
 
 class StorageJoinFromReadBuffer;
 
-std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type);
-
 class JoinRelParser : public RelParser
 {
 public:

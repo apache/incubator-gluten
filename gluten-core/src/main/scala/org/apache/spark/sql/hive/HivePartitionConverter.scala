@@ -80,9 +80,10 @@ class HivePartitionConverter(hadoopConf: Configuration, session: SparkSession)
         // just like for Apache Spark.
         val uri = p.getDataLocation.toUri
         val partValues: Seq[Any] = {
-          p.getValues.asScala.zip(partitionColTypes).map {
-            case (value, dataType) => castFromString(value, dataType)
-          }
+          p.getValues.asScala
+            .zip(partitionColTypes)
+            .map { case (value, dataType) => castFromString(value, dataType) }
+            .toSeq
         }
         val partValuesAsInternalRow = InternalRow.fromSeq(partValues)
 

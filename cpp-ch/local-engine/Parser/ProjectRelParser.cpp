@@ -21,6 +21,9 @@
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Rewriter/ExpressionRewriter.h>
 #include <Common/CHUtil.h>
+#include <Operator/ReplicateRowsStep.h>
+
+using namespace DB;
 
 namespace local_engine
 {
@@ -109,15 +112,46 @@ ProjectRelParser::SplittedActionsDAGs ProjectRelParser::splitActionsDAGInGenerat
     return res;
 }
 
+bool ProjectRelParser::isReplicateRows(substrait::GenerateRel rel)
+{
+    return plan_parser->isFunction(rel.generator().scalar_function(), "replicaterows");
+}
+
+DB::QueryPlanPtr ProjectRelParser::parseReplicateRows(DB::QueryPlanPtr query_plan, substrait::GenerateRel generate_rel)
+{
+    std::vector<substrait::Expression> expressions;
+    for (int i = 0; i < generate_rel.generator().scalar_function().arguments_size(); ++i)
+    {
+        expressions.emplace_back(generate_rel.generator().scalar_function().arguments(i).value());
+    }
+    auto header = query_plan->getCurrentDataStream().header;
+    auto actions_dag = expressionsToActionsDAG(expressions, header);
+    auto before_replicate_rows = std::make_unique<DB::ExpressionStep>(query_plan->getCurrentDataStream(), actions_dag);
+    before_replicate_rows->setStepDescription("Before ReplicateRows");
+    steps.emplace_back(before_replicate_rows.get());
+    query_plan->addStep(std::move(before_replicate_rows));
+
+    auto replicate_rows_step = std::make_unique<ReplicateRowsStep>(query_plan->getCurrentDataStream());
+    replicate_rows_step->setStepDescription("ReplicateRows");
+    steps.emplace_back(replicate_rows_step.get());
+    query_plan->addStep(std::move(replicate_rows_step));
+    return query_plan;
+}
+
 DB::QueryPlanPtr
 ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & /*rel_stack_*/)
 {
     const auto & generate_rel = rel.generate();
+    if (isReplicateRows(generate_rel))
+    {
+        return parseReplicateRows(std::move(query_plan), generate_rel);
+    }
     std::vector<substrait::Expression> expressions;
     for (int i = 0; i < generate_rel.child_output_size(); ++i)
     {
         expressions.emplace_back(generate_rel.child_output(i));
     }
+
     expressions.emplace_back(generate_rel.generator());
     auto header = query_plan->getCurrentDataStream().header;
     auto actions_dag = expressionsToActionsDAG(expressions, header);

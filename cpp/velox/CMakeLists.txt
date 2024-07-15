@@ -590,11 +590,6 @@ endif()
 target_link_libraries(velox PUBLIC gluten)
 add_velox_dependencies()
 
-# Arrow libraries appear after Velox dependencies to avoid linker error
-find_arrow_lib(${ARROW_LIB_NAME})
-find_arrow_lib(${PARQUET_LIB_NAME})
-target_link_libraries(velox PUBLIC Arrow::arrow Arrow::parquet)
-
 target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
@@ -618,21 +613,6 @@ else()
                        "${VELOX_BUILD_PATH}/_deps/simdjson-build/libsimdjson.a")
 endif()
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
-
-if(ENABLE_GLUTEN_VCPKG)
-  find_package(Thrift CONFIG)
-else()
-  # Prefer the shared library on system.
-  set(ARROW_THRIFT_USE_SHARED ON)
-  find_package(Thrift)
-endif()
-
-if(Thrift_FOUND)
-  target_link_libraries(velox PUBLIC thrift::thrift)
-else()
-  add_velox_dependency(
-    thrift "${ARROW_HOME}/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")
-endif()
 
 if(BUILD_TESTS)
   add_subdirectory(tests)

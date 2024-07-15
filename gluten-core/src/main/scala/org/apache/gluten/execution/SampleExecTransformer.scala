@@ -99,7 +99,7 @@ case class SampleExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     if (withReplacement) {
-      return ValidationResult.notOk(
+      return ValidationResult.failed(
         "Unsupported sample exec in native with " +
           s"withReplacement parameter is $withReplacement")
     }

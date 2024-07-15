@@ -329,8 +329,10 @@ arrow::Status VeloxHashBasedShuffleWriter::partitioningAndDoSplit(facebook::velo
 }
 
 arrow::Status VeloxHashBasedShuffleWriter::stop() {
+  setSplitState(SplitState::kStopEvict);
   if (options_.partitioning != Partitioning::kSingle) {
     for (auto pid = 0; pid < numPartitions_; ++pid) {
+      PartitionBufferGuard guard(partitionBufferInUse_, pid);
       RETURN_NOT_OK(evictPartitionBuffers(pid, false));
     }
   }
@@ -970,10 +972,6 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> VeloxHashBasedShuffle
     bool reuseBuffers) {
   SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingCreateRbFromBuffer]);
 
-  if (partitionBufferBase_[partitionId] == 0) {
-    return std::vector<std::shared_ptr<arrow::Buffer>>{};
-  }
-
   auto numRows = partitionBufferBase_[partitionId];
   auto fixedWidthIdx = 0;
   auto binaryIdx = 0;
@@ -1321,6 +1319,9 @@ arrow::Result<int64_t> VeloxHashBasedShuffleWriter::shrinkPartitionBuffersMinSiz
   // Sort partition buffers by (partitionBufferSize_ - partitionBufferBase_)
   std::vector<std::pair<uint32_t, uint32_t>> pidToSize;
   for (auto pid = 0; pid < numPartitions_; ++pid) {
+    if (partitionBufferInUse_.has_value() && *partitionBufferInUse_ == pid) {
+      continue;
+    }
     if (partitionBufferSize_[pid] > 0 && partitionBufferSize_[pid] > partitionBufferBase_[pid]) {
       pidToSize.emplace_back(pid, partitionBufferSize_[pid] - partitionBufferBase_[pid]);
     }
@@ -1348,6 +1349,7 @@ arrow::Result<int64_t> VeloxHashBasedShuffleWriter::shrinkPartitionBuffersMinSiz
 arrow::Result<int64_t> VeloxHashBasedShuffleWriter::evictPartitionBuffersMinSize(int64_t size) {
   // Evict partition buffers, only when splitState_ == SplitState::kInit, and space freed from
   // shrinking is not enough. In this case partitionBufferSize_ == partitionBufferBase_
+  VELOX_CHECK(!partitionBufferInUse_);
   int64_t beforeEvict = partitionBufferPool_->bytes_allocated();
   int64_t evicted = 0;
   std::vector<std::pair<uint32_t, uint32_t>> pidToSize;
@@ -1375,10 +1377,12 @@ arrow::Result<int64_t> VeloxHashBasedShuffleWriter::evictPartitionBuffersMinSize
 bool VeloxHashBasedShuffleWriter::shrinkPartitionBuffersAfterSpill() const {
   // If OOM happens during SplitState::kSplit, it is triggered by binary buffers resize.
   // Or during SplitState::kInit, it is triggered by other operators.
+  // Or during SplitState::kStopEvict, it is triggered by assembleBuffers allocating extra memory. In this case we use
+  // PartitionBufferGuard to prevent the target partition from being shrunk.
   // The reclaim order is spill->shrink, because the partition buffers can be reused.
   // SinglePartitioning doesn't maintain partition buffers.
   return options_.partitioning != Partitioning::kSingle &&
-      (splitState_ == SplitState::kSplit || splitState_ == SplitState::kInit);
+      (splitState_ == SplitState::kSplit || splitState_ == SplitState::kInit || splitState_ == SplitState::kStopEvict);
 }
 
 bool VeloxHashBasedShuffleWriter::evictPartitionBuffersAfterSpill() const {
@@ -1391,7 +1395,7 @@ arrow::Result<uint32_t> VeloxHashBasedShuffleWriter::partitionBufferSizeAfterShr
   if (splitState_ == SplitState::kSplit) {
     return partitionBufferBase_[partitionId] + partition2RowCount_[partitionId];
   }
-  if (splitState_ == kInit || splitState_ == SplitState::kStop) {
+  if (splitState_ == kInit || splitState_ == SplitState::kStopEvict) {
     return partitionBufferBase_[partitionId];
   }
   return arrow::Status::Invalid("Cannot shrink partition buffers in SplitState: " + std::to_string(splitState_));

@@ -45,7 +45,7 @@ import java.net.URI
 case class HiveTableScanExecTransformer(
     requestedAttributes: Seq[Attribute],
     relation: HiveTableRelation,
-    partitionPruningPred: Seq[Expression])(session: SparkSession)
+    partitionPruningPred: Seq[Expression])(@transient session: SparkSession)
   extends AbstractHiveTableScanExec(requestedAttributes, relation, partitionPruningPred)(session)
   with BasicScanExecTransformer {
 
@@ -202,7 +202,7 @@ object HiveTableScanExecTransformer {
           hiveTableScan.relation,
           hiveTableScan.partitionPruningPred)(hiveTableScan.session)
         hiveTableScanTransformer.doValidate()
-      case _ => ValidationResult.notOk("Is not a Hive scan")
+      case _ => ValidationResult.failed("Is not a Hive scan")
     }
   }
 

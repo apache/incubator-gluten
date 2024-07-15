@@ -438,6 +438,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string overlay function")
     .exclude("binary overlay function")
     .exclude("string parse_url function")
+    .exclude("string / binary length function")
+    .exclude("SPARK-36751: add octet length api for scala")
+    .exclude("SPARK-36751: add bit length api for scala")
   enableSuite[GlutenSubquerySuite]
     .exclude("SPARK-15370: COUNT bug in subquery in subquery in subquery")
     .exclude("SPARK-26893: Allow pushdown of partition pruning subquery filters to file source")
@@ -561,7 +564,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-28322: IntegralDivide supports decimal type")
     .exclude("SPARK-33008: division by zero on divide-like operations returns incorrect result")
     .exclude("SPARK-34920: error class")
-  enableSuite[GlutenBitwiseExpressionsSuite].exclude("BitGet")
+  enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude("null cast")
     .exclude("cast string to date")
@@ -662,7 +665,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Map Concat")
     .exclude("MapFromEntries")
     .exclude("ArraysOverlap")
-    .exclude("ArrayJoin")
     .exclude("ArraysZip")
     .exclude("Sequence of numbers")
     .exclude("Sequence of timestamps")
@@ -847,6 +849,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("atan2")
     .exclude("round/bround")
     .exclude("SPARK-37388: width_bucket")
+    .exclude("shift left")
+    .exclude("shift right")
+    .exclude("shift right unsigned")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
@@ -897,7 +902,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Substring")
     .exclude("string substring_index function")
     .exclude("ascii for string")
-    .exclude("string for ascii")
     .exclude("base64/unbase64 for string")
     .exclude("encode/decode for string")
     .exclude("overlay for string")
@@ -906,7 +910,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("LOCATE")
     .exclude("LPAD/RPAD")
     .exclude("REPEAT")
-    .exclude("length for string / binary")
     .exclude("ParseUrl")
     .exclude("SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url")
     .excludeGlutenTest("SPARK-40213: ascii for Latin-1 Supplement characters")

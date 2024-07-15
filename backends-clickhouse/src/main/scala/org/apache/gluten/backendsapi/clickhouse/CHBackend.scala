@@ -26,7 +26,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, DenseRank, Expression, Lag, Lead, Literal, NamedExpression, Rank, RowNumber}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
@@ -172,24 +172,23 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     format match {
       case ParquetReadFormat =>
         if (validateFilePath) {
-          ValidationResult.ok
+          ValidationResult.succeeded
         } else {
-          ValidationResult.notOk("Validate file path failed.")
+          ValidationResult.failed("Validate file path failed.")
         }
-      case OrcReadFormat => ValidationResult.ok
-      case MergeTreeReadFormat => ValidationResult.ok
+      case OrcReadFormat => ValidationResult.succeeded
+      case MergeTreeReadFormat => ValidationResult.succeeded
       case TextReadFormat =>
         if (!hasComplexType) {
-          ValidationResult.ok
+          ValidationResult.succeeded
         } else {
-          ValidationResult.notOk("Has complex type.")
+          ValidationResult.failed("Has complex type.")
         }
-      case JsonReadFormat => ValidationResult.ok
-      case _ => ValidationResult.notOk(s"Unsupported file format $format")
+      case JsonReadFormat => ValidationResult.succeeded
+      case _ => ValidationResult.failed(s"Unsupported file format $format")
     }
   }
 
-  override def utilizeShuffledHashJoinHint(): Boolean = true
   override def supportShuffleWithProject(
       outputPartitioning: Partitioning,
       child: SparkPlan): Boolean = {
@@ -238,7 +237,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
           }
 
           wExpression.windowFunction match {
-            case _: RowNumber | _: AggregateExpression | _: Rank | _: DenseRank =>
+            case _: RowNumber | _: AggregateExpression | _: Rank | _: DenseRank | _: PercentRank |
+                _: NTile =>
               allSupported = allSupported
             case l: Lag =>
               checkLagOrLead(l.third)
@@ -291,11 +291,12 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String]): ValidationResult =
-    ValidationResult.notOk("CH backend is unsupported.")
+    ValidationResult.failed("CH backend is unsupported.")
 
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
   }
 
   override def mergeTwoPhasesHashBaseAggregateIfNeed(): Boolean = true
+
 }

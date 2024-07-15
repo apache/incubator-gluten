@@ -1,5 +1,5 @@
 == Physical Plan ==
-AdaptiveSparkPlan (37)
+AdaptiveSparkPlan (39)
 +- == Final Plan ==
    VeloxColumnarToRowExec (25)
    +- ^ ProjectExecTransformer (23)
@@ -22,17 +22,19 @@ AdaptiveSparkPlan (37)
                                  +- ^ NoopFilter (11)
                                     +- ^ Scan parquet (10)
 +- == Initial Plan ==
-   HashAggregate (36)
-   +- HashAggregate (35)
-      +- Project (34)
-         +- ShuffledHashJoin Inner BuildRight (33)
-            :- Exchange (29)
-            :  +- Project (28)
-            :     +- Filter (27)
-            :        +- Scan parquet (26)
-            +- Exchange (32)
-               +- Filter (31)
-                  +- Scan parquet (30)
+   HashAggregate (38)
+   +- HashAggregate (37)
+      +- Project (36)
+         +- SortMergeJoin Inner (35)
+            :- Sort (30)
+            :  +- Exchange (29)
+            :     +- Project (28)
+            :        +- Filter (27)
+            :           +- Scan parquet (26)
+            +- Sort (34)
+               +- Exchange (33)
+                  +- Filter (32)
+                     +- Scan parquet (31)
 
 
 (1) Scan parquet
@@ -162,44 +164,52 @@ Input [4]: [l_partkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Input [3]: [l_partkey#X, l_extendedprice#X, l_discount#X]
 Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(30) Scan parquet
+(30) Sort
+Input [3]: [l_partkey#X, l_extendedprice#X, l_discount#X]
+Arguments: [l_partkey#X ASC NULLS FIRST], false, 0
+
+(31) Scan parquet
 Output [2]: [p_partkey#X, p_type#X]
 Batched: true
 Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_type:string>
 
-(31) Filter
+(32) Filter
 Input [2]: [p_partkey#X, p_type#X]
 Condition : isnotnull(p_partkey#X)
 
-(32) Exchange
+(33) Exchange
 Input [2]: [p_partkey#X, p_type#X]
 Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [plan_id=X]
 
-(33) ShuffledHashJoin
+(34) Sort
+Input [2]: [p_partkey#X, p_type#X]
+Arguments: [p_partkey#X ASC NULLS FIRST], false, 0
+
+(35) SortMergeJoin
 Left keys [1]: [l_partkey#X]
 Right keys [1]: [p_partkey#X]
 Join condition: None
 
-(34) Project
+(36) Project
 Output [3]: [l_extendedprice#X, l_discount#X, p_type#X]
 Input [5]: [l_partkey#X, l_extendedprice#X, l_discount#X, p_partkey#X, p_type#X]
 
-(35) HashAggregate
+(37) HashAggregate
 Input [3]: [l_extendedprice#X, l_discount#X, p_type#X]
 Keys: []
 Functions [2]: [partial_sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true) ELSE 0.0000 END), partial_sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))]
 Aggregate Attributes [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 Results [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 
-(36) HashAggregate
+(38) HashAggregate
 Input [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 Keys: []
 Functions [2]: [sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true) ELSE 0.0000 END), sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))]
 Aggregate Attributes [2]: [sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true) ELSE 0.0000 END)#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))#X]
 Results [1]: [CheckOverflow((promote_precision(CheckOverflow((100.0000 * promote_precision(sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true) ELSE 0.0000 END)#X)), DecimalType(38,6), true)) / promote_precision(cast(sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2), true))), DecimalType(26,4), true))#X as decimal(38,6)))), DecimalType(38,6), true) AS promo_revenue#X]
 
-(37) AdaptiveSparkPlan
+(39) AdaptiveSparkPlan
 Output [1]: [promo_revenue#X]
 Arguments: isFinalPlan=true

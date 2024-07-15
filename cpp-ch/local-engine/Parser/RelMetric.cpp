@@ -61,9 +61,9 @@ RelMetricTimes RelMetric::getTotalTime() const
             {
                 for (const auto & processor : step->getProcessors())
                 {
-                    timeMetrics.time += processor->getElapsedUs();
-                    timeMetrics.input_wait_elapsed_us += processor->getInputWaitElapsedUs();
-                    timeMetrics.output_wait_elapsed_us += processor->getOutputWaitElapsedUs();
+                    timeMetrics.time += processor->getElapsedNs() / 1000U ;
+                    timeMetrics.input_wait_elapsed_us += processor->getInputWaitElapsedNs() / 1000U;
+                    timeMetrics.output_wait_elapsed_us += processor->getInputWaitElapsedNs() / 1000U;
                 }
             }
         }
@@ -104,7 +104,7 @@ void RelMetric::serialize(Writer<StringBuffer> & writer, bool) const
                 writer.Key("name");
                 writer.String(processor->getName().c_str());
                 writer.Key("time");
-                writer.Uint64(processor->getElapsedUs());
+                writer.Uint64(processor->getElapsedNs() / 1000U);
                 writer.Key("output_rows");
                 writer.Uint64(processor->getProcessorDataStats().output_rows);
                 writer.Key("output_bytes");
@@ -142,7 +142,7 @@ const String & RelMetric::getName() const
     return name;
 }
 
-std::string RelMetricSerializer::serializeRelMetric(RelMetricPtr rel_metric, bool flatten)
+std::string RelMetricSerializer::serializeRelMetric(const RelMetricPtr & rel_metric, bool flatten)
 {
     StringBuffer result;
     Writer<StringBuffer> writer(result);

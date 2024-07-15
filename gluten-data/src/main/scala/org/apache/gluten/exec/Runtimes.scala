@@ -16,21 +16,20 @@
  */
 package org.apache.gluten.exec
 
-import org.apache.spark.util.TaskResources
+import org.apache.spark.util.{TaskResource, TaskResources}
 
 object Runtimes {
-  private val RUNTIME_NAME = "Runtime"
 
   /** Get or create the runtime which bound with Spark TaskContext. */
-  def contextInstance(): Runtime = {
+  def contextInstance(name: String): Runtime = {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("This method must be called in a Spark task.")
     }
 
-    TaskResources.addResourceIfNotRegistered(RUNTIME_NAME, () => create())
+    TaskResources.addResourceIfNotRegistered(name, () => create(name))
   }
 
-  private def create(): Runtime = {
-    new Runtime
+  private def create(name: String): Runtime with TaskResource = {
+    Runtime(name)
   }
 }

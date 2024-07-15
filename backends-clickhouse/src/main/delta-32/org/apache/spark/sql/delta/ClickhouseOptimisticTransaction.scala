@@ -50,7 +50,7 @@ class ClickhouseOptimisticTransaction(
   def this(
       deltaLog: DeltaLog,
       catalogTable: Option[CatalogTable],
-      snapshotOpt: Option[Snapshot] = None) {
+      snapshotOpt: Option[Snapshot] = None) = {
     this(
       deltaLog,
       catalogTable,

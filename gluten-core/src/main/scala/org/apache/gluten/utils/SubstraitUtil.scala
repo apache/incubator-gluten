@@ -48,6 +48,10 @@ object SubstraitUtil {
       // the left and right relations are exchanged and the
       // join type is reverted.
       CrossRel.JoinType.JOIN_TYPE_LEFT
+    case LeftSemi =>
+      CrossRel.JoinType.JOIN_TYPE_LEFT_SEMI
+    case FullOuter =>
+      CrossRel.JoinType.JOIN_TYPE_OUTER
     case _ =>
       CrossRel.JoinType.UNRECOGNIZED
   }

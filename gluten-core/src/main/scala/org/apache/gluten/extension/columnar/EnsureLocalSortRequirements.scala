@@ -17,7 +17,8 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.execution.SortExecTransformer
+import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
+import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
 
 import org.apache.spark.sql.catalyst.expressions.SortOrder
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -32,26 +33,22 @@ import org.apache.spark.sql.execution.{SortExec, SparkPlan}
  * SortAggregate with the same key. So, this rule adds local sort back if necessary.
  */
 object EnsureLocalSortRequirements extends Rule[SparkPlan] {
+  private lazy val offload = TransformPreOverrides.apply()
+
   private def addLocalSort(
       originalChild: SparkPlan,
       requiredOrdering: Seq[SortOrder]): SparkPlan = {
     val newChild = SortExec(requiredOrdering, global = false, child = originalChild)
     if (!GlutenConfig.getConf.enableColumnarSort) {
-      TransformHints.tagNotTransformable(newChild, "columnar Sort is not enabled in SortExec")
+      FallbackTags.add(newChild, "columnar Sort is not enabled in SortExec")
       newChild
     } else {
-      val newChildWithTransformer =
-        SortExecTransformer(
-          newChild.sortOrder,
-          newChild.global,
-          newChild.child,
-          newChild.testSpillFrequency)
-      val validationResult = newChildWithTransformer.doValidate()
-      if (validationResult.isValid) {
-        newChildWithTransformer
+      val rewrittenPlan = RewriteSparkPlanRulesManager.apply().apply(newChild)
+      if (rewrittenPlan.eq(newChild) && FallbackTags.nonEmpty(rewrittenPlan)) {
+        // The sort can not be offloaded
+        rewrittenPlan
       } else {
-        TransformHints.tagNotTransformable(newChild, validationResult)
-        newChild
+        offload.apply(rewrittenPlan)
       }
     }
   }

@@ -20,35 +20,111 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.init.JniUtils
+import org.apache.gluten.memory.MemoryUsageStatsBuilder
+import org.apache.gluten.memory.listener.ReservationListeners
+import org.apache.gluten.memory.memtarget.{KnownNameAndStats, MemoryTarget, Spiller, Spillers}
+import org.apache.gluten.proto.MemoryUsageStats
 
-import org.apache.spark.sql.internal.GlutenConfigUtil
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.memory.SparkMemoryUtil
+import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf}
 import org.apache.spark.util.TaskResource
+
+import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicBoolean
 
-class Runtime private[exec] () extends TaskResource {
-  private val handle = RuntimeJniWrapper.createRuntime(
-    BackendsApiManager.getBackendName,
-    JniUtils.toNativeConf(
-      GlutenConfig.getNativeSessionConf(
-        BackendsApiManager.getSettings.getBackendConfigPrefix,
-        GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))
-  )
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
-  private val released: AtomicBoolean = new AtomicBoolean(false)
+trait Runtime {
+  def addSpiller(spiller: Spiller): Unit
+  def holdMemory(): Unit
+  def collectMemoryUsage(): MemoryUsageStats
+  def getHandle(): Long
+}
 
-  def getHandle: Long = handle
-
-  override def release(): Unit = {
-    if (!released.compareAndSet(false, true)) {
-      throw new GlutenException(
-        s"Runtime instance already released: $getHandle, ${resourceName()}, ${priority()}")
-    }
-    RuntimeJniWrapper.releaseRuntime(handle)
+object Runtime {
+  private[exec] def apply(name: String): Runtime with TaskResource = {
+    new RuntimeImpl(name)
   }
 
-  override def priority(): Int = 10
+  private class RuntimeImpl(name: String) extends Runtime with TaskResource {
+    private val LOGGER = LoggerFactory.getLogger(classOf[Runtime])
 
-  override def resourceName(): String = s"Runtime_" + handle
+    private val spillers = Spillers.appendable()
+    private val mutableStats: mutable.Map[String, MemoryUsageStatsBuilder] = mutable.Map()
+    private val rl = ReservationListeners.create(resourceName(), spillers, mutableStats.asJava)
+    private val handle = RuntimeJniWrapper.createRuntime(
+      BackendsApiManager.getBackendName,
+      rl,
+      JniUtils.toNativeConf(
+        GlutenConfig.getNativeSessionConf(
+          BackendsApiManager.getSettings.getBackendConfigPrefix,
+          GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))
+    )
+
+    spillers.append(new Spiller() {
+      override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
+        if (!Spillers.PHASE_SET_SHRINK_ONLY.contains(phase)) {
+          // Only respond for shrinking.
+          return 0L
+        }
+        RuntimeJniWrapper.shrinkMemory(handle, size)
+      }
+    })
+    mutableStats += "single" -> new MemoryUsageStatsBuilder {
+      override def toStats: MemoryUsageStats = collectMemoryUsage()
+    }
+
+    private val released: AtomicBoolean = new AtomicBoolean(false)
+
+    def getHandle: Long = handle
+
+    def addSpiller(spiller: Spiller): Unit = {
+      spillers.append(spiller)
+    }
+
+    def holdMemory(): Unit = {
+      RuntimeJniWrapper.holdMemory(handle)
+    }
+
+    def collectMemoryUsage(): MemoryUsageStats = {
+      MemoryUsageStats.parseFrom(RuntimeJniWrapper.collectMemoryUsage(handle))
+    }
+
+    override def release(): Unit = {
+      if (!released.compareAndSet(false, true)) {
+        throw new GlutenException(
+          s"Runtime instance already released: $handle, ${resourceName()}, ${priority()}")
+      }
+      if (LOGGER.isDebugEnabled) {
+        LOGGER.debug(
+          SparkMemoryUtil.prettyPrintStats(
+            "About to release memory manager, usage dump:",
+            new KnownNameAndStats() {
+              override def name: String = resourceName()
+
+              override def stats: MemoryUsageStats = collectMemoryUsage()
+            }
+          ))
+      }
+
+      RuntimeJniWrapper.releaseRuntime(handle)
+
+      if (rl.getUsedBytes != 0) {
+        LOGGER.warn(
+          String.format(
+            "%s Reservation listener %s still reserved non-zero bytes, which may cause memory" +
+              " leak, size: %s. ",
+            name,
+            rl.toString,
+            SparkMemoryUtil.bytesToString(rl.getUsedBytes)
+          ))
+      }
+    }
+
+    override def priority(): Int = 0
+
+    override def resourceName(): String = name
+  }
 }

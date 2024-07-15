@@ -78,6 +78,8 @@ class VeloxListenerApi extends ListenerApi {
       new SharedLibraryLoaderCentos8
     } else if (systemName.contains("Anolis") && systemVersion.startsWith("7")) {
       new SharedLibraryLoaderCentos7
+    } else if (system.contains("tencentos") && system.contains("2.4")) {
+      new SharedLibraryLoaderCentos7
     } else if (system.contains("tencentos") && system.contains("3.2")) {
       new SharedLibraryLoaderCentos8
     } else if (systemName.contains("Red Hat") && systemVersion.startsWith("9")) {
@@ -94,7 +96,7 @@ class VeloxListenerApi extends ListenerApi {
       throw new GlutenException(
         s"Found unsupported OS($systemName, $systemVersion)! Currently, Gluten's Velox backend" +
           " only supports Ubuntu 20.04/22.04, CentOS 7/8, " +
-          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8/9, " +
+          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 2.4/3.2, RedHat 7/8, " +
           "Debian 11/12.")
     }
   }
@@ -134,28 +136,10 @@ class VeloxListenerApi extends ListenerApi {
     ) {
       loadLibFromJar(loader, conf)
     }
-    loader
-      .newTransaction()
-      .loadAndCreateLink(s"libarrow.so.$ARROW_VERSION.0.0", s"libarrow.so.$ARROW_VERSION", false)
-      .loadAndCreateLink(
-        s"libparquet.so.$ARROW_VERSION.0.0",
-        s"libparquet.so.$ARROW_VERSION",
-        false)
-      .commit()
   }
 
   private def loadLibWithMacOS(loader: JniLibLoader): Unit = {
-    loader
-      .newTransaction()
-      .loadAndCreateLink(
-        s"libarrow.$ARROW_VERSION.0.0.dylib",
-        s"libarrow.$ARROW_VERSION.dylib",
-        false)
-      .loadAndCreateLink(
-        s"libparquet.$ARROW_VERSION.0.0.dylib",
-        s"libparquet.$ARROW_VERSION.dylib",
-        false)
-      .commit()
+    // Placeholder for loading shared libs on MacOS if user needs.
   }
 
   private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {

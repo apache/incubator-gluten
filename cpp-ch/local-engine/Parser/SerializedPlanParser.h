@@ -35,182 +35,6 @@
 namespace local_engine
 {
 
-static const std::map<std::string, std::string> SCALAR_FUNCTIONS
-    = {{"is_not_null", "isNotNull"},
-       {"is_null", "isNull"},
-       {"gte", "greaterOrEquals"},
-       {"gt", "greater"},
-       {"lte", "lessOrEquals"},
-       {"lt", "less"},
-       {"equal", "equals"},
-
-       {"and", "and"},
-       {"or", "or"},
-       {"not", "not"},
-       {"xor", "xor"},
-
-       {"extract", ""},
-       {"cast", "CAST"},
-       {"alias", "alias"},
-
-       /// datetime functions
-       {"get_timestamp", "parseDateTimeInJodaSyntaxOrNull"}, // for spark function: to_date/to_timestamp
-       {"quarter", "toQuarter"},
-       {"to_unix_timestamp", "parseDateTimeInJodaSyntaxOrNull"},
-       //{"unix_timestamp", "toUnixTimestamp"},
-       {"date_format", "formatDateTimeInJodaSyntax"},
-       {"timestamp_add", "timestamp_add"},
-
-
-       /// arithmetic functions
-       {"subtract", "minus"},
-       {"multiply", "multiply"},
-       {"add", "plus"},
-       {"divide", "divide"},
-       {"positive", "identity"},
-       {"negative", "negate"},
-       {"modulus", "modulo"},
-       {"pmod", "pmod"},
-       {"abs", "abs"},
-       {"ceil", "ceil"},
-       {"round", "roundHalfUp"},
-       {"bround", "roundBankers"},
-       {"exp", "exp"},
-       {"power", "power"},
-       {"cos", "cos"},
-       {"cosh", "cosh"},
-       {"sin", "sin"},
-       {"sinh", "sinh"},
-       {"tan", "tan"},
-       {"tanh", "tanh"},
-       {"acos", "acos"},
-       {"asin", "asin"},
-       {"atan", "atan"},
-       {"atan2", "atan2"},
-       {"asinh", "asinh"},
-       {"acosh", "acosh"},
-       {"atanh", "atanh"},
-       {"bitwise_not", "bitNot"},
-       {"bitwise_and", "bitAnd"},
-       {"bitwise_or", "bitOr"},
-       {"bitwise_xor", "bitXor"},
-       {"sqrt", "sqrt"},
-       {"cbrt", "cbrt"},
-       {"degrees", "degrees"},
-       {"e", "e"},
-       {"pi", "pi"},
-       {"hex", "hex"},
-       {"unhex", "unhex"},
-       {"hypot", "hypot"},
-       {"sign", "sign"},
-       {"radians", "radians"},
-       {"greatest", "sparkGreatest"},
-       {"least", "sparkLeast"},
-       {"shiftleft", "bitShiftLeft"},
-       {"shiftright", "bitShiftRight"},
-       {"check_overflow", "checkDecimalOverflowSpark"},
-       {"rand", "randCanonical"},
-       {"isnan", "isNaN"},
-       {"bin", "sparkBin"},
-       {"rint", "sparkRint"},
-
-       /// string functions
-       {"like", "like"},
-       {"not_like", "notLike"},
-       {"starts_with", "startsWithUTF8"},
-       {"ends_with", "endsWithUTF8"},
-       {"contains", "countSubstrings"},
-       {"substring", "substringUTF8"},
-       {"substring_index", "substringIndexUTF8"},
-       {"lower", "lowerUTF8"},
-       {"upper", "upperUTF8"},
-       {"trim", ""}, // trimLeft or trimLeftSpark, depends on argument size
-       {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
-       {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
-       {"strpos", "positionUTF8"},
-       {"char_length",
-        "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
-       {"replace", "replaceAll"},
-       {"regexp_replace", "replaceRegexpAll"},
-       {"regexp_extract_all", "regexpExtractAllSpark"},
-       {"chr", "char"},
-       {"rlike", "match"},
-       {"ascii", "ascii"},
-       {"split", "splitByRegexp"},
-       {"concat_ws", "concat_ws"},
-       {"base64", "base64Encode"},
-       {"unbase64", "base64Decode"},
-       {"lpad", "leftPadUTF8"},
-       {"rpad", "rightPadUTF8"},
-       {"reverse", ""}, /// dummy mapping
-       {"translate", "translateUTF8"},
-       {"repeat", "repeat"},
-       {"space", "space"},
-       {"initcap", "initcapUTF8"},
-       {"conv", "sparkConv"},
-       {"uuid", "generateUUIDv4"},
-       {"levenshteinDistance", "editDistanceUTF8"},
-
-       /// hash functions
-       {"crc32", "CRC32"},
-       {"murmur3hash", "sparkMurmurHash3_32"},
-       {"xxhash64", "sparkXxHash64"},
-
-       // in functions
-       {"in", "in"},
-
-       // null related functions
-       {"coalesce", "coalesce"},
-
-       // date or datetime functions
-       {"from_unixtime", "fromUnixTimestampInJodaSyntax"},
-       {"date_add", "addDays"},
-       {"date_sub", "subtractDays"},
-       {"datediff", "dateDiff"},
-       {"second", "toSecond"},
-       {"add_months", "addMonths"},
-       {"date_trunc", "dateTrunc"},
-       {"floor_datetime", "dateTrunc"},
-       {"floor", "sparkFloor"},
-       {"months_between", "sparkMonthsBetween"},
-
-       // array functions
-       {"array", "array"},
-       {"shuffle", "arrayShuffle"},
-       {"range", "range"}, /// dummy mapping
-        {"flatten", "sparkArrayFlatten"},
-
-       // map functions
-       {"map", "map"},
-       {"get_map_value", "arrayElement"},
-       {"map_keys", "mapKeys"},
-       {"map_values", "mapValues"},
-       {"map_from_arrays", "mapFromArrays"},
-
-       // tuple functions
-       {"get_struct_field", "sparkTupleElement"},
-       {"get_array_struct_fields", "sparkTupleElement"},
-       {"named_struct", "tuple"},
-
-       // table-valued generator function
-       {"explode", "arrayJoin"},
-       {"posexplode", "arrayJoin"},
-
-       // json functions
-       {"flattenJSONStringOnRequired", "flattenJSONStringOnRequired"},
-       {"get_json_object", "get_json_object"},
-       {"to_json", "toJSONString"},
-       {"from_json", "JSONExtract"},
-       {"json_tuple", "json_tuple"},
-       {"json_array_length", "JSONArrayLength"},
-       {"make_decimal", "makeDecimalSpark"},
-       {"unscaled_value", "unscaleValueSpark"},
-
-       // runtime filter
-       {"might_contain", "bloomFilterContains"}};
-
-static const std::set<std::string> FUNCTION_NEED_KEEP_ARGUMENTS = {"alias"};
-
 DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type);
 DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type);
 
@@ -255,11 +79,13 @@ private:
     friend class FunctionExecutor;
     friend class NonNullableColumnsResolver;
     friend class JoinRelParser;
+    friend class CrossRelParser;
     friend class MergeTreeRelParser;
+    friend class ProjectRelParser;
 
     std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan);
 
-    DB::QueryPlanPtr parse(const std::string_view & plan);
+    DB::QueryPlanPtr parse(const std::string_view plan);
     DB::QueryPlanPtr parse(const substrait::Plan & plan);
 
 public:
@@ -271,7 +97,7 @@ public:
     ///
 
     template <bool JsonPlan>
-    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view & plan);
+    std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
 
     DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
@@ -305,11 +131,15 @@ public:
     std::shared_ptr<DB::ActionsDAG> expressionsToActionsDAG(
         const std::vector<substrait::Expression> & expressions, const DB::Block & header, const DB::Block & read_schema);
     RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
+    const std::unordered_map<std::string, std::string> & getFunctionMapping() { return function_mapping; }
 
-    static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
+    std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
+    std::optional<std::string> getFunctionSignatureName(UInt32 function_ref) const;
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
     IQueryPlanStep * addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header);
+
+    static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
 
     static ContextMutablePtr global_context;
     static Context::ConfigurationPtr config;
@@ -359,15 +189,7 @@ private:
     void parseFunctionArguments(
         DB::ActionsDAGPtr & actions_dag,
         ActionsDAG::NodeRawConstPtrs & parsed_args,
-        std::string & function_name,
         const substrait::Expression_ScalarFunction & scalar_function);
-    void parseFunctionArgument(
-        DB::ActionsDAGPtr & actions_dag,
-        ActionsDAG::NodeRawConstPtrs & parsed_args,
-        const std::string & function_name,
-        const substrait::FunctionArgument & arg);
-    const DB::ActionsDAG::Node *
-    parseFunctionArgument(DB::ActionsDAGPtr & actions_dag, const std::string & function_name, const substrait::FunctionArgument & arg);
 
     void parseArrayJoinArguments(
         DB::ActionsDAGPtr & actions_dag,
@@ -384,10 +206,11 @@ private:
     // remove nullable after isNotNull
     void removeNullableForRequiredColumns(const std::set<String> & require_columns, const ActionsDAGPtr & actions_dag) const;
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
-    static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     void wrapNullable(
         const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
+
+    bool isFunction(substrait::Expression_ScalarFunction rel, String function_name);
 
     int name_no = 0;
     std::unordered_map<std::string, std::string> function_mapping;
@@ -405,7 +228,7 @@ public:
 };
 
 template <bool JsonPlan>
-std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view & plan)
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)
 {
     return createExecutor(JsonPlan ? parseJson(plan) : parse(plan));
 }
@@ -434,15 +257,8 @@ public:
     void setMetric(RelMetricPtr metric_) { metric = metric_; }
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
 
-    static void cancelAll();
-    static void addExecutor(LocalExecutor * executor);
-    static void removeExecutor(Int64 handle);
-
 private:
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(const DB::Block & block) const;
-
-    void asyncCancel();
-    void waitCancelFinished();
 
     /// Dump processor runtime information to log
     std::string dumpPipeline() const;
@@ -456,11 +272,6 @@ private:
     QueryPlanPtr current_query_plan;
     RelMetricPtr metric;
     std::vector<QueryPlanPtr> extra_plan_holder;
-    std::atomic<bool> is_cancelled{false};
-
-    /// Record all active LocalExecutor in current executor to cancel them when executor receives shutdown command from driver.
-    static std::unordered_map<Int64, LocalExecutor *> executors;
-    static std::mutex executors_mutex;
 };
 
 

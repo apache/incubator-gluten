@@ -66,14 +66,24 @@ case class WindowGroupLimitExecTransformer(
 
   override def requiredChildOrdering: Seq[Seq[SortOrder]] = {
     if (BackendsApiManager.getSettings.requiredChildOrderingForWindowGroupLimit()) {
-      // Velox StreamingTopNRowNumber need to require child order.
       Seq(partitionSpec.map(SortOrder(_, Ascending)) ++ orderSpec)
     } else {
       Seq(Nil)
     }
   }
 
-  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
+  override def outputOrdering: Seq[SortOrder] = {
+    if (requiredChildOrdering.forall(_.isEmpty)) {
+      // The Velox backend `TopNRowNumber` does not require child ordering, because it
+      // uses hash table to store partition and use priority queue to track of top limit rows.
+      // Ideally, the output of `TopNRowNumber` is unordered but it is grouped for partition keys.
+      // To be safe, here we do not propagate the ordering.
+      // TODO: Make the framework aware of grouped data distribution
+      Nil
+    } else {
+      child.outputOrdering
+    }
+  }
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
@@ -135,7 +145,7 @@ case class WindowGroupLimitExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportWindowGroupLimitExec(rankLikeFunction)) {
       return ValidationResult
-        .notOk(s"Found unsupported rank like function: $rankLikeFunction")
+        .failed(s"Found unsupported rank like function: $rankLikeFunction")
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)

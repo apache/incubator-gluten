@@ -19,7 +19,6 @@ package org.apache.gluten.vectorized;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.RuntimeAware;
-import org.apache.gluten.memory.nmm.NativeMemoryManager;
 import org.apache.gluten.metrics.IMetrics;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -29,13 +28,11 @@ import java.io.IOException;
 public class ColumnarBatchOutIterator extends GeneralOutIterator implements RuntimeAware {
   private final Runtime runtime;
   private final long iterHandle;
-  private final NativeMemoryManager nmm;
 
-  public ColumnarBatchOutIterator(Runtime runtime, long iterHandle, NativeMemoryManager nmm) {
+  public ColumnarBatchOutIterator(Runtime runtime, long iterHandle) {
     super();
     this.runtime = runtime;
     this.iterHandle = iterHandle;
-    this.nmm = nmm;
   }
 
   @Override
@@ -70,7 +67,7 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator implements Runt
     if (batchHandle == -1L) {
       return null; // stream ended
     }
-    return ColumnarBatches.create(runtime, batchHandle);
+    return ColumnarBatches.create(batchHandle);
   }
 
   @Override
@@ -88,8 +85,9 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator implements Runt
 
   @Override
   public void closeInternal() {
-    nmm.hold(); // to make sure the outputted batches are still accessible after the iterator is
-    // closed
+    // To make sure the outputted batches are still accessible after the iterator is closed.
+    // TODO: Remove this API if we have other choice, e.g., hold the pools in native code.
+    runtime.holdMemory();
     nativeClose(iterHandle);
   }
 }
