@@ -47,22 +47,13 @@ jobs:
         run: |
           yum update -y
           yum install -y epel-release sudo dnf
-          if [ "${{ matrix.os }}" = "centos:8" ]; then
-            dnf config-manager --set-enabled powertools
-            dnf update -y
-            dnf install -y --setopt=install_weak_deps=False gcc-toolset-9 ninja-build
-            source /opt/rh/gcc-toolset-9/enable || exit 1
-          else
-            yum install -y centos-release-scl
+          if [ "${{ matrix.os }}" = "centos:7" ]; then
             rm /etc/yum.repos.d/CentOS-SCLo-scl.repo -f
             sed -i \
             -e 's/^mirrorlist/#mirrorlist/' \
             -e 's/^#baseurl/baseurl/' \
             -e 's/mirror\.centos\.org/vault.centos.org/' \
             /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
-            yum install -y devtoolset-9
-            source /opt/rh/devtoolset-9/enable || exit 1
-            dnf install -y ninja-build
           fi
           yum install -y java-1.8.0-openjdk-devel patch wget git curl gcc-c++ make openssl-devel
           wget https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3.tar.gz
@@ -75,6 +66,7 @@ jobs:
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
           cd $GITHUB_WORKSPACE/ && \
+          export DEBIAN_FRONTEND=noninteractive
           ./dev/package.sh
 
   build-on-ubuntu:
@@ -90,8 +82,9 @@ jobs:
         run: |
           # To avoid the prompt for region selection during installing tzdata.
           export DEBIAN_FRONTEND="noninteractive"
-          apt-get update && apt-get install -y sudo maven wget git curl python3-pip ninja-build
+          apt-get update && apt-get install -y sudo maven wget git curl #python3-pip ninja-build
           sudo apt-get install -y openjdk-8-jdk
-          pip3 install cmake==3.28.3
+          #pip3 install cmake==3.28.3
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+          export DEBIAN_FRONTEND=noninteractive
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh
