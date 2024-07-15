@@ -63,7 +63,7 @@ class CHCelebornColumnarShuffleWriter[K, V](
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
-        initShuffleWriter()
+        initShuffleWriter(cb)
         val col = cb.column(0).asInstanceOf[CHColumnVector]
         jniWrapper.split(nativeShuffleWriter, col.getBlockAddress)
         dep.metrics("numInputRows").add(cb.numRows)
@@ -118,7 +118,8 @@ class CHCelebornColumnarShuffleWriter[K, V](
           if (nativeShuffleWriter == -1L) {
             throw new IllegalStateException(
               "Fatal: spill() called before a celeborn shuffle writer is created. " +
-                "This behavior should be optimized by moving memory allocations from make() to split()")
+                "This behavior should be optimized by moving memory allocations " +
+                "from make() to split()")
           }
           logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
           val spilled = jniWrapper.evict(nativeShuffleWriter)
