@@ -7,7 +7,7 @@ The built shared library files should be portable among different X86 + Linux en
 ## Prerequisites
 
 1. X86 CPU architecture
-2. Host machine with Linux operation system
+2. Host machine with Linux operating system
 3. Docker
 
 ## Usage
