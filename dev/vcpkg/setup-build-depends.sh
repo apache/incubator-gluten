@@ -20,7 +20,7 @@ install_maven_from_source() {
         cd /tmp
         wget https://archive.apache.org/dist/maven/maven-3/$maven_version/binaries/apache-maven-$maven_version-bin.tar.gz
         tar -xvf apache-maven-$maven_version-bin.tar.gz
-        rm apache-maven-$maven_version-bin.tar.gz
+        rm -f apache-maven-$maven_version-bin.tar.gz
         mv apache-maven-$maven_version "${maven_install_dir}"
         ln -s "${maven_install_dir}/bin/mvn" /usr/local/bin/mvn
     fi
@@ -52,13 +52,30 @@ install_gcc9_from_source() {
 install_centos_7() {
     export PATH=/usr/local/bin:$PATH
 
+    sed -i \
+        -e 's/^mirrorlist/#mirrorlist/' \
+        -e 's/^# *baseurl/baseurl/' \
+        -e 's/mirror\.centos\.org/vault.centos.org/' \
+        /etc/yum.repos.d/*.repo
+
     yum -y install epel-release centos-release-scl
+    sed -i \
+        -e 's/^mirrorlist/#mirrorlist/' \
+        -e 's/^# *baseurl/baseurl/' \
+        -e 's/mirror\.centos\.org/vault.centos.org/' \
+        /etc/yum.repos.d/*.repo
+
     yum -y install \
-        wget curl tar zip unzip which \
-        cmake3 ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
-        devtoolset-9 \
+        wget curl tar zip unzip which patch sudo \
+        ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
+        devtoolset-9 python3 pip dnf \
         bison \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
+
+    pip3 install --upgrade pip
+
+    # Requires cmake >= 3.28.3
+    pip3 install cmake==3.28.3
 
     # Requires git >= 2.7.4
     if [[ "$(git --version)" != "git version 2."* ]]; then
