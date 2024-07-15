@@ -94,7 +94,7 @@ function process_setup_ubuntu {
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-ubuntu.sh
   if [ $ENABLE_HDFS == "ON" ]; then
     sed -i '/^function install_folly.*/i function install_libhdfs3 {\n  github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-ubuntu.sh
-    sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
+    sed -i '/^  run_and_time install_protobuf/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
     sed -i '/ccache /a\  yasm \\' scripts/setup-ubuntu.sh
   fi
   sed -i "s/apt install -y/sudo apt install -y/" ${VELOX_HOME}/scripts/setup-adapters.sh
@@ -168,7 +168,7 @@ function process_setup_centos7 {
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
   if [ $ENABLE_HDFS = "ON" ]; then
     sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos7.sh
-    sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
+    sed -i '/^  run_and_time install_protobuf/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
     sed -i '/^dnf_install ccache/a\ \ yasm \\' scripts/setup-centos7.sh
   fi
   sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
