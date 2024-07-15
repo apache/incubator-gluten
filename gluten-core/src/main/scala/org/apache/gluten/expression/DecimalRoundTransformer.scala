@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -29,25 +30,13 @@ case class DecimalRoundTransformer(
 
   val toScale: Int = original.scale.eval(EmptyRow).asInstanceOf[Int]
 
-  // Use the same result type for different Spark versions.
+  // Use the same result type for different Spark versions in velox.
+  // The same result type with spark in ch.
   override val dataType: DataType = original.child.dataType match {
     case decimalType: DecimalType =>
-      val p = decimalType.precision
-      val s = decimalType.scale
-      // After rounding we may need one more digit in the integral part,
-      // e.g. `ceil(9.9, 0)` -> `10`, `ceil(99, -1)` -> `100`.
-      val integralLeastNumDigits = p - s + 1
-      if (toScale < 0) {
-        // negative scale means we need to adjust `-scale` number of digits before the decimal
-        // point, which means we need at lease `-scale + 1` digits (after rounding).
-        val newPrecision = math.max(integralLeastNumDigits, -toScale + 1)
-        // We have to accept the risk of overflow as we can't exceed the max precision.
-        DecimalType(math.min(newPrecision, DecimalType.MAX_PRECISION), 0)
-      } else {
-        val newScale = math.min(s, toScale)
-        // We have to accept the risk of overflow as we can't exceed the max precision.
-        DecimalType(math.min(integralLeastNumDigits + newScale, 38), newScale)
-      }
+      BackendsApiManager.getSparkPlanExecApiInstance.genDecimalRoundExpressionOutput(
+        decimalType,
+        toScale)
     case _ =>
       throw new GlutenNotSupportException(
         s"Decimal type is expected but received ${original.child.dataType.typeName}.")
