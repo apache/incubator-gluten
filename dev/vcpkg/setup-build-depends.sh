@@ -54,14 +54,14 @@ install_centos_7() {
 
     sed -i \
         -e 's/^mirrorlist/#mirrorlist/' \
-        -e 's/^# *baseurl/baseurl/' \
+        -e 's/^# *baseurl *=/baseurl=/' \
         -e 's/mirror\.centos\.org/vault.centos.org/' \
         /etc/yum.repos.d/*.repo
 
     yum -y install epel-release centos-release-scl
     sed -i \
         -e 's/^mirrorlist/#mirrorlist/' \
-        -e 's/^# *baseurl/baseurl/' \
+        -e 's/^# *baseurl *=/baseurl=/' \
         -e 's/mirror\.centos\.org/vault.centos.org/' \
         /etc/yum.repos.d/*.repo
 
@@ -117,12 +117,20 @@ install_centos_7() {
 }
 
 install_centos_8() {
+    sed -i \
+        -e 's/^mirrorlist/#mirrorlist/' \
+        -e 's/^# *baseurl *=/baseurl=/' \
+        -e 's/mirror\.centos\.org/vault.centos.org/' \
+        /etc/yum.repos.d/*.repo
+
     yum -y install \
-        wget curl tar zip unzip git which \
-        cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
+        wget curl tar zip unzip git which sudo patch \
+        cmake perl-IPC-Cmd autoconf automake libtool \
         gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
         flex bison python3 \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
+
+    dnf -y --enablerepo=powertools install autoconf-archive ninja-build
 
     install_maven_from_source
 }
