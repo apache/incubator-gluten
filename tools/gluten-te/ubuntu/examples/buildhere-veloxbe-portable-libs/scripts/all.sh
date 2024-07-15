@@ -18,7 +18,7 @@ set -ex
 
 export NUM_THREADS=$(nproc)
 export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
-export GLUTEN_IT_JVM_ARGS=-Xmx20G -XX:+HeapDumpOnOutOfMemoryError -XX:-UseConcMarkSweepGC
+export GLUTEN_IT_JVM_ARGS='-Xmx20G -XX:+HeapDumpOnOutOfMemoryError -XX:-UseConcMarkSweepGC'
 
 function fail {
   echo $1 >&2
