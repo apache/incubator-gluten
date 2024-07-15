@@ -166,6 +166,7 @@ function process_setup_centos7 {
   # install gtest
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
+  sed -i 's/https:\/\/cmake.org\/files\/v3.25\/cmake-3.25.1.tar.gz/https:\/\/cmake.org\/files\/v3.28\/cmake-3.28.3.tar.gz/' scripts/setup-centos7.sh
   if [ $ENABLE_HDFS = "ON" ]; then
     sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos7.sh
     sed -i '/^  run_and_time install_protobuf/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
