@@ -241,7 +241,6 @@ void SparkMergeTreeWriter::commitPartToRemoteStorageIfNeeded()
         auto src_disk = storage->getStoragePolicy()->getAnyDisk();
         auto dest_disk = dest_storage->getStoragePolicy()->getAnyDisk();
         auto tx = dest_disk->createTransaction();
-        std::sort(files.begin(), files.end());
         for (const auto & file : files)
         {
             auto read_buffer = src_disk->readFile(local_relative_path + "/" + file, read_settings);

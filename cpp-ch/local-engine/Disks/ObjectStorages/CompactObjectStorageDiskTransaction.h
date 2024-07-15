@@ -15,6 +15,7 @@ extern const int NOT_IMPLEMENTED;
 
 namespace local_engine
 {
+
 class CompactObjectStorageDiskTransaction: public DB::IDiskTransaction {
     public:
     explicit CompactObjectStorageDiskTransaction(DB::IDisk & disk_, const DB::DiskPtr tmp_)

@@ -28,7 +28,7 @@ namespace local_engine
 {
 using namespace DB;
 
-DB::DiskTransactionPtr GlutenDiskHDFS::createTransaction()
+DiskTransactionPtr GlutenDiskHDFS::createTransaction()
 {
     return std::make_shared<CompactObjectStorageDiskTransaction>(*this, SerializedPlanParser::global_context->getTempDataOnDisk()->getVolume()->getDisk());
 }
