@@ -29,6 +29,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
+import org.apache.celeborn.common.protocol.ShuffleMode
 
 import java.io.IOException
 import java.util.Locale
@@ -55,61 +56,16 @@ class CHCelebornColumnarShuffleWriter[K, V](
 
   private var splitResult: CHSplitResult = _
 
-  private val nativeBufferSize: Int = GlutenConfig.getConf.shuffleWriterBufferSize
-
   @throws[IOException]
   override def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
-    if (!records.hasNext) {
-      handleEmptyIterator()
-      return
-    }
-
-    if (nativeShuffleWriter == -1L) {
-      nativeShuffleWriter = jniWrapper.makeForRSS(
-        dep.nativePartitioning,
-        shuffleId,
-        mapId,
-        nativeBufferSize,
-        customizedCompressCodec,
-        GlutenConfig.getConf.chColumnarShuffleSpillThreshold,
-        CHBackendSettings.shuffleHashAlgorithm,
-        celebornPartitionPusher,
-        GlutenConfig.getConf.chColumnarThrowIfMemoryExceed,
-        GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict,
-        GlutenConfig.getConf.chColumnarForceExternalSortShuffle,
-        GlutenConfig.getConf.chColumnarForceMemorySortShuffle
-      )
-      CHNativeMemoryAllocators.createSpillable(
-        "CelebornShuffleWriter",
-        new Spiller() {
-          override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
-            if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-              return 0L
-            }
-            if (nativeShuffleWriter == -1L) {
-              throw new IllegalStateException(
-                "Fatal: spill() called before a celeborn shuffle writer " +
-                  "is created. This behavior should be" +
-                  "optimized by moving memory " +
-                  "allocations from make() to split()")
-            }
-            logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
-            val spilled = jniWrapper.evict(nativeShuffleWriter)
-            logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
-            spilled
-          }
-        }
-      )
-    }
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
+        initShuffleWriter()
         val col = cb.column(0).asInstanceOf[CHColumnVector]
-        val block = col.getBlockAddress
-        jniWrapper
-          .split(nativeShuffleWriter, block)
+        jniWrapper.split(nativeShuffleWriter, col.getBlockAddress)
         dep.metrics("numInputRows").add(cb.numRows)
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
@@ -117,6 +73,7 @@ class CHCelebornColumnarShuffleWriter[K, V](
       }
     }
 
+    assert(nativeShuffleWriter != -1L)
     splitResult = jniWrapper.stop(nativeShuffleWriter)
 
     dep.metrics("splitTime").add(splitResult.getSplitTime)
@@ -133,6 +90,43 @@ class CHCelebornColumnarShuffleWriter[K, V](
     partitionLengths = splitResult.getPartitionLengths
     pushMergedDataToCeleborn()
     mapStatus = MapStatus(blockManager.shuffleServerId, splitResult.getRawPartitionLengths, mapId)
+  }
+
+  override def createShuffleWriter(columnarBatch: ColumnarBatch): Unit = {
+    nativeShuffleWriter = jniWrapper.makeForRSS(
+      dep.nativePartitioning,
+      shuffleId,
+      mapId,
+      nativeBufferSize,
+      customizedCompressCodec,
+      GlutenConfig.getConf.chColumnarShuffleSpillThreshold,
+      CHBackendSettings.shuffleHashAlgorithm,
+      celebornPartitionPusher,
+      GlutenConfig.getConf.chColumnarThrowIfMemoryExceed,
+      GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict,
+      GlutenConfig.getConf.chColumnarForceExternalSortShuffle,
+      GlutenConfig.getConf.chColumnarForceMemorySortShuffle
+        || ShuffleMode.SORT.name.equalsIgnoreCase(shuffleWriterType)
+    )
+    CHNativeMemoryAllocators.createSpillable(
+      "CelebornShuffleWriter",
+      new Spiller() {
+        override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
+          if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+            return 0L
+          }
+          if (nativeShuffleWriter == -1L) {
+            throw new IllegalStateException(
+              "Fatal: spill() called before a celeborn shuffle writer is created. " +
+                "This behavior should be optimized by moving memory allocations from make() to split()")
+          }
+          logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
+          val spilled = jniWrapper.evict(nativeShuffleWriter)
+          logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+          spilled
+        }
+      }
+    )
   }
 
   override def closeShuffleWriter(): Unit = {
