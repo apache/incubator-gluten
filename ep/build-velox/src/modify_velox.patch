@@ -36,7 +36,7 @@ index d49115f12..1aaa8e532 100644
 +  endif()
  endif()
 diff --git a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
-index 56b673e87..21a3b6a32 100644
+index 56b673e87..ef48ae9d9 100644
 --- a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
 +++ b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
 @@ -14,16 +14,13 @@
@@ -61,7 +61,7 @@ index 56b673e87..21a3b6a32 100644
        -DARROW_WITH_THRIFT=ON
        -DARROW_WITH_LZ4=ON
        -DARROW_WITH_SNAPPY=ON
-@@ -37,7 +34,7 @@ if(VELOX_ENABLE_ARROW)
+@@ -37,18 +34,16 @@ if(VELOX_ENABLE_ARROW)
        -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}/install
        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
        -DARROW_BUILD_STATIC=ON
@@ -70,7 +70,22 @@ index 56b673e87..21a3b6a32 100644
        -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH})
    set(ARROW_LIBDIR ${ARROW_PREFIX}/install/${CMAKE_INSTALL_LIBDIR})
  
-@@ -67,6 +64,9 @@ if(VELOX_ENABLE_ARROW)
+   add_library(thrift STATIC IMPORTED GLOBAL)
+-  if(NOT Thrift_FOUND)
+-    set(THRIFT_ROOT ${ARROW_PREFIX}/src/arrow_ep-build/thrift_ep-install)
+-    set(THRIFT_LIB ${THRIFT_ROOT}/lib/libthrift.a)
++  set(THRIFT_ROOT ${ARROW_PREFIX}/src/arrow_ep-build/thrift_ep-install)
++  set(THRIFT_LIB ${THRIFT_ROOT}/lib/libthrift.a)
+ 
+-    file(MAKE_DIRECTORY ${THRIFT_ROOT}/include)
+-    set(THRIFT_INCLUDE_DIR ${THRIFT_ROOT}/include)
+-  endif()
++  file(MAKE_DIRECTORY ${THRIFT_ROOT}/include)
++  set(THRIFT_INCLUDE_DIR ${THRIFT_ROOT}/include)
+ 
+   set_property(TARGET thrift PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                       ${THRIFT_INCLUDE_DIR})
+@@ -67,6 +62,9 @@ if(VELOX_ENABLE_ARROW)
      arrow_ep
      PREFIX ${ARROW_PREFIX}
      URL ${VELOX_ARROW_SOURCE_URL}
