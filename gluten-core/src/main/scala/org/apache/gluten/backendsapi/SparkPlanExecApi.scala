@@ -322,6 +322,18 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("PreciseTimestampConversion is not supported")
   }
 
+  // For date_add(cast('2001-01-01' as Date), interval 1 day), backends may handle it in different
+  // ways
+  def genDateAddTransformer(
+      attributeSeq: Seq[Attribute],
+      substraitExprName: String,
+      children: Seq[Expression],
+      expr: Expression): ExpressionTransformer = {
+    val childrenTransformers =
+      children.map(ExpressionConverter.replaceWithExpressionTransformer(_, attributeSeq))
+    GenericExpressionTransformer(substraitExprName, childrenTransformers, expr)
+  }
+
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
