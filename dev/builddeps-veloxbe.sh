@@ -240,18 +240,17 @@ fi
 OS=`uname -s`
 source $GLUTEN_DIR/dev/build_helper_functions.sh
 if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
-  (
-    echo "Start to install dependencies"
-    cd $VELOX_HOME
-    if [ $OS == 'Linux' ]; then
-      setup_linux
-    elif [ $OS == 'Darwin' ]; then
-      setup_macos
-    else
-      echo "Unsupported kernel: $OS"
-      exit 1
-    fi
-  )
+  echo "Start to install dependencies"
+  pushd $VELOX_HOME
+  if [ $OS == 'Linux' ]; then
+    setup_linux
+  elif [ $OS == 'Darwin' ]; then
+    setup_macos
+  else
+    echo "Unsupported kernel: $OS"
+    exit 1
+  fi
+  popd
 fi
 
 commands_to_run=${OTHER_ARGUMENTS:-}
