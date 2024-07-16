@@ -21,4 +21,8 @@ tools/gluten-te/ubuntu/examples/buildhere-veloxbe-portable-libs/run.sh
 
 # 3. Check the built libs.
 ls -l cpp/build/releases/
+
+# 4. If you intend to build Gluten's bundled jar, continue running subsequent Maven commands.
+# For example:
+mvn clean install -P spark-3.4,backends-velox -DskipTests
 ```
