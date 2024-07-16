@@ -238,6 +238,7 @@ if [ "$VELOX_HOME" == "" ]; then
 fi
 
 OS=`uname -s`
+ARCH=`uname -m`
 source $GLUTEN_DIR/dev/build_helper_functions.sh
 if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
   echo "Start to install dependencies"
