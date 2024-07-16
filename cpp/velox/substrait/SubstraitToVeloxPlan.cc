@@ -1737,6 +1737,7 @@ void SubstraitToVeloxPlanConverter::separateFilters(
       // Check if the condition is supported to be pushed down.
       uint32_t fieldIdx;
       if (canPushdownFunction(scalarFunction, filterName, fieldIdx) &&
+	  veloxTypeList[fieldIdx]->kind() != TypeKind::HUGEINT &&
           rangeRecorders.at(fieldIdx).setCertainRangeForFunction(filterName)) {
         subfieldFunctions.emplace_back(scalarFunction);
       } else {
@@ -2141,10 +2142,7 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
   bool existIsNullAndIsNotNull = filterInfo.forbidsNullSet_ && filterInfo.isNullSet_;
   uint32_t rangeSize = std::max(filterInfo.lowerBounds_.size(), filterInfo.upperBounds_.size());
 
-  if constexpr (KIND == facebook::velox::TypeKind::HUGEINT) {
-    // TODO: open it when the Velox's modification is ready.
-    VELOX_NYI("constructSubfieldFilters not support for HUGEINT type");
-  } else if constexpr (KIND == facebook::velox::TypeKind::BOOLEAN) {
+  if constexpr (KIND == facebook::velox::TypeKind::BOOLEAN) {
     // Handle bool type filters.
     // Not equal.
     if (filterInfo.notValue_) {
@@ -2381,10 +2379,11 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
           constructSubfieldFilters<TypeKind::VARCHAR, common::Filter>(
               colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
           break;
-        case TypeKind::HUGEINT:
-          constructSubfieldFilters<TypeKind::HUGEINT, common::HugeintRange>(
-              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-          break;
+        // If support pushing down HUGEINT filters, we can open it
+        // case TypeKind::HUGEINT:
+        //   constructSubfieldFilters<TypeKind::HUGEINT, common::HugeintRange>(
+        //       colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+        //   break;
         case TypeKind::ARRAY:
           constructSubfieldFilters<TypeKind::ARRAY, common::Filter>(
               colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
