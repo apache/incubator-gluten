@@ -661,6 +661,15 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
+
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from
+                         | (select l_orderkey from lineitem
+                         | union all
+                         | select o_orderkey as l_orderkey from orders)
+                         | limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
   }
 
   test("Test spark_partition_id function") {
