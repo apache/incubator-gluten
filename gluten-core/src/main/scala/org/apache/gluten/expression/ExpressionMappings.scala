@@ -287,6 +287,7 @@ object ExpressionMappings {
     Sig[WidthBucket](WIDTH_BUCKET),
     Sig[ReplicateRows](REPLICATE_ROWS),
     Sig[RaiseError](RAISE_ERROR),
+    Sig[SparkVersion](VERSION),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE),
     // Generator function
