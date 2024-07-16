@@ -108,16 +108,16 @@ RUN cd /opt && wget https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.
 RUN cd /opt && mkdir spark322 && tar -xvf spark-3.2.2-bin-hadoop3.2.tgz -C spark322 --strip-components=1
 
 # Build & install Spark 3.3.1
-RUN cd /opt && wget https://archive.apache.org/dist/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.2.tgz
-RUN cd /opt && mkdir spark331 && tar -xvf spark-3.3.1-bin-hadoop3.2.tgz -C spark331 --strip-components=1
+RUN cd /opt && wget https://archive.apache.org/dist/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz
+RUN cd /opt && mkdir spark331 && tar -xvf spark-3.3.1-bin-hadoop3.tgz -C spark331 --strip-components=1
 
 # Build & install Spark 3.4.2
-RUN cd /opt && wget https://archive.apache.org/dist/spark/spark-3.4.2/spark-3.4.2-bin-hadoop3.2.tgz
-RUN cd /opt && mkdir spark342 && tar -xvf spark-3.4.2-bin-hadoop3.2.tgz -C spark342 --strip-components=1
+RUN cd /opt && wget https://archive.apache.org/dist/spark/spark-3.4.2/spark-3.4.2-bin-hadoop3.tgz
+RUN cd /opt && mkdir spark342 && tar -xvf spark-3.4.2-bin-hadoop3.tgz -C spark342 --strip-components=1
 
 # Build & install Spark 3.5.1
-RUN cd /opt && wget https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.2.tgz
-RUN cd /opt && mkdir spark351 && tar -xvf spark-3.5.1-bin-hadoop3.2.tgz -C spark351 --strip-components=1
+RUN cd /opt && wget https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz
+RUN cd /opt && mkdir spark351 && tar -xvf spark-3.5.1-bin-hadoop3.tgz -C spark351 --strip-components=1
 
 # Prepare entry command
 COPY scripts/cmd.sh /root/.cmd.sh
