@@ -91,7 +91,7 @@ case class SortExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportSortExec()) {
-      return ValidationResult.failed("Current backend does not support sort")
+      return ValidationResult.notOk("Current backend does not support sort")
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)

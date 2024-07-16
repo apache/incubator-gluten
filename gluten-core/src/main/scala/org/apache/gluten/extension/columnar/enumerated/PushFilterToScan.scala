@@ -37,7 +37,7 @@ class PushFilterToScan(validator: Validator) extends RasRule[SparkPlan] {
           val newScan =
             FilterHandler.pushFilterToScan(filter.condition, scan)
           newScan match {
-            case ts: TransformSupport if ts.doValidate().ok() =>
+            case ts: TransformSupport if ts.doValidate().isValid =>
               List(filter.withNewChildren(List(ts)))
             case _ =>
               List.empty

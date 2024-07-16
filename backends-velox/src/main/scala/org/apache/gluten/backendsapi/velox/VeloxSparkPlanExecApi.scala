@@ -366,7 +366,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ child.output
         val projectTransformer = ProjectExecTransformer(projectList, child)
         val validationResult = projectTransformer.doValidate()
-        if (validationResult.ok()) {
+        if (validationResult.isValid) {
           val newChild = maybeAddAppendBatchesExec(projectTransformer)
           ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output.drop(1))
         } else {
@@ -392,7 +392,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
             val projectTransformer = ProjectExecTransformer(projectList, child)
             val projectBeforeSortValidationResult = projectTransformer.doValidate()
             // Make sure we support offload hash expression
-            val projectBeforeSort = if (projectBeforeSortValidationResult.ok()) {
+            val projectBeforeSort = if (projectBeforeSortValidationResult.isValid) {
               projectTransformer
             } else {
               val project = ProjectExec(projectList, child)
@@ -405,7 +405,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
             val dropSortColumnTransformer =
               ProjectExecTransformer(projectList.drop(1), sortByHashCode)
             val validationResult = dropSortColumnTransformer.doValidate()
-            if (validationResult.ok()) {
+            if (validationResult.isValid) {
               val newChild = maybeAddAppendBatchesExec(dropSortColumnTransformer)
               ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output)
             } else {
@@ -888,7 +888,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       case p @ LimitTransformer(SortExecTransformer(sortOrder, _, child, _), 0, count) =>
         val global = child.outputPartitioning.satisfies(AllTuples)
         val topN = TopNTransformer(count, sortOrder, global, child)
-        if (topN.doValidate().ok()) {
+        if (topN.doValidate().isValid) {
           topN
         } else {
           p

@@ -62,7 +62,7 @@ case class EvalPythonExecTransformer(
     // All udfs should be scalar python udf
     for (udf <- udfs) {
       if (!PythonUDF.isScalarPythonUDF(udf)) {
-        return ValidationResult.failed(s"$udf is not scalar python udf")
+        return ValidationResult.notOk(s"$udf is not scalar python udf")
       }
     }
 

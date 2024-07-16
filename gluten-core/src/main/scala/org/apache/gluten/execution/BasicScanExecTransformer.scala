@@ -88,7 +88,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
 
     val validationResult = BackendsApiManager.getSettings
       .supportFileFormatRead(fileFormat, fields, getPartitionSchema.nonEmpty, getInputFilePaths)
-    if (!validationResult.ok()) {
+    if (!validationResult.isValid) {
       return validationResult
     }
 

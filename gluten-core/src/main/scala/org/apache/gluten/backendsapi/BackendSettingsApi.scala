@@ -35,12 +35,12 @@ trait BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
-      paths: Seq[String]): ValidationResult = ValidationResult.succeeded
+      paths: Seq[String]): ValidationResult = ValidationResult.ok
   def supportWriteFilesExec(
       format: FileFormat,
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
-      options: Map[String, String]): ValidationResult = ValidationResult.succeeded
+      options: Map[String, String]): ValidationResult = ValidationResult.ok
   def supportNativeWrite(fields: Array[StructField]): Boolean = true
   def supportNativeMetadataColumns(): Boolean = false
   def supportNativeRowIndexColumn(): Boolean = false

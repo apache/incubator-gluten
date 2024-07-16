@@ -64,7 +64,7 @@ case class CHGenerateExecTransformer(
   override protected def doGeneratorValidate(
       generator: Generator,
       outer: Boolean): ValidationResult =
-    ValidationResult.succeeded
+    ValidationResult.ok
 
   override protected def getRelNode(
       context: SubstraitContext,

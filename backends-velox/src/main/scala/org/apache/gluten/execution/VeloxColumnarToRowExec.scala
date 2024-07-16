@@ -66,7 +66,7 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
               s"VeloxColumnarToRowExec.")
       }
     }
-    ValidationResult.succeeded
+    ValidationResult.ok
   }
 
   override def doExecuteInternal(): RDD[InternalRow] = {

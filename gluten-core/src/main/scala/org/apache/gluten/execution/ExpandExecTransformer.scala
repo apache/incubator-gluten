@@ -95,10 +95,10 @@ case class ExpandExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportExpandExec()) {
-      return ValidationResult.failed("Current backend does not support expand")
+      return ValidationResult.notOk("Current backend does not support expand")
     }
     if (projections.isEmpty) {
-      return ValidationResult.failed("Current backend does not support empty projections in expand")
+      return ValidationResult.notOk("Current backend does not support empty projections in expand")
     }
 
     val substraitContext = new SubstraitContext

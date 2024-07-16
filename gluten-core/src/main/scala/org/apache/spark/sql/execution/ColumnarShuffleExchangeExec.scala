@@ -18,7 +18,8 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark._
@@ -118,10 +119,10 @@ case class ColumnarShuffleExchangeExec(
       .doColumnarShuffleExchangeExecValidate(outputPartitioning, child)
       .map {
         reason =>
-          ValidationResult.failed(
+          ValidationResult.notOk(
             s"Found schema check failure for schema ${child.schema} due to: $reason")
       }
-      .getOrElse(ValidationResult.succeeded)
+      .getOrElse(ValidationResult.ok)
   }
 
   override def nodeName: String = "ColumnarExchange"

@@ -145,7 +145,7 @@ case class WindowGroupLimitExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportWindowGroupLimitExec(rankLikeFunction)) {
       return ValidationResult
-        .failed(s"Found unsupported rank like function: $rankLikeFunction")
+        .notOk(s"Found unsupported rank like function: $rankLikeFunction")
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)

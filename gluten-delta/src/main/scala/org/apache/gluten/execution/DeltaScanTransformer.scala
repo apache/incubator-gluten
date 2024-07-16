@@ -57,7 +57,7 @@ case class DeltaScanTransformer(
         _.name == "__delta_internal_is_row_deleted") || requiredSchema.fields.exists(
         _.name == "__delta_internal_row_index")
     ) {
-      return ValidationResult.failed(s"Deletion vector is not supported in native.")
+      return ValidationResult.notOk(s"Deletion vector is not supported in native.")
     }
 
     super.doValidateInternal()

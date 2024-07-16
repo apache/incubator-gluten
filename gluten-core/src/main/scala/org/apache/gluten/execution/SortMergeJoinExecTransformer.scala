@@ -164,7 +164,7 @@ abstract class SortMergeJoinExecTransformerBase(
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
       return ValidationResult
-        .failed(s"Found unsupported join type of $joinType for substrait: $substraitJoinType")
+        .notOk(s"Found unsupported join type of $joinType for substrait: $substraitJoinType")
     }
     val relNode = JoinUtils.createJoinRel(
       streamedKeys,
@@ -253,7 +253,7 @@ case class SortMergeJoinExecTransformer(
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.JOIN_TYPE_OUTER) {
       return ValidationResult
-        .failed(s"Found unsupported join type of $joinType for velox smj: $substraitJoinType")
+        .notOk(s"Found unsupported join type of $joinType for velox smj: $substraitJoinType")
     }
     super.doValidateInternal()
   }

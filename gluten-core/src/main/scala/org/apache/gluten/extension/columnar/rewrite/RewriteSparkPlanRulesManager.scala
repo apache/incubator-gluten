@@ -74,7 +74,7 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
       case p if !p.isInstanceOf[ProjectExec] && !p.isInstanceOf[RewrittenNodeWall] => p
     }
     assert(target.size == 1)
-    FallbackTags.getOption(target.head)
+    FallbackTags.getTagOption(target.head)
   }
 
   private def applyRewriteRules(origin: SparkPlan): (SparkPlan, Option[String]) = {
@@ -112,10 +112,10 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
           origin
         } else {
           addHint.apply(rewrittenPlan)
-          val tag = getFallbackTagBack(rewrittenPlan)
-          if (tag.isDefined) {
+          val hint = getFallbackTagBack(rewrittenPlan)
+          if (hint.isDefined) {
             // If the rewritten plan is still not transformable, return the original plan.
-            FallbackTags.add(origin, tag.get)
+            FallbackTags.tag(origin, hint.get)
             origin
           } else {
             rewrittenPlan.transformUp {

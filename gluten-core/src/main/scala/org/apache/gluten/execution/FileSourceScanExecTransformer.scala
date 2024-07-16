@@ -130,23 +130,23 @@ abstract class FileSourceScanExecTransformerBase(
     if (
       !metadataColumns.isEmpty && !BackendsApiManager.getSettings.supportNativeMetadataColumns()
     ) {
-      return ValidationResult.failed(s"Unsupported metadata columns scan in native.")
+      return ValidationResult.notOk(s"Unsupported metadata columns scan in native.")
     }
 
     if (
       SparkShimLoader.getSparkShims.findRowIndexColumnIndexInSchema(schema) > 0 &&
       !BackendsApiManager.getSettings.supportNativeRowIndexColumn()
     ) {
-      return ValidationResult.failed("Unsupported row index column scan in native.")
+      return ValidationResult.notOk("Unsupported row index column scan in native.")
     }
 
     if (hasUnsupportedColumns) {
-      return ValidationResult.failed(s"Unsupported columns scan in native.")
+      return ValidationResult.notOk(s"Unsupported columns scan in native.")
     }
 
     if (hasFieldIds) {
       // Spark read schema expects field Ids , the case didn't support yet by native.
-      return ValidationResult.failed(
+      return ValidationResult.notOk(
         s"Unsupported matching schema column names " +
           s"by field ids in native scan.")
     }

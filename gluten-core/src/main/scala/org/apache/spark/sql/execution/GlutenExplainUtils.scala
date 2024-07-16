@@ -18,12 +18,12 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.WholeStageTransformer
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.expressions.{Expression, PlanExpression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.execution.GlutenFallbackReporter.FALLBACK_REASON_TAG
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, AQEShuffleReadExec, QueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
@@ -59,8 +59,8 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
       p: SparkPlan,
       fallbackNodeToReason: mutable.HashMap[String, String]
   ): Unit = {
-    p.logicalLink.flatMap(FallbackTags.getOption) match {
-      case Some(tag) => addFallbackNodeWithReason(p, tag.reason(), fallbackNodeToReason)
+    p.logicalLink.flatMap(_.getTagValue(FALLBACK_REASON_TAG)) match {
+      case Some(reason) => addFallbackNodeWithReason(p, reason, fallbackNodeToReason)
       case _ =>
         // If the SparkPlan does not have fallback reason, then there are two options:
         // 1. Gluten ignore that plan and it's a kind of fallback

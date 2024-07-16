@@ -379,7 +379,7 @@ case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
           val newScan =
             FilterHandler.pushFilterToScan(filter.condition, scan)
           newScan match {
-            case ts: TransformSupport if ts.doValidate().ok() => ts
+            case ts: TransformSupport if ts.doValidate().isValid => ts
             case _ => scan
           }
         } else scan
@@ -550,12 +550,12 @@ object OffloadOthers {
       case plan: FileSourceScanExec =>
         val transformer = ScanTransformerFactory.createFileSourceScanTransformer(plan)
         val validationResult = transformer.doValidate()
-        if (validationResult.ok()) {
+        if (validationResult.isValid) {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           transformer
         } else {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-          FallbackTags.add(plan, validationResult.reason())
+          FallbackTags.add(plan, validationResult.reason.get)
           plan
         }
       case plan: BatchScanExec =>
@@ -565,12 +565,12 @@ object OffloadOthers {
         val hiveTableScanExecTransformer =
           BackendsApiManager.getSparkPlanExecApiInstance.genHiveTableScanExecTransformer(plan)
         val validateResult = hiveTableScanExecTransformer.doValidate()
-        if (validateResult.ok()) {
+        if (validateResult.isValid) {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           return hiveTableScanExecTransformer
         }
         logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-        FallbackTags.add(plan, validateResult.reason())
+        FallbackTags.add(plan, validateResult.reason.get)
         plan
       case other =>
         throw new GlutenNotSupportException(s"${other.getClass.toString} is not supported.")

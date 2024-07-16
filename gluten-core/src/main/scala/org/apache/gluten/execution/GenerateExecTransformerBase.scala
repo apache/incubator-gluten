@@ -67,7 +67,7 @@ abstract class GenerateExecTransformerBase(
 
   override protected def doValidateInternal(): ValidationResult = {
     val validationResult = doGeneratorValidate(generator, outer)
-    if (!validationResult.ok()) {
+    if (!validationResult.isValid) {
       return validationResult
     }
     val context = new SubstraitContext

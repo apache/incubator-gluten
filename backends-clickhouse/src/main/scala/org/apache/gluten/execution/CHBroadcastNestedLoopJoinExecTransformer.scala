@@ -98,12 +98,12 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
       case _: InnerLike =>
       case _ =>
         if (joinType == LeftSemi || condition.isDefined) {
-          return ValidationResult.failed(
+          return ValidationResult.notOk(
             s"Broadcast Nested Loop join is not supported join type $joinType with conditions")
         }
     }
 
-    ValidationResult.succeeded
+    ValidationResult.ok
   }
 
 }

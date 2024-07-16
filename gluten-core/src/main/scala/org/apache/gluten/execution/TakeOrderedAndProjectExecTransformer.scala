@@ -67,7 +67,7 @@ case class TakeOrderedAndProjectExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     if (offset != 0) {
-      return ValidationResult.failed(s"Native TopK does not support offset: $offset")
+      return ValidationResult.notOk(s"Native TopK does not support offset: $offset")
     }
 
     var tagged: ValidationResult = null
@@ -83,14 +83,14 @@ case class TakeOrderedAndProjectExecTransformer(
         ColumnarCollapseTransformStages.wrapInputIteratorTransformer(child)
       val sortPlan = SortExecTransformer(sortOrder, false, inputTransformer)
       val sortValidation = sortPlan.doValidate()
-      if (!sortValidation.ok()) {
+      if (!sortValidation.isValid) {
         return sortValidation
       }
       val limitPlan = LimitTransformer(sortPlan, offset, limit)
       tagged = limitPlan.doValidate()
     }
 
-    if (tagged.ok()) {
+    if (tagged.isValid) {
       val projectPlan = ProjectExecTransformer(projectList, child)
       tagged = projectPlan.doValidate()
     }
