@@ -48,9 +48,9 @@ CBASH_DOCKER_RUN_ARGS="$CBASH_DOCKER_RUN_ARGS --ulimit core=-1"
 CBASH_DOCKER_RUN_ARGS="$CBASH_DOCKER_RUN_ARGS --security-opt seccomp=unconfined"
 if [ "$MOUNT_MAVEN_CACHE" == "ON" ]
 then
-  CBASH_DOCKER_RUN_ARGS="$CBASH_DOCKER_RUN_ARGS -v $HOME/.m2/repository:/root/.m2/repository"
+  CBASH_DOCKER_RUN_ARGS="$CBASH_DOCKER_RUN_ARGS -v ~/.m2/repository:/root/.m2/repository"
 fi
-CBASH_DOCKER_RUN_ARGS="$CBASH_DOCKER_RUN_ARGS -v $HOME/.ccache:/root/.ccache"
+CBASH_DOCKER_RUN_ARGS="$CBASH_DOCKER_RUN_ARGS -v ~/.ccache:/root/.ccache"
 CBASH_DOCKER_RUN_ARGS="$CBASH_DOCKER_RUN_ARGS -v $PWD:/opt/gluten"
 CBASH_DOCKER_RUN_ARGS="$CBASH_DOCKER_RUN_ARGS $EXTRA_DOCKER_OPTIONS"
 
