@@ -1,8 +1,6 @@
 # Utility for building C++ libs in container
 
-The folder contains script code to build `libvelox.so` and `libgluten.so` in docker container.
-
-The built shared library files should be portable among different X86 + Linux environments, and can be used from host for building Gluten's fat Jar using Maven.
+The folder contains script code to build `libvelox.so` and `libgluten.so` in docker container and for host use.
 
 ## Prerequisites
 
