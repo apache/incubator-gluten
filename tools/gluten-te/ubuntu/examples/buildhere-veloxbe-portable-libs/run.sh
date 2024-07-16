@@ -20,6 +20,6 @@ BASEDIR=$(readlink -f $(dirname $0))
 
 TIMESTAMP=$(date +%s)
 
-export EXTRA_DOCKER_OPTIONS="--name buildhere-veloxbe-portable-libs-$TIMESTAMP --detach -v $BASEDIR/scripts:/opt/scripts"
+export EXTRA_DOCKER_OPTIONS="--name buildhere-veloxbe-portable-libs-$TIMESTAMP -v $BASEDIR/scripts:/opt/scripts"
 
 $BASEDIR/../../cbash-mount.sh '/opt/scripts/all.sh'
