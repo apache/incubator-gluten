@@ -33,7 +33,6 @@ on:
       - 'gluten-ut/**'
       - 'shims/**'
       - 'tools/gluten-it/**'
-      - 'tools/gluten-te/**'
       - 'ep/build-velox/**'
       - 'cpp/*'
       - 'cpp/CMake/**'
