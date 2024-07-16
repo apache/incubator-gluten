@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
@@ -49,6 +51,11 @@ class GlutenClickHouseMergeTreeWriteTaskNotSerializableSuite
   }
 
   test("GLUTEN-6470: Fix Task not serializable error when inserting mergetree data") {
+
+    val externalSortKey = s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings" +
+      s".max_bytes_before_external_sort"
+    assertResult(3435973836L)(spark.conf.get(externalSortKey).toLong)
+
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_task_not_serializable;
                  |""".stripMargin)
