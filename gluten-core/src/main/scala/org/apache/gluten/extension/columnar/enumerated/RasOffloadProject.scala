@@ -20,6 +20,7 @@ import org.apache.gluten.execution.ProjectExecTransformer
 
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 
+/** TODO: Map [[org.apache.gluten.extension.columnar.OffloadProject]] to RAS. */
 object RasOffloadProject extends RasOffload {
   override def offload(node: SparkPlan): SparkPlan = node match {
     case ProjectExec(projectList, child) =>
