@@ -20,6 +20,7 @@
 #include <memory>
 #include <shared_mutex>
 #include <thread>
+#include <Core/Settings.h>
 #include <Disks/IO/AsynchronousBoundedReadBuffer.h>
 #include <Disks/IO/ReadBufferFromAzureBlobStorage.h>
 #include <Disks/IO/ReadBufferFromRemoteFSGather.h>

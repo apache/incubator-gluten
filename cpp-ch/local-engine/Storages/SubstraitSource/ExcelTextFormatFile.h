@@ -16,8 +16,6 @@
  */
 #pragma once
 
-
-#include <memory>
 #include <Columns/IColumn.h>
 #include <IO/PeekableReadBuffer.h>
 #include <IO/ReadBuffer.h>

@@ -16,9 +16,9 @@
  */
 #include "CustomStorageMergeTree.h"
 
-
-#include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Interpreters/MergeTreeTransaction.h>
+#include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
+#include <Storages/MergeTree/MergeTreeSettings.h>
 #include <Storages/MergeTree/checkDataPart.h>
 
 namespace DB

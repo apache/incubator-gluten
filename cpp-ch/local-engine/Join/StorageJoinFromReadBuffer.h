@@ -16,6 +16,7 @@
  */
 #pragma once
 #include <shared_mutex>
+#include <Core/Joins.h>
 #include <Interpreters/JoinUtils.h>
 #include <Storages/StorageInMemoryMetadata.h>
 

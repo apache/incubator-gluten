@@ -16,6 +16,7 @@
  */
 #include <gluten_test_util.h>
 #include <incbin.h>
+#include <Core/Settings.h>
 #include <Parser/SerializedPlanParser.h>
 #include <gtest/gtest.h>
 
@@ -138,7 +139,7 @@ TEST(LocalExecutor, StorageFileSink)
     metadata.setColumns(ColumnsDescription::fromNamesAndTypes({{"name", STRING()}, {"value", UINT()}}));
     StorageMetadataPtr metadata_ptr = std::make_shared<StorageInMemoryMetadata>(metadata);
 
-/*
+    /*
     auto sink = createFilelinkSink(
         metadata_ptr,
         "test_table",
