@@ -46,4 +46,4 @@ function retry {
 cd /opt/gluten
 retry apt-get install curl zip unzip tar pkg-config autoconf-archive bison flex
 retry source ./dev/vcpkg/env.sh
-dev/builddeps-veloxbe.sh --build_tests=OFF --build_benchmarks=OFF --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON
+retry dev/builddeps-veloxbe.sh --build_tests=OFF --build_benchmarks=OFF --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON
