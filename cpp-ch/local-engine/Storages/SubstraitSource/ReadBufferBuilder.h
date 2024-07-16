@@ -22,6 +22,7 @@
 #include <Interpreters/Context_fwd.h>
 #include <boost/core/noncopyable.hpp>
 #include <substrait/plan.pb.h>
+#include <Poco/URI.h>
 
 namespace local_engine
 {

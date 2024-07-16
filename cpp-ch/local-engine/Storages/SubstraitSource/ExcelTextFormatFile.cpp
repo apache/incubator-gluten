@@ -15,8 +15,6 @@
  * limitations under the License.
  */
 #include "ExcelTextFormatFile.h"
-#include <Common/CHUtil.h>
-
 #include <memory>
 #include <string>
 
@@ -31,6 +29,7 @@
 #include <Storages/Serializations/ExcelDecimalSerialization.h>
 #include <Storages/Serializations/ExcelSerialization.h>
 #include <Storages/Serializations/ExcelStringReader.h>
+#include <Common/CHUtil.h>
 
 namespace DB
 {

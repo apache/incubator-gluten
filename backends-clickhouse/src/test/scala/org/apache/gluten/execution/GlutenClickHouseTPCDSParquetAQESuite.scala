@@ -26,10 +26,6 @@ class GlutenClickHouseTPCDSParquetAQESuite
   extends GlutenClickHouseTPCDSAbstractSuite
   with AdaptiveSparkPlanHelper {
 
-  override protected val tpcdsQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original"
-  override protected val queriesResults: String = rootPath + "tpcds-queries-output"
-
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -63,13 +59,16 @@ class GlutenClickHouseTPCDSParquetAQESuite
   }
 
   test("test reading from partitioned table with partition column filter") {
-    val result = runSql("""
-                          |select avg(ss_net_paid_inc_tax)
-                          |  from store_sales
-                          |  where ss_quantity between 1 and 20
-                          |  and ss_sold_date_sk = 2452635
-                          |""".stripMargin) { _ => }
-    AlmostEqualsIsRel(379.21313271604936, result.head.getDouble(0), DBL_RELAX_EPSILON)
+    compareResultsAgainstVanillaSpark(
+      """
+        |select avg(ss_net_paid_inc_tax)
+        |  from store_sales
+        |  where ss_quantity between 1 and 20
+        |  and ss_sold_date_sk = 2452635
+        |""".stripMargin,
+      true,
+      _ => {}
+    )
   }
 
   test("test select avg(int), avg(long)") {

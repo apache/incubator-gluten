@@ -1442,6 +1442,68 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
+  test("test sort merge join") {
+    withTable("t1", "t2") {
+      sql("""
+            |create table t1 using parquet as
+            |select cast(id as int) as c1, cast(id as string) c2 from range(100)
+            |""".stripMargin)
+      sql("""
+            |create table t2 using parquet as
+            |select cast(id as int) as c1, cast(id as string) c2 from range(100) order by c1 desc;
+            |""".stripMargin)
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 inner join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 left join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 left semi join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 right join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 left anti join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+    }
+  }
+
   test("Fix incorrect path by decode") {
     val c = "?.+<_>|/"
     val path = rootPath + "/test +?.+<_>|"

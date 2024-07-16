@@ -28,6 +28,7 @@
 #include <Parser/SerializedPlanParser.h>
 #include <Parsers/ExpressionListParsers.h>
 
+#include <Core/Settings.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ColumnIndexFilter.h>

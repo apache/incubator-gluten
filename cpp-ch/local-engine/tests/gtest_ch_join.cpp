@@ -31,10 +31,10 @@
 #include <Common/DebugUtils.h>
 #include <Common/MergeTreeTool.h>
 
+#include <Core/Settings.h>
 #include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
 #include <substrait/plan.pb.h>
-
 
 using namespace DB;
 using namespace local_engine;
@@ -95,17 +95,13 @@ TEST(TestJoin, simple)
     ASTPtr rkey = std::make_shared<ASTIdentifier>("colD");
     join->addOnKeys(lkey, rkey, false);
     for (const auto & column : join->columnsFromJoinedTable())
-    {
         join->addJoinedColumn(column);
-    }
 
     auto left_keys = left.getNamesAndTypesList();
     join->addJoinedColumnsAndCorrectTypes(left_keys, true);
     std::cerr << "after join:\n";
     for (const auto & key : left_keys)
-    {
         std::cerr << key.dump() << std::endl;
-    }
     ActionsDAGPtr left_convert_actions = nullptr;
     ActionsDAGPtr right_convert_actions = nullptr;
     std::tie(left_convert_actions, right_convert_actions)

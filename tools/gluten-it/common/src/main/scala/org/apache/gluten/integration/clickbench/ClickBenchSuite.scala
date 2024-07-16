@@ -21,6 +21,8 @@ import org.apache.gluten.integration.{DataGen, Suite, TableCreator}
 import org.apache.log4j.Level
 import org.apache.spark.SparkConf
 
+import java.io.File
+
 /**
  * ClickBench: a Benchmark For Analytical Databases
  *
@@ -35,6 +37,7 @@ class ClickBenchSuite(
     val extraSparkConf: Map[String, String],
     val logLevel: Level,
     val errorOnMemLeak: Boolean,
+    val dataDir: String,
     val enableUi: Boolean,
     val enableHsUi: Boolean,
     val hsUiPort: Int,
@@ -69,7 +72,7 @@ class ClickBenchSuite(
       scale: Double,
       genPartitionedData: Boolean): String = {
     checkDataGenArgs(scale, genPartitionedData)
-    DATA_WRITE_PATH
+    new File(dataDir).toPath.resolve(DATA_WRITE_RELATIVE_PATH + s"-$scale").toFile.getAbsolutePath
   }
 
   override private[integration] def createDataGen(
@@ -88,7 +91,7 @@ class ClickBenchSuite(
 }
 
 private object ClickBenchSuite {
-  private val DATA_WRITE_PATH = "/tmp/clickbench-generated"
+  private val DATA_WRITE_RELATIVE_PATH = "clickbench-generated"
   private val HISTORY_WRITE_PATH = "/tmp/clickbench-history"
   private val ALL_QUERY_IDS = (1 to 43).map(i => s"q$i").toArray
 
