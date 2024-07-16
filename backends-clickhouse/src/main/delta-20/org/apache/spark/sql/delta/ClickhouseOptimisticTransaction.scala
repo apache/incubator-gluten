@@ -116,11 +116,13 @@ class ClickhouseOptimisticTransaction(
         var options = writeOptions match {
           case None => Map.empty[String, String]
           case Some(writeOptions) =>
-            writeOptions.options.filterKeys {
-              key =>
-                key.equalsIgnoreCase(DeltaOptions.MAX_RECORDS_PER_FILE) ||
-                key.equalsIgnoreCase(DeltaOptions.COMPRESSION)
-            }.toMap
+            writeOptions.options
+              .filterKeys {
+                key =>
+                  key.equalsIgnoreCase(DeltaOptions.MAX_RECORDS_PER_FILE) ||
+                  key.equalsIgnoreCase(DeltaOptions.COMPRESSION)
+              }
+              .map(identity)
         }
 
         spark.conf.getAll.foreach(

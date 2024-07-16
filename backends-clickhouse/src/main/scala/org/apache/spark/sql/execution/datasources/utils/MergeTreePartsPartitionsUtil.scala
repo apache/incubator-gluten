@@ -231,6 +231,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
                 size * part.size / part.marks)
           }
       }
+      .sortBy(_.bytesOnDisk)(implicitly[Ordering[Long]].reverse)
 
     var currentSize = 0L
     val currentFiles = new ArrayBuffer[MergeTreePartSplit]
