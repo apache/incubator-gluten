@@ -19,7 +19,7 @@ set -ex
 export NUM_THREADS=$(nproc)
 export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
 
-# Retry code that copied from https://unix.stackexchange.com/a/137639.
+# Retry code copied from https://unix.stackexchange.com/a/137639.
 function fail {
   echo $1 >&2
   exit 1
@@ -43,6 +43,7 @@ function retry {
 }
 
 cd /opt/gluten
-retry apt-get install curl zip unzip tar pkg-config autoconf-archive bison flex
+retry apt-get update
+retry apt-get install -y curl zip unzip tar pkg-config autoconf-archive bison flex
 retry source ./dev/vcpkg/env.sh
 retry dev/builddeps-veloxbe.sh --build_tests=OFF --build_benchmarks=OFF --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON

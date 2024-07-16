@@ -17,10 +17,12 @@
 package org.apache.gluten.integration.h
 
 import org.apache.gluten.integration.action.Action
-import org.apache.gluten.integration.h.TpchSuite.{HISTORY_WRITE_PATH, TPCH_WRITE_PATH}
+import org.apache.gluten.integration.h.TpchSuite.{HISTORY_WRITE_PATH, TPCH_WRITE_RELATIVE_PATH}
 import org.apache.gluten.integration.{DataGen, Suite, TableCreator, TypeModifier}
 import org.apache.log4j.Level
 import org.apache.spark.SparkConf
+
+import java.io.File
 
 class TpchSuite(
     val masterUrl: String,
@@ -30,6 +32,7 @@ class TpchSuite(
     val extraSparkConf: Map[String, String],
     val logLevel: Level,
     val errorOnMemLeak: Boolean,
+    val dataDir: String,
     val enableUi: Boolean,
     val enableHsUi: Boolean,
     val hsUiPort: Int,
@@ -62,7 +65,7 @@ class TpchSuite(
   override private[integration] def dataWritePath(
       scale: Double,
       genPartitionedData: Boolean): String =
-    TPCH_WRITE_PATH + s"-$scale"
+    new File(dataDir).toPath.resolve(TPCH_WRITE_RELATIVE_PATH + s"-$scale").toFile.getAbsolutePath
 
   override private[integration] def createDataGen(
       scale: Double,
@@ -90,7 +93,7 @@ class TpchSuite(
 }
 
 object TpchSuite {
-  private val TPCH_WRITE_PATH = "/tmp/tpch-generated"
+  private val TPCH_WRITE_RELATIVE_PATH = "tpch-generated"
   private val ALL_QUERY_IDS = Array(
     "q1",
     "q2",
