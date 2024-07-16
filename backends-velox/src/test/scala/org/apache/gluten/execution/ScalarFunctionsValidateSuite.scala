@@ -665,7 +665,7 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  test("Test sequence function") {
+  test("Test sequence function optimized by Spark constant folding") {
     withSQLConf(("spark.sql.optimizer.excludedRules", NullPropagation.ruleName)) {
       runQueryAndCompare("""SELECT sequence(1, 5), l_orderkey
                            | from lineitem limit 100""".stripMargin) {
