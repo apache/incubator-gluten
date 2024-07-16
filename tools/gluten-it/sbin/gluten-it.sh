@@ -28,6 +28,13 @@ fi
 
 JAR_PATH=$LIB_DIR/*
 
+EMBEDDED_SPARK_HOME=$BASEDIR/../spark-home
+
+export SPARK_HOME=${SPARK_HOME:-$EMBEDDED_SPARK_HOME}
+export SPARK_SCALA_VERSION=2.12
+
+echo "SPARK_HOME set at [$SPARK_HOME]."
+
 $JAVA_HOME/bin/java $GLUTEN_IT_JVM_ARGS \
     -XX:+IgnoreUnrecognizedVMOptions \
     --add-opens=java.base/java.lang=ALL-UNNAMED \
