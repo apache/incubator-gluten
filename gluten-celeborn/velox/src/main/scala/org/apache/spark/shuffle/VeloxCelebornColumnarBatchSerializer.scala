@@ -22,7 +22,7 @@ import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.vectorized._
 
-import org.apache.spark.SparkEnv
+import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SHUFFLE_COMPRESS
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
@@ -121,7 +121,8 @@ private class CelebornColumnarBatchSerializerInstance(
       runtime,
       ShuffleReaderJniWrapper
         .create(runtime)
-        .readStream(shuffleReaderHandle, byteIn))
+        .readStream(shuffleReaderHandle, byteIn),
+      TaskContext.get())
 
     private var cb: ColumnarBatch = _
 

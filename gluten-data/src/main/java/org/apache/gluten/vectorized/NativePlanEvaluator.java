@@ -76,7 +76,7 @@ public class NativePlanEvaluator {
             TaskContext.get().taskAttemptId(),
             DebugUtil.saveInputToFile(),
             BackendsApiManager.getSparkPlanExecApiInstance().rewriteSpillPath(spillDirPath));
-    final ColumnarBatchOutIterator out = createOutIterator(runtime, itrHandle);
+    final ColumnarBatchOutIterator out = createOutIterator(runtime, itrHandle, TaskContext.get());
     runtime.addSpiller(
         new Spiller() {
           @Override
@@ -90,7 +90,8 @@ public class NativePlanEvaluator {
     return out;
   }
 
-  private ColumnarBatchOutIterator createOutIterator(Runtime runtime, long itrHandle) {
-    return new ColumnarBatchOutIterator(runtime, itrHandle);
+  private ColumnarBatchOutIterator createOutIterator(
+      Runtime runtime, long itrHandle, TaskContext context) {
+    return new ColumnarBatchOutIterator(runtime, itrHandle, context);
   }
 }

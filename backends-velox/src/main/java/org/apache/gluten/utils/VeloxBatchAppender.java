@@ -21,6 +21,7 @@ import org.apache.gluten.exec.Runtimes;
 import org.apache.gluten.vectorized.ColumnarBatchInIterator;
 import org.apache.gluten.vectorized.ColumnarBatchOutIterator;
 
+import org.apache.spark.TaskContext;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
@@ -32,6 +33,6 @@ public final class VeloxBatchAppender {
     long outHandle =
         VeloxBatchAppenderJniWrapper.create(runtime)
             .create(minOutputBatchSize, new ColumnarBatchInIterator(in));
-    return new ColumnarBatchOutIterator(runtime, outHandle);
+    return new ColumnarBatchOutIterator(runtime, outHandle, TaskContext.get());
   }
 }

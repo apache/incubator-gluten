@@ -25,7 +25,7 @@ import org.apache.gluten.substrait.extensions.AdvancedExtensionNode;
 import org.apache.gluten.substrait.extensions.ExtensionBuilder;
 import org.apache.gluten.substrait.plan.PlanBuilder;
 
-import org.apache.spark.SparkConf;
+import org.apache.spark.{SparkConf, TaskContext};
 import org.apache.spark.sql.internal.SQLConf;
 
 import java.util.Arrays;
@@ -115,6 +115,6 @@ public class CHNativeExpressionEvaluator {
   }
 
   private BatchIterator createBatchIterator(long nativeHandle) {
-    return new BatchIterator(nativeHandle);
+    return new BatchIterator(nativeHandle, TaskContext.get());
   }
 }

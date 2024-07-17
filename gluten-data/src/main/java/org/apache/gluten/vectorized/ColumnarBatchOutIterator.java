@@ -21,6 +21,7 @@ import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.RuntimeAware;
 import org.apache.gluten.metrics.IMetrics;
 
+import org.apache.spark.TaskContext;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
@@ -29,8 +30,8 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator implements Runt
   private final Runtime runtime;
   private final long iterHandle;
 
-  public ColumnarBatchOutIterator(Runtime runtime, long iterHandle) {
-    super();
+  public ColumnarBatchOutIterator(Runtime runtime, long iterHandle, TaskContext context) {
+    super(context);
     this.runtime = runtime;
     this.iterHandle = iterHandle;
   }

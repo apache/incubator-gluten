@@ -19,6 +19,7 @@ package org.apache.gluten.vectorized;
 import org.apache.gluten.exception.GlutenException;
 import org.apache.gluten.metrics.IMetrics;
 
+import org.apache.spark.TaskContext;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.Serializable;
@@ -28,12 +29,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class GeneralOutIterator
     implements AutoCloseable, Serializable, Iterator<ColumnarBatch> {
   protected final AtomicBoolean closed = new AtomicBoolean(false);
+  protected final TaskContext context;
 
-  public GeneralOutIterator() {}
+  public GeneralOutIterator(TaskContext context) {
+    this.context = context;
+  }
 
   @Override
   public final boolean hasNext() {
     try {
+      context.killTaskIfInterrupted();
       return hasNextInternal();
     } catch (Exception e) {
       throw new GlutenException(e);
@@ -43,6 +48,7 @@ public abstract class GeneralOutIterator
   @Override
   public final ColumnarBatch next() {
     try {
+      context.killTaskIfInterrupted();
       return nextInternal();
     } catch (Exception e) {
       throw new GlutenException(e);

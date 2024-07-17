@@ -21,7 +21,7 @@ import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.utils.ArrowAbiUtil
 
-import org.apache.spark.SparkEnv
+import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.shuffle.GlutenShuffleUtils
@@ -139,7 +139,8 @@ private class ColumnarBatchSerializerInstance(
       runtime,
       ShuffleReaderJniWrapper
         .create(runtime)
-        .readStream(shuffleReaderHandle, byteIn))
+        .readStream(shuffleReaderHandle, byteIn),
+      TaskContext.get())
 
     private var cb: ColumnarBatch = _
 

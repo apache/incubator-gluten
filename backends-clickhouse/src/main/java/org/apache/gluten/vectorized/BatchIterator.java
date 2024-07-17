@@ -19,6 +19,7 @@ package org.apache.gluten.vectorized;
 import org.apache.gluten.metrics.IMetrics;
 import org.apache.gluten.metrics.NativeMetrics;
 
+import org.apache.spark.TaskContext
 import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -30,8 +31,8 @@ public class BatchIterator extends GeneralOutIterator {
   private final long handle;
   private final AtomicBoolean cancelled = new AtomicBoolean(false);
 
-  public BatchIterator(long handle) {
-    super();
+  public BatchIterator(long handle, TaskContext context) {
+    super(context);
     this.handle = handle;
   }
 
