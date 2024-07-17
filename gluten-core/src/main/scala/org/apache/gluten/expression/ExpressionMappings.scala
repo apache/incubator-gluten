@@ -177,6 +177,7 @@ object ExpressionMappings {
     Sig[Second](EXTRACT),
     Sig[FromUnixTime](FROM_UNIXTIME),
     Sig[DateAdd](DATE_ADD),
+    Sig[TimeAdd](TIMESTAMP_ADD),
     Sig[DateSub](DATE_SUB),
     Sig[DateDiff](DATE_DIFF),
     Sig[ToUnixTimestamp](TO_UNIX_TIMESTAMP),

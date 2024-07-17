@@ -897,6 +897,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
   }
 
+  override def genDateAddTransformer(
+      attributeSeq: Seq[Attribute],
+      substraitExprName: String,
+      children: Seq[Expression],
+      expr: Expression): ExpressionTransformer = {
+    DateAddTransformer(attributeSeq, substraitExprName, children, expr).doTransform()
+  }
+
   override def genPreProjectForGenerate(generate: GenerateExec): SparkPlan = generate
 
   override def genPostProjectForGenerate(generate: GenerateExec): SparkPlan = generate
