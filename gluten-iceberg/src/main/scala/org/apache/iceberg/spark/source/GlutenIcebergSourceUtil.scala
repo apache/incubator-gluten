@@ -20,6 +20,7 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.substrait.rel.{IcebergLocalFilesBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
@@ -33,7 +34,7 @@ import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, M
 
 import scala.collection.JavaConverters._
 
-object GlutenIcebergSourceUtil {
+object GlutenIcebergSourceUtil extends Logging {
 
   def genSplitInfo(
       inputPartition: InputPartition,
@@ -105,6 +106,7 @@ object GlutenIcebergSourceUtil {
         task =>
           val spec = task.spec()
           if (spec.isPartitioned) {
+            var partitionSchema = new StructType()
             val readFields = scan.readSchema().fields.map(_.name).toSet
             // Iceberg will generate some non-table fields as partition fields, such as x_bucket,
             // which will not appear in readFields, they also cannot be filtered.
@@ -116,9 +118,17 @@ object GlutenIcebergSourceUtil {
                 .asScala
                 .filter(f => !tableFields.contains(f.name) || readFields.contains(f.name()))
             partitionFields.foreach {
-              field => TypeUtil.validatePartitionColumnType(field.`type`().typeId())
+              field =>
+                TypeUtil.validatePartitionColumnType(field.`type`().typeId())
+                partitionSchema = partitionSchema.add(field.name(), field.`type`().toString)
             }
+            logInfo(s"partitionSchema: $partitionSchema")
+
             val icebergSchema = new Schema(partitionFields.toList.asJava)
+            logInfo(s"schema: $icebergSchema")
+
+            val result = SparkSchemaUtil.convert(icebergSchema)
+            logInfo(s"result: $result")
             return SparkSchemaUtil.convert(icebergSchema)
           } else {
             return new StructType()
