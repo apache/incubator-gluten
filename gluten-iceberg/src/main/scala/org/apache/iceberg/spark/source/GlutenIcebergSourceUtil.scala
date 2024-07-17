@@ -106,7 +106,6 @@ object GlutenIcebergSourceUtil extends Logging {
         task =>
           val spec = task.spec()
           if (spec.isPartitioned) {
-            var partitionSchema = new StructType()
             val readFields = scan.readSchema().fields.map(_.name).toSet
             // Iceberg will generate some non-table fields as partition fields, such as x_bucket,
             // which will not appear in readFields, they also cannot be filtered.
@@ -118,17 +117,18 @@ object GlutenIcebergSourceUtil extends Logging {
                 .asScala
                 .filter(f => !tableFields.contains(f.name) || readFields.contains(f.name()))
             partitionFields.foreach {
-              field =>
-                TypeUtil.validatePartitionColumnType(field.`type`().typeId())
-                partitionSchema = partitionSchema.add(field.name(), field.`type`().toString)
+              field => TypeUtil.validatePartitionColumnType(field.`type`().typeId())
             }
-            logInfo(s"partitionSchema: $partitionSchema")
 
             val icebergSchema = new Schema(partitionFields.toList.asJava)
             logInfo(s"schema: $icebergSchema")
 
             val result = SparkSchemaUtil.convert(icebergSchema)
             logInfo(s"result: $result")
+
+            partitionFields.foreach {
+              field => logInfo(s"name: ${field.name()}, type: ${field.`type`()}")
+            }
             return SparkSchemaUtil.convert(icebergSchema)
           } else {
             return new StructType()
