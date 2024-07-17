@@ -20,12 +20,13 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.substrait.rel.{IcebergLocalFilesBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
-import org.apache.iceberg.spark.SparkSchemaUtil
 import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.types.StructType
+
 import org.apache.iceberg.{CombinedScanTask, DeleteFile, FileFormat, FileScanTask, ScanTask, Schema}
+import org.apache.iceberg.spark.SparkSchemaUtil
 
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, Map => JMap}
@@ -114,8 +115,8 @@ object GlutenIcebergSourceUtil {
                 .fields()
                 .asScala
                 .filter(f => !tableFields.contains(f.name) || readFields.contains(f.name()))
-            partitionFields.foreach { field =>
-              TypeUtil.validatePartitionColumnType(field.`type`().typeId())
+            partitionFields.foreach {
+              field => TypeUtil.validatePartitionColumnType(field.`type`().typeId())
             }
             val icebergSchema = new Schema(partitionFields.toList.asJava)
             return SparkSchemaUtil.convert(icebergSchema)
