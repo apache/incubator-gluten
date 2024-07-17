@@ -19,7 +19,7 @@ package org.apache.gluten.vectorized;
 import org.apache.gluten.metrics.IMetrics;
 import org.apache.gluten.metrics.NativeMetrics;
 
-import org.apache.spark.TaskContext
+import org.apache.spark.TaskContext;
 import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
