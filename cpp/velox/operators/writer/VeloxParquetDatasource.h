@@ -107,7 +107,6 @@ class VeloxParquetDatasource : public Datasource {
   int64_t maxRowGroupRows_ = 100000000; // 100M
 
   std::shared_ptr<arrow::Schema> schema_;
-  std::shared_ptr<const facebook::velox::Type> type_;
   std::shared_ptr<facebook::velox::parquet::Writer> parquetWriter_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
 };
