@@ -317,6 +317,7 @@ object ExpressionNames {
   final val WIDTH_BUCKET = "width_bucket"
   final val REPLICATE_ROWS = "replicaterows"
   final val RAISE_ERROR = "raise_error"
+  final val VERSION = "version"
 
   // Directly use child expression transformer
   final val KNOWN_NULLABLE = "known_nullable"

@@ -27,7 +27,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, EulerNumber, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Pi, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, EulerNumber, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Pi, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SparkVersion, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
@@ -430,7 +430,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
       expr match {
         // Block directly falling back the below functions by FallbackEmptySchemaRelation.
         case alias: Alias => checkExpr(alias.child)
-        case _: Rand | _: Uuid | _: MakeYMInterval | _: SparkPartitionID | _: EulerNumber | _: Pi =>
+        case _: Rand | _: Uuid | _: MakeYMInterval | _: SparkPartitionID | _: EulerNumber | _: Pi |
+            _: SparkVersion =>
           true
         case _ => false
       }

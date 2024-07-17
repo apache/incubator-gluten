@@ -716,6 +716,16 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("Test version function") {
+    runQueryAndCompare("""SELECT version() from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("""SELECT version(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("Test spark_partition_id function") {
     runQueryAndCompare("""SELECT spark_partition_id(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
