@@ -44,7 +44,7 @@ function retry {
 
 cd /opt/gluten
 retry apt-get update
-retry apt-get install -y curl zip unzip tar pkg-config autoconf-archive bison flex
+retry apt-get install -y --dry-run # We now have all essentials installed in image.
 
 BASH_ARGS=$@
 
