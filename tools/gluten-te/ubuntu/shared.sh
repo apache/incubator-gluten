@@ -24,6 +24,13 @@ source "$SHARED_BASEDIR/defaults.conf"
 export DOCKER_BUILDKIT=1
 export BUILDKIT_PROGRESS=plain
 
+# Validate envs
+if [ -z "$HOME" ]
+then
+  echo "Environment variable $HOME not found. Aborting."
+  exit 1
+fi
+
 # Set operating system
 OS_IMAGE_NAME=${OS_IMAGE_NAME:-$DEFAULT_OS_IMAGE_NAME}
 
