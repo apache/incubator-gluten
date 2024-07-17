@@ -261,8 +261,6 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
     QueryPlanPtr query_plan;
 
-    /// Support only one join clause.
-    table_join->addDisjunct();
     /// some examples to explain when the post_join_filter is not empty
     /// - on t1.key = t2.key and t1.v1 > 1 and t2.v1 > 1, 't1.v1> 1' is in the  post filter. but 't2.v1 > 1'
     ///   will be pushed down into right table by spark and is not in the post filter. 't1.key = t2.key ' is
@@ -430,6 +428,8 @@ void JoinRelParser::collectJoinKeys(
 {
     if (!join_rel.has_expression())
         return;
+    /// Support only one join clause.
+    table_join.addDisjunct();
     const auto & expr = join_rel.expression();
     auto & join_clause = table_join.getClauses().back();
     std::list<const const substrait::Expression *> expressions_stack;

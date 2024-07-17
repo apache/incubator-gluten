@@ -364,8 +364,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left: SparkPlan,
       right: SparkPlan,
       condition: Option[Expression]): CartesianProductExecTransformer =
-    throw new GlutenNotSupportException(
-      "CartesianProductExecTransformer is not supported in ch backend.")
+    if (!condition.isEmpty) {
+      throw new GlutenNotSupportException(
+        "CartesianProductExecTransformer with condition is not supported in ch backend.")
+    } else {
+      CartesianProductExecTransformer(
+        ColumnarCartesianProductBridge(left),
+        ColumnarCartesianProductBridge(right),
+        condition)
+    }
 
   override def genBroadcastNestedLoopJoinExecTransformer(
       left: SparkPlan,
