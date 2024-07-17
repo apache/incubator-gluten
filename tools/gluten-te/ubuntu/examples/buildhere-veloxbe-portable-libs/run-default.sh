@@ -16,36 +16,6 @@
 
 set -ex
 
-export NUM_THREADS=$(nproc)
-export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
+BASEDIR=$(readlink -f $(dirname $0))
 
-# Retry code copied from https://unix.stackexchange.com/a/137639.
-function fail {
-  echo $1 >&2
-  exit 1
-}
-
-function retry {
-  local n=1
-  local max=5
-  local delay=15
-  while true; do
-    "$@" && break || {
-      if [[ $n -lt $max ]]; then
-        ((n++))
-        echo "Command failed. Attempt $n/$max:"
-        sleep $delay;
-      else
-        fail "The command has failed after $n attempts."
-      fi
-    }
-  done
-}
-
-cd /opt/gluten
-retry apt-get update
-retry apt-get install -y curl zip unzip tar pkg-config autoconf-archive bison flex
-
-BASH_ARGS=$@
-
-retry dev/builddeps-veloxbe.sh $BASH_ARGS
+$BASEDIR/run.sh --enable_vcpkg=ON --build_tests=OFF --build_benchmarks=OFF --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON
