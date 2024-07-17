@@ -122,8 +122,6 @@ function process_setup_centos9 {
   fi
   # make this function Reentrant
   git checkout scripts/setup-centos9.sh
-  # need set BUILD_SHARED_LIBS flag for thrift
-  #sed -i "/cd fbthrift/{n;s/cmake_install -Denable_tests=OFF/cmake_install -Denable_tests=OFF -DBUILD_SHARED_LIBS=OFF/;}" scripts/setup-centos9.sh
   # No need to re-install git.
   sed -i 's/dnf_install ninja-build cmake curl ccache gcc-toolset-12 git/dnf_install ninja-build cmake curl ccache gcc-toolset-12/' scripts/setup-centos9.sh
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos9.sh
@@ -142,8 +140,6 @@ function process_setup_centos9 {
   sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^  run_and_time install_fbthrift/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-centos9.sh
-    # Maybe already installed.
-    #sed -i 's/rpm -i minio-20220526054841.0.0.x86_64.rpm/rpm -i --replacepkgs minio-20220526054841.0.0.x86_64.rpm/g' scripts/setup-adapters.sh
   fi
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^  run_and_time install_fbthrift/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos9.sh
