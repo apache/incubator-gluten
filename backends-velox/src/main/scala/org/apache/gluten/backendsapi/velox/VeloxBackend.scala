@@ -292,7 +292,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     fields.map {
       field =>
         field.dataType match {
-          case _: TimestampType | _: StructType | _: ArrayType | _: MapType => return false
+          case _: StructType | _: ArrayType | _: MapType => return false
           case _ =>
         }
     }
