@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <unordered_set>
+#include <Core/Joins.h>
 #include <Parser/RelParser.h>
 #include <substrait/algebra.pb.h>
 

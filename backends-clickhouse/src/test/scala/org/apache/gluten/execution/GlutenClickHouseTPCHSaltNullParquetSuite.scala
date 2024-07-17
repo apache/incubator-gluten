@@ -2727,5 +2727,47 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
     spark.sql("drop table test_tbl_4451")
   }
+
+  test("array functions date add") {
+    spark.sql("create table tb_date(day Date) using parquet")
+    spark.sql("""
+                |insert into tb_date values
+                |(cast('2024-06-01' as Date)),
+                |(cast('2024-06-02' as Date)),
+                |(cast('2024-06-03' as Date)),
+                |(cast('2024-06-04' as Date)),
+                |(cast('2024-06-05' as Date))
+                |""".stripMargin)
+    val sql1 = """
+                 |select * from tb_date where day between
+                 |'2024-06-01' and
+                 |cast('2024-06-01' as Date) + interval 2 day
+                 |order by day
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+    val sql2 = """
+                 |select * from tb_date where day between
+                 |'2024-06-01' and
+                 |cast('2024-06-01' as Date) + interval 48 hour
+                 |order by day
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+    val sql3 = """
+                 |select * from tb_date where day between
+                 |'2024-06-01' and
+                 |cast('2024-06-05' as Date) - interval 2 day
+                 |order by day
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+    val sql4 = """
+                 |select * from tb_date where day between
+                 |'2024-06-01' and
+                 |cast('2024-06-05' as Date) - interval 48 hour
+                 |order by day
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => })
+
+    spark.sql("drop table tb_date")
+  }
 }
 // scalastyle:on line.size.limit

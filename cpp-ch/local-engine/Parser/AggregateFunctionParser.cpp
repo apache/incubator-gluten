@@ -20,6 +20,7 @@
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <Functions/FunctionHelpers.h>
+#include <Parser/RelParser.h>
 #include <Parser/TypeParser.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
@@ -78,8 +79,7 @@ std::pair<String, DB::DataTypes> AggregateFunctionParser::tryApplyCHCombinator(
     auto get_aggregate_function = [](const String & name, const DB::DataTypes & arg_types) -> DB::AggregateFunctionPtr
     {
         DB::AggregateFunctionProperties properties;
-        auto action = NullsAction::EMPTY;
-        auto func = DB::AggregateFunctionFactory::instance().get(name, action, arg_types, DB::Array{}, properties);
+        auto func = RelParser::getAggregateFunction(name, arg_types, properties);
         if (!func)
         {
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknown aggregate function {}", name);

@@ -689,6 +689,20 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         LiteralTransformer(Literal(Math.PI))
       case v: SparkVersion =>
         LiteralTransformer(SPARK_VERSION_SHORT + " " + SPARK_REVISION)
+      case dateAdd: DateAdd =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genDateAddTransformer(
+          attributeSeq,
+          substraitExprName,
+          dateAdd.children,
+          dateAdd
+        )
+      case timeAdd: TimeAdd =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genDateAddTransformer(
+          attributeSeq,
+          substraitExprName,
+          timeAdd.children,
+          timeAdd
+        )
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,

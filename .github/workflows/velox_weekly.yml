@@ -13,14 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Velox backend nightly job
+name: Velox backend weekly job
 
 on:
   pull_request:
     paths:
-      - '.github/workflows/velox_nightly.yml'
+      - '.github/workflows/velox_weekly.yml'
   schedule:
-    - cron: '0 20 * * *'
+    - cron: '0 20 * * 0'
+
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -37,7 +40,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Update mirror list
-        if: matrix.os == 'centos:8'
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
@@ -45,17 +47,21 @@ jobs:
         run: |
           yum update -y
           yum install -y epel-release sudo dnf
-          if [ "${{ matrix.os }}" = "centos:8" ]; then
+          if [ "${{ matrix.os }}" = "centos:7" ]; then
+            yum install -y centos-release-scl
+            rm /etc/yum.repos.d/CentOS-SCLo-scl.repo -f
+            sed -i \
+            -e 's/^mirrorlist/#mirrorlist/' \
+            -e 's/^#baseurl/baseurl/' \
+            -e 's/mirror\.centos\.org/vault.centos.org/' \
+            /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
+          else
             dnf install -y --setopt=install_weak_deps=False gcc-toolset-9
             source /opt/rh/gcc-toolset-9/enable || exit 1
-          else
-            yum install -y centos-release-scl
-            yum install -y devtoolset-9
-            source /opt/rh/devtoolset-9/enable || exit 1
           fi
-          yum install -y java-1.8.0-openjdk-devel patch wget git && \
+          yum install -y java-1.8.0-openjdk-devel patch wget git
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
-          export PATH=$JAVA_HOME/bin:$PATH && \
+          export PATH=$JAVA_HOME/bin:$PATH
           wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
           tar -xvf apache-maven-3.8.8-bin.tar.gz && \
           mv apache-maven-3.8.8 /usr/lib/maven && \
@@ -76,7 +82,8 @@ jobs:
       - name: build
         run: |
           # To avoid the prompt for region selection during installing tzdata.
-          export DEBIAN_FRONTEND="noninteractive"
-          apt-get update && apt-get install -y sudo openjdk-8-jdk maven wget git
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update && apt-get install -y sudo maven wget git
+          sudo apt-get install -y openjdk-8-jdk
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh

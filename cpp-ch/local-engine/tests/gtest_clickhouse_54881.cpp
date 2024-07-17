@@ -16,7 +16,7 @@
  */
 #include <gluten_test_util.h>
 #include <incbin.h>
-
+#include <Core/Settings.h>
 #include <Parser/SerializedPlanParser.h>
 #include <gtest/gtest.h>
 #include <Common/DebugUtils.h>

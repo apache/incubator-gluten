@@ -18,7 +18,7 @@ set -exu
 
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_07_11
+VELOX_BRANCH=2024_07_16
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -94,7 +94,7 @@ function process_setup_ubuntu {
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-ubuntu.sh
   if [ $ENABLE_HDFS == "ON" ]; then
     sed -i '/^function install_folly.*/i function install_libhdfs3 {\n  github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-ubuntu.sh
-    sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
+    sed -i '/^  run_and_time install_protobuf/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
     sed -i '/ccache /a\  yasm \\' scripts/setup-ubuntu.sh
   fi
   sed -i "s/apt install -y/sudo apt install -y/" ${VELOX_HOME}/scripts/setup-adapters.sh
@@ -111,7 +111,8 @@ function process_setup_ubuntu {
     sed -i '/^  run_and_time install_folly/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-ubuntu.sh
   fi
   sed -i '/run_and_time install_conda/d' scripts/setup-ubuntu.sh
-
+  # Just depends on Gluten to install arrow libs since Gluten will apply some patches to Arrow source and uses different build options.
+  sed -i '/run_and_time install_arrow/d' scripts/setup-ubuntu.sh
 }
 
 function process_setup_centos8 {
@@ -165,9 +166,10 @@ function process_setup_centos7 {
   # install gtest
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
+  sed -i 's/https:\/\/cmake.org\/files\/v3.25\/cmake-3.25.1.tar.gz/https:\/\/cmake.org\/files\/v3.28\/cmake-3.28.3.tar.gz/' scripts/setup-centos7.sh
   if [ $ENABLE_HDFS = "ON" ]; then
     sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos7.sh
-    sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
+    sed -i '/^  run_and_time install_protobuf/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
     sed -i '/^dnf_install ccache/a\ \ yasm \\' scripts/setup-centos7.sh
   fi
   sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh

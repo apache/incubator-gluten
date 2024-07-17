@@ -282,8 +282,8 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .format("clickhouse")
       .load(dataPath)
       .where("l_shipdate = date'1998-09-02'")
-      .collect()
-    assertResult(110501)(result.apply(0).get(0))
+      .count()
+    assertResult(183L)(result)
   }
 
   test("test mergetree path based insert overwrite partitioned table with small table, static") {

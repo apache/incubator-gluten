@@ -17,7 +17,7 @@
 #include "MetaDataHelper.h"
 
 #include <filesystem>
-
+#include <Core/Settings.h>
 #include <Disks/ObjectStorages/MetadataStorageFromDisk.h>
 #include <Parser/MergeTreeRelParser.h>
 #include <Storages/Mergetree/MergeSparkMergeTreeTask.h>
