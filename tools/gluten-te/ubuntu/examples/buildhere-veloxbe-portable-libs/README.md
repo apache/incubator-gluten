@@ -15,7 +15,7 @@ The folder contains script code to build `libvelox.so` and `libgluten.so` in doc
 export HTTP_PROXY_HOST=myproxy.example.com
 export HTTP_PROXY_PORT=55555
 
-# 2. Set the following env to make sure Gluten's modified Arrow Jars are installed on host.
+# 2. Set the following env to install Gluten's modified Arrow Jars on host.
 export MOUNT_MAVEN_CACHE=ON
 
 # 3. Build the C++ libs in a ubuntu 20.04 docker container.
