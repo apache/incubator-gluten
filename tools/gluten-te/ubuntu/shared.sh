@@ -27,7 +27,7 @@ export BUILDKIT_PROGRESS=plain
 # Validate envs
 if [ -z "$HOME" ]
 then
-  echo "Environment variable $HOME not found. Aborting."
+  echo 'Environment variable $HOME not found. Aborting.'
   exit 1
 fi
 
