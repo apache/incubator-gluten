@@ -20,7 +20,6 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.substrait.rel.{IcebergLocalFilesBuilder, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
@@ -34,7 +33,7 @@ import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, M
 
 import scala.collection.JavaConverters._
 
-object GlutenIcebergSourceUtil extends Logging {
+object GlutenIcebergSourceUtil {
 
   def genSplitInfo(
       inputPartition: InputPartition,
