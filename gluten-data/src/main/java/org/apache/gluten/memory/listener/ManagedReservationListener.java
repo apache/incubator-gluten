@@ -23,7 +23,9 @@ import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Reserve Spark managed memory. */
+/**
+ * Reserve Spark managed memory.
+ */
 public class ManagedReservationListener implements ReservationListener {
 
   private static final Logger LOG = LoggerFactory.getLogger(ManagedReservationListener.class);
@@ -53,10 +55,15 @@ public class ManagedReservationListener implements ReservationListener {
   @Override
   public long unreserve(long size) {
     synchronized (this) {
-      long freed = target.repay(size);
-      sharedUsage.inc(-freed);
-      Preconditions.checkState(freed == size);
-      return freed;
+      try {
+        long freed = target.repay(size);
+        sharedUsage.inc(-freed);
+        Preconditions.checkState(freed == size);
+        return freed;
+      } catch (Exception e) {
+        LOG.error("Error unreserving memory from target", e);
+        throw e;
+      }
     }
   }
 
