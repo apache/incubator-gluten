@@ -70,7 +70,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
     partitions.map(
       BackendsApiManager.getIteratorApiInstance
-        .genSplitInfo(_, getPartitionSchema, fileFormat, getMetadataColumns.map(_.name)))
+        .genSplitInfo(_, getPartitionSchema, fileFormat, getMetadataColumns.map(_.name), this))
   }
 
   override protected def doValidateInternal(): ValidationResult = {
