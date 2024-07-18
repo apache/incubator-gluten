@@ -615,8 +615,6 @@ jobs:
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           source /opt/rh/gcc-toolset-9/enable
-          source ./dev/build_arrow.sh
-          install_arrow_deps
           ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_tests=ON \
               --build_examples=ON --build_benchmarks=ON --build_protobuf=ON
       - name: Gluten CPP Test
