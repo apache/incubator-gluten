@@ -113,8 +113,6 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
                     auto item_path = part_path / item.first;
                     auto out = metadata_disk->writeFile(item_path);
                     out->write(item.second.data(), item.second.size());
-                    out->finalize();
-                    out->sync();
                 }
             };
             thread_pool.scheduleOrThrow(job);

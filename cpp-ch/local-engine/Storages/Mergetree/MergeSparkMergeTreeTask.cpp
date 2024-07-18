@@ -164,7 +164,7 @@ void MergeSparkMergeTreeTask::finish()
     // MergeTreeData::Transaction transaction(storage, txn.get());
     // storage.merger_mutator.renameMergedTemporaryPart(new_part, future_part->parts, txn, transaction);
     // transaction.commit();
-
+    new_part->getDataPartStoragePtr()->commitTransaction();
     ThreadFuzzer::maybeInjectSleep();
     ThreadFuzzer::maybeInjectMemoryLimitException();
 
