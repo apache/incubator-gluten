@@ -47,8 +47,13 @@ trait IteratorApi {
   /**
    * Inject the task attempt temporary path for native write files, this method should be called
    * before `genFirstStageIterator` or `genFinalStageIterator`
+   * @param path
+   *   is the temporary directory for native write pipeline
+   * @param fileName
+   *   is the file name for native write pipeline, backend could generate it by itself.
    */
-  def injectWriteFilesTempPath(path: String): Unit = throw new UnsupportedOperationException()
+  def injectWriteFilesTempPath(path: String, fileName: String): Unit =
+    throw new UnsupportedOperationException()
 
   /**
    * Generate Iterator[ColumnarBatch] for first stage. ("first" means it does not depend on other
@@ -58,7 +63,7 @@ trait IteratorApi {
       inputPartition: BaseGlutenPartition,
       context: TaskContext,
       pipelineTime: SQLMetric,
-      updateInputMetrics: (InputMetricsWrapper) => Unit,
+      updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()

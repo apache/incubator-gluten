@@ -17,149 +17,46 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.{Partition, SparkException, TaskContext, TaskOutputFileAlreadyExistException}
 import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
-import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet, GenericInternalRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet}
 import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import org.apache.hadoop.fs.FileAlreadyExistsException
 
 import java.util.Date
 
-import scala.collection.mutable
-
-// Velox write files metrics start
-//
-// Follows the code in velox `HiveDataSink::close()`
-// The json can be as following:
-// {
-//     "inMemoryDataSizeInBytes":0,
-//     "containsNumberedFileNames":true,
-//     "onDiskDataSizeInBytes":307,
-//     "fileWriteInfos":[
-//         {
-//             "fileSize":307,
-//             "writeFileName":
-//                "Gluten_Stage_1_TID_2_0_2_d1db3b31-4f99-41cb-a4e7-3b8607506168.parquet",
-//             "targetFileName":
-//                "Gluten_Stage_1_TID_2_0_2_d1db3b31-4f99-41cb-a4e7-3b8607506168.parquet"
-//         }
-//     ],
-//     "writePath":"file:/home/gluten/spark-warehouse/inserttable/part1=1/part2=1",
-//     "rowCount":1,
-//     "targetPath":"file:/home/gluten/spark-warehouse/inserttable/part1=1/part2=1",
-//     "updateMode":"NEW",
-//     "name":"part1=1/part2=1"
-// }
-case class VeloxWriteFilesInfo(writeFileName: String, targetFileName: String, fileSize: Long)
-
-case class VeloxWriteFilesMetrics(
-    name: String,
-    updateMode: String,
-    writePath: String,
-    targetPath: String,
-    fileWriteInfos: Seq[VeloxWriteFilesInfo],
-    rowCount: Long,
-    inMemoryDataSizeInBytes: Long,
-    onDiskDataSizeInBytes: Long,
-    containsNumberedFileNames: Boolean)
-
-// Velox write files metrics end
+/**
+ * This trait is used in [[GlutenColumnarWriteFilesRDD]] to inject the staging write path before
+ * initializing the native plan and collect native write files metrics for each backend.
+ */
+trait BackendWrite {
+  def collectNativeWriteFilesMetrics(batch: ColumnarBatch): Option[WriteTaskResult]
+}
 
 /**
  * This RDD is used to make sure we have injected staging write path before initializing the native
  * plan, and support Spark file commit protocol.
  */
-class VeloxColumnarWriteFilesRDD(
+class GlutenColumnarWriteFilesRDD(
     var prev: RDD[ColumnarBatch],
     description: WriteJobDescription,
     committer: FileCommitProtocol,
     jobTrackerID: String)
   extends RDD[WriterCommitMessage](prev) {
-
-  private def collectNativeWriteFilesMetrics(cb: ColumnarBatch): Option[WriteTaskResult] = {
-    // Currently, the cb contains three columns: row, fragments, and context.
-    // The first row in the row column contains the number of written numRows.
-    // The fragments column contains detailed information about the file writes.
-    val loadedCb = ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance, cb)
-    assert(loadedCb.numCols() == 3)
-    val numWrittenRows = loadedCb.column(0).getLong(0)
-
-    var updatedPartitions = Set.empty[String]
-    val addedAbsPathFiles: mutable.Map[String, String] = mutable.Map[String, String]()
-    var numBytes = 0L
-    val objectMapper = new ObjectMapper()
-    objectMapper.registerModule(DefaultScalaModule)
-    for (i <- 0 until loadedCb.numRows() - 1) {
-      val fragments = loadedCb.column(1).getUTF8String(i + 1)
-      val metrics = objectMapper
-        .readValue(fragments.toString.getBytes("UTF-8"), classOf[VeloxWriteFilesMetrics])
-      logDebug(s"Velox write files metrics: $metrics")
-
-      val fileWriteInfos = metrics.fileWriteInfos
-      assert(fileWriteInfos.length == 1)
-      val fileWriteInfo = fileWriteInfos.head
-      numBytes += fileWriteInfo.fileSize
-      val targetFileName = fileWriteInfo.targetFileName
-      val outputPath = description.path
-
-      // part1=1/part2=1
-      val partitionFragment = metrics.name
-      // Write a partitioned table
-      if (partitionFragment != "") {
-        updatedPartitions += partitionFragment
-        val tmpOutputPath = outputPath + "/" + partitionFragment + "/" + targetFileName
-        val customOutputPath = description.customPartitionLocations.get(
-          PartitioningUtils.parsePathFragment(partitionFragment))
-        if (customOutputPath.isDefined) {
-          addedAbsPathFiles(tmpOutputPath) = customOutputPath.get + "/" + targetFileName
-        }
-      }
-    }
-
-    val numFiles = loadedCb.numRows() - 1
-    val partitionsInternalRows = updatedPartitions.map {
-      part =>
-        val parts = new Array[Any](1)
-        parts(0) = part
-        new GenericInternalRow(parts)
-    }.toSeq
-    val stats = BasicWriteTaskStats(
-      partitions = partitionsInternalRows,
-      numFiles = numFiles,
-      numBytes = numBytes,
-      numRows = numWrittenRows)
-    val summary =
-      ExecutedWriteSummary(updatedPartitions = updatedPartitions, stats = Seq(stats))
-
-    // Write an empty iterator
-    if (numFiles == 0) {
-      None
-    } else {
-      Some(
-        WriteTaskResult(
-          new TaskCommitMessage(addedAbsPathFiles.toMap -> updatedPartitions),
-          summary))
-    }
-  }
 
   private def reportTaskMetrics(writeTaskResult: WriteTaskResult): Unit = {
     val stats = writeTaskResult.summary.stats.head.asInstanceOf[BasicWriteTaskStats]
@@ -194,21 +91,25 @@ class VeloxColumnarWriteFilesRDD(
 
   override def compute(split: Partition, context: TaskContext): Iterator[WriterCommitMessage] = {
     val commitProtocol = new SparkWriteFilesCommitProtocol(jobTrackerID, description, committer)
+    val backendWrite =
+      BackendsApiManager.getSparkPlanExecApiInstance.createBackendWrite(description)
 
     commitProtocol.setupTask()
     val writePath = commitProtocol.newTaskAttemptTempPath()
-    logDebug(s"Velox staging write path: $writePath")
+    val writeFileName = commitProtocol.getFilename
+    logDebug(s"Native staging write path: $writePath and file name: $writeFileName")
+
     var writeTaskResult: WriteTaskResult = null
     try {
       Utils.tryWithSafeFinallyAndFailureCallbacks(block = {
-        BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath)
+        BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath, writeFileName)
 
         // Initialize the native plan
         val iter = firstParent[ColumnarBatch].iterator(split, context)
         assert(iter.hasNext)
         val resultColumnarBatch = iter.next()
         assert(resultColumnarBatch != null)
-        val nativeWriteTaskResult = collectNativeWriteFilesMetrics(resultColumnarBatch)
+        val nativeWriteTaskResult = backendWrite.collectNativeWriteFilesMetrics(resultColumnarBatch)
         if (nativeWriteTaskResult.isEmpty) {
           // If we are writing an empty iterator, then velox would do nothing.
           // Here we fallback to use vanilla Spark write files to generate an empty file for
@@ -255,7 +156,7 @@ class VeloxColumnarWriteFilesRDD(
 // we need to expose a dummy child (as right child) with type "WriteFilesExec" to let Spark
 // choose the new write code path (version >= 3.4). The actual plan to write is the left child
 // of this operator.
-case class VeloxColumnarWriteFilesExec private (
+case class GlutenColumnarWriteFilesExec private (
     override val left: SparkPlan,
     override val right: SparkPlan,
     fileFormat: FileFormat,
@@ -265,7 +166,7 @@ case class VeloxColumnarWriteFilesExec private (
     staticPartitions: TablePartitionSpec)
   extends BinaryExecNode
   with GlutenPlan
-  with VeloxColumnarWriteFilesExec.ExecuteWriteCompatible {
+  with GlutenColumnarWriteFilesExec.ExecuteWriteCompatible {
 
   val child: SparkPlan = left
 
@@ -316,7 +217,7 @@ case class VeloxColumnarWriteFilesExec private (
       // partition rdd to make sure we at least set up one write task to write the metadata.
       writeFilesForEmptyRDD(description, committer, jobTrackerID)
     } else {
-      new VeloxColumnarWriteFilesRDD(rdd, description, committer, jobTrackerID)
+      new GlutenColumnarWriteFilesRDD(rdd, description, committer, jobTrackerID)
     }
   }
   override protected def withNewChildrenInternal(
@@ -325,7 +226,7 @@ case class VeloxColumnarWriteFilesExec private (
     copy(newLeft, newRight, fileFormat, partitionColumns, bucketSpec, options, staticPartitions)
 }
 
-object VeloxColumnarWriteFilesExec {
+object GlutenColumnarWriteFilesExec {
 
   def apply(
       child: SparkPlan,
@@ -333,7 +234,7 @@ object VeloxColumnarWriteFilesExec {
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
-      staticPartitions: TablePartitionSpec): VeloxColumnarWriteFilesExec = {
+      staticPartitions: TablePartitionSpec): GlutenColumnarWriteFilesExec = {
     // This is a workaround for FileFormatWriter#write. Vanilla Spark (version >= 3.4) requires for
     // a plan that has at least one node exactly of type `WriteFilesExec` that is a Scala
     // case-class, to decide to choose new `#executeWrite` code path over the legacy `#execute`
@@ -352,7 +253,7 @@ object VeloxColumnarWriteFilesExec {
         options,
         staticPartitions)
 
-    VeloxColumnarWriteFilesExec(
+    GlutenColumnarWriteFilesExec(
       child,
       right,
       fileFormat,

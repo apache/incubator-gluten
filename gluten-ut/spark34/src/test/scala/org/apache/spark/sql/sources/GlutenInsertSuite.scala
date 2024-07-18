@@ -24,7 +24,7 @@ import org.apache.spark.executor.OutputMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.execution.{CommandResultExec, QueryExecution, VeloxColumnarWriteFilesExec}
+import org.apache.spark.sql.execution.{CommandResultExec, GlutenColumnarWriteFilesExec, QueryExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -60,13 +60,13 @@ class GlutenInsertSuite
     super.afterAll()
   }
 
-  private def checkAndGetWriteFiles(df: DataFrame): VeloxColumnarWriteFilesExec = {
+  private def checkAndGetWriteFiles(df: DataFrame): GlutenColumnarWriteFilesExec = {
     val writeFiles = stripAQEPlan(
       df.queryExecution.executedPlan
         .asInstanceOf[CommandResultExec]
         .commandPhysicalPlan).children.head
-    assert(writeFiles.isInstanceOf[VeloxColumnarWriteFilesExec])
-    writeFiles.asInstanceOf[VeloxColumnarWriteFilesExec]
+    assert(writeFiles.isInstanceOf[GlutenColumnarWriteFilesExec])
+    writeFiles.asInstanceOf[GlutenColumnarWriteFilesExec]
   }
 
   testGluten("insert partition table") {
@@ -405,7 +405,7 @@ class GlutenInsertSuite
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -425,7 +425,7 @@ class GlutenInsertSuite
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -452,7 +452,7 @@ class GlutenInsertSuite
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -474,7 +474,7 @@ class GlutenInsertSuite
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -501,7 +501,7 @@ class GlutenInsertSuite
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -571,7 +571,7 @@ class GlutenInsertSuite
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
