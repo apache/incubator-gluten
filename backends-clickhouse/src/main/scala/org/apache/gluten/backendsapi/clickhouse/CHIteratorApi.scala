@@ -122,7 +122,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       partition: InputPartition,
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
-      metadataColumnNames: Seq[String]): SplitInfo = {
+      metadataColumnNames: Seq[String],
+      scan: BasicScanExecTransformer): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>
         val partLists = new JArrayList[String]()
@@ -183,7 +184,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           partitionColumns,
           new JArrayList[JMap[String, String]](),
           fileFormat,
-          preferredLocations.toList.asJava
+          preferredLocations.toList.asJava,
+          mapAsJavaMap(scan.getProperties)
         )
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition: $partition.")
@@ -209,7 +211,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             split match {
               case filesNode: LocalFilesNode =>
                 setFileSchemaForLocalFiles(filesNode, scans(i))
-                filesNode.setFileReadProperties(mapAsJavaMap(scans(i).getProperties))
                 filesNode.getPaths.forEach(f => files += f)
                 filesNode.toProtobuf.toByteArray
               case extensionTableNode: ExtensionTableNode =>

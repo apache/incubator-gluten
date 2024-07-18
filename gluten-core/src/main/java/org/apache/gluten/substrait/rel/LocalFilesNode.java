@@ -67,7 +67,9 @@ public class LocalFilesNode implements SplitInfo {
       List<Map<String, String>> partitionColumns,
       List<Map<String, String>> metadataColumns,
       ReadFileFormat fileFormat,
-      List<String> preferredLocations) {
+      List<String> preferredLocations,
+      Map<String, String> properties
+      ) {
     this.index = index;
     this.paths.addAll(paths);
     this.starts.addAll(starts);
@@ -78,6 +80,7 @@ public class LocalFilesNode implements SplitInfo {
     this.partitionColumns.addAll(partitionColumns);
     this.metadataColumns.addAll(metadataColumns);
     this.preferredLocations.addAll(preferredLocations);
+    this.fileReadProperties= properties;
   }
 
   LocalFilesNode(String iterPath) {
