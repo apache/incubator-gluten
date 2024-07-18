@@ -16,19 +16,13 @@
  */
 #pragma once
 
-#include <Columns/IColumn.h>
 #include <Core/Block.h>
-#include <Core/ColumnsWithTypeAndName.h>
 #include <Core/Field.h>
 #include <Interpreters/Context.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Processors/Chunk.h>
 #include <Processors/Executors/PushingPipelineExecutor.h>
-#include <Processors/ISource.h>
 #include <Storages/Output/OutputFormatFile.h>
-#include <Storages/Output/WriteBufferBuilder.h>
-#include <Storages/SourceFromJavaIter.h>
-#include <base/types.h>
+#include <Common/CHUtil.h>
 
 namespace local_engine
 {
@@ -36,7 +30,7 @@ namespace local_engine
 class FileWriterWrapper
 {
 public:
-    explicit FileWriterWrapper(OutputFormatFilePtr file_) : file(file_) { }
+    explicit FileWriterWrapper(const OutputFormatFilePtr & file_) : file(file_) { }
     virtual ~FileWriterWrapper() = default;
     virtual void consume(DB::Block & block) = 0;
     virtual void close() = 0;
@@ -52,7 +46,7 @@ class NormalFileWriter : public FileWriterWrapper
 public:
     //TODO: EmptyFileReader and ConstColumnsFileReader ?
     //TODO: to support complex types
-    NormalFileWriter(OutputFormatFilePtr file_, DB::ContextPtr context_);
+    NormalFileWriter(const OutputFormatFilePtr & file_, const DB::ContextPtr & context_);
     ~NormalFileWriter() override = default;
     void consume(DB::Block & block) override;
     void close() override;
@@ -65,6 +59,15 @@ private:
     std::unique_ptr<DB::PushingPipelineExecutor> writer;
 };
 
-FileWriterWrapper *
-createFileWriterWrapper(const std::string & file_uri, const std::vector<std::string> & preferred_column_names, const std::string & format_hint);
+std::unique_ptr<FileWriterWrapper> createFileWriterWrapper(
+    const DB::ContextPtr & context,
+    const std::string & file_uri,
+    const DB::Names & preferred_column_names,
+    const std::string & format_hint);
+
+OutputFormatFilePtr create_output_format_file(
+    const DB::ContextPtr & context,
+    const std::string & file_uri,
+    const DB::Names & preferred_column_names,
+    const std::string & format_hint);
 }

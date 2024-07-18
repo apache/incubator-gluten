@@ -57,8 +57,8 @@ private:
     {
         if (rel.has_generate())
             return rel.generate().input();
-        else
-            return rel.project().input();
+
+        return rel.project().input();
     }
 };
 }
