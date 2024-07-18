@@ -19,6 +19,7 @@ package org.apache.gluten.columnarbatch;
 import org.apache.gluten.exception.GlutenException;
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.Runtimes;
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;
 import org.apache.gluten.utils.ImplicitClass;
@@ -31,14 +32,23 @@ import org.apache.arrow.c.CDataDictionaryProvider;
 import org.apache.arrow.c.Data;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.expressions.ToStringUtil;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
+import org.apache.spark.sql.internal.SQLConf;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.utils.SparkArrowUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
+import org.apache.spark.sql.vectorized.ColumnarBatchRow;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
+
+import scala.Option;
 
 public class ColumnarBatches {
   private static final Field FIELD_COLUMNS;
@@ -100,7 +110,6 @@ public class ColumnarBatches {
         newVectors[i] = from.column(i);
       }
       FIELD_COLUMNS.set(target, newVectors);
-      System.out.println();
     } catch (IllegalAccessException e) {
       throw new GlutenException(e);
     }
@@ -379,5 +388,36 @@ public class ColumnarBatches {
 
   public static long getNativeHandle(ColumnarBatch batch) {
     return getIndicatorVector(batch).handle();
+  }
+
+  public static String toString(ColumnarBatch batch, int start, int length) {
+    ColumnarBatch loadedBatch = ensureLoaded(ArrowBufferAllocators.contextInstance(), batch);
+    StructType type = SparkArrowUtil.fromArrowSchema(ArrowUtil.toSchema(loadedBatch));
+    String timeZone = SQLConf.get().sessionLocalTimeZone();
+    StringBuilder[] rowsBuilder = new StringBuilder[length];
+    int end = start + length;
+    for (int i = start; i < end; i++) {
+      rowsBuilder[i] = new StringBuilder(i + " ");
+    }
+    ColumnVector[] columns = new ColumnVector[loadedBatch.numCols()];
+    for (int i = 0; i < loadedBatch.numCols(); i++) {
+      columns[i] = loadedBatch.column(i);
+    }
+    ColumnarBatchRow rows = new ColumnarBatchRow(columns);
+    for (int col = 0; col < loadedBatch.numCols(); col++) {
+      DataType colType = type.fields()[col].dataType();
+      ColumnVector vec = loadedBatch.column(col);
+      ToStringUtil toStringUtil = new ToStringUtil(colType, Option.apply(timeZone));
+      for (int i = start; i < end; i++) {
+        rowsBuilder[i].append("| ");
+        if (vec.isNullAt(i)) {
+          rowsBuilder[i].append("NULL");
+        } else {
+          rows.rowId = i;
+          rowsBuilder[i].append(toStringUtil.evalValue(rows.get(col, colType)));
+        }
+      }
+    }
+    return Arrays.stream(rowsBuilder).collect(Collectors.joining(System.lineSeparator()));
   }
 }
