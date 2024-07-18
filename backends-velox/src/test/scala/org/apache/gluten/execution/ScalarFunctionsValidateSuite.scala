@@ -16,14 +16,45 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.SparkException
+import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.catalyst.optimizer.NullPropagation
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.types._
 
 import java.sql.Timestamp
 
-class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
+class ScalarFunctionsValidateSuiteRasOff extends ScalarFunctionsValidateSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.gluten.ras.enabled", "false")
+  }
+
+  // Since https://github.com/apache/incubator-gluten/pull/6200.
+  test("Test input_file_name function") {
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from
+                         | (select l_orderkey from lineitem
+                         | union all
+                         | select o_orderkey as l_orderkey from orders)
+                         | limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+}
+
+class ScalarFunctionsValidateSuiteRasOn extends ScalarFunctionsValidateSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.gluten.ras.enabled", "true")
+  }
+}
+
+abstract class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
   disableFallbackCheck
   import testImplicits._
 
@@ -654,22 +685,6 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
   test("Test monotonically_increasing_id function") {
     runQueryAndCompare("""SELECT monotonically_increasing_id(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
-
-  test("Test input_file_name function") {
-    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from lineitem limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-
-    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from
-                         | (select l_orderkey from lineitem
-                         | union all
-                         | select o_orderkey as l_orderkey from orders)
-                         | limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
