@@ -15,6 +15,7 @@
 # limitations under the License.
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+export SUDO=sudo
 source ${CURRENT_DIR}/build_helper_functions.sh
 VELOX_ARROW_BUILD_VERSION=15.0.0
 ARROW_PREFIX=$CURRENT_DIR/../ep/_ep/arrow_ep
@@ -106,3 +107,10 @@ function build_arrow_java() {
       -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -Dassembly.skipAssembly
     popd
 }
+
+echo "Start to build Arrow"
+prepare_arrow_build
+build_arrow_cpp
+echo "Finished building arrow CPP"
+build_arrow_java
+echo "Finished building arrow Java"
