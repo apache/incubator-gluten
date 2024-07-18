@@ -109,13 +109,13 @@ DB::Chunk SourceFromJavaIter::generate()
             auto info = std::make_shared<DB::AggregatedChunkInfo>();
             info->is_overflows = data->info.is_overflows;
             info->bucket_num = data->info.bucket_num;
-            result.setChunkInfo(info);
+            result.getChunkInfos().add(std::move(info));
         }
         else
         {
             result = BlockUtil::buildRowCountChunk(rows);
             auto info = std::make_shared<DB::AggregatedChunkInfo>();
-            result.setChunkInfo(info);
+            result.getChunkInfos().add(std::move(info));
         }
     }
     return result;
