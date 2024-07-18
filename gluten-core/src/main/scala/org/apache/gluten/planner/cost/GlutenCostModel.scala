@@ -77,14 +77,14 @@ object GlutenCostModel extends Logging {
         case _: RemoveFilter.NoopFilter =>
           // To make planner choose the tree that has applied rule PushFilterToScan.
           0L
-        case ColumnarToRowExec(child) => 0L
-        case RowToColumnarExec(child) => 0L
-        case ColumnarToRowLike(child) => 0L
-        case RowToColumnarLike(child) => 0L
-        case p if PlanUtil.isGlutenColumnarOp(p) => 0L
-        case p if PlanUtil.isVanillaColumnarOp(p) => 300L
+        case ColumnarToRowExec(child) => 10L
+        case RowToColumnarExec(child) => 10L
+        case ColumnarToRowLike(child) => 10L
+        case RowToColumnarLike(child) => 10L
+        case p if PlanUtil.isGlutenColumnarOp(p) => 10L
+        case p if PlanUtil.isVanillaColumnarOp(p) => 1000L
         // Other row ops. Usually a vanilla row op.
-        case _ => 300L
+        case _ => 1000L
       }
     }
 
