@@ -458,48 +458,55 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("non-partition table with all basis iceberg types.") {
-    withTable("table_with_basis_type") {
-      spark.sql("""
-                  |CREATE TABLE table_with_basis_type (
-                  |  int_col INT,
-                  |  long_col LONG,
-                  |  float_col FLOAT,
-                  |  double_col DOUBLE,
-                  |  boolean_col BOOLEAN,
-                  |  string_col STRING,
-                  |  binary_col BINARY,
-                  |  timestamp_col TIMESTAMP,
-                  |  date_col DATE
-                  |) USING iceberg;
-                  |""".stripMargin)
-      spark.sql("""
-                  |INSERT INTO table_with_basis_type VALUES (
-                  |  1,
-                  |  100L,
-                  |  1.0,
-                  |  2.0,
-                  |  true,
-                  |  'test',
-                  |  CAST('01 02 03' AS BINARY),
-                  |  TIMESTAMP '2022-01-01 00:01:20',
-                  |  DATE '2022-01-01'
-                  |);
-                  |""".stripMargin)
+  test("iceberg partition type - timestamp") {
+    withSQLConf(
+      "spark.sql.iceberg.handle-timestamp-without-timezone" -> "true",
+      "spark.sql.iceberg.use-timestamp-without-timezone-in-new-tables" -> "true") {
+      withTable("part_by_timestamp") {
+        spark.sql("""
+                    |create table part_by_timestamp (
+                    |  p timestamp,
+                    |) using iceberg
+                    |tblproperties (
+                    |  'format-version' = '1'
+                    |)
+                    |partitioned by (p);
+                    |""".stripMargin)
 
-      val df = spark.sql("SELECT * FROM table_with_basis_type")
-      checkAnswer(
-        df,
-        Row(
-          1,
-          100L,
-          1.0f,
-          2.0,
-          true,
-          "test",
-          Array[Byte](1, 2, 3),
-          java.sql.Timestamp.valueOf("2022-01-01 00:01:20"),
-          java.sql.Date.valueOf("2022-01-01")) :: Nil)
+        // Insert some test rows.
+        spark.sql("""
+                    |insert into table part_by_timestamp
+                    |values (TIMESTAMP '2022-01-01 00:01:20');
+                    |""".stripMargin)
+        val df = spark.sql("select * from part_by_timestamp")
+        checkAnswer(df, Row(java.sql.Timestamp.valueOf("2022-01-01 00:01:20")) :: Nil)
+      }
+    }
+  }
+
+  test("iceberg partition type - timestamptz") {
+    withSQLConf(
+      "spark.sql.iceberg.handle-timestamp-without-timezone" -> "false",
+      "spark.sql.iceberg.use-timestamp-without-timezone-in-new-tables" -> "false") {
+      withTable("part_by_timestamptz") {
+        spark.sql("""
+                    |create table part_by_timestamptz (
+                    |  p timestamp,
+                    |) using iceberg
+                    |tblproperties (
+                    |  'format-version' = '1'
+                    |)
+                    |partitioned by (p);
+                    |""".stripMargin)
+
+        // Insert some test rows.
+        spark.sql("""
+                    |insert into table part_by_timestamptz
+                    |values (TIMESTAMP '2022-01-01 00:01:20');
+                    |""".stripMargin)
+        val df = spark.sql("select * from part_by_timestamptz")
+        checkAnswer(df, Row(java.sql.Timestamp.valueOf("2022-01-01 00:01:20")) :: Nil)
+      }
     }
   }
 }

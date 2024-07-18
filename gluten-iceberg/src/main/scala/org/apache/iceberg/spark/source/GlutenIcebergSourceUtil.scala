@@ -121,14 +121,6 @@ object GlutenIcebergSourceUtil extends Logging {
             }
 
             val icebergSchema = new Schema(partitionFields.toList.asJava)
-            logInfo(s"schema: $icebergSchema")
-
-            val result = SparkSchemaUtil.convert(icebergSchema)
-            logInfo(s"result: $result")
-
-            partitionFields.foreach {
-              field => logInfo(s"name: ${field.name()}, type: ${field.`type`()}")
-            }
             return SparkSchemaUtil.convert(icebergSchema)
           } else {
             return new StructType()
