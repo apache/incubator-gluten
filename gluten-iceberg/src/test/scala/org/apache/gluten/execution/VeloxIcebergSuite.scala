@@ -471,7 +471,13 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
                   |  binary_col BINARY,
                   |  timestamp_col TIMESTAMP,
                   |  date_col DATE
-                  |) USING iceberg;
+                  |) USING iceberg
+                  |tblproperties (
+                  |  'format-version' = '2',
+                  |  'write.delete.mode' = 'merge-on-read',
+                  |  'write.update.mode' = 'merge-on-read',
+                  |  'write.merge.mode' = 'merge-on-read'
+                  |);
                   |""".stripMargin)
       spark.sql("""
                   |INSERT INTO table_with_basis_type VALUES (
