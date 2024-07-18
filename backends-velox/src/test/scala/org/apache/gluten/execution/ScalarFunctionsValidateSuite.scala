@@ -56,14 +56,14 @@ class ScalarFunctionsValidateSuiteRasOn extends ScalarFunctionsValidateSuite {
   // TODO: input_file_name is not yet supported in RAS
   ignore("Test input_file_name function") {
     runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from lineitem limit 100""".stripMargin) {_ => }
+                         | from lineitem limit 100""".stripMargin) { _ => }
 
     runQueryAndCompare("""SELECT input_file_name(), l_orderkey
                          | from
                          | (select l_orderkey from lineitem
                          | union all
                          | select o_orderkey as l_orderkey from orders)
-                         | limit 100""".stripMargin) {_ => }
+                         | limit 100""".stripMargin) { _ => }
   }
 }
 
