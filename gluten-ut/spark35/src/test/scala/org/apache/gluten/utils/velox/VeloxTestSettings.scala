@@ -738,12 +738,14 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetRebaseDatetimeV1Suite]
     // Velox doesn't write file metadata into parquet file.
     .excludeByPrefix("SPARK-33163, SPARK-37705: write the metadata keys")
+    .excludeByPrefix("SPARK-33160, SPARK-37705: write the metadata key")
     // jar path and ignore PARQUET_REBASE_MODE_IN_READ, rewrite some
     .excludeByPrefix("SPARK-31159")
     .excludeByPrefix("SPARK-35427")
   enableSuite[GlutenParquetRebaseDatetimeV2Suite]
     // Velox doesn't write file metadata into parquet file.
     .excludeByPrefix("SPARK-33163, SPARK-37705: write the metadata keys")
+    .excludeByPrefix("SPARK-33160, SPARK-37705: write the metadata key")
     // jar path and ignore PARQUET_REBASE_MODE_IN_READ
     .excludeByPrefix("SPARK-31159")
     .excludeByPrefix("SPARK-35427")
@@ -773,6 +775,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileMetadataStructSuite]
   enableSuite[GlutenParquetV1AggregatePushDownSuite]
   enableSuite[GlutenParquetV2AggregatePushDownSuite]
+    // TODO: Timestamp columns stats will lost if using int64 in parquet writer.
+    .exclude("aggregate push down - different data types")
   enableSuite[GlutenOrcV1AggregatePushDownSuite]
     .exclude("nested column: Count(nested sub-field) not push down")
   enableSuite[GlutenOrcV2AggregatePushDownSuite]
