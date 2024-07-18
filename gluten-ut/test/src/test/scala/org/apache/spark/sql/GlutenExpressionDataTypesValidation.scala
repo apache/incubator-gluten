@@ -155,4 +155,41 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
     }
   }
 
+  test("binary expressions with expected input types") {
+    val functionRegistry = spark.sessionState.functionRegistry
+    val sparkBuiltInFunctions = functionRegistry.listFunction()
+    for (func <- sparkBuiltInFunctions) {
+      val builder = functionRegistry.lookupFunctionBuilder(func).get
+      var expr: Expression = null
+      try {
+        // Instantiate an expression with null input. Just for obtaining the instance for checking
+        // its allowed input types.
+        expr = builder(Seq(null, null))
+      } catch {
+        // Ignore the exception as some expression builders that don't require exact two input.
+        case _: Throwable =>
+      }
+      if (
+        expr != null && expr.isInstanceOf[ExpectsInputTypes] && expr.isInstanceOf[BinaryExpression]
+      ) {
+        val acceptedTypes = allPrimitiveDataTypes.filter(
+          expr.asInstanceOf[ExpectsInputTypes].inputTypes.head.acceptsType(_))
+        if (acceptedTypes.isEmpty) {
+          logWarning("Any given type is not accepted for " + expr.getClass.getSimpleName)
+        }
+        acceptedTypes.foreach(
+          t => {
+            val child = generateChildExpression(t)
+            // Builds an expression whose child's type is really accepted in Spark.
+            val targetExpr = builder(Seq(child))
+            val glutenProject = generateGlutenProjectPlan(targetExpr)
+            if (targetExpr.resolved && glutenProject.doValidate().ok()) {
+              logInfo("## validation passes: " + targetExpr.getClass.getSimpleName + "(" + t + ")")
+            } else {
+              logInfo("!! validation fails: " + targetExpr.getClass.getSimpleName + "(" + t + ")")
+            }
+          })
+      }
+    }
+  }
 }
