@@ -134,7 +134,7 @@ function process_setup_centos9 {
     sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_libhdfs3' scripts/setup-centos9.sh
     sed -i '/^  dnf_install ninja-build/a\  dnf_install yasm\' scripts/setup-centos9.sh
   fi
-  if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
+  if [[ $ENABLE_HDFS == "ON" ]]; then
     sed -i '/cd protobuf/{n;s/\.\/configure --prefix=\/usr/\.\/configure CXXFLAGS="-fPIC" --prefix=\/usr\/local/;}' scripts/setup-centos9.sh
   fi
   sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
