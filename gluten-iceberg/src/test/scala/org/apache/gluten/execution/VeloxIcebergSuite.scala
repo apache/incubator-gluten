@@ -457,4 +457,49 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
       }
     }
   }
+
+  test("non-partition table with all basis iceberg types.") {
+    withTable("table_with_basis_type") {
+      spark.sql("""
+                  |CREATE TABLE table_with_basis_type (
+                  |  int_col INT,
+                  |  long_col LONG,
+                  |  float_col FLOAT,
+                  |  double_col DOUBLE,
+                  |  boolean_col BOOLEAN,
+                  |  string_col STRING,
+                  |  binary_col BINARY,
+                  |  timestamp_col TIMESTAMP,
+                  |  date_col DATE
+                  |) USING iceberg;
+                  |""".stripMargin)
+      spark.sql("""
+                  |INSERT INTO table_with_basis_type VALUES (
+                  |  1,
+                  |  100L,
+                  |  1.0,
+                  |  2.0,
+                  |  true,
+                  |  'test',
+                  |  CAST('01 02 03' AS BINARY),
+                  |  TIMESTAMP '2022-01-01 00:01:20',
+                  |  DATE '2022-01-01'
+                  |);
+                  |""".stripMargin)
+
+      val df = spark.sql("SELECT * FROM table_with_basis_type")
+      checkAnswer(
+        df,
+        Row(
+          1,
+          100L,
+          1.0f,
+          2.0,
+          true,
+          "test",
+          Array[Byte](1, 2, 3),
+          java.sql.Timestamp.valueOf("2022-01-01 00:01:20"),
+          java.sql.Date.valueOf("2022-01-01")) :: Nil)
+    }
+  }
 }
