@@ -605,7 +605,7 @@ jobs:
         if: steps.check-cache.outputs.cache-hit != 'true'
         run: |
           df -a
-          bash dev/ci-velox-buildstatic-centos-8.sh
+          bash dev/ci-velox-buildshared-centos-8.sh
       - uses: actions/upload-artifact@v2
         with:
           name: velox-native-lib-centos-8-${{github.sha}}
