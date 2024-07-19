@@ -55,7 +55,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
-      scan: BasicScanExecTransformer): SplitInfo = {
+      properties: Map[String, String]): SplitInfo = {
     partition match {
       case f: FilePartition =>
         val (
@@ -80,7 +80,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           metadataColumns,
           fileFormat,
           preferredLocations.toList.asJava,
-          mapAsJavaMap(scan.getProperties)
+          mapAsJavaMap(properties)
         )
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition.")

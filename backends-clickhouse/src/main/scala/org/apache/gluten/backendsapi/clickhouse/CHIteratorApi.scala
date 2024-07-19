@@ -123,7 +123,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
-      scan: BasicScanExecTransformer): SplitInfo = {
+      properties: Map[String, String]): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>
         val partLists = new JArrayList[String]()
@@ -185,7 +185,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           new JArrayList[JMap[String, String]](),
           fileFormat,
           preferredLocations.toList.asJava,
-          mapAsJavaMap(scan.getProperties)
+          mapAsJavaMap(properties)
         )
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition: $partition.")
