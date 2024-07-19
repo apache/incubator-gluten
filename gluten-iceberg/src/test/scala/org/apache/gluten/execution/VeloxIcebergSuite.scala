@@ -458,7 +458,8 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  // Spark configuration spark.sql.iceberg.handle-timestamp-without-timezone is not supported in Spark 3.4
+  // Spark configuration spark.sql.iceberg.handle-timestamp-without-timezone is not supported
+  // in Spark 3.4
   testWithSpecifiedSparkVersion("iceberg partition type - timestamp", Array("3.2", "3.3", "3.5")) {
     withSQLConf(
       "spark.sql.iceberg.handle-timestamp-without-timezone" -> "true",
@@ -485,7 +486,8 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     }
   }
 
-  // Spark configuration spark.sql.iceberg.handle-timestamp-without-timezone is not supported in Spark 3.4
+  // Spark configuration spark.sql.iceberg.handle-timestamp-without-timezone is not supported
+  // in Spark 3.4
   testWithSpecifiedSparkVersion(
     "iceberg partition type - timestamptz",
     Array("3.2", "3.3", "3.5")) {
