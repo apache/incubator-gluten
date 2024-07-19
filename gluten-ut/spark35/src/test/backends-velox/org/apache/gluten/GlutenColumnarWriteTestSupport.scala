@@ -16,12 +16,12 @@
  */
 package org.apache.gluten
 
-import org.apache.spark.sql.execution.{SparkPlan, GlutenColumnarWriteFilesExec}
+import org.apache.spark.sql.execution.{SparkPlan, ColumnarWriteFilesExec}
 
 trait GlutenColumnarWriteTestSupport {
 
   def checkWriteFilesAndGetChild(sparkPlan: SparkPlan): SparkPlan = {
-    assert(sparkPlan.isInstanceOf[GlutenColumnarWriteFilesExec])
-    sparkPlan.asInstanceOf[GlutenColumnarWriteFilesExec].child
+    assert(sparkPlan.isInstanceOf[ColumnarWriteFilesExec])
+    sparkPlan.asInstanceOf[ColumnarWriteFilesExec].child
   }
 }

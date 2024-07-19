@@ -24,7 +24,7 @@ import org.apache.spark.executor.OutputMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.execution.{CommandResultExec, GlutenColumnarWriteFilesExec, QueryExecution}
+import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, CommandResultExec, QueryExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -60,13 +60,13 @@ class GlutenInsertSuite
     super.afterAll()
   }
 
-  private def checkAndGetWriteFiles(df: DataFrame): GlutenColumnarWriteFilesExec = {
+  private def checkAndGetWriteFiles(df: DataFrame): ColumnarWriteFilesExec = {
     val writeFiles = stripAQEPlan(
       df.queryExecution.executedPlan
         .asInstanceOf[CommandResultExec]
         .commandPhysicalPlan).children.head
-    assert(writeFiles.isInstanceOf[GlutenColumnarWriteFilesExec])
-    writeFiles.asInstanceOf[GlutenColumnarWriteFilesExec]
+    assert(writeFiles.isInstanceOf[ColumnarWriteFilesExec])
+    writeFiles.asInstanceOf[ColumnarWriteFilesExec]
   }
 
   testGluten("insert partition table") {

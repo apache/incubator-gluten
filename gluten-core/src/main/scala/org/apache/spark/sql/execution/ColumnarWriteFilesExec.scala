@@ -40,7 +40,7 @@ import org.apache.hadoop.fs.FileAlreadyExistsException
 import java.util.Date
 
 /**
- * This trait is used in [[GlutenColumnarWriteFilesRDD]] to inject the staging write path before
+ * This trait is used in [[ColumnarWriteFilesRDD]] to inject the staging write path before
  * initializing the native plan and collect native write files metrics for each backend.
  */
 trait BackendWrite {
@@ -51,7 +51,7 @@ trait BackendWrite {
  * This RDD is used to make sure we have injected staging write path before initializing the native
  * plan, and support Spark file commit protocol.
  */
-class GlutenColumnarWriteFilesRDD(
+class ColumnarWriteFilesRDD(
     var prev: RDD[ColumnarBatch],
     description: WriteJobDescription,
     committer: FileCommitProtocol,
@@ -156,7 +156,7 @@ class GlutenColumnarWriteFilesRDD(
 // we need to expose a dummy child (as right child) with type "WriteFilesExec" to let Spark
 // choose the new write code path (version >= 3.4). The actual plan to write is the left child
 // of this operator.
-case class GlutenColumnarWriteFilesExec private (
+case class ColumnarWriteFilesExec private (
     override val left: SparkPlan,
     override val right: SparkPlan,
     fileFormat: FileFormat,
@@ -166,7 +166,7 @@ case class GlutenColumnarWriteFilesExec private (
     staticPartitions: TablePartitionSpec)
   extends BinaryExecNode
   with GlutenPlan
-  with GlutenColumnarWriteFilesExec.ExecuteWriteCompatible {
+  with ColumnarWriteFilesExec.ExecuteWriteCompatible {
 
   val child: SparkPlan = left
 
@@ -217,7 +217,7 @@ case class GlutenColumnarWriteFilesExec private (
       // partition rdd to make sure we at least set up one write task to write the metadata.
       writeFilesForEmptyRDD(description, committer, jobTrackerID)
     } else {
-      new GlutenColumnarWriteFilesRDD(rdd, description, committer, jobTrackerID)
+      new ColumnarWriteFilesRDD(rdd, description, committer, jobTrackerID)
     }
   }
   override protected def withNewChildrenInternal(
@@ -226,7 +226,7 @@ case class GlutenColumnarWriteFilesExec private (
     copy(newLeft, newRight, fileFormat, partitionColumns, bucketSpec, options, staticPartitions)
 }
 
-object GlutenColumnarWriteFilesExec {
+object ColumnarWriteFilesExec {
 
   def apply(
       child: SparkPlan,
@@ -234,7 +234,7 @@ object GlutenColumnarWriteFilesExec {
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
-      staticPartitions: TablePartitionSpec): GlutenColumnarWriteFilesExec = {
+      staticPartitions: TablePartitionSpec): ColumnarWriteFilesExec = {
     // This is a workaround for FileFormatWriter#write. Vanilla Spark (version >= 3.4) requires for
     // a plan that has at least one node exactly of type `WriteFilesExec` that is a Scala
     // case-class, to decide to choose new `#executeWrite` code path over the legacy `#execute`
@@ -253,7 +253,7 @@ object GlutenColumnarWriteFilesExec {
         options,
         staticPartitions)
 
-    GlutenColumnarWriteFilesExec(
+    ColumnarWriteFilesExec(
       child,
       right,
       fileFormat,
