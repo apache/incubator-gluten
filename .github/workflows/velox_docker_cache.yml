@@ -83,7 +83,7 @@ jobs:
         if: steps.check-cache.outputs.cache-hit != 'true'
         run: |
           df -a
-          bash dev/ci-velox-buildstatic-centos-8.sh
+          bash dev/ci-velox-buildshared-centos-8.sh
       - name: Cache
         if: steps.check-cache.outputs.cache-hit != 'true'
         id: cache
