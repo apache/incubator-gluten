@@ -20,7 +20,7 @@ import org.apache.gluten.sql.shims.{SparkShimDescriptor, SparkShims}
 import org.apache.gluten.sql.shims.spark32.SparkShimProvider.DESCRIPTOR
 
 object SparkShimProvider {
-  val DESCRIPTOR = SparkShimDescriptor(3, 2, 2)
+  val DESCRIPTOR = SparkShimDescriptor(3, 2, 3)
 }
 
 class SparkShimProvider extends org.apache.gluten.sql.shims.SparkShimProvider {
