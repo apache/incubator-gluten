@@ -19,6 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.TableIdentifier
@@ -101,20 +102,20 @@ abstract class FileSourceScanExecTransformerBase(
 
   override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
 
-  def getPartitionFilters(): Seq[Expression] = partitionFilters
-
   override def outputAttributes(): Seq[Attribute] = output
 
   override def getPartitions: Seq[InputPartition] = {
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
+      requiredSchema,
       dynamicallySelectedPartitions,
       output,
       bucketedScan,
       optionalBucketSet,
       optionalNumCoalescedBuckets,
       disableBucketedScan,
-      filterExprs())
+      filterExprs()
+    )
   }
 
   override def getPartitionSchema: StructType = relation.partitionSchema
@@ -129,16 +130,23 @@ abstract class FileSourceScanExecTransformerBase(
     if (
       !metadataColumns.isEmpty && !BackendsApiManager.getSettings.supportNativeMetadataColumns()
     ) {
-      return ValidationResult.notOk(s"Unsupported metadata columns scan in native.")
+      return ValidationResult.failed(s"Unsupported metadata columns scan in native.")
+    }
+
+    if (
+      SparkShimLoader.getSparkShims.findRowIndexColumnIndexInSchema(schema) > 0 &&
+      !BackendsApiManager.getSettings.supportNativeRowIndexColumn()
+    ) {
+      return ValidationResult.failed("Unsupported row index column scan in native.")
     }
 
     if (hasUnsupportedColumns) {
-      return ValidationResult.notOk(s"Unsupported columns scan in native.")
+      return ValidationResult.failed(s"Unsupported columns scan in native.")
     }
 
     if (hasFieldIds) {
       // Spark read schema expects field Ids , the case didn't support yet by native.
-      return ValidationResult.notOk(
+      return ValidationResult.failed(
         s"Unsupported matching schema column names " +
           s"by field ids in native scan.")
     }

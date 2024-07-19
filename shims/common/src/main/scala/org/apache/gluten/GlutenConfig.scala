@@ -28,7 +28,6 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
 case class GlutenNumaBindingInfo(
     enableNumaBinding: Boolean,
@@ -154,9 +153,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def logicalJoinOptimizationThrottle: Integer =
     conf.getConf(COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_THROTTLE)
 
-  def enableLogicalJoinOptimize: Boolean =
-    conf.getConf(COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_ENABLED)
-
   def enableScanOnly: Boolean = conf.getConf(COLUMNAR_SCAN_ONLY_ENABLED)
 
   def tmpFile: Option[String] = conf.getConf(COLUMNAR_TEMP_DIR)
@@ -187,6 +183,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleCompressionThreshold: Int =
     conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
 
+  // FIXME: Not clear: MIN or MAX ?
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
   def shuffleWriterBufferSize: Int = conf
@@ -240,6 +237,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def memoryIsolation: Boolean = conf.getConf(COLUMNAR_MEMORY_ISOLATION)
 
+  def numTaskSlotsPerExecutor: Int = {
+    val numSlots = conf.getConf(NUM_TASK_SLOTS_PER_EXECUTOR)
+    assert(numSlots > 0, s"Number of task slot not found. This should not happen.")
+    numSlots
+  }
+
   def offHeapMemorySize: Long = conf.getConf(COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
 
   def taskOffHeapMemorySize: Long = conf.getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES)
@@ -270,7 +273,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSsdODirectEnabled: Boolean = conf.getConf(COLUMNAR_VELOX_SSD_ODIRECT_ENABLED)
 
-  def veloxConnectorIOThreads: Integer = conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS)
+  def veloxConnectorIOThreads: Int = {
+    conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS).getOrElse(numTaskSlotsPerExecutor)
+  }
 
   def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
 
@@ -294,6 +299,16 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxBloomFilterNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS)
 
   def veloxBloomFilterMaxNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS)
+
+  def veloxCoalesceBatchesBeforeShuffle: Boolean =
+    conf.getConf(COLUMNAR_VELOX_COALESCE_BATCHES_BEFORE_SHUFFLE)
+
+  def veloxMinBatchSizeForShuffle: Int = {
+    val defaultSize: Int = (0.8 * conf.getConf(COLUMNAR_MAX_BATCH_SIZE)).toInt.max(1)
+    conf
+      .getConf(COLUMNAR_VELOX_MIN_BATCH_SIZE_FOR_SHUFFLE)
+      .getOrElse(defaultSize)
+  }
 
   def chColumnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED)
 
@@ -372,8 +387,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
 
   def debug: Boolean = conf.getConf(DEBUG_ENABLED)
-  def debugKeepJniWorkspace: Boolean =
-    conf.getConf(DEBUG_ENABLED) && conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
+  def debugKeepJniWorkspace: Boolean = conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
   def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
@@ -417,10 +431,20 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
 
+  def awsS3RetryMode: String = conf.getConf(AWS_S3_RETRY_MODE)
+
+  def awsConnectionTimeout: String = conf.getConf(AWS_S3_CONNECT_TIMEOUT)
+
   def enableCastAvgAggregateFunction: Boolean = conf.getConf(COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED)
+
+  def enableGlutenCostEvaluator: Boolean = conf.getConf(COST_EVALUATOR_ENABLED)
 
   def dynamicOffHeapSizingEnabled: Boolean =
     conf.getConf(DYNAMIC_OFFHEAP_SIZING_ENABLED)
+
+  def enableHiveFileFormatWriter: Boolean = conf.getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
+
+  def enableCelebornFallback: Boolean = conf.getConf(CELEBORN_FALLBACK_ENABLED)
 }
 
 object GlutenConfig {
@@ -465,6 +489,10 @@ object GlutenConfig {
   val SPARK_S3_IAM: String = HADOOP_PREFIX + S3_IAM_ROLE
   val S3_IAM_ROLE_SESSION_NAME = "fs.s3a.iam.role.session.name"
   val SPARK_S3_IAM_SESSION_NAME: String = HADOOP_PREFIX + S3_IAM_ROLE_SESSION_NAME
+  val S3_RETRY_MAX_ATTEMPTS = "fs.s3a.retry.limit"
+  val SPARK_S3_RETRY_MAX_ATTEMPTS: String = HADOOP_PREFIX + S3_RETRY_MAX_ATTEMPTS
+  val S3_CONNECTION_MAXIMUM = "fs.s3a.connection.maximum"
+  val SPARK_S3_CONNECTION_MAXIMUM: String = HADOOP_PREFIX + S3_CONNECTION_MAXIMUM
 
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
@@ -522,8 +550,10 @@ object GlutenConfig {
 
   val GLUTEN_DEBUG_MODE = "spark.gluten.sql.debug"
   val GLUTEN_DEBUG_KEEP_JNI_WORKSPACE = "spark.gluten.sql.debug.keepJniWorkspace"
+  val GLUTEN_DEBUG_KEEP_JNI_WORKSPACE_DIR = "spark.gluten.sql.debug.keepJniWorkspaceDir"
 
   // Added back to Spark Conf during executor initialization
+  val GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY = "spark.gluten.numTaskSlotsPerExecutor"
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
   val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
   val GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY =
@@ -574,6 +604,8 @@ object GlutenConfig {
   val GLUTEN_DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
     "spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction"
 
+  val GLUTEN_COST_EVALUATOR_ENABLED = "spark.gluten.sql.adaptive.costEvaluator.enabled"
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {
@@ -604,6 +636,7 @@ object GlutenConfig {
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
       "spark.io.compression.codec",
+      "spark.sql.decimalOperations.allowPrecisionLoss",
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key,
@@ -616,6 +649,10 @@ object GlutenConfig {
       SPARK_S3_USE_INSTANCE_CREDENTIALS,
       SPARK_S3_IAM,
       SPARK_S3_IAM_SESSION_NAME,
+      SPARK_S3_RETRY_MAX_ATTEMPTS,
+      SPARK_S3_CONNECTION_MAXIMUM,
+      AWS_S3_CONNECT_TIMEOUT.key,
+      AWS_S3_RETRY_MODE.key,
       AWS_SDK_LOG_LEVEL.key,
       // gcs config
       SPARK_GCS_STORAGE_ROOT_URL,
@@ -667,9 +704,13 @@ object GlutenConfig {
       (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
       (SPARK_S3_IAM, ""),
       (SPARK_S3_IAM_SESSION_NAME, ""),
+      (SPARK_S3_RETRY_MAX_ATTEMPTS, "20"),
+      (SPARK_S3_CONNECTION_MAXIMUM, "15"),
+      (AWS_S3_CONNECT_TIMEOUT.key, AWS_S3_CONNECT_TIMEOUT.defaultValueString),
+      (AWS_S3_RETRY_MODE.key, AWS_S3_RETRY_MODE.defaultValueString),
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
-        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
+        conf.getOrElse(GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, "-1")),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
@@ -677,6 +718,7 @@ object GlutenConfig {
       ("spark.hadoop.input.write.timeout", "180000"),
       ("spark.hadoop.dfs.client.log.severity", "INFO"),
       ("spark.sql.orc.compression.codec", "snappy"),
+      ("spark.sql.decimalOperations.allowPrecisionLoss", "true"),
       (
         COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key,
         COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString),
@@ -692,7 +734,9 @@ object GlutenConfig {
 
       GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
-      GLUTEN_OFFHEAP_ENABLED
+      GLUTEN_OFFHEAP_ENABLED,
+      SESSION_LOCAL_TIMEZONE.key,
+      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -707,10 +751,6 @@ object GlutenConfig {
 
     conf
       .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
-      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
-
-    conf
-      .filter(_._1.startsWith(SQLConf.SESSION_LOCAL_TIMEZONE.key))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
@@ -966,13 +1006,6 @@ object GlutenConfig {
       .intConf
       .createWithDefault(12)
 
-  val COLUMNAR_LOGICAL_JOIN_OPTIMIZATION_ENABLED =
-    buildConf("spark.gluten.sql.columnar.logicalJoinOptimizeEnable")
-      .internal()
-      .doc("Enable or disable columnar logicalJoinOptimize.")
-      .booleanConf
-      .createWithDefault(false)
-
   val COLUMNAR_SCAN_ONLY_ENABLED =
     buildConf("spark.gluten.sql.columnar.scanOnly")
       .internal()
@@ -1156,6 +1189,16 @@ object GlutenConfig {
       .stringConf
       .createOptional
 
+  val NUM_TASK_SLOTS_PER_EXECUTOR =
+    buildConf(GlutenConfig.GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY)
+      .internal()
+      .doc(
+        "Must provide default value since non-execution operations " +
+          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
+          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
+      .intConf
+      .createWithDefaultString("-1")
+
   val COLUMNAR_OFFHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY)
       .internal()
@@ -1294,11 +1337,7 @@ object GlutenConfig {
       .doc("The Size of the IO thread pool in the Connector. This thread pool is used for split" +
         " preloading and DirectBufferedInput.")
       .intConf
-      .createWithDefaultFunction(
-        () =>
-          SQLConf.get.getConfString("spark.executor.cores", "1").toInt / SQLConf.get
-            .getConfString("spark.task.cpus", "1")
-            .toInt)
+      .createOptional
 
   val COLUMNAR_VELOX_ASYNC_TIMEOUT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")
@@ -1394,6 +1433,23 @@ object GlutenConfig {
       .intConf
       .checkValue(_ > 0, "must be a positive number")
       .createWithDefault(10000)
+
+  val COLUMNAR_VELOX_COALESCE_BATCHES_BEFORE_SHUFFLE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.coalesceBatchesBeforeShuffle")
+      .internal()
+      .doc(s"If true, combine small columnar batches together before sending to shuffle. " +
+        s"The default minimum output batch size is equal to 0.8 * $GLUTEN_MAX_BATCH_SIZE_KEY")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_VELOX_MIN_BATCH_SIZE_FOR_SHUFFLE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.minBatchSizeForShuffle")
+      .internal()
+      .doc(s"The minimum batch size for shuffle. If the batch size is smaller than this value, " +
+        s"it will be combined with other batches before sending to shuffle. Only functions when " +
+        s"${COLUMNAR_VELOX_COALESCE_BATCHES_BEFORE_SHUFFLE.key} is set to true.")
+      .intConf
+      .createOptional
 
   val COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED =
     buildConf("spark.gluten.sql.columnar.backend.ch.shuffle.preferSpill")
@@ -1507,10 +1563,16 @@ object GlutenConfig {
       .createWithDefault(false)
 
   val DEBUG_KEEP_JNI_WORKSPACE =
-    buildConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE)
+    buildStaticConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE)
       .internal()
       .booleanConf
       .createWithDefault(false)
+
+  val DEBUG_KEEP_JNI_WORKSPACE_DIR =
+    buildStaticConf(GLUTEN_DEBUG_KEEP_JNI_WORKSPACE_DIR)
+      .internal()
+      .stringConf
+      .createWithDefault("/tmp")
 
   val BENCHMARK_TASK_STAGEID =
     buildConf("spark.gluten.sql.benchmark_task.stageId")
@@ -1536,6 +1598,23 @@ object GlutenConfig {
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
       .createOptional
+
+  val VELOX_WRITER_QUEUE_SIZE =
+    buildConf("spark.gluten.sql.velox.writer.queue.size")
+      .internal()
+      .doc("This is config to specify the velox writer queue size")
+      .intConf
+      .createWithDefault(64)
+
+  val NATIVE_HIVEFILEFORMAT_WRITER_ENABLED =
+    buildConf("spark.gluten.sql.native.hive.writer.enabled")
+      .internal()
+      .doc(
+        "This is config to specify whether to enable the native columnar writer for " +
+          "HiveFileFormat. Currently only supports HiveFileFormat with Parquet as the output " +
+          "file type.")
+      .booleanConf
+      .createWithDefault(true)
 
   val NATIVE_ARROW_READER_ENABLED =
     buildConf("spark.gluten.sql.native.arrow.reader.enabled")
@@ -1874,6 +1953,20 @@ object GlutenConfig {
       .stringConf
       .createWithDefault("FATAL")
 
+  val AWS_S3_RETRY_MODE =
+    buildConf("spark.gluten.velox.fs.s3a.retry.mode")
+      .internal()
+      .doc("Retry mode for AWS s3 connection error: legacy, standard and adaptive.")
+      .stringConf
+      .createWithDefault("legacy")
+
+  val AWS_S3_CONNECT_TIMEOUT =
+    buildConf("spark.gluten.velox.fs.s3a.connect.timeout")
+      .internal()
+      .doc("Timeout for AWS s3 connection.")
+      .stringConf
+      .createWithDefault("200s")
+
   val VELOX_ORC_SCAN_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
       .internal()
@@ -1908,6 +2001,17 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COST_EVALUATOR_ENABLED =
+    buildConf(GlutenConfig.GLUTEN_COST_EVALUATOR_ENABLED)
+      .internal()
+      .doc(
+        "If true and gluten enabled, use " +
+          "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator as custom cost " +
+          "evaluator class, else follow the configuration " +
+          "spark.sql.adaptive.customCostEvaluatorClass.")
+      .booleanConf
+      .createWithDefault(true)
+
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
     buildConf(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED)
       .internal()
@@ -1935,4 +2039,12 @@ object GlutenConfig {
       .doubleConf
       .checkValue(v => v >= 0 && v <= 1, "offheap sizing memory fraction must between [0, 1]")
       .createWithDefault(0.6)
+
+  val CELEBORN_FALLBACK_ENABLED =
+    buildStaticConf("spark.gluten.sql.columnar.shuffle.celeborn.fallback.enabled")
+      .internal()
+      .doc("If enabled, fall back to ColumnarShuffleManager when celeborn service is unavailable." +
+        "Otherwise, throw an exception.")
+      .booleanConf
+      .createWithDefault(true)
 }

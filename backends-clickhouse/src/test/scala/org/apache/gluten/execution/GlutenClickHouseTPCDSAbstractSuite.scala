@@ -40,9 +40,11 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
 
   override protected def spark: SparkSession = _spark
 
-  protected val tablesPath: String = UTSystemParameters.tpcdsDataPath + "/"
-  protected val tpcdsQueries: String
-  protected val queriesResults: String
+  protected val tablesPath: String = UTSystemParameters.tpcdsDecimalDataPath + "/"
+  protected val db_name: String = "tpcdsdb"
+  protected val tpcdsQueries: String =
+    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original"
+  protected val queriesResults: String = rootPath + "tpcds-decimal-queries-output"
 
   /** Return values: (sql num, is fall back, skip fall back assert) */
   def tpcdsAllQueries(isAqe: Boolean): Seq[(String, Boolean, Boolean)] =
@@ -56,17 +58,11 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
             Seq("q" + "%d".format(queryNum))
           }
           val noFallBack = queryNum match {
-            case i
-                if i == 10 || i == 16 || i == 28 || i == 35 || i == 45 || i == 77 ||
-                  i == 88 || i == 90 || i == 94 =>
+            case i if i == 10 || i == 16 || i == 35 || i == 45 || i == 94 =>
               // Q10 BroadcastHashJoin, ExistenceJoin
               // Q16 ShuffledHashJoin, NOT condition
-              // Q28 BroadcastNestedLoopJoin
               // Q35 BroadcastHashJoin, ExistenceJoin
               // Q45 BroadcastHashJoin, ExistenceJoin
-              // Q77 CartesianProduct
-              // Q88 BroadcastNestedLoopJoin
-              // Q90 BroadcastNestedLoopJoin
               // Q94 BroadcastHashJoin, LeftSemi, NOT condition
               (false, false)
             case j if j == 38 || j == 87 =>
@@ -76,6 +72,9 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
               } else {
                 (false, true)
               }
+            case q77 if q77 == 77 && !isAqe =>
+              // Q77 CartesianProduct
+              (false, false)
             case other => (true, false)
           }
           sqlNums.map((_, noFallBack._1, noFallBack._2))
@@ -83,8 +82,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
 
   // FIXME "q17", stddev_samp inconsistent results, CH return NaN, Spark return null
   protected def excludedTpcdsQueries: Set[String] = Set(
-    "q18", // inconsistent results
     "q61", // inconsistent results
+    "q66", // inconsistent results
     "q67" // inconsistent results
   )
 
@@ -118,11 +117,9 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
     }
   }
 
-//  override protected def createTPCHNotNullTables(): Unit = {}
-
   protected def createTPCDSTables(): Unit = {
     val parquetTables =
-      GenTPCDSTableScripts.genTPCDSParquetTables("tpcdsdb", tablesPath, "", "")
+      GenTPCDSTableScripts.genTPCDSParquetTables(db_name, tablesPath, "", "", 3)
 
     for (sql <- parquetTables) {
       spark.sql(sql)
@@ -199,7 +196,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       skipFallBackAssert: Boolean = false)(customCheck: DataFrame => Unit): Unit = {
 
     val sqlFile = tpcdsQueries + "/" + queryNum + ".sql"
-    val df = spark.sql(Source.fromFile(new File(sqlFile), "UTF-8").mkString)
+    val sql = Source.fromFile(new File(sqlFile), "UTF-8").mkString
+    val df = spark.sql(sql)
 
     if (compareResult) {
       val fields = new util.ArrayList[StructField]()

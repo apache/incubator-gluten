@@ -22,7 +22,7 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.events.GlutenBuildInfoEvent
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression.ExpressionMappings
-import org.apache.gluten.extension.{ColumnarOverrides, OthersExtensionOverrides, QueryStagePrepOverrides, StrategyOverrides}
+import org.apache.gluten.extension.{ColumnarOverrides, OthersExtensionOverrides, QueryStagePrepOverrides}
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.TaskListener
 
@@ -143,6 +143,12 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     }
     conf.set(SPARK_SESSION_EXTS_KEY, extensions)
 
+    // adaptive custom cost evaluator class
+    if (GlutenConfig.getConf.enableGluten && GlutenConfig.getConf.enableGlutenCostEvaluator) {
+      val costEvaluator = "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator"
+      conf.set(SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS.key, costEvaluator)
+    }
+
     // check memory off-heap enabled and size
     val minOffHeapSize = "1MB"
     if (
@@ -162,8 +168,9 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 
     // task slots
     val taskSlots = SparkResourceUtil.getTaskSlots(conf)
+    conf.set(GlutenConfig.GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, taskSlots.toString)
 
-    var onHeapSize: Long =
+    val onHeapSize: Long =
       if (conf.contains(GlutenConfig.GLUTEN_ONHEAP_SIZE_KEY)) {
         conf.getSizeAsBytes(GlutenConfig.GLUTEN_ONHEAP_SIZE_KEY)
       } else {
@@ -175,7 +182,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     // size. Otherwise, the off-heap size is set to the value specified by the user (if any).
     // Note that this means that we will IGNORE the off-heap size specified by the user if the
     // dynamic off-heap feature is enabled.
-    var offHeapSize: Long =
+    val offHeapSize: Long =
       if (conf.getBoolean(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED, false)) {
         // Since when dynamic off-heap sizing is enabled, we commingle on-heap
         // and off-heap memory, we set the off-heap size to the usable on-heap size. We will
@@ -293,7 +300,7 @@ private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions =>
 }
 
 private[gluten] trait GlutenSparkExtensionsInjector {
-  def inject(extensions: SparkSessionExtensions)
+  def inject(extensions: SparkSessionExtensions): Unit
 }
 
 private[gluten] object GlutenPlugin {
@@ -305,7 +312,6 @@ private[gluten] object GlutenPlugin {
   val DEFAULT_INJECTORS: List[GlutenSparkExtensionsInjector] = List(
     QueryStagePrepOverrides,
     ColumnarOverrides,
-    StrategyOverrides,
     OthersExtensionOverrides
   )
 }

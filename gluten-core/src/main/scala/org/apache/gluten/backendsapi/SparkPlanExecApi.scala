@@ -20,6 +20,7 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 
 import org.apache.spark.ShuffleDependency
@@ -46,7 +47,7 @@ import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-import org.apache.spark.sql.types.{LongType, NullType, StructType}
+import org.apache.spark.sql.types.{DecimalType, LongType, NullType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.lang.{Long => JLong}
@@ -101,7 +102,7 @@ trait SparkPlanExecApi {
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper
 
-  def genColumnarShuffleExchange(shuffle: ShuffleExchangeExec, newChild: SparkPlan): SparkPlan
+  def genColumnarShuffleExchange(shuffle: ShuffleExchangeExec): SparkPlan
 
   /** Generate ShuffledHashJoinExecTransformer. */
   def genShuffledHashJoinExecTransformer(
@@ -257,6 +258,15 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("all_match is not supported")
   }
 
+  /** Transform array array_sort to Substrait. */
+  def genArraySortTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArraySort): ExpressionTransformer = {
+    throw new GlutenNotSupportException("array_sort(on array) is not supported")
+  }
+
   /** Transform array exists to Substrait */
   def genArrayExistsTransformer(
       substraitExprName: String,
@@ -303,6 +313,25 @@ trait SparkPlanExecApi {
       children: Seq[ExpressionTransformer],
       expr: RegExpReplace): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, children, expr)
+  }
+
+  def genPreciseTimestampConversionTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: PreciseTimestampConversion): ExpressionTransformer = {
+    throw new GlutenNotSupportException("PreciseTimestampConversion is not supported")
+  }
+
+  // For date_add(cast('2001-01-01' as Date), interval 1 day), backends may handle it in different
+  // ways
+  def genDateAddTransformer(
+      attributeSeq: Seq[Attribute],
+      substraitExprName: String,
+      children: Seq[Expression],
+      expr: Expression): ExpressionTransformer = {
+    val childrenTransformers =
+      children.map(ExpressionConverter.replaceWithExpressionTransformer(_, attributeSeq))
+    GenericExpressionTransformer(substraitExprName, childrenTransformers, expr)
   }
 
   /**
@@ -422,7 +451,9 @@ trait SparkPlanExecApi {
    *
    * @return
    */
-  def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
+  def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
+    SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
+  }
 
   def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]]
 
@@ -452,13 +483,6 @@ trait SparkPlanExecApi {
       substraitExprName,
       Seq(srcExpr, matchingExpr, replaceExpr),
       original)
-  }
-
-  def genSizeExpressionTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Size): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(child), original)
   }
 
   def genLikeTransformer(
@@ -529,9 +553,10 @@ trait SparkPlanExecApi {
               new JArrayList[ExpressionNode](),
               columnName,
               ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
-              WindowExecTransformer.getFrameBound(frame.upper),
-              WindowExecTransformer.getFrameBound(frame.lower),
-              frame.frameType.sql
+              frame.upper,
+              frame.lower,
+              frame.frameType.sql,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case aggExpression: AggregateExpression =>
@@ -554,9 +579,10 @@ trait SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
-              WindowExecTransformer.getFrameBound(frame.upper),
-              WindowExecTransformer.getFrameBound(frame.lower),
-              frame.frameType.sql
+              frame.upper,
+              frame.lower,
+              frame.frameType.sql,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ (_: Lead | _: Lag) =>
@@ -590,10 +616,11 @@ trait SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(offsetWf.dataType, offsetWf.nullable),
-              WindowExecTransformer.getFrameBound(frame.upper),
-              WindowExecTransformer.getFrameBound(frame.lower),
+              frame.upper,
+              frame.lower,
               frame.frameType.sql,
-              offsetWf.ignoreNulls
+              offsetWf.ignoreNulls,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ NthValue(input, offset: Literal, ignoreNulls: Boolean) =>
@@ -609,10 +636,11 @@ trait SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
-              frame.upper.sql,
-              frame.lower.sql,
+              frame.upper,
+              frame.lower,
               frame.frameType.sql,
-              ignoreNulls
+              ignoreNulls,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ NTile(buckets: Expression) =>
@@ -625,9 +653,10 @@ trait SparkPlanExecApi {
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
-              frame.upper.sql,
-              frame.lower.sql,
-              frame.frameType.sql
+              frame.upper,
+              frame.lower,
+              frame.frameType.sql,
+              originalInputAttributes.asJava
             )
             windowExpressionNodes.add(windowFunctionNode)
           case _ =>
@@ -656,17 +685,20 @@ trait SparkPlanExecApi {
   def postProcessPushDownFilter(
       extraFilters: Seq[Expression],
       sparkExecNode: LeafExecNode): Seq[Expression] = {
+    def getPushedFilter(dataFilters: Seq[Expression]): Seq[Expression] = {
+      val pushedFilters =
+        dataFilters ++ FilterHandler.getRemainingFilters(dataFilters, extraFilters)
+      pushedFilters.filterNot(_.references.exists {
+        attr => SparkShimLoader.getSparkShims.isRowIndexMetadataColumn(attr.name)
+      })
+    }
     sparkExecNode match {
       case fileSourceScan: FileSourceScanExec =>
-        fileSourceScan.dataFilters ++ FilterHandler.getRemainingFilters(
-          fileSourceScan.dataFilters,
-          extraFilters)
+        getPushedFilter(fileSourceScan.dataFilters)
       case batchScan: BatchScanExec =>
         batchScan.scan match {
           case fileScan: FileScan =>
-            fileScan.dataFilters ++ FilterHandler.getRemainingFilters(
-              fileScan.dataFilters,
-              extraFilters)
+            getPushedFilter(fileScan.dataFilters)
           case _ =>
             // TODO: For data lake format use pushedFilters in SupportsPushDownFilters
             extraFilters
@@ -692,4 +724,23 @@ trait SparkPlanExecApi {
     arrowEvalPythonExec
 
   def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = plan
+
+  def genDecimalRoundExpressionOutput(decimalType: DecimalType, toScale: Int): DecimalType = {
+    val p = decimalType.precision
+    val s = decimalType.scale
+    // After rounding we may need one more digit in the integral part,
+    // e.g. `ceil(9.9, 0)` -> `10`, `ceil(99, -1)` -> `100`.
+    val integralLeastNumDigits = p - s + 1
+    if (toScale < 0) {
+      // negative scale means we need to adjust `-scale` number of digits before the decimal
+      // point, which means we need at lease `-scale + 1` digits (after rounding).
+      val newPrecision = math.max(integralLeastNumDigits, -toScale + 1)
+      // We have to accept the risk of overflow as we can't exceed the max precision.
+      DecimalType(math.min(newPrecision, DecimalType.MAX_PRECISION), 0)
+    } else {
+      val newScale = math.min(s, toScale)
+      // We have to accept the risk of overflow as we can't exceed the max precision.
+      DecimalType(math.min(integralLeastNumDigits + newScale, 38), newScale)
+    }
+  }
 }

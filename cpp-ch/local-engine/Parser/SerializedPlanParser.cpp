@@ -87,14 +87,14 @@ namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
-    extern const int UNKNOWN_TYPE;
-    extern const int BAD_ARGUMENTS;
-    extern const int NO_SUCH_DATA_PART;
-    extern const int UNKNOWN_FUNCTION;
-    extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
-    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
-    extern const int INVALID_JOIN_ON_EXPRESSION;
+extern const int LOGICAL_ERROR;
+extern const int UNKNOWN_TYPE;
+extern const int BAD_ARGUMENTS;
+extern const int NO_SUCH_DATA_PART;
+extern const int UNKNOWN_FUNCTION;
+extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
+extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+extern const int INVALID_JOIN_ON_EXPRESSION;
 }
 }
 
@@ -144,16 +144,13 @@ void SerializedPlanParser::parseExtensions(
         if (extension.has_extension_function())
         {
             function_mapping.emplace(
-                std::to_string(extension.extension_function().function_anchor()),
-                extension.extension_function().name());
+                std::to_string(extension.extension_function().function_anchor()), extension.extension_function().name());
         }
     }
 }
 
 std::shared_ptr<ActionsDAG> SerializedPlanParser::expressionsToActionsDAG(
-    const std::vector<substrait::Expression> & expressions,
-    const Block & header,
-    const Block & read_schema)
+    const std::vector<substrait::Expression> & expressions, const Block & header, const Block & read_schema)
 {
     auto actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(header));
     NamesWithAliases required_columns;
@@ -234,6 +231,7 @@ std::shared_ptr<ActionsDAG> SerializedPlanParser::expressionsToActionsDAG(
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "unsupported projection type {}.", magic_enum::enum_name(expr.rex_type_case()));
     }
     actions_dag->project(required_columns);
+    actions_dag->appendInputsForUnusedColumns(header);
     return actions_dag;
 }
 
@@ -258,8 +256,8 @@ std::string getDecimalFunction(const substrait::Type_Decimal & decimal, bool nul
 
 bool SerializedPlanParser::isReadRelFromJava(const substrait::ReadRel & rel)
 {
-    return rel.has_local_files() && rel.local_files().items().size() == 1 && rel.local_files().items().at(0).uri_file().starts_with(
-        "iterator");
+    return rel.has_local_files() && rel.local_files().items().size() == 1
+        && rel.local_files().items().at(0).uri_file().starts_with("iterator");
 }
 
 bool SerializedPlanParser::isReadFromMergeTree(const substrait::ReadRel & rel)
@@ -335,6 +333,19 @@ IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, c
     return step_ptr;
 }
 
+IQueryPlanStep * SerializedPlanParser::addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header)
+{
+    auto convert_actions_dag = ActionsDAG::makeConvertingActions(
+        query_plan->getCurrentDataStream().header.getColumnsWithTypeAndName(),
+        input_header.getColumnsWithTypeAndName(),
+        ActionsDAG::MatchColumnsMode::Name);
+    auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), convert_actions_dag);
+    expression_step->setStepDescription("Generator for rollback filter");
+    auto * step_ptr = expression_step.get();
+    query_plan->addStep(std::move(expression_step));
+    return step_ptr;
+}
+
 DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type)
 {
     return wrapNullableType(nullable == substrait::Type_Nullability_NULLABILITY_NULLABLE, nested_type);
@@ -366,13 +377,13 @@ DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type)
         return nested_type;
 }
 
-QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
+QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
 {
-    logDebugMessage(*plan, "substrait plan");
-    parseExtensions(plan->extensions());
-    if (plan->relations_size() == 1)
+    logDebugMessage(plan, "substrait plan");
+    parseExtensions(plan.extensions());
+    if (plan.relations_size() == 1)
     {
-        auto root_rel = plan->relations().at(0);
+        auto root_rel = plan.relations().at(0);
         if (!root_rel.has_root())
         {
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "must have root rel!");
@@ -517,6 +528,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
         case substrait::Rel::RelTypeCase::kSort:
         case substrait::Rel::RelTypeCase::kWindow:
         case substrait::Rel::RelTypeCase::kJoin:
+        case substrait::Rel::RelTypeCase::kCross:
         case substrait::Rel::RelTypeCase::kExpand: {
             auto op_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(this);
             query_plan = op_parser->parseOp(rel, rel_stack);
@@ -553,125 +565,26 @@ NamesAndTypesList SerializedPlanParser::blockToNameAndTypeList(const Block & hea
     return types;
 }
 
+std::optional<String> SerializedPlanParser::getFunctionSignatureName(UInt32 function_ref) const
+{
+    auto it = function_mapping.find(std::to_string(function_ref));
+    if (it == function_mapping.end())
+        return {};
+    auto function_signature = it->second;
+    auto pos = function_signature.find(':');
+    return function_signature.substr(0, pos);
+}
+
 std::string
 SerializedPlanParser::getFunctionName(const std::string & function_signature, const substrait::Expression_ScalarFunction & function)
 {
     auto args = function.arguments();
     auto pos = function_signature.find(':');
     auto function_name = function_signature.substr(0, pos);
-    if (!SCALAR_FUNCTIONS.contains(function_name))
-        throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unsupported function {}", function_name);
-
-    std::string ch_function_name;
-    if (function_name == "trim")
-        ch_function_name = args.size() == 1 ? "trimBoth" : "trimBothSpark";
-    else if (function_name == "ltrim")
-        ch_function_name = args.size() == 1 ? "trimLeft" : "trimLeftSpark";
-    else if (function_name == "rtrim")
-        ch_function_name = args.size() == 1 ? "trimRight" : "trimRightSpark";
-    else if (function_name == "extract")
-    {
-        if (args.size() != 2)
-            throw Exception(
-                ErrorCodes::BAD_ARGUMENTS,
-                "Spark function extract requires two args, function:{}",
-                function.ShortDebugString());
-
-        // Get the first arg: field
-        const auto & extract_field = args.at(0);
-
-        if (extract_field.value().has_literal())
-        {
-            const auto & field_value = extract_field.value().literal().string();
-            if (field_value == "YEAR")
-                ch_function_name = "toYear"; // spark: extract(YEAR FROM) or year
-            else if (field_value == "YEAR_OF_WEEK")
-                ch_function_name = "toISOYear"; // spark: extract(YEAROFWEEK FROM)
-            else if (field_value == "QUARTER")
-                ch_function_name = "toQuarter"; // spark: extract(QUARTER FROM) or quarter
-            else if (field_value == "MONTH")
-                ch_function_name = "toMonth"; // spark: extract(MONTH FROM) or month
-            else if (field_value == "WEEK_OF_YEAR")
-                ch_function_name = "toISOWeek"; // spark: extract(WEEK FROM) or weekofyear
-            else if (field_value == "WEEK_DAY")
-                /// Spark WeekDay(date) (0 = Monday, 1 = Tuesday, ..., 6 = Sunday)
-                /// Substrait: extract(WEEK_DAY from date)
-                /// CH: toDayOfWeek(date, 1)
-                ch_function_name = "toDayOfWeek";
-            else if (field_value == "DAY_OF_WEEK")
-                /// Spark: DayOfWeek(date) (1 = Sunday, 2 = Monday, ..., 7 = Saturday)
-                /// Substrait: extract(DAY_OF_WEEK from date)
-                /// CH: toDayOfWeek(date, 3)
-                /// DAYOFWEEK is alias of function toDayOfWeek.
-                /// This trick is to distinguish between extract fields DAY_OF_WEEK and WEEK_DAY in latter codes
-                ch_function_name = "DAYOFWEEK";
-            else if (field_value == "DAY")
-                ch_function_name = "toDayOfMonth"; // spark: extract(DAY FROM) or dayofmonth
-            else if (field_value == "DAY_OF_YEAR")
-                ch_function_name = "toDayOfYear"; // spark: extract(DOY FROM) or dayofyear
-            else if (field_value == "HOUR")
-                ch_function_name = "toHour"; // spark: extract(HOUR FROM) or hour
-            else if (field_value == "MINUTE")
-                ch_function_name = "toMinute"; // spark: extract(MINUTE FROM) or minute
-            else if (field_value == "SECOND")
-                ch_function_name = "toSecond"; // spark: extract(SECOND FROM) or secondwithfraction
-            else
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "The first arg of spark extract function is wrong.");
-        }
-        else
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "The first arg of spark extract function is wrong.");
-    }
-    else if (function_name == "check_overflow")
-    {
-        if (args.size() < 2)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "check_overflow function requires at least two args.");
-        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
-        auto null_on_overflow = args.at(1).value().literal().boolean();
-        if (null_on_overflow)
-            ch_function_name = ch_function_name + "OrNull";
-    }
-    else if (function_name == "make_decimal")
-    {
-        if (args.size() < 2)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 2 args.");
-        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
-        auto null_on_overflow = args.at(1).value().literal().boolean();
-        if (null_on_overflow)
-            ch_function_name = ch_function_name + "OrNull";
-    }
-    else if (function_name == "char_length")
-    {
-        /// In Spark
-        /// char_length returns the number of bytes when input is binary type, corresponding to CH length function
-        /// char_length returns the number of characters when input is string type, corresponding to CH char_length function
-        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
-        if (function_signature.find("vbin") != std::string::npos)
-            ch_function_name = "length";
-    }
-    else if (function_name == "reverse")
-    {
-        if (function.output_type().has_list())
-            ch_function_name = "arrayReverse";
-        else
-            ch_function_name = "reverseUTF8";
-    }
-    else if (function_name == "concat")
-    {
-        /// 1. ConcatOverloadResolver cannot build arrayConcat for Nullable(Array) type which causes failures when using functions like concat(split()).
-        ///    So we use arrayConcat directly if the output type is array.
-        /// 2. CH ConcatImpl can only accept at least 2 arguments, but Spark concat can accept 1 argument, like concat('a')
-        ///    in such case we use identity function
-        if (function.output_type().has_list())
-            ch_function_name = "arrayConcat";
-        else if (args.size() == 1)
-            ch_function_name = "identity";
-        else
-            ch_function_name = "concat";
-    }
-    else
-        ch_function_name = SCALAR_FUNCTIONS.at(function_name);
-
-    return ch_function_name;
+    auto function_parser = FunctionParserFactory::instance().tryGet(function_name, this);
+    if (!function_parser)
+        throw DB::Exception(DB::ErrorCodes::UNKNOWN_FUNCTION, "Unsupported function: {}", function_name);
+    return function_parser->getCHFunctionName(function);
 }
 
 void SerializedPlanParser::parseArrayJoinArguments(
@@ -691,12 +604,9 @@ void SerializedPlanParser::parseArrayJoinArguments(
     /// The argument number of arrayJoin(converted from Spark explode/posexplode) should be 1
     if (scalar_function.arguments_size() != 1)
         throw Exception(
-            ErrorCodes::BAD_ARGUMENTS,
-            "Argument number of arrayJoin should be 1 instead of {}",
-            scalar_function.arguments_size());
+            ErrorCodes::BAD_ARGUMENTS, "Argument number of arrayJoin should be 1 instead of {}", scalar_function.arguments_size());
 
-    auto function_name_copy = function_name;
-    parseFunctionArguments(actions_dag, parsed_args, function_name_copy, scalar_function);
+    parseFunctionArguments(actions_dag, parsed_args, scalar_function);
 
     auto arg = parsed_args[0];
     auto arg_type = removeNullable(arg->result_type);
@@ -732,11 +642,7 @@ void SerializedPlanParser::parseArrayJoinArguments(
 }
 
 ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
-    const substrait::Expression & rel,
-    std::vector<String> & result_names,
-    ActionsDAGPtr actions_dag,
-    bool keep_result,
-    bool position)
+    const substrait::Expression & rel, std::vector<String> & result_names, ActionsDAGPtr actions_dag, bool keep_result, bool position)
 {
     if (!rel.has_scalar_function())
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "The root of expression should be a scalar function:\n {}", rel.DebugString());
@@ -744,7 +650,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     const auto & scalar_function = rel.scalar_function();
 
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
-    auto function_name = getFunctionName(function_signature, scalar_function);
+    String function_name = "arrayJoin";
 
     /// Whether the input argument of explode/posexplode is map type
     bool is_map;
@@ -760,7 +666,8 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
 
     auto tuple_element_builder = FunctionFactory::instance().get("sparkTupleElement", context);
     auto tuple_index_type = std::make_shared<DataTypeUInt32>();
-    auto add_tuple_element = [&](const ActionsDAG::Node * tuple_node, size_t i) -> const ActionsDAG::Node * {
+    auto add_tuple_element = [&](const ActionsDAG::Node * tuple_node, size_t i) -> const ActionsDAG::Node *
+    {
         ColumnWithTypeAndName index_col(tuple_index_type->createColumnConst(1, i), tuple_index_type, getUniqueName(std::to_string(i)));
         const auto * index_node = &actions_dag->addColumn(std::move(index_col));
         auto result_name = "sparkTupleElement(" + tuple_node->result_name + ", " + index_node->result_name + ")";
@@ -852,10 +759,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
 }
 
 const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
-    const substrait::Expression & rel,
-    std::string & result_name,
-    ActionsDAGPtr actions_dag,
-    bool keep_result)
+    const substrait::Expression & rel, std::string & result_name, ActionsDAGPtr actions_dag, bool keep_result)
 {
     if (!rel.has_scalar_function())
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "the root of expression should be a scalar function:\n {}", rel.DebugString());
@@ -867,301 +771,29 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
     auto pos = function_signature.find(':');
     auto func_name = function_signature.substr(0, pos);
 
-    if (auto func_parser = FunctionParserFactory::instance().tryGet(func_name, this))
-    {
-        LOG_DEBUG(
-            &Poco::Logger::get("SerializedPlanParser"),
-            "parse function {} by function parser: {}",
-            func_name,
-            func_parser->getName());
-        const auto * result_node = func_parser->parse(scalar_function, actions_dag);
-        if (keep_result)
-            actions_dag->addOrReplaceInOutputs(*result_node);
-
-        result_name = result_node->result_name;
-        return result_node;
-    }
-
-    auto ch_func_name = getFunctionName(function_signature, scalar_function);
-    ActionsDAG::NodeRawConstPtrs args;
-    parseFunctionArguments(actions_dag, args, ch_func_name, scalar_function);
-
-    /// If the first argument of function formatDateTimeInJodaSyntax is integer, replace formatDateTimeInJodaSyntax with fromUnixTimestampInJodaSyntax
-    /// to avoid exception
-    if (ch_func_name == "formatDateTimeInJodaSyntax")
-    {
-        if (args.size() > 1 && isInteger(removeNullable(args[0]->result_type)))
-            ch_func_name = "fromUnixTimestampInJodaSyntax";
-    }
-
-    if (ch_func_name == "alias")
-    {
-        result_name = args[0]->result_name;
-        actions_dag->addOrReplaceInOutputs(*args[0]);
-        return &actions_dag->addAlias(actions_dag->findInOutputs(result_name), result_name);
-    }
-
-    if (ch_func_name == "toYear")
-    {
-        const ActionsDAG::Node * arg_node = args[0];
-        const String & arg_func_name = arg_node->function ? arg_node->function->getName() : "";
-        if ((arg_func_name == "sparkToDate" || arg_func_name == "sparkToDateTime") && arg_node->children.size() > 0)
-        {
-            const ActionsDAG::Node * child_node = arg_node->children[0];
-            if (child_node && isString(removeNullable(child_node->result_type)))
-            {
-                auto extract_year_builder = FunctionFactory::instance().get("sparkExtractYear", context);
-                auto func_result_name = "sparkExtractYear(" + child_node->result_name + ")";
-                return &actions_dag->addFunction(extract_year_builder, {child_node}, func_result_name);
-            }
-        }
-    }
-
-    const ActionsDAG::Node * result_node;
-
-    if (ch_func_name == "splitByRegexp")
-    {
-        if (args.size() >= 2)
-        {
-            /// In Spark: split(str, regex [, limit] )
-            /// In CH: splitByRegexp(regexp, str [, limit])
-            std::swap(args[0], args[1]);
-        }
-    }
-
-    /// TODO: FunctionParser for check_overflow and make_decimal
-    if (function_signature.find("check_overflow:", 0) != String::npos)
-    {
-        if (scalar_function.arguments().size() < 2)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "check_overflow function requires at least two args.");
-
-        ActionsDAG::NodeRawConstPtrs new_args;
-        new_args.reserve(3);
-        new_args.emplace_back(args[0]);
-
-        UInt32 precision = rel.scalar_function().output_type().decimal().precision();
-        UInt32 scale = rel.scalar_function().output_type().decimal().scale();
-        auto uint32_type = std::make_shared<DataTypeUInt32>();
-        new_args.emplace_back(
-            &actions_dag->addColumn(
-                ColumnWithTypeAndName(uint32_type->createColumnConst(1, precision), uint32_type, getUniqueName(toString(precision)))));
-        new_args.emplace_back(
-            &actions_dag->addColumn(
-                ColumnWithTypeAndName(uint32_type->createColumnConst(1, scale), uint32_type, getUniqueName(toString(scale)))));
-        args = std::move(new_args);
-    }
-    else if (startsWith(function_signature, "make_decimal:"))
-    {
-        if (scalar_function.arguments().size() < 2)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 2 args.");
-
-        ActionsDAG::NodeRawConstPtrs new_args;
-        new_args.reserve(3);
-        new_args.emplace_back(args[0]);
-
-        UInt32 precision = rel.scalar_function().output_type().decimal().precision();
-        UInt32 scale = rel.scalar_function().output_type().decimal().scale();
-        auto uint32_type = std::make_shared<DataTypeUInt32>();
-        new_args.emplace_back(
-            &actions_dag->addColumn(
-                ColumnWithTypeAndName(uint32_type->createColumnConst(1, precision), uint32_type, getUniqueName(toString(precision)))));
-        new_args.emplace_back(
-            &actions_dag->addColumn(
-                ColumnWithTypeAndName(uint32_type->createColumnConst(1, scale), uint32_type, getUniqueName(toString(scale)))));
-        args = std::move(new_args);
-    }
-
-    auto function_builder = FunctionFactory::instance().get(ch_func_name, context);
-    std::string args_name = join(args, ',');
-    result_name = ch_func_name + "(" + args_name + ")";
-    const auto * function_node = &actions_dag->addFunction(function_builder, args, result_name);
-    result_node = function_node;
-    if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type))
-    {
-        auto result_type = TypeParser::parseType(rel.scalar_function().output_type());
-        if (isDecimalOrNullableDecimal(result_type))
-        {
-            result_node = ActionsDAGUtil::convertNodeType(
-                actions_dag,
-                function_node,
-                // as stated in isTypeMatched， currently we don't change nullability of the result type
-                function_node->result_type->isNullable()
-                ? local_engine::wrapNullableType(true, result_type)->getName()
-                : local_engine::removeNullable(result_type)->getName(),
-                function_node->result_name,
-                CastType::accurateOrNull);
-        }
-        else
-        {
-            result_node = ActionsDAGUtil::convertNodeType(
-                actions_dag,
-                function_node,
-                // as stated in isTypeMatched， currently we don't change nullability of the result type
-                function_node->result_type->isNullable()
-                ? local_engine::wrapNullableType(true, result_type)->getName()
-                : local_engine::removeNullable(result_type)->getName(),
-                function_node->result_name);
-        }
-    }
-
+    auto func_parser = FunctionParserFactory::instance().tryGet(func_name, this);
+    if (!func_parser)
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not found function parser for {}", func_name);
+    LOG_DEBUG(&Poco::Logger::get("SerializedPlanParser"), "parse function {} by function parser: {}", func_name, func_parser->getName());
+    const auto * result_node = func_parser->parse(scalar_function, actions_dag);
     if (keep_result)
         actions_dag->addOrReplaceInOutputs(*result_node);
 
+    result_name = result_node->result_name;
     return result_node;
 }
 
 void SerializedPlanParser::parseFunctionArguments(
     ActionsDAGPtr & actions_dag,
     ActionsDAG::NodeRawConstPtrs & parsed_args,
-    std::string & function_name,
     const substrait::Expression_ScalarFunction & scalar_function)
 {
     auto function_signature = function_mapping.at(std::to_string(scalar_function.function_reference()));
     const auto & args = scalar_function.arguments();
     parsed_args.reserve(args.size());
+    for (const auto & arg : args)
+        parsed_args.emplace_back(parseExpression(actions_dag, arg.value()));
 
-    // Some functions need to be handled specially.
-    if (function_name == "JSONExtract")
-    {
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
-        auto data_type = TypeParser::parseType(scalar_function.output_type());
-        parsed_args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeString>(), data_type->getName()));
-    }
-    else if (function_name == "sparkTupleElement" || function_name == "tupleElement")
-    {
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
-
-        if (!args[1].value().has_literal())
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "get_struct_field's second argument must be a literal");
-
-        auto [data_type, field] = parseLiteral(args[1].value().literal());
-        if (data_type->getTypeId() != TypeIndex::Int32)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "get_struct_field's second argument must be i32");
-
-        // tuple indecies start from 1, in spark, start from 0
-        Int32 field_index = static_cast<Int32>(field.get<Int32>() + 1);
-        const auto * index_node = addColumn(actions_dag, std::make_shared<DataTypeUInt32>(), field_index);
-        parsed_args.emplace_back(index_node);
-    }
-    else if (function_name == "tuple")
-    {
-        // Arguments in the format, (<field name>, <value expression>[, <field name>, <value expression> ...])
-        // We don't need to care the field names here.
-        for (int index = 1; index < args.size(); index += 2)
-            parseFunctionArgument(actions_dag, parsed_args, function_name, args[index]);
-    }
-    else if (function_name == "repeat")
-    {
-        // repeat. the field index must be unsigned integer in CH, cast the signed integer in substrait
-        // which must be a positive value into unsigned integer here.
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
-        const ActionsDAG::Node * repeat_times_node = parseFunctionArgument(actions_dag, function_name, args[1]);
-        DataTypeNullable target_type(std::make_shared<DataTypeUInt32>());
-        repeat_times_node = ActionsDAGUtil::convertNodeType(actions_dag, repeat_times_node, target_type.getName());
-        parsed_args.emplace_back(repeat_times_node);
-    }
-    else if (function_name == "isNaN")
-    {
-        // the result of isNaN(NULL) is NULL in CH, but false in Spark
-        const ActionsDAG::Node * arg_node = nullptr;
-        if (args[0].value().has_cast())
-        {
-            arg_node = parseExpression(actions_dag, args[0].value().cast().input());
-            const auto * res_type = arg_node->result_type.get();
-            if (res_type->isNullable())
-            {
-                res_type = typeid_cast<const DataTypeNullable *>(res_type)->getNestedType().get();
-            }
-            if (isString(*res_type))
-            {
-                ActionsDAG::NodeRawConstPtrs cast_func_args = {arg_node};
-                arg_node = toFunctionNode(actions_dag, "toFloat64OrZero", cast_func_args);
-            }
-            else
-            {
-                arg_node = parseFunctionArgument(actions_dag, function_name, args[0]);
-            }
-        }
-        else
-        {
-            arg_node = parseFunctionArgument(actions_dag, function_name, args[0]);
-        }
-
-        ActionsDAG::NodeRawConstPtrs ifnull_func_args = {arg_node, addColumn(actions_dag, std::make_shared<DataTypeInt32>(), 0)};
-        parsed_args.emplace_back(toFunctionNode(actions_dag, "IfNull", ifnull_func_args));
-    }
-    else if (function_name == "space")
-    {
-        // convert space function to repeat
-        const ActionsDAG::Node * repeat_times_node = parseFunctionArgument(actions_dag, "repeat", args[0]);
-        const ActionsDAG::Node * space_str_node = addColumn(actions_dag, std::make_shared<DataTypeString>(), " ");
-        function_name = "repeat";
-        parsed_args.emplace_back(space_str_node);
-        parsed_args.emplace_back(repeat_times_node);
-    }
-    else if (function_name == "trimBothSpark" || function_name == "trimLeftSpark" || function_name == "trimRightSpark")
-    {
-        /// In substrait, the first arg is srcStr, the second arg is trimStr
-        /// But in CH, the first arg is trimStr, the second arg is srcStr
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[1]);
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
-    }
-    else if (startsWith(function_signature, "extract:"))
-    {
-        /// Skip the first arg of extract in substrait
-        for (int i = 1; i < args.size(); i++)
-            parseFunctionArgument(actions_dag, parsed_args, function_name, args[i]);
-
-        /// Append extra mode argument for extract(WEEK_DAY from date) or extract(DAY_OF_WEEK from date) in substrait
-        if (function_name == "toDayOfWeek" || function_name == "DAYOFWEEK")
-        {
-            UInt8 mode = function_name == "toDayOfWeek" ? 1 : 3;
-            auto mode_type = std::make_shared<DataTypeUInt8>();
-            ColumnWithTypeAndName mode_col(mode_type->createColumnConst(1, mode), mode_type, getUniqueName(std::to_string(mode)));
-            const auto & mode_node = actions_dag->addColumn(std::move(mode_col));
-            parsed_args.emplace_back(&mode_node);
-        }
-    }
-    else if (startsWith(function_signature, "sha2:"))
-    {
-        for (int i = 0; i < args.size() - 1; i++)
-            parseFunctionArgument(actions_dag, parsed_args, function_name, args[i]);
-    }
-    else
-    {
-        // Default handle
-        for (const auto & arg : args)
-            parseFunctionArgument(actions_dag, parsed_args, function_name, arg);
-    }
-}
-
-void SerializedPlanParser::parseFunctionArgument(
-    ActionsDAGPtr & actions_dag,
-    ActionsDAG::NodeRawConstPtrs & parsed_args,
-    const std::string & function_name,
-    const substrait::FunctionArgument & arg)
-{
-    parsed_args.emplace_back(parseFunctionArgument(actions_dag, function_name, arg));
-}
-
-const ActionsDAG::Node * SerializedPlanParser::parseFunctionArgument(
-    ActionsDAGPtr & actions_dag,
-    const std::string & function_name,
-    const substrait::FunctionArgument & arg)
-{
-    const ActionsDAG::Node * res;
-    if (arg.value().has_scalar_function())
-    {
-        std::string arg_name;
-        bool keep_arg = FUNCTION_NEED_KEEP_ARGUMENTS.contains(function_name);
-        parseFunctionWithDAG(arg.value(), arg_name, actions_dag, keep_arg);
-        res = &actions_dag->getNodes().back();
-    }
-    else
-    {
-        res = parseExpression(actions_dag, arg.value());
-    }
-    return res;
 }
 
 // Convert signed integer index into unsigned integer index
@@ -1175,11 +807,8 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::convertStructFieldType(const
     }
 
     auto type_id = type->getTypeId();
-    if (type_id == TypeIndex::UInt8 || type_id == TypeIndex::UInt16 || type_id == TypeIndex::UInt32
-        || type_id == TypeIndex::UInt64)
-    {
+    if (type_id == TypeIndex::UInt8 || type_id == TypeIndex::UInt16 || type_id == TypeIndex::UInt32 || type_id == TypeIndex::UInt64)
         return {type, field};
-    }
     UINT_CONVERT(type, field, Int8)
     UINT_CONVERT(type, field, Int16)
     UINT_CONVERT(type, field, Int32)
@@ -1188,12 +817,14 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::convertStructFieldType(const
 #undef UINT_CONVERT
 }
 
+bool SerializedPlanParser::isFunction(substrait::Expression_ScalarFunction rel, String function_name)
+{
+    auto func_signature = function_mapping[std::to_string(rel.function_reference())];
+    return func_signature.starts_with(function_name + ":");
+}
+
 ActionsDAGPtr SerializedPlanParser::parseFunction(
-    const Block & header,
-    const substrait::Expression & rel,
-    std::string & result_name,
-    ActionsDAGPtr actions_dag,
-    bool keep_result)
+    const Block & header, const substrait::Expression & rel, std::string & result_name, ActionsDAGPtr actions_dag, bool keep_result)
 {
     if (!actions_dag)
         actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(header));
@@ -1203,11 +834,7 @@ ActionsDAGPtr SerializedPlanParser::parseFunction(
 }
 
 ActionsDAGPtr SerializedPlanParser::parseFunctionOrExpression(
-    const Block & header,
-    const substrait::Expression & rel,
-    std::string & result_name,
-    ActionsDAGPtr actions_dag,
-    bool keep_result)
+    const Block & header, const substrait::Expression & rel, std::string & result_name, ActionsDAGPtr actions_dag, bool keep_result)
 {
     if (!actions_dag)
         actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(header));
@@ -1253,7 +880,7 @@ ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
 
     const auto & scalar_function = rel.scalar_function();
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
-    auto function_name = getFunctionName(function_signature, scalar_function);
+    String function_name = "json_tuple";
     auto args = scalar_function.arguments();
     if (args.size() < 2)
     {
@@ -1289,7 +916,8 @@ ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
         = &actions_dag->addFunction(json_extract_builder, {json_expr_node, extract_expr_node}, json_extract_result_name);
     auto tuple_element_builder = FunctionFactory::instance().get("sparkTupleElement", context);
     auto tuple_index_type = std::make_shared<DataTypeUInt32>();
-    auto add_tuple_element = [&](const ActionsDAG::Node * tuple_node, size_t i) -> const ActionsDAG::Node * {
+    auto add_tuple_element = [&](const ActionsDAG::Node * tuple_node, size_t i) -> const ActionsDAG::Node *
+    {
         ColumnWithTypeAndName index_col(tuple_index_type->createColumnConst(1, i), tuple_index_type, getUniqueName(std::to_string(i)));
         const auto * index_node = &actions_dag->addColumn(std::move(index_col));
         auto result_name = "sparkTupleElement(" + tuple_node->result_name + ", " + index_node->result_name + ")";
@@ -1514,9 +1142,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
         }
         default: {
             throw Exception(
-                ErrorCodes::UNKNOWN_TYPE,
-                "Unsupported spark literal type {}",
-                magic_enum::enum_name(literal.literal_type_case()));
+                ErrorCodes::UNKNOWN_TYPE, "Unsupported spark literal type {}", magic_enum::enum_name(literal.literal_type_case()));
         }
     }
     return std::make_pair(std::move(type), std::move(field));
@@ -1718,8 +1344,7 @@ substrait::ReadRel::ExtensionTable SerializedPlanParser::parseExtensionTable(con
 {
     substrait::ReadRel::ExtensionTable extension_table;
     google::protobuf::io::CodedInputStream coded_in(
-        reinterpret_cast<const uint8_t *>(split_info.data()),
-        static_cast<int>(split_info.size()));
+        reinterpret_cast<const uint8_t *>(split_info.data()), static_cast<int>(split_info.size()));
     coded_in.SetRecursionLimit(100000);
 
     auto ok = extension_table.ParseFromCodedStream(&coded_in);
@@ -1733,8 +1358,7 @@ substrait::ReadRel::LocalFiles SerializedPlanParser::parseLocalFiles(const std::
 {
     substrait::ReadRel::LocalFiles local_files;
     google::protobuf::io::CodedInputStream coded_in(
-        reinterpret_cast<const uint8_t *>(split_info.data()),
-        static_cast<int>(split_info.size()));
+        reinterpret_cast<const uint8_t *>(split_info.data()), static_cast<int>(split_info.size()));
     coded_in.SetRecursionLimit(100000);
 
     auto ok = local_files.ParseFromCodedStream(&coded_in);
@@ -1744,10 +1368,44 @@ substrait::ReadRel::LocalFiles SerializedPlanParser::parseLocalFiles(const std::
     return local_files;
 }
 
-
-QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPlanPtr query_plan)
 {
-    auto plan_ptr = std::make_unique<substrait::Plan>();
+    Stopwatch stopwatch;
+    auto * logger = &Poco::Logger::get("SerializedPlanParser");
+    const Settings & settings = context->getSettingsRef();
+
+    QueryPriorities priorities;
+    auto query_status = std::make_shared<QueryStatus>(
+        context,
+        "",
+        context->getClientInfo(),
+        priorities.insert(static_cast<int>(settings.priority)),
+        CurrentThread::getGroup(),
+        IAST::QueryKind::Select,
+        settings,
+        0);
+
+    QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings.query_plan_enable_optimizations};
+    auto pipeline_builder = query_plan->buildQueryPipeline(
+        optimization_settings,
+        BuildQueryPipelineSettings{
+            .actions_settings
+            = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3, .compile_expressions = CompileExpressions::yes},
+            .process_list_element = query_status});
+    QueryPipeline pipeline = QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder));
+    LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
+
+    LOG_DEBUG(
+        logger, "clickhouse plan [optimization={}]:\n{}", settings.query_plan_enable_optimizations, PlanUtil::explainPlan(*query_plan));
+    LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(pipeline));
+
+    return std::make_unique<LocalExecutor>(
+        context, std::move(query_plan), std::move(pipeline), query_plan->getCurrentDataStream().header.cloneEmpty());
+}
+
+QueryPlanPtr SerializedPlanParser::parse(const std::string_view plan)
+{
+    substrait::Plan s_plan;
     /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
     /// Parsing may fail when the number of recursive layers is large.
     /// Here, set a limit large enough to avoid this problem.
@@ -1755,11 +1413,10 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
     google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(plan.data()), static_cast<int>(plan.size()));
     coded_in.SetRecursionLimit(100000);
 
-    auto ok = plan_ptr->ParseFromCodedStream(&coded_in);
-    if (!ok)
+    if (!s_plan.ParseFromCodedStream(&coded_in))
         throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
 
-    auto res = parse(std::move(plan_ptr));
+    auto res = parse(s_plan);
 
 #ifndef NDEBUG
     PlanUtil::checkOuputType(*res);
@@ -1774,17 +1431,16 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
     return res;
 }
 
-QueryPlanPtr SerializedPlanParser::parseJson(const std::string & json_plan)
+QueryPlanPtr SerializedPlanParser::parseJson(const std::string_view & json_plan)
 {
-    auto plan_ptr = std::make_unique<substrait::Plan>();
-    auto s = google::protobuf::util::JsonStringToMessage(absl::string_view(json_plan.c_str()), plan_ptr.get());
+    substrait::Plan plan;
+    auto s = google::protobuf::util::JsonStringToMessage(json_plan, &plan);
     if (!s.ok())
         throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from json string failed: {}", s.ToString());
-    return parse(std::move(plan_ptr));
+    return parse(plan);
 }
 
-SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_)
-    : context(context_)
+SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_) : context(context_)
 {
 }
 
@@ -1793,13 +1449,10 @@ ContextMutablePtr SerializedPlanParser::global_context = nullptr;
 Context::ConfigurationPtr SerializedPlanParser::config = nullptr;
 
 void SerializedPlanParser::collectJoinKeys(
-    const substrait::Expression & condition,
-    std::vector<std::pair<int32_t, int32_t>> & join_keys,
-    int32_t right_key_start)
+    const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start)
 {
     auto condition_name = getFunctionName(
-        function_mapping.at(std::to_string(condition.scalar_function().function_reference())),
-        condition.scalar_function());
+        function_mapping.at(std::to_string(condition.scalar_function().function_reference())), condition.scalar_function());
     if (condition_name == "and")
     {
         collectJoinKeys(condition.scalar_function().arguments(0).value(), join_keys, right_key_start);
@@ -1818,7 +1471,7 @@ void SerializedPlanParser::collectJoinKeys(
     }
 }
 
-ActionsDAGPtr ASTParser::convertToActions(const NamesAndTypesList & name_and_types, const ASTPtr & ast)
+ActionsDAG ASTParser::convertToActions(const NamesAndTypesList & name_and_types, const ASTPtr & ast) const
 {
     NamesAndTypesList aggregation_keys;
     ColumnNumbersList aggregation_keys_indexes_list;
@@ -1827,9 +1480,9 @@ ActionsDAGPtr ASTParser::convertToActions(const NamesAndTypesList & name_and_typ
     ActionsMatcher::Data visitor_data(
         context,
         size_limits_for_set,
-        size_t(0),
+        static_cast<size_t>(0),
         name_and_types,
-        std::make_shared<ActionsDAG>(name_and_types),
+        ActionsDAG(name_and_types),
         std::make_shared<PreparedSets>(),
         false /* no_subqueries */,
         false /* no_makeset */,
@@ -1849,8 +1502,7 @@ ASTPtr ASTParser::parseToAST(const Names & names, const substrait::Expression & 
 
         auto substrait_name = function_signature.substr(0, function_signature.find(':'));
         auto func_parser = FunctionParserFactory::instance().tryGet(substrait_name, plan_parser);
-        String function_name = func_parser ? func_parser->getName()
-                                           : SerializedPlanParser::getFunctionName(function_signature, scalar_function);
+        String function_name = func_parser->getName();
 
         ASTs ast_args;
         parseFunctionArgumentsToAST(names, scalar_function, ast_args);
@@ -1862,9 +1514,7 @@ ASTPtr ASTParser::parseToAST(const Names & names, const substrait::Expression & 
 }
 
 void ASTParser::parseFunctionArgumentsToAST(
-    const Names & names,
-    const substrait::Expression_ScalarFunction & scalar_function,
-    ASTs & ast_args)
+    const Names & names, const substrait::Expression_ScalarFunction & scalar_function, ASTs & ast_args)
 {
     const auto & args = scalar_function.arguments();
 
@@ -1888,8 +1538,8 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
         case substrait::Expression::RexTypeCase::kLiteral: {
             DataTypePtr type;
             Field field;
-            std::tie(std::ignore, field) = SerializedPlanParser::parseLiteral(rel.literal());
-            return std::make_shared<ASTLiteral>(field);
+            std::tie(type, field) = SerializedPlanParser::parseLiteral(rel.literal());
+            return std::make_shared<ASTLiteral>(field, type);
         }
         case substrait::Expression::RexTypeCase::kSelection: {
             if (!rel.selection().has_direct_reference() || !rel.selection().direct_reference().has_struct_field())
@@ -2007,12 +1657,12 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
     }
 }
 
-void SerializedPlanParser::removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAGPtr actions_dag)
+void SerializedPlanParser::removeNullableForRequiredColumns(
+    const std::set<String> & require_columns, const ActionsDAGPtr & actions_dag) const
 {
     for (const auto & item : require_columns)
     {
-        const auto * require_node = actions_dag->tryFindInOutputs(item);
-        if (require_node)
+        if (const auto * require_node = actions_dag->tryFindInOutputs(item))
         {
             auto function_builder = FunctionFactory::instance().get("assumeNotNull", context);
             ActionsDAG::NodeRawConstPtrs args = {require_node};
@@ -2023,9 +1673,7 @@ void SerializedPlanParser::removeNullableForRequiredColumns(const std::set<Strin
 }
 
 void SerializedPlanParser::wrapNullable(
-    const std::vector<String> & columns,
-    ActionsDAGPtr actions_dag,
-    std::map<std::string, std::string> & nullable_measure_names)
+    const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names)
 {
     for (const auto & item : columns)
     {
@@ -2051,86 +1699,23 @@ LocalExecutor::~LocalExecutor()
     }
 }
 
-
-void LocalExecutor::execute(QueryPlanPtr query_plan)
-{
-    Stopwatch stopwatch;
-
-    const Settings & settings = context->getSettingsRef();
-    current_query_plan = std::move(query_plan);
-    auto * logger = &Poco::Logger::get("LocalExecutor");
-
-    QueryPriorities priorities;
-    auto query_status = std::make_shared<QueryStatus>(
-        context,
-        "",
-        context->getClientInfo(),
-        priorities.insert(static_cast<int>(settings.priority)),
-        CurrentThread::getGroup(),
-        IAST::QueryKind::Select,
-        settings,
-        0);
-
-    QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings.query_plan_enable_optimizations};
-    auto pipeline_builder = current_query_plan->buildQueryPipeline(
-        optimization_settings,
-        BuildQueryPipelineSettings{
-            .actions_settings
-            = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3,
-                                        .compile_expressions = CompileExpressions::yes},
-            .process_list_element = query_status});
-
-    LOG_DEBUG(logger, "clickhouse plan after optimization:\n{}", PlanUtil::explainPlan(*current_query_plan));
-    query_pipeline = QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder));
-    LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(query_pipeline));
-    auto t_pipeline = stopwatch.elapsedMicroseconds();
-
-    executor = std::make_unique<PullingPipelineExecutor>(query_pipeline);
-    auto t_executor = stopwatch.elapsedMicroseconds() - t_pipeline;
-    stopwatch.stop();
-    LOG_INFO(
-        logger,
-        "build pipeline {} ms; create executor {} ms;",
-        t_pipeline / 1000.0,
-        t_executor / 1000.0);
-
-    header = current_query_plan->getCurrentDataStream().header.cloneEmpty();
-    ch_column_to_spark_row = std::make_unique<CHColumnToSparkRow>();
-}
-
-std::unique_ptr<SparkRowInfo> LocalExecutor::writeBlockToSparkRow(Block & block)
+std::unique_ptr<SparkRowInfo> LocalExecutor::writeBlockToSparkRow(const Block & block) const
 {
     return ch_column_to_spark_row->convertCHColumnToSparkRow(block);
 }
 
 bool LocalExecutor::hasNext()
 {
-    bool has_next;
-    try
+    size_t columns = currentBlock().columns();
+    if (columns == 0 || isConsumed())
     {
-        size_t columns = currentBlock().columns();
-        if (columns == 0 || isConsumed())
-        {
-            auto empty_block = header.cloneEmpty();
-            setCurrentBlock(empty_block);
-            has_next = executor->pull(currentBlock());
-            produce();
-        }
-        else
-        {
-            has_next = true;
-        }
+        auto empty_block = header.cloneEmpty();
+        setCurrentBlock(empty_block);
+        bool has_next = executor->pull(currentBlock());
+        produce();
+        return has_next;
     }
-    catch (Exception & e)
-    {
-        LOG_ERROR(
-            &Poco::Logger::get("LocalExecutor"),
-            "LocalExecutor run query plan failed with message: {}. Plan Explained: \n{}",
-            e.message(),
-            PlanUtil::explainPlan(*current_query_plan));
-        throw;
-    }
-    return has_next;
+    return true;
 }
 
 SparkRowInfoPtr LocalExecutor::next()
@@ -2178,12 +1763,17 @@ Block & LocalExecutor::getHeader()
     return header;
 }
 
-LocalExecutor::LocalExecutor(ContextPtr context_)
-    : context(context_)
+LocalExecutor::LocalExecutor(const ContextPtr & context_, QueryPlanPtr query_plan, QueryPipeline && pipeline, const Block & header_)
+    : query_pipeline(std::move(pipeline))
+    , executor(std::make_unique<PullingPipelineExecutor>(query_pipeline))
+    , header(header_)
+    , context(context_)
+    , ch_column_to_spark_row(std::make_unique<CHColumnToSparkRow>())
+    , current_query_plan(std::move(query_plan))
 {
 }
 
-std::string LocalExecutor::dumpPipeline()
+std::string LocalExecutor::dumpPipeline() const
 {
     const auto & processors = query_pipeline.getProcessors();
     for (auto & processor : processors)
@@ -2191,9 +1781,9 @@ std::string LocalExecutor::dumpPipeline()
         WriteBufferFromOwnString buffer;
         auto data_stats = processor->getProcessorDataStats();
         buffer << "(";
-        buffer << "\nexcution time: " << processor->getElapsedUs() << " us.";
-        buffer << "\ninput wait time: " << processor->getInputWaitElapsedUs() << " us.";
-        buffer << "\noutput wait time: " << processor->getOutputWaitElapsedUs() << " us.";
+        buffer << "\nexcution time: " << processor->getElapsedNs() / 1000U << " us.";
+        buffer << "\ninput wait time: " << processor->getInputWaitElapsedNs() / 1000U << " us.";
+        buffer << "\noutput wait time: " << processor->getOutputWaitElapsedNs() / 1000U << " us.";
         buffer << "\ninput rows: " << data_stats.input_rows;
         buffer << "\ninput bytes: " << data_stats.input_bytes;
         buffer << "\noutput rows: " << data_stats.output_rows;
@@ -2207,12 +1797,8 @@ std::string LocalExecutor::dumpPipeline()
 }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(
-    const Block & header_,
-    SerializedPlanParser & parser_,
-    const substrait::Expression & cond_rel_)
-    : header(header_)
-    , parser(parser_)
-    , cond_rel(cond_rel_)
+    const Block & header_, SerializedPlanParser & parser_, const substrait::Expression & cond_rel_)
+    : header(header_), parser(parser_), cond_rel(cond_rel_)
 {
 }
 
@@ -2284,8 +1870,7 @@ void NonNullableColumnsResolver::visitNonNullable(const substrait::Expression & 
 }
 
 std::string NonNullableColumnsResolver::safeGetFunctionName(
-    const std::string & function_signature,
-    const substrait::Expression_ScalarFunction & function)
+    const std::string & function_signature, const substrait::Expression_ScalarFunction & function) const
 {
     try
     {

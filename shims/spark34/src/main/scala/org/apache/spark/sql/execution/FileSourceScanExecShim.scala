@@ -63,16 +63,11 @@ abstract class FileSourceScanExecShim(
 
   def hasUnsupportedColumns: Boolean = {
     val metadataColumnsNames = metadataColumns.map(_.name)
-    // row_index metadata is not support yet
-    metadataColumnsNames.contains(FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) ||
     output
       .filterNot(metadataColumns.toSet)
       .exists(v => metadataColumnsNames.contains(v.name)) ||
     // Below name has special meaning in Velox.
-    output.exists(
-      a =>
-        a.name == "$path" || a.name == "$bucket" ||
-          a.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME)
+    output.exists(a => a.name == "$path" || a.name == "$bucket")
   }
 
   def isMetadataColumn(attr: Attribute): Boolean = metadataColumns.contains(attr)

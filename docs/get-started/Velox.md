@@ -9,7 +9,7 @@ parent: Getting-Started
 
 | Type  | Version                         |
 |-------|---------------------------------|
-| Spark | 3.2.2, 3.3.1, 3.4.2, 3.5.1(wip) |
+| Spark | 3.2.2, 3.3.1, 3.4.2, 3.5.1      |
 | OS    | Ubuntu20.04/22.04, Centos7/8    |
 | jdk   | openjdk8/jdk17                  |
 | scala | 2.12                            |
@@ -19,7 +19,7 @@ parent: Getting-Started
 Currently, Gluten+Velox backend is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**.
 Other kinds of OS support are still in progress. The long term goal is to support several common OS and conda env deployment.
 
-Gluten only fully tested in CI with 3.2.2, 3.3.1 and 3.4.2. We will add/update supported/tested versions according to the upstream changes.
+Gluten only fully tested in CI with 3.2.2, 3.3.1, 3.4.2 and 3.5.1. We will add/update supported/tested versions according to the upstream changes.
 
 We need to set up the `JAVA_HOME` env. Currently, Gluten supports **java 8** and **java 17**.
 
@@ -222,13 +222,13 @@ Currently there are several ways to asscess S3 in Spark. Please refer [Velox S3]
 
 ## Celeborn support
 
-Gluten with velox backend supports [Celeborn](https://github.com/apache/celeborn) as remote shuffle service. Currently, the supported Celeborn versions are `0.3.x` and `0.4.0`.
+Gluten with velox backend supports [Celeborn](https://github.com/apache/celeborn) as remote shuffle service. Currently, the supported Celeborn versions are `0.3.x`, `0.4.x` and `0.5.0`.
 
-Below introduction is used to enable this feature
+Below introduction is used to enable this feature.
 
 First refer to this URL(https://github.com/apache/celeborn) to setup a celeborn cluster.
 
-When compiling the Gluten Java module, it's required to enable `rss` profile, as follows:
+When compiling the Gluten Java module, it's required to enable `celeborn` profile, as follows:
 
 ```
 mvn clean package -Pbackends-velox -Pspark-3.3 -Pceleborn -DskipTests
@@ -303,8 +303,7 @@ First of all, compile gluten-iceberg module by a `iceberg` profile, as follows:
 mvn clean package -Pbackends-velox -Pspark-3.3 -Piceberg -DskipTests
 ```
 
-Then, put the additional `gluten-iceberg-XX-SNAPSHOT.jar` to the class path (usually it's `$SPARK_HOME/jars`).
-The gluten-iceberg jar is in `gluten-iceberg/target` directory.
+Once built successfully, iceberg features will be included in gluten-velox-bundle-X jar. Then you can query iceberg table by gluten/velox without scan's fallback.
 
 After the two steps, you can query iceberg table by gluten/velox without scan's fallback.
 

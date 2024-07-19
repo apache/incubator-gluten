@@ -21,6 +21,18 @@
 
   <name>Gluten Parent Pom</name>
   <url>https://github.com/apache/incubator-gluten.git</url>
+  <description>Apache Gluten(incubating)</description>
+
+  <organization>
+        <name>Apache</name>
+        <url>http://gluten.apache.org</url>
+  </organization>
+
+  <scm>
+    <connection>scm:git:git://github.com/apache/incubator-gluten.git</connection>
+    <developerConnection>scm:git:ssh://github.com:apache/incubator-gluten.git</developerConnection>
+    <url>http://github.com/apache/incubator-gluten/tree/main</url>
+  </scm>
 
   <licenses>
     <license>
@@ -41,7 +53,7 @@
     <java.version>1.8</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
-    <caffeine.version.java8>2.9.3</caffeine.version.java8>
+    <caffeine.version>2.9.3</caffeine.version>
     <scala.binary.version>2.12</scala.binary.version>
     <scala.version>2.12.15</scala.version>
     <spark.major.version>3</spark.major.version>
@@ -53,12 +65,14 @@
     <delta.package.name>delta-core</delta.package.name>
     <delta.version>2.4.0</delta.version>
     <delta.binary.version>24</delta.binary.version>
-    <celeborn.version>0.3.2-incubating</celeborn.version>
+    <celeborn.version>0.4.1</celeborn.version>
     <uniffle.version>0.8.0</uniffle.version>
     <arrow.version>15.0.0</arrow.version>
     <arrow-gluten.version>15.0.0-gluten</arrow-gluten.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>2.7.4</hadoop.version>
+    <slf4j.version>2.0.7</slf4j.version>
+    <log4j.version>2.20.0</log4j.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.prefix>spark-sql-columnar</project.prefix>
@@ -114,6 +128,100 @@
 
   <profiles>
     <profile>
+      <id>scala-2.12</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <!--
+         SPARK-34774 Add this property to ensure change-scala-version.sh can replace the public `scala.version`
+         property correctly.
+        -->
+        <scala.version>2.12.15</scala.version>
+        <scala.binary.version>2.12</scala.binary.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>scala-2.13</id>
+      <properties>
+        <scala.version>2.13.8</scala.version>
+        <scala.binary.version>2.13</scala.binary.version>
+      </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>net.alchim31.maven</groupId>
+              <artifactId>scala-maven-plugin</artifactId>
+              <configuration>
+                <!-- TODO: Fix the plugin scalawarts to support scala 2.13 in IDEA
+                <compilerPlugins>
+                  <compilerPlugin>
+                    <groupId>org.wartremover</groupId>
+                    <artifactId>wartremover_${scala.binary.version}</artifactId>
+                    <version>3.1.6</version>
+                  </compilerPlugin>
+                </compilerPlugins>
+                <dependencies>
+                  <dependency>
+                    <groupId>io.github.zhztheplayer.scalawarts</groupId>
+                    <artifactId>scalawarts_${scala.binary.version}</artifactId>
+                    <version>0.1.2</version>
+                  </dependency>
+                </dependencies> -->
+                <args>
+                  <arg>-unchecked</arg>
+                  <arg>-deprecation</arg>
+                  <arg>-feature</arg>
+                  <arg>-explaintypes</arg>
+                  <arg>-target:jvm-1.8</arg>
+                  <arg>-Wconf:cat=deprecation:wv,any:e</arg>
+                  <arg>-Wunused:imports</arg>
+                  <!--
+                    TODO(SPARK-33805): Undo the corresponding deprecated usage suppression rule after fixed
+                  -->
+                  <arg>-Wconf:cat=scaladoc:wv</arg>
+                  <arg>-Wconf:cat=lint-multiarg-infix:wv</arg>
+                  <arg>-Wconf:cat=other-nullary-override:wv</arg>
+                  <!--
+                    SPARK-33775 Suppress compilation warnings that contain the following contents.
+                    TODO(SPARK-33805): Undo the corresponding deprecated usage suppression rule after fixed.
+                  -->
+                  <arg>-Wconf:msg=^(?=.*?method|value|type|object|trait|inheritance)(?=.*?deprecated)(?=.*?since 2.13).+$:s</arg>
+                  <arg>-Wconf:msg=^(?=.*?Widening conversion from)(?=.*?is deprecated because it loses precision).+$:s</arg>
+                  <arg>-Wconf:msg=Auto-application to \`\(\)\` is deprecated:s</arg>
+                  <arg>-Wconf:msg=method with a single empty parameter list overrides method without any parameter list:s</arg>
+                  <arg>-Wconf:msg=method without a parameter list overrides a method with a single empty one:s</arg>
+                  <!--
+                    SPARK-35574 Prevent the recurrence of compilation warnings related to
+                    `procedure syntax is deprecated`
+                  -->
+                  <arg>-Wconf:cat=deprecation&amp;msg=procedure syntax is deprecated:e</arg>
+                  <!--
+                    SPARK-35496 Upgrade Scala to 2.13.7 and suppress:
+                    1. `The outer reference in this type test cannot be checked at run time`
+                    2. `the type test for pattern TypeA cannot be checked at runtime because it
+                     has type parameters eliminated by erasure`
+                    3. `abstract type TypeA in type pattern Seq[TypeA] (the underlying of
+                    Seq[TypeA]) is unchecked since it is eliminated by erasure`
+                    4. `fruitless type test: a value of TypeA cannot also be a TypeB`
+                  -->
+                  <arg>-Wconf:cat=unchecked&amp;msg=outer reference:s</arg>
+                  <arg>-Wconf:cat=unchecked&amp;msg=eliminated by erasure:s</arg>
+                  <arg>-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s</arg>
+                  <!--
+                  <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+                  -->
+                </args>
+                <compilerPlugins combine.self="override">
+                </compilerPlugins>
+              </configuration>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+    <profile>
       <id>java-8</id>
       <activation>
         <jdk>1.8</jdk>
@@ -123,12 +231,23 @@
       </properties>
     </profile>
     <profile>
+      <id>java-11</id>
+      <activation>
+        <jdk>11</jdk>
+      </activation>
+      <properties>
+        <java.version>11</java.version>
+        <caffeine.version>3.1.8</caffeine.version>
+      </properties>
+    </profile>
+    <profile>
       <id>java-17</id>
       <activation>
         <jdk>17</jdk>
       </activation>
       <properties>
         <java.version>17</java.version>
+        <caffeine.version>3.1.8</caffeine.version>
       </properties>
     </profile>
     <profile>
@@ -185,6 +304,20 @@
         <fasterxml.version>2.15.1</fasterxml.version>
         <hadoop.version>3.3.4</hadoop.version>
       </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+          <version>${slf4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>log4j-slf4j2-impl</artifactId>
+          <version>${log4j.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>hadoop-2.7.4</id>
@@ -294,6 +427,55 @@
         <module>gluten-ut</module>
       </modules>
     </profile>
+    <profile>
+      <!-- this profile for apache release. -->
+      <id>apache-release</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-release-plugin</artifactId>
+            <configuration>
+              <dryRun>false</dryRun>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <configuration>
+              <skip>false</skip>
+              <interactive>true</interactive>
+            </configuration>
+          </plugin>
+          <plugin>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>source-release-assembly</id>
+                <phase>none</phase>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+                <configuration>
+                  <tarLongFileMode>gnu</tarLongFileMode>
+                  <runOnlyAtExecutionRoot>true</runOnlyAtExecutionRoot>
+                  <appendAssemblyId>true</appendAssemblyId>
+                  <descriptors>
+                    <descriptor>
+                    src/assembly/source-assembly.xml
+                    </descriptor>
+                  </descriptors>
+                  <finalName>apache-gluten-${project.version}</finalName>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+	</plugins>
+      </build>
+    </profile>
   </profiles>
 
   <dependencyManagement>
@@ -301,7 +483,7 @@
       <dependency>
         <groupId>com.github.ben-manes.caffeine</groupId>
         <artifactId>caffeine</artifactId>
-        <version>${caffeine.version.java8}</version>
+        <version>${caffeine.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
@@ -510,7 +692,7 @@
       <dependency>
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest_${scala.binary.version}</artifactId>
-        <version>3.2.3</version>
+        <version>3.2.16</version>
         <scope>test</scope>
       </dependency>
       <!-- Fasterxml -->
@@ -574,7 +756,7 @@
               </goals>
               <configuration>
                 <classifier>${scala.binary.version}</classifier>
-                <classifier>${sparkbundle.version}</classifier>
+		<classifier>${sparkbundle.version}</classifier>
               </configuration>
             </execution>
           </executions>
@@ -624,8 +806,8 @@
             <dependencies>
               <dependency>
                 <groupId>io.github.zhztheplayer.scalawarts</groupId>
-                <artifactId>scalawarts</artifactId>
-                <version>0.1.1</version>
+                <artifactId>scalawarts_${scala.binary.version}</artifactId>
+                <version>0.1.2</version>
               </dependency>
             </dependencies>
             <recompileMode>${scala.recompile.mode}</recompileMode>

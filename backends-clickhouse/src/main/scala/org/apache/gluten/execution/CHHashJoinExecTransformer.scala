@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.clickhouse.CHIteratorApi
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.utils.{BroadcastHashJoinStrategy, CHJoinValidateUtil, ShuffleHashJoinStrategy}
 
@@ -61,7 +60,7 @@ case class CHShuffledHashJoinExecTransformer(
         right.outputSet,
         condition)
     if (shouldFallback) {
-      return ValidationResult.notOk("ch join validate fail")
+      return ValidationResult.failed("ch join validate fail")
     }
     super.doValidateInternal()
   }
@@ -75,7 +74,7 @@ case class CHBroadcastBuildSideRDD(
 
   override def genBroadcastBuildSideIterator(): Iterator[ColumnarBatch] = {
     CHBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadcastContext)
-    CHIteratorApi.genCloseableColumnBatchIterator(Iterator.empty)
+    Iterator.empty
   }
 }
 
@@ -119,10 +118,10 @@ case class CHBroadcastHashJoinExecTransformer(
         condition)
 
     if (shouldFallback) {
-      return ValidationResult.notOk("ch join validate fail")
+      return ValidationResult.failed("ch join validate fail")
     }
     if (isNullAwareAntiJoin) {
-      return ValidationResult.notOk("ch does not support NAAJ")
+      return ValidationResult.failed("ch does not support NAAJ")
     }
     super.doValidateInternal()
   }

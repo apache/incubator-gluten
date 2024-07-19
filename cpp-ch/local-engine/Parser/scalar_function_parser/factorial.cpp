@@ -46,7 +46,7 @@ public:
         ActionsDAGPtr & actions_dag) const override
     {
         /// parse factorial(x) as if (x > 20 || x < 0) null else factorial(x)
-        auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 1)
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly one arguments", getName());
 

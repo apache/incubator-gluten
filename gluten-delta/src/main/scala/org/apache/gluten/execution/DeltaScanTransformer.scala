@@ -57,7 +57,7 @@ case class DeltaScanTransformer(
         _.name == "__delta_internal_is_row_deleted") || requiredSchema.fields.exists(
         _.name == "__delta_internal_row_index")
     ) {
-      return ValidationResult.notOk(s"Deletion vector is not supported in native.")
+      return ValidationResult.failed(s"Deletion vector is not supported in native.")
     }
 
     super.doValidateInternal()
@@ -82,14 +82,12 @@ case class DeltaScanTransformer(
 
 object DeltaScanTransformer {
 
-  def apply(
-      scanExec: FileSourceScanExec,
-      newPartitionFilters: Seq[Expression]): DeltaScanTransformer = {
+  def apply(scanExec: FileSourceScanExec): DeltaScanTransformer = {
     new DeltaScanTransformer(
       scanExec.relation,
       scanExec.output,
       scanExec.requiredSchema,
-      newPartitionFilters,
+      scanExec.partitionFilters,
       scanExec.optionalBucketSet,
       scanExec.optionalNumCoalescedBuckets,
       scanExec.dataFilters,

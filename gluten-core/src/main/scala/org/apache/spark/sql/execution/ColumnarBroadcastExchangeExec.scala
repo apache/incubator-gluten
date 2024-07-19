@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
+import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -27,7 +27,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, IdentityBroadcastMode, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.internal.SQLConf
@@ -131,26 +131,6 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     val canonicalized =
       BackendsApiManager.getSparkPlanExecApiInstance.doCanonicalizeForBroadcastMode(mode)
     ColumnarBroadcastExchangeExec(canonicalized, child.canonicalized)
-  }
-
-  override protected def doValidateInternal(): ValidationResult = {
-    // CH backend does not support IdentityBroadcastMode used in BNLJ
-    if (
-      mode == IdentityBroadcastMode && !BackendsApiManager.getSettings
-        .supportBroadcastNestedLoopJoinExec()
-    ) {
-      return ValidationResult.notOk("This backend does not support IdentityBroadcastMode and BNLJ")
-    }
-    BackendsApiManager.getValidatorApiInstance
-      .doSchemaValidate(schema)
-      .map {
-        reason =>
-          {
-            ValidationResult.notOk(
-              s"Unsupported schema in broadcast exchange: $schema, reason: $reason")
-          }
-      }
-      .getOrElse(ValidationResult.ok)
   }
 
   override def doPrepare(): Unit = {

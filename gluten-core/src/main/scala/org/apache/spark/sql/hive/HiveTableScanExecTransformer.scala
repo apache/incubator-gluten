@@ -45,7 +45,7 @@ import java.net.URI
 case class HiveTableScanExecTransformer(
     requestedAttributes: Seq[Attribute],
     relation: HiveTableRelation,
-    partitionPruningPred: Seq[Expression])(session: SparkSession)
+    partitionPruningPred: Seq[Expression])(@transient session: SparkSession)
   extends AbstractHiveTableScanExec(requestedAttributes, relation, partitionPruningPred)(session)
   with BasicScanExecTransformer {
 
@@ -188,10 +188,6 @@ object HiveTableScanExecTransformer {
     plan.isInstanceOf[HiveTableScanExec]
   }
 
-  def getPartitionFilters(plan: SparkPlan): Seq[Expression] = {
-    plan.asInstanceOf[HiveTableScanExec].partitionPruningPred
-  }
-
   def copyWith(plan: SparkPlan, newPartitionFilters: Seq[Expression]): SparkPlan = {
     val hiveTableScanExec = plan.asInstanceOf[HiveTableScanExec]
     hiveTableScanExec.copy(partitionPruningPred = newPartitionFilters)(sparkSession =
@@ -206,7 +202,7 @@ object HiveTableScanExecTransformer {
           hiveTableScan.relation,
           hiveTableScan.partitionPruningPred)(hiveTableScan.session)
         hiveTableScanTransformer.doValidate()
-      case _ => ValidationResult.notOk("Is not a Hive scan")
+      case _ => ValidationResult.failed("Is not a Hive scan")
     }
   }
 

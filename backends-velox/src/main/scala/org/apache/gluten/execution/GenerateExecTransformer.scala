@@ -55,7 +55,7 @@ case class GenerateExecTransformer(
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "numOutputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
       "numOutputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of generate"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of generate"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
@@ -72,11 +72,11 @@ case class GenerateExecTransformer(
       generator: Generator,
       outer: Boolean): ValidationResult = {
     if (!supportsGenerate(generator, outer)) {
-      ValidationResult.notOk(
+      ValidationResult.failed(
         s"Velox backend does not support this generator: ${generator.getClass.getSimpleName}" +
           s", outer: $outer")
     } else {
-      ValidationResult.ok
+      ValidationResult.succeeded
     }
   }
 

@@ -34,6 +34,7 @@
 #include <DataTypes/DataTypesNumber.h>
 #include <Parser/AggregateFunctionParser.h>
 #include <Parser/FunctionParser.h>
+#include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/TypeParser.h>
 #include <Poco/StringTokenizer.h>
@@ -59,7 +60,8 @@ std::unordered_map<String, String> TypeParser::type_names_mapping
        {"FloatType", "Float32"},
        {"DoubleType", "Float64"},
        {"StringType", "String"},
-       {"DateType", "Date32"}};
+       {"DateType", "Date32"},
+       {"TimestampType", "DateTime64"}};
 
 String TypeParser::getCHTypeName(const String & spark_type_name)
 {
@@ -283,10 +285,8 @@ DB::Block TypeParser::buildBlockFromNamedStruct(
             /// This may remove elements from args_types, because some of them are used to determine CH function name, but not needed for the following
             /// call `AggregateFunctionFactory::instance().get`
             auto agg_function_name = function_parser->getCHFunctionName(args_types);
-            auto action = NullsAction::EMPTY;
-            ch_type = AggregateFunctionFactory::instance()
-                      .get(agg_function_name, action, args_types, function_parser->getDefaultFunctionParameters(), properties)
-                      ->getStateType();
+            ch_type = RelParser::getAggregateFunction(agg_function_name, args_types, properties, function_parser->getDefaultFunctionParameters())
+                                 ->getStateType();
         }
 
         internal_cols.push_back(ColumnWithTypeAndName(ch_type, name));

@@ -67,9 +67,9 @@ class GlutenClickHouseDecimalSuite
   private val decimalTPCHTables: Seq[(DecimalType, Seq[Int])] = Seq.apply(
     (DecimalType.apply(9, 4), Seq()),
     // 1: ch decimal avg is float
-    (DecimalType.apply(18, 8), Seq(1)),
+    (DecimalType.apply(18, 8), Seq()),
     // 1: ch decimal avg is float, 3/10: all value is null and compare with limit
-    (DecimalType.apply(38, 19), Seq(1, 3, 10))
+    (DecimalType.apply(38, 19), Seq(3, 10))
   )
 
   private def createDecimalTables(dataType: DecimalType): Unit = {
@@ -332,7 +332,7 @@ class GlutenClickHouseDecimalSuite
       spark.sql("drop table if exists decimals_test")
     }
   }
-
+  // FIXME: Support AVG for Decimal Type
   Seq("true", "false").foreach {
     allowPrecisionLoss =>
       Range
@@ -440,6 +440,11 @@ class GlutenClickHouseDecimalSuite
       sql,
       _ => {}
     )
+  }
+
+  test("Fix issue(6015) allow overflow when converting decimal to integer") {
+    val sql = "select int(cast(id * 9999999999 as decimal(29, 2))) from range(10)"
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   def testFromRandomBase(

@@ -23,25 +23,27 @@ include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
 
 # Only set arch=native for non-AppleClang compilers.
-if (NOT CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
+if(NOT CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 endif()
 
 set(BOOST_MIN_VERSION "1.42.0")
 find_package(Boost REQUIRED)
-INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
+include_directories(${Boost_INCLUDE_DIRS})
 set(source_root_directory ${CMAKE_CURRENT_SOURCE_DIR})
 
-if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
   cmake_policy(SET CMP0135 NEW)
 endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 
-set(SUBSTRAIT_PROTO_SRC_DIR ${GLUTEN_HOME}/gluten-core/src/main/resources/substrait/proto)
+set(SUBSTRAIT_PROTO_SRC_DIR
+    ${GLUTEN_HOME}/gluten-core/src/main/resources/substrait/proto)
 message(STATUS "Set Substrait Proto Directory in ${SUBSTRAIT_PROTO_SRC_DIR}")
 
-set(GLUTEN_PROTO_SRC_DIR ${GLUTEN_HOME}/gluten-core/src/main/resources/org/apache/gluten/proto)
+set(GLUTEN_PROTO_SRC_DIR
+    ${GLUTEN_HOME}/gluten-core/src/main/resources/org/apache/gluten/proto)
 message(STATUS "Set Gluten Proto Directory in ${GLUTEN_PROTO_SRC_DIR}")
 
 find_program(CCACHE_FOUND ccache)
@@ -58,31 +60,25 @@ macro(build_protobuf)
     set(PROTOBUF_SOURCE_URL "$ENV{GLUTEN_PROTOBUF_URL}")
   else()
     set(PROTOBUF_BUILD_VERSION "21.4")
-    set (PROTOBUF_SOURCE_URL
-            "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_BUILD_VERSION}/protobuf-all-${PROTOBUF_BUILD_VERSION}.tar.gz")
+    set(PROTOBUF_SOURCE_URL
+        "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_BUILD_VERSION}/protobuf-all-${PROTOBUF_BUILD_VERSION}.tar.gz"
+    )
   endif()
-  set(PROTOBUF_BUILD_SHA256_CHECKSUM "6c5e1b0788afba4569aeebb2cfe205cb154aa01deacaba0cd26442f3b761a836")
+  set(PROTOBUF_BUILD_SHA256_CHECKSUM
+      "6c5e1b0788afba4569aeebb2cfe205cb154aa01deacaba0cd26442f3b761a836")
 
   set(PROTOBUF_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/protobuf_ep-install")
   set(PROTOBUF_INCLUDE_DIR "${PROTOBUF_PREFIX}/include")
-  set(
-    PROTOBUF_STATIC_LIB
-    "${PROTOBUF_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}protobuf${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    )
-  set(
-    PROTOC_STATIC_LIB
-    "${PROTOBUF_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}protoc${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    )
-  set(
-    PROTOC_BIN
-    "${PROTOBUF_PREFIX}/bin/protoc"
-    )
-  set(
-    PROTOBUF_INCLUDE
-    "${PROTOBUF_PREFIX}/include"
-    CACHE PATH
-    "Protobuf include path"
-    )
+  set(PROTOBUF_STATIC_LIB
+      "${PROTOBUF_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}protobuf${CMAKE_STATIC_LIBRARY_SUFFIX}"
+  )
+  set(PROTOC_STATIC_LIB
+      "${PROTOBUF_PREFIX}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}protoc${CMAKE_STATIC_LIBRARY_SUFFIX}"
+  )
+  set(PROTOC_BIN "${PROTOBUF_PREFIX}/bin/protoc")
+  set(PROTOBUF_INCLUDE
+      "${PROTOBUF_PREFIX}/include"
+      CACHE PATH "Protobuf include path")
   set(PROTOBUF_COMPILER "${PROTOBUF_PREFIX}/bin/protoc")
   set(PROTOBUF_CONFIGURE_ARGS
       "AR=${CMAKE_AR}"
@@ -94,22 +90,23 @@ macro(build_protobuf)
       "CFLAGS=-fPIC"
       "CXXFLAGS=-fPIC")
   set(PROTOBUF_BUILD_COMMAND ${MAKE} ${MAKE_BUILD_ARGS})
-  ExternalProject_Add(protobuf_ep
-                      PREFIX protobuf_ep
-                      CONFIGURE_COMMAND ./autogen.sh COMMAND "./configure" ${PROTOBUF_CONFIGURE_ARGS}
-                      BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}" "${PROTOBUF_COMPILER}"
-                      BUILD_COMMAND ${PROTOBUF_BUILD_COMMAND}
-                      BUILD_IN_SOURCE 1
-                      URL ${PROTOBUF_SOURCE_URL}
-                      URL_HASH "SHA256=${PROTOBUF_BUILD_SHA256_CHECKSUM}"
-  )
+  ExternalProject_Add(
+    protobuf_ep
+    PREFIX protobuf_ep
+    CONFIGURE_COMMAND ./autogen.sh
+    COMMAND "./configure" ${PROTOBUF_CONFIGURE_ARGS}
+    BUILD_BYPRODUCTS "${PROTOBUF_STATIC_LIB}" "${PROTOBUF_COMPILER}"
+    BUILD_COMMAND ${PROTOBUF_BUILD_COMMAND}
+    BUILD_IN_SOURCE 1
+    URL ${PROTOBUF_SOURCE_URL}
+    URL_HASH "SHA256=${PROTOBUF_BUILD_SHA256_CHECKSUM}")
 
   file(MAKE_DIRECTORY "${PROTOBUF_INCLUDE_DIR}")
   add_library(protobuf::libprotobuf STATIC IMPORTED)
   set_target_properties(
     protobuf::libprotobuf
-    PROPERTIES IMPORTED_LOCATION "${PROTOBUF_STATIC_LIB}" INTERFACE_INCLUDE_DIRECTORIES
-               "${PROTOBUF_INCLUDE_DIR}")
+    PROPERTIES IMPORTED_LOCATION "${PROTOBUF_STATIC_LIB}"
+               INTERFACE_INCLUDE_DIRECTORIES "${PROTOBUF_INCLUDE_DIR}")
   add_dependencies(protobuf::libprotobuf protobuf_ep)
 endmacro()
 
@@ -117,17 +114,19 @@ macro(find_protobuf)
   # Find the existing Protobuf
   set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(Protobuf)
-  if ("${Protobuf_LIBRARY}" STREQUAL "Protobuf_LIBRARY-NOTFOUND")
+  if("${Protobuf_LIBRARY}" STREQUAL "Protobuf_LIBRARY-NOTFOUND")
     message(FATAL_ERROR "Protobuf Library Not Found")
   endif()
   set(PROTOC_BIN ${Protobuf_PROTOC_EXECUTABLE})
-  set(PROTOBUF_INCLUDE "${Protobuf_INCLUDE_DIRS}" CACHE PATH "Protobuf include path")
+  set(PROTOBUF_INCLUDE
+      "${Protobuf_INCLUDE_DIRS}"
+      CACHE PATH "Protobuf include path")
 endmacro()
 
 if(USE_AVX512)
   # Only enable additional instruction sets if they are supported
   message(STATUS "System processor: ${CMAKE_SYSTEM_PROCESSOR}")
-  if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
     set(AVX512_FLAG "-march=skylake-avx512")
     check_cxx_compiler_flag(${AVX512_FLAG} CXX_SUPPORTS_AVX512)
     if(NOT CXX_SUPPORTS_AVX512)
@@ -135,7 +134,7 @@ if(USE_AVX512)
     endif()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${AVX512_FLAG}")
     add_definitions(-DCOLUMNAR_PLUGIN_USE_AVX512)
-  endif ()
+  endif()
 endif()
 
 # Set up Proto
@@ -144,83 +143,91 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/proto)
 
 # List Substrait Proto compiled files
 file(GLOB SUBSTRAIT_PROTO_FILES ${SUBSTRAIT_PROTO_SRC_DIR}/substrait/*.proto
-        ${SUBSTRAIT_PROTO_SRC_DIR}/substrait/extensions/*.proto)
-FOREACH(PROTO ${SUBSTRAIT_PROTO_FILES})
+     ${SUBSTRAIT_PROTO_SRC_DIR}/substrait/extensions/*.proto)
+foreach(PROTO ${SUBSTRAIT_PROTO_FILES})
   file(RELATIVE_PATH REL_PROTO ${SUBSTRAIT_PROTO_SRC_DIR} ${PROTO})
   string(REGEX REPLACE "\\.proto" "" PROTO_NAME ${REL_PROTO})
-  LIST(APPEND SUBSTRAIT_PROTO_SRCS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.cc")
-  LIST(APPEND SUBSTRAIT_PROTO_HDRS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.h")
-ENDFOREACH()
-set(SUBSTRAIT_PROTO_OUTPUT_FILES ${SUBSTRAIT_PROTO_HDRS} ${SUBSTRAIT_PROTO_SRCS})
-set_source_files_properties(${SUBSTRAIT_PROTO_OUTPUT_FILES} PROPERTIES GENERATED TRUE)
-get_filename_component(SUBSTRAIT_PROTO_DIR ${SUBSTRAIT_PROTO_SRC_DIR}/ DIRECTORY)
+  list(APPEND SUBSTRAIT_PROTO_SRCS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.cc")
+  list(APPEND SUBSTRAIT_PROTO_HDRS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.h")
+endforeach()
+set(SUBSTRAIT_PROTO_OUTPUT_FILES ${SUBSTRAIT_PROTO_HDRS}
+                                 ${SUBSTRAIT_PROTO_SRCS})
+set_source_files_properties(${SUBSTRAIT_PROTO_OUTPUT_FILES} PROPERTIES GENERATED
+                                                                       TRUE)
+get_filename_component(SUBSTRAIT_PROTO_DIR ${SUBSTRAIT_PROTO_SRC_DIR}/
+                       DIRECTORY)
 
 # List Gluten Proto compiled files
 file(GLOB GLUTEN_PROTO_FILES ${GLUTEN_PROTO_SRC_DIR}/*.proto)
-FOREACH(PROTO ${GLUTEN_PROTO_FILES})
+foreach(PROTO ${GLUTEN_PROTO_FILES})
   file(RELATIVE_PATH REL_PROTO ${GLUTEN_PROTO_SRC_DIR} ${PROTO})
   string(REGEX REPLACE "\\.proto" "" PROTO_NAME ${REL_PROTO})
-  LIST(APPEND GLUTEN_PROTO_SRCS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.cc")
-  LIST(APPEND GLUTEN_PROTO_HDRS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.h")
-ENDFOREACH()
+  list(APPEND GLUTEN_PROTO_SRCS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.cc")
+  list(APPEND GLUTEN_PROTO_HDRS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.h")
+endforeach()
 set(GLUTEN_PROTO_OUTPUT_FILES ${GLUTEN_PROTO_HDRS} ${GLUTEN_PROTO_SRCS})
-set_source_files_properties(${GLUTEN_PROTO_OUTPUT_FILES} PROPERTIES GENERATED TRUE)
+set_source_files_properties(${GLUTEN_PROTO_OUTPUT_FILES} PROPERTIES GENERATED
+                                                                    TRUE)
 get_filename_component(GLUTEN_PROTO_DIR ${GLUTEN_PROTO_SRC_DIR}/ DIRECTORY)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
+set(CMAKE_CXX_FLAGS
+    "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
 
 message("Core module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
 set(SPARK_COLUMNAR_PLUGIN_SRCS
-        ${SUBSTRAIT_PROTO_SRCS}
-        ${GLUTEN_PROTO_SRCS}
-        compute/Runtime.cc
-        compute/ProtobufUtils.cc
-        compute/ResultIterator.cc
-        config/GlutenConfig.cc
-        jni/JniWrapper.cc
-        memory/AllocationListener.cc
-        memory/MemoryAllocator.cc
-        memory/ArrowMemoryPool.cc
-        memory/ColumnarBatch.cc
-        operators/writer/ArrowWriter.cc
-        shuffle/FallbackRangePartitioner.cc
-        shuffle/HashPartitioner.cc
-        shuffle/LocalPartitionWriter.cc
-        shuffle/Options.cc
-        shuffle/Partitioner.cc
-        shuffle/Partitioning.cc
-        shuffle/Payload.cc
-        shuffle/rss/RssPartitionWriter.cc
-        shuffle/RoundRobinPartitioner.cc
-        shuffle/ShuffleMemoryPool.cc
-        shuffle/ShuffleReader.cc
-        shuffle/SinglePartitioner.cc
-        shuffle/Spill.cc
-        shuffle/Utils.cc
-        utils/Compression.cc
-        utils/StringUtil.cc
-        utils/ObjectStore.cc
-        jni/JniError.cc
-        jni/JniCommon.cc)
+    ${SUBSTRAIT_PROTO_SRCS}
+    ${GLUTEN_PROTO_SRCS}
+    compute/Runtime.cc
+    compute/ProtobufUtils.cc
+    compute/ResultIterator.cc
+    config/GlutenConfig.cc
+    jni/JniWrapper.cc
+    memory/AllocationListener.cc
+    memory/MemoryAllocator.cc
+    memory/ArrowMemoryPool.cc
+    memory/ColumnarBatch.cc
+    operators/writer/ArrowWriter.cc
+    shuffle/FallbackRangePartitioner.cc
+    shuffle/HashPartitioner.cc
+    shuffle/LocalPartitionWriter.cc
+    shuffle/Options.cc
+    shuffle/Partitioner.cc
+    shuffle/Partitioning.cc
+    shuffle/Payload.cc
+    shuffle/rss/RssPartitionWriter.cc
+    shuffle/RandomPartitioner.cc
+    shuffle/RoundRobinPartitioner.cc
+    shuffle/ShuffleMemoryPool.cc
+    shuffle/ShuffleReader.cc
+    shuffle/SinglePartitioner.cc
+    shuffle/Spill.cc
+    shuffle/Utils.cc
+    utils/Compression.cc
+    utils/StringUtil.cc
+    utils/ObjectStore.cc
+    jni/JniError.cc
+    jni/JniCommon.cc)
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
 add_dependencies(gluten jni_proto)
 
 if(ENABLE_GLUTEN_VCPKG)
-  # Hide symbols of some static dependencies. Otherwise, if such dependencies are already
-  # statically linked to libvelox.so, a runtime error will be reported: xxx is being linked
-  # both statically and dynamically.
-  target_link_options(gluten PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
+  # Hide symbols of some static dependencies. Otherwise, if such dependencies
+  # are already statically linked to libvelox.so, a runtime error will be
+  # reported: xxx is being linked both statically and dynamically.
+  target_link_options(
+    gluten PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 endif()
 
 if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
-  execute_process(COMMAND ${CMAKE_C_COMPILER} -print-file-name=libstdc++fs.a
+  execute_process(
+    COMMAND ${CMAKE_C_COMPILER} -print-file-name=libstdc++fs.a
     RESULT_VARIABLE LIBSTDCXXFS_STATIC_RESULT
     OUTPUT_VARIABLE LIBSTDCXXFS_STATIC_PATH
     OUTPUT_STRIP_TRAILING_WHITESPACE)
-  if (LIBSTDCXXFS_STATIC_RESULT EQUAL 0 AND EXISTS "${LIBSTDCXXFS_STATIC_PATH}")
+  if(LIBSTDCXXFS_STATIC_RESULT EQUAL 0 AND EXISTS "${LIBSTDCXXFS_STATIC_PATH}")
     message(STATUS "libstdc++fs.a found at: ${LIBSTDCXXFS_STATIC_PATH}")
     target_link_libraries(gluten PRIVATE ${LIBSTDCXXFS_STATIC_PATH})
   else()
@@ -231,6 +238,7 @@ endif()
 
 find_arrow_lib(${ARROW_LIB_NAME})
 find_arrow_lib(${PARQUET_LIB_NAME})
+find_arrow_lib(${ARROW_BUNDLED_DEPS})
 
 if(ENABLE_HBM)
   include(BuildMemkind)
@@ -243,67 +251,55 @@ if(ENABLE_QAT)
   include(BuildQATzip)
   include(BuildQATZstd)
   target_sources(gluten PRIVATE utils/qat/QatCodec.cc)
-  target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR} ${QATZSTD_INCLUDE_DIR})
+  target_include_directories(gluten PUBLIC ${QATZIP_INCLUDE_DIR}
+                                           ${QATZSTD_INCLUDE_DIR})
   target_link_libraries(gluten PUBLIC qatzip::qatzip qatzstd::qatzstd)
 endif()
 
 if(ENABLE_IAA)
   include(BuildQpl)
   target_include_directories(gluten PUBLIC ${QPL_INCLUDE_DIR})
-  target_sources(gluten PRIVATE utils/qpl/qpl_job_pool.cc utils/qpl/qpl_codec.cc)
+  target_sources(gluten PRIVATE utils/qpl/qpl_job_pool.cc
+                                utils/qpl/qpl_codec.cc)
   target_link_libraries(gluten PUBLIC qpl::qpl)
 endif()
 
 if(BUILD_PROTOBUF)
   build_protobuf()
   message(STATUS "Building ProtoBuf from Source: ${BUILD_PROTOBUF}")
-  target_link_libraries(gluten
-                        LINK_PRIVATE protobuf::libprotobuf)
+  target_link_libraries(gluten LINK_PRIVATE protobuf::libprotobuf)
 else()
   find_protobuf()
   message(STATUS "Use existing ProtoBuf libraries: ${PROTOBUF_LIBRARY}")
-  target_link_libraries(gluten
-                        LINK_PUBLIC ${PROTOBUF_LIBRARY})
+  target_link_libraries(gluten LINK_PUBLIC ${PROTOBUF_LIBRARY})
 endif()
 
-add_custom_command(OUTPUT ${SUBSTRAIT_PROTO_OUTPUT_FILES}
-        COMMAND ${PROTOC_BIN}
-        --proto_path
-        ${SUBSTRAIT_PROTO_SRC_DIR}/
-        --cpp_out
-        ${PROTO_OUTPUT_DIR}
-        ${SUBSTRAIT_PROTO_FILES}
-        DEPENDS  ${SUBSTRAIT_PROTO_DIR}
-        COMMENT "Running Substrait PROTO compiler"
-        VERBATIM)
+add_custom_command(
+  OUTPUT ${SUBSTRAIT_PROTO_OUTPUT_FILES}
+  COMMAND ${PROTOC_BIN} --proto_path ${SUBSTRAIT_PROTO_SRC_DIR}/ --cpp_out
+          ${PROTO_OUTPUT_DIR} ${SUBSTRAIT_PROTO_FILES}
+  DEPENDS ${SUBSTRAIT_PROTO_DIR}
+  COMMENT "Running Substrait PROTO compiler"
+  VERBATIM)
 
-add_custom_command(OUTPUT ${GLUTEN_PROTO_OUTPUT_FILES}
-        COMMAND ${PROTOC_BIN}
-        --proto_path
-        ${GLUTEN_PROTO_SRC_DIR}/
-        --cpp_out
-        ${PROTO_OUTPUT_DIR}
-        ${GLUTEN_PROTO_FILES}
-        DEPENDS  ${GLUTEN_PROTO_DIR}
-        COMMENT "Running Gluten PROTO compiler"
-        VERBATIM)
+add_custom_command(
+  OUTPUT ${GLUTEN_PROTO_OUTPUT_FILES}
+  COMMAND ${PROTOC_BIN} --proto_path ${GLUTEN_PROTO_SRC_DIR}/ --cpp_out
+          ${PROTO_OUTPUT_DIR} ${GLUTEN_PROTO_FILES}
+  DEPENDS ${GLUTEN_PROTO_DIR}
+  COMMENT "Running Gluten PROTO compiler"
+  VERBATIM)
 
-add_custom_target(jni_proto ALL DEPENDS ${SUBSTRAIT_PROTO_OUTPUT_FILES} ${GLUTEN_PROTO_OUTPUT_FILES})
+add_custom_target(jni_proto ALL DEPENDS ${SUBSTRAIT_PROTO_OUTPUT_FILES}
+                                        ${GLUTEN_PROTO_OUTPUT_FILES})
 add_dependencies(jni_proto protobuf::libprotobuf)
 
-target_include_directories(gluten PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})
-set_target_properties(gluten PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases)
-
-include(Findjemalloc_pic)
-# Build Jemalloc
-if(BUILD_JEMALLOC)
-  build_jemalloc(${STATIC_JEMALLOC})
-  message(STATUS "Building Jemalloc: ${STATIC_JEMALLOC}")
-else() #
-  find_jemalloc()
-  message(STATUS "Use existing Jemalloc libraries")
-endif()
+target_include_directories(
+  gluten
+  PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS}
+         ${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})
+set_target_properties(gluten PROPERTIES LIBRARY_OUTPUT_DIRECTORY
+                                        ${root_directory}/releases)
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
@@ -313,23 +309,27 @@ if(BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
 endif()
 
-
 if(DEFINED ENV{HADOOP_HOME})
   set(LIBHDFS3_DESTINATION $ENV{HADOOP_HOME}/lib/native)
 else()
   set(LIBHDFS3_DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-target_link_libraries(gluten
-    PUBLIC Arrow::arrow Arrow::parquet)
+target_link_libraries(gluten PUBLIC Arrow::parquet Arrow::arrow
+                                    Arrow::arrow_bundled_dependencies)
 target_link_libraries(gluten PRIVATE google::glog)
 
-install(TARGETS gluten
-        DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS gluten DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources/libhdfs.so
         DESTINATION ${LIBHDFS3_DESTINATION})
 
-add_custom_command(TARGET gluten POST_BUILD COMMAND ld $<TARGET_FILE:gluten> || true
-        COMMENT "Checking ld result of libgluten.so")
-add_custom_command(TARGET gluten POST_BUILD COMMAND ldd $<TARGET_FILE:gluten> || true
-        COMMENT "Checking ldd result of libgluten.so")
+add_custom_command(
+  TARGET gluten
+  POST_BUILD
+  COMMAND ld $<TARGET_FILE:gluten> || true
+  COMMENT "Checking ld result of libgluten.so")
+add_custom_command(
+  TARGET gluten
+  POST_BUILD
+  COMMAND ldd $<TARGET_FILE:gluten> || true
+  COMMENT "Checking ldd result of libgluten.so")

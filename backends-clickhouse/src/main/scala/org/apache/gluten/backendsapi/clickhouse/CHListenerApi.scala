@@ -48,7 +48,11 @@ class CHListenerApi extends ListenerApi with Logging {
 
   override def onExecutorStart(pc: PluginContext): Unit = {
     GlutenExecutorEndpoint.executorEndpoint = new GlutenExecutorEndpoint(pc.executorID, pc.conf)
-    initialize(pc.conf, isDriver = false)
+    if (pc.conf().get("spark.master").startsWith("local")) {
+      logDebug("Skipping duplicate initializing clickhouse backend on spark local mode")
+    } else {
+      initialize(pc.conf, isDriver = false)
+    }
   }
 
   override def onExecutorShutdown(): Unit = shutdown()
@@ -80,11 +84,11 @@ class CHListenerApi extends ListenerApi with Logging {
       s".max_bytes_before_external_sort"
     if (conf.getLong(externalSortKey, -1) < 0) {
       if (conf.getBoolean("spark.memory.offHeap.enabled", false)) {
-        val memSize = JavaUtils.byteStringAsBytes(conf.get("spark.memory.offHeap.size")).toInt
-        if (memSize > 0) {
-          val cores = conf.getInt("spark.executor.cores", 1)
-          val sortMemLimit = ((memSize / cores) * 0.8).toInt
-          logInfo(s"max memory for sorting: $sortMemLimit")
+        val memSize = JavaUtils.byteStringAsBytes(conf.get("spark.memory.offHeap.size"))
+        if (memSize > 0L) {
+          val cores = conf.getInt("spark.executor.cores", 1).toLong
+          val sortMemLimit = ((memSize / cores) * 0.8).toLong
+          logDebug(s"max memory for sorting: $sortMemLimit")
           conf.set(externalSortKey, sortMemLimit.toString)
         }
       }

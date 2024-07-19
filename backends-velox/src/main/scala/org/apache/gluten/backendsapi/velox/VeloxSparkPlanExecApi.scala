@@ -24,7 +24,7 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension._
-import org.apache.gluten.extension.columnar.TransformHints
+import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.extension.columnar.transition.ConventionFunc.BatchOverride
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -109,8 +109,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       GenericExpressionTransformer(condFuncName, Seq(left), condExpr),
       right,
       left,
-      newExpr
-    )
+      newExpr)
   }
 
   /** Transform Uuid to Substrait. */
@@ -280,6 +279,26 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(endDate, startDate), original)
   }
 
+  override def genPreciseTimestampConversionTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: PreciseTimestampConversion): ExpressionTransformer = {
+    // Expression used internally to convert the TimestampType to Long and back without losing
+    // precision, i.e. in microseconds.
+    val (newSubstraitName, newExpr) = expr match {
+      case _ @PreciseTimestampConversion(_, TimestampType, LongType) =>
+        (ExpressionMappings.expressionsMap(classOf[UnixMicros]), UnixMicros(expr.child))
+      case _ @PreciseTimestampConversion(_, LongType, TimestampType) =>
+        (
+          ExpressionMappings.expressionsMap(classOf[MicrosToTimestamp]),
+          MicrosToTimestamp(expr.child))
+      case _ =>
+        // TimestampNTZType is not supported here.
+        throw new GlutenNotSupportException("PreciseTimestampConversion is not supported")
+    }
+    GenericExpressionTransformer(newSubstraitName, children, newExpr)
+  }
+
   /**
    * Generate FilterExecTransformer.
    *
@@ -320,9 +339,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       aggregateAttributes: Seq[Attribute]): HashAggregateExecPullOutBaseHelper =
     HashAggregateExecPullOutHelper(aggregateExpressions, aggregateAttributes)
 
-  override def genColumnarShuffleExchange(
-      shuffle: ShuffleExchangeExec,
-      newChild: SparkPlan): SparkPlan = {
+  override def genColumnarShuffleExchange(shuffle: ShuffleExchangeExec): SparkPlan = {
     def allowHashOnMap[T](f: => T): T = {
       val originalAllowHash = SQLConf.get.getConf(SQLConf.LEGACY_ALLOW_HASH_ON_MAPTYPE)
       try {
@@ -333,20 +350,28 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       }
     }
 
+    def maybeAddAppendBatchesExec(plan: SparkPlan): SparkPlan = {
+      if (GlutenConfig.getConf.veloxCoalesceBatchesBeforeShuffle) {
+        VeloxAppendBatchesExec(plan, GlutenConfig.getConf.veloxMinBatchSizeForShuffle)
+      } else {
+        plan
+      }
+    }
+
+    val child = shuffle.child
+
     shuffle.outputPartitioning match {
       case HashPartitioning(exprs, _) =>
         val hashExpr = new Murmur3Hash(exprs)
-        val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
-        val projectTransformer = ProjectExecTransformer(projectList, newChild)
+        val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ child.output
+        val projectTransformer = ProjectExecTransformer(projectList, child)
         val validationResult = projectTransformer.doValidate()
-        if (validationResult.isValid) {
-          ColumnarShuffleExchangeExec(
-            shuffle,
-            projectTransformer,
-            projectTransformer.output.drop(1))
+        if (validationResult.ok()) {
+          val newChild = maybeAddAppendBatchesExec(projectTransformer)
+          ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output.drop(1))
         } else {
-          TransformHints.tagNotTransformable(shuffle, validationResult)
-          shuffle.withNewChildren(newChild :: Nil)
+          FallbackTags.add(shuffle, validationResult)
+          shuffle.withNewChildren(child :: Nil)
         }
       case RoundRobinPartitioning(num) if SQLConf.get.sortBeforeRepartition && num > 1 =>
         // scalastyle:off line.size.limit
@@ -357,20 +382,21 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         allowHashOnMap {
           // Velox hash expression does not support null type and we also do not need to sort
           // null type since the value always be null.
-          val columnsForHash = newChild.output.filterNot(_.dataType == NullType)
+          val columnsForHash = child.output.filterNot(_.dataType == NullType)
           if (columnsForHash.isEmpty) {
+            val newChild = maybeAddAppendBatchesExec(child)
             ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output)
           } else {
             val hashExpr = new Murmur3Hash(columnsForHash)
-            val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ newChild.output
-            val projectTransformer = ProjectExecTransformer(projectList, newChild)
+            val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ child.output
+            val projectTransformer = ProjectExecTransformer(projectList, child)
             val projectBeforeSortValidationResult = projectTransformer.doValidate()
             // Make sure we support offload hash expression
-            val projectBeforeSort = if (projectBeforeSortValidationResult.isValid) {
+            val projectBeforeSort = if (projectBeforeSortValidationResult.ok()) {
               projectTransformer
             } else {
-              val project = ProjectExec(projectList, newChild)
-              TransformHints.tagNotTransformable(project, projectBeforeSortValidationResult)
+              val project = ProjectExec(projectList, child)
+              FallbackTags.add(project, projectBeforeSortValidationResult)
               project
             }
             val sortOrder = SortOrder(projectBeforeSort.output.head, Ascending)
@@ -379,18 +405,17 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
             val dropSortColumnTransformer =
               ProjectExecTransformer(projectList.drop(1), sortByHashCode)
             val validationResult = dropSortColumnTransformer.doValidate()
-            if (validationResult.isValid) {
-              ColumnarShuffleExchangeExec(
-                shuffle,
-                dropSortColumnTransformer,
-                dropSortColumnTransformer.output)
+            if (validationResult.ok()) {
+              val newChild = maybeAddAppendBatchesExec(dropSortColumnTransformer)
+              ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output)
             } else {
-              TransformHints.tagNotTransformable(shuffle, validationResult)
-              shuffle.withNewChildren(newChild :: Nil)
+              FallbackTags.add(shuffle, validationResult)
+              shuffle.withNewChildren(child :: Nil)
             }
           }
         }
       case _ =>
+        val newChild = maybeAddAppendBatchesExec(child)
         ColumnarShuffleExchangeExec(shuffle, newChild, null)
     }
   }
@@ -461,8 +486,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       left,
       right,
       isSkewJoin,
-      projectList
-    )
+      projectList)
   }
   override def genCartesianProductExecTransformer(
       left: SparkPlan,
@@ -471,8 +495,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     CartesianProductExecTransformer(
       ColumnarCartesianProductBridge(left),
       ColumnarCartesianProductBridge(right),
-      condition
-    )
+      condition)
   }
 
   override def genBroadcastNestedLoopJoinExecTransformer(
@@ -481,13 +504,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       buildSide: BuildSide,
       joinType: JoinType,
       condition: Option[Expression]): BroadcastNestedLoopJoinExecTransformer =
-    VeloxBroadcastNestedLoopJoinExecTransformer(
-      left,
-      right,
-      buildSide,
-      joinType,
-      condition
-    )
+    VeloxBroadcastNestedLoopJoinExecTransformer(left, right, buildSide, joinType, condition)
 
   override def genHashExpressionTransformer(
       substraitExprName: String,
@@ -768,20 +785,17 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = List(
-    CollectRewriteRule.apply,
-    HLLRewriteRule.apply
-  )
+  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] =
+    List(CollectRewriteRule.apply, HLLRewriteRule.apply)
 
   /**
    * Generate extended columnar pre-rules, in the validation phase.
    *
    * @return
    */
-  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = List(
-    BloomFilterMightContainJointRewriteRule.apply,
-    ArrowScanReplaceRule.apply
-  )
+  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = {
+    List(BloomFilterMightContainJointRewriteRule.apply, ArrowScanReplaceRule.apply)
+  }
 
   /**
    * Generate extended columnar pre-rules.
@@ -794,15 +808,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       buf += FlushableHashAggregateRule.apply
     }
     buf.result
-  }
-
-  /**
-   * Generate extended columnar post-rules.
-   *
-   * @return
-   */
-  override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
   }
 
   override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
@@ -828,7 +833,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       Sig[VeloxCollectList](ExpressionNames.COLLECT_LIST),
       Sig[VeloxCollectSet](ExpressionNames.COLLECT_SET),
       Sig[VeloxBloomFilterMightContain](ExpressionNames.MIGHT_CONTAIN),
-      Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG)
+      Sig[VeloxBloomFilterAggregate](ExpressionNames.BLOOM_FILTER_AGG),
+      // For test purpose.
+      Sig[VeloxDummyExpression](VeloxDummyExpression.VELOX_DUMMY_EXPRESSION)
     )
   }
 
@@ -858,8 +865,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       requiredChildOutput: Seq[Attribute],
       outer: Boolean,
       generatorOutput: Seq[Attribute],
-      child: SparkPlan
-  ): GenerateExecTransformerBase = {
+      child: SparkPlan): GenerateExecTransformerBase = {
     GenerateExecTransformer(generator, requiredChildOutput, outer, generatorOutput, child)
   }
 
@@ -882,7 +888,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       case p @ LimitTransformer(SortExecTransformer(sortOrder, _, child, _), 0, count) =>
         val global = child.outputPartitioning.satisfies(AllTuples)
         val topN = TopNTransformer(count, sortOrder, global, child)
-        if (topN.doValidate().isValid) {
+        if (topN.doValidate().ok()) {
           topN
         } else {
           p

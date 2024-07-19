@@ -324,9 +324,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-30793: truncate timestamps before the epoch to seconds and minutes")
     .excludeGlutenTest("unix_timestamp")
     .excludeGlutenTest("to_unix_timestamp")
-    .exclude("to_utc_timestamp with literal zone")
     .exclude("to_utc_timestamp with column zone")
-    .exclude("from_utc_timestamp with literal zone")
     .exclude("from_utc_timestamp with column zone")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].excludeGlutenTest(
@@ -459,8 +457,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string regex_replace / regex_extract")
     .exclude("string overlay function")
     .exclude("binary overlay function")
-    .exclude("string / binary substring function")
     .exclude("string parse_url function")
+    .exclude("string / binary length function")
+    .exclude("SPARK-36751: add octet length api for scala")
+    .exclude("SPARK-36751: add bit length api for scala")
   enableSuite[GlutenSubquerySuite]
     .exclude("SPARK-15370: COUNT bug in subquery in subquery in subquery")
     .exclude("SPARK-26893: Allow pushdown of partition pruning subquery filters to file source")
@@ -491,7 +491,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36920: Support day-time intervals by ABS")
     .exclude("SPARK-36921: Support YearMonthIntervalType by div")
     .exclude("SPARK-36921: Support DayTimeIntervalType by div")
-  enableSuite[GlutenBitwiseExpressionsSuite].exclude("BitGet")
+  enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude("null cast")
     .exclude("cast string to date")
@@ -544,7 +544,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Map Concat")
     .exclude("MapFromEntries")
     .exclude("ArraysOverlap")
-    .exclude("ArrayJoin")
     .exclude("ArraysZip")
     .exclude("Sequence of numbers")
     .exclude("Sequence of timestamps")
@@ -711,6 +710,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35926: Support YearMonthIntervalType in width-bucket function")
     .exclude("SPARK-35925: Support DayTimeIntervalType in width-bucket function")
     .exclude("SPARK-37388: width_bucket")
+    .exclude("shift left")
+    .exclude("shift right")
+    .exclude("shift right unsigned")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
@@ -758,34 +760,21 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK - 34814: LikeSimplification should handleNULL")
   enableSuite[GlutenSortOrderExpressionsSuite].exclude("SortPrefix")
   enableSuite[GlutenStringExpressionsSuite]
-    .exclude("concat")
     .exclude("StringComparison")
     .exclude("Substring")
     .exclude("string substring_index function")
     .exclude("SPARK-40213: ascii for Latin-1 Supplement characters")
     .exclude("ascii for string")
-    .exclude("string for ascii")
     .exclude("base64/unbase64 for string")
     .exclude("encode/decode for string")
     .exclude("Levenshtein distance")
-    .exclude("soundex unit test")
-    .exclude("replace")
     .exclude("overlay for string")
     .exclude("overlay for byte array")
     .exclude("translate")
-    .exclude("FORMAT")
-    .exclude("SPARK-22603: FormatString should not generate codes beyond 64KB")
-    .exclude("INSTR")
     .exclude("LOCATE")
-    .exclude("LPAD/RPAD")
     .exclude("REPEAT")
-    .exclude("length for string / binary")
-    .exclude("format_number / FormatNumber")
-    .exclude("ToNumber: positive tests")
-    .exclude("ToNumber: negative tests (the input string does not match the format string)")
     .exclude("ParseUrl")
     .exclude("SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url")
-    .exclude("Sentences")
   enableSuite[GlutenDataSourceV2DataFrameSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2SQLSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2SQLSuiteV1Filter]

@@ -67,11 +67,7 @@ case class WindowExecTransformer(
   }
 
   override def requiredChildOrdering: Seq[Seq[SortOrder]] = {
-    if (
-      BackendsApiManager.getSettings.requiredChildOrderingForWindow()
-      && GlutenConfig.getConf.veloxColumnarWindowType.equals("streaming")
-    ) {
-      // Velox StreamingWindow need to require child order.
+    if (BackendsApiManager.getSettings.requiredChildOrderingForWindow()) {
       Seq(partitionSpec.map(SortOrder(_, Ascending)) ++ orderSpec)
     } else {
       Seq(Nil)
@@ -169,7 +165,7 @@ case class WindowExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportWindowExec(windowExpression)) {
       return ValidationResult
-        .notOk(s"Found unsupported window expression: ${windowExpression.mkString(", ")}")
+        .failed(s"Found unsupported window expression: ${windowExpression.mkString(", ")}")
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
@@ -196,17 +192,4 @@ case class WindowExecTransformer(
 
   override protected def withNewChildInternal(newChild: SparkPlan): WindowExecTransformer =
     copy(child = newChild)
-}
-
-object WindowExecTransformer {
-
-  /** Gets lower/upper bound represented in string. */
-  def getFrameBound(bound: Expression): String = {
-    // The lower/upper can be either a foldable Expression or a SpecialFrameBoundary.
-    if (bound.foldable) {
-      bound.eval().toString
-    } else {
-      bound.sql
-    }
-  }
 }

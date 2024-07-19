@@ -19,13 +19,12 @@ package org.apache.gluten.columnarbatch;
 import org.apache.gluten.exception.GlutenException;
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.Runtimes;
-import org.apache.gluten.memory.nmm.NativeMemoryManager;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;
 import org.apache.gluten.utils.ImplicitClass;
 import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 
-import com.google.common.base.Preconditions;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.arrow.c.ArrowArray;
 import org.apache.arrow.c.ArrowSchema;
 import org.apache.arrow.c.CDataDictionaryProvider;
@@ -38,11 +37,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Set;
 
 public class ColumnarBatches {
   private static final Field FIELD_COLUMNS;
@@ -99,10 +95,12 @@ public class ColumnarBatches {
       if (target.numCols() != from.numCols()) {
         throw new IllegalStateException();
       }
-      final ColumnVector[] vectors = (ColumnVector[]) FIELD_COLUMNS.get(target);
+      final ColumnVector[] newVectors = new ColumnVector[from.numCols()];
       for (int i = 0; i < target.numCols(); i++) {
-        vectors[i] = from.column(i);
+        newVectors[i] = from.column(i);
       }
+      FIELD_COLUMNS.set(target, newVectors);
+      System.out.println();
     } catch (IllegalAccessException e) {
       throw new GlutenException(e);
     }
@@ -125,15 +123,14 @@ public class ColumnarBatches {
    * This method will always return a velox based ColumnarBatch. This method will close the input
    * column batch.
    */
-  public static ColumnarBatch select(
-      NativeMemoryManager nmm, ColumnarBatch batch, int[] columnIndices) {
+  public static ColumnarBatch select(ColumnarBatch batch, int[] columnIndices) {
+    final Runtime runtime = Runtimes.contextInstance("ColumnarBatches#select");
     switch (identifyBatchType(batch)) {
       case LIGHT:
         final IndicatorVector iv = getIndicatorVector(batch);
         long outputBatchHandle =
-            ColumnarBatchJniWrapper.create()
-                .select(nmm.getNativeInstanceHandle(), iv.handle(), columnIndices);
-        return create(iv.runtime(), outputBatchHandle);
+            ColumnarBatchJniWrapper.create(runtime).select(iv.handle(), columnIndices);
+        return create(outputBatchHandle);
       case HEAVY:
         return new ColumnarBatch(
             Arrays.stream(columnIndices).mapToObj(batch::column).toArray(ColumnVector[]::new),
@@ -181,7 +178,7 @@ public class ColumnarBatches {
         ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
         CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
-      ColumnarBatchJniWrapper.forRuntime(iv.runtime())
+      ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#load"))
           .exportToArrow(iv.handle(), cSchema.memoryAddress(), cArray.memoryAddress());
 
       Data.exportSchema(
@@ -217,14 +214,14 @@ public class ColumnarBatches {
     if (input.numCols() == 0) {
       throw new IllegalArgumentException("batch with zero columns cannot be offloaded");
     }
-    final Runtime runtime = Runtimes.contextInstance();
+    final Runtime runtime = Runtimes.contextInstance("ColumnarBatches#offload");
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
       ArrowAbiUtil.exportFromSparkColumnarBatch(allocator, input, cSchema, cArray);
       long handle =
-          ColumnarBatchJniWrapper.forRuntime(runtime)
+          ColumnarBatchJniWrapper.create(runtime)
               .createWithArrowArray(cSchema.memoryAddress(), cArray.memoryAddress());
-      ColumnarBatch output = ColumnarBatches.create(runtime, handle);
+      ColumnarBatch output = ColumnarBatches.create(handle);
 
       // Follow input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
@@ -300,7 +297,8 @@ public class ColumnarBatches {
     return refCnt;
   }
 
-  private static long getRefCnt(ColumnarBatch input) {
+  @VisibleForTesting
+  static long getRefCnt(ColumnarBatch input) {
     switch (identifyBatchType(input)) {
       case LIGHT:
         return getRefCntLight(input);
@@ -333,18 +331,12 @@ public class ColumnarBatches {
         Arrays.stream(batches)
             .map(ColumnarBatches::getIndicatorVector)
             .toArray(IndicatorVector[]::new);
-    // We assume all input batches should be managed by same Runtime.
-    // FIXME: The check could be removed to adopt ownership-transfer semantic
-    final Runtime[] ctxs =
-        Arrays.stream(ivs).map(IndicatorVector::runtime).distinct().toArray(Runtime[]::new);
-    Preconditions.checkState(
-        ctxs.length == 1, "All input batches should be managed by same Runtime.");
     final long[] handles = Arrays.stream(ivs).mapToLong(IndicatorVector::handle).toArray();
-    return ColumnarBatchJniWrapper.forRuntime(ctxs[0]).compose(handles);
+    return ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#compose"))
+        .compose(handles);
   }
 
-  public static ColumnarBatch create(Runtime runtime, long nativeHandle) {
-    final IndicatorVector iv = new IndicatorVector(runtime, nativeHandle);
+  private static ColumnarBatch create(IndicatorVector iv) {
     int numColumns = Math.toIntExact(iv.getNumColumns());
     int numRows = Math.toIntExact(iv.getNumRows());
     if (numColumns == 0) {
@@ -358,6 +350,10 @@ public class ColumnarBatches {
       columnVectors[i + 1] = pv;
     }
     return new ColumnarBatch(columnVectors, numRows);
+  }
+
+  public static ColumnarBatch create(long nativeHandle) {
+    return create(IndicatorVector.obtain(nativeHandle));
   }
 
   public static void retain(ColumnarBatch b) {
@@ -383,19 +379,5 @@ public class ColumnarBatches {
 
   public static long getNativeHandle(ColumnarBatch batch) {
     return getIndicatorVector(batch).handle();
-  }
-
-  public static Runtime getRuntime(ColumnarBatch batch) {
-    return getIndicatorVector(batch).runtime();
-  }
-
-  public static Runtime getRuntime(List<ColumnarBatch> batch) {
-    final Set<Runtime> all = new HashSet<>();
-    batch.forEach(b -> all.add(getRuntime(b)));
-    if (all.size() != 1) {
-      throw new IllegalArgumentException(
-          "The input columnar batches has different associated runtimes");
-    }
-    return all.toArray(new Runtime[0])[0];
   }
 }

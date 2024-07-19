@@ -211,7 +211,7 @@ PrewhereInfoPtr MergeTreeRelParser::parsePreWhereInfo(const substrait::Expressio
     prewhere_info->prewhere_column_name = filter_name;
     prewhere_info->need_filter = true;
     prewhere_info->remove_prewhere_column = true;
-    prewhere_info->prewhere_actions->projectInput(false);
+
     for (const auto & name : input.getNames())
         prewhere_info->prewhere_actions->tryRestoreColumn(name);
     return prewhere_info;
@@ -383,13 +383,7 @@ void MergeTreeRelParser::collectColumns(const substrait::Expression & rel, NameS
 String MergeTreeRelParser::getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func)
 {
     auto func_signature = getPlanParser()->function_mapping.at(std::to_string(substrait_func.function_reference()));
-    auto pos = func_signature.find(':');
-    auto func_name = func_signature.substr(0, pos);
-
-    auto it = SCALAR_FUNCTIONS.find(func_name);
-    if (it == SCALAR_FUNCTIONS.end())
-        throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unsupported substrait function on mergetree prewhere parser: {}", func_name);
-    return it->second;
+    return getPlanParser()->getFunctionName(func_signature, substrait_func);
 }
 
 
@@ -398,7 +392,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
     google::protobuf::StringValue table;
     table.ParseFromString(read_rel.advanced_extension().enhancement().value());
     auto merge_tree_table = parseMergeTreeTableString(table.value());
-    auto custom_storage_mergetree = parseStorage(merge_tree_table, global_context);
+    auto custom_storage_mergetree = parseStorage(merge_tree_table, global_context, true);
 
     auto input = TypeParser::buildBlockFromNamedStruct(read_rel.base_schema());
     auto names_and_types_list = input.getNamesAndTypesList();

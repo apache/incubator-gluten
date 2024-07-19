@@ -105,13 +105,13 @@ object RasOffload {
           validator.validate(from) match {
             case Validator.Passed =>
               val offloaded = base.offload(from)
-              offloaded match {
-                case t: GlutenPlan if !t.doValidate().isValid =>
-                  // 4. If native validation fails on the offloaded node, return the
-                  // original one.
-                  from
-                case other =>
-                  other
+              val offloadedNodes = offloaded.collect[GlutenPlan] { case t: GlutenPlan => t }
+              if (offloadedNodes.exists(!_.doValidate().ok())) {
+                // 4. If native validation fails on the offloaded node, return the
+                // original one.
+                from
+              } else {
+                offloaded
               }
             case Validator.Failed(reason) =>
               from

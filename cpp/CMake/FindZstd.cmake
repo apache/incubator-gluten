@@ -15,43 +15,44 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# ZSTD_HOME environmental variable is used to check for Zstd headers and static library
+# ZSTD_HOME environmental variable is used to check for Zstd headers and static
+# library
 
-# ZSTD_INCLUDE_DIR: directory containing headers
-# ZSTD_LIBRARY: path to libzstd.so
-# ZSTD_FOUND: whether zstd has been found
+# ZSTD_INCLUDE_DIR: directory containing headers ZSTD_LIBRARY: path to
+# libzstd.so ZSTD_FOUND: whether zstd has been found
 
-if (NOT "$ENV{ZSTD_HOME}" STREQUAL "")
+if(NOT "$ENV{ZSTD_HOME}" STREQUAL "")
   file(TO_CMAKE_PATH "$ENV{ZSTD_HOME}" _zstd_path)
   message(STATUS "ZSTD_HOME: ${_zstd_path}")
 else()
   set(_zstd_path "/usr/local")
 endif()
 
-find_path(ZSTD_INCLUDE_DIR zstd.h HINTS
-    ${_zstd_path}
-    PATH_SUFFIXES "include")
+find_path(
+  ZSTD_INCLUDE_DIR zstd.h
+  HINTS ${_zstd_path}
+  PATH_SUFFIXES "include")
 
-find_library (ZSTD_LIBRARY NAMES zstd HINTS
-    ${_zstd_path}
-    PATH_SUFFIXES "lib")
+find_library(
+  ZSTD_LIBRARY
+  NAMES zstd
+  HINTS ${_zstd_path}
+  PATH_SUFFIXES "lib")
 
-if (ZSTD_INCLUDE_DIR AND ZSTD_LIBRARY)
+if(ZSTD_INCLUDE_DIR AND ZSTD_LIBRARY)
   set(ZSTD_FOUND TRUE)
   set(ZSTD_HEADER_NAME zstd.h)
   set(ZSTD_HEADER ${ZSTD_INCLUDE_DIR}/${ZSTD_HEADER_NAME})
-else ()
+else()
   set(ZSTD_FOUND FALSE)
-endif ()
+endif()
 
-if (ZSTD_FOUND)
+if(ZSTD_FOUND)
   message(STATUS "Found the zstd header: ${ZSTD_HEADER}")
   message(STATUS "Found the zstd static library: ${ZSTD_LIBRARY}")
-else ()
-  message(FATAL_ERROR ZSTD_ERR_MSG "Could not find zstd. Looked in ${_zstd_path}.")
-endif ()
+else()
+  message(FATAL_ERROR ZSTD_ERR_MSG
+                      "Could not find zstd. Looked in ${_zstd_path}.")
+endif()
 
-mark_as_advanced(
-    ZSTD_INCLUDE_DIR
-    ZSTD_LIBRARY)
-
+mark_as_advanced(ZSTD_INCLUDE_DIR ZSTD_LIBRARY)

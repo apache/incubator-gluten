@@ -20,10 +20,6 @@ import org.apache.spark.SparkConf
 
 class GlutenClickHouseTPCDSParquetRFSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
-  override protected val tpcdsQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original"
-  override protected val queriesResults: String = rootPath + "tpcds-queries-output"
-
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .setMaster(s"local[4]")

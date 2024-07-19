@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.sources
 
+import org.apache.gluten.GlutenColumnarWriteTestSupport
 import org.apache.gluten.execution.SortExecTransformer
 import org.apache.gluten.extension.GlutenPlan
 
@@ -24,7 +25,7 @@ import org.apache.spark.executor.OutputMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.execution.{CommandResultExec, QueryExecution, VeloxColumnarWriteFilesExec}
+import org.apache.spark.sql.execution.{CommandResultExec, QueryExecution, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -38,7 +39,8 @@ import java.io.{File, IOException}
 class GlutenInsertSuite
   extends InsertSuite
   with GlutenSQLTestsBaseTrait
-  with AdaptiveSparkPlanHelper {
+  with AdaptiveSparkPlanHelper
+  with GlutenColumnarWriteTestSupport {
 
   override def sparkConf: SparkConf = {
     super.sparkConf.set("spark.sql.leafNodeDefaultParallelism", "1")
@@ -60,13 +62,13 @@ class GlutenInsertSuite
     super.afterAll()
   }
 
-  private def checkAndGetWriteFiles(df: DataFrame): VeloxColumnarWriteFilesExec = {
+  private def checkWriteFilesAndGetChild(df: DataFrame): (SparkPlan, SparkPlan) = {
     val writeFiles = stripAQEPlan(
       df.queryExecution.executedPlan
         .asInstanceOf[CommandResultExec]
         .commandPhysicalPlan).children.head
-    assert(writeFiles.isInstanceOf[VeloxColumnarWriteFilesExec])
-    writeFiles.asInstanceOf[VeloxColumnarWriteFilesExec]
+    val child = checkWriteFilesAndGetChild(writeFiles)
+    (writeFiles, child)
   }
 
   testGluten("insert partition table") {
@@ -97,7 +99,7 @@ class GlutenInsertSuite
         val df =
           spark.sql("INSERT INTO TABLE pt partition(pt='a') SELECT * FROM VALUES(1, 'a'),(2, 'b')")
         spark.sparkContext.listenerBus.waitUntilEmpty()
-        checkAndGetWriteFiles(df)
+        checkWriteFilesAndGetChild(df)
 
         assert(taskMetrics.bytesWritten > 0)
         assert(taskMetrics.recordsWritten == 2)
@@ -135,13 +137,13 @@ class GlutenInsertSuite
   private def validateDynamicPartitionWrite(
       df: DataFrame,
       expectedPartitionNames: Set[String]): Unit = {
-    val writeFiles = checkAndGetWriteFiles(df)
+    val (writeFiles, writeChild) = checkWriteFilesAndGetChild(df)
     assert(
       writeFiles
         .find(_.isInstanceOf[SortExecTransformer])
         .isEmpty)
     // all operators should be transformed
-    assert(writeFiles.child.find(!_.isInstanceOf[GlutenPlan]).isEmpty)
+    assert(writeChild.find(!_.isInstanceOf[GlutenPlan]).isEmpty)
 
     val parts = spark.sessionState.catalog.listPartitionNames(TableIdentifier("pt")).toSet
     assert(parts == expectedPartitionNames)
@@ -209,7 +211,7 @@ class GlutenInsertSuite
       spark.sql("CREATE TABLE t (c1 int, c2 string) USING PARQUET")
 
       val df = spark.sql("INSERT OVERWRITE TABLE t SELECT c1, c2 FROM source SORT BY c1")
-      val writeFiles = checkAndGetWriteFiles(df)
+      val (writeFiles, _) = checkWriteFilesAndGetChild(df)
       assert(writeFiles.find(x => x.isInstanceOf[SortExecTransformer]).isDefined)
       checkAnswer(spark.sql("SELECT * FROM t"), spark.sql("SELECT * FROM source SORT BY c1"))
     }
@@ -244,7 +246,7 @@ class GlutenInsertSuite
       spark.sql("CREATE TABLE t1 USING PARQUET AS SELECT id as c1, id % 3 as c2 FROM range(10)")
       spark.sql("CREATE TABLE t2 (c1 long, c2 long) USING PARQUET")
       val df = spark.sql("INSERT INTO TABLE t2 SELECT c2, count(*) FROM t1 GROUP BY c2")
-      checkAndGetWriteFiles(df)
+      checkWriteFilesAndGetChild(df)
     }
   }
 
@@ -257,7 +259,7 @@ class GlutenInsertSuite
       spark.sql("INSERT INTO TABLE t1 VALUES(1, 1),(2, 2)")
       spark.sql("CREATE TABLE t2 (c1 long, c2 long) USING PARQUET")
       val df = spark.sql("INSERT INTO TABLE t2 SELECT * FROM t1")
-      checkAndGetWriteFiles(df)
+      checkWriteFilesAndGetChild(df)
     }
   }
 
@@ -405,7 +407,7 @@ class GlutenInsertSuite
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -420,12 +422,12 @@ class GlutenInsertSuite
       val incompatibleDefault =
         "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
           "table column `s` has a DEFAULT value"
-      Seq(Config("parquet"), Config("parquet", true)).foreach {
+      Seq(Config("parquet"), Config("parquet", useDataFrames = true)).foreach {
         config =>
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -452,7 +454,7 @@ class GlutenInsertSuite
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -469,12 +471,12 @@ class GlutenInsertSuite
       val incompatibleDefault =
         "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
           "table column `s` has a DEFAULT value"
-      Seq(Config("parquet"), Config("parquet", true)).foreach {
+      Seq(Config("parquet"), Config("parquet", useDataFrames = true)).foreach {
         config =>
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -501,7 +503,7 @@ class GlutenInsertSuite
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }
@@ -566,12 +568,12 @@ class GlutenInsertSuite
       val incompatibleDefault =
         "Failed to execute ALTER TABLE ADD COLUMNS command because the destination " +
           "table column `s` has a DEFAULT value"
-      Seq(Config("parquet"), Config("parquet", true)).foreach {
+      Seq(Config("parquet"), Config("parquet", useDataFrames = true)).foreach {
         config =>
           withTable("t") {
             sql(s"create table t(i boolean) using ${config.dataSource}")
             if (config.useDataFrames) {
-              Seq((false)).toDF.write.insertInto("t")
+              Seq(false).toDF.write.insertInto("t")
             } else {
               sql("insert into t select false")
             }

@@ -17,9 +17,9 @@
 package org.apache.spark.sql.execution.utils
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
-import org.apache.gluten.utils.Iterators
+import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
 
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
@@ -41,14 +41,12 @@ import org.apache.spark.util.MutablePair
 object ExecUtil {
 
   def convertColumnarToRow(batch: ColumnarBatch): Iterator[InternalRow] = {
-    val jniWrapper = NativeColumnarToRowJniWrapper.create()
+    val runtime = Runtimes.contextInstance("ExecUtil#ColumnarToRow")
+    val jniWrapper = NativeColumnarToRowJniWrapper.create(runtime)
     var info: NativeColumnarToRowInfo = null
     val batchHandle = ColumnarBatches.getNativeHandle(batch)
-    val c2rHandle = jniWrapper.nativeColumnarToRowInit(
-      NativeMemoryManagers
-        .contextInstance("ExecUtil#ColumnarToRow")
-        .getNativeInstanceHandle)
-    info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rHandle)
+    val c2rHandle = jniWrapper.nativeColumnarToRowInit()
+    info = jniWrapper.nativeColumnarToRowConvert(c2rHandle, batchHandle)
 
     Iterators
       .wrap(new Iterator[InternalRow] {
@@ -147,7 +145,7 @@ object ExecUtil {
                 val newHandle = ColumnarBatches.compose(pidBatch, cb)
                 // Composed batch already hold pidBatch's shared ref, so close is safe.
                 ColumnarBatches.forceClose(pidBatch)
-                (0, ColumnarBatches.create(ColumnarBatches.getRuntime(cb), newHandle))
+                (0, ColumnarBatches.create(newHandle))
             })
         .recyclePayload(p => ColumnarBatches.forceClose(p._2)) // FIXME why force close?
         .create()

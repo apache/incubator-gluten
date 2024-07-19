@@ -27,7 +27,7 @@ import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, ExpressionInfo}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, ExpressionInfo, Unevaluable}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
@@ -94,7 +94,8 @@ case class UDFExpression(
     dataType: DataType,
     nullable: Boolean,
     children: Seq[Expression])
-  extends Transformable {
+  extends Unevaluable
+  with Transformable {
   override protected def withNewChildrenInternal(
       newChildren: IndexedSeq[Expression]): Expression = {
     this.copy(children = newChildren)
@@ -230,8 +231,9 @@ object UDFResolver extends Logging {
 
     udfLibPaths match {
       case Some(paths) =>
+        // Set resolved paths to the internal config to parse on native side.
         sparkConf.set(
-          VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS,
+          VeloxBackendSettings.GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS,
           getAllLibraries(sparkConf, isDriver, paths))
       case None =>
     }
@@ -326,7 +328,7 @@ object UDFResolver extends Logging {
       case None =>
         Seq.empty
       case Some(_) =>
-        new UdfJniWrapper().getFunctionSignatures()
+        UdfJniWrapper.getFunctionSignatures()
 
         UDFNames.map {
           name =>

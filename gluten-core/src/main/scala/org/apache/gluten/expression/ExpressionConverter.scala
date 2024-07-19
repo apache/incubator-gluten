@@ -16,27 +16,24 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.extension.columnar.transition.Transitions
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.DecimalArithmeticUtil
 
+import org.apache.spark.{SPARK_REVISION, SPARK_VERSION_SHORT}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.objects.StaticInvoke
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
-import org.apache.spark.sql.execution.{ScalarSubquery, _}
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
+import org.apache.spark.sql.execution.ScalarSubquery
 import org.apache.spark.sql.hive.HiveUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
-trait Transformable extends Unevaluable {
+trait Transformable {
   def getTransformer(childrenTransformers: Seq[ExpressionTransformer]): ExpressionTransformer
 }
 
@@ -400,14 +397,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           r
         )
       case size: Size =>
-        if (size.legacySizeOfNull != SQLConf.get.legacySizeOfNull) {
-          throw new GlutenNotSupportException(
-            "The value of legacySizeOfNull field of size is " +
-              "not equals to legacySizeOfNull of SQLConf, this case is not supported yet")
-        }
-        BackendsApiManager.getSparkPlanExecApiInstance.genSizeExpressionTransformer(
+        // Covers Spark ArraySize which is replaced by Size(child, false).
+        val child =
+          replaceWithExpressionTransformerInternal(size.child, attributeSeq, expressionsMap)
+        GenericExpressionTransformer(
           substraitExprName,
-          replaceWithExpressionTransformerInternal(size.child, attributeSeq, expressionsMap),
+          Seq(child, LiteralTransformer(size.legacySizeOfNull)),
           size)
       case namedStruct: CreateNamedStruct =>
         BackendsApiManager.getSparkPlanExecApiInstance.genNamedStructTransformer(
@@ -562,13 +557,26 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             expressionsMap),
           arrayTransform
         )
+      case arraySort: ArraySort =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArraySortTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(
+            arraySort.argument,
+            attributeSeq,
+            expressionsMap),
+          replaceWithExpressionTransformerInternal(
+            arraySort.function,
+            attributeSeq,
+            expressionsMap),
+          arraySort
+        )
       case tryEval @ TryEval(a: Add) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
           substraitExprName,
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           tryEval,
-          ExpressionNames.CHECK_ADD
+          ExpressionNames.CHECKED_ADD
         )
       case tryEval @ TryEval(a: Subtract) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
@@ -576,7 +584,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           tryEval,
-          ExpressionNames.CHECK_SUBTRACT
+          ExpressionNames.CHECKED_SUBTRACT
         )
       case tryEval @ TryEval(a: Divide) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
@@ -584,7 +592,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           tryEval,
-          ExpressionNames.CHECK_DIVIDE
+          ExpressionNames.CHECKED_DIVIDE
         )
       case tryEval @ TryEval(a: Multiply) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
@@ -592,7 +600,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           tryEval,
-          ExpressionNames.CHECK_MULTIPLY
+          ExpressionNames.CHECKED_MULTIPLY
         )
       case a: Add =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
@@ -600,7 +608,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           a,
-          ExpressionNames.CHECK_ADD
+          ExpressionNames.CHECKED_ADD
         )
       case a: Subtract =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
@@ -608,7 +616,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           a,
-          ExpressionNames.CHECK_SUBTRACT
+          ExpressionNames.CHECKED_SUBTRACT
         )
       case a: Multiply =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
@@ -616,7 +624,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           a,
-          ExpressionNames.CHECK_MULTIPLY
+          ExpressionNames.CHECKED_MULTIPLY
         )
       case a: Divide =>
         BackendsApiManager.getSparkPlanExecApiInstance.genArithmeticTransformer(
@@ -624,7 +632,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(a.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(a.right, attributeSeq, expressionsMap),
           a,
-          ExpressionNames.CHECK_DIVIDE
+          ExpressionNames.CHECKED_DIVIDE
         )
       case tryEval: TryEval =>
         // This is a placeholder to handle try_eval(other expressions).
@@ -654,6 +662,47 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             replaceWithExpressionTransformerInternal(s.child, attributeSeq, expressionsMap),
             LiteralTransformer(Literal(s.randomSeed.get))),
           s)
+      case c: PreciseTimestampConversion =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genPreciseTimestampConversionTransformer(
+          substraitExprName,
+          Seq(replaceWithExpressionTransformerInternal(c.child, attributeSeq, expressionsMap)),
+          c
+        )
+      case t: TransformKeys =>
+        // default is `EXCEPTION`
+        val mapKeyDedupPolicy = SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
+        if (mapKeyDedupPolicy == SQLConf.MapKeyDedupPolicy.LAST_WIN.toString) {
+          // TODO: Remove after fix ready for
+          //  https://github.com/facebookincubator/velox/issues/10219
+          throw new GlutenNotSupportException(
+            "LAST_WIN policy is not supported yet in native to deduplicate map keys"
+          )
+        }
+        GenericExpressionTransformer(
+          substraitExprName,
+          t.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
+          t
+        )
+      case e: EulerNumber =>
+        LiteralTransformer(Literal(Math.E))
+      case p: Pi =>
+        LiteralTransformer(Literal(Math.PI))
+      case v: SparkVersion =>
+        LiteralTransformer(SPARK_VERSION_SHORT + " " + SPARK_REVISION)
+      case dateAdd: DateAdd =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genDateAddTransformer(
+          attributeSeq,
+          substraitExprName,
+          dateAdd.children,
+          dateAdd
+        )
+      case timeAdd: TimeAdd =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genDateAddTransformer(
+          attributeSeq,
+          substraitExprName,
+          timeAdd.children,
+          timeAdd
+        )
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
@@ -679,100 +728,5 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       throw new GlutenNotSupportException(s"Not supported: $expr.")
     }
     substraitExprName
-  }
-
-  /**
-   * Transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in DynamicPruningExpression.
-   *
-   * @param partitionFilters
-   *   The partition filter of Scan
-   * @return
-   *   Transformed partition filter
-   */
-  def transformDynamicPruningExpr(partitionFilters: Seq[Expression]): Seq[Expression] = {
-
-    def convertBroadcastExchangeToColumnar(
-        exchange: BroadcastExchangeExec): ColumnarBroadcastExchangeExec = {
-      val newChild = Transitions.toBackendBatchPlan(exchange.child)
-      ColumnarBroadcastExchangeExec(exchange.mode, newChild)
-    }
-
-    if (
-      GlutenConfig.getConf.enableScanOnly || !GlutenConfig.getConf.enableColumnarBroadcastExchange
-    ) {
-      // Disable ColumnarSubqueryBroadcast for scan-only execution
-      // or ColumnarBroadcastExchange was disabled.
-      partitionFilters
-    } else {
-      partitionFilters.map {
-        case dynamicPruning: DynamicPruningExpression =>
-          dynamicPruning.transform {
-            // Lookup inside subqueries for duplicate exchanges.
-            case in: InSubqueryExec =>
-              in.plan match {
-                case s: SubqueryBroadcastExec =>
-                  val newIn = s
-                    .transform {
-                      case exchange: BroadcastExchangeExec =>
-                        convertBroadcastExchangeToColumnar(exchange)
-                    }
-                    .asInstanceOf[SubqueryBroadcastExec]
-                  val transformSubqueryBroadcast = ColumnarSubqueryBroadcastExec(
-                    newIn.name,
-                    newIn.index,
-                    newIn.buildKeys,
-                    newIn.child)
-
-                  // When AQE is on, spark will apply ReuseAdaptiveSubquery rule first,
-                  // it will reuse vanilla SubqueryBroadcastExec,
-                  // and then use gluten ColumnarOverrides rule to transform Subquery,
-                  // so all the SubqueryBroadcastExec in the ReusedSubqueryExec will be transformed
-                  // to a new ColumnarSubqueryBroadcastExec for each SubqueryBroadcastExec,
-                  // which will lead to execute ColumnarSubqueryBroadcastExec.relationFuture
-                  // repeatedly even in the ReusedSubqueryExec.
-                  //
-                  // On the other hand, it needs to use
-                  // the AdaptiveSparkPlanExec.AdaptiveExecutionContext to hold the reused map
-                  // for each query.
-                  newIn.child match {
-                    case a: AdaptiveSparkPlanExec if SQLConf.get.subqueryReuseEnabled =>
-                      // When AQE is on and reuseSubquery is on.
-                      a.context.subqueryCache
-                        .update(newIn.canonicalized, transformSubqueryBroadcast)
-                    case _ =>
-                  }
-                  in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
-                case r: ReusedSubqueryExec if r.child.isInstanceOf[SubqueryBroadcastExec] =>
-                  val newIn = r.child
-                    .transform {
-                      case exchange: BroadcastExchangeExec =>
-                        convertBroadcastExchangeToColumnar(exchange)
-                    }
-                    .asInstanceOf[SubqueryBroadcastExec]
-                  newIn.child match {
-                    case a: AdaptiveSparkPlanExec =>
-                      // Only when AQE is on, it needs to replace SubqueryBroadcastExec
-                      // with reused ColumnarSubqueryBroadcastExec
-                      val cachedSubquery = a.context.subqueryCache.get(newIn.canonicalized)
-                      if (cachedSubquery.isDefined) {
-                        in.copy(plan = ReusedSubqueryExec(cachedSubquery.get))
-                      } else {
-                        val errMsg = "Can not get the reused ColumnarSubqueryBroadcastExec" +
-                          "by the ${newIn.canonicalized}"
-                        logWarning(errMsg)
-                        throw new UnsupportedOperationException(errMsg)
-                      }
-                    case _ =>
-                      val errMsg = "Can not get the reused ColumnarSubqueryBroadcastExec" +
-                        "by the ${newIn.canonicalized}"
-                      logWarning(errMsg)
-                      throw new UnsupportedOperationException(errMsg)
-                  }
-                case _ => in
-              }
-          }
-        case e: Expression => e
-      }
-    }
   }
 }

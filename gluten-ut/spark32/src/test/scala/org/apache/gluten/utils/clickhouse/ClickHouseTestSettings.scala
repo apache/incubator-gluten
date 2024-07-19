@@ -172,6 +172,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("shuffle function - array for primitive type not containing null")
     .exclude("shuffle function - array for primitive type containing null")
     .exclude("shuffle function - array for non-primitive type")
+    .exclude("flatten function")
   enableSuite[GlutenDataFrameHintSuite]
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenDataFrameJoinSuite].exclude(
@@ -300,9 +301,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-30793: truncate timestamps before the epoch to seconds and minutes")
     .excludeGlutenTest("unix_timestamp")
     .excludeGlutenTest("to_unix_timestamp")
-    .exclude("to_utc_timestamp with literal zone")
     .exclude("to_utc_timestamp with column zone")
-    .exclude("from_utc_timestamp with literal zone")
     .exclude("from_utc_timestamp with column zone")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff].excludeGlutenTest(
@@ -438,8 +437,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("string regex_replace / regex_extract")
     .exclude("string overlay function")
     .exclude("binary overlay function")
-    .exclude("string / binary substring function")
     .exclude("string parse_url function")
+    .exclude("string / binary length function")
+    .exclude("SPARK-36751: add octet length api for scala")
+    .exclude("SPARK-36751: add bit length api for scala")
   enableSuite[GlutenSubquerySuite]
     .exclude("SPARK-15370: COUNT bug in subquery in subquery in subquery")
     .exclude("SPARK-26893: Allow pushdown of partition pruning subquery filters to file source")
@@ -563,7 +564,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-28322: IntegralDivide supports decimal type")
     .exclude("SPARK-33008: division by zero on divide-like operations returns incorrect result")
     .exclude("SPARK-34920: error class")
-  enableSuite[GlutenBitwiseExpressionsSuite].exclude("BitGet")
+  enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenCastSuite]
     .exclude("null cast")
     .exclude("cast string to date")
@@ -664,7 +665,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Map Concat")
     .exclude("MapFromEntries")
     .exclude("ArraysOverlap")
-    .exclude("ArrayJoin")
     .exclude("ArraysZip")
     .exclude("Sequence of numbers")
     .exclude("Sequence of timestamps")
@@ -676,7 +676,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Sequence with default step")
     .exclude("Reverse")
     .exclude("elementAt")
-    .exclude("Flatten")
     .exclude("ArrayRepeat")
     .exclude("Array remove")
     .exclude("Array Distinct")
@@ -846,11 +845,13 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .excludeGlutenTest("default")
   enableSuite[GlutenMathExpressionsSuite]
     .exclude("tanh")
-    .exclude("rint")
     .exclude("unhex")
     .exclude("atan2")
     .exclude("round/bround")
     .exclude("SPARK-37388: width_bucket")
+    .exclude("shift left")
+    .exclude("shift right")
+    .exclude("shift right unsigned")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
@@ -897,31 +898,20 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-34814: LikeSimplification should handle NULL")
   enableSuite[GlutenSortOrderExpressionsSuite].exclude("SortPrefix")
   enableSuite[GlutenStringExpressionsSuite]
-    .exclude("concat")
     .exclude("StringComparison")
     .exclude("Substring")
     .exclude("string substring_index function")
     .exclude("ascii for string")
-    .exclude("string for ascii")
     .exclude("base64/unbase64 for string")
     .exclude("encode/decode for string")
-    .exclude("Levenshtein distance")
-    .exclude("soundex unit test")
-    .exclude("replace")
     .exclude("overlay for string")
     .exclude("overlay for byte array")
     .exclude("translate")
-    .exclude("FORMAT")
-    .exclude("SPARK-22603: FormatString should not generate codes beyond 64KB")
-    .exclude("INSTR")
     .exclude("LOCATE")
     .exclude("LPAD/RPAD")
     .exclude("REPEAT")
-    .exclude("length for string / binary")
-    .exclude("format_number / FormatNumber")
     .exclude("ParseUrl")
     .exclude("SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url")
-    .exclude("Sentences")
     .excludeGlutenTest("SPARK-40213: ascii for Latin-1 Supplement characters")
   enableSuite[GlutenTryCastSuite]
     .exclude("null cast")

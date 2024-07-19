@@ -131,6 +131,9 @@ void SubstraitParser::parseColumnTypes(
       case ::substrait::NamedStruct::METADATA_COL:
         columnTypes.push_back(ColumnType::kSynthesized);
         break;
+      case ::substrait::NamedStruct::ROWINDEX_COL:
+        columnTypes.push_back(ColumnType::kRowIndex);
+        break;
       default:
         VELOX_FAIL("Unspecified column type.");
     }
@@ -388,23 +391,13 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"named_struct", "row_constructor"},
     {"bit_or", "bitwise_or_agg"},
     {"bit_and", "bitwise_and_agg"},
-    {"bitwise_and", "spark_bitwise_and"},
-    {"bitwise_not", "spark_bitwise_not"},
-    {"bitwise_or", "spark_bitwise_or"},
-    {"bitwise_xor", "spark_bitwise_xor"},
-    // TODO: the below registry for rand functions can be removed
-    // after presto function registry is removed.
-    {"rand", "spark_rand"},
     {"murmur3hash", "hash_with_seed"},
     {"xxhash64", "xxhash64_with_seed"},
     {"modulus", "remainder"},
     {"date_format", "format_datetime"},
     {"collect_set", "set_agg"},
-    {"forall", "all_match"},
-    {"exists", "any_match"},
     {"negative", "unaryminus"},
-    {"get_array_item", "get"},
-    {"arrays_zip", "zip"}};
+    {"get_array_item", "get"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
     {"bool", "BOOLEAN"},

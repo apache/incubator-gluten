@@ -17,6 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.TransformerApi
+import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.utils.InputPartitionsUtil
@@ -39,6 +40,7 @@ class VeloxTransformerApi extends TransformerApi with Logging {
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
       relation: HadoopFsRelation,
+      requiredSchema: StructType,
       selectedPartitions: Array[PartitionDirectory],
       output: Seq[Attribute],
       bucketedScan: Boolean,
@@ -48,6 +50,7 @@ class VeloxTransformerApi extends TransformerApi with Logging {
       filterExprs: Seq[Expression] = Seq.empty): Seq[InputPartition] = {
     InputPartitionsUtil(
       relation,
+      requiredSchema,
       selectedPartitions,
       output,
       bucketedScan,
@@ -81,7 +84,8 @@ class VeloxTransformerApi extends TransformerApi with Logging {
 
   override def getNativePlanString(substraitPlan: Array[Byte], details: Boolean): String = {
     TaskResources.runUnsafe {
-      val jniWrapper = PlanEvaluatorJniWrapper.create()
+      val jniWrapper = PlanEvaluatorJniWrapper.create(
+        Runtimes.contextInstance("VeloxTransformerApi#getNativePlanString"))
       jniWrapper.nativePlanString(substraitPlan, details)
     }
   }

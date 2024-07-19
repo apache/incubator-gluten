@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <unordered_set>
+#include <Core/Joins.h>
 #include <Parser/RelParser.h>
 #include <substrait/algebra.pb.h>
 
@@ -30,8 +31,6 @@ namespace local_engine
 {
 
 class StorageJoinFromReadBuffer;
-
-std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type);
 
 class JoinRelParser : public RelParser
 {

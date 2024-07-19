@@ -42,12 +42,19 @@ public class QueriesMixin {
   @CommandLine.Option(names = {"--iterations"}, description = "How many iterations to run", defaultValue = "1")
   private int iterations;
 
+  @CommandLine.Option(names = {"--no-session-reuse"}, description = "Recreate new Spark session each time a query is about to run", defaultValue = "false")
+  private boolean noSessionReuse;
+
   public boolean explain() {
     return explain;
   }
 
   public int iterations() {
     return iterations;
+  }
+
+  public boolean noSessionReuse() {
+    return noSessionReuse;
   }
 
   public Actions.QuerySelector queries() {

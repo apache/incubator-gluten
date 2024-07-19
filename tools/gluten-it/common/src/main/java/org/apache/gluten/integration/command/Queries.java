@@ -42,7 +42,7 @@ public class Queries implements Callable<Integer> {
   public Integer call() throws Exception {
     org.apache.gluten.integration.action.Queries queries =
         new org.apache.gluten.integration.action.Queries(dataGenMixin.getScale(), dataGenMixin.genPartitionedData(), queriesMixin.queries(),
-            queriesMixin.explain(), queriesMixin.iterations(), randomKillTasks);
+            queriesMixin.explain(), queriesMixin.iterations(), randomKillTasks, queriesMixin.noSessionReuse());
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), queries));
   }
 }

@@ -17,11 +17,11 @@
     <java.version>1.8</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
-    <scala.library.version>2.12.15</scala.library.version>
+    <scala.library.version>2.12.17</scala.library.version>
     <spark.version>3.4.2</spark.version>
     <scala.binary.version>2.12</scala.binary.version>
     <spark.major.version>3</spark.major.version>
-    <celeborn.version>0.3.0-incubating</celeborn.version>
+    <celeborn.version>0.3.2-incubating</celeborn.version>
     <uniffle.version>0.8.0</uniffle.version>
     <gluten.version>1.2.0-SNAPSHOT</gluten.version>
     <guava.version>32.0.1-jre</guava.version>
@@ -120,6 +120,15 @@
       </properties>
     </profile>
     <profile>
+      <id>java-11</id>
+      <activation>
+        <jdk>11</jdk>
+      </activation>
+      <properties>
+        <java.version>11</java.version>
+      </properties>
+    </profile>
+    <profile>
       <id>java-17</id>
       <activation>
         <jdk>17</jdk>
@@ -135,30 +144,40 @@
       </activation>
       <properties>
         <spark.version>3.2.2</spark.version>
+        <scala.library.version>2.12.15</scala.library.version>
       </properties>
     </profile>
     <profile>
       <id>spark-3.3</id>
       <properties>
         <spark.version>3.3.1</spark.version>
+        <scala.library.version>2.12.15</scala.library.version>
       </properties>
     </profile>
     <profile>
       <id>spark-3.4</id>
       <properties>
         <spark.version>3.4.2</spark.version>
+        <scala.library.version>2.12.17</scala.library.version>
       </properties>
     </profile>
     <profile>
       <id>spark-3.5</id>
       <properties>
         <spark.version>3.5.1</spark.version>
+        <scala.library.version>2.12.18</scala.library.version>
       </properties>
     </profile>
     <profile>
       <id>celeborn-0.4</id>
       <properties>
-        <celeborn.version>0.4.0-incubating</celeborn.version>
+        <celeborn.version>0.4.1</celeborn.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>celeborn-0.5</id>
+      <properties>
+        <celeborn.version>0.5.0</celeborn.version>
       </properties>
     </profile>
   </profiles>

@@ -46,7 +46,7 @@ public:
     FunctionGetDateData() = default;
     ~FunctionGetDateData() override = default;
 
-    DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t) const override
+    DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr &, size_t) const override
     {
         if (arguments.size() != 1)
             throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1.", getName());
@@ -54,9 +54,6 @@ public:
         const DB::ColumnWithTypeAndName arg1 = arguments[0];
         const auto * src_col = checkAndGetColumn<DB::ColumnString>(arg1.column.get());
         size_t size = src_col->size();
-
-        if (!result_type->isNullable())
-            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be nullable", getName());
         
         using ColVecTo = ColumnVector<T>;
         typename ColVecTo::MutablePtr result_column = ColVecTo::create(size, 0);

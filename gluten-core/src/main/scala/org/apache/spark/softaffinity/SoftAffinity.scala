@@ -39,7 +39,7 @@ abstract class Affinity(val manager: AffinityManager) extends LogLevelUtil with 
       filePaths: Array[String],
       preferredLocations: Array[String]): Array[String] = {
     if (shouldUseSoftAffinity(filePaths, preferredLocations)) {
-      internalGetHostLocations(filePaths.min)
+      internalGetHostLocations(filePaths(0))
     } else {
       preferredLocations
     }

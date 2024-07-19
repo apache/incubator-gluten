@@ -52,7 +52,7 @@ public:
             else 
                 arrayElement(arr, idx)
         */
-        auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 2)
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
 
@@ -70,7 +70,7 @@ public:
         auto * if_node = toFunctionNode(actions_dag, "if", {greater_or_equals_node, null_const_node, array_element_node});
         return if_node;
     }
-protected:
+
     String getCHFunctionName(const substrait::Expression_ScalarFunction & /*substrait_func*/) const override
     {
         return "arrayElement";

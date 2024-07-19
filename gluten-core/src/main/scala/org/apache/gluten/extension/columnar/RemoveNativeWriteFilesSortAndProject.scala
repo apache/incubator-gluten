@@ -71,12 +71,12 @@ object NativeWriteFilesWithSkippingSortAndProject extends Logging {
         }
         val transformer = ProjectExecTransformer(newProjectList, p.child)
         val validationResult = transformer.doValidate()
-        if (validationResult.isValid) {
+        if (validationResult.ok()) {
           Some(transformer)
         } else {
           // If we can not transform the project, then we fallback to origin plan which means
           // we also retain the sort operator.
-          TransformHints.tagNotTransformable(p, validationResult)
+          FallbackTags.add(p, validationResult)
           None
         }
       case _ => None

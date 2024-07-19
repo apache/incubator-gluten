@@ -20,8 +20,10 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec}
+import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
+import org.apache.spark.sql.execution.joins.SortMergeJoinExec
 
 class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -69,6 +71,29 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
 
   private def collectColumnarToRow(plan: SparkPlan): Int = {
     collect(plan) { case v: VeloxColumnarToRowExec => v }.size
+  }
+
+  private def collectColumnarShuffleExchange(plan: SparkPlan): Int = {
+    collect(plan) { case c: ColumnarShuffleExchangeExec => c }.size
+  }
+
+  private def collectShuffleExchange(plan: SparkPlan): Int = {
+    collect(plan) { case c: ShuffleExchangeExec => c }.size
+  }
+
+  test("fallback with shuffle manager") {
+    withSQLConf(GlutenConfig.COLUMNAR_SHUFFLE_ENABLED.key -> "false") {
+      runQueryAndCompare("select c1, count(*) from tmp1 group by c1") {
+        df =>
+          val plan = df.queryExecution.executedPlan
+
+          assert(collectColumnarShuffleExchange(plan) == 0)
+          assert(collectShuffleExchange(plan) == 1)
+
+          val wholeQueryColumnarToRow = collectColumnarToRow(plan)
+          assert(wholeQueryColumnarToRow == 2)
+      }
+    }
   }
 
   test("fallback with collect") {
@@ -214,6 +239,28 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
               }.nonEmpty == ignoreRowToColumnar.toBoolean)
           }
         }
+    }
+  }
+
+  test("fallback with smj") {
+    val sql = "SELECT /*+ SHUFFLE_MERGE(tmp1) */ * FROM tmp1 join tmp2 on tmp1.c1 = tmp2.c1"
+    withSQLConf(
+      GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "true",
+      GlutenConfig.COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED.key -> "false") {
+      runQueryAndCompare(sql) {
+        df =>
+          val plan = df.queryExecution.executedPlan
+          assert(collect(plan) { case smj: SortMergeJoinExec => smj }.size == 1)
+      }
+    }
+    withSQLConf(
+      GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
+      GlutenConfig.COLUMNAR_SORTMERGEJOIN_ENABLED.key -> "false") {
+      runQueryAndCompare(sql) {
+        df =>
+          val plan = df.queryExecution.executedPlan
+          assert(collect(plan) { case smj: SortMergeJoinExec => smj }.size == 1)
+      }
     }
   }
 }

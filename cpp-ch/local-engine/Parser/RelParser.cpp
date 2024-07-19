@@ -15,12 +15,16 @@
  * limitations under the License.
  */
 #include "RelParser.h"
+
 #include <string>
-#include <AggregateFunctions/AggregateFunctionFactory.h>
-#include <DataTypes/IDataType.h>
-#include <Common/Exception.h>
 #include <google/protobuf/wrappers.pb.h>
+
+#include <AggregateFunctions/AggregateFunctionFactory.h>
+#include <DataTypes/DataTypeAggregateFunction.h>
+#include <DataTypes/IDataType.h>
 #include <Poco/StringTokenizer.h>
+#include <Common/Exception.h>
+
 
 namespace DB
 {
@@ -38,7 +42,20 @@ AggregateFunctionPtr RelParser::getAggregateFunction(
 {
     auto & factory = AggregateFunctionFactory::instance();
     auto action = NullsAction::EMPTY;
-    return factory.get(name, action, arg_types, parameters, properties);
+
+    String function_name = name;
+    if (name == "avg" && isDecimal(removeNullable(arg_types[0])))
+        function_name = "sparkAvg";
+    else if (name == "avgPartialMerge")
+    {
+        if (auto agg_func = typeid_cast<const DataTypeAggregateFunction *>(arg_types[0].get());
+            !agg_func->getArgumentsDataTypes().empty() && isDecimal(removeNullable(agg_func->getArgumentsDataTypes()[0])))
+        {
+            function_name = "sparkAvgPartialMerge";
+        }
+    }
+
+    return factory.get(function_name, action, arg_types, parameters, properties);
 }
 
 std::optional<String> RelParser::parseSignatureFunctionName(UInt32 function_ref)
@@ -139,6 +156,7 @@ void registerAggregateParser(RelParserFactory & factory);
 void registerProjectRelParser(RelParserFactory & factory);
 void registerJoinRelParser(RelParserFactory & factory);
 void registerFilterRelParser(RelParserFactory & factory);
+void registerCrossRelParser(RelParserFactory & factory);
 
 void registerRelParsers()
 {
@@ -149,6 +167,7 @@ void registerRelParsers()
     registerAggregateParser(factory);
     registerProjectRelParser(factory);
     registerJoinRelParser(factory);
+    registerCrossRelParser(factory);
     registerFilterRelParser(factory);
 }
 }

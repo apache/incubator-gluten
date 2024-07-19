@@ -101,6 +101,10 @@ object ExpressionMappings {
     Sig[Encode](ENCODE),
     Sig[Uuid](UUID),
     Sig[BitLength](BIT_LENGTH),
+    Sig[OctetLength](OCTET_LENGTH),
+    Sig[Levenshtein](LEVENSHTEIN),
+    Sig[UnBase64](UNBASE64),
+    Sig[Base64](BASE64),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
@@ -173,6 +177,7 @@ object ExpressionMappings {
     Sig[Second](EXTRACT),
     Sig[FromUnixTime](FROM_UNIXTIME),
     Sig[DateAdd](DATE_ADD),
+    Sig[TimeAdd](TIMESTAMP_ADD),
     Sig[DateSub](DATE_SUB),
     Sig[DateDiff](DATE_DIFF),
     Sig[ToUnixTimestamp](TO_UNIX_TIMESTAMP),
@@ -196,6 +201,7 @@ object ExpressionMappings {
     Sig[UnixMicros](UNIX_MICROS),
     Sig[MillisToTimestamp](TIMESTAMP_MILLIS),
     Sig[MicrosToTimestamp](TIMESTAMP_MICROS),
+    Sig[PreciseTimestampConversion](PRECYSE_TIMESTAMP_CONVERSION),
     // JSON functions
     Sig[GetJsonObject](GET_JSON_OBJECT),
     Sig[LengthOfJsonArray](JSON_ARRAY_LENGTH),
@@ -243,6 +249,7 @@ object ExpressionMappings {
     Sig[ArrayFilter](FILTER),
     Sig[ArrayForAll](FORALL),
     Sig[ArrayExists](EXISTS),
+    Sig[ArraySort](ARRAY_SORT),
     Sig[Shuffle](SHUFFLE),
     Sig[ZipWith](ZIP_WITH),
     Sig[Flatten](FLATTEN),
@@ -255,6 +262,8 @@ object ExpressionMappings {
     Sig[MapEntries](MAP_ENTRIES),
     Sig[MapZipWith](MAP_ZIP_WITH),
     Sig[StringToMap](STR_TO_MAP),
+    Sig[TransformKeys](TRANSFORM_KEYS),
+    Sig[TransformValues](TRANSFORM_VALUES),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
     Sig[CreateNamedStruct](NAMED_STRUCT),
@@ -277,6 +286,9 @@ object ExpressionMappings {
     Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
     Sig[WidthBucket](WIDTH_BUCKET),
+    Sig[ReplicateRows](REPLICATE_ROWS),
+    Sig[RaiseError](RAISE_ERROR),
+    Sig[SparkVersion](VERSION),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE),
     // Generator function

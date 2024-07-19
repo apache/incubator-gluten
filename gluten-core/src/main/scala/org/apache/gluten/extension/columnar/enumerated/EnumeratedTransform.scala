@@ -43,6 +43,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
 
   private val rules = List(
     new PushFilterToScan(RasOffload.validator),
+    RemoveSort,
     RemoveFilter
   )
 
@@ -53,6 +54,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     RasOffload.from[BaseJoinExec](OffloadJoin()).toRule,
     RasOffloadHashAggregate.toRule,
     RasOffloadFilter.toRule,
+    RasOffloadProject.toRule,
     RasOffload.from[DataSourceV2ScanExecBase](OffloadOthers()).toRule,
     RasOffload.from[DataSourceScanExec](OffloadOthers()).toRule,
     RasOffload
@@ -61,7 +63,6 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
         OffloadOthers())
       .toRule,
     RasOffload.from[CoalesceExec](OffloadOthers()).toRule,
-    RasOffload.from[ProjectExec](OffloadOthers()).toRule,
     RasOffload.from[SortAggregateExec](OffloadOthers()).toRule,
     RasOffload.from[ObjectHashAggregateExec](OffloadOthers()).toRule,
     RasOffload.from[UnionExec](OffloadOthers()).toRule,

@@ -20,22 +20,62 @@ install_maven_from_source() {
         cd /tmp
         wget https://archive.apache.org/dist/maven/maven-3/$maven_version/binaries/apache-maven-$maven_version-bin.tar.gz
         tar -xvf apache-maven-$maven_version-bin.tar.gz
-        rm apache-maven-$maven_version-bin.tar.gz
+        rm -f apache-maven-$maven_version-bin.tar.gz
         mv apache-maven-$maven_version "${maven_install_dir}"
         ln -s "${maven_install_dir}/bin/mvn" /usr/local/bin/mvn
     fi
 }
 
+install_gcc9_from_source() {
+     cur_gcc_version=$(gcc -dumpversion)
+     if [ "$(semver "$cur_gcc_version")" -lt "$(semver 9.0.0)" ]; then
+            gcc_version=gcc-9.4.0
+            gcc_install_dir=/usr/local/${gcc_version}
+            cd /tmp
+            if [ ! -d $gcc_version ]; then
+                wget https://ftp.gnu.org/gnu/gcc/${gcc_version}/${gcc_version}.tar.gz
+                tar -xvf ${gcc_version}.tar.gz
+            fi
+            cd ${gcc_version}
+            sed -i 's/ftp/https/g' contrib/download_prerequisites
+            ./contrib/download_prerequisites
+
+            mkdir gcc-build && cd gcc-build
+            ../configure --prefix=${gcc_install_dir} --disable-multilib --enable-languages=c,c++
+            make -j$(nproc)
+            make install
+
+            update-alternatives --install /usr/bin/gcc gcc /usr/local/${gcc_version}/bin/gcc 900 --slave /usr/bin/g++ g++ /usr/local/${gcc_version}/bin/g++
+     fi
+}
+
 install_centos_7() {
     export PATH=/usr/local/bin:$PATH
 
+    sed -i \
+        -e 's/^mirrorlist/#mirrorlist/' \
+        -e 's/^# *baseurl *=/baseurl=/' \
+        -e 's/mirror\.centos\.org/vault.centos.org/' \
+        /etc/yum.repos.d/*.repo
+
     yum -y install epel-release centos-release-scl
+    sed -i \
+        -e 's/^mirrorlist/#mirrorlist/' \
+        -e 's/^# *baseurl *=/baseurl=/' \
+        -e 's/mirror\.centos\.org/vault.centos.org/' \
+        /etc/yum.repos.d/*.repo
+
     yum -y install \
-        wget curl tar zip unzip which \
-        cmake3 ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
-        devtoolset-9 \
+        wget curl tar zip unzip which patch sudo \
+        ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
+        devtoolset-9 python3 pip dnf \
         bison \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
+
+    pip3 install --upgrade pip
+
+    # Requires cmake >= 3.28.3
+    pip3 install cmake==3.28.3
 
     # Requires git >= 2.7.4
     if [[ "$(git --version)" != "git version 2."* ]]; then
@@ -77,12 +117,20 @@ install_centos_7() {
 }
 
 install_centos_8() {
+    sed -i \
+        -e 's/^mirrorlist/#mirrorlist/' \
+        -e 's/^# *baseurl *=/baseurl=/' \
+        -e 's/mirror\.centos\.org/vault.centos.org/' \
+        /etc/yum.repos.d/*.repo
+
     yum -y install \
-        wget curl tar zip unzip git which \
-        cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
+        wget curl tar zip unzip git which sudo patch \
+        cmake perl-IPC-Cmd autoconf automake libtool \
         gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
         flex bison python3 \
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
+
+    dnf -y --enablerepo=powertools install autoconf-archive ninja-build
 
     install_maven_from_source
 }
@@ -163,6 +211,25 @@ install_tencentos_3.2() {
         java-8-konajdk
 
     install_maven_from_source
+}
+
+install_debian_10() {
+    apt-get -y install \
+        wget curl tar zip unzip git apt-transport-https \
+        build-essential ccache cmake ninja-build pkg-config autoconf autoconf-archive libtool \
+        flex bison python3
+
+    # Download the Eclipse Adoptium GPG key
+    wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null
+
+    # Configure the Eclipse Adoptium repository
+    echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list
+
+    # Install JDK
+    apt update && apt-get -y install temurin-8-jdk
+
+    install_maven_from_source
+    install_gcc9_from_source
 }
 
 install_debian_11() {

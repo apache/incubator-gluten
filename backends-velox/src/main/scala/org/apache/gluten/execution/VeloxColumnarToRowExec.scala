@@ -18,9 +18,9 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.extension.ValidationResult
-import org.apache.gluten.memory.nmm.NativeMemoryManagers
-import org.apache.gluten.utils.Iterators
+import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.NativeColumnarToRowJniWrapper
 
 import org.apache.spark.broadcast.Broadcast
@@ -66,7 +66,7 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
               s"VeloxColumnarToRowExec.")
       }
     }
-    ValidationResult.ok
+    ValidationResult.succeeded
   }
 
   override def doExecuteInternal(): RDD[InternalRow] = {
@@ -75,13 +75,8 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
     val convertTime = longMetric("convertTime")
     child.executeColumnar().mapPartitions {
       it =>
-        VeloxColumnarToRowExec.toRowIterator(
-          it,
-          output,
-          numOutputRows,
-          numInputBatches,
-          convertTime
-        )
+        VeloxColumnarToRowExec
+          .toRowIterator(it, output, numOutputRows, numInputBatches, convertTime)
     }
   }
 
@@ -96,13 +91,7 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
       sparkContext,
       mode,
       relation,
-      VeloxColumnarToRowExec.toRowIterator(
-        _,
-        output,
-        numOutputRows,
-        numInputBatches,
-        convertTime
-      ))
+      VeloxColumnarToRowExec.toRowIterator(_, output, numOutputRows, numInputBatches, convertTime))
   }
 
   protected def withNewChildInternal(newChild: SparkPlan): VeloxColumnarToRowExec =
@@ -120,10 +109,10 @@ object VeloxColumnarToRowExec {
       return Iterator.empty
     }
 
+    val runtime = Runtimes.contextInstance("ColumnarToRow")
     // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
-    val jniWrapper = NativeColumnarToRowJniWrapper.create()
-    val c2rId = jniWrapper.nativeColumnarToRowInit(
-      NativeMemoryManagers.contextInstance("ColumnarToRow").getNativeInstanceHandle)
+    val jniWrapper = NativeColumnarToRowJniWrapper.create(runtime)
+    val c2rId = jniWrapper.nativeColumnarToRowInit()
 
     val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
 
@@ -159,7 +148,7 @@ object VeloxColumnarToRowExec {
           val beforeConvert = System.currentTimeMillis()
           val batchHandle = ColumnarBatches.getNativeHandle(batch)
           val info =
-            jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rId)
+            jniWrapper.nativeColumnarToRowConvert(c2rId, batchHandle)
 
           convertTime += (System.currentTimeMillis() - beforeConvert)
 

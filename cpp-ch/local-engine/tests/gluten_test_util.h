@@ -24,12 +24,17 @@
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <Interpreters/ActionsDAG.h>
+#include <boost/algorithm/string/replace.hpp>
+#include <google/protobuf/util/json_util.h>
 #include <parquet/schema.h>
 
 using BlockRowType = DB::ColumnsWithTypeAndName;
 using BlockFieldType = DB::ColumnWithTypeAndName;
 using AnotherRowType = DB::NamesAndTypesList;
 using AnotherFieldType = DB::NameAndTypePair;
+
+
+#define GLUTEN_DATA_DIR(file) "file://" SOURCE_DIR file
 
 namespace parquet
 {
@@ -60,6 +65,29 @@ AnotherRowType readParquetSchema(const std::string & file);
 
 DB::ActionsDAGPtr parseFilter(const std::string & filter, const AnotherRowType & name_and_types);
 
+namespace pb_util
+{
+template <typename Message>
+std::string JsonStringToBinary(const std::string_view & json)
+{
+    Message message;
+    std::string binary;
+    auto s = google::protobuf::util::JsonStringToMessage(json, &message);
+    if (!s.ok())
+    {
+        const std::string err_msg{s.message()};
+        throw std::runtime_error(err_msg);
+    }
+    message.SerializeToString(&binary);
+    return binary;
+}
+}
+}
+
+inline std::string replaceLocalFilesWildcards(const String & haystack, const String & replaced)
+{
+    static constexpr auto _WILDCARD_ = "{replace_local_files}";
+    return boost::replace_all_copy(haystack, _WILDCARD_, replaced);
 }
 
 inline DB::DataTypePtr BIGINT()

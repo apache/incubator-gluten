@@ -38,7 +38,7 @@ public:
     explicit FunctionParserLog(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
     ~FunctionParserLog() override = default;
 
-    static constexpr auto name = "logarithm";
+    static constexpr auto name = "log";
 
     String getName() const override { return name; }
 
@@ -53,7 +53,7 @@ public:
             else
                 ln(y) / ln(x)
         */
-        auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 2)
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
 

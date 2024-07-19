@@ -19,16 +19,15 @@ package org.apache.gluten.extension.columnar.enumerated
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow}
+import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
 import org.apache.gluten.extension.columnar.util.AdaptiveContext
-import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.utils.{LogLevelUtil, PhysicalPlanSelector}
 
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter, SparkPlan}
 import org.apache.spark.util.SparkRuleUtil
 
@@ -46,42 +45,32 @@ class EnumeratedApplier(session: SparkSession)
   with Logging
   with LogLevelUtil {
   // An empirical value.
-  private val aqeStackTraceIndex = 16
-
-  private lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
-  private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
-
+  private val aqeStackTraceIndex =
+    if (scala.util.Properties.releaseVersion.exists(_.startsWith("2.12"))) {
+      16
+    } else {
+      14
+    }
   private val adaptiveContext = AdaptiveContext(session, aqeStackTraceIndex)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan =
     PhysicalPlanSelector.maybe(session, plan) {
-      val transformed = transformPlan(transformRules(outputsColumnar), plan, "transform")
+      val transformed =
+        transformPlan("transform", transformRules(outputsColumnar).map(_(session)), plan)
       val postPlan = maybeAqe {
-        transformPlan(postRules(), transformed, "post")
+        transformPlan("post", postRules().map(_(session)), transformed)
       }
-      val finalPlan = transformPlan(finalRules(), postPlan, "final")
+      val finalPlan = transformPlan("final", finalRules().map(_(session)), postPlan)
       finalPlan
     }
 
   private def transformPlan(
-      getRules: List[SparkSession => Rule[SparkPlan]],
-      plan: SparkPlan,
-      step: String) = GlutenTimeMetric.withMillisTime {
-    logOnLevel(
-      transformPlanLogLevel,
-      s"${step}ColumnarTransitions preOverriden plan:\n${plan.toString}")
-    val overridden = getRules.foldLeft(plan) {
-      (p, getRule) =>
-        val rule = getRule(session)
-        val newPlan = rule(p)
-        planChangeLogger.logRule(rule.ruleName, p, newPlan)
-        newPlan
-    }
-    logOnLevel(
-      transformPlanLogLevel,
-      s"${step}ColumnarTransitions afterOverriden plan:\n${overridden.toString}")
-    overridden
-  }(t => logOnLevel(transformPlanLogLevel, s"${step}Transform SparkPlan took: $t ms."))
+      phase: String,
+      rules: Seq[Rule[SparkPlan]],
+      plan: SparkPlan): SparkPlan = {
+    val executor = new ColumnarRuleApplier.Executor(phase, rules)
+    executor.execute(plan)
+  }
 
   private def maybeAqe[T](f: => T): T = {
     adaptiveContext.setAdaptiveContext()
@@ -96,12 +85,13 @@ class EnumeratedApplier(session: SparkSession)
    * Rules to let planner create a suggested Gluten plan being sent to `fallbackPolicies` in which
    * the plan will be breakdown and decided to be fallen back or not.
    */
-  private def transformRules(outputsColumnar: Boolean): List[SparkSession => Rule[SparkPlan]] = {
+  private def transformRules(outputsColumnar: Boolean): Seq[SparkSession => Rule[SparkPlan]] = {
     List(
       (_: SparkSession) => RemoveTransitions,
       (spark: SparkSession) => FallbackOnANSIMode(spark),
       (spark: SparkSession) => PlanOneRowRelation(spark),
-      (_: SparkSession) => FallbackEmptySchemaRelation()
+      (_: SparkSession) => FallbackEmptySchemaRelation(),
+      (_: SparkSession) => RewriteSubqueryBroadcast()
     ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarValidationRules() :::
       List((spark: SparkSession) => MergeTwoPhasesHashBaseAggregate(spark)) :::
@@ -112,6 +102,7 @@ class EnumeratedApplier(session: SparkSession)
       List(
         (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
         (spark: SparkSession) => RewriteTransformer(spark),
+        (_: SparkSession) => EliminateLocalSort,
         (_: SparkSession) => EnsureLocalSortRequirements,
         (_: SparkSession) => CollapseProjectExecTransformer
       ) :::
@@ -125,7 +116,7 @@ class EnumeratedApplier(session: SparkSession)
    * Rules applying to non-fallen-back Gluten plans. To do some post cleanup works on the plan to
    * make sure it be able to run and be compatible with Spark's execution engine.
    */
-  private def postRules(): List[SparkSession => Rule[SparkPlan]] =
+  private def postRules(): Seq[SparkSession => Rule[SparkPlan]] =
     List(
       (s: SparkSession) => RemoveTopmostColumnarToRow(s, adaptiveContext.isAdaptiveContext())) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
@@ -136,14 +127,14 @@ class EnumeratedApplier(session: SparkSession)
    * Rules consistently applying to all input plans after all other rules have been applied, despite
    * whether the input plan is fallen back or not.
    */
-  private def finalRules(): List[SparkSession => Rule[SparkPlan]] = {
+  private def finalRules(): Seq[SparkSession => Rule[SparkPlan]] = {
     List(
       // The rule is required despite whether the stage is fallen back or not. Since
       // ColumnarCachedBatchSerializer is statically registered to Spark without a columnar rule
       // when columnar table cache is enabled.
       (s: SparkSession) => RemoveGlutenTableCacheColumnarToRow(s),
       (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
-      (_: SparkSession) => RemoveTransformHintRule()
+      (_: SparkSession) => RemoveFallbackTagRule()
     )
   }
 }

@@ -19,11 +19,13 @@ package org.apache.gluten.execution
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.datasource.ArrowCSVFileFormat
 import org.apache.gluten.execution.datasource.v2.ArrowBatchScanExec
+import org.apache.gluten.expression.VeloxDummyExpression
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
@@ -33,7 +35,7 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters
 
-class TestOperator extends VeloxWholeStageTransformerSuite {
+class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
@@ -44,6 +46,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
   override def beforeAll(): Unit = {
     super.beforeAll()
     createTPCHNotNullTables()
+    VeloxDummyExpression.registerFunctions(spark.sessionState.functionRegistry)
+  }
+
+  override def afterAll(): Unit = {
+    VeloxDummyExpression.unregisterFunctions(spark.sessionState.functionRegistry)
+    super.afterAll()
   }
 
   override protected def sparkConf: SparkConf = {
@@ -65,14 +73,20 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
 
   test("select_part_column") {
     val df = runQueryAndCompare("select l_shipdate, l_orderkey from lineitem limit 1") {
-      df => { assert(df.schema.fields.length == 2) }
+      df =>
+        {
+          assert(df.schema.fields.length == 2)
+        }
     }
     checkLengthAndPlan(df, 1)
   }
 
   test("select_as") {
     val df = runQueryAndCompare("select l_shipdate as my_col from lineitem limit 1") {
-      df => { assert(df.schema.fieldNames(0).equals("my_col")) }
+      df =>
+        {
+          assert(df.schema.fieldNames(0).equals("my_col"))
+        }
     }
     checkLengthAndPlan(df, 1)
   }
@@ -156,6 +170,71 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     checkLengthAndPlan(df, 60141)
   }
 
+  test("not in") {
+    // integral type
+    val df = runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_partkey not in (1552, 674, 1062)") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
+    checkLengthAndPlan(df, 60053)
+
+    val df2 = runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_partkey not in (1552, 674) and l_partkey not in (1062)") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
+    checkLengthAndPlan(df2, 60053)
+
+    val df3 = runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_partkey not in (1552, 674) and l_partkey != 1062") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
+    checkLengthAndPlan(df3, 60053)
+
+    // string type
+    val df4 =
+      runQueryAndCompare("select o_orderstatus from orders where o_orderstatus not in ('O', 'F')") {
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+      }
+    checkLengthAndPlan(df4, 363)
+
+    // bool type
+    withTable("t") {
+      sql("create table t (id int, b boolean) using parquet")
+      sql("insert into t values (1, true), (2, false), (3, null)")
+      runQueryAndCompare("select * from t where b not in (true)") {
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+      }
+
+      runQueryAndCompare("select * from t where b not in (true, false)") {
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+      }
+    }
+
+    // mix not-in with range
+    runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_partkey not in (1552, 674) and l_partkey >= 1552") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
+
+    // mix not-in with in
+    runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_partkey not in (1552, 674) and l_partkey in (1552)") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
+
+    // not-in with or relation
+    runQueryAndCompare(
+      "select l_orderkey from lineitem " +
+        "where l_partkey not in (1552, 674) or l_partkey in (1552)") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
+  }
+
   test("coalesce") {
     var df = runQueryAndCompare(
       "select l_orderkey, coalesce(l_comment, 'default_val') " +
@@ -177,6 +256,16 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       "select l_orderkey, coalesce(null, null, null) " +
         "from lineitem limit 5") { _ => }
     checkLengthAndPlan(df, 5)
+  }
+
+  testWithSpecifiedSparkVersion("coalesce validation", Some("3.4")) {
+    withTempPath {
+      path =>
+        val data = "2019-09-09 01:02:03.456789"
+        val df = Seq(data).toDF("strTs").selectExpr(s"CAST(strTs AS TIMESTAMP_NTZ) AS ts")
+        df.coalesce(1).write.format("parquet").save(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).collect
+    }
   }
 
   test("groupby") {
@@ -214,14 +303,53 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW), " +
+              "min(l_comment) over" +
+              " (partition by l_suppkey order by l_linenumber" +
+              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
               " RANGE BETWEEN CURRENT ROW AND 2 FOLLOWING) from lineitem ") {
-            checkSparkOperatorMatch[WindowExec]
+            checkSparkOperatorMatch[WindowExecTransformer]
           }
 
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
               " RANGE BETWEEN 6 PRECEDING AND CURRENT ROW) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 6 PRECEDING AND 2 FOLLOWING) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 6 PRECEDING AND 3 PRECEDING) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey" +
+              " RANGE BETWEEN 3 FOLLOWING AND 6 FOLLOWING) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          // DecimalType as order by column is not supported
+          runQueryAndCompare(
+            "select min(l_comment) over" +
+              " (partition by l_suppkey order by l_discount" +
+              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
             checkSparkOperatorMatch[WindowExec]
           }
 
@@ -703,6 +831,29 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  test("combine small batches before shuffle") {
+    val minBatchSize = 15
+    withSQLConf(
+      "spark.gluten.sql.columnar.backend.velox.coalesceBatchesBeforeShuffle" -> "true",
+      "spark.gluten.sql.columnar.maxBatchSize" -> "2",
+      "spark.gluten.sql.columnar.backend.velox.minBatchSizeForShuffle" -> s"$minBatchSize"
+    ) {
+      val df = runQueryAndCompare(
+        "select l_orderkey, sum(l_partkey) as sum from lineitem " +
+          "where l_orderkey < 100 group by l_orderkey") { _ => }
+      checkLengthAndPlan(df, 27)
+      val ops = collect(df.queryExecution.executedPlan) { case p: VeloxAppendBatchesExec => p }
+      assert(ops.size == 1)
+      val op = ops.head
+      assert(op.minOutputBatchSize == minBatchSize)
+      val metrics = op.metrics
+      assert(metrics("numInputRows").value == 27)
+      assert(metrics("numInputBatches").value == 14)
+      assert(metrics("numOutputRows").value == 27)
+      assert(metrics("numOutputBatches").value == 2)
+    }
+  }
+
   test("test OneRowRelation") {
     val df = sql("SELECT 1")
     checkAnswer(df, Row(1))
@@ -945,6 +1096,13 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
                                 |""".stripMargin) {
             // No ProjectExecTransformer is introduced.
             checkSparkOperatorChainMatch[GenerateExecTransformer, FilterExecTransformer]
+          }
+
+          runQueryAndCompare(
+            s"""
+               |SELECT $func(${VeloxDummyExpression.VELOX_DUMMY_EXPRESSION}(a)) from t2;
+               |""".stripMargin) {
+            checkGlutenOperatorMatch[GenerateExecTransformer]
           }
         }
     }
@@ -1279,6 +1437,68 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             |""".stripMargin
         ) {
           checkGlutenOperatorMatch[BroadcastNestedLoopJoinExecTransformer]
+        }
+      }
+    }
+  }
+
+  test("test sort merge join") {
+    withTable("t1", "t2") {
+      sql("""
+            |create table t1 using parquet as
+            |select cast(id as int) as c1, cast(id as string) c2 from range(100)
+            |""".stripMargin)
+      sql("""
+            |create table t2 using parquet as
+            |select cast(id as int) as c1, cast(id as string) c2 from range(100) order by c1 desc;
+            |""".stripMargin)
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 inner join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 left join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 left semi join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 right join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 left anti join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
         }
       }
     }
@@ -1742,6 +1962,31 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             1
           )
         }
+    }
+  }
+
+  test("fix non-deterministic filter executed twice when push down to scan") {
+    val df = sql("select * from lineitem where rand() <= 0.5")
+    // plan check
+    val plan = df.queryExecution.executedPlan
+    val scans = plan.collect { case scan: FileSourceScanExecTransformer => scan }
+    val filters = plan.collect { case filter: FilterExecTransformer => filter }
+    assert(scans.size == 1)
+    assert(filters.size == 1)
+    assert(scans(0).dataFilters.size == 1)
+    val remainingFilters = FilterHandler.getRemainingFilters(
+      scans(0).dataFilters,
+      splitConjunctivePredicates(filters(0).condition))
+    assert(remainingFilters.size == 0)
+
+    // result length check, table lineitem has 60,000 rows
+    val resultLength = df.collect().length
+    assert(resultLength > 25000 && resultLength < 35000)
+  }
+
+  test("Deduplicate sorting keys") {
+    runQueryAndCompare("select * from lineitem order by l_orderkey, l_orderkey") {
+      checkGlutenOperatorMatch[SortExecTransformer]
     }
   }
 }

@@ -337,6 +337,7 @@ object JoinUtils {
       inputBuildOutput: Seq[Attribute],
       substraitContext: SubstraitContext,
       operatorId: java.lang.Long,
+      joinParameters: Any,
       validation: Boolean = false
   ): RelNode = {
     val expressionNode = condition.map {
@@ -346,7 +347,7 @@ object JoinUtils {
           .doTransform(substraitContext.registeredFunction)
     }
     val extensionNode =
-      JoinUtils.createExtensionNode(inputStreamedOutput ++ inputBuildOutput, validation)
+      createJoinExtensionNode(joinParameters, inputStreamedOutput ++ inputBuildOutput)
 
     RelBuilder.makeCrossRel(
       inputStreamedRelNode,

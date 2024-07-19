@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
-import org.apache.gluten.{GlutenConfig, GlutenNumaBindingInfo}
+import org.apache.gluten.GlutenNumaBindingInfo
 import org.apache.gluten.backendsapi.IteratorApi
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ConverterUtils
@@ -25,10 +25,11 @@ import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel._
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.utils.LogLevelUtil
-import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator}
+import org.apache.gluten.vectorized.{BatchIterator, CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator}
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 import org.apache.spark.affinity.CHAffinity
+import org.apache.spark.executor.InputMetrics
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
@@ -57,7 +58,53 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         }
         dataSchema += newField
     }
-    StructType(dataSchema)
+    StructType(dataSchema.toSeq)
+  }
+
+  private def createNativeIterator(
+      splitInfoByteArray: Array[Array[Byte]],
+      wsPlan: Array[Byte],
+      materializeInput: Boolean,
+      inputIterators: Seq[Iterator[ColumnarBatch]]): BatchIterator = {
+
+    /** Generate closeable ColumnBatch iterator. */
+    val listIterator =
+      inputIterators
+        .map {
+          case i: CloseableCHColumnBatchIterator => i
+          case it => new CloseableCHColumnBatchIterator(it)
+        }
+        .map(it => new ColumnarNativeIterator(it.asJava).asInstanceOf[GeneralInIterator])
+        .asJava
+    new CHNativeExpressionEvaluator().createKernelWithBatchIterator(
+      wsPlan,
+      splitInfoByteArray,
+      listIterator,
+      materializeInput
+    )
+  }
+
+  private def createCloseIterator(
+      context: TaskContext,
+      pipelineTime: SQLMetric,
+      updateNativeMetrics: IMetrics => Unit,
+      updateInputMetrics: Option[InputMetricsWrapper => Unit] = None,
+      nativeIter: BatchIterator): CloseableCHColumnBatchIterator = {
+
+    val iter = new CollectMetricIterator(
+      nativeIter,
+      updateNativeMetrics,
+      updateInputMetrics,
+      updateInputMetrics.map(_ => context.taskMetrics().inputMetrics).orNull)
+
+    context.addTaskFailureListener(
+      (ctx, _) => {
+        if (ctx.isInterrupted()) {
+          iter.cancel()
+        }
+      })
+    context.addTaskCompletionListener[Unit](_ => iter.close())
+    new CloseableCHColumnBatchIterator(iter, Some(pipelineTime))
   }
 
   // only set file schema for text format table
@@ -67,7 +114,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     if (scan.fileFormat == ReadFileFormat.TextReadFormat) {
       val names =
         ConverterUtils.collectAttributeNamesWithoutExprId(scan.outputAttributes())
-      localFilesNode.setFileSchema(getFileSchema(scan.getDataSchema, names.asScala))
+      localFilesNode.setFileSchema(getFileSchema(scan.getDataSchema, names.asScala.toSeq))
     }
   }
 
@@ -117,7 +164,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         val partitionColumns = new JArrayList[JMap[String, String]]
         f.files.foreach {
           file =>
-            paths.add(new URI(file.filePath).toASCIIString)
+            paths.add(new URI(file.filePath.toString()).toASCIIString)
             starts.add(JLong.valueOf(file.start))
             lengths.add(JLong.valueOf(file.length))
             // TODO: Support custom partition location
@@ -131,10 +178,13 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           paths,
           starts,
           lengths,
+          new JArrayList[JLong](),
+          new JArrayList[JLong](),
           partitionColumns,
           new JArrayList[JMap[String, String]](),
           fileFormat,
-          preferredLocations.toList.asJava)
+          preferredLocations.toList.asJava
+        )
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition: $partition.")
     }
@@ -194,65 +244,24 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
   ): Iterator[ColumnarBatch] = {
 
-    assert(
+    require(
       inputPartition.isInstanceOf[GlutenPartition],
       "CH backend only accepts GlutenPartition in GlutenWholeStageColumnarRDD.")
-
-    val transKernel = new CHNativeExpressionEvaluator()
-    val inBatchIters = new JArrayList[GeneralInIterator](inputIterators.map {
-      iter => new ColumnarNativeIterator(CHIteratorApi.genCloseableColumnBatchIterator(iter).asJava)
-    }.asJava)
-
     val splitInfoByteArray = inputPartition
       .asInstanceOf[GlutenPartition]
       .splitInfosByteArray
-    val resIter =
-      transKernel.createKernelWithBatchIterator(
-        inputPartition.plan,
-        splitInfoByteArray,
-        inBatchIters,
-        false)
+    val wsPlan = inputPartition.plan
+    val materializeInput = false
 
-    context.addTaskFailureListener(
-      (ctx, _) => {
-        if (ctx.isInterrupted()) {
-          resIter.cancel()
-        }
-      })
-    context.addTaskCompletionListener[Unit](_ => resIter.close())
-    val iter = new Iterator[Any] {
-      private val inputMetrics = context.taskMetrics().inputMetrics
-      private var outputRowCount = 0L
-      private var outputVectorCount = 0L
-      private var metricsUpdated = false
-
-      override def hasNext: Boolean = {
-        val res = resIter.hasNext
-        // avoid to collect native metrics more than once, 'hasNext' is a idempotent operation
-        if (!res && !metricsUpdated) {
-          val nativeMetrics = resIter.getMetrics.asInstanceOf[NativeMetrics]
-          nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
-          updateNativeMetrics(nativeMetrics)
-          updateInputMetrics(inputMetrics)
-          metricsUpdated = true
-        }
-        res
-      }
-
-      override def next(): Any = {
-        val cb = resIter.next()
-        outputVectorCount += 1
-        outputRowCount += cb.numRows()
-        cb
-      }
-    }
-
-    // TODO: SPARK-25083 remove the type erasure hack in data source scan
     new InterruptibleIterator(
       context,
-      new CloseableCHColumnBatchIterator(
-        iter.asInstanceOf[Iterator[ColumnarBatch]],
-        Some(pipelineTime)))
+      createCloseIterator(
+        context,
+        pipelineTime,
+        updateNativeMetrics,
+        Some(updateInputMetrics),
+        createNativeIterator(splitInfoByteArray, wsPlan, materializeInput, inputIterators))
+    )
   }
 
   // Generate Iterator[ColumnarBatch] for final stage.
@@ -268,78 +277,59 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       partitionIndex: Int,
       materializeInput: Boolean): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
-    GlutenConfig.getConf
 
-    val transKernel = new CHNativeExpressionEvaluator()
-    val columnarNativeIterator =
-      new JArrayList[GeneralInIterator](inputIterators.map {
-        iter =>
-          new ColumnarNativeIterator(CHIteratorApi.genCloseableColumnBatchIterator(iter).asJava)
-      }.asJava)
+    // Final iterator does not contain scan split, so pass empty split info to native here.
+    val splitInfoByteArray = new Array[Array[Byte]](0)
+    val wsPlan = rootNode.toProtobuf.toByteArray
+
     // we need to complete dependency RDD's firstly
-    val nativeIterator = transKernel.createKernelWithBatchIterator(
-      rootNode.toProtobuf.toByteArray,
-      // Final iterator does not contain scan split, so pass empty split info to native here.
-      new Array[Array[Byte]](0),
-      columnarNativeIterator,
-      materializeInput
-    )
-
-    val resIter = new Iterator[ColumnarBatch] {
-      private var outputRowCount = 0L
-      private var outputVectorCount = 0L
-      private var metricsUpdated = false
-
-      override def hasNext: Boolean = {
-        val res = nativeIterator.hasNext
-        // avoid to collect native metrics more than once, 'hasNext' is a idempotent operation
-        if (!res && !metricsUpdated) {
-          val nativeMetrics = nativeIterator.getMetrics.asInstanceOf[NativeMetrics]
-          nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
-          updateNativeMetrics(nativeMetrics)
-          metricsUpdated = true
-        }
-        res
-      }
-
-      override def next(): ColumnarBatch = {
-        val cb = nativeIterator.next()
-        outputVectorCount += 1
-        outputRowCount += cb.numRows()
-        cb
-      }
-    }
-    var closed = false
-    val cancelled = false
-
-    def close(): Unit = {
-      closed = true
-      nativeIterator.close()
-      // relationHolder.clear()
-    }
-
-    def cancel(): Unit = {
-      nativeIterator.cancel()
-    }
-
-    context.addTaskFailureListener(
-      (ctx, _) => {
-        if (ctx.isInterrupted()) {
-          cancel()
-        }
-      })
-    context.addTaskCompletionListener[Unit](_ => close())
-    new CloseableCHColumnBatchIterator(resIter, Some(pipelineTime))
+    createCloseIterator(
+      context,
+      pipelineTime,
+      updateNativeMetrics,
+      None,
+      createNativeIterator(splitInfoByteArray, wsPlan, materializeInput, inputIterators))
   }
 }
 
-object CHIteratorApi {
+class CollectMetricIterator(
+    val nativeIterator: BatchIterator,
+    val updateNativeMetrics: IMetrics => Unit,
+    val updateInputMetrics: Option[InputMetricsWrapper => Unit] = None,
+    val inputMetrics: InputMetrics = null
+) extends Iterator[ColumnarBatch] {
+  private var outputRowCount = 0L
+  private var outputVectorCount = 0L
+  private var metricsUpdated = false
 
-  /** Generate closeable ColumnBatch iterator. */
-  def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    iter match {
-      case _: CloseableCHColumnBatchIterator => iter
-      case _ => new CloseableCHColumnBatchIterator(iter)
+  override def hasNext: Boolean = {
+    nativeIterator.hasNext
+  }
+
+  override def next(): ColumnarBatch = {
+    val cb = nativeIterator.next()
+    outputVectorCount += 1
+    outputRowCount += cb.numRows()
+    cb
+  }
+
+  def close(): Unit = {
+    collectStageMetrics()
+    nativeIterator.close()
+  }
+
+  def cancel(): Unit = {
+    collectStageMetrics()
+    nativeIterator.cancel()
+  }
+
+  private def collectStageMetrics(): Unit = {
+    if (!metricsUpdated) {
+      val nativeMetrics = nativeIterator.getMetrics.asInstanceOf[NativeMetrics]
+      nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
+      updateNativeMetrics(nativeMetrics)
+      updateInputMetrics.foreach(_(inputMetrics))
+      metricsUpdated = true
     }
   }
 }

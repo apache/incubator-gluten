@@ -55,8 +55,10 @@ using namespace facebook;
 namespace gluten {
 
 namespace {
-gluten::Runtime* veloxRuntimeFactory(const std::unordered_map<std::string, std::string>& sessionConf) {
-  return new gluten::VeloxRuntime(sessionConf);
+gluten::Runtime* veloxRuntimeFactory(
+    std::unique_ptr<AllocationListener> listener,
+    const std::unordered_map<std::string, std::string>& sessionConf) {
+  return new gluten::VeloxRuntime(std::move(listener), sessionConf);
 }
 } // namespace
 
@@ -226,6 +228,9 @@ void VeloxBackend::initConnector() {
   FLAGS_cache_prefetch_min_pct = backendConf_->get<int>(kCachePrefetchMinPct, 0);
 
   auto ioThreads = backendConf_->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
+  GLUTEN_CHECK(
+      ioThreads >= 0,
+      kVeloxIOThreads + " was set to negative number " + std::to_string(ioThreads) + ", this should not happen.");
   if (ioThreads > 0) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }

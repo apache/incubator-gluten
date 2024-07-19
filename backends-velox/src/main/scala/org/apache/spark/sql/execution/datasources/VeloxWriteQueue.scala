@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.datasources
 
 import org.apache.gluten.datasource.DatasourceJniWrapper
-import org.apache.gluten.utils.Iterators
+import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.ColumnarBatchInIterator
 
 import org.apache.spark.TaskContext
@@ -40,9 +40,10 @@ class VeloxWriteQueue(
     schema: Schema,
     allocator: BufferAllocator,
     datasourceJniWrapper: DatasourceJniWrapper,
-    outputFileURI: String)
+    outputFileURI: String,
+    queueSize: Int)
   extends AutoCloseable {
-  private val scanner = new VeloxColumnarBatchIterator(schema, allocator)
+  private val scanner = new VeloxColumnarBatchIterator(schema, allocator, queueSize)
   private val writeException = new AtomicReference[Throwable]
 
   private val writeThread = new Thread(

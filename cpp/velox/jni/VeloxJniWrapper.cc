@@ -30,6 +30,8 @@
 #include "jni/JniFileSystem.h"
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
+#include "utils/ObjectStore.h"
+#include "utils/VeloxBatchAppender.h"
 #include "velox/common/base/BloomFilter.h"
 
 #include <iostream>
@@ -158,8 +160,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_
   auto filter = std::make_shared<velox::BloomFilter<std::allocator<uint64_t>>>();
   filter->reset(capacity);
   GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
-  return ctx->objectStore()->save(filter);
-  JNI_METHOD_END(gluten::kInvalidResourceHandle)
+  return ctx->saveObject(filter);
+  JNI_METHOD_END(gluten::kInvalidObjectHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_init( // NOLINT
@@ -172,8 +174,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_
   auto filter = std::make_shared<velox::BloomFilter<std::allocator<uint64_t>>>();
   uint8_t* serialized = safeArray.elems();
   filter->merge(reinterpret_cast<char*>(serialized));
-  return ctx->objectStore()->save(filter);
-  JNI_METHOD_END(gluten::kInvalidResourceHandle)
+  return ctx->saveObject(filter);
+  JNI_METHOD_END(gluten::kInvalidObjectHandle)
 }
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_insertLong( // NOLINT
@@ -182,8 +184,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_i
     jlong handle,
     jlong item) {
   JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
-  auto filter = ctx->objectStore()->retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
+  auto filter = gluten::ObjectStore::retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
   GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
   filter->insert(folly::hasher<int64_t>()(item));
   JNI_METHOD_END()
@@ -195,8 +196,7 @@ JNIEXPORT jboolean JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapp
     jlong handle,
     jlong item) {
   JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
-  auto filter = ctx->objectStore()->retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
+  auto filter = gluten::ObjectStore::retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
   GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
   bool out = filter->mayContain(folly::hasher<int64_t>()(item));
   return out;
@@ -220,9 +220,8 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_m
     jlong handle,
     jlong other) {
   JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
-  auto to = ctx->objectStore()->retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
-  auto from = ctx->objectStore()->retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(other);
+  auto to = gluten::ObjectStore::retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
+  auto from = gluten::ObjectStore::retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(other);
   GLUTEN_CHECK(to->isSet(), "Bloom-filter is not initialized");
   GLUTEN_CHECK(from->isSet(), "Bloom-filter is not initialized");
   std::vector<char> serialized = serialize(from.get());
@@ -235,8 +234,7 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWra
     jobject wrapper,
     jlong handle) {
   JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
-  auto filter = ctx->objectStore()->retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
+  auto filter = gluten::ObjectStore::retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
   GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
   std::vector<char> buffer = serialize(filter.get());
   auto size = buffer.capacity();
@@ -244,6 +242,21 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWra
   env->SetByteArrayRegion(out, 0, size, reinterpret_cast<jbyte*>(buffer.data()));
   return out;
   JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBatchAppenderJniWrapper_create( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jint minOutputBatchSize,
+    jobject jIter) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto pool = dynamic_cast<gluten::VeloxMemoryManager*>(ctx->memoryManager())->getLeafMemoryPool();
+  auto iter = gluten::makeJniColumnarBatchIterator(env, jIter, ctx, nullptr);
+  auto appender = std::make_shared<gluten::ResultIterator>(
+      std::make_unique<gluten::VeloxBatchAppender>(pool.get(), minOutputBatchSize, std::move(iter)));
+  return ctx->saveObject(appender);
+  JNI_METHOD_END(gluten::kInvalidObjectHandle)
 }
 
 #ifdef __cplusplus

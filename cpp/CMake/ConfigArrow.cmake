@@ -15,41 +15,36 @@
 # specific language governing permissions and limitations
 # under the License.
 
-if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-  set(ARROW_SHARED_LIBRARY_SUFFIX ".1500.dylib")
-  set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".1500.1.0.dylib")
-else()
-  set(ARROW_SHARED_LIBRARY_SUFFIX ".so.1500")
-  set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.1500.1.0")
-endif()
+set(ARROW_STATIC_LIBRARY_SUFFIX ".a")
 
 set(ARROW_LIB_NAME "arrow")
 set(PARQUET_LIB_NAME "parquet")
-set(ARROW_DATASET_LIB_NAME "arrow_dataset")
-set(ARROW_SUBSTRAIT_LIB_NAME "arrow_substrait")
-
-function(FIND_ARROW_LIB LIB_NAME)
-  if(NOT TARGET Arrow::${LIB_NAME})
-    set(ARROW_LIB_FULL_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
-    add_library(Arrow::${LIB_NAME} SHARED IMPORTED)
-    find_library(ARROW_LIB_${LIB_NAME}
-        NAMES ${ARROW_LIB_FULL_NAME}
-        PATHS ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR}
-        NO_DEFAULT_PATH)
-    if(NOT ARROW_LIB_${LIB_NAME})
-      message(FATAL_ERROR "Arrow library Not Found: ${ARROW_LIB_FULL_NAME}")
-    else()
-      message(STATUS "Found Arrow library: ${ARROW_LIB_${LIB_NAME}}")
-      set_target_properties(Arrow::${LIB_NAME}
-        PROPERTIES IMPORTED_LOCATION "${ARROW_LIB_${LIB_NAME}}"
-        INTERFACE_INCLUDE_DIRECTORIES
-        "${ARROW_HOME}/install/include")
-    endif()
-    file(COPY ${ARROW_LIB_${LIB_NAME}} DESTINATION ${root_directory}/releases/ FOLLOW_SYMLINK_CHAIN)
-  endif()
-endfunction()
+set(ARROW_BUNDLED_DEPS "arrow_bundled_dependencies")
 
 set(ARROW_INSTALL_DIR "${ARROW_HOME}/install")
 set(ARROW_LIB_DIR "${ARROW_INSTALL_DIR}/lib")
 set(ARROW_LIB64_DIR "${ARROW_INSTALL_DIR}/lib64")
-set(ARROW_INCLUDE_DIR "${ARROW_INSTALL_DIR}/include")
+
+function(FIND_ARROW_LIB LIB_NAME)
+  if(NOT TARGET Arrow::${LIB_NAME})
+    set(ARROW_LIB_FULL_NAME
+        ${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${ARROW_STATIC_LIBRARY_SUFFIX})
+    add_library(Arrow::${LIB_NAME} STATIC IMPORTED)
+    # Firstly find the lib from bundled path in Velox. If not found, try to find
+    # it from system.
+    find_library(
+      ARROW_LIB_${LIB_NAME}
+      NAMES ${ARROW_LIB_FULL_NAME}
+      PATHS ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR}
+      NO_DEFAULT_PATH)
+    if(NOT ARROW_LIB_${LIB_NAME})
+      find_library(ARROW_LIB_${LIB_NAME} NAMES ${ARROW_LIB_FULL_NAME})
+    endif()
+    if(NOT ARROW_LIB_${LIB_NAME})
+      message(FATAL_ERROR "Arrow library Not Found: ${ARROW_LIB_FULL_NAME}")
+    endif()
+    message(STATUS "Found Arrow library: ${ARROW_LIB_${LIB_NAME}}")
+    set_target_properties(Arrow::${LIB_NAME}
+                          PROPERTIES IMPORTED_LOCATION ${ARROW_LIB_${LIB_NAME}})
+  endif()
+endfunction()

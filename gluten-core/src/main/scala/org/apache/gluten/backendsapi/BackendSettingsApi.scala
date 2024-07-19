@@ -35,14 +35,17 @@ trait BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
-      paths: Seq[String]): ValidationResult = ValidationResult.ok
+      paths: Seq[String]): ValidationResult = ValidationResult.succeeded
   def supportWriteFilesExec(
       format: FileFormat,
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
-      options: Map[String, String]): ValidationResult = ValidationResult.ok
+      options: Map[String, String]): ValidationResult = ValidationResult.succeeded
   def supportNativeWrite(fields: Array[StructField]): Boolean = true
   def supportNativeMetadataColumns(): Boolean = false
+  def supportNativeRowIndexColumn(): Boolean = false
+  def supportNativeInputFileRelatedExpr(): Boolean = false
+
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true
@@ -83,7 +86,6 @@ trait BackendSettingsApi {
    * the result columns from the shuffle.
    */
   def supportShuffleWithProject(outputPartitioning: Partitioning, child: SparkPlan): Boolean = false
-  def utilizeShuffledHashJoinHint(): Boolean = false
   def excludeScanExecFromCollapsedStage(): Boolean = false
   def rescaleDecimalArithmetic: Boolean = false
 
@@ -121,9 +123,9 @@ trait BackendSettingsApi {
 
   def alwaysFailOnMapExpression(): Boolean = false
 
-  def requiredChildOrderingForWindow(): Boolean = false
+  def requiredChildOrderingForWindow(): Boolean = true
 
-  def requiredChildOrderingForWindowGroupLimit(): Boolean = false
+  def requiredChildOrderingForWindowGroupLimit(): Boolean = true
 
   def staticPartitionWriteOnly(): Boolean = false
 
@@ -142,7 +144,7 @@ trait BackendSettingsApi {
 
   def supportCartesianProductExec(): Boolean = false
 
-  def supportBroadcastNestedLoopJoinExec(): Boolean = false
+  def supportBroadcastNestedLoopJoinExec(): Boolean = true
 
   def supportSampleExec(): Boolean = false
 
@@ -152,4 +154,6 @@ trait BackendSettingsApi {
   def supportColumnarArrowUdf(): Boolean = false
 
   def generateHdfsConfForLibhdfs(): Boolean = false
+
+  def needPreComputeRangeFrameBoundary(): Boolean = false
 }

@@ -503,6 +503,7 @@ arrow::Status UncompressedDiskBlockPayload::serialize(arrow::io::OutputStream* o
 }
 
 arrow::Result<std::shared_ptr<arrow::Buffer>> UncompressedDiskBlockPayload::readUncompressedBuffer() {
+  ScopedTimer timer(&writeTime_);
   readPos_++;
   int64_t bufferLength;
   RETURN_NOT_OK(inputStream_->Read(sizeof(int64_t), &bufferLength));
@@ -525,6 +526,7 @@ CompressedDiskBlockPayload::CompressedDiskBlockPayload(
     : Payload(Type::kCompressed, numRows, isValidityBuffer), inputStream_(inputStream), rawSize_(rawSize) {}
 
 arrow::Status CompressedDiskBlockPayload::serialize(arrow::io::OutputStream* outputStream) {
+  ScopedTimer timer(&writeTime_);
   ARROW_ASSIGN_OR_RAISE(auto block, inputStream_->Read(rawSize_));
   RETURN_NOT_OK(outputStream->Write(block));
   return arrow::Status::OK();

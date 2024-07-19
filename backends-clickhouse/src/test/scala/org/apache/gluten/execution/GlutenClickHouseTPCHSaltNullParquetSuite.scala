@@ -944,7 +944,15 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |from nation
         |order by n_regionkey, n_nationkey, n_lag
         |""".stripMargin
+    val sql1 =
+      """
+        | select n_regionkey, n_nationkey,
+        | lag(n_nationkey, 1, n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_lag
+        |from nation
+        |order by n_regionkey, n_nationkey, n_lag
+        |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => }, false)
   }
 
   test("window lag with null value") {
@@ -967,6 +975,33 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |from nation
         |order by n_regionkey, n_nationkey
         |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window percent_rank") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | percent_rank(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_rank
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window ntile") {
+    val sql =
+      """
+        | select n_regionkey, n_nationkey,
+        |   first_value(n_nationkey) over (partition by n_regionkey order by n_nationkey) as
+        |   first_v,
+        |   ntile(4) over (partition by n_regionkey order by n_nationkey) as ntile_v
+        | from
+        |   (
+        |     select n_regionkey, if(n_nationkey = 1, null, n_nationkey) as n_nationkey from nation
+        |   ) as t
+        | order by n_regionkey, n_nationkey
+      """.stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
@@ -1315,6 +1350,13 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     runQueryAndCompare(
       "select bit_and(l_partkey), bit_or(l_suppkey), bit_xor(l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[CHHashAggregateExecTransformer]
+    }
+  }
+
+  test("bit_get/bit_count") {
+    runQueryAndCompare(
+      "select bit_count(id), bit_get(id, 0), bit_get(id, 1), bit_get(id, 2), bit_get(id, 3) from range(100)") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
 
@@ -1712,7 +1754,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql1, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
 
     val sql2 =
       """
@@ -1733,7 +1775,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql2, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
 
     val sql3 =
       """
@@ -1754,7 +1796,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql3, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
 
     val sql4 =
       """
@@ -1775,7 +1817,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql4, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => })
 
     val sql5 =
       """
@@ -1796,7 +1838,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql5, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql5, true, { _ => })
   }
 
   test("GLUTEN-1874 not null in one stream") {
@@ -2040,10 +2082,15 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       """
         |select to_json(struct(cast(id as string), id, 1.1, 1.1f, 1.1d)) from range(3)
         |""".stripMargin
+    val sql1 =
+      """
+        | select to_json(named_struct('name', concat('/val/', id))) from range(3)
+        |""".stripMargin
     // cast('nan' as double) output 'NaN' in Spark, 'nan' in CH
     // cast('inf' as double) output 'Infinity' in Spark, 'inf' in CH
     // ignore them temporarily
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(sql1)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("GLUTEN-3501: test json output format with struct contains null value") {
@@ -2562,12 +2609,12 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     spark.sql("drop table test_tbl_5096")
   }
 
-  test("GLUTEN-5896: Bug fix greatest diff") {
+  test("GLUTEN-5896: Bug fix greatest/least diff") {
     val tbl_create_sql =
       "create table test_tbl_5896(id bigint, x1 int, x2 int, x3 int) using parquet"
     val tbl_insert_sql =
       "insert into test_tbl_5896 values(1, 12, NULL, 13), (2, NULL, NULL, NULL), (3, 11, NULL, NULL), (4, 10, 9, 8)"
-    val select_sql = "select id, greatest(x1, x2, x3) from test_tbl_5896"
+    val select_sql = "select id, greatest(x1, x2, x3), least(x1, x2, x3) from test_tbl_5896"
     spark.sql(tbl_create_sql)
     spark.sql(tbl_insert_sql)
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
@@ -2611,6 +2658,116 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       spark.sql("drop table ineq_join_t1")
       spark.sql("drop table ineq_join_t2")
     }
+  }
+
+  test("GLUTEN-5910: Fix ASTLiteral type is lost in CH") {
+    spark.sql("create table test_tbl_5910_0(c_time bigint, type int) using parquet")
+    spark.sql("create table test_tbl_5910_1(type int) using parquet")
+    spark.sql("insert into test_tbl_5910_0 values(1717209159, 12)")
+    spark.sql("insert into test_tbl_5910_1 values(12)")
+    val select_sql =
+      """
+        | select t1.cday, t2.type from (
+        | select type, to_date(from_unixtime(c_time)) as cday from test_tbl_5910_0 ) t1
+        | left join (
+        | select type, "2024-06-01" as cday from test_tbl_5910_1 ) t2
+        | on t1.cday = t2.cday and t1.type = t2.type
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_5910_0")
+    spark.sql("drop table test_tbl_5910_1")
+  }
+
+  test("GLUTEN-4451: Fix schema may be changed by filter") {
+    val create_sql =
+      """
+        |create table if not exists test_tbl_4451(
+        |  month_day string,
+        |  month_dif int,
+        |  is_month_new string,
+        |  country string,
+        |  os string,
+        |  mr bigint
+        |) using parquet
+        |PARTITIONED BY (
+        |  day string,
+        |  app_name string)
+        |""".stripMargin
+    val insert_sql1 =
+      "INSERT into test_tbl_4451 partition (day='2024-06-01', app_name='abc') " +
+        "values('2024-06-01', 0, '1', 'CN', 'iOS', 100)"
+    val insert_sql2 =
+      "INSERT into test_tbl_4451 partition (day='2024-06-01', app_name='abc') " +
+        "values('2024-06-01', 0, '1', 'CN', 'iOS', 50)"
+    val insert_sql3 =
+      "INSERT into test_tbl_4451 partition (day='2024-06-01', app_name='abc') " +
+        "values('2024-06-01', 1, '1', 'CN', 'iOS', 80)"
+    spark.sql(create_sql)
+    spark.sql(insert_sql1)
+    spark.sql(insert_sql2)
+    spark.sql(insert_sql3)
+    val select_sql =
+      """
+        |SELECT * FROM (
+        |  SELECT
+        |    month_day,
+        |    country,
+        |    if(os = 'ALite','Android',os) AS os,
+        |    is_month_new,
+        |    nvl(sum(if(month_dif = 0, mr, 0)),0) AS `month0_n`,
+        |    nvl(sum(if(month_dif = 1, mr, 0)) / sum(if(month_dif = 0, mr, 0)),0) AS `month1_rate`,
+        |    '2024-06-18' as day,
+        |    app_name
+        |  FROM test_tbl_4451
+        |  GROUP BY month_day,country,if(os = 'ALite','Android',os),is_month_new,app_name
+        |) tt
+        |WHERE month0_n > 0 AND month1_rate <= 1  AND os IN ('all','Android','iOS')
+        |  AND app_name IS NOT NULL
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_4451")
+  }
+
+  test("array functions date add") {
+    spark.sql("create table tb_date(day Date) using parquet")
+    spark.sql("""
+                |insert into tb_date values
+                |(cast('2024-06-01' as Date)),
+                |(cast('2024-06-02' as Date)),
+                |(cast('2024-06-03' as Date)),
+                |(cast('2024-06-04' as Date)),
+                |(cast('2024-06-05' as Date))
+                |""".stripMargin)
+    val sql1 = """
+                 |select * from tb_date where day between
+                 |'2024-06-01' and
+                 |cast('2024-06-01' as Date) + interval 2 day
+                 |order by day
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+    val sql2 = """
+                 |select * from tb_date where day between
+                 |'2024-06-01' and
+                 |cast('2024-06-01' as Date) + interval 48 hour
+                 |order by day
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+    val sql3 = """
+                 |select * from tb_date where day between
+                 |'2024-06-01' and
+                 |cast('2024-06-05' as Date) - interval 2 day
+                 |order by day
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+    val sql4 = """
+                 |select * from tb_date where day between
+                 |'2024-06-01' and
+                 |cast('2024-06-05' as Date) - interval 48 hour
+                 |order by day
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => })
+
+    spark.sql("drop table tb_date")
   }
 }
 // scalastyle:on line.size.limit

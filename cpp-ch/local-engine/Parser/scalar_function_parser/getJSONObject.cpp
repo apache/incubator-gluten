@@ -41,7 +41,6 @@ public:
     ~GetJSONObjectParser() override = default;
 
     String getName() const override { return name; }
-protected:
     String getCHFunctionName(const substrait::Expression_ScalarFunction & scalar_function) const override
     {
         const auto & args = scalar_function.arguments();
@@ -53,16 +52,16 @@ protected:
         return name;
     }
 
+protected:
     /// Force to reuse the same flatten json column node
     DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
-        const String & ch_func_name,
         DB::ActionsDAGPtr & actions_dag) const override
     {
         const auto & args = substrait_func.arguments();
         if (args.size() != 2)
         {
-            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {} requires 2 arguments", ch_func_name);
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {} requires 2 arguments", getCHFunctionName(substrait_func));
         }
         if (args[0].value().has_scalar_function()
             && args[0].value().scalar_function().function_reference() == SelfDefinedFunctionReference::GET_JSON_OBJECT)

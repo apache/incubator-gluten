@@ -25,6 +25,7 @@ import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel.{LocalFilesBuilder, LocalFilesNode, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.utils._
+import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized._
 
 import org.apache.spark.{SparkConf, TaskContext}
@@ -35,7 +36,7 @@ import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.types.{BinaryType, DateType, Decimal, DecimalType, StructType, TimestampType}
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
@@ -56,7 +57,14 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       metadataColumnNames: Seq[String]): SplitInfo = {
     partition match {
       case f: FilePartition =>
-        val (paths, starts, lengths, partitionColumns, metadataColumns) =
+        val (
+          paths,
+          starts,
+          lengths,
+          fileSizes,
+          modificationTimes,
+          partitionColumns,
+          metadataColumns) =
           constructSplitInfo(partitionSchema, f.files, metadataColumnNames)
         val preferredLocations =
           SoftAffinity.getFilePartitionLocations(f)
@@ -65,6 +73,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           paths,
           starts,
           lengths,
+          fileSizes,
+          modificationTimes,
           partitionColumns,
           metadataColumns,
           fileFormat,
@@ -100,8 +110,10 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     val paths = new JArrayList[String]()
     val starts = new JArrayList[JLong]
     val lengths = new JArrayList[JLong]()
+    val fileSizes = new JArrayList[JLong]()
+    val modificationTimes = new JArrayList[JLong]()
     val partitionColumns = new JArrayList[JMap[String, String]]
-    var metadataColumns = new JArrayList[JMap[String, String]]
+    val metadataColumns = new JArrayList[JMap[String, String]]
     files.foreach {
       file =>
         // The "file.filePath" in PartitionedFile is not the original encoded path, so the decoded
@@ -111,6 +123,14 @@ class VeloxIteratorApi extends IteratorApi with Logging {
             .decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
         starts.add(JLong.valueOf(file.start))
         lengths.add(JLong.valueOf(file.length))
+        val (fileSize, modificationTime) =
+          SparkShimLoader.getSparkShims.getFileSizeAndModificationTime(file)
+        (fileSize, modificationTime) match {
+          case (Some(size), Some(time)) =>
+            fileSizes.add(JLong.valueOf(size))
+            modificationTimes.add(JLong.valueOf(time))
+          case _ => // Do nothing
+        }
         val metadataColumn =
           SparkShimLoader.getSparkShims.generateMetadataColumns(file, metadataColumnNames)
         metadataColumns.add(metadataColumn)
@@ -138,7 +158,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         }
         partitionColumns.add(partitionColumn)
     }
-    (paths, starts, lengths, partitionColumns, metadataColumns)
+    (paths, starts, lengths, fileSizes, modificationTimes, partitionColumns, metadataColumns)
   }
 
   override def injectWriteFilesTempPath(path: String): Unit = {
@@ -184,7 +204,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         resIter.close()
       }
       .recyclePayload(batch => batch.close())
-      .addToPipelineTime(pipelineTime)
+      .collectLifeMillis(millis => pipelineTime += millis)
       .asInterruptible(context)
       .create()
   }
@@ -227,7 +247,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         nativeResultIterator.close()
       }
       .recyclePayload(batch => batch.close())
-      .addToPipelineTime(pipelineTime)
+      .collectLifeMillis(millis => pipelineTime += millis)
       .create()
   }
   // scalastyle:on argcount

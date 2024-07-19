@@ -16,11 +16,12 @@
  */
 package org.apache.gluten.integration.action
 
-import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.gluten.integration.QueryRunner.QueryResult
 import org.apache.gluten.integration.action.Actions.QuerySelector
 import org.apache.gluten.integration.action.TableRender.RowParser.FieldAppender.RowAppender
 import org.apache.gluten.integration.stat.RamStat
-import org.apache.gluten.integration.{QueryRunner, Suite}
+import org.apache.gluten.integration.{QueryRunner, Suite, TableCreator}
+import org.apache.spark.sql.{SparkSession}
 
 case class Queries(
     scale: Double,
@@ -28,28 +29,40 @@ case class Queries(
     queries: QuerySelector,
     explain: Boolean,
     iterations: Int,
-    randomKillTasks: Boolean)
+    randomKillTasks: Boolean,
+    noSessionReuse: Boolean)
     extends Action {
+  import Queries._
 
   override def execute(suite: Suite): Boolean = {
     val runQueryIds = queries.select(suite)
     val runner: QueryRunner =
       new QueryRunner(suite.queryResource(), suite.dataWritePath(scale, genPartitionedData))
+    val sessionSwitcher = suite.sessionSwitcher
+    sessionSwitcher.useSession("test", "Run Queries")
+    runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
     val results = (0 until iterations).flatMap { iteration =>
       println(s"Running tests (iteration $iteration)...")
       runQueryIds.map { queryId =>
-        Queries.runQuery(
-          runner,
-          suite.tableCreator(),
-          suite.sessionSwitcher,
-          queryId,
-          suite.desc(),
-          explain,
-          randomKillTasks)
+        try {
+          Queries.runQuery(
+            runner,
+            suite.tableCreator(),
+            sessionSwitcher.spark(),
+            queryId,
+            suite.desc(),
+            explain,
+            randomKillTasks)
+        } finally {
+          if (noSessionReuse) {
+            sessionSwitcher.renewSession()
+            runner.createTables(suite.tableCreator(), sessionSwitcher.spark())
+          }
+        }
       }
     }.toList
 
-    val passedCount = results.count(l => l.testPassed)
+    val passedCount = results.count(l => l.queryResult.succeeded())
     val count = results.count(_ => true)
 
     // RAM stats
@@ -67,8 +80,9 @@ case class Queries(
     println("")
     printf("Summary: %d out of %d queries passed. \n", passedCount, count)
     println("")
-    val succeed = results.filter(_.testPassed)
-    Queries.printResults(succeed)
+    val succeeded = results.filter(_.queryResult.succeeded())
+    val all = succeeded.map(_.queryResult).asSuccesses().agg("all").map(s => TestResultLine(s))
+    Queries.printResults(succeeded ++ all)
     println("")
 
     if (passedCount == count) {
@@ -77,20 +91,9 @@ case class Queries(
     } else {
       println("Failed queries: ")
       println("")
-      Queries.printResults(results.filter(!_.testPassed))
+      Queries.printResults(results.filter(!_.queryResult.succeeded()))
       println("")
     }
-
-    var all = Queries.aggregate(results, "all")
-
-    if (passedCount != count) {
-      all = Queries.aggregate(succeed, "succeeded") ::: all
-    }
-
-    println("Overall: ")
-    println("")
-    Queries.printResults(all)
-    println("")
 
     if (passedCount != count) {
       return false
@@ -100,28 +103,29 @@ case class Queries(
 }
 
 object Queries {
-  case class TestResultLine(
-      queryId: String,
-      testPassed: Boolean,
-      rowCount: Option[Long],
-      planningTimeMillis: Option[Long],
-      executionTimeMillis: Option[Long],
-      errorMessage: Option[String])
+  case class TestResultLine(queryResult: QueryResult)
 
   object TestResultLine {
     implicit object Parser extends TableRender.RowParser[TestResultLine] {
       override def parse(rowAppender: RowAppender, line: TestResultLine): Unit = {
         val inc = rowAppender.incremental()
-        inc.next().write(line.queryId)
-        inc.next().write(line.testPassed)
-        inc.next().write(line.rowCount.getOrElse("N/A"))
-        inc.next().write(line.planningTimeMillis.getOrElse("N/A"))
-        inc.next().write(line.executionTimeMillis.getOrElse("N/A"))
+        inc.next().write(line.queryResult.caseId())
+        inc.next().write(line.queryResult.succeeded())
+        line.queryResult match {
+          case QueryRunner.Success(_, runResult) =>
+            inc.next().write(runResult.rows.size)
+            inc.next().write(runResult.planningTimeMillis)
+            inc.next().write(runResult.executionTimeMillis)
+          case QueryRunner.Failure(_, error) =>
+            inc.next().write(None)
+            inc.next().write(None)
+            inc.next().write(None)
+        }
       }
     }
   }
 
-  private def printResults(results: List[TestResultLine]): Unit = {
+  private def printResults(results: Seq[TestResultLine]): Unit = {
     val render = TableRender.plain[TestResultLine](
       "Query ID",
       "Was Passed",
@@ -136,64 +140,18 @@ object Queries {
     render.print(System.out)
   }
 
-  private def aggregate(succeed: List[TestResultLine], name: String): List[TestResultLine] = {
-    if (succeed.isEmpty) {
-      return Nil
-    }
-    List(
-      succeed.reduce((r1, r2) =>
-        TestResultLine(
-          name,
-          testPassed = true,
-          if (r1.rowCount.nonEmpty && r2.rowCount.nonEmpty)
-            Some(r1.rowCount.get + r2.rowCount.get)
-          else None,
-          if (r1.planningTimeMillis.nonEmpty && r2.planningTimeMillis.nonEmpty)
-            Some(r1.planningTimeMillis.get + r2.planningTimeMillis.get)
-          else None,
-          if (r1.executionTimeMillis.nonEmpty && r2.executionTimeMillis.nonEmpty)
-            Some(r1.executionTimeMillis.get + r2.executionTimeMillis.get)
-          else None,
-          None)))
-  }
-
   private def runQuery(
-      runner: _root_.org.apache.gluten.integration.QueryRunner,
-      creator: _root_.org.apache.gluten.integration.TableCreator,
-      sessionSwitcher: _root_.org.apache.spark.sql.SparkSessionSwitcher,
-      id: _root_.java.lang.String,
-      desc: _root_.java.lang.String,
+      runner: QueryRunner,
+      creator: TableCreator,
+      session: SparkSession,
+      id: String,
+      desc: String,
       explain: Boolean,
-      randomKillTasks: Boolean) = {
+      randomKillTasks: Boolean): TestResultLine = {
     println(s"Running query: $id...")
-    try {
-      val testDesc = "Gluten Spark %s %s".format(desc, id)
-      sessionSwitcher.useSession("test", testDesc)
-      runner.createTables(creator, sessionSwitcher.spark())
-      val result = runner.runQuery(
-        sessionSwitcher.spark(),
-        testDesc,
-        id,
-        explain = explain,
-        randomKillTasks = randomKillTasks)
-      val resultRows = result.rows
-      println(
-        s"Successfully ran query $id. " +
-          s"Returned row count: ${resultRows.length}")
-      TestResultLine(
-        id,
-        testPassed = true,
-        Some(resultRows.length),
-        Some(result.planningTimeMillis),
-        Some(result.executionTimeMillis),
-        None)
-    } catch {
-      case e: Exception =>
-        val error = Some(s"FATAL: ${ExceptionUtils.getStackTrace(e)}")
-        println(
-          s"Error running query $id. " +
-            s" Error: ${error.get}")
-        TestResultLine(id, testPassed = false, None, None, None, error)
-    }
+    val testDesc = "Query %s [%s]".format(desc, id)
+    val result =
+      runner.runQuery(session, testDesc, id, explain = explain, randomKillTasks = randomKillTasks)
+    TestResultLine(result)
   }
 }
