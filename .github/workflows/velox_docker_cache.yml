@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  cache-native-lib:
+  cache-native-lib-centos-7:
     runs-on: ubuntu-20.04
     container: apache/gluten:gluten-vcpkg-builder_2024_07_11 # centos7 with dependencies installed
     steps:
@@ -44,11 +44,12 @@ jobs:
           path: |
             ./cpp/build/releases/
             /root/.m2/repository/org/apache/arrow/
-          key: cache-velox-build-${{ hashFiles('./cache-key') }}
-      - name: Build Gluten Velox third party
+          key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
+      - name: Build Gluten native libraries
         if: steps.check-cache.outputs.cache-hit != 'true'
         run: |
-          source dev/ci-velox-buildstatic.sh
+          df -a
+          bash dev/ci-velox-buildstatic-centos-7.sh
       - name: Cache
         if: steps.check-cache.outputs.cache-hit != 'true'
         id: cache
@@ -57,7 +58,43 @@ jobs:
           path: |
             ./cpp/build/releases/
             /root/.m2/repository/org/apache/arrow/  
-          key: cache-velox-build-${{ hashFiles('./cache-key') }}
+          key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
+
+  cache-native-lib-centos-8:
+    runs-on: ubuntu-20.04
+    container: ghcr.io/facebookincubator/velox-dev:centos8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Generate cache key
+        run: |
+          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './github/workflows/*') }} > cache-key
+      - name: Check existing caches
+        id: check-cache
+        uses: actions/cache/restore@v3
+        with:
+          lookup-only: true
+          path: |
+            ./cpp/build/releases/
+            ./cpp/build/velox/udf/examples/
+            ./cpp/build/velox/benchmarks/
+            /root/.m2/repository/org/apache/arrow/
+          key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
+      - name: Build Gluten native libraries
+        if: steps.check-cache.outputs.cache-hit != 'true'
+        run: |
+          df -a
+          bash dev/ci-velox-buildshared-centos-8.sh
+      - name: Cache
+        if: steps.check-cache.outputs.cache-hit != 'true'
+        id: cache
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            ./cpp/build/releases/
+            ./cpp/build/velox/udf/examples/
+            ./cpp/build/velox/benchmarks/
+            /root/.m2/repository/org/apache/arrow/
+          key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
 
   # ccache-native-lib-ubuntu-velox-ut:
   #   runs-on: ubuntu-20.04
@@ -75,7 +112,7 @@ jobs:
   #       working-directory: ${{ github.workspace }}
   #       run: |
   #         mkdir -p '${{ env.CCACHE_DIR }}'
-  #     - name: Build Gluten velox third party
+  #     - name: Build Gluten native libraries
   #       run: |
   #         rm -rf /opt/miniconda-for-velox/
   #         cd ep/build-velox/src && \
@@ -113,7 +150,7 @@ jobs:
 #        working-directory: ${{ github.workspace }}
 #        run: |
 #          mkdir -p '${{ env.CCACHE_DIR }}'
-#      - name: Build Gluten velox third party
+#      - name: Build Gluten native libraries
 #        run: |
 #          rm -rf /opt/miniconda-for-velox/
 #          cd ep/build-velox/src && \

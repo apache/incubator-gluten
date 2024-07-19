@@ -1,3 +1,7 @@
+#!/bin/bash
+
+set -e
+
 yum install sudo patch java-1.8.0-openjdk-devel -y
 cd $GITHUB_WORKSPACE/ep/build-velox/src
 ./get_velox.sh
