@@ -602,7 +602,7 @@ jobs:
             /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
       - name: Build Gluten native libraries
-        if: steps.check-cache.outputs.cache-hit != 'true'
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh

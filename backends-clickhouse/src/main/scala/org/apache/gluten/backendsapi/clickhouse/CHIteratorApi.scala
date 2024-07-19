@@ -290,6 +290,10 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       None,
       createNativeIterator(splitInfoByteArray, wsPlan, materializeInput, inputIterators))
   }
+
+  override def injectWriteFilesTempPath(path: String, fileName: String): Unit = {
+    CHNativeExpressionEvaluator.injectWriteFilesTempPath(path, fileName)
+  }
 }
 
 class CollectMetricIterator(

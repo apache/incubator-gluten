@@ -19,7 +19,7 @@ parent: Getting-Started
 Currently, Gluten+Velox backend is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**.
 Other kinds of OS support are still in progress. The long term goal is to support several common OS and conda env deployment.
 
-Gluten only fully tested in CI with 3.2.2, 3.3.1, 3.4.2 and 3.5.1. We will add/update supported/tested versions according to the upstream changes.
+Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.2 and 3.5.1.
 
 We need to set up the `JAVA_HOME` env. Currently, Gluten supports **java 8** and **java 17**.
 
@@ -55,16 +55,17 @@ It's recommended to use buildbundle-veloxbe.sh to build gluten in one script.
 
 **For x86_64 build**
 
+First time build for all supported spark versions.
+
 ```bash
-cd /path/to/gluten
-
-## The script builds jars for all spark version
 ./dev/buildbundle-veloxbe.sh
+```
 
-## After a complete build, if you need to re-build the project and only some gluten code is changed,
-## you can use the following command to skip building velox and protobuf.
-# ./dev/buildbundle-veloxbe.sh --enable_ep_cache=ON --build_protobuf=OFF
-## If you have the same error with issue-3283, you need to add the parameter `--compile_arrow_java=ON`
+After a complete build, if only some gluten code is changed, you can use the following command to skip building velox/arrow and
+setting up build dependencies.
+
+```bash
+./dev/buildbundle-veloxbe.sh --enable_ep_cache=ON --build_arrow=OFF --run_setup_script=OFF
 ```
 
 **For aarch64 build:**
@@ -72,14 +73,12 @@ cd /path/to/gluten
 ```bash
 export CPU_TARGET="aarch64"
 
-cd /path/to/gluten
-
 ./dev/builddeps-veloxbe.sh
 ```
 
 **Build Velox separately**
 
-Gluten still uses Velox under oap-project and does daily update with upstream(meta) Velox.
+Currently, Gluten is using a [forked Velox](https://github.com/oap-project/velox/) which is daily updated based on [upstream Velox](https://github.com/facebookincubator/velox).
 
 Scripts under `/path/to/gluten/ep/build-velox/src` provide `get_velox.sh` and `build_velox.sh` to build Velox separately, you could use these scripts with custom repo/branch/location.
 
@@ -87,16 +86,10 @@ Velox provides arrow/parquet lib. Gluten cpp module need a required VELOX_HOME p
 
 ```bash
 ## fetch Velox and compile
-cd /path/to/gluten/ep/build-velox/src/
-## you could use custom ep location by --velox_home=custom_path, make sure specify --velox_home in build_velox.sh too.
-./get_velox.sh
-## make sure specify --velox_home if you have specified it in get_velox.sh.
-./build_velox.sh
+./dev/builddeps-veloxbe.sh build_velox
 
 ## compile Gluten cpp module
-cd /path/to/gluten/cpp
-## if you use custom velox_home, make sure specified here by --velox_home 
-./compile.sh --build_velox_backend=ON
+./dev/builddeps-veloxbe.sh build_gluten_cpp
 
 ## compile Gluten java module and create package jar
 cd /path/to/gluten
@@ -110,7 +103,7 @@ mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.4 -DskipTests
 mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.5 -DskipTests
 ```
 
-notes：The compilation of `Velox` using the script of `build_velox.sh` may fail caused by `oom`, you can prevent this failure by using the user command of `export NUM_THREADS=4` before executing the above scripts.
+Notes： Building Velox may fail caused by `oom`. You can prevent this failure by adjusting `NUM_THREADS` (e.g., `export NUM_THREADS=4`) before building Gluten/Velox.
 
 Once building successfully, the Jar file will be generated in the directory: package/target/\<gluten-jar\> for Spark 3.2.x/Spark 3.3.x/Spark 3.4.x/Spark 3.5.x.
 
@@ -118,7 +111,7 @@ Once building successfully, the Jar file will be generated in the directory: pac
 
 With config `enable_vcpkg=ON`, the dependency libraries will be built and statically linked into libvelox.so and libgluten.so, which is packed into the gluten-jar. In this way, only the gluten-jar is needed to add to `spark.<driver|executor>.extraClassPath` and spark will deploy the jar to each worker node. It's better to build the static version using a clean docker image without any extra libraries installed. On host with some libraries like jemalloc installed, the script may crash with odd message. You may need to uninstall those libraries to get a clean host.
 
-With config `enable_vcpkg=OFF`, the dependency libraries won't be statically linked, instead the script will install the libraries to system then pack the dependency libraries into another jar named gluten-package-${Maven-artifact-version}.jar. Then you need to add the jar to extraClassPath then set `spark.gluten.loadLibFromJar=true`. Or you already manually deployed the dependency libraries on each worker node. You may find the libraries list from the gluten-package jar.
+With config `enable_vcpkg=OFF`, not all dependency libraries will be statically linked, instead the script will install the libraries to system then pack the dependency libraries into another jar named `gluten-package-${Maven-artifact-version}.jar`. Then you need to add the jar to `extraClassPath` and set `spark.gluten.loadLibFromJar=true`. Otherwise, you need to install shared dependency libraries on each worker node. You may find the libraries list from the gluten-package jar.
 
 ## HDFS support
 
@@ -309,7 +302,7 @@ After the two steps, you can query iceberg table by gluten/velox without scan's 
 
 # Coverage
 
-Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 94 functions and 14 operators, more details refer to [Velox Backend's Supported Operators & Functions](../velox-backend-support-progress.md).
+Spark3.3 has 387 functions in total. ~240 are commonly used. To get the support status of all Spark built-in functions, please refer to [Velox Backend's Supported Operators & Functions](../velox-backend-support-progress.md).
 
 > Velox doesn't support [ANSI mode](https://spark.apache.org/docs/latest/sql-ref-ansi-compliance.html)), so as Gluten. Once ANSI mode is enabled in Spark config, Gluten will fallback to Vanilla Spark.
 
@@ -664,7 +657,7 @@ Refer to [Gluten configuration](../Configuration.md) for more details.
 
 ## Result
 
-*wholestagetransformer* indicates that the offload works.
+*wholestagetransformer* indicates that the offloading works.
 
 ![TPC-H Q6](../image/TPC-H_Q6_DAG.png)
 
