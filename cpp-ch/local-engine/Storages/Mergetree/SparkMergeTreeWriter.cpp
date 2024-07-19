@@ -121,11 +121,12 @@ void SparkMergeTreeWriter::write(const DB::Block & block)
         checkAndMerge();
 }
 
-bool SparkMergeTreeWriter::chunkToPart(Chunk && plan_chunk)
+bool SparkMergeTreeWriter::chunkToPart(Chunk && chunk)
 {
-    if (Chunk result_chunk = DB::Squashing::squash(std::move(plan_chunk)))
+    if (chunk.hasChunkInfo())
     {
-        auto result = squashing->getHeader().cloneWithColumns(result_chunk.detachColumns());
+        Chunk squash_chunk = DB::Squashing::squash(std::move(chunk));
+        Block result = header.cloneWithColumns(squash_chunk.getColumns());
         return blockToPart(result);
     }
     return false;
