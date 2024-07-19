@@ -97,11 +97,9 @@ abstract class GlutenQueryTest extends PlanTest {
 
   def testWithSpecifiedSparkVersion(testName: String, versions: Array[String])(
       testFun: => Any): Unit = {
-    for (version <- versions) {
-      if (shouldRun(Some(version), Some(version))) {
-        test(testName) {
-          testFun
-        }
+    if (versions.exists(v => shouldRun(Some(v), Some(v)))) {
+      test(testName) {
+        testFun
       }
     }
   }
