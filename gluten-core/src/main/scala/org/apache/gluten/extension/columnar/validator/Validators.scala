@@ -141,8 +141,7 @@ object Validators {
     override def validate(plan: SparkPlan): Validator.OutCome = plan match {
       case p: ShuffleExchangeExec if !settings.supportColumnarShuffleExec() => fail(p)
       case p: SortMergeJoinExec if !settings.supportSortMergeJoinExec() => fail(p)
-      case p: WriteFilesExec
-          if !(settings.enableNativeWriteFiles() && settings.supportTransformWriteFiles) =>
+      case p: WriteFilesExec if !settings.enableNativeWriteFiles() =>
         fail(p)
       case p: SortAggregateExec if !settings.replaceSortAggWithHashAgg =>
         fail(p)

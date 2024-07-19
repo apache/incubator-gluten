@@ -86,12 +86,10 @@ case class CartesianProductExecTransformer(
     val (inputRightRelNode, inputRightOutput) =
       (rightPlanContext.root, rightPlanContext.outputAttributes)
 
-    val expressionNode = condition.map {
-      expr =>
-        ExpressionConverter
-          .replaceWithExpressionTransformer(expr, inputLeftOutput ++ inputRightOutput)
-          .doTransform(context.registeredFunction)
-    }
+    val expressionNode =
+      condition.map {
+        SubstraitUtil.toSubstraitExpression(_, inputLeftOutput ++ inputRightOutput, context)
+      }
 
     val extensionNode =
       JoinUtils.createExtensionNode(inputLeftOutput ++ inputRightOutput, validation = false)

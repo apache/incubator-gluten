@@ -81,6 +81,11 @@ public class CHNativeExpressionEvaluator {
         BackendsApiManager.getSettings().getBackendConfigPrefix(), SQLConf.get().getAllConfs());
   }
 
+  public static void injectWriteFilesTempPath(String path, String fileName) {
+    throw new UnsupportedOperationException(
+        "injectWriteFilesTempPath Not supported in CHNativeExpressionEvaluator");
+  }
+
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
   public BatchIterator createKernelWithBatchIterator(

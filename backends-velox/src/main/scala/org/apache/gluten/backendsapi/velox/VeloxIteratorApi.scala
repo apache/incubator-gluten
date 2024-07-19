@@ -161,7 +161,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
     (paths, starts, lengths, fileSizes, modificationTimes, partitionColumns, metadataColumns)
   }
 
-  override def injectWriteFilesTempPath(path: String): Unit = {
+  override def injectWriteFilesTempPath(path: String, fileName: String): Unit = {
     val transKernel = NativePlanEvaluator.create()
     transKernel.injectWriteFilesTempPath(path)
   }
@@ -171,7 +171,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       inputPartition: BaseGlutenPartition,
       context: TaskContext,
       pipelineTime: SQLMetric,
-      updateInputMetrics: (InputMetricsWrapper) => Unit,
+      updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
       partitionIndex: Int,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
