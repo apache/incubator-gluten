@@ -16,13 +16,12 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
-import org.apache.gluten.substrait.`type`.TypeBuilder
+import org.apache.gluten.expression.{AttributeReferenceTransformer, ExpressionConverter}
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
+import org.apache.gluten.utils.SubstraitUtil
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans._
@@ -34,21 +33,11 @@ import io.substrait.proto.{CrossRel, JoinRel}
 import scala.collection.JavaConverters._
 
 object JoinUtils {
-  private def createEnhancement(output: Seq[Attribute]): com.google.protobuf.Any = {
-    val inputTypeNodes = output.map {
-      attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
-    }
-    // Normally the enhancement node is only used for plan validation. But here the enhancement
-    // is also used in execution phase. In this case an empty typeUrlPrefix need to be passed,
-    // so that it can be correctly parsed into json string on the cpp side.
-    BackendsApiManager.getTransformerApiInstance.packPBMessage(
-      TypeBuilder.makeStruct(false, inputTypeNodes.asJava).toProtobuf)
-  }
 
   def createExtensionNode(output: Seq[Attribute], validation: Boolean): AdvancedExtensionNode = {
     // Use field [enhancement] in a extension node for input type validation.
     if (validation) {
-      ExtensionBuilder.makeAdvancedExtension(createEnhancement(output))
+      ExtensionBuilder.makeAdvancedExtension(SubstraitUtil.createEnhancement(output))
     } else {
       null
     }
@@ -58,7 +47,7 @@ object JoinUtils {
     !keyExprs.forall(_.isInstanceOf[AttributeReference])
   }
 
-  def createPreProjectionIfNeeded(
+  private def createPreProjectionIfNeeded(
       keyExprs: Seq[Expression],
       inputNode: RelNode,
       inputNodeOutput: Seq[Attribute],
@@ -131,17 +120,17 @@ object JoinUtils {
     }
   }
 
-  def createJoinExtensionNode(
+  private def createJoinExtensionNode(
       joinParameters: Any,
       output: Seq[Attribute]): AdvancedExtensionNode = {
     // Use field [optimization] in a extension node
     // to send some join parameters through Substrait plan.
-    val enhancement = createEnhancement(output)
+    val enhancement = SubstraitUtil.createEnhancement(output)
     ExtensionBuilder.makeAdvancedExtension(joinParameters, enhancement)
   }
 
   // Return the direct join output.
-  protected def getDirectJoinOutput(
+  private def getDirectJoinOutput(
       joinType: JoinType,
       leftOutput: Seq[Attribute],
       rightOutput: Seq[Attribute]): (Seq[Attribute], Seq[Attribute]) = {
@@ -164,7 +153,7 @@ object JoinUtils {
     }
   }
 
-  protected def getDirectJoinOutputSeq(
+  private def getDirectJoinOutputSeq(
       joinType: JoinType,
       leftOutput: Seq[Attribute],
       rightOutput: Seq[Attribute]): Seq[Attribute] = {
@@ -209,8 +198,8 @@ object JoinUtils {
       validation)
 
     // Combine join keys to make a single expression.
-    val joinExpressionNode = (streamedKeys
-      .zip(buildKeys))
+    val joinExpressionNode = streamedKeys
+      .zip(buildKeys)
       .map {
         case ((leftKey, leftType), (rightKey, rightType)) =>
           HashJoinLikeExecTransformer.makeEqualToExpression(
@@ -225,12 +214,10 @@ object JoinUtils {
           HashJoinLikeExecTransformer.makeAndExpression(l, r, substraitContext.registeredFunction))
 
     // Create post-join filter, which will be computed in hash join.
-    val postJoinFilter = condition.map {
-      expr =>
-        ExpressionConverter
-          .replaceWithExpressionTransformer(expr, streamedOutput ++ buildOutput)
-          .doTransform(substraitContext.registeredFunction)
-    }
+    val postJoinFilter =
+      condition.map {
+        SubstraitUtil.toSubstraitExpression(_, streamedOutput ++ buildOutput, substraitContext)
+      }
 
     // Create JoinRel.
     val joinRel = RelBuilder.makeJoinRel(
@@ -340,12 +327,14 @@ object JoinUtils {
       joinParameters: Any,
       validation: Boolean = false
   ): RelNode = {
-    val expressionNode = condition.map {
-      expr =>
-        ExpressionConverter
-          .replaceWithExpressionTransformer(expr, inputStreamedOutput ++ inputBuildOutput)
-          .doTransform(substraitContext.registeredFunction)
-    }
+    val expressionNode =
+      condition.map {
+        SubstraitUtil.toSubstraitExpression(
+          _,
+          inputStreamedOutput ++ inputBuildOutput,
+          substraitContext)
+      }
+
     val extensionNode =
       createJoinExtensionNode(joinParameters, inputStreamedOutput ++ inputBuildOutput)
 
