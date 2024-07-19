@@ -138,8 +138,7 @@ class OrcFileFormat extends FileFormat with DataSourceRegister with Serializable
 
   override def supportBatch(sparkSession: SparkSession, schema: StructType): Boolean = {
     val conf = sparkSession.sessionState.conf
-    conf.orcVectorizedReaderEnabled && conf.wholeStageEnabled &&
-    !WholeStageCodegenExec.isTooManyFields(conf, schema) &&
+    conf.orcVectorizedReaderEnabled &&
     schema.forall(
       s =>
         OrcUtils.supportColumnarReads(
@@ -154,6 +153,16 @@ class OrcFileFormat extends FileFormat with DataSourceRegister with Serializable
     true
   }
 
+  /**
+   * Build the reader.
+   *
+   * @note
+   *   It is required to pass FileFormat.OPTION_RETURNING_BATCH in options, to indicate whether the
+   *   reader should return row or columnar output. If the caller can handle both, pass
+   *   FileFormat.OPTION_RETURNING_BATCH -> supportBatch(sparkSession,
+   *   StructType(requiredSchema.fields ++ partitionSchema.fields)) as the option. It should be set
+   *   to "true" only if this reader can support it.
+   */
   override def buildReaderWithPartitionValues(
       sparkSession: SparkSession,
       dataSchema: StructType,
@@ -165,8 +174,24 @@ class OrcFileFormat extends FileFormat with DataSourceRegister with Serializable
 
     val resultSchema = StructType(requiredSchema.fields ++ partitionSchema.fields)
     val sqlConf = sparkSession.sessionState.conf
-    val enableVectorizedReader = supportBatch(sparkSession, resultSchema)
     val capacity = sqlConf.orcVectorizedReaderBatchSize
+
+    // Should always be set by FileSourceScanExec creating this.
+    // Check conf before checking option, to allow working around an issue by changing conf.
+    val enableVectorizedReader = sqlConf.orcVectorizedReaderEnabled &&
+      options
+        .get(FileFormat.OPTION_RETURNING_BATCH)
+        .getOrElse {
+          throw new IllegalArgumentException(
+            "OPTION_RETURNING_BATCH should always be set for OrcFileFormat. " +
+              "To workaround this issue, set spark.sql.orc.enableVectorizedReader=false.")
+        }
+        .equals("true")
+    if (enableVectorizedReader) {
+      // If the passed option said that we are to return batches, we need to also be able to
+      // do this based on config and resultSchema.
+      assert(supportBatch(sparkSession, resultSchema))
+    }
 
     OrcConf.IS_SCHEMA_EVOLUTION_CASE_SENSITIVE.setBoolean(hadoopConf, sqlConf.caseSensitiveAnalysis)
 
