@@ -26,7 +26,7 @@ import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.execution._
@@ -271,13 +271,35 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
       newProjectList
     }
 
+    def replaceInputFileAttr(namedExpr: NamedExpression): NamedExpression = namedExpr.name match {
+      case "input_file_name" =>
+        Alias(InputFileName(), namedExpr.name)(namedExpr.exprId)
+      case "input_file_block_start" =>
+        Alias(InputFileBlockStart(), namedExpr.name)(namedExpr.exprId)
+      case "input_file_block_length" =>
+        Alias(InputFileBlockLength(), namedExpr.name)(namedExpr.exprId)
+      case _ => namedExpr
+    }
+
     plan match {
       case f: FileSourceScanExec =>
-        f.copy(output = genNewOutput(f.output))
+        if (FallbackTags.nonEmpty(f)) {
+          val p = ProjectExec(genNewOutput(f.output).map(replaceInputFileAttr), f)
+          FallbackTags.add(p, "fallback input file expression")
+          p
+        } else {
+          f.copy(output = genNewOutput(f.output))
+        }
       case f: FileSourceScanExecTransformer =>
         f.copy(output = genNewOutput(f.output))
       case b: BatchScanExec =>
-        b.copy(output = genNewOutput(b.output).asInstanceOf[Seq[AttributeReference]])
+        if (FallbackTags.nonEmpty(b)) {
+          val p = ProjectExec(genNewOutput(b.output).map(replaceInputFileAttr), b)
+          FallbackTags.add(p, "fallback input file expression")
+          p
+        } else {
+          b.copy(output = genNewOutput(b.output).asInstanceOf[Seq[AttributeReference]])
+        }
       case b: BatchScanExecTransformer =>
         b.copy(output = genNewOutput(b.output).asInstanceOf[Seq[AttributeReference]])
       case p @ ProjectExec(projectList, child) =>
@@ -308,12 +330,9 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
           f
       }
     }
-    val addHint = AddFallbackTagRule()
-    val newProjectList = projectExec.projectList.filterNot(containsInputFileRelatedExpr)
-    val newProjectExec = ProjectExec(newProjectList, projectExec.child)
-    addHint.apply(newProjectExec)
-    if (FallbackTags.nonEmpty(newProjectExec)) {
-      // Project is still not transformable after remove `input_file_name` expressions.
+    val transformNodes =
+      projectExec.collect { case p if !FallbackTags.nonEmpty(p) => p }
+    if (transformNodes.size == 0) {
       projectExec
     } else {
       // the project with `input_file_name` expression may have multiple data source
@@ -321,10 +340,8 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
       // https://github.com/apache/spark/blob/e459674127e7b21e2767cc62d10ea6f1f941936c
       // /sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/rules.scala#L519
       val leafScans = findScanNodes(projectExec)
-      if (leafScans.isEmpty || leafScans.exists(FallbackTags.nonEmpty)) {
-        // It means
-        // 1. projectExec has `input_file_name` but no scan child.
-        // 2. It has scan children node but the scan node fallback.
+      if (leafScans.isEmpty) {
+        // It means projectExec has `input_file_name` but no scan child.
         projectExec
       } else {
         val replacedExprs = scala.collection.mutable.Map[String, AttributeReference]()
@@ -332,10 +349,17 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
           expr => rewriteExpr(expr, replacedExprs).asInstanceOf[NamedExpression]
         }
         val newChild = addMetadataCol(projectExec.child, replacedExprs)
-        logDebug(
-          s"Columnar Processing for ${projectExec.getClass} with " +
-            s"ProjectList ${projectExec.projectList} is currently supported.")
-        ProjectExecTransformer(newProjectList, newChild)
+        val newProject = ProjectExec(newProjectList, newChild)
+        val addHint = AddFallbackTagRule()
+        addHint.apply(newProject)
+        if (FallbackTags.nonEmpty(newProject)) {
+          newProject
+        } else {
+          logDebug(
+            s"Columnar Processing for ${projectExec.getClass} with " +
+              s"ProjectList ${projectExec.projectList} is currently supported.")
+          ProjectExecTransformer(newProjectList, newChild)
+        }
       }
     }
   }

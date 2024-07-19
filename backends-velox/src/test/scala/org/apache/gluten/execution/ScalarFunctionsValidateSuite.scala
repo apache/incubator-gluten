@@ -28,7 +28,7 @@ class ScalarFunctionsValidateSuiteRasOff extends ScalarFunctionsValidateSuite {
     super.sparkConf
       .set("spark.gluten.ras.enabled", "false")
   }
-
+  import testImplicits._
   // Since https://github.com/apache/incubator-gluten/pull/6200.
   test("Test input_file_name function") {
     runQueryAndCompare("""SELECT input_file_name(), l_orderkey
@@ -43,6 +43,22 @@ class ScalarFunctionsValidateSuiteRasOff extends ScalarFunctionsValidateSuite {
                          | select o_orderkey as l_orderkey from orders)
                          | limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    withTempPath {
+      path =>
+        Seq(1, 2, 3).toDF("a").write.json(path.getCanonicalPath)
+        spark.read.json(path.getCanonicalPath).createOrReplaceTempView("json_table")
+        val sql =
+          """
+            |SELECT input_file_name(), a
+            |FROM
+            |(SELECT a FROM json_table
+            |UNION ALL
+            |SELECT l_orderkey as a FROM lineitem)
+            |LIMIT 100
+            |""".stripMargin
+        compareResultsAgainstVanillaSpark(sql, true, { _ => })
     }
   }
 }
