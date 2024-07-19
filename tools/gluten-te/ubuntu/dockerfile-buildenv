@@ -65,7 +65,7 @@ RUN cat /root/.m2/settings.xml
 ## APT dependencies
 
 # Update, then install essentials
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y sudo locales wget tar tzdata git ccache ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev curl zip unzip tar pkg-config autoconf-archive bison flex
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev
 
 # install HBM dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y autoconf automake g++ libnuma-dev libtool numactl unzip libdaxctl-dev
@@ -102,14 +102,6 @@ ENV LC_ALL=en_US.UTF-8
 RUN set-login-env "LANG=en_US.UTF-8"
 RUN set-login-env "LANGUAGE=en_US:en"
 RUN set-login-env "LC_ALL=en_US.UTF-8"
-
-# Install CMake
-RUN cd /opt && wget https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3-linux-x86_64.sh \
-    && mkdir cmake \
-    && bash cmake-3.28.3-linux-x86_64.sh --skip-license --prefix=/opt/cmake \
-    && ln -s /opt/cmake/bin/cmake /usr/bin/cmake
-
-RUN cmake --version
 
 # Build & install Spark 3.2.2
 RUN cd /opt && wget https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.2.tgz

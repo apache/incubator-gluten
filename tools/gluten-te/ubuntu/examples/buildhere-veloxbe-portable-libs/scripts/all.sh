@@ -44,8 +44,6 @@ function retry {
 
 cd /opt/gluten
 retry apt-get update
-retry apt-get install -y --dry-run # We now have all essentials installed in image.
-
-BASH_ARGS=$@
-
-retry dev/builddeps-veloxbe.sh $BASH_ARGS
+retry apt-get install -y curl zip unzip tar pkg-config autoconf-archive bison flex
+retry source ./dev/vcpkg/env.sh
+retry dev/builddeps-veloxbe.sh --build_tests=OFF --build_benchmarks=OFF --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON

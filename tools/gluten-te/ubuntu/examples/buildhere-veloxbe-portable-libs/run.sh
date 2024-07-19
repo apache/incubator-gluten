@@ -22,6 +22,4 @@ TIMESTAMP=$(date +%s)
 
 export EXTRA_DOCKER_OPTIONS="--name buildhere-veloxbe-portable-libs-$TIMESTAMP -v $BASEDIR/scripts:/opt/scripts"
 
-BASH_ARGS="$*"
-
-$BASEDIR/../../cbash-mount.sh "/opt/scripts/all.sh $BASH_ARGS"
+$BASEDIR/../../cbash-mount.sh '/opt/scripts/all.sh'
