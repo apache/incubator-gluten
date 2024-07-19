@@ -22,8 +22,8 @@ import io.substrait.proto.ReadRel;
 import org.apache.iceberg.DeleteFile;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 
 public class IcebergLocalFilesNode extends LocalFilesNode {
   private final List<List<DeleteFile>> deleteFilesList;
