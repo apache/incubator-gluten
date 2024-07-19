@@ -465,7 +465,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
       withTable("part_by_timestamp") {
         spark.sql("""
                     |create table part_by_timestamp (
-                    |  p timestamp,
+                    |  p timestamp
                     |) using iceberg
                     |tblproperties (
                     |  'format-version' = '1'
@@ -491,7 +491,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
       withTable("part_by_timestamptz") {
         spark.sql("""
                     |create table part_by_timestamptz (
-                    |  p timestamp,
+                    |  p timestamp
                     |) using iceberg
                     |tblproperties (
                     |  'format-version' = '1'
