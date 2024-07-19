@@ -40,7 +40,6 @@ import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.utils.SparkArrowUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
-import org.apache.spark.sql.vectorized.ColumnarBatchRow;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -399,23 +398,12 @@ public class ColumnarBatches {
     for (int i = start; i < end; i++) {
       rowsBuilder[i] = new StringBuilder(i + " ");
     }
-    ColumnVector[] columns = new ColumnVector[loadedBatch.numCols()];
-    for (int i = 0; i < loadedBatch.numCols(); i++) {
-      columns[i] = loadedBatch.column(i);
-    }
-    ColumnarBatchRow rows = new ColumnarBatchRow(columns);
     for (int col = 0; col < loadedBatch.numCols(); col++) {
       DataType colType = type.fields()[col].dataType();
-      ColumnVector vec = loadedBatch.column(col);
       ToStringUtil toStringUtil = new ToStringUtil(colType, Option.apply(timeZone));
       for (int i = start; i < end; i++) {
         rowsBuilder[i].append("| ");
-        if (vec.isNullAt(i)) {
-          rowsBuilder[i].append("NULL");
-        } else {
-          rows.rowId = i;
-          rowsBuilder[i].append(toStringUtil.evalValue(rows.get(col, colType)));
-        }
+        rowsBuilder[i].append(toStringUtil.evalValue(loadedBatch.getRow(i).get(col, colType)));
       }
     }
     return Arrays.stream(rowsBuilder).collect(Collectors.joining(System.lineSeparator()));
