@@ -290,4 +290,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   override def mergeTwoPhasesHashBaseAggregateIfNeed(): Boolean = true
 
+  override def supportCartesianProductExec(): Boolean = true
+
 }

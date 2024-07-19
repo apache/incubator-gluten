@@ -65,16 +65,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
               // Q45 BroadcastHashJoin, ExistenceJoin
               // Q94 BroadcastHashJoin, LeftSemi, NOT condition
               (false, false)
-            case j if j == 38 || j == 87 =>
-              // Q38 and Q87 : Hash shuffle is not supported for expression in some case
-              if (isAqe) {
-                (true, true)
-              } else {
-                (false, true)
-              }
-            case q77 if q77 == 77 && !isAqe =>
-              // Q77 CartesianProduct
-              (false, false)
             case other => (true, false)
           }
           sqlNums.map((_, noFallBack._1, noFallBack._2))

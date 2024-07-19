@@ -83,6 +83,9 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
     // for ch
     val joinParametersStr = new StringBuffer("JoinParameters:")
     joinParametersStr
+      .append("isBHJ=")
+      .append(1)
+      .append("\n")
       .append("buildHashTableId=")
       .append(buildBroadcastTableId)
       .append("\n")
