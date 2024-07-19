@@ -71,7 +71,8 @@ object GlutenCostModel extends Logging {
     }
 
     // A very rough estimation as of now. The cost model basically considers any
-    // fallen back ops has extreme high cost so offloads computations as much as possible.
+    // fallen back ops as having extreme high cost so offloads computations as
+    // much as possible.
     private def selfLongCostOf(node: SparkPlan): Long = {
       node match {
         case _: RemoveFilter.NoopFilter =>
