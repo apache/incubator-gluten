@@ -26,7 +26,6 @@
 #include <Join/BroadCastJoinBuilder.h>
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Parser/AdvancedParametersParseUtil.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
@@ -47,7 +46,59 @@ namespace ErrorCodes
     extern const int BAD_ARGUMENTS;
 }
 }
+
+struct JoinOptimizationInfo
+{
+    bool is_broadcast = false;
+    bool is_smj = false;
+    bool is_null_aware_anti_join = false;
+    bool is_existence_join = false;
+    std::string storage_join_key;
+};
+
 using namespace DB;
+
+JoinOptimizationInfo parseJoinOptimizationInfo(const substrait::JoinRel & join)
+{
+    google::protobuf::StringValue optimization;
+    optimization.ParseFromString(join.advanced_extension().optimization().value());
+    JoinOptimizationInfo info;
+    if (optimization.value().contains("isBHJ="))
+    {
+        ReadBufferFromString in(optimization.value());
+        assertString("JoinParameters:", in);
+        assertString("isBHJ=", in);
+        readBoolText(info.is_broadcast, in);
+        assertChar('\n', in);
+        if (info.is_broadcast)
+        {
+            assertString("isNullAwareAntiJoin=", in);
+            readBoolText(info.is_null_aware_anti_join, in);
+            assertChar('\n', in);
+            assertString("buildHashTableId=", in);
+            readString(info.storage_join_key, in);
+            assertChar('\n', in);
+        }
+    }
+    else
+    {
+        ReadBufferFromString in(optimization.value());
+        assertString("JoinParameters:", in);
+        assertString("isSMJ=", in);
+        readBoolText(info.is_smj, in);
+        assertChar('\n', in);
+        if (info.is_smj)
+        {
+            assertString("isNullAwareAntiJoin=", in);
+            readBoolText(info.is_null_aware_anti_join, in);
+            assertChar('\n', in);
+            assertString("isExistenceJoin=", in);
+            readBoolText(info.is_existence_join, in);
+            assertChar('\n', in);
+        }
+    }
+    return info;
+}
 
 namespace local_engine
 {
@@ -210,9 +261,7 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
 
 DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right)
 {
-    google::protobuf::StringValue optimization_info;
-    optimization_info.ParseFromString(join.advanced_extension().optimization().value());
-    auto join_opt_info = JoinOptimizationInfo::parse(optimization_info.value());
+    auto join_opt_info = parseJoinOptimizationInfo(join);
     auto storage_join = join_opt_info.is_broadcast ? BroadCastJoinBuilder::getJoin(join_opt_info.storage_join_key) : nullptr;
     if (storage_join)
     {

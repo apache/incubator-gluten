@@ -25,7 +25,6 @@
 #include <Join/BroadCastJoinBuilder.h>
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Parser/AdvancedParametersParseUtil.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
@@ -52,6 +51,17 @@ using namespace DB;
 
 namespace local_engine
 {
+String parseCrossJoinOptimizationInfos(const substrait::CrossRel & join)
+{
+    google::protobuf::StringValue optimization;
+    optimization.ParseFromString(join.advanced_extension().optimization().value());
+    String storage_join_key;
+    ReadBufferFromString in(optimization.value());
+    assertString("JoinParameters:", in);
+    assertString("buildHashTableId=", in);
+    readString(storage_join_key, in);
+    return storage_join_key;
+}
 
 std::shared_ptr<DB::TableJoin> createCrossTableJoin(substrait::CrossRel_JoinType join_type)
 {
@@ -144,10 +154,7 @@ void CrossRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & rig
 
 DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right)
 {
-    google::protobuf::StringValue optimization_info;
-    optimization_info.ParseFromString(join.advanced_extension().optimization().value());
-    auto join_opt_info = JoinOptimizationInfo::parse(optimization_info.value());
-    const auto & storage_join_key = join_opt_info.storage_join_key;
+    auto storage_join_key = parseCrossJoinOptimizationInfos(join);
     auto storage_join = BroadCastJoinBuilder::getJoin(storage_join_key) ;
     renamePlanColumns(*left, *right, *storage_join);
     auto table_join = createCrossTableJoin(join.type());
