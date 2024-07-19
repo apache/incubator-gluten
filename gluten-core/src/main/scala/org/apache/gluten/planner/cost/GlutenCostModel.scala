@@ -70,21 +70,20 @@ object GlutenCostModel extends Logging {
         (n.children.map(longCostOf).toList :+ selfCost).reduce(safeSum)
     }
 
-    // A very rough estimation as of now. The cost model basically considers any
-    // fallen back ops has extreme high cost so offloads computations as much as possible.
+    // A very rough estimation as of now.
     private def selfLongCostOf(node: SparkPlan): Long = {
       node match {
         case _: RemoveFilter.NoopFilter =>
           // To make planner choose the tree that has applied rule PushFilterToScan.
           0L
-        case ColumnarToRowExec(child) => 10L
-        case RowToColumnarExec(child) => 10L
-        case ColumnarToRowLike(child) => 10L
-        case RowToColumnarLike(child) => 10L
-        case p if PlanUtil.isGlutenColumnarOp(p) => 10L
-        case p if PlanUtil.isVanillaColumnarOp(p) => 1000L
+        case ColumnarToRowExec(child) => 3L
+        case RowToColumnarExec(child) => 3L
+        case ColumnarToRowLike(child) => 3L
+        case RowToColumnarLike(child) => 3L
+        case p if PlanUtil.isGlutenColumnarOp(p) => 2L
+        case p if PlanUtil.isVanillaColumnarOp(p) => 3L
         // Other row ops. Usually a vanilla row op.
-        case _ => 1000L
+        case _ => 5L
       }
     }
 

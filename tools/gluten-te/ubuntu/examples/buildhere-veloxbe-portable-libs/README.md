@@ -25,7 +25,7 @@ export MOUNT_MAVEN_CACHE=ON
 # Additionally, changes to HTTP_PROXY_HOST / HTTP_PROXY_PORT could invalidate the build cache
 # either. For more details, please check docker file `dockerfile-buildenv`.
 cd gluten/
-tools/gluten-te/ubuntu/examples/buildhere-veloxbe-portable-libs/run-default.sh
+tools/gluten-te/ubuntu/examples/buildhere-veloxbe-portable-libs/run.sh
 
 # 4. Check the built libs.
 ls -l cpp/build/releases/
