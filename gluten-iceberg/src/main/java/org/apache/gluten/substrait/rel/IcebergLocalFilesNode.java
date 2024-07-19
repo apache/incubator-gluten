@@ -47,7 +47,8 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
         partitionColumns,
         new ArrayList<>(),
         fileFormat,
-        preferredLocations);
+        preferredLocations,
+        new Map<>());
     this.deleteFilesList = deleteFilesList;
   }
 
