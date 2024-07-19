@@ -69,6 +69,19 @@ for arg in "$@"; do
   esac
 done
 
+function ensure_pattern_matched {
+  if [ $# -ne 2 ]; then
+    echo "Exactly 2 arguments are required."
+    return 1
+  fi
+  pattern=$1
+  file=$2
+  matched_lines=$(grep -c "$pattern" $file)
+  if [ $matched_lines -eq 0 ]; then
+    return 1
+  fi
+}
+
 function process_setup_ubuntu {
   if [ -z "$(which git)" ]; then
     sudo --preserve-env apt install -y git
@@ -77,30 +90,41 @@ function process_setup_ubuntu {
   git checkout scripts/setup-ubuntu.sh
 
   # No need to re-install git.
+  ensure_pattern_matched 'git ' scripts/setup-ubuntu.sh
   sed -i '/git \\/d' scripts/setup-ubuntu.sh
   # Do not install libunwind which can cause interruption when catching native exception.
+  ensure_pattern_matched '\${SUDO} apt install -y libunwind-dev' scripts/setup-ubuntu.sh
   sed -i 's/${SUDO} apt install -y libunwind-dev//' scripts/setup-ubuntu.sh
+  ensure_pattern_matched 'ccache' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  *thrift* \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  libiberty-dev \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  libxml2-dev \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  libkrb5-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/ccache /a\  libgsasl7-dev \\' scripts/setup-ubuntu.sh
+  sed -i '/ccache/a\  libgsasl7-dev \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  libuuid1 \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  uuid-dev \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  curl \\' scripts/setup-ubuntu.sh
+  ensure_pattern_matched 'libgmock-dev' scripts/setup-ubuntu.sh
   sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
+  ensure_pattern_matched 'github_checkout boostorg\/boost \"\${BOOST_VERSION}\" --recursive' scripts/setup-ubuntu.sh
   sed -i 's/github_checkout boostorg\/boost \"\${BOOST_VERSION}\" --recursive/wget_and_untar https:\/\/github.com\/boostorg\/boost\/releases\/download\/boost-1.84.0\/boost-1.84.0.tar.gz boost \&\& cd boost/g' scripts/setup-ubuntu.sh
+  ensure_pattern_matched 'function install_folly' scripts/setup-ubuntu.sh
   sed -i '/^function install_folly.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-ubuntu.sh
+  ensure_pattern_matched '  run_and_time install_folly' scripts/setup-ubuntu.sh
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-ubuntu.sh
   if [ $ENABLE_HDFS == "ON" ]; then
     sed -i '/^function install_folly.*/i function install_libhdfs3 {\n  github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-ubuntu.sh
+    ensure_pattern_matched '  run_and_time install_protobuf' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_protobuf/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
+    ensure_pattern_matched 'ccache ' scripts/setup-ubuntu.sh
     sed -i '/ccache /a\  yasm \\' scripts/setup-ubuntu.sh
   fi
-  sed -i "s/apt install -y/sudo apt install -y/" ${VELOX_HOME}/scripts/setup-adapters.sh
+  ensure_pattern_matched 'apt install -y' scripts/setup-adapters.sh
+  sed -i "s/apt install -y/sudo apt install -y/" scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^  run_and_time install_folly/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-ubuntu.sh
     # it's used for velox CI
+    ensure_pattern_matched 'rpm -i minio-20220526054841.0.0.x86_64.rpm' scripts/setup-adapters.sh
     sed -i '/rpm -i minio-20220526054841.0.0.x86_64.rpm/a \ \ echo "Skip installing minio"' scripts/setup-adapters.sh
     sed -i 's/rpm -i minio-20220526054841.0.0.x86_64.rpm/#rpm -i minio-20220526054841.0.0.x86_64.rpm/g' scripts/setup-adapters.sh
   fi
@@ -110,8 +134,10 @@ function process_setup_ubuntu {
   if [ $ENABLE_ABFS == "ON" ]; then
     sed -i '/^  run_and_time install_folly/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-ubuntu.sh
   fi
+  ensure_pattern_matched 'run_and_time install_conda' scripts/setup-ubuntu.sh
   sed -i '/run_and_time install_conda/d' scripts/setup-ubuntu.sh
   # Just depends on Gluten to install arrow libs since Gluten will apply some patches to Arrow source and uses different build options.
+  ensure_pattern_matched 'run_and_time install_arrow' scripts/setup-ubuntu.sh
   sed -i '/run_and_time install_arrow/d' scripts/setup-ubuntu.sh
 }
 
