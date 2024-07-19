@@ -23,7 +23,7 @@ import org.apache.iceberg.DeleteFile;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.HashMap;
 
 public class IcebergLocalFilesNode extends LocalFilesNode {
   private final List<List<DeleteFile>> deleteFilesList;
