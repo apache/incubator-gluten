@@ -35,7 +35,6 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.ToStringUtil;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.internal.SQLConf;
-import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.utils.SparkArrowUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
@@ -45,7 +44,6 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
 
 import scala.Option;
 
@@ -393,19 +391,7 @@ public class ColumnarBatches {
     ColumnarBatch loadedBatch = ensureLoaded(ArrowBufferAllocators.contextInstance(), batch);
     StructType type = SparkArrowUtil.fromArrowSchema(ArrowUtil.toSchema(loadedBatch));
     String timeZone = SQLConf.get().sessionLocalTimeZone();
-    StringBuilder[] rowsBuilder = new StringBuilder[length];
-    int end = start + length;
-    for (int i = start; i < end; i++) {
-      rowsBuilder[i] = new StringBuilder(i + " ");
-    }
-    for (int col = 0; col < loadedBatch.numCols(); col++) {
-      DataType colType = type.fields()[col].dataType();
-      ToStringUtil toStringUtil = new ToStringUtil(colType, Option.apply(timeZone));
-      for (int i = start; i < end; i++) {
-        rowsBuilder[i].append("| ");
-        rowsBuilder[i].append(toStringUtil.evalValue(loadedBatch.getRow(i).get(col, colType)));
-      }
-    }
-    return Arrays.stream(rowsBuilder).collect(Collectors.joining(System.lineSeparator()));
+    ToStringUtil toStringUtil = new ToStringUtil(Option.apply(timeZone));
+    return toStringUtil.evalBatch(loadedBatch, start, length, type, 20);
   }
 }

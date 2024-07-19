@@ -107,8 +107,9 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
               RowToVeloxColumnarExec.toColumnarBatchIterator(
                       JavaConverters.asScalaIterator(batch.rowIterator()), structType, 20)
                   .next();
+          Assert.assertEquals("true | 15\nfalse | 14", ColumnarBatches.toString(veloxBatch, 0, 2));
           Assert.assertEquals(
-              "0 | true| 15\n" + "1 | false| 14", ColumnarBatches.toString(veloxBatch, 0, 2));
+              "true | -3\nfalse | NULL", ColumnarBatches.toString(veloxBatch, 18, 2));
           veloxBatch.close();
           return null;
         });
@@ -135,6 +136,7 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
       col1.putBoolean(j, j % 2 == 0);
       col2.putInt(j, 15 - j);
     }
+    col2.putNull(numRows - 1);
     for (ArrowWritableColumnVector col : columns) {
       col.setValueCount(numRows);
     }
