@@ -53,15 +53,10 @@ public class ManagedReservationListener implements ReservationListener {
   @Override
   public long unreserve(long size) {
     synchronized (this) {
-      try {
-        long freed = target.repay(size);
-        sharedUsage.inc(-freed);
-        Preconditions.checkState(freed == size);
-        return freed;
-      } catch (Exception e) {
-        LOG.error("Error unreserving memory from target", e);
-        throw e;
-      }
+      long freed = target.repay(size);
+      sharedUsage.inc(-freed);
+      Preconditions.checkState(freed == size);
+      return freed;
     }
   }
 
