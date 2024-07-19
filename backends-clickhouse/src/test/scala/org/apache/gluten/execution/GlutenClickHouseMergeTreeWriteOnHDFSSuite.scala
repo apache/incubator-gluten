@@ -652,7 +652,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
           it.next()
           files += 1
         }
-        assertResult(4)(files)
+        assertResult(72)(files)
       }
     }
   }

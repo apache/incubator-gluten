@@ -21,8 +21,6 @@
 
 #include <Common/Throttler.h>
 #include <Disks/ObjectStorages/DiskObjectStorage.h>
-#include <Disks/ObjectStorages/Cached/CachedObjectStorage.h>
-#include <Interpreters/Cache/FileCacheFactory.h>
 #if USE_HDFS
 #include <Disks/ObjectStorages/GlutenHDFSObjectStorage.h>
 #endif
@@ -53,8 +51,6 @@ public:
         throttler = std::make_shared<DB::Throttler>(max_speed);
     }
 
-    DB::DiskTransactionPtr createTransaction() override;
-
     void createDirectory(const String & path) override;
 
     void createDirectories(const String & path) override;
@@ -76,17 +72,7 @@ public:
     {
         DB::ObjectStoragePtr tmp = object_storage_creator(config, context);
         hdfs_object_storage = typeid_cast<std::shared_ptr<GlutenHDFSObjectStorage>>(tmp);
-        // only for java ut
-        bool is_cache = object_storage->supportsCache();
-        if (is_cache)
-        {
-            auto cache_os = reinterpret_cast<DB::CachedObjectStorage*>(object_storage.get());
-            object_storage = hdfs_object_storage;
-            auto cache = DB::FileCacheFactory::instance().getOrCreate(cache_os->getCacheName(), cache_os->getCacheSettings(), "storage_configuration.disks.hdfs_cache");
-            wrapWithCache(cache, cache_os->getCacheSettings(), cache_os->getCacheConfigName());
-        }
-        else
-            object_storage = hdfs_object_storage;
+        object_storage = hdfs_object_storage;
     }
 private:
     std::shared_ptr<GlutenHDFSObjectStorage> hdfs_object_storage;
