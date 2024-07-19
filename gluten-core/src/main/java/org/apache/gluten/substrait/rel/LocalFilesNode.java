@@ -111,10 +111,6 @@ public class LocalFilesNode implements SplitInfo {
     return namedStructBuilder.build();
   }
 
-  public void setFileReadProperties(Map<String, String> fileReadProperties) {
-    this.fileReadProperties = fileReadProperties;
-  }
-
   @Override
   public List<String> preferredLocations() {
     return this.preferredLocations;
