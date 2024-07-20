@@ -539,7 +539,8 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
   auto columnarToRowConverter = ObjectStore::retrieve<ColumnarToRowConverter>(c2rHandle);
   auto cb = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   columnarToRowConverter->convert(cb);
-
+  auto ctx = gluten::getRuntime(env, wrapper);
+ 
   auto& conf = ctx->getConfMap();
   int64_t column2RowMemThreshold;
   auto it = conf.find(kColumnToRowMemoryThreshold);
