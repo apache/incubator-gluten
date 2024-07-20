@@ -101,7 +101,6 @@ case class ToStringUtil(timeZoneId: Option[String] = None)
       val stringFunc = vectorToString(vec, colType)
       val castFunc = castToString(colType)
       for (i <- start until end) {
-
         val str =
           if (vec.isNullAt(i)) "NULL"
           else castFunc(stringFunc(i)).toString
@@ -124,14 +123,14 @@ case class ToStringUtil(timeZoneId: Option[String] = None)
       start: Int,
       length: Int,
       dataType: StructType,
-      truncate: Int = 20) = {
+      truncate: Int = 20): String = {
     rows
       .slice(start, start + length)
       .map(row => evalRow(row, dataType, truncate))
       .mkString(System.lineSeparator())
   }
 
-  def evalRow(row: InternalRow, dataType: StructType, truncate: Int = 20) = {
+  def evalRow(row: InternalRow, dataType: StructType, truncate: Int = 20): String = {
     dataType.zipWithIndex
       .map {
         case (colType, i) =>
@@ -145,7 +144,7 @@ case class ToStringUtil(timeZoneId: Option[String] = None)
       .mkString(" | ")
   }
 
-  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode) = {
+  override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     throw new UnsupportedOperationException()
   }
 
