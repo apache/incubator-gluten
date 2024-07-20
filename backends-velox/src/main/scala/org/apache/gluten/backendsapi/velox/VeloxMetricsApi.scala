@@ -34,7 +34,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       relMap: JMap[JLong, JList[JLong]],
       joinParamsMap: JMap[JLong, JoinParams],
       aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
-    MetricsUtil.updateNativeMetrics(child, relMap, joinParamsMap, aggParamsMap)
+    MetricsUtil.genMetricsUpdatingFunction(child, relMap, joinParamsMap, aggParamsMap)
   }
 
   override def genInputIteratorTransformerMetrics(
@@ -349,9 +349,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
         "number of memory allocations"),
-      "spilledBytes" -> SQLMetrics.createSizeMetric(
-        sparkContext,
-        "total bytes written for spilling"),
+      "spilledBytes" -> SQLMetrics.createSizeMetric(sparkContext, "bytes written for spilling"),
       "spilledRows" -> SQLMetrics.createMetric(sparkContext, "total rows written for spilling"),
       "spilledPartitions" -> SQLMetrics.createMetric(sparkContext, "total spilled partitions"),
       "spilledFiles" -> SQLMetrics.createMetric(sparkContext, "total spilled files")
@@ -438,7 +436,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
         "number of hash build memory allocations"),
       "hashBuildSpilledBytes" -> SQLMetrics.createSizeMetric(
         sparkContext,
-        "total bytes written for spilling of hash build"),
+        "bytes written for spilling of hash build"),
       "hashBuildSpilledRows" -> SQLMetrics.createMetric(
         sparkContext,
         "total rows written for spilling of hash build"),
@@ -472,7 +470,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
         "number of hash probe memory allocations"),
       "hashProbeSpilledBytes" -> SQLMetrics.createSizeMetric(
         sparkContext,
-        "total bytes written for spilling of hash probe"),
+        "bytes written for spilling of hash probe"),
       "hashProbeSpilledRows" -> SQLMetrics.createMetric(
         sparkContext,
         "total rows written for spilling of hash probe"),
