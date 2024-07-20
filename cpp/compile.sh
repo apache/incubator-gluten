@@ -110,12 +110,12 @@ for arg in "$@"; do
 done
 
 CURRENT_DIR=$(
-  cd "$(dirname "$BASH_SOURCE")"
+  cd "$(dirname $0)"
   pwd
 )
 
 #gluten cpp will find velox lib from VELOX_HOME
-if [ "$VELOX_HOME" == "" ]; then
+if [[ "$VELOX_HOME" == "" ]]; then
   VELOX_HOME="$CURRENT_DIR/../ep/build-velox/build/velox_ep"
 fi
 

@@ -2,7 +2,7 @@
 
 set -ex
 
-CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+CURRENT_DIR=$(cd "$(dirname $0)"; pwd)
 GLUTEN_DIR="$CURRENT_DIR/.."
 
 cd "$GLUTEN_DIR"

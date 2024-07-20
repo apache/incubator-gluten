@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+CURRENT_DIR=$(cd "$(dirname $0)"; pwd)
 export SUDO=sudo
 source ${CURRENT_DIR}/build_helper_functions.sh
 VELOX_ARROW_BUILD_VERSION=15.0.0

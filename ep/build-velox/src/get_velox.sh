@@ -237,7 +237,7 @@ echo "Preparing Velox source code..."
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
 
 CURRENT_DIR=$(
-  cd "$(dirname "$BASH_SOURCE")"
+  cd "$(dirname $0)"
   pwd
 )
 

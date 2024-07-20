@@ -2,7 +2,7 @@
 
 set -eux
 
-CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+CURRENT_DIR=$(cd "$(dirname $0)"; pwd)
 GLUTEN_DIR="$CURRENT_DIR/.."
 THIRDPARTY_LIB="$GLUTEN_DIR/package/target/thirdparty-lib"
 LINUX_OS=$(. /etc/os-release && echo ${ID})
