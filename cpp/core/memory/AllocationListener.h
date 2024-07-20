@@ -57,9 +57,8 @@ class BlockAllocationListener final : public AllocationListener {
     if (diff == 0) {
       return;
     }
-    std::unique_lock<std::mutex> guard{mutex_, std::defer_lock};
+    std::unique_lock<std::mutex> guard{mutex_};
     if (diff > 0) {
-      guard.lock();
       if (reservationBytes_ - usedBytes_ < diff) {
         auto roundSize = (diff + (blockSize_ - 1)) / blockSize_ * blockSize_;
         reservationBytes_ += roundSize;
@@ -69,9 +68,7 @@ class BlockAllocationListener final : public AllocationListener {
         delegated_->allocationChanged(roundSize);
       }
       usedBytes_ += diff;
-      guard.unlock();
     } else {
-      guard.lock();
       usedBytes_ += diff;
       auto unreservedSize = (reservationBytes_ - usedBytes_) / blockSize_ * blockSize_;
       reservationBytes_ -= unreservedSize;
