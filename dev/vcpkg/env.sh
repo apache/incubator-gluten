@@ -7,8 +7,17 @@ else
     SCRIPT_PATH="$0"
 fi
 
-# source command does not start a new process, so the cmdline would not contains current script name.
-CMD=$(cat /proc/$$/cmdline)
+OS=$(uname -s)
+if [[ $OS == "Linux" ]]; then
+    CMD=$(cat /proc/$$/cmdline)
+elif [[ $OS == "Darwin" ]]; then
+    CMD=$(ps -p $$ -o command=)
+else
+    echo "Unsupport kernel: $OS"
+    exit 1
+fi
+
+# source command does not start a new process, so the command would not contains current script name.
 if [[ ${CMD} == *"$SCRIPT_PATH"* ]]; then
     echo "env.sh should only be sourced" >&2
     exit 1
