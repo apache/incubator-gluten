@@ -19,6 +19,12 @@
 #include <glog/logging.h>
 #include <iostream>
 
+// static
+gluten::ResourceMap<gluten::ObjectStore*>& gluten::ObjectStore::stores() {
+  static gluten::ResourceMap<gluten::ObjectStore*> stores;
+  return stores;
+}
+
 gluten::ObjectStore::~ObjectStore() {
   // destructing in reversed order (the last added object destructed first)
   const std::lock_guard<std::mutex> lock(mtx_);
