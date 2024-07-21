@@ -475,6 +475,7 @@ class SubstraitToVeloxPlanConverter {
 
   /// Check whether the data type is supported to pushdown.
   static bool isPushdownSupported(TypePtr inputType);
+
   /// Check whether the scalar function contains data type that doesn't to pushdown.
   static bool canPushdownScalarFunction(
       const ::substrait::Expression_ScalarFunction& scalarFunction,
