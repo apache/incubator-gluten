@@ -148,5 +148,5 @@ case class ToStringUtil(timeZoneId: Option[String] = None)
     throw new UnsupportedOperationException()
   }
 
-  override def child = null
+  override def child : Expression = null
 }
