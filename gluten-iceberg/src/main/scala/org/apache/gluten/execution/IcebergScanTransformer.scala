@@ -54,6 +54,8 @@ case class IcebergScanTransformer(
 
   override def getInputFilePathsInternal: Seq[String] = Seq.empty
 
+  override def getRootPathsInternal: Seq[String] = Seq.empty
+
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
   override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {

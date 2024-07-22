@@ -35,6 +35,7 @@ trait BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
+      rootPaths: Seq[String],
       paths: Seq[String]): ValidationResult = ValidationResult.succeeded
   def supportWriteFilesExec(
       format: FileFormat,

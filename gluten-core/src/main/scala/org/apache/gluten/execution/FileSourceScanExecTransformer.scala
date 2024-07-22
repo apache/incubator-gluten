@@ -21,13 +21,14 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
+import org.apache.gluten.utils.FileIndexUtil
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, PlanExpression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.FileSourceScanExecShim
-import org.apache.spark.sql.execution.datasources.HadoopFsRelation
+import org.apache.spark.sql.execution.datasources.{CatalogFileIndex, HadoopFsRelation}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
@@ -124,6 +125,15 @@ abstract class FileSourceScanExecTransformerBase(
 
   override def getInputFilePathsInternal: Seq[String] = {
     relation.location.inputFiles.toSeq
+  }
+
+  override def getRootPathsInternal: Seq[String] = {
+    relation.location match {
+      case c: CatalogFileIndex =>
+        val index = c.filterPartitions(Nil)
+        FileIndexUtil.getRootPath(index)
+      case _ => FileIndexUtil.getRootPath(relation.location)
+    }
   }
 
   override protected def doValidateInternal(): ValidationResult = {

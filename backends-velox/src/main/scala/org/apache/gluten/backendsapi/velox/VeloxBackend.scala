@@ -25,6 +25,7 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
+import org.apache.gluten.utils.VeloxFileSystemValidationJniWrapper
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, EulerNumber, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Pi, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SparkVersion, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
@@ -73,7 +74,14 @@ object VeloxBackendSettings extends BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
+      rootPaths: Seq[String],
       paths: Seq[String]): ValidationResult = {
+    if (
+      !rootPaths.isEmpty && !VeloxFileSystemValidationJniWrapper.supportedPaths(rootPaths.toArray)
+    ) {
+      return ValidationResult.failed(
+        s"Schema of [$rootPaths] is not supported by registered file systems.")
+    }
     // Validate if all types are supported.
     def validateTypes(validatorFunc: PartialFunction[StructField, String]): ValidationResult = {
       // Collect unsupported types.

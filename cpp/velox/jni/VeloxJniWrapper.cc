@@ -33,6 +33,7 @@
 #include "utils/ObjectStore.h"
 #include "utils/VeloxBatchAppender.h"
 #include "velox/common/base/BloomFilter.h"
+#include "velox/common/file/FileSystems.h"
 
 #include <iostream>
 
@@ -257,6 +258,21 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBatchAppenderJniWrappe
       std::make_unique<gluten::VeloxBatchAppender>(pool.get(), minOutputBatchSize, std::move(iter)));
   return ctx->saveObject(appender);
   JNI_METHOD_END(gluten::kInvalidObjectHandle)
+}
+
+JNIEXPORT bool JNICALL Java_org_apache_gluten_utils_VeloxFileSystemValidationJniWrapper_supportedPaths( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jobjectArray stringArray) {
+  int size = env->GetArrayLength(stringArray);
+  for (int i = 0; i < size; i++) {
+    jstring string = (jstring)(env->GetObjectArrayElement(stringArray, i));
+    std::string path = jStringToCString(env, string);
+    if (!velox::filesystems::isPathSupportedByRegisteredFileSystems(path)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 #ifdef __cplusplus

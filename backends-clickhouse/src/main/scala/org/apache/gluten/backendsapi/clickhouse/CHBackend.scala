@@ -144,6 +144,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
+      rootPaths: Seq[String],
       paths: Seq[String]): ValidationResult = {
 
     def validateFilePath: Boolean = {

@@ -116,6 +116,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def forceParquetTimestampTypeScanFallbackEnabled: Boolean =
     conf.getConf(VELOX_FORCE_PARQUET_TIMESTAMP_TYPE_SCAN_FALLBACK)
 
+  def scanRootPathSchemaValidationEnabled: Boolean =
+    conf.getConf(VELOX_SCAN_ROOT_PATH_SCHEMA_VALIDATION_ENABLED)
+
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
     conf
@@ -1967,6 +1970,13 @@ object GlutenConfig {
       .doc("Force fallback for parquet timestamp type scan.")
       .booleanConf
       .createWithDefault(false)
+
+  val VELOX_SCAN_ROOT_PATH_SCHEMA_VALIDATION_ENABLED =
+    buildConf("spark.gluten.sql.scan.root.path.schema.validation.enabled")
+      .internal()
+      .doc("Enable root path schema validation for scan.")
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED =
     buildConf("spark.gluten.sql.columnar.cast.avg")

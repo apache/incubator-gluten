@@ -76,6 +76,8 @@ case class HiveTableScanExecTransformer(
     Seq.empty
   }
 
+  override def getRootPathsInternal: Seq[String] = Seq.empty
+
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genHiveTableScanTransformerMetricsUpdater(metrics)
 
