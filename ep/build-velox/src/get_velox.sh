@@ -145,10 +145,16 @@ function process_setup_centos9 {
   # make this function Reentrant
   git checkout scripts/setup-centos9.sh
   # No need to re-install git.
+
+  ensure_pattern_matched 'dnf_install' scripts/setup-centos9.sh
   sed -i 's/dnf_install ninja-build cmake curl ccache gcc-toolset-12 git/dnf_install ninja-build cmake curl ccache gcc-toolset-12/' scripts/setup-centos9.sh
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos9.sh
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos9.sh
+  
+  ensure_pattern_matched 'install_gflags' scripts/setup-centos9.sh
   sed -i '/^function install_gflags.*/i function install_openssl {\n  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl \n cd openssl \n ./config no-shared && make depend && make && sudo make install \n cd ..\n}\n'     scripts/setup-centos9.sh
+
+  ensure_pattern_matched 'install_fbthrift' scripts/setup-centos9.sh
   sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos9.sh
   sed -i '/cd protobuf/{n;s/\.\/configure --prefix=\/usr/\.\/configure CXXFLAGS="-fPIC" --prefix=\/usr\/local/;}' scripts/setup-centos9.sh
 
