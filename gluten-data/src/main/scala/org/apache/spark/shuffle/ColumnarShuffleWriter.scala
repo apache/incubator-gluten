@@ -198,7 +198,6 @@ class ColumnarShuffleWriter[K, V](
           System.nanoTime() - startTime - splitResult.getTotalSpillTime -
             splitResult.getTotalWriteTime -
             splitResult.getTotalCompressTime)
-      dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
     } else {
       dep.metrics("sortTime").add(splitResult.getSortTime)
       dep.metrics("c2rTime").add(splitResult.getC2RTime)
@@ -207,6 +206,7 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
+    dep.metrics("peakBytes").add(splitResult.getPeakBytes)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 

@@ -47,14 +47,6 @@ ShuffleWriterOptions& ShuffleWriter::options() {
   return options_;
 }
 
-int64_t ShuffleWriter::partitionBufferSize() const {
-  return partitionBufferPool_->bytes_allocated();
-}
-
-int64_t ShuffleWriter::maxPartitionBufferSize() const {
-  return partitionBufferPool_->max_memory();
-}
-
 int64_t ShuffleWriter::totalBytesWritten() const {
   return metrics_.totalBytesWritten;
 }
@@ -73,6 +65,10 @@ int64_t ShuffleWriter::totalEvictTime() const {
 
 int64_t ShuffleWriter::totalCompressTime() const {
   return metrics_.totalCompressTime;
+}
+
+int64_t ShuffleWriter::peakBytesAllocated() const {
+  return pool_->max_memory();
 }
 
 int64_t ShuffleWriter::totalSortTime() const {
@@ -99,7 +95,6 @@ ShuffleWriter::ShuffleWriter(
     : numPartitions_(numPartitions),
       options_(std::move(options)),
       pool_(pool),
-      partitionBufferPool_(std::make_unique<ShuffleMemoryPool>(pool)),
       partitionWriter_(std::move(partitionWriter)) {
   partitioner_ = Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId);
 }

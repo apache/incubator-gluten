@@ -271,7 +271,11 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to spill"),
       "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to compress"),
       "decompressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to decompress"),
-      "deserializeTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to deserialize")
+      "deserializeTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to deserialize"),
+      // For hash shuffle writer, the peak bytes represents the maximum split buffer size.
+      // For sort shuffle writer, the peak bytes represents the maximum
+      // row buffer + sort buffer size.
+      "peakBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak bytes allocated")
     )
     if (isSort) {
       baseMetrics ++ Map(
@@ -280,7 +284,6 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       )
     } else {
       baseMetrics ++ Map(
-        "splitBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "split buffer size"),
         "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to split")
       )
     }

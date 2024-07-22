@@ -108,6 +108,14 @@ class VeloxShuffleWriter : public ShuffleWriter {
     return maxBatchSize_;
   }
 
+  int64_t partitionBufferSize() const {
+    return partitionBufferPool_->bytes_allocated();
+  }
+
+  int64_t peakBytesAllocated() const override {
+    return partitionBufferPool_->max_memory() + veloxPool_->peakBytes();
+  }
+
  protected:
   VeloxShuffleWriter(
       uint32_t numPartitions,
@@ -116,7 +124,8 @@ class VeloxShuffleWriter : public ShuffleWriter {
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       arrow::MemoryPool* pool)
       : ShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), pool),
-        veloxPool_(std::move(veloxPool)) {
+        veloxPool_(std::move(veloxPool)),
+        partitionBufferPool_(std::make_unique<ShuffleMemoryPool>(pool)) {
     arenas_.resize(numPartitions);
     serdeOptions_.useLosslessTimestamp = true;
   }
@@ -128,6 +137,10 @@ class VeloxShuffleWriter : public ShuffleWriter {
   facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+
+  // Memory Pool used to track memory usage of partition buffers.
+  // The actual allocation is delegated to options_.memoryPool.
+  std::unique_ptr<ShuffleMemoryPool> partitionBufferPool_;
 
   bool supportAvx512_ = false;
 

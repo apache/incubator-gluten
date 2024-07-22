@@ -48,10 +48,6 @@ class ShuffleWriter : public Reclaimable {
 
   ShuffleWriterOptions& options();
 
-  int64_t partitionBufferSize() const;
-
-  int64_t maxPartitionBufferSize() const;
-
   int64_t totalBytesWritten() const;
 
   int64_t totalBytesEvicted() const;
@@ -61,6 +57,8 @@ class ShuffleWriter : public Reclaimable {
   int64_t totalEvictTime() const;
 
   int64_t totalCompressTime() const;
+
+  virtual int64_t peakBytesAllocated() const;
 
   virtual int64_t totalSortTime() const;
 
@@ -84,9 +82,6 @@ class ShuffleWriter : public Reclaimable {
   ShuffleWriterOptions options_;
 
   arrow::MemoryPool* pool_;
-  // Memory Pool used to track memory usage of partition buffers.
-  // The actual allocation is delegated to options_.memoryPool.
-  std::unique_ptr<ShuffleMemoryPool> partitionBufferPool_;
 
   std::unique_ptr<PartitionWriter> partitionWriter_;
 

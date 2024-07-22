@@ -44,6 +44,8 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 
+  int64_t peakBytesAllocated() const override;
+
   int64_t totalSortTime() const override;
 
   int64_t totalC2RTime() const override;

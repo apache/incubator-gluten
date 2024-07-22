@@ -15,14 +15,12 @@
  * limitations under the License.
  */
 
+#include "shuffle/VeloxSortShuffleWriter.h"
 #include <arrow/io/memory.h>
 #include "memory/ArrowMemory.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "shuffle/VeloxSortShuffleWriter.h"
 #include "utils/Common.h"
 #include "utils/Timer.h"
-
-//#include "velox/external/timsort/TimSort.hpp"
 
 namespace gluten {
 
@@ -196,7 +194,6 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
   {
     ScopedTimer timer(&sortTime_);
     // TODO: Add radix sort to align with Spark.
-    //gfx::timsort(array_.begin(), array_.begin() + offset_);
     std::sort(array_.begin(), array_.begin() + offset_);
   }
 
@@ -301,6 +298,10 @@ void VeloxSortShuffleWriter::growArrayIfNecessary(uint32_t rows) {
   if (arraySize != array_.size()) {
     array_.resize(arraySize);
   }
+}
+
+int64_t VeloxSortShuffleWriter::peakBytesAllocated() const {
+  return veloxPool_->peakBytes();
 }
 
 int64_t VeloxSortShuffleWriter::totalSortTime() const {

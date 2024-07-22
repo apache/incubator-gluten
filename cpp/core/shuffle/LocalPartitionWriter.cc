@@ -497,8 +497,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
     totalBytesWritten_ = std::filesystem::file_size(dataFile_);
     writeTime_ = spillTime_;
     spillTime_ = 0;
-    std::cout << "Use spill file as data file: " << dataFile_ << std::endl;
-    std::cout << "Bytes written: " << totalBytesWritten_ << std::endl;
+    DLOG(INFO) << "Use spill file as data file: " << dataFile_;
   }
   // Populate shuffle writer metrics.
   RETURN_NOT_OK(populateMetrics(metrics));
