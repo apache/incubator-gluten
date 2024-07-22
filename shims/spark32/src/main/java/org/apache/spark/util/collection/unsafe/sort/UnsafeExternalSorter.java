@@ -37,10 +37,12 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /** External sorter based on {@link UnsafeInMemorySorter}. */
 public final class UnsafeExternalSorter extends MemoryConsumer {
@@ -278,8 +280,19 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
     final UnsafeSorterSpillWriter spillWriter =
         new UnsafeSorterSpillWriter(
             blockManager, fileBufferSizeBytes, writeMetrics, inMemSorter.numRecords());
+    logger.warn("inMemSorter numRecords: " + inMemSorter.numRecords());
     spillWriters.add(spillWriter);
-    spillIterator(inMemSorter.getSortedIterator(), spillWriter);
+    UnsafeSorterIterator iterator = inMemSorter.getSortedIterator();
+
+    if (iterator instanceof ChainedIterator) {
+      ChainedIterator it = (ChainedIterator) iterator;
+      int[] recordsForEach = it.numRecordForEach();
+      String str = Arrays.stream(recordsForEach).mapToObj(Integer::toString).collect(Collectors.joining(", "));
+      logger.warn("Each length of the inMemSorter ChainedIterator is " + str);
+    } else if (iterator instanceof UnsafeInMemorySorter.SortedIterator) {
+      logger.warn("inMemSorter SortedIterator length " + iterator.getNumRecords());
+    }
+    spillIterator(iterator, spillWriter);
 
     final long spillSize = freeMemory();
     // Note that this is more-or-less going to be a multiple of the page size, so wasted space in
@@ -615,6 +628,7 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
 
   private static void spillIterator(
       UnsafeSorterIterator inMemIterator, UnsafeSorterSpillWriter spillWriter) throws IOException {
+    logger.warn("inMemIterator size: " + inMemIterator.getNumRecords();
     while (inMemIterator.hasNext()) {
       inMemIterator.loadNext();
       final Object baseObject = inMemIterator.getBaseObject();
@@ -843,15 +857,23 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
     private final Queue<UnsafeSorterIterator> iterators;
     private UnsafeSorterIterator current;
     private int numRecords;
+    private final int[] iteratorsLength;
 
     ChainedIterator(Queue<UnsafeSorterIterator> iterators) {
       assert iterators.size() > 0;
       this.numRecords = 0;
+      this.iteratorsLength = new int[iterators.size()];
+      int i = 0;
       for (UnsafeSorterIterator iter : iterators) {
         this.numRecords += iter.getNumRecords();
+        iteratorsLength[i++] = iter.getNumRecords();
       }
       this.iterators = iterators;
       this.current = iterators.remove();
+    }
+
+    int[] numRecordForEach() {
+      return iteratorsLength;
     }
 
     @Override
