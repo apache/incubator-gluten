@@ -71,6 +71,7 @@
 #include <Common/LoggerExtend.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
+#include <Storages/Cache/CacheManager.h>
 
 namespace DB
 {
@@ -974,6 +975,8 @@ void BackendInitializerUtil::init(const std::string_view plan)
 
     // Init the table metadata cache map
     StorageMergeTreeFactory::init_cache_map();
+
+    CacheManager::initialize(SerializedPlanParser::global_context);
 
     std::call_once(
         init_flag,

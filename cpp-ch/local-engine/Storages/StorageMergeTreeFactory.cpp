@@ -18,6 +18,9 @@
 
 #include <Common/GlutenConfig.h>
 
+#include <Common/MergeTreeTool.h>
+#include <Storages/CustomStorageMergeTree.h>
+
 namespace local_engine
 {
 
@@ -55,14 +58,23 @@ void StorageMergeTreeFactory::freeStorage(const StorageID & id, const String & s
     }
 }
 
+
 CustomStorageMergeTreePtr
-StorageMergeTreeFactory::getStorage(StorageID id, const String & snapshot_id, std::function<CustomStorageMergeTreePtr()> creator)
+StorageMergeTreeFactory::getStorage(const StorageID& id, const String & snapshot_id, MergeTreeTable merge_tree_table, std::function<CustomStorageMergeTreePtr()> creator)
 {
     auto table_name = getTableName(id, snapshot_id);
     std::lock_guard lock(storage_map_mutex);
+
+    merge_tree_table.parts.clear();
+    auto new_storage = creator();
+    if (storage_map->has(table_name) && !storage_map->get(table_name)->second.sameStructWith(merge_tree_table))
+    {
+        freeStorage(id);
+    }
+
     if (!storage_map->has(table_name))
-        storage_map->add(table_name, creator());
-    return *(storage_map->get(table_name));
+        storage_map->add(table_name, {new_storage, merge_tree_table});
+    return storage_map->get(table_name)->first;
 }
 
 DataPartsVector StorageMergeTreeFactory::getDataPartsByNames(const StorageID & id, const String & snapshot_id, std::unordered_set<String> part_name)
@@ -96,7 +108,7 @@ DataPartsVector StorageMergeTreeFactory::getDataPartsByNames(const StorageID & i
         CustomStorageMergeTreePtr storage_merge_tree;
         {
             std::lock_guard storage_lock(storage_map_mutex);
-            storage_merge_tree = *(storage_map->get(table_name));
+            storage_merge_tree = storage_map->get(table_name)->first;
         }
         auto missing_parts = storage_merge_tree->loadDataPartsWithNames(missing_names);
         for (const auto & part : missing_parts)
@@ -108,7 +120,7 @@ DataPartsVector StorageMergeTreeFactory::getDataPartsByNames(const StorageID & i
     return res;
 }
 // will be inited in native init phase
-std::unique_ptr<Poco::LRUCache<std::string, CustomStorageMergeTreePtr>> StorageMergeTreeFactory::storage_map = nullptr;
+std::unique_ptr<Poco::LRUCache<std::string, std::pair<CustomStorageMergeTreePtr, MergeTreeTable>>> StorageMergeTreeFactory::storage_map = nullptr;
 std::unique_ptr<Poco::LRUCache<std::string, std::shared_ptr<Poco::LRUCache<std::string, DataPartPtr>>>> StorageMergeTreeFactory::datapart_map = nullptr;
 std::mutex StorageMergeTreeFactory::storage_map_mutex;
 std::mutex StorageMergeTreeFactory::datapart_mutex;
