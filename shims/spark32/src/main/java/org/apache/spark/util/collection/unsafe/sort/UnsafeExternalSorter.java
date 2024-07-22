@@ -628,7 +628,7 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
 
   private static void spillIterator(
       UnsafeSorterIterator inMemIterator, UnsafeSorterSpillWriter spillWriter) throws IOException {
-    logger.warn("inMemIterator size: " + inMemIterator.getNumRecords();
+    logger.warn("inMemIterator size: " + inMemIterator.getNumRecords());
     while (inMemIterator.hasNext()) {
       inMemIterator.loadNext();
       final Object baseObject = inMemIterator.getBaseObject();
