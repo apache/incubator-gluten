@@ -25,13 +25,11 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 
@@ -286,17 +284,12 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       .getLong(GLUTEN_MAX_SHUFFLE_READ_BYTES, GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT)
   }
 
-  override def supportWriteFilesExec(
-      format: FileFormat,
-      fields: Array[StructField],
-      bucketSpec: Option[BucketSpec],
-      options: Map[String, String]): ValidationResult =
-    ValidationResult.failed("CH backend is unsupported.")
-
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
   }
 
   override def mergeTwoPhasesHashBaseAggregateIfNeed(): Boolean = true
+
+  override def supportCartesianProductExec(): Boolean = true
 
 }

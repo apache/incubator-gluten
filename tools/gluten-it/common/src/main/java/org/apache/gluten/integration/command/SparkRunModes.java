@@ -129,6 +129,9 @@ public final class SparkRunModes {
       if (!System.getenv().containsKey("SPARK_HOME")) {
         throw new IllegalArgumentException("SPARK_HOME not set! Please use --local if there is no local Spark build");
       }
+      if (!System.getenv().containsKey("SPARK_SCALA_VERSION")) {
+        throw new IllegalArgumentException("SPARK_SCALA_VERSION not set! Please set it first or use --local instead. Example: export SPARK_SCALA_VERSION=2.12");
+      }
       return String.format("local-cluster[%d,%d,%d]", lcWorkers, lcWorkerCores, Utils.byteStringAsMb(lcWorkerMem));
     }
 

@@ -26,6 +26,7 @@
 #include <Join/BroadCastJoinBuilder.h>
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/AdvancedParametersParseUtil.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
@@ -46,59 +47,7 @@ namespace ErrorCodes
     extern const int BAD_ARGUMENTS;
 }
 }
-
-struct JoinOptimizationInfo
-{
-    bool is_broadcast = false;
-    bool is_smj = false;
-    bool is_null_aware_anti_join = false;
-    bool is_existence_join = false;
-    std::string storage_join_key;
-};
-
 using namespace DB;
-
-JoinOptimizationInfo parseJoinOptimizationInfo(const substrait::JoinRel & join)
-{
-    google::protobuf::StringValue optimization;
-    optimization.ParseFromString(join.advanced_extension().optimization().value());
-    JoinOptimizationInfo info;
-    if (optimization.value().contains("isBHJ="))
-    {
-        ReadBufferFromString in(optimization.value());
-        assertString("JoinParameters:", in);
-        assertString("isBHJ=", in);
-        readBoolText(info.is_broadcast, in);
-        assertChar('\n', in);
-        if (info.is_broadcast)
-        {
-            assertString("isNullAwareAntiJoin=", in);
-            readBoolText(info.is_null_aware_anti_join, in);
-            assertChar('\n', in);
-            assertString("buildHashTableId=", in);
-            readString(info.storage_join_key, in);
-            assertChar('\n', in);
-        }
-    }
-    else
-    {
-        ReadBufferFromString in(optimization.value());
-        assertString("JoinParameters:", in);
-        assertString("isSMJ=", in);
-        readBoolText(info.is_smj, in);
-        assertChar('\n', in);
-        if (info.is_smj)
-        {
-            assertString("isNullAwareAntiJoin=", in);
-            readBoolText(info.is_null_aware_anti_join, in);
-            assertChar('\n', in);
-            assertString("isExistenceJoin=", in);
-            readBoolText(info.is_existence_join, in);
-            assertChar('\n', in);
-        }
-    }
-    return info;
-}
 
 namespace local_engine
 {
@@ -261,7 +210,9 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
 
 DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right)
 {
-    auto join_opt_info = parseJoinOptimizationInfo(join);
+    google::protobuf::StringValue optimization_info;
+    optimization_info.ParseFromString(join.advanced_extension().optimization().value());
+    auto join_opt_info = JoinOptimizationInfo::parse(optimization_info.value());
     auto storage_join = join_opt_info.is_broadcast ? BroadCastJoinBuilder::getJoin(join_opt_info.storage_join_key) : nullptr;
     if (storage_join)
     {
@@ -310,8 +261,6 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
     QueryPlanPtr query_plan;
 
-    /// Support only one join clause.
-    table_join->addDisjunct();
     /// some examples to explain when the post_join_filter is not empty
     /// - on t1.key = t2.key and t1.v1 > 1 and t2.v1 > 1, 't1.v1> 1' is in the  post filter. but 't2.v1 > 1'
     ///   will be pushed down into right table by spark and is not in the post filter. 't1.key = t2.key ' is
@@ -479,6 +428,8 @@ void JoinRelParser::collectJoinKeys(
 {
     if (!join_rel.has_expression())
         return;
+    /// Support only one join clause.
+    table_join.addDisjunct();
     const auto & expr = join_rel.expression();
     auto & join_clause = table_join.getClauses().back();
     std::list<const const substrait::Expression *> expressions_stack;

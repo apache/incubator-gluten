@@ -14,22 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "Functions/SparkFunctionRoundHalfUp.h"
-#include <Functions/FunctionFactory.h>
-
+#pragma once
+#include <unordered_map>
 
 namespace local_engine
 {
-REGISTER_FUNCTION(RoundSpark)
-{
-    factory.registerFunction<FunctionRoundHalfUp>(
-        FunctionDocumentation{
-            .description=R"(
-Similar to function round,except that in case when given number has equal distance to surrounding numbers, the function rounds away from zero(towards +inf/-inf).
-        )",
-            .examples{{"roundHalfUp", "SELECT roundHalfUp(3.165,2)", "3.17"}},
-            .categories{"Rounding"}
-        }, FunctionFactory::Case::Insensitive);
 
+std::unordered_map<String, std::unordered_map<String, String>> convertToKVs(const String & advance);
+
+
+struct JoinOptimizationInfo
+{
+    bool is_broadcast = false;
+    bool is_smj = false;
+    bool is_null_aware_anti_join = false;
+    bool is_existence_join = false;
+    String storage_join_key;
+
+    static JoinOptimizationInfo parse(const String & advance);
+};
 }
-}
+

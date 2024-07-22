@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <mutex>
 
 namespace gluten {
 
@@ -46,6 +47,7 @@ class AllocationListener {
 };
 
 /// Memory changes will be round to specified block size which aim to decrease delegated listener calls.
+// The class must be thread safe
 class BlockAllocationListener final : public AllocationListener {
  public:
   BlockAllocationListener(AllocationListener* delegated, uint64_t blockSize)
@@ -55,19 +57,24 @@ class BlockAllocationListener final : public AllocationListener {
     if (diff == 0) {
       return;
     }
+    std::unique_lock<std::mutex> guard{mutex_};
     if (diff > 0) {
       if (reservationBytes_ - usedBytes_ < diff) {
         auto roundSize = (diff + (blockSize_ - 1)) / blockSize_ * blockSize_;
-        delegated_->allocationChanged(roundSize);
         reservationBytes_ += roundSize;
         peakBytes_ = std::max(peakBytes_, reservationBytes_);
+        guard.unlock();
+        // unnecessary to lock the delegated listener, assume it's thread safe
+        delegated_->allocationChanged(roundSize);
       }
       usedBytes_ += diff;
     } else {
       usedBytes_ += diff;
       auto unreservedSize = (reservationBytes_ - usedBytes_) / blockSize_ * blockSize_;
-      delegated_->allocationChanged(-unreservedSize);
       reservationBytes_ -= unreservedSize;
+      guard.unlock();
+      // unnecessary to lock the delegated listener
+      delegated_->allocationChanged(-unreservedSize);
     }
   }
 
@@ -80,11 +87,13 @@ class BlockAllocationListener final : public AllocationListener {
   }
 
  private:
-  AllocationListener* delegated_;
-  uint64_t blockSize_{0L};
+  AllocationListener* const delegated_;
+  const uint64_t blockSize_;
   uint64_t usedBytes_{0L};
   uint64_t peakBytes_{0L};
   uint64_t reservationBytes_{0L};
+
+  mutable std::mutex mutex_;
 };
 
 } // namespace gluten

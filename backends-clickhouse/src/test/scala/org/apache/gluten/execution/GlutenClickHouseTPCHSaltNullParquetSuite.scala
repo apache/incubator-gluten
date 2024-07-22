@@ -2769,5 +2769,17 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
 
     spark.sql("drop table tb_date")
   }
+
+  test("test CartesianProductExec") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      val sql = """
+                  |select t1.n_regionkey, t2.n_regionkey from
+                  |(select n_regionkey from nation) t1
+                  |cross join
+                  |(select n_regionkey from nation) t2
+                  |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+  }
 }
 // scalastyle:on line.size.limit

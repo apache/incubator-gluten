@@ -63,13 +63,13 @@ jobs:
         with:
           path: |
             ./cpp/build/releases/
-            ~/.m2/repository/org/apache/arrow/
-          key: cache-velox-build-${{ hashFiles('./cache-key') }}
-      - name: Build Gluten Velox third party
+            /root/.m2/repository/org/apache/arrow/
+          key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
+      - name: Build Gluten native libraries
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           df -a
-          source dev/ci-velox-buildstatic.sh
+          bash dev/ci-velox-buildstatic-centos-7.sh
       - name: Upload Artifact Native
         uses: actions/upload-artifact@v2
         with:
@@ -597,32 +597,15 @@ jobs:
         with:
           path: |
             ./cpp/build/releases/
+            ./cpp/build/velox/udf/examples/
+            ./cpp/build/velox/benchmarks/
             /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
-      - name: Update mirror list
+      - name: Build Gluten native libraries
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          # Required by building arrow java.
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz && mv apache-maven-3.8.8 /usr/lib/maven
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
-      - name: Build Gluten Velox third party
-        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-        run: |
-          source /opt/rh/gcc-toolset-9/enable
-          source ./dev/build_arrow.sh
-          install_arrow_deps
-          ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --enable_ep_cache=OFF --build_tests=ON \
-              --build_examples=ON --build_benchmarks=ON --build_protobuf=ON
-      - name: Gluten CPP Test
-        run: |
-          cd ./cpp/build && \
-          ctest -V
+          df -a
+          bash dev/ci-velox-buildshared-centos-8.sh
       - uses: actions/upload-artifact@v2
         with:
           name: velox-native-lib-centos-8-${{github.sha}}

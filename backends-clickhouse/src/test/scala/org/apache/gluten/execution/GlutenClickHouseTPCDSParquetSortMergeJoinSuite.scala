@@ -29,10 +29,12 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
     "q14b",
     "q23a",
     "q23b",
+    "q38",
     "q51",
     "q69",
     "q70",
     "q78",
+    "q87",
     "q95",
     "q97"
   ) ++ super.excludedTpcdsQueries

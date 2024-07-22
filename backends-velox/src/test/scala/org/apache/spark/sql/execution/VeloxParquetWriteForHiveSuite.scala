@@ -29,7 +29,7 @@ import org.apache.spark.sql.test.SQLTestUtils
 import org.apache.spark.sql.util.QueryExecutionListener
 
 class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
-  private var _spark: SparkSession = null
+  private var _spark: SparkSession = _
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -86,7 +86,7 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
       override def onSuccess(funcName: String, qe: QueryExecution, duration: Long): Unit = {
         if (!nativeUsed) {
           nativeUsed = if (isSparkVersionGE("3.4")) {
-            qe.executedPlan.find(_.isInstanceOf[VeloxColumnarWriteFilesExec]).isDefined
+            qe.executedPlan.find(_.isInstanceOf[ColumnarWriteFilesExec]).isDefined
           } else {
             qe.executedPlan.find(_.isInstanceOf[FakeRowAdaptor]).isDefined
           }

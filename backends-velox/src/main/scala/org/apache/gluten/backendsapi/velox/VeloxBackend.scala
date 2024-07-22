@@ -495,8 +495,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def staticPartitionWriteOnly(): Boolean = true
 
-  override def supportTransformWriteFiles: Boolean = true
-
   override def allowDecimalArithmetic: Boolean = true
 
   override def enableNativeWriteFiles(): Boolean = {
