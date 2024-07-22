@@ -588,7 +588,6 @@ std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::cr
   }
 }
 
-
 arrow::MemoryPool* VeloxColumnarBatchDeserializerFactory::getPool() {
   return memoryPool_;
 }

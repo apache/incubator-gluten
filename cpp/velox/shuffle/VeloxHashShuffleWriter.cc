@@ -161,8 +161,8 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxHashShuffleWriter::creat
     ShuffleWriterOptions options,
     std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
     arrow::MemoryPool* arrowPool) {
-  std::shared_ptr<VeloxHashShuffleWriter> res(new VeloxHashShuffleWriter(
-      numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool));
+  std::shared_ptr<VeloxHashShuffleWriter> res(
+      new VeloxHashShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool));
   RETURN_NOT_OK(res->init());
   return res;
 } // namespace gluten
@@ -495,9 +495,7 @@ arrow::Status VeloxHashShuffleWriter::splitFixedWidthValueBuffer(const facebook:
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxHashShuffleWriter::splitBoolType(
-    const uint8_t* srcAddr,
-    const std::vector<uint8_t*>& dstAddrs) {
+arrow::Status VeloxHashShuffleWriter::splitBoolType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
   // assume batch size = 32k; reducer# = 4K; row/reducer = 8
   for (auto& pid : partitionUsed_) {
     // set the last byte
@@ -820,9 +818,7 @@ void VeloxHashShuffleWriter::calculateSimpleColumnBytes() {
   fixedWidthBufferBytes_ += kSizeOfBinaryArrayLengthBuffer * binaryColumnIndices_.size();
 }
 
-uint32_t VeloxHashShuffleWriter::calculatePartitionBufferSize(
-    const facebook::velox::RowVector& rv,
-    int64_t memLimit) {
+uint32_t VeloxHashShuffleWriter::calculatePartitionBufferSize(const facebook::velox::RowVector& rv, int64_t memLimit) {
   auto bytesPerRow = fixedWidthBufferBytes_;
 
   SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingCalculateBufferSize]);
