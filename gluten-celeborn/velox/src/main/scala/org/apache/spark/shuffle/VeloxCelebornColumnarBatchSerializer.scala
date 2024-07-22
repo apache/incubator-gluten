@@ -39,7 +39,6 @@ import org.apache.celeborn.client.read.CelebornInputStream
 
 import java.io._
 import java.nio.ByteBuffer
-import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
