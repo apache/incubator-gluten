@@ -264,6 +264,44 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 spark.dynamicAllocation.enabled false
 ```
 
+## Uniffle support
+
+Uniffle with velox backend supports [Uniffle](https://github.com/apache/incubator-uniffle) as remote shuffle service. Currently, the supported Uniffle versions are `0.8.0`.
+
+First refer to this URL(https://uniffle.apache.org/docs/intro) to get start with uniffle.
+
+When compiling the Gluten Java module, it's required to enable `uniffle` profile, as follows:
+
+```
+mvn clean package -Pbackends-velox -Pspark-3.3 -Puniffle -DskipTests
+```
+
+Then add the Uniffle and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
+
+- Uniffle: rss-client-spark3-shaded-[uniffleVersion].jar
+- Gluten: gluten-uniffle-velox-xxx-SNAPSHOT-3.x.jar
+
+Currently to use Gluten following configurations are required in `spark-defaults.conf`
+
+```
+spark.shuffle.manager org.apache.spark.shuffle.gluten.uniffle.UniffleShuffleManager
+
+# uniffle coordinator address
+spark.rss.coordinator.quorum ip:port
+
+# Support for Spark AQE
+spark.sql.adaptive.localShuffleReader.enabled false
+spark.shuffle.service.enabled false
+
+# Uniffle support mutilple storage types, you can choose one of them.
+# Such as MEMORY,LOCALFILE,MEMORY_LOCALFILE,HDFS,MEMORY_HDFS,LOCALFILE_HDFS,MEMORY_LOCALFILE_HDFS
+spark.rss.storage.type LOCALFILE_HDFS
+
+# If you want to use dynamic resource allocation,
+# please refer to this URL (https://github.com/apache/incubator-uniffle/tree/master/patch/spark) to apply the patch into your own Spark.
+spark.dynamicAllocation.enabled false
+```
+
 ## DeltaLake Support
 
 Gluten with velox backend supports [DeltaLake](https://delta.io/) table.
