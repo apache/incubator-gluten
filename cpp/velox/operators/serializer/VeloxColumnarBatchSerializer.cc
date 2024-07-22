@@ -49,15 +49,8 @@ VeloxColumnarBatchSerializer::VeloxColumnarBatchSerializer(
     rowType_ = asRowType(importFromArrow(*cSchema));
     ArrowSchemaRelease(cSchema); // otherwise the c schema leaks memory
   }
-  initSerde();
-}
-
-VeloxColumnarBatchSerializer::VeloxColumnarBatchSerializer(
-    arrow::MemoryPool* arrowPool,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-    facebook::velox::RowTypePtr rowType)
-    : ColumnarBatchSerializer(arrowPool), veloxPool_(std::move(veloxPool)), rowType_(std::move(rowType)) {
-  initSerde();
+  serde_ = std::make_unique<serializer::presto::PrestoVectorSerde>();
+  options_.useLosslessTimestamp = true;
 }
 
 std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBatches(
@@ -94,10 +87,5 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchSerializer::deserialize(uint8_t
   auto byteStream = toByteStream(data, size);
   serde_->deserialize(byteStream.get(), veloxPool_.get(), rowType_, &result, &options_);
   return std::make_shared<VeloxColumnarBatch>(result);
-}
-
-void VeloxColumnarBatchSerializer::initSerde() {
-  serde_ = std::make_unique<serializer::presto::PrestoVectorSerde>();
-  options_.useLosslessTimestamp = true;
 }
 } // namespace gluten

@@ -156,7 +156,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   GlutenShuffleUtils.getStartPartitionId(
                       columnarDep.nativePartitioning(), partitionId),
                   "uniffle",
-                  isSort ? "sort" : "hash",
+                  isSort ? GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER() :
+                      GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER(),
                   reallocThreshold);
           runtime.addSpiller(
               new Spiller() {

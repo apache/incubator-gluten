@@ -284,10 +284,7 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
 
 } // namespace
 
-VeloxShuffleReader::VeloxShuffleReader(std::unique_ptr<DeserializerFactory> factory)
-    : ShuffleReader(std::move(factory)) {}
-
-VeloxColumnarBatchDeserializer::VeloxColumnarBatchDeserializer(
+VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
     std::shared_ptr<arrow::io::InputStream> in,
     const std::shared_ptr<arrow::Schema>& schema,
     const std::shared_ptr<arrow::util::Codec>& codec,
@@ -311,7 +308,7 @@ VeloxColumnarBatchDeserializer::VeloxColumnarBatchDeserializer(
       deserializeTime_(deserializeTime),
       decompressTime_(decompressTime) {}
 
-std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
+std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
   if (hasComplexType_) {
     uint32_t numRows;
     GLUTEN_ASSIGN_OR_THROW(
@@ -369,6 +366,173 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
   return columnarBatch;
 }
 
+VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
+    std::shared_ptr<arrow::io::InputStream> in,
+    const std::shared_ptr<arrow::Schema>& schema,
+    const std::shared_ptr<arrow::util::Codec>& codec,
+    const RowTypePtr& rowType,
+    int32_t batchSize,
+    arrow::MemoryPool* memoryPool,
+    facebook::velox::memory::MemoryPool* veloxPool,
+    int64_t& deserializeTime,
+    int64_t& decompressTime)
+    : in_(std::move(in)),
+      schema_(schema),
+      codec_(codec),
+      rowType_(rowType),
+      batchSize_(batchSize),
+      arrowPool_(memoryPool),
+      veloxPool_(veloxPool),
+      deserializeTime_(deserializeTime),
+      decompressTime_(decompressTime) {}
+
+std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
+  if (reachEos_) {
+    if (cachedRows_ > 0) {
+      return deserializeToBatch();
+    }
+    return nullptr;
+  }
+
+  if (cachedRows_ >= batchSize_) {
+    return deserializeToBatch();
+  }
+
+  while (cachedRows_ < batchSize_) {
+    uint32_t numRows;
+    GLUTEN_ASSIGN_OR_THROW(
+        auto arrowBuffers, BlockPayload::deserialize(in_.get(), schema_, codec_, arrowPool_, numRows, decompressTime_));
+
+    if (numRows == 0) {
+      reachEos_ = true;
+      if (cachedRows_ > 0) {
+        return deserializeToBatch();
+      }
+      return nullptr;
+    }
+    auto buffer = std::move(arrowBuffers[0]);
+    cachedInputs_.emplace_back(numRows, wrapInBufferViewAsOwner(buffer->data(), buffer->size(), buffer));
+    cachedRows_ += numRows;
+  }
+  return deserializeToBatch();
+}
+
+std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::deserializeToBatch() {
+  ScopedTimer timer(&deserializeTime_);
+  std::vector<std::string_view> data;
+  data.reserve(std::min(cachedRows_, batchSize_));
+
+  uint32_t readRows = 0;
+  auto cur = cachedInputs_.begin();
+  while (readRows < batchSize_ && cur != cachedInputs_.end()) {
+    auto buffer = cur->second;
+    const auto* rawBuffer = buffer->as<char>();
+    while (rowOffset_ < cur->first && readRows < batchSize_) {
+      auto rowSize = *(uint32_t*)(rawBuffer + byteOffset_);
+      byteOffset_ += sizeof(uint32_t);
+      data.push_back(std::string_view(rawBuffer + byteOffset_, rowSize));
+      byteOffset_ += rowSize;
+      ++rowOffset_;
+      ++readRows;
+    }
+    if (rowOffset_ == cur->first) {
+      rowOffset_ = 0;
+      byteOffset_ = 0;
+      ++cur;
+    }
+  }
+  cachedRows_ -= readRows;
+  auto rowVector = facebook::velox::row::CompactRow::deserialize(data, rowType_, veloxPool_);
+  // Free memory.
+  auto iter = cachedInputs_.begin();
+  while (iter++ != cur) {
+    cachedInputs_.pop_front();
+  }
+  return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+}
+
+class VeloxRssSortShuffleReaderDeserializer::VeloxInputStream : public facebook::velox::ByteInputStream {
+ public:
+  VeloxInputStream(std::shared_ptr<arrow::io::InputStream> input, facebook::velox::BufferPtr buffer);
+
+  bool hasNext();
+
+  void next(bool throwIfPastEnd) override;
+
+  std::shared_ptr<arrow::io::InputStream> in_;
+  const facebook::velox::BufferPtr buffer_;
+  uint64_t offset_ = -1;
+};
+
+VeloxRssSortShuffleReaderDeserializer::VeloxInputStream::VeloxInputStream(
+    std::shared_ptr<arrow::io::InputStream> input,
+    facebook::velox::BufferPtr buffer)
+    : in_(std::move(input)), buffer_(std::move(buffer)) {
+  next(true);
+}
+
+bool VeloxRssSortShuffleReaderDeserializer::VeloxInputStream::hasNext() {
+  if (offset_ == 0) {
+    return false;
+  }
+  if (ranges()[0].position >= ranges()[0].size) {
+    next(true);
+    return offset_ != 0;
+  }
+  return true;
+}
+
+void VeloxRssSortShuffleReaderDeserializer::VeloxInputStream::next(bool throwIfPastEnd) {
+  const uint32_t readBytes = buffer_->capacity();
+  offset_ = in_->Read(readBytes, buffer_->asMutable<char>()).ValueOr(0);
+  if (offset_ > 0) {
+    int32_t realBytes = offset_;
+    VELOX_CHECK_LT(0, realBytes, "Reading past end of file.");
+    setRange({buffer_->asMutable<uint8_t>(), realBytes, 0});
+  }
+}
+
+VeloxRssSortShuffleReaderDeserializer::VeloxRssSortShuffleReaderDeserializer(
+    const std::shared_ptr<facebook::velox::memory::MemoryPool>& veloxPool,
+    const RowTypePtr& rowType,
+    int32_t batchSize,
+    facebook::velox::common::CompressionKind veloxCompressionType,
+    int64_t& deserializeTime,
+    std::shared_ptr<arrow::io::InputStream> in)
+    : veloxPool_(veloxPool),
+      rowType_(rowType),
+      batchSize_(batchSize),
+      veloxCompressionType_(veloxCompressionType),
+      deserializeTime_(deserializeTime) {
+  constexpr uint64_t kMaxReadBufferSize = (1 << 20) - AlignedBuffer::kPaddedSize;
+  auto buffer = AlignedBuffer::allocate<char>(kMaxReadBufferSize, veloxPool_.get());
+  in_ = std::make_unique<VeloxInputStream>(std::move(in), std::move(buffer));
+  serdeOptions_ = {false, veloxCompressionType_};
+}
+
+std::shared_ptr<ColumnarBatch> VeloxRssSortShuffleReaderDeserializer::next() {
+  if (!in_->hasNext()) {
+    return nullptr;
+  }
+
+  ScopedTimer timer(&deserializeTime_);
+
+  RowVectorPtr rowVector;
+  VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, &rowVector, &serdeOptions_);
+
+  if (rowVector->size() >= batchSize_) {
+    return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+  }
+
+  while (rowVector->size() < batchSize_ && in_->hasNext()) {
+    RowVectorPtr rowVectorTemp;
+    VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, &rowVectorTemp, &serdeOptions_);
+    rowVector->append(rowVectorTemp.get());
+  }
+
+  return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+}
+
 VeloxColumnarBatchDeserializerFactory::VeloxColumnarBatchDeserializerFactory(
     const std::shared_ptr<arrow::Schema>& schema,
     const std::shared_ptr<arrow::util::Codec>& codec,
@@ -391,67 +555,39 @@ VeloxColumnarBatchDeserializerFactory::VeloxColumnarBatchDeserializerFactory(
 
 std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::createDeserializer(
     std::shared_ptr<arrow::io::InputStream> in) {
-  if (shuffleWriterType_ == kHashShuffle) {
-    return std::make_unique<VeloxColumnarBatchDeserializer>(
-        std::move(in),
-        schema_,
-        codec_,
-        rowType_,
-        batchSize_,
-        memoryPool_,
-        veloxPool_.get(),
-        &isValidityBuffer_,
-        hasComplexType_,
-        deserializeTime_,
-        decompressTime_);
-  } else if (shuffleWriterType_ == kSortShuffle) {
-    return std::make_unique<VeloxShuffleReaderOutStreamWrapper>(
-        veloxPool_, rowType_, batchSize_, veloxCompressionType_, deserializeTime_, std::move(in));
+  switch (shuffleWriterType_) {
+    case ShuffleWriterType::kHashShuffle:
+      return std::make_unique<VeloxHashShuffleReaderDeserializer>(
+          std::move(in),
+          schema_,
+          codec_,
+          rowType_,
+          batchSize_,
+          memoryPool_,
+          veloxPool_.get(),
+          &isValidityBuffer_,
+          hasComplexType_,
+          deserializeTime_,
+          decompressTime_);
+    case ShuffleWriterType::kSortShuffle:
+      return std::make_unique<VeloxSortShuffleReaderDeserializer>(
+          std::move(in),
+          schema_,
+          codec_,
+          rowType_,
+          batchSize_,
+          memoryPool_,
+          veloxPool_.get(),
+          deserializeTime_,
+          decompressTime_);
+    case ShuffleWriterType::kRssSortShuffle:
+      return std::make_unique<VeloxRssSortShuffleReaderDeserializer>(
+          veloxPool_, rowType_, batchSize_, veloxCompressionType_, deserializeTime_, std::move(in));
+    default:
+      throw gluten::GlutenException("Unsupported shuffle writer type: " + std::to_string(shuffleWriterType_));
   }
-  return std::make_unique<VeloxRowVectorDeserializer>(
-      std::move(in), schema_, codec_, rowType_, batchSize_, memoryPool_, veloxPool_, deserializeTime_, decompressTime_);
 }
 
-VeloxShuffleReaderOutStreamWrapper::VeloxShuffleReaderOutStreamWrapper(
-    const std::shared_ptr<facebook::velox::memory::MemoryPool>& veloxPool,
-    const RowTypePtr& rowType,
-    int32_t batchSize,
-    facebook::velox::common::CompressionKind veloxCompressionType,
-    int64_t& deserializeTime,
-    std::shared_ptr<arrow::io::InputStream> in)
-    : veloxPool_(veloxPool),
-      rowType_(rowType),
-      batchSize_(batchSize),
-      veloxCompressionType_(veloxCompressionType),
-      deserializeTime_(deserializeTime) {
-  constexpr uint64_t kMaxReadBufferSize = (1 << 20) - AlignedBuffer::kPaddedSize;
-  auto buffer = AlignedBuffer::allocate<char>(kMaxReadBufferSize, veloxPool_.get());
-  in_ = std::make_unique<VeloxInputStream>(std::move(in), std::move(buffer));
-  serdeOptions_ = {false, veloxCompressionType_};
-}
-
-std::shared_ptr<ColumnarBatch> VeloxShuffleReaderOutStreamWrapper::next() {
-  if (!in_->hasNext()) {
-    return nullptr;
-  }
-
-  ScopedTimer timer(&deserializeTime_);
-
-  RowVectorPtr rowVector;
-  VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, &rowVector, &serdeOptions_);
-
-  if (rowVector->size() >= batchSize_) {
-    return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
-  }
-
-  while (rowVector->size() < batchSize_ && in_->hasNext()) {
-    RowVectorPtr rowVectorTemp;
-    VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, &rowVectorTemp, &serdeOptions_);
-    rowVector->append(rowVectorTemp.get());
-  }
-
-  return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
-}
 
 arrow::MemoryPool* VeloxColumnarBatchDeserializerFactory::getPool() {
   return memoryPool_;
@@ -499,114 +635,7 @@ void VeloxColumnarBatchDeserializerFactory::initFromSchema() {
   }
 }
 
-VeloxInputStream::VeloxInputStream(std::shared_ptr<arrow::io::InputStream> input, facebook::velox::BufferPtr buffer)
-    : in_(std::move(input)), buffer_(std::move(buffer)) {
-  next(true);
-}
+VeloxShuffleReader::VeloxShuffleReader(std::unique_ptr<DeserializerFactory> factory)
+    : ShuffleReader(std::move(factory)) {}
 
-bool VeloxInputStream::hasNext() {
-  if (offset_ == 0) {
-    return false;
-  }
-  if (ranges()[0].position >= ranges()[0].size) {
-    next(true);
-    return offset_ != 0;
-  }
-  return true;
-}
-
-void VeloxInputStream::next(bool throwIfPastEnd) {
-  const uint32_t readBytes = buffer_->capacity();
-  offset_ = in_->Read(readBytes, buffer_->asMutable<char>()).ValueOr(0);
-  if (offset_ > 0) {
-    int32_t realBytes = offset_;
-    VELOX_CHECK_LT(0, realBytes, "Reading past end of file.");
-    setRange({buffer_->asMutable<uint8_t>(), realBytes, 0});
-  }
-}
-
-VeloxRowVectorDeserializer::VeloxRowVectorDeserializer(
-    std::shared_ptr<arrow::io::InputStream> in,
-    const std::shared_ptr<arrow::Schema>& schema,
-    const std::shared_ptr<arrow::util::Codec>& codec,
-    const RowTypePtr& rowType,
-    int32_t batchSize,
-    arrow::MemoryPool* memoryPool,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
-    int64_t& deserializeTime,
-    int64_t& decompressTime)
-    : in_(std::move(in)),
-      schema_(schema),
-      codec_(codec),
-      rowType_(rowType),
-      batchSize_(batchSize),
-      arrowPool_(memoryPool),
-      veloxPool_(veloxPool),
-      deserializeTime_(deserializeTime),
-      decompressTime_(decompressTime) {}
-
-std::shared_ptr<ColumnarBatch> VeloxRowVectorDeserializer::next() {
-  if (reachEos_) {
-    if (cachedRows_ > 0) {
-      return deserializeToBatch();
-    }
-    return nullptr;
-  }
-
-  if (cachedRows_ >= batchSize_) {
-    return deserializeToBatch();
-  }
-
-  while (cachedRows_ < batchSize_) {
-    uint32_t numRows;
-    GLUTEN_ASSIGN_OR_THROW(
-        auto arrowBuffers, BlockPayload::deserialize(in_.get(), schema_, codec_, arrowPool_, numRows, decompressTime_));
-
-    if (numRows == 0) {
-      reachEos_ = true;
-      if (cachedRows_ > 0) {
-        return deserializeToBatch();
-      }
-      return nullptr;
-    }
-    auto buffer = std::move(arrowBuffers[0]);
-    cachedInputs_.emplace_back(numRows, wrapInBufferViewAsOwner(buffer->data(), buffer->size(), buffer));
-    cachedRows_ += numRows;
-  }
-  return deserializeToBatch();
-}
-
-std::shared_ptr<ColumnarBatch> VeloxRowVectorDeserializer::deserializeToBatch() {
-  ScopedTimer timer(&deserializeTime_);
-  std::vector<std::string_view> data;
-  data.reserve(std::min(cachedRows_, batchSize_));
-
-  uint32_t readRows = 0;
-  auto cur = cachedInputs_.begin();
-  while (readRows < batchSize_ && cur != cachedInputs_.end()) {
-    auto buffer = cur->second;
-    const auto* rawBuffer = buffer->as<char>();
-    while (rowOffset_ < cur->first && readRows < batchSize_) {
-      auto rowSize = *(uint32_t*)(rawBuffer + byteOffset_);
-      byteOffset_ += sizeof(uint32_t);
-      data.push_back(std::string_view(rawBuffer + byteOffset_, rowSize));
-      byteOffset_ += rowSize;
-      ++rowOffset_;
-      ++readRows;
-    }
-    if (rowOffset_ == cur->first) {
-      rowOffset_ = 0;
-      byteOffset_ = 0;
-      ++cur;
-    }
-  }
-  cachedRows_ -= readRows;
-  auto rowVector = facebook::velox::row::CompactRow::deserialize(data, rowType_, veloxPool_.get());
-  // Free memory.
-  auto iter = cachedInputs_.begin();
-  while (iter++ != cur) {
-    cachedInputs_.pop_front();
-  }
-  return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
-}
 } // namespace gluten

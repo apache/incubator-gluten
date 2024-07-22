@@ -31,26 +31,23 @@ namespace gluten {
 class LocalPartitionWriter::LocalSpiller {
  public:
   LocalSpiller(
+      std::shared_ptr<arrow::io::OutputStream> os,
       const std::string& spillFile,
       uint32_t compressionThreshold,
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec)
-      : spillFile_(spillFile), compressionThreshold_(compressionThreshold), pool_(pool), codec_(codec) {}
+      : os_(os),
+        spillFile_(spillFile),
+        compressionThreshold_(compressionThreshold),
+        pool_(pool),
+        codec_(codec),
+        diskSpill_(std::make_unique<Spill>(Spill::SpillType::kSequentialSpill)) {}
 
   arrow::Status spill(uint32_t partitionId, std::unique_ptr<BlockPayload> payload) {
     // Check spill Type.
     ARROW_RETURN_IF(
         payload->type() == Payload::kToBeCompressed,
         arrow::Status::Invalid("Cannot spill payload of type: " + payload->toString()));
-
-    if (!opened_) {
-      opened_ = true;
-      ARROW_ASSIGN_OR_RAISE(auto raw, arrow::io::FileOutputStream::Open(spillFile_, true));
-      ARROW_ASSIGN_OR_RAISE(os_, arrow::io::BufferedOutputStream::Create(16384, pool_, raw));
-      std::cout << "open spill file: " << spillFile_ << std::endl;
-      diskSpill_ = std::make_unique<Spill>(Spill::SpillType::kSequentialSpill);
-    }
-
     ARROW_ASSIGN_OR_RAISE(auto start, os_->Tell());
     RETURN_NOT_OK(payload->serialize(os_.get()));
     compressTime_ += payload->getCompressTime();
@@ -77,10 +74,6 @@ class LocalPartitionWriter::LocalSpiller {
       return arrow::Status::Invalid("Calling toBlockPayload() on a finished SpillEvictor.");
     }
     finished_ = true;
-
-    if (!opened_) {
-      return arrow::Status::Invalid("SpillEvictor has no data spilled.");
-    }
     RETURN_NOT_OK(os_->Close());
     diskSpill_->setSpillFile(std::move(spillFile_));
     return std::move(diskSpill_);
@@ -99,15 +92,14 @@ class LocalPartitionWriter::LocalSpiller {
   }
 
  private:
+  std::shared_ptr<arrow::io::OutputStream> os_;
   std::string spillFile_;
   uint32_t compressionThreshold_;
   arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
 
-  bool opened_{false};
   bool finished_{false};
   std::shared_ptr<Spill> diskSpill_{nullptr};
-  std::shared_ptr<arrow::io::OutputStream> os_;
   int64_t spillTime_{0};
   int64_t compressTime_{0};
 };
@@ -320,10 +312,12 @@ class LocalPartitionWriter::PayloadCache {
     return false;
   }
 
-  arrow::Result<std::shared_ptr<Spill>>
-  spill(const std::string& spillFile, arrow::MemoryPool* pool, arrow::util::Codec* codec) {
+  arrow::Result<std::shared_ptr<Spill>> spillAndClose(
+      std::shared_ptr<arrow::io::OutputStream> os,
+      const std::string& spillFile,
+      arrow::MemoryPool* pool,
+      arrow::util::Codec* codec) {
     std::shared_ptr<Spill> diskSpill = nullptr;
-    ARROW_ASSIGN_OR_RAISE(auto os, arrow::io::FileOutputStream::Open(spillFile, true));
     ARROW_ASSIGN_OR_RAISE(auto start, os->Tell());
     for (uint32_t pid = 0; pid < numPartitions_; ++pid) {
       if (hasCachedPayloads(pid)) {
@@ -519,8 +513,10 @@ arrow::Status LocalPartitionWriter::requestSpill(bool isFinal) {
     } else {
       ARROW_ASSIGN_OR_RAISE(spillFile, createTempShuffleFile(nextSpilledFileDir()));
     }
+    ARROW_ASSIGN_OR_RAISE(auto raw, arrow::io::FileOutputStream::Open(spillFile, true));
+    ARROW_ASSIGN_OR_RAISE(auto os, arrow::io::BufferedOutputStream::Create(16384, pool_, raw));
     spiller_ = std::make_unique<LocalSpiller>(
-        std::move(spillFile), options_.compressionThreshold, payloadPool_.get(), codec_.get());
+        os, std::move(spillFile), options_.compressionThreshold, payloadPool_.get(), codec_.get());
   }
   return arrow::Status::OK();
 }
@@ -609,8 +605,11 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
   if (payloadCache_ && payloadCache_->canSpill()) {
     auto beforeSpill = payloadPool_->bytes_allocated();
     ARROW_ASSIGN_OR_RAISE(auto spillFile, createTempShuffleFile(nextSpilledFileDir()));
+    ARROW_ASSIGN_OR_RAISE(auto raw, arrow::io::FileOutputStream::Open(spillFile, true));
+    ARROW_ASSIGN_OR_RAISE(auto os, arrow::io::BufferedOutputStream::Create(16384, pool_, raw));
     spills_.emplace_back();
-    ARROW_ASSIGN_OR_RAISE(spills_.back(), payloadCache_->spill(spillFile, payloadPool_.get(), codec_.get()));
+    ARROW_ASSIGN_OR_RAISE(
+        spills_.back(), payloadCache_->spillAndClose(os, spillFile, payloadPool_.get(), codec_.get()));
     reclaimed += beforeSpill - payloadPool_->bytes_allocated();
     if (reclaimed >= size) {
       *actual = reclaimed;

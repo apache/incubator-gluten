@@ -108,7 +108,8 @@ class ColumnarShuffleWriter[K, V](
 
   private val taskContext: TaskContext = TaskContext.get()
 
-  private val shuffleWriterType: String = if (isSort) "sort" else "hash"
+  private val shuffleWriterType: String =
+    if (isSort) GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER else GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER
 
   private def availableOffHeapPerTask(): Long = {
     val perTask =

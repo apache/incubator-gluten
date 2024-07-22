@@ -27,9 +27,9 @@
 
 namespace gluten {
 
-class VeloxColumnarBatchDeserializer final : public ColumnarBatchIterator {
+class VeloxHashShuffleReaderDeserializer final : public ColumnarBatchIterator {
  public:
-  VeloxColumnarBatchDeserializer(
+  VeloxHashShuffleReaderDeserializer(
       std::shared_ptr<arrow::io::InputStream> in,
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
@@ -62,34 +62,33 @@ class VeloxColumnarBatchDeserializer final : public ColumnarBatchIterator {
   bool reachEos_{false};
 };
 
-class VeloxRowVectorDeserializer final : public ColumnarBatchIterator {
+class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
  public:
-  VeloxRowVectorDeserializer(
+  VeloxSortShuffleReaderDeserializer(
       std::shared_ptr<arrow::io::InputStream> in,
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
       const facebook::velox::RowTypePtr& rowType,
       int32_t batchSize,
       arrow::MemoryPool* memoryPool,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+      facebook::velox::memory::MemoryPool* veloxPool,
       int64_t& deserializeTime,
       int64_t& decompressTime);
 
   std::shared_ptr<ColumnarBatch> next() override;
 
  private:
+  std::shared_ptr<ColumnarBatch> deserializeToBatch();
+
   std::shared_ptr<arrow::io::InputStream> in_;
   std::shared_ptr<arrow::Schema> schema_;
-  std::shared_ptr<arrow::Schema> serializedSchema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
   uint32_t batchSize_;
   arrow::MemoryPool* arrowPool_;
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  facebook::velox::memory::MemoryPool* veloxPool_;
   int64_t& deserializeTime_;
   int64_t& decompressTime_;
-
-  std::shared_ptr<VeloxColumnarBatchSerializer> deserializer_;
 
   std::list<std::pair<uint32_t, facebook::velox::BufferPtr>> cachedInputs_;
   uint32_t cachedRows_{0};
@@ -97,26 +96,11 @@ class VeloxRowVectorDeserializer final : public ColumnarBatchIterator {
 
   uint32_t rowOffset_{0};
   size_t byteOffset_{0};
-
-  std::shared_ptr<ColumnarBatch> deserializeToBatch();
 };
 
-class VeloxInputStream : public facebook::velox::ByteInputStream {
+class VeloxRssSortShuffleReaderDeserializer : public ColumnarBatchIterator {
  public:
-  VeloxInputStream(std::shared_ptr<arrow::io::InputStream> input, facebook::velox::BufferPtr buffer);
-
-  bool hasNext();
-
-  void next(bool throwIfPastEnd) override;
-
-  std::shared_ptr<arrow::io::InputStream> in_;
-  const facebook::velox::BufferPtr buffer_;
-  uint64_t offset_ = -1;
-};
-
-class VeloxShuffleReaderOutStreamWrapper : public ColumnarBatchIterator {
- public:
-  VeloxShuffleReaderOutStreamWrapper(
+  VeloxRssSortShuffleReaderDeserializer(
       const std::shared_ptr<facebook::velox::memory::MemoryPool>& veloxPool,
       const facebook::velox::RowTypePtr& rowType,
       int32_t batchSize,
@@ -127,6 +111,8 @@ class VeloxShuffleReaderOutStreamWrapper : public ColumnarBatchIterator {
   std::shared_ptr<ColumnarBatch> next();
 
  private:
+  class VeloxInputStream;
+
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   facebook::velox::RowTypePtr rowType_;
   std::vector<facebook::velox::RowVectorPtr> batches_;
@@ -162,6 +148,8 @@ class VeloxColumnarBatchDeserializerFactory : public DeserializerFactory {
   ShuffleWriterType getShuffleWriterType() override;
 
  private:
+  void initFromSchema();
+
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::common::CompressionKind veloxCompressionType_;
@@ -177,8 +165,6 @@ class VeloxColumnarBatchDeserializerFactory : public DeserializerFactory {
 
   int64_t deserializeTime_{0};
   int64_t decompressTime_{0};
-
-  void initFromSchema();
 };
 
 class VeloxShuffleReader final : public ShuffleReader {

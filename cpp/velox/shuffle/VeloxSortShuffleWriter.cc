@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-#include "shuffle/VeloxSortShuffleWriter.h"
 #include <arrow/io/memory.h>
 #include "memory/ArrowMemory.h"
 #include "memory/VeloxColumnarBatch.h"
+#include "shuffle/VeloxSortShuffleWriter.h"
 #include "utils/Common.h"
 #include "utils/Timer.h"
 

@@ -133,10 +133,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
       .getConfString("spark.shuffle.manager", "sort")
       .contains("UniffleShuffleManager")
 
-  def isSortBasedCelebornShuffle: Boolean =
+  def celebornShuffleWriterType: String =
     conf
-      .getConfString("spark.celeborn.client.spark.shuffle.writer", "hash")
-      .equals("sort")
+      .getConfString("spark.celeborn.client.spark.shuffle.writer", GLUTEN_HASH_SHUFFLE_WRITER)
+      .toLowerCase(Locale.ROOT)
+      .replace(GLUTEN_SORT_SHUFFLE_WRITER, GLUTEN_RSS_SORT_SHUFFLE_WRITER)
 
   def enableColumnarShuffle: Boolean = conf.getConf(COLUMNAR_SHUFFLE_ENABLED)
 
@@ -566,7 +567,12 @@ object GlutenConfig {
   // Batch size.
   val GLUTEN_MAX_BATCH_SIZE_KEY = "spark.gluten.sql.columnar.maxBatchSize"
 
-  // Shuffle Writer buffer size.
+  // Shuffle writer type.
+  val GLUTEN_HASH_SHUFFLE_WRITER = "hash"
+  val GLUTEN_SORT_SHUFFLE_WRITER = "sort"
+  val GLUTEN_RSS_SORT_SHUFFLE_WRITER = "rss_sort"
+
+  // Shuffle writer buffer size.
   val GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE = "spark.gluten.shuffleWriter.bufferSize"
 
   val GLUTEN_SHUFFLE_WRITER_MERGE_THRESHOLD = "spark.gluten.sql.columnar.shuffle.merge.threshold"

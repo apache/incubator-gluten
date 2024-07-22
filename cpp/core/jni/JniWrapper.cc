@@ -780,14 +780,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .partitioning = gluten::toPartitioning(jStringToCString(env, partitioningNameJstr)),
       .taskAttemptId = (int64_t)taskAttemptId,
       .startPartitionId = startPartitionId,
-  };
-  auto shuffleWriterTypeC = env->GetStringUTFChars(shuffleWriterTypeJstr, JNI_FALSE);
-  auto shuffleWriterType = std::string(shuffleWriterTypeC);
-  env->ReleaseStringUTFChars(shuffleWriterTypeJstr, shuffleWriterTypeC);
-
-  if (shuffleWriterType == "sort") {
-    shuffleWriterOptions.shuffleWriterType = kSortShuffleV2;
-  }
+      .shuffleWriterType = gluten::ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterTypeJstr))};
 
   // Build PartitionWriterOptions.
   auto partitionWriterOptions = PartitionWriterOptions{
@@ -998,9 +991,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
   options.batchSize = batchSize;
   // TODO: Add coalesce option and maximum coalesced size.
 
-  if (jStringToCString(env, shuffleWriterType) == "sort") {
-    options.shuffleWriterType = kSortShuffleV2;
-  }
+  options.shuffleWriterType = gluten::ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterType));
   std::shared_ptr<arrow::Schema> schema =
       gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
 

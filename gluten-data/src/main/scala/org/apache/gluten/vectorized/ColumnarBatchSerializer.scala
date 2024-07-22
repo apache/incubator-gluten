@@ -52,7 +52,8 @@ class ColumnarBatchSerializer(
   extends Serializer
   with Serializable {
 
-  private val shuffleWriterType = if (isSort) "sort" else "hash"
+  private val shuffleWriterType =
+    if (isSort) GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER else GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {

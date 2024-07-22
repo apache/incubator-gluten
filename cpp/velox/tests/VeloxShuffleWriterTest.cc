@@ -19,9 +19,9 @@
 #include <arrow/io/api.h>
 
 #include "shuffle/LocalPartitionWriter.h"
-#include "shuffle/VeloxHashBasedShuffleWriter.h"
+#include "shuffle/VeloxHashShuffleWriter.h"
+#include "shuffle/VeloxRssSortShuffleWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
-#include "shuffle/VeloxSortBasedShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
@@ -71,9 +71,9 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
 
   for (const auto& compression : compressions) {
     params.push_back(
-        ShuffleTestParams{ShuffleWriterType::kSortShuffleV2, PartitionWriterType::kLocal, compression, 0, 0});
+        ShuffleTestParams{ShuffleWriterType::kSortShuffle, PartitionWriterType::kLocal, compression, 0, 0});
     params.push_back(
-        ShuffleTestParams{ShuffleWriterType::kSortShuffleV2, PartitionWriterType::kRss, compression, 0, 0});
+        ShuffleTestParams{ShuffleWriterType::kRssSortShuffle, PartitionWriterType::kRss, compression, 0, 0});
     for (const auto compressionThreshold : compressionThresholds) {
       for (const auto mergeBufferSize : mergeBufferSizes) {
         params.push_back(ShuffleTestParams{
@@ -530,7 +530,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kInitSingle) {
 TEST_F(VeloxShuffleWriterMemoryTest, kSplit) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
   shuffleWriterOptions_.bufferSize = 4;
-  auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get());
+  auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get(), false);
   auto shuffleWriter = createShuffleWriter(&pool);
 
   pool.setEvictable(shuffleWriter.get());
@@ -613,7 +613,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kStopComplex) {
 TEST_F(VeloxShuffleWriterMemoryTest, evictPartitionBuffers) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
   shuffleWriterOptions_.bufferSize = 4;
-  auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get());
+  auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get(), false);
   auto shuffleWriter = createShuffleWriter(&pool);
 
   pool.setEvictable(shuffleWriter.get());

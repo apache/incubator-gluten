@@ -99,7 +99,7 @@ struct BinaryArrayResizeState {
       : inResize(false), partitionId(partitionId), binaryIdx(binaryIdx) {}
 };
 
-class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
+class VeloxHashShuffleWriter : public VeloxShuffleWriter {
   enum {
     kValidityBufferIndex = 0,
     kFixedWidthValueBufferIndex = 1,
@@ -190,7 +190,7 @@ class VeloxHashBasedShuffleWriter : public VeloxShuffleWriter {
   }
 
  private:
-  VeloxHashBasedShuffleWriter(
+  VeloxHashShuffleWriter(
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
       ShuffleWriterOptions options,

@@ -517,9 +517,9 @@ set(VELOX_SRCS
     operators/writer/VeloxParquetDatasource.cc
     shuffle/VeloxShuffleReader.cc
     shuffle/VeloxShuffleWriter.cc
-    shuffle/VeloxHashBasedShuffleWriter.cc
-    shuffle/VeloxSortBasedShuffleWriter.cc
+    shuffle/VeloxHashShuffleWriter.cc
     shuffle/VeloxSortShuffleWriter.cc
+    shuffle/VeloxRssSortShuffleWriter.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
     substrait/SubstraitToVeloxPlan.cc
