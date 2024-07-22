@@ -33,6 +33,7 @@
 #include <Processors/QueryPlan/JoinStep.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/CHUtil.h>
+#include <Functions/FunctionFactory.h>
 
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
@@ -51,13 +52,13 @@ using namespace DB;
 
 namespace local_engine
 {
-std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type)
+std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type, bool is_existence_join)
 {
     auto & global_context = SerializedPlanParser::global_context;
     auto table_join = std::make_shared<TableJoin>(
         global_context->getSettings(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
 
-    std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = JoinUtil::getJoinKindAndStrictness(join_type);
+    std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = JoinUtil::getJoinKindAndStrictness(join_type, is_existence_join);
     table_join->setKind(kind_and_strictness.first);
     table_join->setStrictness(kind_and_strictness.second);
     return table_join;
@@ -219,7 +220,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         renamePlanColumns(*left, *right, *storage_join);
     }
 
-    auto table_join = createDefaultTableJoin(join.type());
+    auto table_join = createDefaultTableJoin(join.type(), join_opt_info.is_existence_join);
     DB::Block right_header_before_convert_step = right->getCurrentDataStream().header;
     addConvertStep(*table_join, *left, *right);
 
@@ -351,9 +352,37 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         query_plan = std::make_unique<QueryPlan>();
         query_plan->unitePlans(std::move(join_step), {std::move(plans)});
     }
+
     JoinUtil::reorderJoinOutput(*query_plan, after_join_names);
+    /// Need to project the right table column into boolean type
+    if (join_opt_info.is_existence_join)
+    {
+        existenceJoinPostProject(*query_plan, left_names);
+    }
 
     return query_plan;
+}
+
+
+/// We use left any join to implement ExistenceJoin.
+/// The result columns of ExistenceJoin are left table columns + one flag column.
+/// The flag column indicates whether a left row is matched or not. We build the flag column here.
+/// The input plan's header is left table columns + right table columns. If one row in the right row is null,
+/// we mark the flag 0, otherwise mark it 1.
+void JoinRelParser::existenceJoinPostProject(DB::QueryPlan & plan, const DB::Names & left_input_cols)
+{
+    auto actions_dag = std::make_shared<DB::ActionsDAG>(plan.getCurrentDataStream().header.getColumnsWithTypeAndName());
+    const auto * right_col_node = actions_dag->getInputs().back();
+    auto function_builder = DB::FunctionFactory::instance().get("isNotNull", getContext());
+    const auto * not_null_node = &actions_dag->addFunction(function_builder, {right_col_node}, right_col_node->result_name);
+    actions_dag->addOrReplaceInOutputs(*not_null_node);
+    DB::Names required_cols = left_input_cols;
+    required_cols.emplace_back(not_null_node->result_name);
+    actions_dag->removeUnusedActions(required_cols);
+    auto project_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentDataStream(), actions_dag);
+    project_step->setStepDescription("ExistenceJoin Post Project");
+    steps.emplace_back(project_step.get());
+    plan.addStep(std::move(project_step));
 }
 
 void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left, DB::QueryPlan & right)

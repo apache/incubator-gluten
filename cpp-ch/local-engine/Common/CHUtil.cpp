@@ -1090,14 +1090,18 @@ void JoinUtil::reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
     plan.addStep(std::move(project_step));
 }
 
-std::pair<DB::JoinKind, DB::JoinStrictness> JoinUtil::getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type)
+std::pair<DB::JoinKind, DB::JoinStrictness>
+JoinUtil::getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type, bool is_existence_join)
 {
     switch (join_type)
     {
         case substrait::JoinRel_JoinType_JOIN_TYPE_INNER:
             return {DB::JoinKind::Inner, DB::JoinStrictness::All};
-        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_SEMI:
+        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_SEMI: {
+            if (is_existence_join)
+                return {DB::JoinKind::Left, DB::JoinStrictness::Any};
             return {DB::JoinKind::Left, DB::JoinStrictness::Semi};
+        }
         case substrait::JoinRel_JoinType_JOIN_TYPE_ANTI:
             return {DB::JoinKind::Left, DB::JoinStrictness::Anti};
         case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
