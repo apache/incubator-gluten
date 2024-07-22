@@ -362,6 +362,10 @@ static inline gluten::CompressionMode getCompressionMode(JNIEnv* env, jstring co
   }
 }
 
+/*
+NOTE: the class must be thread safe
+ */
+
 class SparkAllocationListener final : public gluten::AllocationListener {
  public:
   SparkAllocationListener(JavaVM* vm, jobject jListenerLocalRef, jmethodID jReserveMethod, jmethodID jUnreserveMethod)
@@ -399,8 +403,9 @@ class SparkAllocationListener final : public gluten::AllocationListener {
       env->CallLongMethod(jListenerGlobalRef_, jReserveMethod_, size);
       checkException(env);
     }
-    bytesReserved_ += size;
-    maxBytesReserved_ = std::max(bytesReserved_, maxBytesReserved_);
+    // atomic operation is enough here, no need to use mutex
+    bytesReserved_.fetch_add(size);
+    maxBytesReserved_.store(std::max(bytesReserved_.load(), maxBytesReserved_.load()));
   }
 
   int64_t currentBytes() override {
@@ -414,10 +419,10 @@ class SparkAllocationListener final : public gluten::AllocationListener {
  private:
   JavaVM* vm_;
   jobject jListenerGlobalRef_;
-  jmethodID jReserveMethod_;
-  jmethodID jUnreserveMethod_;
-  int64_t bytesReserved_ = 0L;
-  int64_t maxBytesReserved_ = 0L;
+  const jmethodID jReserveMethod_;
+  const jmethodID jUnreserveMethod_;
+  std::atomic_int64_t bytesReserved_{0L};
+  std::atomic_int64_t maxBytesReserved_{0L};
 };
 
 class BacktraceAllocationListener final : public gluten::AllocationListener {
