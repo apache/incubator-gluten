@@ -16,7 +16,9 @@
  */
 
 #include "shuffle/VeloxSortShuffleWriter.h"
+
 #include <arrow/io/memory.h>
+
 #include "memory/ArrowMemory.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "utils/Common.h"
@@ -252,7 +254,6 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
   }
   VELOX_CHECK_EQ(offset, rawSize);
 
-  //  std::unique_ptr<BlockPayload> payload;
   auto rawData = sortedBuffer_->as<uint8_t>();
   std::vector<std::shared_ptr<arrow::Buffer>> buffers;
   buffers.push_back(std::make_shared<arrow::Buffer>(rawData, rawSize));

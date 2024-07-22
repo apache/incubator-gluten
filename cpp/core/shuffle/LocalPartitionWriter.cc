@@ -431,6 +431,7 @@ arrow::Status LocalPartitionWriter::mergeSpills(uint32_t partitionId) {
     ++spillIter;
     ARROW_ASSIGN_OR_RAISE(auto ed, dataFileOs_->Tell());
     DLOG(INFO) << "Partition " << partitionId << " spilled from spillResult " << spillId++ << " of bytes " << ed - st;
+    totalBytesEvicted_ += (ed - st);
   }
   return arrow::Status::OK();
 }
@@ -644,6 +645,7 @@ arrow::Status LocalPartitionWriter::populateMetrics(ShuffleWriterMetrics* metric
   metrics->totalCompressTime += compressTime_;
   metrics->totalEvictTime += spillTime_;
   metrics->totalWriteTime += writeTime_;
+  metrics->totalBytesEvicted += totalBytesEvicted_;
   metrics->totalBytesWritten += totalBytesWritten_;
   metrics->partitionLengths = std::move(partitionLengths_);
   metrics->rawPartitionLengths = std::move(rawPartitionLengths_);

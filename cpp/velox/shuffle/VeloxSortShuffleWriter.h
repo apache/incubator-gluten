@@ -17,13 +17,13 @@
 
 #pragma once
 
-#include <arrow/status.h>
-#include "velox/common/memory/HashStringAllocator.h"
+#include "shuffle/VeloxShuffleWriter.h"
 
+#include <arrow/status.h>
 #include <map>
 #include <vector>
 
-#include "shuffle/VeloxShuffleWriter.h"
+#include "velox/common/memory/HashStringAllocator.h"
 #include "velox/row/CompactRow.h"
 #include "velox/vector/BaseVector.h"
 
@@ -108,10 +108,7 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   // Updated for each input RowVector.
   std::vector<uint32_t> row2Partition_;
 
-  // Partition ID -> Row Count
-  // subscript: Partition ID
-  // value: How many rows does this partition have in the current input RowVector
-  // Updated for each input RowVector.
+  // TODO: unused.
   std::vector<uint32_t> partition2RowCount_;
 
   std::shared_ptr<const facebook::velox::RowType> rowType_;
