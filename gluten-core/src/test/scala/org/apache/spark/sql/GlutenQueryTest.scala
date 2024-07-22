@@ -95,6 +95,15 @@ abstract class GlutenQueryTest extends PlanTest {
     }
   }
 
+  def testWithSpecifiedSparkVersion(testName: String, versions: Array[String])(
+      testFun: => Any): Unit = {
+    if (versions.exists(v => shouldRun(Some(v), Some(v)))) {
+      test(testName) {
+        testFun
+      }
+    }
+  }
+
   /** Runs the plan and makes sure the answer contains all of the keywords. */
   def checkKeywordsExist(df: DataFrame, keywords: String*): Unit = {
     val outputs = df.collect().map(_.mkString).mkString
