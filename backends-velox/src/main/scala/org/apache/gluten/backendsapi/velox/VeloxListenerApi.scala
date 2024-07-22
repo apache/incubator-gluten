@@ -85,7 +85,7 @@ class VeloxListenerApi extends ListenerApi {
     } else if (system.contains("tencentos") && system.contains("3.2")) {
       new SharedLibraryLoaderCentos8
     } else if (systemName.contains("Red Hat") && systemVersion.startsWith("9")) {
-      new SharedLibraryLoaderCentos8
+      new SharedLibraryLoaderCentos9
     } else if (systemName.contains("Red Hat") && systemVersion.startsWith("8")) {
       new SharedLibraryLoaderCentos8
     } else if (systemName.contains("Red Hat") && systemVersion.startsWith("7")) {
