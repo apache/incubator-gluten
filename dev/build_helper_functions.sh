@@ -135,6 +135,7 @@ function setup_linux {
     scripts/setup-ubuntu.sh
   elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
     case "$LINUX_VERSION_ID" in
+    9) scripts/setup-centos9.sh ;;
     8) scripts/setup-centos8.sh ;;
     7)
       scripts/setup-centos7.sh

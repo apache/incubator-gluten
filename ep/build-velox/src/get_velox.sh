@@ -137,6 +137,45 @@ function process_setup_ubuntu {
   sed -i '/run_and_time install_arrow/d' scripts/setup-ubuntu.sh
 }
 
+function process_setup_centos9 {
+  # Allows other version of git already installed.
+  if [ -z "$(which git)" ]; then
+    dnf install -y -q --setopt=install_weak_deps=False git
+  fi
+  # make this function Reentrant
+  git checkout scripts/setup-centos9.sh
+  # No need to re-install git.
+
+  ensure_pattern_matched 'dnf_install' scripts/setup-centos9.sh
+  sed -i 's/dnf_install ninja-build cmake curl ccache gcc-toolset-12 git/dnf_install ninja-build cmake curl ccache gcc-toolset-12/' scripts/setup-centos9.sh
+  sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos9.sh
+  sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos9.sh
+  
+  ensure_pattern_matched 'install_gflags' scripts/setup-centos9.sh
+  sed -i '/^function install_gflags.*/i function install_openssl {\n  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl \n cd openssl \n ./config no-shared && make depend && make && sudo make install \n cd ..\n}\n'     scripts/setup-centos9.sh
+
+  ensure_pattern_matched 'install_fbthrift' scripts/setup-centos9.sh
+  sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos9.sh
+  sed -i '/cd protobuf/{n;s/\.\/configure --prefix=\/usr/\.\/configure CXXFLAGS="-fPIC" --prefix=\/usr\/local/;}' scripts/setup-centos9.sh
+
+  if [ $ENABLE_HDFS == "ON" ]; then
+    sed -i '/^function install_gflags.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master\n cmake_install\n}\n' scripts/setup-centos9.sh
+    sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_libhdfs3' scripts/setup-centos9.sh
+    sed -i '/^  dnf_install ninja-build/a\  dnf_install yasm\' scripts/setup-centos9.sh
+  fi
+  sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
+  if [ $ENABLE_S3 == "ON" ]; then
+    sed -i '/^  run_and_time install_fbthrift/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-centos9.sh
+  fi
+  if [ $ENABLE_GCS == "ON" ]; then
+    sed -i '/^  run_and_time install_fbthrift/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos9.sh
+  fi
+  if [ $ENABLE_ABFS == "ON" ]; then
+    sed -i '/^  run_and_time install_fbthrift/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos9.sh
+  fi
+}
+
+
 function process_setup_centos8 {
   # Allows other version of git already installed.
   if [ -z "$(which git)" ]; then
@@ -287,6 +326,7 @@ function setup_linux {
     process_setup_ubuntu
   elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
     case "$LINUX_VERSION_ID" in
+      9) process_setup_centos9 ;;
       8) process_setup_centos8 ;;
       7) process_setup_centos7 ;;
       *)
