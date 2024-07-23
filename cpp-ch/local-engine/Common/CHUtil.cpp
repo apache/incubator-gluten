@@ -627,7 +627,7 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
 
     if (backend_conf_map.contains(GLUTEN_TASK_OFFHEAP))
     {
-        config->setString(CH_TASK_MEMORY, backend_conf_map.at(GLUTEN_TASK_OFFHEAP));
+        config->setString(MemoryConfig::CH_TASK_MEMORY, backend_conf_map.at(GLUTEN_TASK_OFFHEAP));
     }
 
     const bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
@@ -1048,17 +1048,6 @@ String DateTimeUtil::convertTimeZone(const String & time_zone)
         res = "GMT" + time_zone;
     res = DateLUT::mappingForJavaTimezone(res);
     return res;
-}
-
-UInt64 MemoryUtil::getCurrentMemoryUsage(size_t depth)
-{
-    Int64 current_memory_usage = 0;
-    auto * current_mem_tracker = DB::CurrentThread::getMemoryTracker();
-    for (size_t i = 0; i < depth && current_mem_tracker; ++i)
-        current_mem_tracker = current_mem_tracker->getParent();
-    if (current_mem_tracker)
-        current_memory_usage = current_mem_tracker->get();
-    return current_memory_usage < 0 ? 0 : current_memory_usage;
 }
 
 UInt64 MemoryUtil::getMemoryRSS()

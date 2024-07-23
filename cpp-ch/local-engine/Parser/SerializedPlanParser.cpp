@@ -82,6 +82,7 @@
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
+#include <Common/GlutenConfig.h>
 #include <Common/JNIUtils.h>
 #include <Common/MergeTreeTool.h>
 #include <Common/logger_useful.h>
@@ -1358,8 +1359,8 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
         logger, "clickhouse plan [optimization={}]:\n{}", settings.query_plan_enable_optimizations, PlanUtil::explainPlan(*query_plan));
     LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(pipeline));
 
-    bool dump_pipeline = context->getConfigRef().getBool("dump_pipeline", false);
-    return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(pipeline), dump_pipeline);
+    auto config = ExecutorConfig::loadFromContext(context);
+    return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(pipeline), config.dump_pipeline);
 }
 
 SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_) : context(context_)

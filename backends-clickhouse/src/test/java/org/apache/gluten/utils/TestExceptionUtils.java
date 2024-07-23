@@ -14,33 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.memory.alloc;
+package org.apache.gluten.utils;
 
-public class CHNativeMemoryAllocatorManagerImpl implements CHNativeMemoryAllocatorManager {
-  private final CHNativeMemoryAllocator managed;
-
-  public CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator managed) {
-    this.managed = managed;
-  }
-
-  @Override
-  public void release() {
-    managed.close();
-    managed.listener().inactivate();
-  }
-
-  @Override
-  public CHNativeMemoryAllocator getManaged() {
-    return managed;
-  }
-
-  @Override
-  public int priority() {
-    return 0; // lowest priority
-  }
-
-  @Override
-  public String resourceName() {
-    return "CHNativeMemoryAllocatorManager_" + managed.getNativeInstanceId();
-  }
+public class TestExceptionUtils {
+  public static native void generateNativeException();
 }

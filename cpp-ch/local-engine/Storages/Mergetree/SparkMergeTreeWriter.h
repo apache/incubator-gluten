@@ -73,7 +73,6 @@ private:
     void checkAndMerge(bool force = false);
     void safeEmplaceBackPart(DB::MergeTreeDataPartPtr);
     void safeAddPart(DB::MergeTreeDataPartPtr);
-    void manualFreeMemory(size_t before_write_memory);
     void saveMetadata();
     void commitPartToRemoteStorageIfNeeded();
     void finalizeMerge();

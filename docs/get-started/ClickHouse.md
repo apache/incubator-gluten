@@ -677,14 +677,4 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 spark.dynamicAllocation.enabled false
 ```
 
-### Columnar shuffle mode
-We have two modes of columnar shuffle   
-1. prefer cache
-2. prefer spill
-
-Switch through the configuration `spark.gluten.sql.columnar.backend.ch.shuffle.preferSpill`, the default is `false`, enable prefer cache shuffle.
-
-In the prefer cache mode, as much memory as possible will be used to cache the shuffle data. When the memory is insufficient,
-spark will actively trigger the memory spill. You can also specify the threshold size through `spark.gluten.sql.columnar.backend.ch.spillThreshold` to Limit memory usage. The default value is `0MB`, which means no limit on memory usage.
-
 
