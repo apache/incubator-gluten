@@ -34,10 +34,10 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.delta.ClickhouseSnapshot
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
-import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.clickhouse.MergeTreePartFilterReturnedRange
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
+import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.BooleanType
 import org.apache.spark.util.collection.BitSet
 

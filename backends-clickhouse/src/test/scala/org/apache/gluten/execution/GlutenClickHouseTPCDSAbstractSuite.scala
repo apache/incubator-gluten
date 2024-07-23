@@ -18,12 +18,11 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.benchmarks.GenTPCDSTableScripts
-import org.apache.gluten.utils.UTSystemParameters
+import org.apache.gluten.utils.{MergeTreeUtil, UTSystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
 import org.apache.spark.sql.types.{StructField, StructType}
 
 import org.apache.commons.io.FileUtils
@@ -151,8 +150,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
   }
 
   override protected def afterAll(): Unit = {
-    ClickhouseSnapshot.clearAllFileStatusCache
-    DeltaLog.clearCache()
+    MergeTreeUtil.cleanup()
 
     try {
       super.afterAll()

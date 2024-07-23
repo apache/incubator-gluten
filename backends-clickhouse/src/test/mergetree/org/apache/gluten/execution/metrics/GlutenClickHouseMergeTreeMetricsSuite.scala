@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.metrics
 
-import org.apache.gluten.execution.{ColumnarNativeIterator, GlutenClickHouseTPCHAbstractSuite}
+import org.apache.gluten.execution.ColumnarNativeIterator
 import org.apache.gluten.vectorized.GeneralInIterator
 
 import org.apache.spark.SparkConf

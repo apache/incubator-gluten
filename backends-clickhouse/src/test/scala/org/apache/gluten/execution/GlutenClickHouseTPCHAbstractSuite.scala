@@ -17,12 +17,11 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.utils.UTSystemParameters
+import org.apache.gluten.utils.{MergeTreeUtil, UTSystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
 
 import org.apache.commons.io.FileUtils
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -588,8 +587,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
       assert(CHBroadcastBuildSideCache.size() <= 10)
     }
 
-    ClickhouseSnapshot.clearAllFileStatusCache
-    DeltaLog.clearCache()
+    MergeTreeUtil.cleanup()
     super.afterAll()
     // init GlutenConfig in the next beforeAll
     GlutenConfig.ins = null

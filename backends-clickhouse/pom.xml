@@ -13,6 +13,11 @@
   <packaging>jar</packaging>
   <name>Gluten Backends ClickHouse</name>
 
+  <properties>
+    <mergetree.source.path>src/main/dummy</mergetree.source.path>
+    <mergetree.test.path>src/test/dummy</mergetree.test.path>
+    <mergetree.delta.path>src/test/dummy</mergetree.delta.path>
+  </properties>
   <dependencies>
     <dependency>
       <groupId>org.apache.gluten</groupId>
@@ -249,6 +254,21 @@
     </dependency>
   </dependencies>
 
+
+  <profiles>
+    <profile>
+      <id>mergetree</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <mergetree.source.path>src/main/mergetree</mergetree.source.path>
+        <mergetree.test.path>src/test/mergetree</mergetree.test.path>
+        <mergetree.delta.path>src/main/delta-${delta.binary.version}</mergetree.delta.path>
+      </properties>
+    </profile>
+  </profiles>
+
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
@@ -359,7 +379,20 @@
             </goals>
             <configuration>
               <sources>
-                <source>src/main/delta-${delta.binary.version}</source>
+                <source>${mergetree.source.path}</source>
+                <source>${mergetree.delta.path}</source>
+              </sources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-sources-test</id>
+            <phase>generate-test-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${mergetree.test.path}</source>
               </sources>
             </configuration>
           </execution>

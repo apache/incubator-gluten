@@ -20,8 +20,8 @@ import org.apache.gluten.vectorized.CHColumnVector
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
-import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeRow, OutputWriter}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddFileTags
+import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeRow, OutputWriter}
 import org.apache.spark.util.Utils
 
 import scala.collection.mutable.ArrayBuffer
