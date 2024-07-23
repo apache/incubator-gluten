@@ -31,6 +31,35 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import io.substrait.proto.JoinRel
 
+object JoinTypeTransform {
+  def toNativeJoinType(joinType: JoinType): JoinType = {
+    joinType match {
+      case ExistenceJoin(_) =>
+        LeftSemi
+      case _ =>
+        joinType
+    }
+  }
+
+  def toSubstraitType(joinType: JoinType): JoinRel.JoinType = {
+    joinType match {
+      case _: InnerLike =>
+        JoinRel.JoinType.JOIN_TYPE_INNER
+      case FullOuter =>
+        JoinRel.JoinType.JOIN_TYPE_OUTER
+      case LeftOuter | RightOuter =>
+        JoinRel.JoinType.JOIN_TYPE_LEFT
+      case LeftSemi | ExistenceJoin(_) =>
+        JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
+      case LeftAnti =>
+        JoinRel.JoinType.JOIN_TYPE_ANTI
+      case _ =>
+        // TODO: Support cross join with Cross Rel
+        JoinRel.JoinType.UNRECOGNIZED
+    }
+  }
+}
+
 case class CHShuffledHashJoinExecTransformer(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
@@ -57,7 +86,7 @@ case class CHShuffledHashJoinExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     val shouldFallback =
       CHJoinValidateUtil.shouldFallback(
-        ShuffleHashJoinStrategy(joinType),
+        ShuffleHashJoinStrategy(finalJoinType),
         left.outputSet,
         right.outputSet,
         condition)
@@ -66,6 +95,9 @@ case class CHShuffledHashJoinExecTransformer(
     }
     super.doValidateInternal()
   }
+  private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
+  override protected lazy val substraitJoinType: JoinRel.JoinType =
+    JoinTypeTransform.toSubstraitType(joinType)
 }
 
 case class CHBroadcastBuildSideRDD(
@@ -171,27 +203,7 @@ case class CHBroadcastHashJoinExecTransformer(
   // Indeed, the ExistenceJoin is transformed into left any join in CH.
   // We don't have left any join in substrait, so use left semi join instead.
   // and isExistenceJoin is set to true to indicate that it is an existence join.
-  private val finalJoinType = joinType match {
-    case ExistenceJoin(_) =>
-      LeftSemi
-    case _ =>
-      joinType
-  }
-  override protected lazy val substraitJoinType: JoinRel.JoinType = {
-    joinType match {
-      case _: InnerLike =>
-        JoinRel.JoinType.JOIN_TYPE_INNER
-      case FullOuter =>
-        JoinRel.JoinType.JOIN_TYPE_OUTER
-      case LeftOuter | RightOuter =>
-        JoinRel.JoinType.JOIN_TYPE_LEFT
-      case LeftSemi | ExistenceJoin(_) =>
-        JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
-      case LeftAnti =>
-        JoinRel.JoinType.JOIN_TYPE_ANTI
-      case _ =>
-        // TODO: Support cross join with Cross Rel
-        JoinRel.JoinType.UNRECOGNIZED
-    }
-  }
+  private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
+  override protected lazy val substraitJoinType: JoinRel.JoinType =
+    JoinTypeTransform.toSubstraitType(joinType)
 }
