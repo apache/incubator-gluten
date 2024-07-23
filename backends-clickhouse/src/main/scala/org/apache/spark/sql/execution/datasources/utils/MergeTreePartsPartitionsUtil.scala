@@ -235,10 +235,48 @@ object MergeTreePartsPartitionsUtil extends Logging {
           }
       }
 
-    val currentSizeByLocation = new util.HashMap[String, Long]
-    val currentFilesByLocation = new util.HashMap[String, ArrayBuffer[MergeTreePartSplit]]
+    val openCostInBytes = sparkSession.sessionState.conf.filesOpenCostInBytes
     val (partNameWithLocation, locationDistinct) =
       calculatedLocationForSoftAffinity(splitFiles, relativeTablePath)
+
+    genInputPartitionSeqBySplitFiles(
+      engine,
+      database,
+      tableName,
+      snapshotId,
+      relativeTablePath,
+      absoluteTablePath,
+      tableSchemaJson,
+      partitions,
+      table,
+      clickhouseTableConfigs,
+      splitFiles,
+      openCostInBytes,
+      maxSplitBytes,
+      partNameWithLocation,
+      locationDistinct
+    )
+  }
+
+  def genInputPartitionSeqBySplitFiles(
+      engine: String,
+      database: String,
+      tableName: String,
+      snapshotId: String,
+      relativeTablePath: String,
+      absoluteTablePath: String,
+      tableSchemaJson: String,
+      partitions: ArrayBuffer[InputPartition],
+      table: ClickHouseTableV2,
+      clickhouseTableConfigs: Map[String, String],
+      splitFiles: Seq[MergeTreePartSplit],
+      openCostInBytes: Long,
+      maxSplitBytes: Long,
+      partNameWithLocation: util.HashMap[String, String],
+      locationDistinct: util.HashSet[String]): Unit = {
+
+    val currentSizeByLocation = new util.HashMap[String, Long]
+    val currentFilesByLocation = new util.HashMap[String, ArrayBuffer[MergeTreePartSplit]]
 
     /** Close the current partition and move to the next. */
     def closePartition(location: String): Unit = {
@@ -269,8 +307,6 @@ object MergeTreePartsPartitionsUtil extends Logging {
     }
 
     // generate `Seq[InputPartition]` by file size
-    val openCostInBytes = sparkSession.sessionState.conf.filesOpenCostInBytes
-    // val maxSplitBytes = sparkSession.sessionState.conf.filesMaxPartitionBytes
     // Assign files to partitions using "Next Fit Decreasing"
     locationDistinct.forEach(
       location => {
