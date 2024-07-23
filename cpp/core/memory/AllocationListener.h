@@ -50,32 +50,18 @@ class AllocationListener {
 // The class must be thread safe
 class BlockAllocationListener final : public AllocationListener {
  public:
-  BlockAllocationListener(AllocationListener* delegated, uint64_t blockSize)
+  BlockAllocationListener(AllocationListener* delegated, int64_t blockSize)
       : delegated_(delegated), blockSize_(blockSize) {}
 
   void allocationChanged(int64_t diff) override {
     if (diff == 0) {
       return;
     }
-    std::unique_lock<std::mutex> guard{mutex_};
-    if (diff > 0) {
-      if (reservationBytes_ - usedBytes_ < diff) {
-        auto roundSize = (diff + (blockSize_ - 1)) / blockSize_ * blockSize_;
-        reservationBytes_ += roundSize;
-        peakBytes_ = std::max(peakBytes_, reservationBytes_);
-        guard.unlock();
-        // unnecessary to lock the delegated listener, assume it's thread safe
-        delegated_->allocationChanged(roundSize);
-      }
-      usedBytes_ += diff;
-    } else {
-      usedBytes_ += diff;
-      auto unreservedSize = (reservationBytes_ - usedBytes_) / blockSize_ * blockSize_;
-      reservationBytes_ -= unreservedSize;
-      guard.unlock();
-      // unnecessary to lock the delegated listener
-      delegated_->allocationChanged(-unreservedSize);
+    int64_t granted = reserve(diff);
+    if (granted == 0) {
+      return;
     }
+    delegated_->allocationChanged(granted);
   }
 
   int64_t currentBytes() override {
@@ -87,11 +73,28 @@ class BlockAllocationListener final : public AllocationListener {
   }
 
  private:
+  int64_t reserve(int64_t diff) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    usedBytes_ += diff;
+    int64_t newBlockCount;
+    if (usedBytes_ == 0) {
+      newBlockCount = 0;
+    } else {
+      // ceil to get the required block number
+      newBlockCount = (usedBytes_ - 1) / blockSize_ + 1;
+    }
+    int64_t bytesGranted = (newBlockCount - blocksReserved_) * blockSize_;
+    blocksReserved_ = newBlockCount;
+    peakBytes_ = std::max(peakBytes_, usedBytes_);
+    return bytesGranted;
+  }
+
   AllocationListener* const delegated_;
   const uint64_t blockSize_;
-  uint64_t usedBytes_{0L};
-  uint64_t peakBytes_{0L};
-  uint64_t reservationBytes_{0L};
+  int64_t blocksReserved_{0L};
+  int64_t usedBytes_{0L};
+  int64_t peakBytes_{0L};
+  int64_t reservationBytes_{0L};
 
   mutable std::mutex mutex_;
 };

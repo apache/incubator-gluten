@@ -403,9 +403,9 @@ class SparkAllocationListener final : public gluten::AllocationListener {
       env->CallLongMethod(jListenerGlobalRef_, jReserveMethod_, size);
       checkException(env);
     }
-    // atomic operation is enough here, no need to use mutex
-    bytesReserved_.fetch_add(size);
-    maxBytesReserved_.store(std::max(bytesReserved_.load(), maxBytesReserved_.load()));
+    std::lock_guard<std::mutex> lock(mutex_);
+    bytesReserved_ += size;
+    maxBytesReserved_ = std::max(bytesReserved_, maxBytesReserved_);
   }
 
   int64_t currentBytes() override {
@@ -421,8 +421,10 @@ class SparkAllocationListener final : public gluten::AllocationListener {
   jobject jListenerGlobalRef_;
   const jmethodID jReserveMethod_;
   const jmethodID jUnreserveMethod_;
-  std::atomic_int64_t bytesReserved_{0L};
-  std::atomic_int64_t maxBytesReserved_{0L};
+  int64_t bytesReserved_{0L};
+  int64_t maxBytesReserved_{0L};
+
+  mutable std::mutex mutex_;
 };
 
 class BacktraceAllocationListener final : public gluten::AllocationListener {
