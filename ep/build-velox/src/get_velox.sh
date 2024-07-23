@@ -16,19 +16,9 @@
 
 set -exu
 
-
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_07_24
+VELOX_REPO=https://github.com/PHILO-HE/velox.git
+VELOX_BRANCH=2024_07_24-v1
 VELOX_HOME=""
-
-#Set on run gluten on HDFS
-ENABLE_HDFS=OFF
-#Set on run gluten on S3
-ENABLE_S3=OFF
-#Set on run gluten on GCS
-ENABLE_GCS=OFF
-#Set on run gluten on ABFS
-ENABLE_ABFS=OFF
 
 OS=`uname -s`
 
@@ -44,22 +34,6 @@ for arg in "$@"; do
     ;;
   --velox_home=*)
     VELOX_HOME=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  --enable_hdfs=*)
-    ENABLE_HDFS=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  --enable_s3=*)
-    ENABLE_S3=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  --enable_gcs=*)
-    ENABLE_GCS=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  --enable_abfs=*)
-    ENABLE_ABFS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   *)
@@ -112,24 +86,9 @@ function process_setup_ubuntu {
   sed -i '/^function install_folly.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-ubuntu.sh
   ensure_pattern_matched '  run_and_time install_folly' scripts/setup-ubuntu.sh
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-ubuntu.sh
-  if [ $ENABLE_HDFS == "ON" ]; then
-    sed -i '/^function install_folly.*/i function install_libhdfs3 {\n  github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-ubuntu.sh
-    ensure_pattern_matched '  run_and_time install_protobuf' scripts/setup-ubuntu.sh
-    sed -i '/^  run_and_time install_protobuf/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
-    ensure_pattern_matched 'ccache ' scripts/setup-ubuntu.sh
-    sed -i '/ccache /a\  yasm \\' scripts/setup-ubuntu.sh
-  fi
-  ensure_pattern_matched 'apt install -y' scripts/setup-adapters.sh
-  sed -i "s/apt install -y/sudo apt install -y/" scripts/setup-adapters.sh
-  if [ $ENABLE_S3 == "ON" ]; then
-    sed -i '/^  run_and_time install_folly/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-ubuntu.sh
-  fi
-  if [ $ENABLE_GCS == "ON" ]; then
-    sed -i '/^  run_and_time install_folly/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-ubuntu.sh
-  fi
-  if [ $ENABLE_ABFS == "ON" ]; then
-    sed -i '/^  run_and_time install_folly/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-ubuntu.sh
-  fi
+  # Required by lib hdfs.
+  ensure_pattern_matched 'ccache ' scripts/setup-ubuntu.sh
+  sed -i '/ccache /a\  yasm \\' scripts/setup-ubuntu.sh
   ensure_pattern_matched 'run_and_time install_conda' scripts/setup-ubuntu.sh
   sed -i '/run_and_time install_conda/d' scripts/setup-ubuntu.sh
   # Just depends on Gluten to install arrow libs since Gluten will apply some patches to Arrow source and uses different build options.
@@ -158,113 +117,28 @@ function process_setup_centos9 {
   sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos9.sh
   sed -i '/cd protobuf/{n;s/\.\/configure --prefix=\/usr/\.\/configure CXXFLAGS="-fPIC" --prefix=\/usr\/local/;}' scripts/setup-centos9.sh
 
-  if [ $ENABLE_HDFS == "ON" ]; then
-    sed -i '/^function install_gflags.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master\n cmake_install\n}\n' scripts/setup-centos9.sh
-    sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_libhdfs3' scripts/setup-centos9.sh
-    sed -i '/^  dnf_install ninja-build/a\  dnf_install yasm\' scripts/setup-centos9.sh
-  fi
-  sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
-  if [ $ENABLE_S3 == "ON" ]; then
-    sed -i '/^  run_and_time install_fbthrift/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-centos9.sh
-  fi
-  if [ $ENABLE_GCS == "ON" ]; then
-    sed -i '/^  run_and_time install_fbthrift/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos9.sh
-  fi
-  if [ $ENABLE_ABFS == "ON" ]; then
-    sed -i '/^  run_and_time install_fbthrift/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos9.sh
-  fi
-}
-
-
-function process_setup_centos8 {
-  # Allows other version of git already installed.
-  if [ -z "$(which git)" ]; then
-    dnf install -y -q --setopt=install_weak_deps=False git
-  fi
-  # make this function Reentrant
-  git checkout scripts/setup-centos8.sh
-  # need set BUILD_SHARED_LIBS flag for thrift
-  sed -i "/cd fbthrift/{n;s/cmake_install -Denable_tests=OFF/cmake_install -Denable_tests=OFF -DBUILD_SHARED_LIBS=OFF/;}" scripts/setup-centos8.sh
-  # No need to re-install git.
-  sed -i 's/dnf_install ninja-build cmake curl ccache gcc-toolset-9 git/dnf_install ninja-build cmake curl ccache gcc-toolset-9/' scripts/setup-centos8.sh
-  sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos8.sh
-  sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
-  sed -i '/^function install_gflags.*/i function install_openssl {\n  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl \n cd openssl \n ./config no-shared && make depend && make && sudo make install \n cd ..\n}\n'     scripts/setup-centos8.sh
-  sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos8.sh
-  sed -i '/cd protobuf/{n;s/\.\/configure --prefix=\/usr/\.\/configure CXXFLAGS="-fPIC" --prefix=\/usr\/local/;}' scripts/setup-centos8.sh
-
-  if [ $ENABLE_HDFS == "ON" ]; then
-    sed -i '/^function install_gflags.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master\n cmake_install\n}\n' scripts/setup-centos8.sh
-    sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_libhdfs3' scripts/setup-centos8.sh
-    sed -i '/^  dnf_install ninja-build/a\  dnf_install yasm\' scripts/setup-centos8.sh
-  fi
-
-  sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
-  if [ $ENABLE_S3 == "ON" ]; then
-    sed -i '/^  run_and_time install_fbthrift/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-centos8.sh
-  fi
-  if [ $ENABLE_GCS == "ON" ]; then
-    sed -i '/^  run_and_time install_fbthrift/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos8.sh
-  fi
-  if [ $ENABLE_ABFS == "ON" ]; then
-    sed -i '/^  run_and_time install_fbthrift/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos8.sh
-  fi
-}
-
-function process_setup_centos7 {
-  # Allows other version of git already installed.
-  if [ -z "$(which git)" ]; then
-    dnf install -y -q --setopt=install_weak_deps=False git
-  fi
-  # make this function Reentrant
-  git checkout scripts/setup-centos7.sh
-
-  # No need to re-install git.
-  sed -i 's/dnf_install ccache git/dnf_install ccache/' scripts/setup-centos7.sh
-
-  # install gtest
-  sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
-  sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
-  sed -i 's/https:\/\/cmake.org\/files\/v3.25\/cmake-3.25.1.tar.gz/https:\/\/cmake.org\/files\/v3.28\/cmake-3.28.3.tar.gz/' scripts/setup-centos7.sh
-  if [ $ENABLE_HDFS = "ON" ]; then
-    sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos7.sh
-    sed -i '/^  run_and_time install_protobuf/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
-    sed -i '/^dnf_install ccache/a\ \ yasm \\' scripts/setup-centos7.sh
-  fi
-  sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
-  if [ $ENABLE_S3 == "ON" ]; then
-    sed -i '/^  run_and_time install_folly/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-centos7.sh
-  fi
-  if [ $ENABLE_GCS == "ON" ]; then
-    sed -i '/^  run_and_time install_folly/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos7.sh
-  fi
-  if [ $ENABLE_ABFS == "ON" ]; then
-    sed -i '/^function cmake_install_deps.*/i function install_curl {\n cd "${DEPENDENCY_DIR}" \n github_checkout curl/curl curl-7_68_0 \n cmake -DCMAKE_BUILD_TYPE=Release -DOPENSSL_USE_STATIC_LIBS=TRUE -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON && cmake --build . && sudo cmake --install . \n}\n'     scripts/setup-centos7.sh
-    sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_curl' scripts/setup-centos7.sh
-    sed -i '/^  run_and_time install_curl/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos7.sh
-  fi
+  # Required by lib hdfs.
+  ensure_pattern_matched 'dnf_install ninja-build' scripts/setup-centos9.sh
+  sed -i '/^  dnf_install ninja-build/a\  dnf_install yasm\' scripts/setup-centos9.sh
 }
 
 function process_setup_alinux3 {
-  process_setup_centos8
-  sed -i "s/.*dnf_install epel-release/#&/" scripts/setup-centos8.sh
-  sed -i "s/.*run_and_time install_conda/#&/" scripts/setup-centos8.sh
-  sed -i "s/.*dnf config-manager --set-enabled powertools/#&/" scripts/setup-centos8.sh
-  sed -i "s/gcc-toolset-9 //" scripts/setup-centos8.sh
-  sed -i "s/.*source \/opt\/rh\/gcc-toolset-9\/enable/#&/" scripts/setup-centos8.sh
-  sed -i 's|^export CC=/opt/rh/gcc-toolset-9/root/bin/gcc|# &|' scripts/setup-centos8.sh
-  sed -i 's|^export CXX=/opt/rh/gcc-toolset-9/root/bin/g++|# &|' scripts/setup-centos8.sh
-  sed -i 's/python39 python39-devel python39-pip //g' scripts/setup-centos8.sh
-  sed -i "s/.*pip.* install/#&/" scripts/setup-centos8.sh
+  sed -i "s/.*dnf_install epel-release/#&/" ${CURRENT_DIR}/setup-centos8.sh
+  sed -i "s/.*run_and_time install_conda/#&/" ${CURRENT_DIR}/setup-centos8.sh
+  sed -i "s/.*dnf config-manager --set-enabled powertools/#&/" ${CURRENT_DIR}/setup-centos8.sh
+  sed -i "s/gcc-toolset-9 //" ${CURRENT_DIR}/setup-centos8.sh
+  sed -i "s/.*source \/opt\/rh\/gcc-toolset-9\/enable/#&/" ${CURRENT_DIR}/setup-centos8.sh
+  sed -i 's|^export CC=/opt/rh/gcc-toolset-9/root/bin/gcc|# &|' ${CURRENT_DIR}/setup-centos8.sh
+  sed -i 's|^export CXX=/opt/rh/gcc-toolset-9/root/bin/g++|# &|' ${CURRENT_DIR}/setup-centos8.sh
+  sed -i 's/python39 python39-devel python39-pip //g' ${CURRENT_DIR}/setup-centos8.sh
+  sed -i "s/.*pip.* install/#&/" ${CURRENT_DIR}/setup-centos8.sh
 }
 
 function process_setup_tencentos32 {
-  process_setup_centos8
-  sed -i "s/.*dnf config-manager --set-enabled powertools/#&/" scripts/setup-centos8.sh
+  sed -i "s/.*dnf config-manager --set-enabled powertools/#&/" ${CURRENT_DIR}/setup-centos8.sh
 }
 
 echo "Preparing Velox source code..."
-echo "ENABLE_HDFS=${ENABLE_HDFS}"
 
 CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
@@ -327,44 +201,33 @@ function setup_linux {
   elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
     case "$LINUX_VERSION_ID" in
       9) process_setup_centos9 ;;
-      8) process_setup_centos8 ;;
-      7) process_setup_centos7 ;;
+      8) ;;
+      7) ;;
       *)
-        echo "Unsupport centos version: $LINUX_VERSION_ID"
+        echo "Unsupported centos version: $LINUX_VERSION_ID"
         exit 1
       ;;
     esac
   elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
     case "${LINUX_VERSION_ID:0:1}" in
-      2) process_setup_centos7 ;;
+      2) ;;
       3) process_setup_alinux3 ;;
       *)
-        echo "Unsupport alinux version: $LINUX_VERSION_ID"
+        echo "Unsupported alinux version: $LINUX_VERSION_ID"
         exit 1
       ;;
     esac
   elif [[ "$LINUX_DISTRIBUTION" == "tencentos" ]]; then
     case "$LINUX_VERSION_ID" in
-      2.4) process_setup_centos7 ;;
+      2.4) ;;
       3.2) process_setup_tencentos32 ;;
       *)
-        echo "Unsupport tencentos version: $LINUX_VERSION_ID"
+        echo "Unsupported tencentos version: $LINUX_VERSION_ID"
         exit 1
       ;;
     esac
   else
-    echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
-    exit 1
-  fi
-}
-
-function setup_macos {
-  if [ $ENABLE_HDFS == "ON" ]; then
-    echo "Unsupport hdfs"
-    exit 1
-  fi
-  if [ $ENABLE_S3 == "ON" ]; then
-    echo "Unsupport s3"
+    echo "Unsupported linux distribution: $LINUX_DISTRIBUTION"
     exit 1
   fi
 }
@@ -372,12 +235,12 @@ function setup_macos {
 if [ $OS == 'Linux' ]; then
   setup_linux
 elif [ $OS == 'Darwin' ]; then
-  setup_macos
+  :
 else
-  echo "Unsupport kernel: $OS"
+  echo "Unsupported kernel: $OS"
   exit 1
 fi
 
 apply_compilation_fixes $CURRENT_DIR $VELOX_SOURCE_DIR
 
-echo "Velox-get finished."
+echo "Finished getting Velox code"
