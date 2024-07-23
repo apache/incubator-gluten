@@ -212,12 +212,12 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
 namespace {
 class SuspendedSection {
  public:
-  SuspendedSection(velox::memory::MemoryPool* pool) : pool_(pool) {
-    pool_->enterArbitration();
+  SuspendedSection() {
+    reclaimer_->enterArbitration();
   }
 
   virtual ~SuspendedSection() {
-    pool_->leaveArbitration();
+    reclaimer_->leaveArbitration();
   }
 
   // singleton
@@ -227,7 +227,8 @@ class SuspendedSection {
   SuspendedSection& operator=(SuspendedSection&&) = delete;
 
  private:
-  velox::memory::MemoryPool* pool_ = nullptr;
+  // We only use suspension APIs in exec::MemoryReclaimer.
+  std::unique_ptr<velox::memory::MemoryReclaimer> reclaimer_{velox::exec::MemoryReclaimer::create()};
 };
 } // namespace
 
@@ -241,7 +242,7 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     int64_t remaining = size - shrunken;
     LOG(INFO) << logPrefix << "Trying to request spilling for " << remaining << " bytes...";
     // suspend the driver when we are on it
-    SuspendedSection suspender(pool.get());
+    SuspendedSection suspender;
     velox::exec::MemoryReclaimer::Stats status;
     auto* mm = memoryManager_->getMemoryManager();
     uint64_t spilledOut = mm->arbitrator()->shrinkCapacity({pool}, remaining); // this conducts spilling
