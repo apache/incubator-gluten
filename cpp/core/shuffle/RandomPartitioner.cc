@@ -19,21 +19,12 @@
 
 namespace gluten {
 
-arrow::Status gluten::RandomPartitioner::compute(
-    const int32_t* pidArr,
-    const int64_t numRows,
-    std::vector<uint32_t>& row2Partition,
-    std::vector<uint32_t>& partition2RowCount) {
+arrow::Status
+gluten::RandomPartitioner::compute(const int32_t* pidArr, const int64_t numRows, std::vector<uint32_t>& row2Partition) {
   row2Partition.resize(numRows);
-
   for (int32_t i = 0; i < numRows; ++i) {
     row2Partition[i] = dist_(rng_);
   }
-
-  for (auto& pid : row2Partition) {
-    partition2RowCount[pid]++;
-  }
-
   return arrow::Status::OK();
 }
 

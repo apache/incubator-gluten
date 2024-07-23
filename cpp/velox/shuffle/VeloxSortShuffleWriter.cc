@@ -100,7 +100,6 @@ arrow::Status VeloxSortShuffleWriter::init() {
   ARROW_RETURN_IF(
       options_.partitioning == Partitioning::kSingle,
       arrow::Status::Invalid("VeloxSortShuffleWriter doesn't support single partition."));
-  partition2RowCount_.resize(numPartitions_, 0);
   array_.resize(initialSize_);
   return arrow::Status::OK();
 }
@@ -122,7 +121,7 @@ arrow::Result<facebook::velox::RowVectorPtr> VeloxSortShuffleWriter::getPeeledRo
 
     auto pidBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[0]);
     auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
-    RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), row2Partition_, partition2RowCount_));
+    RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), row2Partition_));
 
     auto rvBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[1]);
     return rvBatch->getFlattenedRowVector();
@@ -132,10 +131,10 @@ arrow::Result<facebook::velox::RowVectorPtr> VeloxSortShuffleWriter::getPeeledRo
     auto rv = veloxColumnBatch->getFlattenedRowVector();
     if (partitioner_->hasPid()) {
       auto pidArr = getFirstColumn(*rv);
-      RETURN_NOT_OK(partitioner_->compute(pidArr, rv->size(), row2Partition_, partition2RowCount_));
+      RETURN_NOT_OK(partitioner_->compute(pidArr, rv->size(), row2Partition_));
       return getStrippedRowVector(*rv);
     } else {
-      RETURN_NOT_OK(partitioner_->compute(nullptr, rv->size(), row2Partition_, partition2RowCount_));
+      RETURN_NOT_OK(partitioner_->compute(nullptr, rv->size(), row2Partition_));
       return rv;
     }
   }

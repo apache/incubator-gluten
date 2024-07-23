@@ -23,8 +23,7 @@ namespace gluten {
 arrow::Status gluten::FallbackRangePartitioner::compute(
     const int32_t* pidArr,
     const int64_t numRows,
-    std::vector<uint32_t>& row2Partition,
-    std::vector<uint32_t>& partition2RowCount) {
+    std::vector<uint32_t>& row2Partition) {
   row2Partition.resize(numRows);
   for (auto i = 0; i < numRows; ++i) {
     auto pid = pidArr[i];
@@ -33,7 +32,6 @@ arrow::Status gluten::FallbackRangePartitioner::compute(
           "Partition id ", std::to_string(pid), " is equal or greater than ", std::to_string(numPartitions_));
     }
     row2Partition[i] = pid;
-    partition2RowCount[pid]++;
   }
   return arrow::Status::OK();
 }

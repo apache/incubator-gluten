@@ -270,7 +270,10 @@ arrow::Status VeloxHashShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, i
     auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
     START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
     std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
-    RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), row2Partition_, partition2RowCount_));
+    RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), row2Partition_));
+    for (auto& pid : row2Partition_) {
+      partition2RowCount_[pid]++;
+    }
     END_TIMING();
     auto rvBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[1]);
     auto& rv = *rvBatch->getFlattenedRowVector();
@@ -305,7 +308,10 @@ arrow::Status VeloxHashShuffleWriter::partitioningAndDoSplit(facebook::velox::Ro
   if (partitioner_->hasPid()) {
     auto pidArr = getFirstColumn(*rv);
     START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
-    RETURN_NOT_OK(partitioner_->compute(pidArr, rv->size(), row2Partition_, partition2RowCount_));
+    RETURN_NOT_OK(partitioner_->compute(pidArr, rv->size(), row2Partition_));
+    for (auto& pid : row2Partition_) {
+      partition2RowCount_[pid]++;
+    }
     END_TIMING();
     auto strippedRv = getStrippedRowVector(*rv);
     RETURN_NOT_OK(initFromRowVector(*strippedRv));
@@ -313,7 +319,10 @@ arrow::Status VeloxHashShuffleWriter::partitioningAndDoSplit(facebook::velox::Ro
   } else {
     RETURN_NOT_OK(initFromRowVector(*rv));
     START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
-    RETURN_NOT_OK(partitioner_->compute(nullptr, rv->size(), row2Partition_, partition2RowCount_));
+    RETURN_NOT_OK(partitioner_->compute(nullptr, rv->size(), row2Partition_));
+    for (auto& pid : row2Partition_) {
+      partition2RowCount_[pid]++;
+    }
     END_TIMING();
     RETURN_NOT_OK(doSplit(*rv, memLimit));
   }

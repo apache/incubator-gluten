@@ -25,25 +25,16 @@ class RoundRobinPartitionerTest : public ::testing::Test {
   void prepareData(int numPart, int seed) {
     partitioner_ = std::make_shared<RoundRobinPartitioner>(numPart, seed);
     row2Partition_.clear();
-    partition2RowCount_.clear();
-    partition2RowCount_.resize(numPart);
-    std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
   }
 
-  void checkResult(const std::vector<uint32_t>& expectRow2Part, const std::vector<uint32_t>& expectPart2RowCount)
-      const {
+  void checkResult(const std::vector<uint32_t>& expectRow2Part) const {
     ASSERT_EQ(row2Partition_, expectRow2Part);
-    ASSERT_EQ(partition2RowCount_, expectPart2RowCount);
   }
 
-  void traceCheckResult(const std::vector<uint32_t>& expectRow2Part, const std::vector<uint32_t>& expectPart2RowCount)
-      const {
+  void traceCheckResult(const std::vector<uint32_t>& expectRow2Part) const {
     toString(expectRow2Part, "expectRow2Part");
-    toString(expectPart2RowCount, "expectPart2RowCount");
     toString(row2Partition_, "row2Partition_");
-    toString(partition2RowCount_, "partition2RowCount_");
     ASSERT_EQ(row2Partition_, expectRow2Part);
-    ASSERT_EQ(partition2RowCount_, expectPart2RowCount);
   }
 
   template <typename T>
@@ -60,7 +51,6 @@ class RoundRobinPartitionerTest : public ::testing::Test {
   }
 
   std::vector<uint32_t> row2Partition_;
-  std::vector<uint32_t> partition2RowCount_;
   std::shared_ptr<RoundRobinPartitioner> partitioner_;
 };
 
@@ -78,11 +68,11 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeNormal) {
     int numPart = 10;
     prepareData(numPart, 0);
     int numRows = 10;
-    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
+    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_).ok());
     ASSERT_EQ(getPidSelection(), 0);
     std::vector<uint32_t> row2Part(numRows);
     std::iota(row2Part.begin(), row2Part.end(), 0);
-    checkResult(row2Part, std::vector<uint32_t>(numPart, 1));
+    checkResult(row2Part);
   }
 
   // numRows less than numPart
@@ -90,13 +80,11 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeNormal) {
     int numPart = 10;
     prepareData(numPart, 0);
     int numRows = 8;
-    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
+    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_).ok());
     ASSERT_EQ(getPidSelection(), 8);
     std::vector<uint32_t> row2Part(numRows);
     std::iota(row2Part.begin(), row2Part.end(), 0);
-    std::vector<uint32_t> part2RowCount(numPart, 0);
-    std::fill_n(part2RowCount.begin(), numRows, 1);
-    checkResult(row2Part, part2RowCount);
+    checkResult(row2Part);
   }
 
   // numRows greater than numPart
@@ -104,13 +92,11 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeNormal) {
     int numPart = 10;
     prepareData(numPart, 0);
     int numRows = 12;
-    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
+    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_).ok());
     ASSERT_EQ(getPidSelection(), 2);
     std::vector<uint32_t> row2Part(numRows);
     std::generate_n(row2Part.begin(), numRows, [n = 0, numPart]() mutable { return (n++) % numPart; });
-    std::vector<uint32_t> part2RowCount(numPart, 1);
-    std::fill_n(part2RowCount.begin(), numRows - numPart, 2);
-    checkResult(row2Part, part2RowCount);
+    checkResult(row2Part);
   }
 
   // numRows greater than 2*numPart
@@ -118,13 +104,11 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeNormal) {
     int numPart = 10;
     prepareData(numPart, 0);
     int numRows = 22;
-    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
+    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_).ok());
     ASSERT_EQ(getPidSelection(), 2);
     std::vector<uint32_t> row2Part(numRows);
     std::generate_n(row2Part.begin(), numRows, [n = 0, numPart]() mutable { return (n++) % numPart; });
-    std::vector<uint32_t> part2RowCount(numPart, 2);
-    std::fill_n(part2RowCount.begin(), numRows - 2 * numPart, 3);
-    checkResult(row2Part, part2RowCount);
+    checkResult(row2Part);
   }
 }
 
@@ -134,48 +118,38 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeContinuous) {
 
   {
     int numRows = 8;
-    std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
-    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
+    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_).ok());
     ASSERT_EQ(getPidSelection(), 8);
     std::vector<uint32_t> row2Part(numRows);
     std::generate_n(row2Part.begin(), numRows, [n = 0, numPart]() mutable { return (n++) % numPart; });
-    std::vector<uint32_t> part2RowCount(numPart, 0);
-    std::fill_n(part2RowCount.begin(), numRows, 1);
-    checkResult(row2Part, part2RowCount);
+    checkResult(row2Part);
   }
 
   {
     int numRows = 10;
-    std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
-    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
+    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_).ok());
     ASSERT_EQ(getPidSelection(), 8);
     std::vector<uint32_t> row2Part(numRows);
     std::generate_n(row2Part.begin(), numRows, [n = 8, numPart]() mutable { return (n++) % numPart; });
-    checkResult(row2Part, std::vector<uint32_t>(numPart, 1));
+    checkResult(row2Part);
   }
 
   {
     int numRows = 12;
-    std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
-    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
+    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_).ok());
     ASSERT_EQ(getPidSelection(), 0);
     std::vector<uint32_t> row2Part(numRows);
     std::generate_n(row2Part.begin(), numRows, [n = 8, numPart]() mutable { return (n++) % numPart; });
-    std::vector<uint32_t> part2RowCount(numPart, 1);
-    std::fill_n(part2RowCount.begin() + 8, numRows - numPart, 2);
-    checkResult(row2Part, part2RowCount);
+    checkResult(row2Part);
   }
 
   {
     int numRows = 22;
-    std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
-    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
+    ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_).ok());
     ASSERT_EQ(getPidSelection(), 2);
     std::vector<uint32_t> row2Part(numRows);
     std::generate_n(row2Part.begin(), numRows, [n = 0, numPart]() mutable { return (n++) % numPart; });
-    std::vector<uint32_t> part2RowCount(numPart, 2);
-    std::fill_n(part2RowCount.begin(), numRows - 2 * numPart, 3);
-    checkResult(row2Part, part2RowCount);
+    checkResult(row2Part);
   }
 }
 
