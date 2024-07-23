@@ -287,7 +287,10 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
     if (iterator instanceof ChainedIterator) {
       ChainedIterator it = (ChainedIterator) iterator;
       int[] recordsForEach = it.numRecordForEach();
-      String str = Arrays.stream(recordsForEach).mapToObj(Integer::toString).collect(Collectors.joining(", "));
+      String str =
+          Arrays.stream(recordsForEach)
+              .mapToObj(Integer::toString)
+              .collect(Collectors.joining(", "));
       logger.warn("Each length of the inMemSorter ChainedIterator is " + str);
     } else if (iterator instanceof UnsafeInMemorySorter.SortedIterator) {
       logger.warn("inMemSorter SortedIterator length " + iterator.getNumRecords());
