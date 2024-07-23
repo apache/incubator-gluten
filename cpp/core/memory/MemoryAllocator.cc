@@ -92,8 +92,9 @@ int64_t ListenableMemoryAllocator::peakBytes() const {
 
 void ListenableMemoryAllocator::updateUsage(int64_t size) {
   listener_->allocationChanged(size);
-  usedBytes_.fetch_add(size);
-  peakBytes_.store(std::max(peakBytes_.load(), usedBytes_.load()));
+  std::lock_guard<std::mutex> lock(mutex_);
+  usedBytes_ += size;
+  peakBytes_ = std::max(peakBytes_, usedBytes_);
 }
 
 bool StdMemoryAllocator::allocate(int64_t size, void** out) {

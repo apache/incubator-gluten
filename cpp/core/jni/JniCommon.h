@@ -404,16 +404,16 @@ class SparkAllocationListener final : public gluten::AllocationListener {
       checkException(env);
     }
     std::lock_guard<std::mutex> lock(mutex_);
-    bytesReserved_ += size;
-    maxBytesReserved_ = std::max(bytesReserved_, maxBytesReserved_);
+    usedBytes_ += size;
+    peakBytes_ = std::max(usedBytes_, peakBytes_);
   }
 
   int64_t currentBytes() override {
-    return bytesReserved_;
+    return usedBytes_;
   }
 
   int64_t peakBytes() override {
-    return maxBytesReserved_;
+    return peakBytes_;
   }
 
  private:
@@ -421,8 +421,8 @@ class SparkAllocationListener final : public gluten::AllocationListener {
   jobject jListenerGlobalRef_;
   const jmethodID jReserveMethod_;
   const jmethodID jUnreserveMethod_;
-  int64_t bytesReserved_{0L};
-  int64_t maxBytesReserved_{0L};
+  int64_t usedBytes_{0L};
+  int64_t peakBytes_{0L};
 
   mutable std::mutex mutex_;
 };
