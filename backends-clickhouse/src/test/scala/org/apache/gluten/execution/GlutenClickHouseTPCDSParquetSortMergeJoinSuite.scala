@@ -23,12 +23,15 @@ import org.apache.spark.SparkConf
 class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
   override protected def excludedTpcdsQueries: Set[String] = Set(
-    // fallback due to left semi/anti
+    // fallback due to left semi/anti/existence join
     "q8",
+    "q10",
     "q14a",
     "q14b",
+    "116",
     "q23a",
     "q23b",
+    "q35",
     "q38",
     "q51",
     "q69",
