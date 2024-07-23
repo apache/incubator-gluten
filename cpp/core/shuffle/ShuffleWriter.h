@@ -69,10 +69,7 @@ class ShuffleWriter : public Reclaimable {
   const std::vector<int64_t>& rawPartitionLengths() const;
 
  protected:
-  ShuffleWriter(
-      int32_t numPartitions,
-      ShuffleWriterOptions options,
-      arrow::MemoryPool* pool);
+  ShuffleWriter(int32_t numPartitions, ShuffleWriterOptions options, arrow::MemoryPool* pool);
 
   virtual ~ShuffleWriter() = default;
 

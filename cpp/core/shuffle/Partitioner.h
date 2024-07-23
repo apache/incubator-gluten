@@ -35,10 +35,7 @@ class Partitioner {
     return hasPid_;
   }
 
-  virtual arrow::Status compute(
-      const int32_t* pidArr,
-      const int64_t numRows,
-      std::vector<uint32_t>& row2partition) = 0;
+  virtual arrow::Status compute(const int32_t* pidArr, const int64_t numRows, std::vector<uint32_t>& row2partition) = 0;
 
   virtual arrow::Status compute(
       const int32_t* pidArr,

@@ -37,10 +37,8 @@ int32_t computePid(const int32_t* pidArr, int64_t i, int32_t numPartitions) {
   return pid;
 }
 
-arrow::Status gluten::HashPartitioner::compute(
-    const int32_t* pidArr,
-    const int64_t numRows,
-    std::vector<uint32_t>& row2partition) {
+arrow::Status
+gluten::HashPartitioner::compute(const int32_t* pidArr, const int64_t numRows, std::vector<uint32_t>& row2partition) {
   row2partition.resize(numRows);
   for (auto i = 0; i < numRows; ++i) {
     auto pid = computePid(pidArr, i, numPartitions_);
