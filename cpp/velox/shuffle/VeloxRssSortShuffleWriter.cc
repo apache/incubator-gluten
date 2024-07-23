@@ -42,12 +42,6 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxRssSortShuffleWriter::cr
 } // namespace gluten
 
 arrow::Status VeloxRssSortShuffleWriter::init() {
-#if defined(__x86_64__)
-  supportAvx512_ = __builtin_cpu_supports("avx512bw");
-#else
-  supportAvx512_ = false;
-#endif
-
   rowVectorIndexMap_.reserve(numPartitions_);
   bufferOutputStream_ = std::make_unique<BufferOutputStream>(veloxPool_.get());
 

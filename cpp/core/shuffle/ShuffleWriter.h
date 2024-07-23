@@ -71,7 +71,6 @@ class ShuffleWriter : public Reclaimable {
  protected:
   ShuffleWriter(
       int32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
       ShuffleWriterOptions options,
       arrow::MemoryPool* pool);
 
@@ -82,10 +81,6 @@ class ShuffleWriter : public Reclaimable {
   ShuffleWriterOptions options_;
 
   arrow::MemoryPool* pool_;
-
-  std::unique_ptr<PartitionWriter> partitionWriter_;
-
-  std::shared_ptr<Partitioner> partitioner_;
 
   ShuffleWriterMetrics metrics_{};
 };

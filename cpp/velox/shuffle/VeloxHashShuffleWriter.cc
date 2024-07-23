@@ -168,12 +168,6 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxHashShuffleWriter::creat
 } // namespace gluten
 
 arrow::Status VeloxHashShuffleWriter::init() {
-#if defined(__x86_64__)
-  supportAvx512_ = __builtin_cpu_supports("avx512bw");
-#else
-  supportAvx512_ = false;
-#endif
-
   // pre-allocated buffer size for each partition, unit is row count
   // when partitioner is SinglePart, partial variables don`t need init
   if (options_.partitioning != Partitioning::kSingle) {
