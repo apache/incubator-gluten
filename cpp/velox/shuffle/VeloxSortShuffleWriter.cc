@@ -235,6 +235,13 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
 }
 
 arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_t begin, size_t end) {
+  auto payload = prepareToEvict(begin, end);
+  RETURN_NOT_OK(partitionWriter_->evict(partitionId, std::move(payload), Evict::type::kSortSpill, false, false, stopped_));
+  return arrow::Status::OK();
+}
+
+std::unique_ptr<InMemoryPayload> VeloxSortShuffleWriter::prepareToEvict(size_t begin, size_t end) {
+  ScopedTimer timer(&sortTime_);
   // Serialize [begin, end)
   uint32_t numRows = end - begin;
   uint64_t rawSize = numRows * sizeof(RowSizeType);
@@ -264,10 +271,7 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
   std::vector<std::shared_ptr<arrow::Buffer>> buffers;
   buffers.push_back(std::make_shared<arrow::Buffer>(rawData, rawSize));
 
-  auto payload = std::make_unique<InMemoryPayload>(numRows, nullptr, std::move(buffers));
-  RETURN_NOT_OK(
-      partitionWriter_->evict(partitionId, std::move(payload), Evict::type::kSortSpill, false, false, stopped_));
-  return arrow::Status::OK();
+  return std::make_unique<InMemoryPayload>(numRows, nullptr, std::move(buffers));
 }
 
 uint32_t VeloxSortShuffleWriter::maxRowsToInsert(uint32_t offset, uint32_t rows) {

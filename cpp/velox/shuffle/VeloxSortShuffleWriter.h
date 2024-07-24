@@ -77,6 +77,8 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   arrow::Status evictPartition(uint32_t partitionId, size_t begin, size_t end);
 
+  std::unique_ptr<InMemoryPayload> prepareToEvict(size_t begin, size_t end);
+
   uint32_t maxRowsToInsert(uint32_t offset, uint32_t rows);
 
   void acquireNewBuffer(int64_t memLimit, uint64_t minSizeRequired);
