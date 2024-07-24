@@ -428,8 +428,9 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::deserializeTo
     auto buffer = cur->second;
     const auto* rawBuffer = buffer->as<char>();
     while (rowOffset_ < cur->first && readRows < batchSize_) {
-      auto rowSize = *(RowSizeType*)(rawBuffer + byteOffset_);
-      data.push_back(std::string_view(rawBuffer + byteOffset_ + sizeof(RowSizeType), rowSize - sizeof(RowSizeType)));
+      auto rowSize = *(uint32_t*)(rawBuffer + byteOffset_);
+      byteOffset_ += sizeof(uint32_t);
+      data.push_back(std::string_view(rawBuffer + byteOffset_, rowSize));
       byteOffset_ += rowSize;
       ++rowOffset_;
       ++readRows;

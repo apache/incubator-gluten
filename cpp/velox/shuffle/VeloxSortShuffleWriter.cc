@@ -103,7 +103,6 @@ arrow::Status VeloxSortShuffleWriter::init() {
       options_.partitioning == Partitioning::kSingle,
       arrow::Status::Invalid("VeloxSortShuffleWriter doesn't support single partition."));
   array_.resize(initialSize_);
-  partitionRawSize_.resize(numPartitions_, 0);
   return arrow::Status::OK();
 }
 
@@ -111,9 +110,6 @@ void VeloxSortShuffleWriter::initRowType(const facebook::velox::RowVectorPtr& rv
   if (UNLIKELY(!rowType_)) {
     rowType_ = facebook::velox::asRowType(rv->type());
     fixedRowSize_ = facebook::velox::row::CompactRow::fixedRowSize(rowType_);
-    if (fixedRowSize_) {
-      *fixedRowSize_ += sizeof(RowSizeType);
-    }
   }
 }
 
@@ -157,7 +153,7 @@ arrow::Status VeloxSortShuffleWriter::insert(const facebook::velox::RowVectorPtr
     rowSizes_.resize(inputRows + 1);
     rowSizes_[0] = 0;
     for (auto i = 0; i < inputRows; ++i) {
-      rowSizes_[i + 1] = rowSizes_[i] + row.rowSize(i) + sizeof(RowSizeType);
+      rowSizes_[i + 1] = rowSizes_[i] + row.rowSize(i);
     }
   }
 
@@ -183,15 +179,8 @@ void VeloxSortShuffleWriter::insertRows(facebook::velox::row::CompactRow& row, u
   // Allocate newArray can trigger spill.
   growArrayIfNecessary(rows);
   for (auto i = offset; i < offset + rows; ++i) {
-    auto pid = row2Partition_[i];
-    array_[offset_++] = toCompactRowId(pid, pageNumber_, pageCursor_);
-
-    // (RowSizeType)size | serialized row
-    auto dest = currentPage_ + pageCursor_;
-    RowSizeType size = sizeof(RowSizeType) + row.serialize(i, dest + sizeof(RowSizeType));
-    memcpy(dest, &size, sizeof(RowSizeType));
-
-    partitionRawSize_[pid] += size;
+    auto size = row.serialize(i, currentPage_ + pageCursor_);
+    array_[offset_++] = {toCompactRowId(row2Partition_[i], pageNumber_, pageCursor_), size};
     pageCursor_ += size;
   }
 }
@@ -209,7 +198,6 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
   int32_t begin = 0;
   {
     ScopedTimer timer(&sortTime_);
-    // TODO: Add radix sort to align with Spark.
     if (useRadixSort_) {
       begin = RadixSort<SortArray>::sort(array_, numRecords, kPartitionIdStartByteIndex, kPartitionIdEndByteIndex);
     } else {
@@ -219,9 +207,9 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
 
   auto end = begin + numRecords;
   auto cur = begin;
-  auto pid = extractPartitionId(array_[begin]);
+  auto pid = extractPartitionId(array_[begin].first);
   while (++cur < end) {
-    auto curPid = extractPartitionId(array_[cur]);
+    auto curPid = extractPartitionId(array_[cur].first);
     if (curPid != pid) {
       RETURN_NOT_OK(evictPartition(pid, begin, cur));
       pid = curPid;
@@ -249,8 +237,10 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
 arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_t begin, size_t end) {
   // Serialize [begin, end)
   uint32_t numRows = end - begin;
-  uint64_t rawSize = partitionRawSize_[partitionId];
-  partitionRawSize_[partitionId] = 0;
+  uint64_t rawSize = numRows * sizeof(RowSizeType);
+  for (auto i = begin; i < end; ++i) {
+    rawSize += array_[i].second;
+  }
 
   if (sortedBuffer_ == nullptr || sortedBuffer_->size() < rawSize) {
     sortedBuffer_ = nullptr;
@@ -260,10 +250,12 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
 
   uint64_t offset = 0;
   for (auto i = begin; i < end; ++i) {
-    auto index = extractPageNumberAndOffset(array_[i]);
-    const auto* src = pageAddresses_[index.first] + index.second;
-    auto size = *(RowSizeType*)(src);
-    memcpy(rawBuffer + offset, src, size);
+    // size(size_t) | bytes
+    auto size = array_[i].second;
+    memcpy(rawBuffer + offset, &size, sizeof(RowSizeType));
+    offset += sizeof(RowSizeType);
+    auto index = extractPageNumberAndOffset(array_[i].first);
+    memcpy(rawBuffer + offset, pageAddresses_[index.first] + index.second, size);
     offset += size;
   }
   VELOX_CHECK_EQ(offset, rawSize);
