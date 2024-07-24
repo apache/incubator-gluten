@@ -236,7 +236,8 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
 
 arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_t begin, size_t end) {
   auto payload = prepareToEvict(begin, end);
-  RETURN_NOT_OK(partitionWriter_->evict(partitionId, std::move(payload), Evict::type::kSortSpill, false, false, stopped_));
+  RETURN_NOT_OK(
+      partitionWriter_->evict(partitionId, std::move(payload), Evict::type::kSortSpill, false, false, stopped_));
   return arrow::Status::OK();
 }
 
@@ -307,7 +308,11 @@ void VeloxSortShuffleWriter::growArrayIfNecessary(uint32_t rows) {
     usableCapacity = useRadixSort_ ? arraySize / 2 : arraySize;
   }
   if (arraySize != array_.size()) {
-    array_.resize(arraySize);
+    auto newArray{SortArray{Allocator(allocator_.get())}};
+    newArray.resize(arraySize);
+    std::copy(array_.begin(), array_.begin() + offset_, newArray.begin());
+    array_.clear();
+    array_ = std::move(newArray);
   }
 }
 
