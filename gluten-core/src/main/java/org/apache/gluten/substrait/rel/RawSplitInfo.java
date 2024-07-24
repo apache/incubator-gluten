@@ -25,6 +25,7 @@ import org.apache.spark.sql.types.StructType;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public final class RawSplitInfo implements SplitInfo {
 
@@ -32,16 +33,19 @@ public final class RawSplitInfo implements SplitInfo {
   private final StructType partitionSchema;
   private final LocalFilesNode.ReadFileFormat fileFormat;
   private final List<String> metadataColumn;
+  private final Map<String, String> properties;
 
   public RawSplitInfo(
       FilePartition filePartition,
       StructType partitionSchema,
       LocalFilesNode.ReadFileFormat fileFormat,
-      List<String> metadataColumn) {
+      List<String> metadataColumn,
+      Map<String, String> properties) {
     this.filePartition = filePartition;
     this.partitionSchema = partitionSchema;
     this.fileFormat = fileFormat;
     this.metadataColumn = metadataColumn;
+    this.properties = properties;
   }
 
   public FilePartition getFilePartition() {
@@ -58,6 +62,10 @@ public final class RawSplitInfo implements SplitInfo {
 
   public List<String> getMetadataColumn() {
     return metadataColumn;
+  }
+
+  public Map<String, String> getProperties() {
+    return properties;
   }
 
   @Override

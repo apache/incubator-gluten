@@ -57,7 +57,12 @@ class VeloxIteratorApi extends IteratorApi with Logging {
       properties: Map[String, String]): SplitInfo = {
     partition match {
       case f: FilePartition =>
-        new RawSplitInfo(f, partitionSchema, fileFormat, metadataColumnNames.asJava)
+        new RawSplitInfo(
+          f,
+          partitionSchema,
+          fileFormat,
+          metadataColumnNames.asJava,
+          properties.asJava)
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition.")
     }
@@ -107,7 +112,8 @@ class VeloxIteratorApi extends IteratorApi with Logging {
             partitionColumns,
             metadataColumns,
             splitInfo.getFileFormat,
-            new JArrayList[String]()
+            new JArrayList[String](),
+            splitInfo.getProperties
           )
           .toProtobuf
           .toByteArray
