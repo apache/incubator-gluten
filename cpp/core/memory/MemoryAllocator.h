@@ -72,10 +72,8 @@ class ListenableMemoryAllocator final : public MemoryAllocator {
   void updateUsage(int64_t size);
   MemoryAllocator* const delegated_;
   AllocationListener* const listener_;
-  int64_t usedBytes_{0L};
-  int64_t peakBytes_{0L};
-
-  mutable std::mutex mutex_;
+  std::atomic_int64_t usedBytes_{0L};
+  std::atomic_int64_t peakBytes_{0L};
 };
 
 class StdMemoryAllocator final : public MemoryAllocator {

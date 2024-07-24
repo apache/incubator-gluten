@@ -73,7 +73,7 @@ class BlockAllocationListener final : public AllocationListener {
   }
 
  private:
-  int64_t reserve(int64_t diff) {
+  inline int64_t reserve(int64_t diff) {
     std::lock_guard<std::mutex> lock(mutex_);
     usedBytes_ += diff;
     int64_t newBlockCount;
