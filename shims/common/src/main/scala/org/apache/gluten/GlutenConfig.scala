@@ -1699,7 +1699,6 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
-
   val COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES =
     buildConf("spark.gluten.sql.columnar.backend.velox.memoryUseHugePages")
       .internal()
