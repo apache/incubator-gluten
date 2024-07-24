@@ -30,7 +30,7 @@ function(add_velox_test TEST_EXEC)
     ${TEST_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src
                          ${VELOX_BUILD_PATH}/_deps/duckdb-src/src/include)
   target_link_libraries(${TEST_EXEC} velox GTest::gtest GTest::gtest_main
-                        google::glog benchmark::benchmark)
+                        google::glog)
   gtest_discover_tests(${TEST_EXEC} DISCOVERY_MODE PRE_TEST)
 endfunction()
 
