@@ -482,7 +482,12 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::GenerateRel& gen
       LOG_VALIDATION_MSG("Input validation fails in GenerateRel.");
       return false;
     }
-    expressions.emplace_back(exprConverter_->toVeloxExpr(generateRel.generator(), rowType));
+    auto generator = generateRel.generator().scalar_function();
+    for (const auto& argument : generator.arguments()) {
+      if (argument.has_value()) {
+        expressions.emplace_back(exprConverter_->toVeloxExpr(argument.value(), rowType));
+      }
+    }
     // Try to compile the expressions. If there is any unregistred funciton or
     // mismatched type, exception will be thrown.
     exec::ExprSet exprSet(std::move(expressions), execCtx_);
