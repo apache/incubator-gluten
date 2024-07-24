@@ -478,7 +478,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::GenerateRel& gen
   auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
   std::vector<core::TypedExprPtr> expressions;
   if (generateRel.has_generator()) {
-    if (!validateExpression(generateRel.generator(), rowType) {
+    if (!validateExpression(generateRel.generator(), rowType)) {
       LOG_VALIDATION_MSG("Input validation fails in GenerateRel.");
       return false;
     }
