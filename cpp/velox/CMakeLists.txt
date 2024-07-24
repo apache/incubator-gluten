@@ -413,7 +413,7 @@ macro(ADD_VELOX_DEPENDENCIES)
     "${VELOX_COMPONENTS_PATH}/common/testutil/libvelox_test_util.a")
 
   add_velox_dependency(external::md5
-                       "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
+                       "${VELOX_COMPONENTS_PATH}/external/md5/libvelox_external_md5.a")
   add_velox_dependency(
     external::date
     "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
