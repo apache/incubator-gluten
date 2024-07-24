@@ -176,9 +176,7 @@ class ColumnarShuffleWriter[K, V](
         }
         val startTime = System.nanoTime()
         jniWrapper.write(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
-        if (!isSort) {
-          dep.metrics("splitTime").add(System.nanoTime() - startTime)
-        }
+        dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
@@ -191,11 +189,12 @@ class ColumnarShuffleWriter[K, V](
     assert(nativeShuffleWriter != -1L)
     splitResult = jniWrapper.stop(nativeShuffleWriter)
     closeShuffleWriter()
+    dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
     if (!isSort) {
       dep
         .metrics("splitTime")
         .add(
-          System.nanoTime() - startTime - splitResult.getTotalSpillTime -
+          dep.metrics("shuffleWallTime").value - splitResult.getTotalSpillTime -
             splitResult.getTotalWriteTime -
             splitResult.getTotalCompressTime)
     } else {

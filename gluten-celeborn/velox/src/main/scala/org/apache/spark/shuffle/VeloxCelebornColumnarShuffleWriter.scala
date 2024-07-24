@@ -48,6 +48,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     celebornConf,
     client,
     writeMetrics) {
+  private val isSort = !GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER.equals(shuffleWriterType)
 
   private val runtime = Runtimes.contextInstance("CelebornShuffleWriter")
 
@@ -72,7 +73,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
         val handle = ColumnarBatches.getNativeHandle(cb)
         val startTime = System.nanoTime()
         jniWrapper.write(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
-        dep.metrics("splitTime").add(System.nanoTime() - startTime)
+        dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
@@ -84,10 +85,15 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     val startTime = System.nanoTime()
     splitResult = jniWrapper.stop(nativeShuffleWriter)
 
-    dep
-      .metrics("splitTime")
+    dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
+    val nativeMetrics = if (isSort) {
+      dep.metrics("splitTime")
+    } else {
+      dep.metrics("sortTime")
+    }
+    nativeMetrics
       .add(
-        System.nanoTime() - startTime - splitResult.getTotalPushTime -
+        dep.metrics("shuffleWallTime").value - splitResult.getTotalPushTime -
           splitResult.getTotalWriteTime -
           splitResult.getTotalCompressTime)
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)

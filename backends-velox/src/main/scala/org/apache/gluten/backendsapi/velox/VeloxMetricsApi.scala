@@ -272,6 +272,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to compress"),
       "decompressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to decompress"),
       "deserializeTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to deserialize"),
+      "shuffleWallTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "shuffle wall time"),
       // For hash shuffle writer, the peak bytes represents the maximum split buffer size.
       // For sort shuffle writer, the peak bytes represents the maximum
       // row buffer + sort buffer size.
