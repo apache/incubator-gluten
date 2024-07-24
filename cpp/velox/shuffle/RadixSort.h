@@ -86,7 +86,7 @@ class RadixSort {
     auto offsets = transformCountsToOffsets(counts, outIndex);
 
     for (auto offset = inIndex; offset < inIndex + numRecords; ++offset) {
-      auto bucket = (array[offset] >> (byteIdx * 8)) & 0xff;
+      auto bucket = (array[offset].first >> (byteIdx * 8)) & 0xff;
       array[offsets[bucket]++] = array[offset];
     }
   }
@@ -112,7 +112,7 @@ class RadixSort {
     int64_t bitwiseMax = 0;
     int64_t bitwiseMin = -1L;
     for (auto offset = 0; offset < numRecords; ++offset) {
-      auto value = array[offset];
+      auto value = array[offset].first;
       bitwiseMax |= value;
       bitwiseMin &= value;
     }
@@ -123,7 +123,7 @@ class RadixSort {
       if (((bitsChanged >> (i * 8)) & 0xff) != 0) {
         counts[i].resize(256);
         for (auto offset = 0; offset < numRecords; ++offset) {
-          counts[i][(array[offset] >> (i * 8)) & 0xff]++;
+          counts[i][(array[offset].first >> (i * 8)) & 0xff]++;
         }
       }
     }

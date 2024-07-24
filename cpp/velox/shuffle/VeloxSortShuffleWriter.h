@@ -83,8 +83,9 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   void growArrayIfNecessary(uint32_t rows);
 
-  using Allocator = facebook::velox::StlAllocator<uint64_t>;
-  using SortArray = std::vector<uint64_t, Allocator>;
+  using ElementType = std::pair<uint64_t, RowSizeType>;
+  using Allocator = facebook::velox::StlAllocator<ElementType>;
+  using SortArray = std::vector<ElementType, Allocator>;
 
   std::unique_ptr<facebook::velox::HashStringAllocator> allocator_;
   // Stores compact row id -> row
@@ -108,8 +109,6 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   // value: Partition ID
   // Updated for each input RowVector.
   std::vector<uint32_t> row2Partition_;
-
-  std::vector<uint64_t> partitionRawSize_;
 
   std::shared_ptr<const facebook::velox::RowType> rowType_;
   std::optional<int32_t> fixedRowSize_;
