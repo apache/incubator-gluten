@@ -21,6 +21,7 @@ import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.execution.CHBroadcastBuildSideCache
 import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
 import org.apache.gluten.expression.UDFMappings
+import org.apache.gluten.utils.MergeTreeUtil
 import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
 
 import org.apache.spark.{SparkConf, SparkContext}
@@ -104,7 +105,7 @@ class CHListenerApi extends ListenerApi with Logging {
     // FIXME: The following set instances twice in local mode?
     GlutenParquetWriterInjects.setInstance(new CHParquetWriterInjects())
     GlutenOrcWriterInjects.setInstance(new CHOrcWriterInjects())
-    GlutenMergeTreeWriterInjects.setInstance(new CHMergeTreeWriterInjects())
+    MergeTreeUtil.injectMergeTreeWriter()
     GlutenRowSplitter.setInstance(new CHRowSplitter())
   }
 

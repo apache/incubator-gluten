@@ -27,7 +27,7 @@ import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverri
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
-import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
+import org.apache.gluten.utils.{CHJoinValidateUtil, MergeTreeUtil, UnknownJoinStrategy}
 import org.apache.gluten.vectorized.CHColumnarBatchSerializer
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -44,12 +44,10 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, WriteJobDescription}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -138,8 +136,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       child: SparkPlan): FilterExecTransformerBase = {
 
     def checkMergeTreeFileFormat(relation: HadoopFsRelation): Boolean = {
-      relation.location.isInstanceOf[TahoeFileIndex] &&
-      relation.fileFormat.isInstanceOf[DeltaMergeTreeFileFormat]
+      MergeTreeUtil.checkMergeTreeFileFormat(relation)
     }
 
     child match {

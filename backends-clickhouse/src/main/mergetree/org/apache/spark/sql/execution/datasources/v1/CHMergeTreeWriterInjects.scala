@@ -20,8 +20,8 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
+import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, StringMapNode}
 import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import org.apache.gluten.substrait.plan.PlanBuilder
@@ -29,10 +29,10 @@ import org.apache.gluten.substrait.rel.{ExtensionTableBuilder, RelBuilder}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, GlutenFormatWriterInjectsBase, OutputWriter}
 import org.apache.spark.sql.execution.datasources.orc.OrcUtils
 import org.apache.spark.sql.execution.datasources.utils.MergeTreeDeltaUtil
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputWriter
+import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, GlutenFormatWriterInjectsBase, OutputWriter}
 import org.apache.spark.sql.types.StructType
 
 import com.google.common.collect.Lists

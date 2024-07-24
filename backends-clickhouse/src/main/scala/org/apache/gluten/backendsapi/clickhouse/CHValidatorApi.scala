@@ -22,7 +22,7 @@ import org.apache.gluten.expression.ExpressionConverter
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.SelectionNode
 import org.apache.gluten.substrait.plan.PlanNode
-import org.apache.gluten.utils.CHExpressionUtil
+import org.apache.gluten.utils.{CHExpressionUtil, MergeTreeUtil}
 import org.apache.gluten.validate.NativePlanValidationInfo
 import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
 
@@ -30,7 +30,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
-import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.execution.{CommandResultExec, FileSourceScanExec, RDDScanExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
@@ -79,7 +78,7 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logg
     //   df.summary().show(100, false)
 
     def includedDeltaOperator(scanExec: FileSourceScanExec): Boolean = {
-      scanExec.relation.location.isInstanceOf[DeltaLogFileIndex]
+      MergeTreeUtil.includedDeltaOperator(scanExec)
     }
 
     val includedUnsupportedPlans = collect(plan) {

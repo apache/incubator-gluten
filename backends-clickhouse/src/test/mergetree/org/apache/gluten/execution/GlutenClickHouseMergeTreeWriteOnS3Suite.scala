@@ -24,8 +24,6 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMerg
 import _root_.org.apache.commons.io.FileUtils
 import _root_.org.apache.spark.sql.SaveMode
 import _root_.org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import io.minio.{BucketExistsArgs, ListObjectsArgs, MakeBucketArgs, MinioClient, RemoveBucketArgs, RemoveObjectsArgs}
-import io.minio.messages.DeleteObject
 
 import java.io.File
 import java.util
