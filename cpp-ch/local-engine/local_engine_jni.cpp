@@ -1253,7 +1253,7 @@ JNIEXPORT void Java_org_apache_gluten_utils_TestExceptionUtils_generateNativeExc
 
 
 
-JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * env, jstring table_, jstring columns_, jboolean async_)
+JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * env, jobject, jstring table_, jstring columns_, jboolean async_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto table_def = jstring2string(env, table_);

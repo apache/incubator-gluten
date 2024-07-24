@@ -69,7 +69,14 @@ StorageMergeTreeFactory::getStorage(const StorageID& id, const String & snapshot
     auto new_storage = creator();
     if (storage_map->has(table_name) && !storage_map->get(table_name)->second.sameStructWith(merge_tree_table))
     {
-        freeStorage(id);
+        // freeStorage(id);
+        if (storage_map->has(table_name))
+            storage_map->remove(table_name);
+        {
+            std::lock_guard lock(datapart_mutex);
+            if (datapart_map->has(table_name))
+                datapart_map->remove(table_name);
+        }
     }
 
     if (!storage_map->has(table_name))
