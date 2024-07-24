@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "centos:7", "centos:8" ]
+        os: [ "centos:7", "centos:8", "quay.io/centos/centos:stream9" ]
     runs-on: ubuntu-20.04
     container: ${{ matrix.os }}
     steps:
