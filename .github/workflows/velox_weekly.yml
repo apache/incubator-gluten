@@ -55,6 +55,9 @@ jobs:
             -e 's/^#baseurl/baseurl/' \
             -e 's/mirror\.centos\.org/vault.centos.org/' \
             /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
+          elif [ "${{ matrix.os }}" = "quay.io/centos/centos:stream9" ]; then
+            dnf install -y --setopt=install_weak_deps=False gcc-toolset-12
+            source /opt/rh/gcc-toolset-12/enable || exit 1
           else
             dnf install -y --setopt=install_weak_deps=False gcc-toolset-9
             source /opt/rh/gcc-toolset-9/enable || exit 1
