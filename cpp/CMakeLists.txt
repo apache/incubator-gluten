@@ -159,7 +159,6 @@ find_package(JNI REQUIRED)
 find_package(glog REQUIRED)
 
 if(BUILD_TESTS)
-  set(BUILD_BENCHMARKS ON)
   set(GLUTEN_GTEST_MIN_VERSION "1.13.0")
   find_package(GTest ${GLUTEN_GTEST_MIN_VERSION} CONFIG)
   if(NOT GTest_FOUND)
