@@ -476,9 +476,16 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::GenerateRel& gen
     names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
   }
   auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
+  std::vector<core::TypedExprPtr> expressions;
   if (generateRel.has_generator() && !validateExpression(generateRel.generator(), rowType)) {
-    LOG_VALIDATION_MSG("Input validation fails in GenerateRel.");
-    return false;
+    if (!validateExpression(generateRel.generator(), rowType) {
+      LOG_VALIDATION_MSG("Input validation fails in GenerateRel.");
+      return false;
+    }
+    expressions.emplace_back(exprConverter_->toVeloxExpr(generateRel.generator(), rowType));
+    // Try to compile the expressions. If there is any unregistred funciton or
+    // mismatched type, exception will be thrown.
+    exec::ExprSet exprSet(std::move(expressions), execCtx_);
   }
   return true;
 }
