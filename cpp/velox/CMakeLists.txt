@@ -298,7 +298,7 @@ macro(ADD_VELOX_DEPENDENCIES)
     add_velox_dependency(
       tpch::gen "${VELOX_COMPONENTS_PATH}/tpch/gen/libvelox_tpch_gen.a")
     add_velox_dependency(
-      dbgen "${VELOX_COMPONENTS_PATH}/tpch/gen/dbgen/libvelox_dbgen.a")
+      dbgen "${VELOX_COMPONENTS_PATH}/tpch/gen/dbgen/libdbgen.a")
   endif()
 
   add_velox_dependency(
