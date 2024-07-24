@@ -49,7 +49,7 @@ namespace gluten {
 
 enum SortState { kSortInit, kSort, kSortStop };
 
-class VeloxSortBasedShuffleWriter final : public VeloxShuffleWriter {
+class VeloxRssSortShuffleWriter final : public VeloxShuffleWriter {
  public:
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       uint32_t numPartitions,
@@ -67,7 +67,7 @@ class VeloxSortBasedShuffleWriter final : public VeloxShuffleWriter {
   arrow::Status evictRowVector(uint32_t partitionId) override;
 
  private:
-  VeloxSortBasedShuffleWriter(
+  VeloxRssSortShuffleWriter(
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
       ShuffleWriterOptions options,
@@ -102,6 +102,7 @@ class VeloxSortBasedShuffleWriter final : public VeloxShuffleWriter {
   uint32_t currentInputColumnBytes_ = 0;
 
   SortState sortState_{kSortInit};
+  bool stopped_{false};
 }; // class VeloxSortBasedShuffleWriter
 
 } // namespace gluten

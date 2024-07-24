@@ -36,7 +36,7 @@ static constexpr double kDefaultBufferReallocThreshold = 0.25;
 static constexpr double kDefaultMergeBufferThreshold = 0.25;
 static constexpr bool kEnableBufferedWrite = true;
 
-enum ShuffleWriterType { kHashShuffle, kSortShuffle };
+enum ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
 enum PartitionWriterType { kLocal, kRss };
 
 struct ShuffleReaderOptions {

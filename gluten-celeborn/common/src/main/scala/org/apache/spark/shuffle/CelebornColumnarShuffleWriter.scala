@@ -71,7 +71,9 @@ abstract class CelebornColumnarShuffleWriter[K, V](
   protected val clientPushSortMemoryThreshold: Long = celebornConf.clientPushSortMemoryThreshold
 
   protected val shuffleWriterType: String =
-    celebornConf.shuffleWriterMode.name.toLowerCase(Locale.ROOT)
+    celebornConf.shuffleWriterMode.name
+      .toLowerCase(Locale.ROOT)
+      .replace(GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER, GlutenConfig.GLUTEN_RSS_SORT_SHUFFLE_WRITER)
 
   protected val celebornPartitionPusher = new CelebornPartitionPusher(
     shuffleId,

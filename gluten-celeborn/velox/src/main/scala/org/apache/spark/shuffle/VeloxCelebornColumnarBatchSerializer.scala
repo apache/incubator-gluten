@@ -39,7 +39,6 @@ import org.apache.celeborn.client.read.CelebornInputStream
 
 import java.io._
 import java.nio.ByteBuffer
-import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -84,8 +83,7 @@ private class CelebornColumnarBatchSerializerInstance(
       }
     val compressionCodecBackend =
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
-    val shuffleWriterType =
-      conf.get("spark.celeborn.client.spark.shuffle.writer", "hash").toLowerCase(Locale.ROOT)
+    val shuffleWriterType = GlutenConfig.getConf.celebornShuffleWriterType
     val jniWrapper = ShuffleReaderJniWrapper.create(runtime)
     val batchSize = GlutenConfig.getConf.maxBatchSize
     val handle = jniWrapper
