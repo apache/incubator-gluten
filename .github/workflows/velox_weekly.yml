@@ -68,7 +68,7 @@ jobs:
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
           cd $GITHUB_WORKSPACE/ && \
-          ./dev/package.sh && echo "just for triggering"
+          ./dev/package.sh
 
   build-on-ubuntu:
     strategy:
