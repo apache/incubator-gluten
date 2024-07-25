@@ -42,16 +42,16 @@ class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBa
     uint8_t* address = columnarToRowConverter->getBufferAddress();
     auto lengthVec = columnarToRowConverter->getLengths();
 
-    long lengthArr[lengthVec.size()];
+    std::vector<int64_t> int64Lengths(lengthVec.size());
     for (int i = 0; i < lengthVec.size(); i++) {
-      lengthArr[i] = lengthVec[i];
+      int64Lengths[i] = lengthVec[i];
     }
 
     ArrowSchema cSchema;
     toArrowSchema(vector->type(), pool(), &cSchema);
     auto rowToColumnarConverter = std::make_shared<VeloxRowToColumnarConverter>(&cSchema, pool_);
 
-    auto cb = rowToColumnarConverter->convert(numRows, lengthArr, address);
+    auto cb = rowToColumnarConverter->convert(numRows, int64Lengths.data(), address);
     auto vp = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb)->getRowVector();
     velox::test::assertEqualVectors(vector, vp);
   }

@@ -141,6 +141,12 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   # macOS. See https://github.com/boostorg/stacktrace/issues/88 and comments
   # therein.
   add_compile_definitions(_GNU_SOURCE)
+
+  # Only make default symbol visibility as 'default' when we want to build test
+  # or benchmark
+  if(BUILD_TESTS OR BUILD_BENCHMARKS)
+    add_compile_options(-fvisibility=default)
+  endif()
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KNOWN_WARNINGS}")
