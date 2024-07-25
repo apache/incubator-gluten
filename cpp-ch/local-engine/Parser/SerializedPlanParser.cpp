@@ -78,6 +78,7 @@
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Poco/Util/MapConfiguration.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
@@ -99,19 +100,7 @@ extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 extern const int INVALID_JOIN_ON_EXPRESSION;
 }
 }
-namespace
-{
-DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header)
-{
-    DB::NamesAndTypesList types;
-    for (const auto & name : header.getNames())
-    {
-        const auto * column = header.findByName(name);
-        types.push_back(DB::NameAndTypePair(column->name, column->type));
-    }
-    return types;
-}
-}
+
 namespace local_engine
 {
 using namespace DB;
@@ -358,37 +347,6 @@ IQueryPlanStep * SerializedPlanParser::addRollbackFilterHeaderStep(QueryPlanPtr 
     auto * step_ptr = expression_step.get();
     query_plan->addStep(std::move(expression_step));
     return step_ptr;
-}
-
-DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type)
-{
-    return wrapNullableType(nullable == substrait::Type_Nullability_NULLABILITY_NULLABLE, nested_type);
-}
-
-DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type)
-{
-    if (nullable && !nested_type->isNullable())
-    {
-        if (nested_type->isLowCardinalityNullable())
-        {
-            return nested_type;
-        }
-        else
-        {
-            if (!nested_type->lowCardinality())
-                return std::make_shared<DataTypeNullable>(nested_type);
-            else
-                return std::make_shared<DataTypeLowCardinality>(
-                    std::make_shared<DataTypeNullable>(
-                        dynamic_cast<const DataTypeLowCardinality &>(*nested_type).getDictionaryType()));
-        }
-    }
-
-
-    if (nullable && !nested_type->isNullable())
-        return std::make_shared<DataTypeNullable>(nested_type);
-    else
-        return nested_type;
 }
 
 void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel & root_rel)
@@ -795,16 +753,13 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
 }
 
 void SerializedPlanParser::parseFunctionArguments(
-    ActionsDAGPtr & actions_dag,
-    ActionsDAG::NodeRawConstPtrs & parsed_args,
-    const substrait::Expression_ScalarFunction & scalar_function)
+    ActionsDAGPtr & actions_dag, ActionsDAG::NodeRawConstPtrs & parsed_args, const substrait::Expression_ScalarFunction & scalar_function)
 {
     auto function_signature = function_mapping.at(std::to_string(scalar_function.function_reference()));
     const auto & args = scalar_function.arguments();
     parsed_args.reserve(args.size());
     for (const auto & arg : args)
         parsed_args.emplace_back(parseExpression(actions_dag, arg.value()));
-
 }
 
 // Convert signed integer index into unsigned integer index

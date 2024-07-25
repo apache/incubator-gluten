@@ -35,9 +35,6 @@
 namespace local_engine
 {
 
-DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type);
-DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type);
-
 std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c);
 
 class SerializedPlanParser;

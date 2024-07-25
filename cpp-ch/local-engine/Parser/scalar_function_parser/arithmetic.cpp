@@ -20,6 +20,7 @@
 #include <Functions/FunctionHelpers.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 
 namespace DB::ErrorCodes
