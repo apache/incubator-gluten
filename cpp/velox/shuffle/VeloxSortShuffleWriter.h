@@ -85,14 +85,23 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   void growArrayIfNecessary(uint32_t rows);
 
-  uint32_t newArraySize(uint32_t oldSize, uint32_t rows);
+  uint32_t newArraySize(uint32_t rows);
 
-  using ElementType = std::pair<uint64_t, RowSizeType>;
-  using SortArray = std::vector<ElementType>;
+  void initArray();
+
+  struct Element {
+    uint64_t value;
+    uint32_t rowSize;
+
+    static int compare(const void* a, const void* b) {
+      return ((Element*)a)->value - ((Element*)b)->value;
+    }
+  };
 
   // Stores compact row id -> row
-  SortArray array_;
-  facebook::velox::BufferPtr tmp_;
+  facebook::velox::BufferPtr array_;
+  Element* arrayPtr_;
+  uint32_t arraySize_;
   uint32_t offset_{0};
 
   std::list<facebook::velox::BufferPtr> pages_;
