@@ -85,13 +85,14 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   void growArrayIfNecessary(uint32_t rows);
 
-  using ElementType = std::pair<uint64_t, RowSizeType>;
-  using Allocator = facebook::velox::StlAllocator<ElementType>;
-  using SortArray = std::vector<ElementType, Allocator>;
+  uint32_t newArraySize(uint32_t oldSize, uint32_t rows);
 
-  std::unique_ptr<facebook::velox::HashStringAllocator> allocator_;
+  using ElementType = std::pair<uint64_t, RowSizeType>;
+  using SortArray = std::vector<ElementType>;
+
   // Stores compact row id -> row
   SortArray array_;
+  facebook::velox::BufferPtr tmp_;
   uint32_t offset_{0};
 
   std::list<facebook::velox::BufferPtr> pages_;
@@ -99,6 +100,8 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   char* currentPage_;
   uint32_t pageNumber_;
   uint32_t pageCursor_;
+  // For debug.
+  uint32_t currenPageSize_;
 
   // FIXME: Use configuration to replace hardcode.
   uint32_t initialSize_ = 4096;
