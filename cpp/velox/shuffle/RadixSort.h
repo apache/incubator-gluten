@@ -21,7 +21,7 @@
 
 namespace gluten {
 
-template <typename SortArray>
+template <typename Element>
 class RadixSort {
  public:
   /**
@@ -39,11 +39,11 @@ class RadixSort {
    * @return The starting index of the sorted data within the given array. We return this instead
    *         of always copying the data back to position zero for efficiency.
    */
-  static int32_t sort(SortArray& array, int64_t numRecords, int32_t startByteIndex, int32_t endByteIndex) {
+  static int32_t sort(Element* array, size_t size, int64_t numRecords, int32_t startByteIndex, int32_t endByteIndex) {
     assert(startByteIndex >= 0 && "startByteIndex should >= 0");
     assert(endByteIndex <= 7 && "endByteIndex should <= 7");
     assert(endByteIndex > startByteIndex);
-    assert(numRecords * 2 <= array.size());
+    assert(numRecords * 2 <= size);
 
     int64_t inIndex = 0;
     int64_t outIndex = numRecords;
@@ -59,7 +59,7 @@ class RadixSort {
       }
     }
 
-    return static_cast<int>(inIndex);
+    return static_cast<int32_t>(inIndex);
   }
 
  private:
@@ -75,7 +75,7 @@ class RadixSort {
    * @param outIndex the starting index where sorted output data should be written.
    */
   static void sortAtByte(
-      SortArray& array,
+      Element* array,
       int64_t numRecords,
       std::vector<int64_t>& counts,
       int32_t byteIdx,
@@ -86,7 +86,7 @@ class RadixSort {
     auto offsets = transformCountsToOffsets(counts, outIndex);
 
     for (auto offset = inIndex; offset < inIndex + numRecords; ++offset) {
-      auto bucket = (array[offset].first >> (byteIdx * 8)) & 0xff;
+      auto bucket = (array[offset].value >> (byteIdx * 8)) & 0xff;
       array[offsets[bucket]++] = array[offset];
     }
   }
@@ -103,7 +103,7 @@ class RadixSort {
    *         significant byte. If the byte does not need sorting the vector entry will be empty.
    */
   static std::vector<std::vector<int64_t>>
-  getCounts(SortArray& array, int64_t numRecords, int32_t startByteIndex, int32_t endByteIndex) {
+  getCounts(Element* array, int64_t numRecords, int32_t startByteIndex, int32_t endByteIndex) {
     std::vector<std::vector<int64_t>> counts;
     counts.resize(8);
 
@@ -112,7 +112,7 @@ class RadixSort {
     int64_t bitwiseMax = 0;
     int64_t bitwiseMin = -1L;
     for (auto offset = 0; offset < numRecords; ++offset) {
-      auto value = array[offset].first;
+      auto value = array[offset].value;
       bitwiseMax |= value;
       bitwiseMin &= value;
     }
@@ -123,7 +123,7 @@ class RadixSort {
       if (((bitsChanged >> (i * 8)) & 0xff) != 0) {
         counts[i].resize(256);
         for (auto offset = 0; offset < numRecords; ++offset) {
-          counts[i][(array[offset].first >> (i * 8)) & 0xff]++;
+          counts[i][(array[offset].value >> (i * 8)) & 0xff]++;
         }
       }
     }
