@@ -93,7 +93,16 @@ int64_t ListenableMemoryAllocator::peakBytes() const {
 void ListenableMemoryAllocator::updateUsage(int64_t size) {
   listener_->allocationChanged(size);
   usedBytes_ += size;
-  peakBytes_ = std::max(peakBytes_, usedBytes_);
+  while (true) {
+    int64_t savedPeakBytes = peakBytes_;
+    if (usedBytes_ <= savedPeakBytes) {
+      break;
+    }
+    // usedBytes_ > savedPeakBytes, update peak
+    if (peakBytes_.compare_exchange_weak(savedPeakBytes, usedBytes_)) {
+      break;
+    }
+  }
 }
 
 bool StdMemoryAllocator::allocate(int64_t size, void** out) {
