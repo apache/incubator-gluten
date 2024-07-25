@@ -42,4 +42,13 @@ public class ExpressionEvaluatorJniWrapper {
       GeneralInIterator[] batchItr,
       byte[] confArray,
       boolean materializeInput);
+
+  /**
+   * Set the temp path for writing files.
+   *
+   * @param allocatorId allocator id for current task attempt(or thread)
+   * @param path the temp path for writing files
+   */
+  public static native void injectWriteFilesTempPath(
+      long allocatorId, byte[] path, byte[] filename);
 }

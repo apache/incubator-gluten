@@ -217,6 +217,23 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
+JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_injectWriteFilesTempPath(
+    JNIEnv * env, jclass, jlong allocator_id, jbyteArray temp_path, jbyteArray filename)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    const auto query_context = local_engine::getAllocator(allocator_id)->query_context;
+
+    const auto path_array = local_engine::getByteArrayElementsSafe(env, temp_path);
+    const std::string c_path{reinterpret_cast<const char *>(path_array.elems()), static_cast<size_t>(path_array.length())};
+    query_context->setSetting(local_engine::SPARK_TASK_WRITE_TMEP_DIR, c_path);
+
+    const auto filename_array = local_engine::getByteArrayElementsSafe(env, filename);
+    const std::string c_filename{reinterpret_cast<const char *>(filename_array.elems()), static_cast<size_t>(filename_array.length())};
+    query_context->setSetting(local_engine::SPARK_TASK_WRITE_FILENAME, c_filename);
+
+    LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
     JNIEnv * env,
     jclass ,

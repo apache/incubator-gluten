@@ -20,6 +20,9 @@
 namespace local_engine
 {
 
+const std::string SubstraitFileSink::NO_PARTITION_ID{"__NO_PARTITION_ID__"};
+const std::string SubstraitPartitionedFileSink::DEFAULT_PARTITION_NAME{"__HIVE_DEFAULT_PARTITION__"};
+
 NormalFileWriter::NormalFileWriter(const OutputFormatFilePtr & file_, const DB::ContextPtr & context_)
     : FileWriterWrapper(file_), context(context_)
 {

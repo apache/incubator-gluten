@@ -14,27 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.metrics;
+#pragma once
 
-import org.apache.gluten.substrait.AggregationParams;
-import org.apache.gluten.substrait.JoinParams;
+#include <map>
+#include <string>
+#include <Core/Block.h>
+#include <Core/Names.h>
+#include <Interpreters/Context_fwd.h>
 
-import java.util.List;
+namespace substrait
+{
+class WriteRel;
+class NamedStruct;
+}
 
-public class OperatorMetrics implements IOperatorMetrics {
+namespace DB
+{
+class QueryPipelineBuilder;
+using QueryPipelineBuilderPtr = std::unique_ptr<QueryPipelineBuilder>;
+}
 
-  public List<MetricsData> metricsList;
-  public JoinParams joinParams;
-  public AggregationParams aggParams;
+namespace local_engine
+{
 
-  public long physicalWrittenBytes;
-  public long numWrittenFiles;
+void addSinkTransfrom(const DB::ContextPtr & context, const substrait::WriteRel & write_rel, const DB::QueryPipelineBuilderPtr & builder);
 
-  /** Create an instance for operator metrics. */
-  public OperatorMetrics(
-      List<MetricsData> metricsList, JoinParams joinParams, AggregationParams aggParams) {
-    this.metricsList = metricsList;
-    this.aggParams = aggParams;
-    this.joinParams = joinParams;
-  }
+/// Visible for UTs
+std::map<std::string, std::string> parse_write_parameter(const std::string & input);
+DB::Names collect_partition_cols(const DB::Block & header, const substrait::NamedStruct & struct_);
+
 }

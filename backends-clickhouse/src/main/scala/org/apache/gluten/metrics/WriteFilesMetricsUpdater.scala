@@ -14,27 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.metrics;
+package org.apache.gluten.metrics
 
-import org.apache.gluten.substrait.AggregationParams;
-import org.apache.gluten.substrait.JoinParams;
+import org.apache.spark.sql.execution.metric.SQLMetric
 
-import java.util.List;
+class WriteFilesMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
 
-public class OperatorMetrics implements IOperatorMetrics {
-
-  public List<MetricsData> metricsList;
-  public JoinParams joinParams;
-  public AggregationParams aggParams;
-
-  public long physicalWrittenBytes;
-  public long numWrittenFiles;
-
-  /** Create an instance for operator metrics. */
-  public OperatorMetrics(
-      List<MetricsData> metricsList, JoinParams joinParams, AggregationParams aggParams) {
-    this.metricsList = metricsList;
-    this.aggParams = aggParams;
-    this.joinParams = joinParams;
+  override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
+    if (opMetrics != null) {
+      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
+      metrics("physicalWrittenBytes") += operatorMetrics.physicalWrittenBytes
+      metrics("numWrittenFiles") += operatorMetrics.numWrittenFiles
+    }
   }
 }

@@ -674,8 +674,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHRegExpReplaceTransformer(substraitExprName, children, expr)
   }
 
-  def createBackendWrite(description: WriteJobDescription): BackendWrite =
-    throw new UnsupportedOperationException("createBackendWrite is not supported in ch backend.")
+  def createBackendWrite(description: WriteJobDescription): BackendWrite = ClickhouseBackendWrite(
+    description)
 
   override def createColumnarArrowEvalPythonExec(
       udfs: Seq[PythonUDF],

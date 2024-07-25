@@ -28,6 +28,7 @@ import org.apache.gluten.substrait.plan.PlanBuilder;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.internal.SQLConf;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -79,8 +80,10 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
   }
 
   public static void injectWriteFilesTempPath(String path, String fileName) {
-    throw new UnsupportedOperationException(
-        "injectWriteFilesTempPath Not supported in CHNativeExpressionEvaluator");
+    ExpressionEvaluatorJniWrapper.injectWriteFilesTempPath(
+        CHNativeMemoryAllocators.contextInstance().getNativeInstanceId(),
+        path.getBytes(StandardCharsets.UTF_8),
+        fileName.getBytes(StandardCharsets.UTF_8));
   }
 
   // Used by WholeStageTransform to create the native computing pipeline and

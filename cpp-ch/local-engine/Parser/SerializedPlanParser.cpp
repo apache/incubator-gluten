@@ -57,6 +57,7 @@
 #include <Parser/RelParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
+#include <Parser/WriteRelParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Processors/Formats/Impl/ArrowBlockOutputFormat.h>
@@ -423,12 +424,13 @@ QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
     if (!root_rel.has_root())
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "must have root rel!");
 
-    if (root_rel.root().input().has_write())
-        throw Exception(ErrorCodes::BAD_ARGUMENTS, "write pipeline is not supported yet!");
+    const bool writePipeline = root_rel.root().input().has_write();
+    const substrait::Rel & first_read_rel = writePipeline ? root_rel.root().input().write().input() : root_rel.root().input();
 
     std::list<const substrait::Rel *> rel_stack;
-    auto query_plan = parseOp(root_rel.root().input(), rel_stack);
-    adjustOutput(query_plan, root_rel);
+    auto query_plan = parseOp(first_read_rel, rel_stack);
+    if (!writePipeline)
+        adjustOutput(query_plan, root_rel);
 
 #ifndef NDEBUG
     PlanUtil::checkOuputType(*query_plan);
@@ -1339,9 +1341,16 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     Stopwatch stopwatch;
 
     const Settings & settings = context->getSettingsRef();
-    auto pipeline_builder = buildQueryPipeline(*query_plan);
+    auto builder = buildQueryPipeline(*query_plan);
 
-    QueryPipeline pipeline = QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder));
+    ///
+    assert(s_plan.relations_size() == 1);
+    const substrait::PlanRel & root_rel = s_plan.relations().at(0);
+    assert(root_rel.has_root());
+    if (root_rel.root().input().has_write())
+        addSinkTransfrom(context, root_rel.root().input().write(), builder);
+    ///
+    QueryPipeline pipeline = QueryPipelineBuilder::getPipeline(std::move(*builder));
 
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
     LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);

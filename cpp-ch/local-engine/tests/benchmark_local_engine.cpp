@@ -234,7 +234,7 @@ DB::ContextMutablePtr global_context;
         std::ifstream t(path);
         std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
         std::cout << "the plan from: " << path << std::endl;
-        auto local_executor = parser.createExecutor<false>(str);
+        auto local_executor = parser.createExecutor(str);
         state.ResumeTiming();
         while (local_executor->hasNext()) [[maybe_unused]]
             auto * x = local_executor->nextColumnar();
@@ -585,8 +585,7 @@ DB::ContextMutablePtr global_context;
             readIntBinary(x, buf);
             readIntBinary(y, buf);
             readIntBinary(z, buf);
-            std::cout << std::to_string(x) + " " << std::to_string(y) + " " << std::to_string(z) + " "
-                      << "\n";
+            std::cout << std::to_string(x) + " " << std::to_string(y) + " " << std::to_string(z) + " " << "\n";
             data_buf.seek(x, SEEK_SET);
             assert(!data_buf.eof());
             std::string data;
