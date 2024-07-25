@@ -94,7 +94,7 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   SortArray array_;
   uint32_t offset_{0};
 
-  std::vector<facebook::velox::BufferPtr> pages_;
+  std::list<facebook::velox::BufferPtr> pages_;
   std::vector<char*> pageAddresses_;
   char* currentPage_;
   uint32_t pageNumber_;

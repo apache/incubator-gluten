@@ -168,7 +168,10 @@ arrow::Status VeloxSortShuffleWriter::insert(const facebook::velox::RowVectorPtr
       ARROW_RETURN_IF(
           rows == 0, arrow::Status::Invalid("Failed to insert rows. Remaining rows: " + std::to_string(remainingRows)));
     }
+    // Spill to avoid offset_ overflow.
     RETURN_NOT_OK(maybeSpill(rows));
+    // Allocate newArray can trigger spill.
+    growArrayIfNecessary(rows);
     insertRows(row, rowOffset, rows);
     rowOffset += rows;
   }
@@ -176,8 +179,7 @@ arrow::Status VeloxSortShuffleWriter::insert(const facebook::velox::RowVectorPtr
 }
 
 void VeloxSortShuffleWriter::insertRows(facebook::velox::row::CompactRow& row, uint32_t offset, uint32_t rows) {
-  // Allocate newArray can trigger spill.
-  growArrayIfNecessary(rows);
+  VELOX_CHECK(!pages_.empty());
   for (auto i = offset; i < offset + rows; ++i) {
     auto size = row.serialize(i, currentPage_ + pageCursor_);
     array_[offset_++] = {toCompactRowId(row2Partition_[i], pageNumber_, pageCursor_), size};
@@ -218,18 +220,27 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
   }
   RETURN_NOT_OK(evictPartition(pid, begin, cur));
 
-  pageCursor_ = 0;
-  pages_.clear();
-  pageAddresses_.clear();
-
+  sortedBuffer_ = nullptr;
   offset_ = 0;
   array_.clear();
 
-  sortedBuffer_ = nullptr;
-
   if (!stopped_) {
+    auto numPages = pages_.size();
+    while (--numPages) {
+      pages_.pop_front();
+    }
+    auto& page = pages_.front();
+    memset(page->asMutable<char>(), 0, page->size());
+    pageAddresses_.resize(1);
+    pageAddresses_[0] = currentPage_;
+    pageNumber_ = 0;
+    pageCursor_ = 0;
+
     // Allocate array_ can trigger spill.
     array_.resize(initialSize_);
+  } else {
+    pages_.clear();
+    pageAddresses_.clear();
   }
   return arrow::Status::OK();
 }
