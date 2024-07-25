@@ -22,7 +22,7 @@ import org.apache.gluten.execution._
 import org.apache.gluten.metrics.IMetrics
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.plan.PlanNode
-import org.apache.gluten.substrait.rel.{LocalFilesBuilder, RawSplitInfo, SplitInfo}
+import org.apache.gluten.substrait.rel.{LocalFilesBuilder, LocalFilesNode, RawSplitInfo, SplitInfo}
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.utils._
 import org.apache.gluten.utils.iterator.Iterators
@@ -81,14 +81,14 @@ class VeloxIteratorApi extends IteratorApi with Logging {
         GlutenRawPartition(
           index,
           planByteArray,
-          splitInfos.map(_.asInstanceOf[RawSplitInfo])
+          splitInfos
         )
     }
   }
 
-  private def toSplitInfoByteArray(splitInfos: Seq[RawSplitInfo]): Array[Array[Byte]] = {
+  private def toSplitInfoByteArray(splitInfos: Seq[SplitInfo]): Array[Array[Byte]] = {
     splitInfos.map {
-      splitInfo =>
+      case rawSplitInfo: RawSplitInfo =>
         val (
           paths,
           starts,
@@ -98,12 +98,12 @@ class VeloxIteratorApi extends IteratorApi with Logging {
           partitionColumns,
           metadataColumns) =
           constructSplitInfo(
-            splitInfo.getPartitionSchema,
-            splitInfo.getFilePartition.files,
-            splitInfo.getMetadataColumn.asScala)
+            rawSplitInfo.getPartitionSchema,
+            rawSplitInfo.getFilePartition.files,
+            rawSplitInfo.getMetadataColumn.asScala)
         LocalFilesBuilder
           .makeLocalFiles(
-            splitInfo.getFilePartition.index,
+            rawSplitInfo.getFilePartition.index,
             paths,
             starts,
             lengths,
@@ -111,12 +111,13 @@ class VeloxIteratorApi extends IteratorApi with Logging {
             modificationTimes,
             partitionColumns,
             metadataColumns,
-            splitInfo.getFileFormat,
+            rawSplitInfo.getFileFormat,
             new JArrayList[String](),
-            splitInfo.getProperties
+            rawSplitInfo.getProperties
           )
           .toProtobuf
           .toByteArray
+      case localFilesNode: LocalFilesNode => localFilesNode.toProtobuf.toByteArray
     }.toArray
   }
 
