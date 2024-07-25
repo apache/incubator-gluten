@@ -322,9 +322,11 @@ void VeloxSortShuffleWriter::growArrayIfNecessary(uint32_t rows) {
   if (arraySize != array_.size()) {
     auto newArray{SortArray{Allocator(allocator_.get())}};
     newArray.resize(arraySize);
-    std::copy(array_.begin(), array_.begin() + offset_, newArray.begin());
-    array_.clear();
-    array_ = std::move(newArray);
+    if (offset_ > 0) {
+      std::copy(array_.begin(), array_.begin() + offset_, newArray.begin());
+      array_.clear();
+      array_ = std::move(newArray);
+    }
   }
 }
 
