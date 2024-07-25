@@ -16,8 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.velox
 
-import org.apache.gluten.GlutenConfig
-import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.columnarbatch.{ColumnarBatches, ColumnarBatchJniWrapper}
 import org.apache.gluten.datasource.DatasourceJniWrapper
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.exec.Runtimes
@@ -31,7 +30,6 @@ import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
-import org.apache.spark.util.TaskResources
 
 import com.google.common.base.Preconditions
 import org.apache.arrow.c.ArrowSchema
@@ -74,29 +72,26 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
       cSchema.close()
     }
 
-    // FIXME: remove this once we support push-based write.
-    val queueSize = context.getConfiguration.getInt(GlutenConfig.VELOX_WRITER_QUEUE_SIZE.key, 64)
-
-    val writeQueue =
-      new VeloxWriteQueue(
-        TaskResources.getLocalTaskContext(),
-        dsHandle,
-        arrowSchema,
-        allocator,
-        datasourceJniWrapper,
-        filePath,
-        queueSize)
-
     new OutputWriter {
       override def write(row: InternalRow): Unit = {
         val batch = row.asInstanceOf[FakeRow].batch
         Preconditions.checkState(ColumnarBatches.isLightBatch(batch))
         ColumnarBatches.retain(batch)
-        writeQueue.enqueue(batch)
+        val batchHandler = {
+          if (batch.numCols == 0) {
+            // the operation will find a zero column batch from a task-local pool
+            ColumnarBatchJniWrapper.create(runtime).getForEmptySchema(batch.numRows)
+          } else {
+            val offloaded =
+              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
+            ColumnarBatches.getNativeHandle(offloaded)
+          }
+        }
+        datasourceJniWrapper.writeBatch(dsHandle, batchHandler)
+        batch.close()
       }
 
       override def close(): Unit = {
-        writeQueue.close()
         datasourceJniWrapper.close(dsHandle)
       }
 

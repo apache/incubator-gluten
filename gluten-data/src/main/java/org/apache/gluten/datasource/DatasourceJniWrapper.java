@@ -19,7 +19,6 @@ package org.apache.gluten.datasource;
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.RuntimeAware;
 import org.apache.gluten.init.JniUtils;
-import org.apache.gluten.vectorized.ColumnarBatchInIterator;
 
 import org.apache.spark.sql.execution.datasources.BlockStripes;
 
@@ -53,7 +52,7 @@ public class DatasourceJniWrapper implements RuntimeAware {
 
   public native void close(long dsHandle);
 
-  public native void write(long dsHandle, ColumnarBatchInIterator iterator);
+  public native void writeBatch(long dsHandle, long batchHandler);
 
   public native BlockStripes splitBlockByPartitionAndBucket(
       long blockAddress, int[] partitionColIndice, boolean hasBucket);
