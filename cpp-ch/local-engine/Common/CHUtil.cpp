@@ -569,7 +569,7 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
     if (path_prefix.empty() && path_suffix.empty())
         return changed_paths;
     Poco::Util::AbstractConfiguration::Keys disks;
-    std::unordered_set<String> disk_types = {"s3", "hdfs_gluten", "cache"};
+    std::unordered_set<String> disk_types = {"s3_gluten", "hdfs_gluten", "cache"};
     config.keys("storage_configuration.disks", disks);
 
     std::ranges::for_each(
@@ -590,7 +590,7 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
                     changed_paths.emplace_back(final_path);
                 }
             }
-            else if (disk_type == "s3" || disk_type == "hdfs_gluten")
+            else if (disk_type == "s3_gluten" || disk_type == "hdfs_gluten")
             {
                 String metadata_path = config.getString(disk_prefix + ".metadata_path", "");
                 if (!metadata_path.empty())
