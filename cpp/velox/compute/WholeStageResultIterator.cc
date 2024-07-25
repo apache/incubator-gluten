@@ -321,7 +321,8 @@ void WholeStageResultIterator::collectMetrics() {
     return;
   }
 
-  if (veloxCfg_->get<bool>(kDebugModeEnabled, false)) {
+  if (veloxCfg_->get<bool>(kDebugModeEnabled, false) ||
+      veloxCfg_->get<bool>(kShowTaskMetricsWhenFinished, kShowTaskMetricsWhenFinishedDefault)) {
     auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), task_->taskStats(), true);
     std::ostringstream oss;
     oss << "Native Plan with stats for: " << taskInfo_;
