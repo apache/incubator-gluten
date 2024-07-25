@@ -78,10 +78,13 @@ arrow::Status VeloxSortShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, i
 arrow::Status VeloxSortShuffleWriter::stop() {
   ARROW_RETURN_IF(evictState_ == EvictState::kUnevictable, arrow::Status::Invalid("Unevictable state in stop."));
 
-  EvictGuard evictGuard{evictState_};
-
   stopped_ = true;
-  RETURN_NOT_OK(evictAllPartitions());
+  if (offset_ > 0) {
+    RETURN_NOT_OK(evictAllPartitions());
+  }
+  array_.clear();
+  pages_.clear();
+  pageAddresses_.clear();
   RETURN_NOT_OK(partitionWriter_->stop(&metrics_));
   return arrow::Status::OK();
 }
@@ -91,7 +94,6 @@ arrow::Status VeloxSortShuffleWriter::reclaimFixedSize(int64_t size, int64_t* ac
     *actual = 0;
     return arrow::Status::OK();
   }
-  EvictGuard evictGuard{evictState_};
   auto beforeReclaim = veloxPool_->usedBytes();
   RETURN_NOT_OK(evictAllPartitions());
   *actual = beforeReclaim - veloxPool_->usedBytes();
@@ -189,13 +191,14 @@ void VeloxSortShuffleWriter::insertRows(facebook::velox::row::CompactRow& row, u
 
 arrow::Status VeloxSortShuffleWriter::maybeSpill(int32_t nextRows) {
   if ((uint64_t)offset_ + nextRows > std::numeric_limits<uint32_t>::max()) {
-    EvictGuard evictGuard{evictState_};
     RETURN_NOT_OK(evictAllPartitions());
   }
   return arrow::Status::OK();
 }
 
 arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
+  EvictGuard evictGuard{evictState_};
+
   auto numRecords = offset_;
   int32_t begin = 0;
   {
@@ -221,10 +224,9 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
   RETURN_NOT_OK(evictPartition(pid, begin, cur));
 
   sortedBuffer_ = nullptr;
-  offset_ = 0;
-  array_.clear();
 
   if (!stopped_) {
+    // Preserve the last page for use.
     auto numPages = pages_.size();
     while (--numPages) {
       pages_.pop_front();
@@ -236,11 +238,10 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
     pageNumber_ = 0;
     pageCursor_ = 0;
 
+    offset_ = 0;
+    array_.clear();
     // Allocate array_ can trigger spill.
     array_.resize(initialSize_);
-  } else {
-    pages_.clear();
-    pageAddresses_.clear();
   }
   return arrow::Status::OK();
 }
