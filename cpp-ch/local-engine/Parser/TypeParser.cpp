@@ -247,9 +247,6 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
     for (const auto & token : tokenizer)
         low_card_columns.insert(token);
 
-    assert(struct_.column_types_size() == struct_.names_size());
-    assert(struct_.column_types_size() == struct_.struct_().types_size());
-
     DB::ColumnsWithTypeAndName internal_cols;
     internal_cols.reserve(struct_.names_size());
     std::list<std::string> field_names;
