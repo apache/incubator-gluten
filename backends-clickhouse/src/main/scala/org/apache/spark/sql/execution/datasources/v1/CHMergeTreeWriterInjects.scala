@@ -170,22 +170,10 @@ object CHMergeTreeWriterInjects {
       primaryKeyOption
     )
 
-    val lowCardKey = lowCardKeyOption match {
-      case Some(keys) => keys.mkString(",")
-      case None => ""
-    }
-    val minmaxIndexKey = minmaxIndexKeyOption match {
-      case Some(keys) => keys.mkString(",")
-      case None => ""
-    }
-    val bfIndexKey = bfIndexKeyOption match {
-      case Some(keys) => keys.mkString(",")
-      case None => ""
-    }
-    val setIndexKey = setIndexKeyOption match {
-      case Some(keys) => keys.mkString(",")
-      case None => ""
-    }
+    val lowCardKey = MergeTreeDeltaUtil.columnsToStr(lowCardKeyOption)
+    val minmaxIndexKey = MergeTreeDeltaUtil.columnsToStr(minmaxIndexKeyOption)
+    val bfIndexKey = MergeTreeDeltaUtil.columnsToStr(bfIndexKeyOption)
+    val setIndexKey = MergeTreeDeltaUtil.columnsToStr(setIndexKeyOption)
 
     val substraitContext = new SubstraitContext
     val extensionTableNode = ExtensionTableBuilder.makeExtensionTable(

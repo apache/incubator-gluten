@@ -16,8 +16,11 @@
  */
 package org.apache.spark.sql.delta.catalog
 
+import org.apache.gluten.expression.ConverterUtils.normalizeColName
+
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable}
 import org.apache.spark.sql.delta.Snapshot
+import org.apache.spark.sql.execution.datasources.utils.MergeTreeDeltaUtil
 
 import org.apache.hadoop.fs.Path
 
@@ -153,33 +156,15 @@ trait ClickHouseTableV2Base {
     configs.toMap
   }
 
-  def primaryKey(): String = primaryKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
+  def primaryKey(): String = MergeTreeDeltaUtil.columnsToStr(primaryKeyOption)
 
   def orderByKey(): String = orderByKeyOption match {
-    case Some(keys) => keys.mkString(",")
+    case Some(keys) => keys.map(normalizeColName).mkString(",")
     case None => "tuple()"
   }
 
-  def lowCardKey(): String = lowCardKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
-
-  def minmaxIndexKey(): String = minmaxIndexKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
-
-  def bfIndexKey(): String = bfIndexKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
-
-  def setIndexKey(): String = setIndexKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
+  def lowCardKey(): String = MergeTreeDeltaUtil.columnsToStr(lowCardKeyOption)
+  def minmaxIndexKey(): String = MergeTreeDeltaUtil.columnsToStr(minmaxIndexKeyOption)
+  def bfIndexKey(): String = MergeTreeDeltaUtil.columnsToStr(bfIndexKeyOption)
+  def setIndexKey(): String = MergeTreeDeltaUtil.columnsToStr(setIndexKeyOption)
 }
