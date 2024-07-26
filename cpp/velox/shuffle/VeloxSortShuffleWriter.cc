@@ -204,7 +204,7 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
   int32_t begin = 0;
   {
     ScopedTimer timer(&sortTime_);
-    if (useRadixSort_) {
+    if (options_.useRadixSort) {
       begin = RadixSort<Element>::sort(
           arrayPtr_, arraySize_, numRecords, kPartitionIdStartByteIndex, kPartitionIdEndByteIndex);
     } else {
@@ -344,16 +344,16 @@ void VeloxSortShuffleWriter::growArrayIfNecessary(uint32_t rows) {
 
 uint32_t VeloxSortShuffleWriter::newArraySize(uint32_t rows) {
   auto newSize = arraySize_;
-  auto usableCapacity = useRadixSort_ ? newSize / 2 : newSize;
+  auto usableCapacity = options_.useRadixSort ? newSize / 2 : newSize;
   while (offset_ + rows > usableCapacity) {
     newSize <<= 1;
-    usableCapacity = useRadixSort_ ? newSize / 2 : newSize;
+    usableCapacity = options_.useRadixSort ? newSize / 2 : newSize;
   }
   return newSize;
 }
 
 void VeloxSortShuffleWriter::initArray() {
-  arraySize_ = initialSize_;
+  arraySize_ = options_.sortBufferInitialSize;
   array_ = facebook::velox::AlignedBuffer::allocate<char>(arraySize_ * sizeof(Element), veloxPool_.get());
   arrayPtr_ = array_->asMutable<Element>();
 }

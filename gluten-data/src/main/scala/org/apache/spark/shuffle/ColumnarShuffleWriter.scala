@@ -24,7 +24,7 @@ import org.apache.gluten.vectorized._
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.config.SHUFFLE_COMPRESS
+import org.apache.spark.internal.config.{SHUFFLE_COMPRESS, SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -151,6 +151,8 @@ class ColumnarShuffleWriter[K, V](
             compressionLevel,
             bufferCompressThreshold,
             GlutenConfig.getConf.columnarShuffleCompressionMode,
+            conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
+            conf.get(SHUFFLE_SORT_USE_RADIXSORT),
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,
