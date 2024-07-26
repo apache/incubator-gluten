@@ -112,10 +112,6 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   // For debug.
   uint32_t currenPageSize_;
 
-  // FIXME: Use configuration to replace hardcode.
-  uint32_t initialSize_ = 4096;
-  bool useRadixSort_ = true;
-
   facebook::velox::BufferPtr sortedBuffer_;
 
   // Row ID -> Partition ID
