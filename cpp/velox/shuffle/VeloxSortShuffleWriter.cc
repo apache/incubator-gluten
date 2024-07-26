@@ -161,7 +161,7 @@ arrow::Status VeloxSortShuffleWriter::insert(const facebook::velox::RowVectorPtr
     auto rows = maxRowsToInsert(rowOffset, remainingRows);
     if (rows == 0) {
       auto minSizeRequired = fixedRowSize_ ? fixedRowSize_.value() : rowSizes_[rowOffset + 1] - rowSizes_[rowOffset];
-      acquireNewBuffer(memLimit, minSizeRequired);
+      acquireNewBuffer((uint64_t)memLimit, minSizeRequired);
       rows = maxRowsToInsert(rowOffset, remainingRows);
       ARROW_RETURN_IF(
           rows == 0, arrow::Status::Invalid("Failed to insert rows. Remaining rows: " + std::to_string(remainingRows)));
@@ -277,7 +277,7 @@ uint32_t VeloxSortShuffleWriter::maxRowsToInsert(uint32_t offset, uint32_t rows)
   return iter - beginIter;
 }
 
-void VeloxSortShuffleWriter::acquireNewBuffer(int64_t memLimit, uint64_t minSizeRequired) {
+void VeloxSortShuffleWriter::acquireNewBuffer(uint64_t memLimit, uint64_t minSizeRequired) {
   auto size = std::max(std::min<uint64_t>(memLimit >> 2, 64UL * 1024 * 1024), minSizeRequired);
   // Allocating new buffer can trigger spill.
   auto newBuffer = facebook::velox::AlignedBuffer::allocate<char>(size, veloxPool_.get(), 0);
