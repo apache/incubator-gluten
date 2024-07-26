@@ -92,11 +92,9 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   struct Element {
     uint64_t value;
     uint32_t rowSize;
-
-    static int compare(const void* a, const void* b) {
-      return ((Element*)a)->value - ((Element*)b)->value;
-    }
   };
+
+  static int compare(const void* a, const void* b);
 
   // Stores compact row id -> row
   facebook::velox::BufferPtr array_;

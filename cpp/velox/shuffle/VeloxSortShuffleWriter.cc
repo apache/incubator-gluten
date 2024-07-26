@@ -208,7 +208,8 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
       begin = RadixSort<Element>::sort(
           arrayPtr_, arraySize_, numRecords, kPartitionIdStartByteIndex, kPartitionIdEndByteIndex);
     } else {
-      qsort(arrayPtr_, arraySize_, sizeof(Element), Element::compare);
+      auto ptr = arrayPtr_;
+      qsort(ptr, numRecords, sizeof(Element), compare);
     }
   }
 
@@ -368,5 +369,10 @@ int64_t VeloxSortShuffleWriter::totalSortTime() const {
 
 int64_t VeloxSortShuffleWriter::totalC2RTime() const {
   return c2rTime_;
+}
+
+int VeloxSortShuffleWriter::compare(const void* a, const void* b) {
+  // No same values.
+  return ((Element*)a)->value > ((Element*)b)->value ? 1 : -1;
 }
 } // namespace gluten

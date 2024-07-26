@@ -68,12 +68,13 @@ struct ShuffleTestParams {
   arrow::Compression::type compressionType;
   int32_t compressionThreshold;
   int32_t mergeBufferSize;
+  bool useRadixSort;
 
   std::string toString() const {
     std::ostringstream out;
     out << "shuffleWriterType = " << shuffleWriterType << ", partitionWriterType = " << partitionWriterType
         << ", compressionType = " << compressionType << ", compressionThreshold = " << compressionThreshold
-        << ", mergeBufferSize = " << mergeBufferSize;
+        << ", mergeBufferSize = " << mergeBufferSize << ", useRadixSort = " << (useRadixSort ? "true" : "false");
     return out.str();
   }
 };
@@ -250,6 +251,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     RETURN_NOT_OK(VeloxShuffleWriterTestBase::initShuffleWriterOptions());
 
     ShuffleTestParams params = GetParam();
+    shuffleWriterOptions_.useRadixSort = params.useRadixSort;
     partitionWriterOptions_.compressionType = params.compressionType;
     switch (partitionWriterOptions_.compressionType) {
       case arrow::Compression::UNCOMPRESSED:
