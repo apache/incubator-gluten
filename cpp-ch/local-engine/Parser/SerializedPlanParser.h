@@ -35,9 +35,6 @@
 namespace local_engine
 {
 
-DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type);
-DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type);
-
 std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c);
 
 class SerializedPlanParser;
@@ -83,20 +80,16 @@ private:
     friend class MergeTreeRelParser;
     friend class ProjectRelParser;
 
-    std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan);
-
-    DB::QueryPlanPtr parse(const std::string_view plan);
-    DB::QueryPlanPtr parse(const substrait::Plan & plan);
+    std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan);
 
 public:
     explicit SerializedPlanParser(const ContextPtr & context);
 
-    /// UT only
-    DB::QueryPlanPtr parseJson(const std::string_view & json_plan);
-    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan) { return createExecutor(parse((plan))); }
+    /// visible for UT
+    DB::QueryPlanPtr parse(const substrait::Plan & plan);
+    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan) { return createExecutor(parse(plan), plan); }
+    DB::QueryPipelineBuilderPtr buildQueryPipeline(DB::QueryPlan & query_plan);
     ///
-
-    template <bool JsonPlan>
     std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
 
     DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
@@ -104,9 +97,6 @@ public:
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
     static bool isReadFromMergeTree(const substrait::ReadRel & rel);
-
-    static substrait::ReadRel::LocalFiles parseLocalFiles(const std::string & split_info);
-    static substrait::ReadRel::ExtensionTable parseExtensionTable(const std::string & split_info);
 
     void addInputIter(jobject iter, bool materialize_input)
     {
@@ -147,7 +137,6 @@ public:
     std::vector<QueryPlanPtr> extra_plan_holder;
 
 private:
-    static DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header);
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
     void
     collectJoinKeys(const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start);
@@ -227,12 +216,6 @@ public:
     const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
 };
 
-template <bool JsonPlan>
-std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)
-{
-    return createExecutor(JsonPlan ? parseJson(plan) : parse(plan));
-}
-
 struct SparkBuffer
 {
     char * address;
@@ -242,7 +225,7 @@ struct SparkBuffer
 class LocalExecutor : public BlockIterator
 {
 public:
-    LocalExecutor(const ContextPtr & context_, QueryPlanPtr query_plan, QueryPipeline && pipeline, const Block & header_);
+    LocalExecutor(QueryPlanPtr query_plan, QueryPipeline && pipeline, bool dump_pipeline_ = false);
     ~LocalExecutor();
 
     SparkRowInfoPtr next();
@@ -266,7 +249,7 @@ private:
     QueryPipeline query_pipeline;
     std::unique_ptr<PullingPipelineExecutor> executor;
     Block header;
-    ContextPtr context;
+    bool dump_pipeline;
     std::unique_ptr<CHColumnToSparkRow> ch_column_to_spark_row;
     std::unique_ptr<SparkBuffer> spark_buffer;
     QueryPlanPtr current_query_plan;

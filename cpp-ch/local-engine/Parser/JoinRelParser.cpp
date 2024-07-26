@@ -34,7 +34,6 @@
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/CHUtil.h>
 
-#include <Poco/Logger.h>
 #include <Common/logger_useful.h>
 
 

@@ -16,28 +16,31 @@
  */
 #pragma once
 
-#include "config.h"
+#include <map>
+#include <string>
+#include <Core/Block.h>
+#include <Core/Names.h>
+#include <Interpreters/Context_fwd.h>
 
-#if USE_PARQUET
+namespace substrait
+{
+class WriteRel;
+class NamedStruct;
+}
 
-#include <memory>
-#include <IO/WriteBuffer.h>
-#include <Storages/Output/OutputFormatFile.h>
+namespace DB
+{
+class QueryPipelineBuilder;
+using QueryPipelineBuilderPtr = std::unique_ptr<QueryPipelineBuilder>;
+}
 
 namespace local_engine
 {
-class ParquetOutputFormatFile : public OutputFormatFile
-{
-public:
-    explicit ParquetOutputFormatFile(
-        DB::ContextPtr context_,
-        const std::string & file_uri_,
-        const WriteBufferBuilderPtr & write_buffer_builder_,
-        const std::vector<std::string> & preferred_column_names_);
-    ~ParquetOutputFormatFile() override = default;
 
-    OutputFormatFile::OutputFormatPtr createOutputFormat(const DB::Block & header) override;
-};
+void addSinkTransfrom(const DB::ContextPtr & context, const substrait::WriteRel & write_rel, const DB::QueryPipelineBuilderPtr & builder);
+
+/// Visible for UTs
+std::map<std::string, std::string> parse_write_parameter(const std::string & input);
+DB::Names collect_partition_cols(const DB::Block & header, const substrait::NamedStruct & struct_);
 
 }
-#endif

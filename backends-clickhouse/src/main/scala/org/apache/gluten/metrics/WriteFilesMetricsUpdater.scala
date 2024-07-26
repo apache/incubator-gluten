@@ -14,30 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+package org.apache.gluten.metrics
 
-#include "config.h"
+import org.apache.spark.sql.execution.metric.SQLMetric
 
-#if USE_PARQUET
+class WriteFilesMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
 
-#include <memory>
-#include <IO/WriteBuffer.h>
-#include <Storages/Output/OutputFormatFile.h>
-
-namespace local_engine
-{
-class ParquetOutputFormatFile : public OutputFormatFile
-{
-public:
-    explicit ParquetOutputFormatFile(
-        DB::ContextPtr context_,
-        const std::string & file_uri_,
-        const WriteBufferBuilderPtr & write_buffer_builder_,
-        const std::vector<std::string> & preferred_column_names_);
-    ~ParquetOutputFormatFile() override = default;
-
-    OutputFormatFile::OutputFormatPtr createOutputFormat(const DB::Block & header) override;
-};
-
+  override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
+    if (opMetrics != null) {
+      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
+      metrics("physicalWrittenBytes") += operatorMetrics.physicalWrittenBytes
+      metrics("numWrittenFiles") += operatorMetrics.numWrittenFiles
+    }
+  }
 }
-#endif

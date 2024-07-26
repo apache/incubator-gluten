@@ -28,6 +28,7 @@
 #include <Parsers/parseQuery.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/Exception.h>
 
 namespace fs = std::filesystem;

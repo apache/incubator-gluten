@@ -42,6 +42,8 @@ namespace local_engine
 static const String MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE = "mergetree.insert_without_local_storage";
 static const String MERGETREE_MERGE_AFTER_INSERT = "mergetree.merge_after_insert";
 static const std::string DECIMAL_OPERATIONS_ALLOW_PREC_LOSS = "spark.sql.decimalOperations.allowPrecisionLoss";
+static const std::string SPARK_TASK_WRITE_TMEP_DIR = "gluten.write.temp.dir";
+static const std::string SPARK_TASK_WRITE_FILENAME = "gluten.write.file.name";
 
 static const std::unordered_set<String> BOOL_VALUE_SETTINGS{
     MERGETREE_MERGE_AFTER_INSERT, MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, DECIMAL_OPERATIONS_ALLOW_PREC_LOSS};
@@ -151,7 +153,7 @@ public:
     /// Initialize two kinds of resources
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
-    static void init(const std::string & plan);
+    static void init(const std::string_view plan);
     static void updateConfig(const DB::ContextMutablePtr &, const std::string_view);
 
 
@@ -210,7 +212,7 @@ private:
     static std::vector<String> wrapDiskPathConfig(const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config);
 
 
-    static std::map<std::string, std::string> getBackendConfMap(const std::string_view plan);
+    static std::map<std::string, std::string> getBackendConfMap(std::string_view plan);
 
     inline static std::once_flag init_flag;
     inline static Poco::Logger * logger;

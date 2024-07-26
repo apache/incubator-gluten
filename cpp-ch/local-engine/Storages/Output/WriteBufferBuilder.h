@@ -27,7 +27,7 @@ namespace local_engine
 class WriteBufferBuilder
 {
 public:
-    explicit WriteBufferBuilder(DB::ContextPtr context_) : context(context_) { }
+    explicit WriteBufferBuilder(const DB::ContextPtr & context_) : context(context_) { }
     virtual ~WriteBufferBuilder() = default;
     /// build a new write buffer
     virtual std::unique_ptr<DB::WriteBuffer> build(const std::string & file_uri_) = 0;
@@ -43,9 +43,9 @@ class WriteBufferBuilderFactory : public boost::noncopyable
 public:
     using NewBuilder = std::function<WriteBufferBuilderPtr(DB::ContextPtr)>;
     static WriteBufferBuilderFactory & instance();
-    WriteBufferBuilderPtr createBuilder(const String & schema, DB::ContextPtr context);
+    WriteBufferBuilderPtr createBuilder(const String & schema, const DB::ContextPtr & context);
 
-    void registerBuilder(const String & schema, NewBuilder newer);
+    void registerBuilder(const String & schema, const NewBuilder & newer);
 
 private:
     std::map<String, NewBuilder> builders;

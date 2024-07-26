@@ -55,7 +55,9 @@
 #include <Parser/FunctionParser.h>
 #include <Parser/MergeTreeRelParser.h>
 #include <Parser/RelParser.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
+#include <Parser/WriteRelParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Processors/Formats/Impl/ArrowBlockOutputFormat.h>
@@ -71,11 +73,13 @@
 #include <QueryPipeline/printPipeline.h>
 #include <Storages/CustomStorageMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
+#include <Storages/Output/FileWriterWrappers.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Poco/Util/MapConfiguration.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
@@ -280,7 +284,7 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
     if (rel.has_local_files())
         local_files = rel.local_files();
     else
-        local_files = parseLocalFiles(split_infos.at(nextSplitInfoIndex()));
+        local_files = BinaryToMessage<substrait::ReadRel::LocalFiles>(split_infos.at(nextSplitInfoIndex()));
     auto source = std::make_shared<SubstraitFileSource>(context, header, local_files);
     auto source_pipe = Pipe(source);
     auto source_step = std::make_unique<SubstraitFileSourceStep>(context, std::move(source_pipe), "substrait local files");
@@ -346,121 +350,99 @@ IQueryPlanStep * SerializedPlanParser::addRollbackFilterHeaderStep(QueryPlanPtr 
     return step_ptr;
 }
 
-DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type)
+void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel & root_rel)
 {
-    return wrapNullableType(nullable == substrait::Type_Nullability_NULLABILITY_NULLABLE, nested_type);
-}
-
-DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type)
-{
-    if (nullable && !nested_type->isNullable())
+    if (root_rel.root().names_size())
     {
-        if (nested_type->isLowCardinalityNullable())
-        {
-            return nested_type;
-        }
-        else
-        {
-            if (!nested_type->lowCardinality())
-                return std::make_shared<DataTypeNullable>(nested_type);
-            else
-                return std::make_shared<DataTypeLowCardinality>(
-                    std::make_shared<DataTypeNullable>(
-                        dynamic_cast<const DataTypeLowCardinality &>(*nested_type).getDictionaryType()));
-        }
+        ActionsDAGPtr actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(query_plan->getCurrentDataStream().header));
+        NamesWithAliases aliases;
+        auto cols = query_plan->getCurrentDataStream().header.getNamesAndTypesList();
+        if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "Missmatch result columns size.");
+        for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
+            aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
+        actions_dag->project(aliases);
+        auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), actions_dag);
+        expression_step->setStepDescription("Rename Output");
+        query_plan->addStep(std::move(expression_step));
     }
 
-
-    if (nullable && !nested_type->isNullable())
-        return std::make_shared<DataTypeNullable>(nested_type);
-    else
-        return nested_type;
+    // fixes: issue-1874, to keep the nullability as expected.
+    const auto & output_schema = root_rel.root().output_schema();
+    if (output_schema.types_size())
+    {
+        auto original_header = query_plan->getCurrentDataStream().header;
+        const auto & original_cols = original_header.getColumnsWithTypeAndName();
+        if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "Mismatch output schema");
+        bool need_final_project = false;
+        ColumnsWithTypeAndName final_cols;
+        for (int i = 0; i < output_schema.types_size(); ++i)
+        {
+            const auto & col = original_cols[i];
+            auto type = TypeParser::parseType(output_schema.types(i));
+            // At present, we only check nullable mismatch.
+            // intermediate aggregate data is special, no check here.
+            if (type->isNullable() != col.type->isNullable() && !typeid_cast<const DataTypeAggregateFunction *>(col.type.get()))
+            {
+                if (type->isNullable())
+                {
+                    auto wrapped = wrapNullableType(true, col.type);
+                    final_cols.emplace_back(type->createColumn(), wrapped, col.name);
+                    need_final_project = !wrapped->equals(*col.type);
+                }
+                else
+                {
+                    final_cols.emplace_back(type->createColumn(), removeNullable(col.type), col.name);
+                    need_final_project = true;
+                }
+            }
+            else
+            {
+                final_cols.push_back(col);
+            }
+        }
+        if (need_final_project)
+        {
+            ActionsDAGPtr final_project
+                = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
+            QueryPlanStepPtr final_project_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), final_project);
+            final_project_step->setStepDescription("Project for output schema");
+            query_plan->addStep(std::move(final_project_step));
+        }
+    }
 }
 
 QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
 {
     logDebugMessage(plan, "substrait plan");
     parseExtensions(plan.extensions());
-    if (plan.relations_size() == 1)
-    {
-        auto root_rel = plan.relations().at(0);
-        if (!root_rel.has_root())
-        {
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "must have root rel!");
-        }
-        std::list<const substrait::Rel *> rel_stack;
-        auto query_plan = parseOp(root_rel.root().input(), rel_stack);
-        if (root_rel.root().names_size())
-        {
-            ActionsDAGPtr actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(query_plan->getCurrentDataStream().header));
-            NamesWithAliases aliases;
-            auto cols = query_plan->getCurrentDataStream().header.getNamesAndTypesList();
-            if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
-            {
-                throw Exception(ErrorCodes::LOGICAL_ERROR, "Missmatch result columns size.");
-            }
-            for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
-            {
-                aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
-            }
-            actions_dag->project(aliases);
-            auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), actions_dag);
-            expression_step->setStepDescription("Rename Output");
-            query_plan->addStep(std::move(expression_step));
-        }
-
-        // fixes: issue-1874, to keep the nullability as expected.
-        const auto & output_schema = root_rel.root().output_schema();
-        if (output_schema.types_size())
-        {
-            auto original_header = query_plan->getCurrentDataStream().header;
-            const auto & original_cols = original_header.getColumnsWithTypeAndName();
-            if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
-            {
-                throw Exception(ErrorCodes::LOGICAL_ERROR, "Mismatch output schema");
-            }
-            bool need_final_project = false;
-            ColumnsWithTypeAndName final_cols;
-            for (int i = 0; i < output_schema.types_size(); ++i)
-            {
-                const auto & col = original_cols[i];
-                auto type = TypeParser::parseType(output_schema.types(i));
-                // At present, we only check nullable mismatch.
-                // intermediate aggregate data is special, no check here.
-                if (type->isNullable() != col.type->isNullable() && !typeid_cast<const DataTypeAggregateFunction *>(col.type.get()))
-                {
-                    if (type->isNullable())
-                    {
-                        auto wrapped = wrapNullableType(true, col.type);
-                        final_cols.emplace_back(type->createColumn(), wrapped, col.name);
-                        need_final_project = !wrapped->equals(*col.type);
-                    }
-                    else
-                    {
-                        final_cols.emplace_back(type->createColumn(), removeNullable(col.type), col.name);
-                        need_final_project = true;
-                    }
-                }
-                else
-                {
-                    final_cols.push_back(col);
-                }
-            }
-            if (need_final_project)
-            {
-                ActionsDAGPtr final_project
-                    = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
-                QueryPlanStepPtr final_project_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), final_project);
-                final_project_step->setStepDescription("Project for output schema");
-                query_plan->addStep(std::move(final_project_step));
-            }
-        }
-        return query_plan;
-    }
-    else
-    {
+    if (plan.relations_size() != 1)
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "too many relations found");
+
+    const substrait::PlanRel & root_rel = plan.relations().at(0);
+    if (!root_rel.has_root())
+        throw Exception(ErrorCodes::BAD_ARGUMENTS, "must have root rel!");
+
+    const bool writePipeline = root_rel.root().input().has_write();
+    const substrait::Rel & first_read_rel = writePipeline ? root_rel.root().input().write().input() : root_rel.root().input();
+
+    std::list<const substrait::Rel *> rel_stack;
+    auto query_plan = parseOp(first_read_rel, rel_stack);
+    if (!writePipeline)
+        adjustOutput(query_plan, root_rel);
+
+#ifndef NDEBUG
+    PlanUtil::checkOuputType(*query_plan);
+#endif
+
+    if (auto * logger = &Poco::Logger::get("SerializedPlanParser"); logger->debug())
+    {
+        auto out = PlanUtil::explainPlan(*query_plan);
+        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
     }
+
+    return query_plan;
 }
 
 QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
@@ -513,7 +495,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
                 if (read.has_extension_table())
                     extension_table = read.extension_table();
                 else
-                    extension_table = parseExtensionTable(split_infos.at(nextSplitInfoIndex()));
+                    extension_table = BinaryToMessage<substrait::ReadRel::ExtensionTable>(split_infos.at(nextSplitInfoIndex()));
 
                 MergeTreeRelParser mergeTreeParser(this, context);
                 query_plan = mergeTreeParser.parseReadRel(std::make_unique<QueryPlan>(), read, extension_table);
@@ -552,17 +534,6 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
     }
 
     return query_plan;
-}
-
-NamesAndTypesList SerializedPlanParser::blockToNameAndTypeList(const Block & header)
-{
-    NamesAndTypesList types;
-    for (const auto & name : header.getNames())
-    {
-        const auto * column = header.findByName(name);
-        types.push_back(NameAndTypePair(column->name, column->type));
-    }
-    return types;
 }
 
 std::optional<String> SerializedPlanParser::getFunctionSignatureName(UInt32 function_ref) const
@@ -784,16 +755,13 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
 }
 
 void SerializedPlanParser::parseFunctionArguments(
-    ActionsDAGPtr & actions_dag,
-    ActionsDAG::NodeRawConstPtrs & parsed_args,
-    const substrait::Expression_ScalarFunction & scalar_function)
+    ActionsDAGPtr & actions_dag, ActionsDAG::NodeRawConstPtrs & parsed_args, const substrait::Expression_ScalarFunction & scalar_function)
 {
     auto function_signature = function_mapping.at(std::to_string(scalar_function.function_reference()));
     const auto & args = scalar_function.arguments();
     parsed_args.reserve(args.size());
     for (const auto & arg : args)
         parsed_args.emplace_back(parseExpression(actions_dag, arg.value()));
-
 }
 
 // Convert signed integer index into unsigned integer index
@@ -1340,104 +1308,58 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
     }
 }
 
-substrait::ReadRel::ExtensionTable SerializedPlanParser::parseExtensionTable(const std::string & split_info)
+DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPlan & query_plan)
 {
-    substrait::ReadRel::ExtensionTable extension_table;
-    google::protobuf::io::CodedInputStream coded_in(
-        reinterpret_cast<const uint8_t *>(split_info.data()), static_cast<int>(split_info.size()));
-    coded_in.SetRecursionLimit(100000);
-
-    auto ok = extension_table.ParseFromCodedStream(&coded_in);
-    if (!ok)
-        throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::ReadRel::ExtensionTable from string failed");
-    logDebugMessage(extension_table, "extension_table");
-    return extension_table;
-}
-
-substrait::ReadRel::LocalFiles SerializedPlanParser::parseLocalFiles(const std::string & split_info)
-{
-    substrait::ReadRel::LocalFiles local_files;
-    google::protobuf::io::CodedInputStream coded_in(
-        reinterpret_cast<const uint8_t *>(split_info.data()), static_cast<int>(split_info.size()));
-    coded_in.SetRecursionLimit(100000);
-
-    auto ok = local_files.ParseFromCodedStream(&coded_in);
-    if (!ok)
-        throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::ReadRel::LocalFiles from string failed");
-    logDebugMessage(local_files, "local_files");
-    return local_files;
-}
-
-std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPlanPtr query_plan)
-{
-    Stopwatch stopwatch;
-    auto * logger = &Poco::Logger::get("SerializedPlanParser");
     const Settings & settings = context->getSettingsRef();
-
     QueryPriorities priorities;
-    auto query_status = std::make_shared<QueryStatus>(
+    const auto query_status = std::make_shared<QueryStatus>(
         context,
         "",
         context->getClientInfo(),
-        priorities.insert(static_cast<int>(settings.priority)),
+        priorities.insert(settings.priority),
         CurrentThread::getGroup(),
         IAST::QueryKind::Select,
         settings,
         0);
-
-    QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings.query_plan_enable_optimizations};
-    auto pipeline_builder = query_plan->buildQueryPipeline(
+    const QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings.query_plan_enable_optimizations};
+    return query_plan.buildQueryPipeline(
         optimization_settings,
         BuildQueryPipelineSettings{
             .actions_settings
             = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3, .compile_expressions = CompileExpressions::yes},
             .process_list_element = query_status});
-    QueryPipeline pipeline = QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder));
-    LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
+}
 
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)
+{
+    const auto s_plan = BinaryToMessage<substrait::Plan>(plan);
+    return createExecutor(parse(s_plan), s_plan);
+}
+
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan)
+{
+    Stopwatch stopwatch;
+
+    const Settings & settings = context->getSettingsRef();
+    auto builder = buildQueryPipeline(*query_plan);
+
+    ///
+    assert(s_plan.relations_size() == 1);
+    const substrait::PlanRel & root_rel = s_plan.relations().at(0);
+    assert(root_rel.has_root());
+    if (root_rel.root().input().has_write())
+        addSinkTransfrom(context, root_rel.root().input().write(), builder);
+    ///
+    QueryPipeline pipeline = QueryPipelineBuilder::getPipeline(std::move(*builder));
+
+    auto * logger = &Poco::Logger::get("SerializedPlanParser");
+    LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
     LOG_DEBUG(
         logger, "clickhouse plan [optimization={}]:\n{}", settings.query_plan_enable_optimizations, PlanUtil::explainPlan(*query_plan));
     LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(pipeline));
 
-    return std::make_unique<LocalExecutor>(
-        context, std::move(query_plan), std::move(pipeline), query_plan->getCurrentDataStream().header.cloneEmpty());
-}
-
-QueryPlanPtr SerializedPlanParser::parse(const std::string_view plan)
-{
-    substrait::Plan s_plan;
-    /// https://stackoverflow.com/questions/52028583/getting-error-parsing-protobuf-data
-    /// Parsing may fail when the number of recursive layers is large.
-    /// Here, set a limit large enough to avoid this problem.
-    /// Once this problem occurs, it is difficult to troubleshoot, because the pb of c++ will not provide any valid information
-    google::protobuf::io::CodedInputStream coded_in(reinterpret_cast<const uint8_t *>(plan.data()), static_cast<int>(plan.size()));
-    coded_in.SetRecursionLimit(100000);
-
-    if (!s_plan.ParseFromCodedStream(&coded_in))
-        throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from string failed");
-
-    auto res = parse(s_plan);
-
-#ifndef NDEBUG
-    PlanUtil::checkOuputType(*res);
-#endif
-
-    auto * logger = &Poco::Logger::get("SerializedPlanParser");
-    if (logger->debug())
-    {
-        auto out = PlanUtil::explainPlan(*res);
-        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
-    }
-    return res;
-}
-
-QueryPlanPtr SerializedPlanParser::parseJson(const std::string_view & json_plan)
-{
-    substrait::Plan plan;
-    auto s = google::protobuf::util::JsonStringToMessage(json_plan, &plan);
-    if (!s.ok())
-        throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from json string failed: {}", s.ToString());
-    return parse(plan);
+    bool dump_pipeline = context->getConfigRef().getBool("dump_pipeline", false);
+    return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(pipeline), dump_pipeline);
 }
 
 SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_) : context(context_)
@@ -1689,7 +1611,7 @@ SharedContextHolder SerializedPlanParser::shared_context;
 
 LocalExecutor::~LocalExecutor()
 {
-    if (context->getConfigRef().getBool("dump_pipeline", false))
+    if (dump_pipeline)
         LOG_INFO(&Poco::Logger::get("LocalExecutor"), "Dump pipeline:\n{}", dumpPipeline());
 
     if (spark_buffer)
@@ -1763,11 +1685,11 @@ Block & LocalExecutor::getHeader()
     return header;
 }
 
-LocalExecutor::LocalExecutor(const ContextPtr & context_, QueryPlanPtr query_plan, QueryPipeline && pipeline, const Block & header_)
+LocalExecutor::LocalExecutor(QueryPlanPtr query_plan, QueryPipeline && pipeline, bool dump_pipeline_)
     : query_pipeline(std::move(pipeline))
     , executor(std::make_unique<PullingPipelineExecutor>(query_pipeline))
-    , header(header_)
-    , context(context_)
+    , header(query_plan->getCurrentDataStream().header.cloneEmpty())
+    , dump_pipeline(dump_pipeline_)
     , ch_column_to_spark_row(std::make_unique<CHColumnToSparkRow>())
     , current_query_plan(std::move(query_plan))
 {

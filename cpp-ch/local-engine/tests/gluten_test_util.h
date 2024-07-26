@@ -18,6 +18,7 @@
 #pragma once
 
 #include <string>
+#include <Core/Block.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
 #include <DataTypes/DataTypeDate32.h>
@@ -25,7 +26,6 @@
 #include <DataTypes/DataTypesNumber.h>
 #include <Interpreters/ActionsDAG.h>
 #include <boost/algorithm/string/replace.hpp>
-#include <google/protobuf/util/json_util.h>
 #include <parquet/schema.h>
 
 using BlockRowType = DB::ColumnsWithTypeAndName;
@@ -65,77 +65,12 @@ AnotherRowType readParquetSchema(const std::string & file);
 
 DB::ActionsDAGPtr parseFilter(const std::string & filter, const AnotherRowType & name_and_types);
 
-namespace pb_util
-{
-template <typename Message>
-std::string JsonStringToBinary(const std::string_view & json)
-{
-    Message message;
-    std::string binary;
-    auto s = google::protobuf::util::JsonStringToMessage(json, &message);
-    if (!s.ok())
-    {
-        const std::string err_msg{s.message()};
-        throw std::runtime_error(err_msg);
-    }
-    message.SerializeToString(&binary);
-    return binary;
-}
-}
 }
 
 inline std::string replaceLocalFilesWildcards(const String & haystack, const String & replaced)
 {
     static constexpr auto _WILDCARD_ = "{replace_local_files}";
     return boost::replace_all_copy(haystack, _WILDCARD_, replaced);
-}
-
-inline DB::DataTypePtr BIGINT()
-{
-    return std::make_shared<DB::DataTypeInt64>();
-}
-inline DB::DataTypePtr INT()
-{
-    return std::make_shared<DB::DataTypeInt32>();
-}
-inline DB::DataTypePtr INT16()
-{
-    return std::make_shared<DB::DataTypeInt16>();
-}
-inline DB::DataTypePtr INT8()
-{
-    return std::make_shared<DB::DataTypeInt8>();
-}
-inline DB::DataTypePtr UBIGINT()
-{
-    return std::make_shared<DB::DataTypeUInt64>();
-}
-inline DB::DataTypePtr UINT()
-{
-    return std::make_shared<DB::DataTypeUInt32>();
-}
-inline DB::DataTypePtr UINT16()
-{
-    return std::make_shared<DB::DataTypeUInt16>();
-}
-inline DB::DataTypePtr UINT8()
-{
-    return std::make_shared<DB::DataTypeUInt8>();
-}
-
-inline DB::DataTypePtr DOUBLE()
-{
-    return std::make_shared<DB::DataTypeFloat64>();
-}
-
-inline DB::DataTypePtr STRING()
-{
-    return std::make_shared<DB::DataTypeString>();
-}
-
-inline DB::DataTypePtr DATE()
-{
-    return std::make_shared<DB::DataTypeDate32>();
 }
 
 inline BlockFieldType toBlockFieldType(const AnotherFieldType & type)
@@ -146,6 +81,17 @@ inline BlockFieldType toBlockFieldType(const AnotherFieldType & type)
 inline AnotherFieldType toAnotherFieldType(const parquet::ColumnDescriptor & type)
 {
     return {type.name(), local_engine::test::toDataType(type)};
+}
+
+inline AnotherRowType toAnotherRowType(const DB::Block & header)
+{
+    AnotherRowType types;
+    for (const auto & name : header.getNames())
+    {
+        const auto * column = header.findByName(name);
+        types.push_back(DB::NameAndTypePair(column->name, column->type));
+    }
+    return types;
 }
 
 inline BlockRowType toBlockRowType(const AnotherRowType & type, const bool reverse = false)

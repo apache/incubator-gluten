@@ -24,18 +24,10 @@ package org.apache.gluten.vectorized;
 public class ExpressionEvaluatorJniWrapper {
 
   /** Call initNative to initialize native computing. */
-  native void nativeInitNative(byte[] confAsPlan);
+  static native void nativeInitNative(byte[] confAsPlan);
 
   /** Call finalizeNative to finalize native computing. */
-  native void nativeFinalizeNative();
-
-  /**
-   * Validate the Substrait plan in native compute engine.
-   *
-   * @param subPlan the Substrait plan in binary format.
-   * @return whether the computing of this plan is supported in native.
-   */
-  native boolean nativeDoValidate(byte[] subPlan);
+  static native void nativeFinalizeNative();
 
   /**
    * Create a native compute kernel and return a columnar result iterator.
@@ -43,7 +35,7 @@ public class ExpressionEvaluatorJniWrapper {
    * @param allocatorId allocator id
    * @return iterator instance id
    */
-  public native long nativeCreateKernelWithIterator(
+  public static native long nativeCreateKernelWithIterator(
       long allocatorId,
       byte[] wsPlan,
       byte[][] splitInfo,
@@ -52,9 +44,11 @@ public class ExpressionEvaluatorJniWrapper {
       boolean materializeInput);
 
   /**
-   * Closes the projector referenced by nativeHandler.
+   * Set the temp path for writing files.
    *
-   * @param nativeHandler nativeHandler that needs to be closed
+   * @param allocatorId allocator id for current task attempt(or thread)
+   * @param path the temp path for writing files
    */
-  native void nativeClose(long nativeHandler);
+  public static native void injectWriteFilesTempPath(
+      long allocatorId, byte[] path, byte[] filename);
 }

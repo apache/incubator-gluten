@@ -15,13 +15,12 @@
  * limitations under the License.
  */
 
-#include <charconv>
-
 
 #include "config.h"
 #if USE_PARQUET
 #include <ranges>
 #include <string>
+#include <charconv>
 #include <DataTypes/DataTypeString.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/ExpressionActions.h>
@@ -29,6 +28,7 @@
 #include <Parsers/ExpressionListParsers.h>
 
 #include <Core/Settings.h>
+#include <Common/BlockTypeUtils.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ColumnIndexFilter.h>
@@ -470,7 +470,9 @@ TEST(ColumnIndex, FilteringWithAllNullPages)
 }
 TEST(ColumnIndex, FilteringWithNotFoundColumnName)
 {
+
     using namespace test_utils;
+    using namespace local_engine;
     const local_engine::ColumnIndexStore column_index_store = buildTestColumnIndexStore();
 
     {
@@ -1040,6 +1042,7 @@ TEST_P(TestBuildPageReadStates, BuildPageReadStates)
 
 TEST(ColumnIndex, VectorizedParquetRecordReader)
 {
+    using namespace local_engine;
     //TODO: move test parquet to s3 and download to CI machine.
     const std::string filename
         = "/home/chang/test/tpch/parquet/Index/60001/part-00000-76ef9b89-f292-495f-9d0d-98325f3d8956-c000.snappy.parquet";

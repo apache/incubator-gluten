@@ -45,9 +45,8 @@ object GlutenClickHouseMetricsUTUtils {
       SubstraitPlanPrinterUtil.jsonToSubstraitPlan(
         substraitPlanJsonStr.replaceAll("basePath", basePath.substring(1)))
 
-    val transKernel = new CHNativeExpressionEvaluator()
     val mockMemoryAllocator = CHNativeMemoryAllocators.contextInstanceForUT()
-    val resIter = transKernel.createKernelWithBatchIterator(
+    val resIter = CHNativeExpressionEvaluator.createKernelWithBatchIterator(
       mockMemoryAllocator.getNativeInstanceId,
       substraitPlan.toByteArray,
       new Array[Array[Byte]](0),

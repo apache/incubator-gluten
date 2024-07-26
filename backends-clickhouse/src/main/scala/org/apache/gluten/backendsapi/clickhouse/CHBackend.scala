@@ -18,6 +18,7 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.{CH_BRANCH, CH_COMMIT, GlutenConfig}
 import org.apache.gluten.backendsapi._
+import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -25,13 +26,17 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
+import org.apache.spark.sql.types.{ArrayType, MapType, Metadata, StructField, StructType}
 
 import java.util.Locale
 
@@ -184,6 +189,73 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         }
       case JsonReadFormat => ValidationResult.succeeded
       case _ => ValidationResult.failed(s"Unsupported file format $format")
+    }
+  }
+
+  override def supportWriteFilesExec(
+      format: FileFormat,
+      fields: Array[StructField],
+      bucketSpec: Option[BucketSpec],
+      options: Map[String, String]): ValidationResult = {
+
+    def validateCompressionCodec(): Option[String] = {
+      // FIXME: verify Support compression codec
+      val compressionCodec = WriteFilesExecTransformer.getCompressionCodec(options)
+      None
+    }
+
+    def validateFileFormat(): Option[String] = {
+      format match {
+        case _: ParquetFileFormat => None
+        case _: OrcFileFormat => None
+        case f: FileFormat => Some(s"Not support FileFormat: ${f.getClass.getSimpleName}")
+      }
+    }
+
+    // Validate if all types are supported.
+    def validateDateTypes(): Option[String] = {
+      None
+    }
+
+    def validateFieldMetadata(): Option[String] = {
+      // copy CharVarcharUtils.CHAR_VARCHAR_TYPE_STRING_METADATA_KEY
+      val CHAR_VARCHAR_TYPE_STRING_METADATA_KEY = "__CHAR_VARCHAR_TYPE_STRING"
+      fields
+        .find(_.metadata != Metadata.empty)
+        .filterNot(_.metadata.contains(CHAR_VARCHAR_TYPE_STRING_METADATA_KEY))
+        .map {
+          filed =>
+            s"StructField contain the metadata information: $filed, metadata: ${filed.metadata}"
+        }
+    }
+    def validateWriteFilesOptions(): Option[String] = {
+      val maxRecordsPerFile = options
+        .get("maxRecordsPerFile")
+        .map(_.toLong)
+        .getOrElse(SQLConf.get.maxRecordsPerFile)
+      if (maxRecordsPerFile > 0) {
+        Some("Unsupported native write: maxRecordsPerFile not supported.")
+      } else {
+        None
+      }
+    }
+
+    def validateBucketSpec(): Option[String] = {
+      if (bucketSpec.nonEmpty) {
+        Some("Unsupported native write: bucket write is not supported.")
+      } else {
+        None
+      }
+    }
+
+    validateCompressionCodec()
+      .orElse(validateFileFormat())
+      .orElse(validateFieldMetadata())
+      .orElse(validateDateTypes())
+      .orElse(validateWriteFilesOptions())
+      .orElse(validateBucketSpec()) match {
+      case Some(reason) => ValidationResult.failed(reason)
+      case _ => ValidationResult.succeeded
     }
   }
 
