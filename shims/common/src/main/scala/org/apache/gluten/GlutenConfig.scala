@@ -580,7 +580,6 @@ object GlutenConfig {
 
   val GLUTEN_SHUFFLE_WRITER_MERGE_THRESHOLD = "spark.gluten.sql.columnar.shuffle.merge.threshold"
 
-
   // Columnar to row memory threshold.
   val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY = "spark.gluten.sql.columnarToRowMemoryThreshold"
 
