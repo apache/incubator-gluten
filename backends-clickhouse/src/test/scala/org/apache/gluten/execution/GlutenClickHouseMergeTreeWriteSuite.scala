@@ -2022,5 +2022,33 @@ class GlutenClickHouseMergeTreeWriteSuite
          |""".stripMargin
     runTPCHQueryBySQL(6, sqlStr) { _ => }
   }
+
+  test("test mergetree with partition with whitespace") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_partition_with_whitespace;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_partition_with_whitespace
+                 |(
+                 | l_returnflag    string,
+                 | l_linestatus    string
+                 |)
+                 |USING clickhouse
+                 |PARTITIONED BY (l_returnflag)
+                 |LOCATION '$basePath/lineitem_mergetree_partition_with_whitespace'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_partition_with_whitespace
+                 | (l_returnflag, l_linestatus) values ('a A', 'abc')
+                 |""".stripMargin)
+
+    val sqlStr =
+      s"""
+         |SELECT * from lineitem_mergetree_partition_with_whitespace
+         |""".stripMargin
+    runSql(sqlStr) { _ => }
+  }
 }
 // scalastyle:off line.size.limit
