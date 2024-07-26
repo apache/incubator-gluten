@@ -1971,5 +1971,56 @@ class GlutenClickHouseMergeTreeWriteSuite
         }
       })
   }
+
+  test("test mergetree with column case sensitive") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS LINEITEM_MERGETREE_CASE_SENSITIVE;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS LINEITEM_MERGETREE_CASE_SENSITIVE
+                 |(
+                 | L_ORDERKEY      bigint,
+                 | L_PARTKEY       bigint,
+                 | L_SUPPKEY       bigint,
+                 | L_LINENUMBER    bigint,
+                 | L_QUANTITY      double,
+                 | L_EXTENDEDPRICE double,
+                 | L_DISCOUNT      double,
+                 | L_TAX           double,
+                 | L_RETURNFLAG    string,
+                 | L_LINESTATUS    string,
+                 | L_SHIPDATE      date,
+                 | L_COMMITDATE    date,
+                 | L_RECEIPTDATE   date,
+                 | L_SHIPINSTRUCT  string,
+                 | L_SHIPMODE      string,
+                 | L_COMMENT       string
+                 |)
+                 |USING clickhouse
+                 |PARTITIONED BY (L_SHIPDATE)
+                 |TBLPROPERTIES (orderByKey='L_DISCOUNT')
+                 |LOCATION '$basePath/LINEITEM_MERGETREE_CASE_SENSITIVE'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_case_sensitive
+                 | select * from lineitem
+                 |""".stripMargin)
+
+    val sqlStr =
+      s"""
+         |SELECT
+         |    sum(l_extendedprice * l_discount) AS revenue
+         |FROM
+         |    lineitem_mergetree_case_sensitive
+         |WHERE
+         |    l_shipdate >= date'1994-01-01'
+         |    AND l_shipdate < date'1994-01-01' + interval 1 year
+         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+         |    AND l_quantity < 24
+         |""".stripMargin
+    runTPCHQueryBySQL(6, sqlStr) { _ => }
+  }
 }
 // scalastyle:off line.size.limit
