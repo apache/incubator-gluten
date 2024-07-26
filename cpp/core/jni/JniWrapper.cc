@@ -538,7 +538,6 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
   JNI_METHOD_START
   auto columnarToRowConverter = ObjectStore::retrieve<ColumnarToRowConverter>(c2rHandle);
   auto cb = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
-  columnarToRowConverter->convert(cb);
   auto ctx = gluten::getRuntime(env, wrapper);
 
   auto& conf = ctx->getConfMap();
