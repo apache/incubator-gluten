@@ -306,7 +306,8 @@ abstract class MergeTreeBaseDynamicPartitionDataWriter(
       releaseCurrentWriter()
     }
 
-    val partDir = partitionValues.map(getPartitionPath(_))
+    val partDir =
+      partitionValues.map(getPartitionPath(_)).map(str => new Path(str).toUri.toASCIIString)
     partDir.foreach(updatedPartitions.add)
 
     val bucketIdStr = bucketId.map(id => f"$id%05d").getOrElse("")
