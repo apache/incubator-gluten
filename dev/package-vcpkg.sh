@@ -23,6 +23,3 @@ source ./dev/vcpkg/env.sh
 # build gluten with velox backend, prompt always respond y
 export PROMPT_ALWAYS_RESPOND=y
 ./dev/buildbundle-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON "$@"
-
-# make thirdparty package
-./dev/build-thirdparty.sh
