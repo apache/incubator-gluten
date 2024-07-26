@@ -906,7 +906,7 @@ class GlutenClickHouseNativeWriteTableSuite
           val insert_sql =
             s"""insert overwrite $table_name partition (day)
                |select id as a,
-               |       map('t1', 'a', 't2', 'b'),
+               |       str_to_map(concat('t1:','a','&t2:','b'),'&',':'),
                |       struct('1', null) as c,
                |       '2024-01-08' as day
                |from range(10)""".stripMargin
