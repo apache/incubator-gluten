@@ -20,6 +20,7 @@
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
 #include <Common/CHUtil.h>
+#include "DataTypes/DataTypeArray.h"
 #include <DataTypes/DataTypeFunction.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Core/Types.h>
@@ -90,7 +91,14 @@ public:
         assert(parsed_args.size() == 2);
         if (lambda_args.size() == 1)
         {
-            return toFunctionNode(actions_dag, ch_func_name, {parsed_args[1], parsed_args[0]});
+            /// Convert Array(T) to Array(U) if needed, Array(T) is the type of the first argument of transform.
+            /// U is the argument type of lambda function. In some cases Array(T) is not equal to Array(U).
+            /// e.g. in the second query of https://github.com/apache/incubator-gluten/issues/6561, T is String, and U is Nullable(String)
+            /// The difference of both types will result in runtime exceptions in function capture.
+            auto dst_array_type = std::make_shared<DataTypeArray>(lambda_args.front().type);
+            const auto * dst_array_arg = ActionsDAGUtil::convertNodeType(actions_dag, parsed_args[0], dst_array_type->getName());
+            std::cout << "actions_dag:" << actions_dag->dumpDAG() << std::endl;
+            return toFunctionNode(actions_dag, ch_func_name, {parsed_args[1], dst_array_arg});
         }
 
         /// transform with index argument.
