@@ -57,3 +57,6 @@ add_velox_test(spark_functions_test SOURCES SparkFunctionTest.cc
 add_velox_test(execution_ctx_test SOURCES RuntimeTest.cc)
 add_velox_test(velox_memory_test SOURCES MemoryManagerTest.cc)
 add_velox_test(buffer_outputstream_test SOURCES BufferOutputStreamTest.cc)
+if(BUILD_EXAMPLES)
+  add_velox_test(MyUdfTest SOURCES MyUdfTest.cc)
+endif()
