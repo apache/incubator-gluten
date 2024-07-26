@@ -543,11 +543,11 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
   auto& conf = ctx->getConfMap();
   int64_t column2RowMemThreshold;
   auto it = conf.find(kColumnToRowMemoryThreshold);
-  bool confIsLeagal =
+  bool confIsLegal =
       ((it == conf.end()) ? false : std::all_of(it->second.begin(), it->second.end(), [](unsigned char c) {
         return std::isdigit(c);
       }));
-  if (confIsLeagal) {
+  if (confIsLegal) {
     column2RowMemThreshold = std::stoll(it->second);
   } else {
     LOG(INFO)
