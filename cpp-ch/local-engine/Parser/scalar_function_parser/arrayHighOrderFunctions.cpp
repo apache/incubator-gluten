@@ -95,9 +95,11 @@ public:
             /// U is the argument type of lambda function. In some cases Array(T) is not equal to Array(U).
             /// e.g. in the second query of https://github.com/apache/incubator-gluten/issues/6561, T is String, and U is Nullable(String)
             /// The difference of both types will result in runtime exceptions in function capture.
-            auto dst_array_type = std::make_shared<DataTypeArray>(lambda_args.front().type);
-            const auto * dst_array_arg = ActionsDAGUtil::convertNodeType(actions_dag, parsed_args[0], dst_array_type->getName());
-            std::cout << "actions_dag:" << actions_dag->dumpDAG() << std::endl;
+            const auto & src_array_type = parsed_args[0]->result_type;
+            DataTypePtr dst_array_type = std::make_shared<DataTypeArray>(lambda_args.front().type);
+            if (isNullableOrLowCardinalityNullable(src_array_type))
+                dst_array_type = std::make_shared<DataTypeNullable>(dst_array_type);
+            const auto * dst_array_arg = ActionsDAGUtil::convertNodeTypeIfNeeded(actions_dag, parsed_args[0], dst_array_type);
             return toFunctionNode(actions_dag, ch_func_name, {parsed_args[1], dst_array_arg});
         }
 
