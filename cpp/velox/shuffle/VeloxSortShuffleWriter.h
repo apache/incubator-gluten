@@ -77,8 +77,6 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   arrow::Status evictPartition(uint32_t partitionId, size_t begin, size_t end);
 
-  std::unique_ptr<InMemoryPayload> prepareToEvict(size_t begin, size_t end);
-
   uint32_t maxRowsToInsert(uint32_t offset, uint32_t rows);
 
   void acquireNewBuffer(uint64_t memLimit, uint64_t minSizeRequired);
@@ -89,16 +87,11 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   void initArray();
 
-  struct Element {
-    uint64_t value;
-    uint32_t rowSize;
-  };
-
   static int compare(const void* a, const void* b);
 
   // Stores compact row id -> row
   facebook::velox::BufferPtr array_;
-  Element* arrayPtr_;
+  uint64_t* arrayPtr_;
   uint32_t arraySize_;
   uint32_t offset_{0};
 
@@ -111,6 +104,7 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   uint32_t currenPageSize_;
 
   facebook::velox::BufferPtr sortedBuffer_;
+  uint8_t* rawBuffer_;
 
   // Row ID -> Partition ID
   // subscript: The index of row in the current input RowVector
@@ -120,7 +114,8 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   std::shared_ptr<const facebook::velox::RowType> rowType_;
   std::optional<int32_t> fixedRowSize_;
-  std::vector<uint64_t> rowSizes_;
+  std::vector<RowSizeType> rowSize_;
+  std::vector<uint64_t> rowSizePrefixSum_;
 
   int64_t c2rTime_{0};
   int64_t sortTime_{0};
