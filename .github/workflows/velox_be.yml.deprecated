@@ -529,9 +529,9 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten/tools/gluten-it && \
           mvn clean install -Pspark-3.2 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 --skip-data-gen --random-kill-tasks \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 --data-gen-strategy=skip --random-kill-tasks \
           && GLUTEN_IT_JVM_ARGS=-Xmx50G sbin/gluten-it.sh queries \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=50g -s=30.0 --threads=32 --iterations=1 --skip-data-gen --random-kill-tasks'
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=50g -s=30.0 --threads=32 --iterations=1 --data-gen-strategy=skip --random-kill-tasks'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -580,7 +580,7 @@ jobs:
           mvn clean install -Pspark-3.2 \
           && GLUTEN_IT_JVM_ARGS=-Xmx50G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q67,q95 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --skip-data-gen -m=OffHeapExecutionMemory \
+            --data-gen-strategy=skip -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
             -d=OFFHEAP_SIZE:5g,spark.memory.offHeap.size=5g \
             -d=OFFHEAP_SIZE:3g,spark.memory.offHeap.size=3g \
@@ -592,7 +592,7 @@ jobs:
           mvn clean install -Pspark-3.2 \
           && GLUTEN_IT_JVM_ARGS=-Xmx50G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q67,q95 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --skip-data-gen -m=OffHeapExecutionMemory \
+            --data-gen-strategy=skip -m=OffHeapExecutionMemory \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
             -d=OFFHEAP_SIZE:5g,spark.memory.offHeap.size=5g \
             -d=OFFHEAP_SIZE:3g,spark.memory.offHeap.size=3g \
@@ -603,7 +603,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten/tools/gluten-it && \
           GLUTEN_IT_JVM_ARGS=-Xmx50G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q23a,q23b -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --skip-data-gen -m=OffHeapExecutionMemory \
+            --data-gen-strategy=skip -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
             -d=OFFHEAP_SIZE:2g,spark.memory.offHeap.size=2g \
@@ -615,7 +615,7 @@ jobs:
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh 'cd /opt/gluten/tools/gluten-it && \
           GLUTEN_IT_JVM_ARGS=-Xmx50G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q97 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --skip-data-gen -m=OffHeapExecutionMemory \
+            --data-gen-strategy=skip -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
             -d=OFFHEAP_SIZE:2g,spark.memory.offHeap.size=2g \

@@ -20,11 +20,36 @@ import org.apache.gluten.integration.Suite
 
 import java.io.File
 
-case class DataGenOnly(scale: Double, genPartitionedData: Boolean) extends Action {
+case class DataGenOnly(strategy: DataGenOnly.Strategy, scale: Double, genPartitionedData: Boolean)
+    extends Action {
   override def execute(suite: Suite): Boolean = {
+    strategy match {
+      case DataGenOnly.Skip =>
+        // Do nothing
+      case DataGenOnly.Once =>
+        val dataPath = suite.dataWritePath(scale, genPartitionedData)
+        val alreadyExists = new File(dataPath).exists()
+        if (alreadyExists) {
+          println(s"Data already exists at $dataPath, skipping generating it.")
+        } else {
+          gen(suite)
+        }
+      case DataGenOnly.Always =>
+        gen(suite)
+    }
+    true
+  }
+
+  private def gen(suite: Suite): Unit = {
     suite.sessionSwitcher.useSession("baseline", "Data Gen")
     val dataGen = suite.createDataGen(scale, genPartitionedData)
     dataGen.gen()
-    true
   }
+}
+
+object DataGenOnly {
+  sealed trait Strategy
+  case object Skip extends Strategy
+  case object Once extends Strategy
+  case object Always extends Strategy
 }
