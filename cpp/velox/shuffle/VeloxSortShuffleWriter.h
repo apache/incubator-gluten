@@ -76,7 +76,7 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   uint32_t maxRowsToInsert(uint32_t offset, uint32_t rows);
 
-  void acquireNewBuffer(int64_t memLimit, uint64_t minSizeRequired);
+  void acquireNewBuffer(uint64_t memLimit, uint64_t minSizeRequired);
 
   void growArrayIfNecessary(uint32_t rows);
 
