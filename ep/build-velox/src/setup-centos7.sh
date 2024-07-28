@@ -74,8 +74,8 @@ function install_ninja {
 
 function install_folly {
   cd "${DEPENDENCY_DIR}"
-  github_checkout facebook/folly "${FB_OS_VERSION}"
-  cmake_install -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON
+  wget_and_untar https://github.com/facebook/folly/archive/refs/tags/${FB_OS_VERSION}.tar.gz folly
+  cmake_install folly -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON
 }
 
 function install_conda {
@@ -99,22 +99,19 @@ function install_openssl {
 function install_gflags {
   cd "${DEPENDENCY_DIR}"
   wget_and_untar https://github.com/gflags/gflags/archive/v2.2.2.tar.gz gflags
-  cd gflags
-  cmake_install -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_gflags_LIB=ON -DLIB_SUFFIX=64 -DCMAKE_INSTALL_PREFIX:PATH=/usr/local
+  cmake_install gflags -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_gflags_LIB=ON -DLIB_SUFFIX=64 -DCMAKE_INSTALL_PREFIX:PATH=/usr/local
 }
 
 function install_glog {
   cd "${DEPENDENCY_DIR}"
   wget_and_untar https://github.com/google/glog/archive/v0.5.0.tar.gz glog
-  cd glog
-  cmake_install -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DCMAKE_INSTALL_PREFIX:PATH=/usr/local
+  cmake_install glog -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DCMAKE_INSTALL_PREFIX:PATH=/usr/local
 }
 
 function install_snappy {
   cd "${DEPENDENCY_DIR}"
   wget_and_untar https://github.com/google/snappy/archive/1.1.8.tar.gz snappy
-  cd snappy
-  cmake_install -DSNAPPY_BUILD_TESTS=OFF
+  cmake_install snappy -DSNAPPY_BUILD_TESTS=OFF
 }
 
 function install_dwarf {
@@ -213,10 +210,7 @@ function install_duckdb {
   if $BUILD_DUCKDB ; then
     echo 'Building DuckDB'
     wget_and_untar https://github.com/duckdb/duckdb/archive/refs/tags/v0.8.1.tar.gz duckdb
-    (
-      cd duckdb
-      cmake_install -DBUILD_UNITTESTS=OFF -DENABLE_SANITIZER=OFF -DENABLE_UBSAN=OFF -DBUILD_SHELL=OFF -DEXPORT_DLL_SYMBOLS=OFF -DCMAKE_BUILD_TYPE=Release
-    )
+    cmake_install duckdb -DBUILD_UNITTESTS=OFF -DENABLE_SANITIZER=OFF -DENABLE_UBSAN=OFF -DBUILD_SHELL=OFF -DEXPORT_DLL_SYMBOLS=OFF -DCMAKE_BUILD_TYPE=Release
   fi
 }
 
