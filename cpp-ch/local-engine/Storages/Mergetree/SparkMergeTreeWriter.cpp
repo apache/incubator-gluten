@@ -26,6 +26,7 @@
 #include <Storages/Mergetree/MetaDataHelper.h>
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Common/CHUtil.h>
+#include <Common/QueryContext.h>
 
 
 namespace CurrentMetrics
@@ -492,15 +493,14 @@ void SparkMergeTreeWriter::checkAndMerge(bool force)
     {
         for (const auto & selected_part : prepare_merge_parts)
             tmp_parts.emplace(selected_part->name);
-
+        // check thread group initailized in task thread
+        currentThreadGroupMemoryUsage();
         thread_pool.scheduleOrThrow(
             [this, prepare_merge_parts, thread_group = CurrentThread::getGroup()]() -> void
             {
                 Stopwatch watch;
-                setThreadName("InsertWithMerge");
-                ThreadStatus thread_status;
-                thread_status.attachToGroup(thread_group);
-
+                CurrentThread::detachFromGroupIfNotDetached();
+                CurrentThread::attachToGroup(thread_group);
                 size_t before_size = 0;
                 size_t after_size = 0;
                 for (const auto & prepare_merge_part : prepare_merge_parts)

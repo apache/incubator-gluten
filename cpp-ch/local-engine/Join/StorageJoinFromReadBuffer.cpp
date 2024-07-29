@@ -100,9 +100,16 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
 
 void StorageJoinFromReadBuffer::buildJoin(Blocks & data, const Block header, std::shared_ptr<DB::TableJoin> analyzed_join)
 {
-    join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
-    for (Block block : data)
-        join->addBlockToJoin(std::move(block), true);
+
+    auto build_join = [&]
+    {
+        join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
+        for (Block block : data)
+            join->addBlockToJoin(std::move(block), true);
+    };
+    /// Record memory usage in Total Memory Tracker
+    ThreadFromGlobalPoolNoTracingContextPropagation thread(build_join);
+    thread.join();
 }
 
 void StorageJoinFromReadBuffer::collectAllInputs(Blocks & data, const DB::Block)
@@ -113,28 +120,35 @@ void StorageJoinFromReadBuffer::collectAllInputs(Blocks & data, const DB::Block)
 
 void StorageJoinFromReadBuffer::buildJoinLazily(DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join)
 {
+    auto build_join = [&]
     {
-        std::shared_lock lock(join_mutex);
+        {
+            std::shared_lock lock(join_mutex);
+            if (join)
+                return;
+        }
+        std::unique_lock lock(join_mutex);
         if (join)
             return;
-    }
-    std::unique_lock lock(join_mutex);
-    if (join)
-        return;
-    join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
-    while(!input_blocks.empty())
-    {
-        auto & block = *input_blocks.begin();
-        DB::ColumnsWithTypeAndName columns;
-        for (size_t i = 0; i < block.columns(); ++i)
+        join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
+        while(!input_blocks.empty())
         {
-            const auto & column = block.getByPosition(i);
-            columns.emplace_back(BlockUtil::convertColumnAsNecessary(column, header.getByPosition(i)));
+            auto & block = *input_blocks.begin();
+            DB::ColumnsWithTypeAndName columns;
+            for (size_t i = 0; i < block.columns(); ++i)
+            {
+                const auto & column = block.getByPosition(i);
+                columns.emplace_back(BlockUtil::convertColumnAsNecessary(column, header.getByPosition(i)));
+            }
+            DB::Block final_block(columns);
+            join->addBlockToJoin(final_block, true);
+            input_blocks.pop_front();
         }
-        DB::Block final_block(columns);
-        join->addBlockToJoin(final_block, true);
-        input_blocks.pop_front();
-    }
+    };
+
+    /// Record memory usage in Total Memory Tracker
+    ThreadFromGlobalPoolNoTracingContextPropagation thread(build_join);
+    thread.join();
 }
 
 

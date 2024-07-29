@@ -98,7 +98,7 @@ private:
     DB::Block header;
     bool merge_after_insert;
     bool insert_without_local_storage;
-    FreeThreadPool thread_pool;
+    ThreadPool thread_pool;
     size_t merge_min_size = 1024 * 1024 * 1024;
     size_t merge_limit_parts = 10;
     std::mutex memory_mutex;
