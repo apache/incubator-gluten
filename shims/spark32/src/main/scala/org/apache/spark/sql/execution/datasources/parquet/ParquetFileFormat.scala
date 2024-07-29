@@ -83,7 +83,7 @@ class ParquetFileFormat extends FileFormat with DataSourceRegister with Logging 
       job: Job,
       options: Map[String, String],
       dataSchema: StructType): OutputWriterFactory = {
-    if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))) {
+    if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeApplicable"))) {
 
       // pass compression to job conf so that the file extension can be aware of it.
       val conf = ContextUtil.getConfiguration(job)
@@ -201,7 +201,7 @@ class ParquetFileFormat extends FileFormat with DataSourceRegister with Logging 
       parameters: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
     // Why if (false)? Such code requires comments when being written.
-    if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable")) && false) {
+    if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeApplicable")) && false) {
       GlutenParquetWriterInjects.getInstance().inferSchema(sparkSession, parameters, files)
     } else { // the vanilla spark case
       ParquetUtils.inferSchema(sparkSession, parameters, files)
@@ -210,7 +210,7 @@ class ParquetFileFormat extends FileFormat with DataSourceRegister with Logging 
 
   /** Returns whether the reader will return the rows as batch or not. */
   override def supportBatch(sparkSession: SparkSession, schema: StructType): Boolean = {
-    if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))) {
+    if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeApplicable"))) {
       true
     } else {
       val conf = sparkSession.sessionState.conf

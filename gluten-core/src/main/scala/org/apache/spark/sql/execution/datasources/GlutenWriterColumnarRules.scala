@@ -170,7 +170,7 @@ object GlutenWriterColumnarRules {
             BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
           // FIXME: We should only use context property if having no other approaches.
           //  Should see if there is another way to pass these options.
-          session.sparkContext.setLocalProperty("isNativeAppliable", format.isDefined.toString)
+          session.sparkContext.setLocalProperty("isNativeApplicable", format.isDefined.toString)
           session.sparkContext.setLocalProperty("nativeFormat", format.getOrElse(""))
           if (format.isDefined) {
             injectFakeRowAdaptor(rc, child)
@@ -181,7 +181,7 @@ object GlutenWriterColumnarRules {
           session.sparkContext.setLocalProperty(
             "staticPartitionWriteOnly",
             BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
-          session.sparkContext.setLocalProperty("isNativeAppliable", "false")
+          session.sparkContext.setLocalProperty("isNativeApplicable", "false")
           session.sparkContext.setLocalProperty("nativeFormat", "")
 
           rc.withNewChildren(rc.children.map(apply))
