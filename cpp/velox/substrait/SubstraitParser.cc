@@ -141,11 +141,21 @@ void SubstraitParser::parseColumnTypes(
   return;
 }
 
-int32_t SubstraitParser::parseReferenceSegment(const ::substrait::Expression::ReferenceSegment& refSegment) {
+bool SubstraitParser::parseReferenceSegment(
+    const ::substrait::Expression::ReferenceSegment& refSegment,
+    uint32_t& fieldIndex) {
   auto typeCase = refSegment.reference_type_case();
   switch (typeCase) {
     case ::substrait::Expression::ReferenceSegment::ReferenceTypeCase::kStructField: {
-      return refSegment.struct_field().field();
+      if (refSegment.struct_field().has_child()) {
+        // To parse subfield index is not supported.
+        return false;
+      }
+      fieldIndex = refSegment.struct_field().field();
+      if (fieldIndex < 0) {
+        return false;
+      }
+      return true;
     }
     default:
       VELOX_NYI("Substrait conversion not supported for ReferenceSegment '{}'", std::to_string(typeCase));
