@@ -99,6 +99,7 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     const std::string & join_keys,
     jint join_type,
     bool has_mixed_join_condition,
+    bool is_existence_join,
     const std::string & named_struct)
 {
     auto join_key_list = Poco::StringTokenizer(join_keys, ",");
@@ -112,7 +113,7 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     if (key.starts_with("BuiltBNLJBroadcastTable-"))
         std::tie(kind, strictness) = JoinUtil::getCrossJoinKindAndStrictness(static_cast<substrait::CrossRel_JoinType>(join_type));
     else
-        std::tie(kind, strictness) = JoinUtil::getJoinKindAndStrictness(static_cast<substrait::JoinRel_JoinType>(join_type));
+        std::tie(kind, strictness) = JoinUtil::getJoinKindAndStrictness(static_cast<substrait::JoinRel_JoinType>(join_type), is_existence_join);
 
 
     substrait::NamedStruct substrait_struct;
