@@ -2781,5 +2781,17 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       compareResultsAgainstVanillaSpark(sql, true, { _ => })
     }
   }
+
+  test("GLUTEN-6583 serializing bug in aggregating with nullable compilated type keys") {
+    val sql = """
+                |select n_regionkey, x, count(1) from (
+                |  select n_regionkey, if(n_regionkey = 'xx', null, x) as x from (
+                |    select n_regionkey, array(n_name, if(n_name != 'KENYA', n_name, null)) as x
+                |    from nation
+                |  )
+                |) group by n_regionkey, x;
+                |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 }
 // scalastyle:on line.size.limit
