@@ -140,7 +140,7 @@ object FileFormatWriter extends Logging {
       numStaticPartitionCols: Int = 0): Set[String] = {
 
     val nativeEnabled =
-      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeApplicable"))
+      "true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")
     val staticPartitionWriteOnly =
       "true".equals(sparkSession.sparkContext.getLocalProperty("staticPartitionWriteOnly"))
 
