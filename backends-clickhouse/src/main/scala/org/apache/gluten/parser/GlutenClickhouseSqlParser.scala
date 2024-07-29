@@ -203,7 +203,7 @@ class GlutenClickhouseSqlAstBuilder extends GlutenClickhouseSqlBaseBaseVisitor[A
   override def visitCacheData(ctx: GlutenClickhouseSqlBaseParser.CacheDataContext): AnyRef =
     withOrigin(ctx) {
       val onlyMetaCache = ctx.META != null
-      val asynExecute = ctx.ASYN != null
+      val asynExecute = ctx.ASYNC != null
       val (tsfilter, partitionColumn, partitionValue) = if (ctx.AFTER != null) {
         if (ctx.filter.TIMESTAMP != null) {
           (Some(string(ctx.filter.timestamp)), None, None)

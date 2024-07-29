@@ -50,7 +50,7 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
 
   val HDFS_METADATA_PATH = s"/tmp/metadata/hdfs/$sparkVersion/"
   val HDFS_CACHE_PATH = s"/tmp/hdfs_cache/$sparkVersion/"
-  val HDFS_URL_ENDPOINT = s"hdfs://192.168.0.158:9000"
+  val HDFS_URL_ENDPOINT = s"hdfs://127.0.0.1:8020"
   val HDFS_URL = s"$HDFS_URL_ENDPOINT/$sparkVersion"
 
   val S3_ACCESS_KEY = "BypTYzcXOlfr03FFIvt4"
@@ -83,7 +83,7 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
         "/tmp/user_defined")
     if (UTSystemParameters.testMergeTreeOnObjectStorage) {
       conf
-        /* .set("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
+        .set("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
         .set("spark.hadoop.fs.s3a.secret.key", S3_SECRET_KEY)
         .set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
         .set("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT)
@@ -121,7 +121,7 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
           "main")
         .set(
           "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__s3_main.volumes.main.disk",
-          "s3_cache") */
+          "s3_cache")
         .set(
           "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.type",
           "hdfs_gluten")

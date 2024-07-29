@@ -69,8 +69,8 @@ public:
 private:
     static std::unique_ptr<Poco::LRUCache<std::string, std::pair<CustomStorageMergeTreePtr, MergeTreeTable>>> storage_map;
     static std::unique_ptr<Poco::LRUCache<std::string, std::shared_ptr<Poco::LRUCache<std::string, DataPartPtr>>>> datapart_map;
-    static std::mutex storage_map_mutex;
-    static std::mutex datapart_mutex;
+    static std::recursive_mutex storage_map_mutex;
+    static std::recursive_mutex datapart_mutex;
 };
 
 struct TempStorageFreer

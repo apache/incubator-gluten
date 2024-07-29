@@ -79,7 +79,7 @@ void CacheManager::cachePart(const MergeTreeTable& table, const MergeTreePart& p
     job_context.table.parts.clear();
     job_context.table.parts.push_back(part);
     job_context.table.snapshot_id = "";
-    auto job = [job_detail = job_context, context = this->context, columns = columns, latch = latch]()
+    auto job = [job_detail = job_context, context = this->context, read_columns = columns, latch = latch]()
     {
         try
         {
@@ -87,17 +87,15 @@ void CacheManager::cachePart(const MergeTreeTable& table, const MergeTreePart& p
             auto storage = MergeTreeRelParser::parseStorage(job_detail.table, context, true);
             auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, storage->getInMemoryMetadataPtr());
             NamesAndTypesList names_and_types_list;
-            for (const auto & column : storage->getInMemoryMetadata().getColumns())
+            auto meta_columns = storage->getInMemoryMetadata().getColumns();
+            for (const auto & column : meta_columns)
             {
-                if (columns.contains(column.name))
+                if (read_columns.contains(column.name))
                     names_and_types_list.push_back(NameAndTypePair(column.name, column.type));
             }
-
             auto query_info = buildQueryInfo(names_and_types_list);
-
             std::vector<DataPartPtr> selected_parts
                 = StorageMergeTreeFactory::getDataPartsByNames(storage->getStorageID(), "", {job_detail.table.parts.front().name});
-
             auto read_step = storage->reader.readFromParts(
                 selected_parts,
                 /* alter_conversions = */
@@ -111,9 +109,15 @@ void CacheManager::cachePart(const MergeTreeTable& table, const MergeTreePart& p
             QueryPlan plan;
             plan.addStep(std::move(read_step));
             auto pipeline_builder = plan.buildQueryPipeline({}, {});
-            pipeline_builder->setSinks([&](const auto & header, auto ) {return std::make_shared<NullSink>(header);});
-            auto executor = pipeline_builder->execute();
-            executor->execute(1, true);
+            auto pipeline = QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder.get()));
+            PullingPipelineExecutor executor(pipeline);
+            while (true)
+            {
+                Chunk chunk;
+                if (!executor.pull(chunk))
+                    break;
+            }
+            LOG_INFO(getLogger("CacheManager"), "Load cache of table {}.{} part {} success.", job_detail.table.database, job_detail.table.table, job_detail.table.parts.front().name);
         }
         catch (std::exception& e)
         {

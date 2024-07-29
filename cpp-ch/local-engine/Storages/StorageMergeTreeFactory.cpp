@@ -66,21 +66,15 @@ StorageMergeTreeFactory::getStorage(const StorageID& id, const String & snapshot
     std::lock_guard lock(storage_map_mutex);
 
     merge_tree_table.parts.clear();
-    auto new_storage = creator();
     if (storage_map->has(table_name) && !storage_map->get(table_name)->second.sameStructWith(merge_tree_table))
     {
-        // freeStorage(id);
-        if (storage_map->has(table_name))
-            storage_map->remove(table_name);
-        {
-            std::lock_guard lock(datapart_mutex);
-            if (datapart_map->has(table_name))
-                datapart_map->remove(table_name);
-        }
+        freeStorage(id);
+        std::lock_guard lock_datapart(datapart_mutex);
+        if (datapart_map->has(table_name))
+            datapart_map->remove(table_name);
     }
-
     if (!storage_map->has(table_name))
-        storage_map->add(table_name, {new_storage, merge_tree_table});
+        storage_map->add(table_name, {creator(), merge_tree_table});
     return storage_map->get(table_name)->first;
 }
 
@@ -129,7 +123,7 @@ DataPartsVector StorageMergeTreeFactory::getDataPartsByNames(const StorageID & i
 // will be inited in native init phase
 std::unique_ptr<Poco::LRUCache<std::string, std::pair<CustomStorageMergeTreePtr, MergeTreeTable>>> StorageMergeTreeFactory::storage_map = nullptr;
 std::unique_ptr<Poco::LRUCache<std::string, std::shared_ptr<Poco::LRUCache<std::string, DataPartPtr>>>> StorageMergeTreeFactory::datapart_map = nullptr;
-std::mutex StorageMergeTreeFactory::storage_map_mutex;
-std::mutex StorageMergeTreeFactory::datapart_mutex;
+std::recursive_mutex StorageMergeTreeFactory::storage_map_mutex;
+std::recursive_mutex StorageMergeTreeFactory::datapart_mutex;
 
 }

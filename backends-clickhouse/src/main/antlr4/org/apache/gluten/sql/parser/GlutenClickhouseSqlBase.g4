@@ -50,7 +50,7 @@ singleStatement
     ;
 
 statement
-    : CACHE META? DATA ASYN? SELECT selectedColumns=selectedColumnNames
+    : CACHE META? DATA ASYNC? SELECT selectedColumns=selectedColumnNames
         FROM (path=STRING | table=qualifiedName) (AFTER filter=filterClause)?
         (CACHEPROPERTIES cacheProps=propertyList)?                               #cacheData
     | .*?                                                                        #passThrough
@@ -113,7 +113,7 @@ quotedIdentifier
 // Add keywords here so that people's queries don't break if they have a column name as one of
 // these tokens
 nonReserved
-    : CACHE | META | ASYN | DATA
+    : CACHE | META | ASYNC | DATA
     | SELECT | FOR | AFTER | CACHEPROPERTIES
     | TIMESTAMP | AS | OF | DATE_PARTITION
     ;
@@ -121,7 +121,7 @@ nonReserved
 // Define how the keywords above should appear in a user's SQL statement.
 CACHE: 'CACHE';
 META: 'META';
-ASYN: 'ASYN';
+ASYNC: 'ASYNC';
 DATA: 'DATA';
 SELECT: 'SELECT';
 COMMA: ',';

@@ -175,7 +175,7 @@ case class GlutenCHCacheDataCommand(
             onePart.table,
             ClickhouseSnapshot.genSnapshotId(snapshot),
             onePart.tablePath,
-            "",
+            pathToCache.toString,
             snapshot.metadata.configuration.getOrElse("orderByKey", ""),
             snapshot.metadata.configuration.getOrElse("lowCardKey", ""),
             snapshot.metadata.configuration.getOrElse("minmaxIndexKey", ""),
