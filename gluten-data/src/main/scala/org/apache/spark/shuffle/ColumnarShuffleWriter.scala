@@ -24,7 +24,7 @@ import org.apache.gluten.vectorized._
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.config.SHUFFLE_COMPRESS
+import org.apache.spark.internal.config.{SHUFFLE_COMPRESS, SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -151,6 +151,8 @@ class ColumnarShuffleWriter[K, V](
             compressionLevel,
             bufferCompressThreshold,
             GlutenConfig.getConf.columnarShuffleCompressionMode,
+            conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
+            conf.get(SHUFFLE_SORT_USE_RADIXSORT),
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,
@@ -176,9 +178,7 @@ class ColumnarShuffleWriter[K, V](
         }
         val startTime = System.nanoTime()
         jniWrapper.write(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
-        if (!isSort) {
-          dep.metrics("splitTime").add(System.nanoTime() - startTime)
-        }
+        dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
@@ -191,11 +191,12 @@ class ColumnarShuffleWriter[K, V](
     assert(nativeShuffleWriter != -1L)
     splitResult = jniWrapper.stop(nativeShuffleWriter)
     closeShuffleWriter()
+    dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
     if (!isSort) {
       dep
         .metrics("splitTime")
         .add(
-          System.nanoTime() - startTime - splitResult.getTotalSpillTime -
+          dep.metrics("shuffleWallTime").value - splitResult.getTotalSpillTime -
             splitResult.getTotalWriteTime -
             splitResult.getTotalCompressTime)
     } else {

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "shuffle/RadixSort.h"
 #include "shuffle/VeloxShuffleWriter.h"
 
 #include <arrow/status.h>
@@ -31,6 +32,8 @@ namespace gluten {
 
 class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
  public:
+  using RowSizeType = uint32_t;
+
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
@@ -80,27 +83,28 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   void growArrayIfNecessary(uint32_t rows);
 
-  using RowSizeType = uint32_t;
-  using ElementType = std::pair<uint64_t, RowSizeType>;
-  using Allocator = facebook::velox::StlAllocator<ElementType>;
-  using SortArray = std::vector<ElementType, Allocator>;
+  uint32_t newArraySize(uint32_t rows);
 
-  std::unique_ptr<facebook::velox::HashStringAllocator> allocator_;
+  void initArray();
+
+  static int compare(const void* a, const void* b);
+
   // Stores compact row id -> row
-  SortArray array_;
+  facebook::velox::BufferPtr array_;
+  uint64_t* arrayPtr_;
+  uint32_t arraySize_;
   uint32_t offset_{0};
 
-  std::vector<facebook::velox::BufferPtr> pages_;
+  std::list<facebook::velox::BufferPtr> pages_;
   std::vector<char*> pageAddresses_;
   char* currentPage_;
   uint32_t pageNumber_;
   uint32_t pageCursor_;
-
-  // FIXME: Use configuration to replace hardcode.
-  uint32_t initialSize_ = 4096;
-  bool useRadixSort_ = false;
+  // For debug.
+  uint32_t currenPageSize_;
 
   facebook::velox::BufferPtr sortedBuffer_;
+  uint8_t* rawBuffer_;
 
   // Row ID -> Partition ID
   // subscript: The index of row in the current input RowVector
@@ -110,7 +114,8 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   std::shared_ptr<const facebook::velox::RowType> rowType_;
   std::optional<int32_t> fixedRowSize_;
-  std::vector<uint64_t> rowSizes_;
+  std::vector<RowSizeType> rowSize_;
+  std::vector<uint64_t> rowSizePrefixSum_;
 
   int64_t c2rTime_{0};
   int64_t sortTime_{0};
