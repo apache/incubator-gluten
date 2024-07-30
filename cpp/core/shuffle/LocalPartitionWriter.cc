@@ -77,8 +77,6 @@ class LocalPartitionWriter::LocalSpiller {
     if (close) {
       RETURN_NOT_OK(os_->Close());
     }
-    //    std::cout << "Finish spill. spillTime_: " << spillTime_ << ", compressTime_: " << compressTime_
-    //              << ", spillFile: " << spillFile_ << std::endl;
     diskSpill_->setSpillFile(spillFile_);
     diskSpill_->setSpillTime(spillTime_);
     diskSpill_->setCompressTime(compressTime_);
@@ -453,8 +451,6 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
         RETURN_NOT_OK(mergeSpills(pid));
         partitionLengths_[pid] = totalBytesEvicted_ - bytesEvicted;
       }
-      //      std::cout << "Stop and merge spills from " << lastEvictPid_ + 1 << " to " << numPartitions_ - 1
-      //                << ", num spills: " << spills_.size() << std::endl;
     }
 
     for (auto pid = 0; pid < numPartitions_; ++pid) {
@@ -577,8 +573,6 @@ arrow::Status LocalPartitionWriter::evict(
           RETURN_NOT_OK(mergeSpills(pid));
           partitionLengths_[pid] = totalBytesEvicted_ - bytesEvicted;
         }
-        //        std::cout << "Merge spills from " << lastEvictPid_ + 1 << " to " << partitionId
-        //                  << ", num spills: " << spills_.size() << std::endl;
       }
       RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
     }
