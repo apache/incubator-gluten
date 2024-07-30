@@ -178,8 +178,8 @@ trait PullOutProjectHelper {
   protected def supportPreComputeRangeFrame(sortOrders: Seq[SortOrder]): Boolean = {
     sortOrders.forall {
       _.dataType match {
-        case ByteType | ShortType | IntegerType | LongType | DateType => true
-        // Only integral type & date type are supported for sort key with Range Frame
+        case ByteType | ShortType | IntegerType | LongType => true
+        // Only integral type are supported for sort key with Range Frame.
         case _ => false
       }
     }
