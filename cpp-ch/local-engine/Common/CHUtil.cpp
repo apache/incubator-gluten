@@ -478,7 +478,7 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
 }
 
 const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeTypeIfNeeded(
-    DB::ActionsDAGPtr & actions_dag,
+    DB::ActionsDAG & actions_dag,
     const DB::ActionsDAG::Node * node,
     const DB::DataTypePtr & dst_type,
     const std::string & result_name,
