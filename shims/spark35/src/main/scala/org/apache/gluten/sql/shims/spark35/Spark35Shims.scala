@@ -78,6 +78,7 @@ class Spark35Shims extends SparkShims {
       Sig[Csc](ExpressionNames.CSC),
       Sig[KnownNullable](ExpressionNames.KNOWN_NULLABLE),
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
+      Sig[Mask](ExpressionNames.MASK),
       Sig[TimestampAdd](ExpressionNames.TIMESTAMP_ADD),
       Sig[RoundFloor](ExpressionNames.FLOOR),
       Sig[RoundCeil](ExpressionNames.CEIL)

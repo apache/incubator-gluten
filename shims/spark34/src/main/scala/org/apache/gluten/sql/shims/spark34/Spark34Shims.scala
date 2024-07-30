@@ -80,7 +80,8 @@ class Spark34Shims extends SparkShims {
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
       Sig[TimestampAdd](ExpressionNames.TIMESTAMP_ADD),
       Sig[RoundFloor](ExpressionNames.FLOOR),
-      Sig[RoundCeil](ExpressionNames.CEIL)
+      Sig[RoundCeil](ExpressionNames.CEIL),
+      Sig[Mask](ExpressionNames.MASK)
     )
   }
 
