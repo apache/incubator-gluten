@@ -127,7 +127,7 @@ class ActionsDAGUtil
 {
 public:
     static const DB::ActionsDAG::Node * convertNodeType(
-        DB::ActionsDAGPtr & actions_dag,
+        DB::ActionsDAG & actions_dag,
         const DB::ActionsDAG::Node * node,
         const std::string & type_name,
         const std::string & result_name = "",

@@ -42,7 +42,7 @@ public:
 
     const ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,
-        ActionsDAGPtr & actions_dag) const override
+        ActionsDAG & actions_dag) const override
     {
         /// parse array_union(a, b) as arrayDistinctSpark(arrayConcat(a, b))
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);

@@ -28,7 +28,7 @@ public:
     String getName() const { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return name; }
     
-    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAGPtr & actions_dag) const override
+    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         DB::ActionsDAG::NodeRawConstPtrs parsed_args;
         const auto & args = substrait_func.arguments();
@@ -43,8 +43,8 @@ public:
                 parsed_args.emplace_back(parseExpression(actions_dag, arg.value()));
         }
         String result_name = parsed_args[0]->result_name;
-        actions_dag->addOrReplaceInOutputs(*parsed_args[0]);
-        return &actions_dag->addAlias(actions_dag->findInOutputs(result_name), result_name);
+        actions_dag.addOrReplaceInOutputs(*parsed_args[0]);
+        return &actions_dag.addAlias(actions_dag.findInOutputs(result_name), result_name);
     }
 
 };

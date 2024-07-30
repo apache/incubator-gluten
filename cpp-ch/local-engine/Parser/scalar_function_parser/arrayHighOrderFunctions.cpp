@@ -48,8 +48,8 @@ public:
         return "arrayFilter";
     }
 
-    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAGPtr & actions_dag) const
+    const DB::ActionsDAG::Node *
+    parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         auto ch_func_name = getCHFunctionName(substrait_func);
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
@@ -82,8 +82,8 @@ public:
         return "arrayMap";
     }
 
-    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAGPtr & actions_dag) const
+    const DB::ActionsDAG::Node *
+    parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         auto ch_func_name = getCHFunctionName(substrait_func);
         auto lambda_args = collectLambdaArguments(*plan_parser, substrait_func.arguments()[1].value().scalar_function());
@@ -127,8 +127,8 @@ public:
     {
         return "arrayFold";
     }
-    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAGPtr & actions_dag) const
+    const DB::ActionsDAG::Node *
+    parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         auto ch_func_name = getCHFunctionName(substrait_func);
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
@@ -172,8 +172,8 @@ public:
     {
         return "arraySortSpark";
     }
-    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAGPtr & actions_dag) const
+    const DB::ActionsDAG::Node *
+    parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         auto ch_func_name = getCHFunctionName(substrait_func);
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);

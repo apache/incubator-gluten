@@ -118,7 +118,7 @@ public:
     }
 
     void parseExtensions(const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions);
-    std::shared_ptr<DB::ActionsDAG> expressionsToActionsDAG(
+    DB::ActionsDAG expressionsToActionsDAG(
         const std::vector<substrait::Expression> & expressions, const DB::Block & header, const DB::Block & read_schema);
     RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
     const std::unordered_map<std::string, std::string> & getFunctionMapping() { return function_mapping; }
@@ -141,47 +141,32 @@ private:
     void
     collectJoinKeys(const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start);
 
-    DB::ActionsDAGPtr parseFunction(
-        const Block & header,
+    void parseFunctionOrExpression(
         const substrait::Expression & rel,
         std::string & result_name,
-        DB::ActionsDAGPtr actions_dag = nullptr,
+        DB::ActionsDAG& actions_dag,
         bool keep_result = false);
-    DB::ActionsDAGPtr parseFunctionOrExpression(
-        const Block & header,
-        const substrait::Expression & rel,
-        std::string & result_name,
-        DB::ActionsDAGPtr actions_dag = nullptr,
-        bool keep_result = false);
-    DB::ActionsDAGPtr parseArrayJoin(
-        const Block & input,
+    void parseJsonTuple(
         const substrait::Expression & rel,
         std::vector<String> & result_names,
-        DB::ActionsDAGPtr actions_dag = nullptr,
-        bool keep_result = false,
-        bool position = false);
-    DB::ActionsDAGPtr parseJsonTuple(
-        const Block & input,
-        const substrait::Expression & rel,
-        std::vector<String> & result_names,
-        DB::ActionsDAGPtr actions_dag = nullptr,
+        DB::ActionsDAG& actions_dag,
         bool keep_result = false,
         bool position = false);
     const ActionsDAG::Node * parseFunctionWithDAG(
-        const substrait::Expression & rel, std::string & result_name, DB::ActionsDAGPtr actions_dag = nullptr, bool keep_result = false);
+        const substrait::Expression & rel, std::string & result_name, DB::ActionsDAG& actions_dag, bool keep_result = false);
     ActionsDAG::NodeRawConstPtrs parseArrayJoinWithDAG(
         const substrait::Expression & rel,
         std::vector<String> & result_name,
-        DB::ActionsDAGPtr actions_dag = nullptr,
+        DB::ActionsDAG& actions_dag,
         bool keep_result = false,
         bool position = false);
     void parseFunctionArguments(
-        DB::ActionsDAGPtr & actions_dag,
+        DB::ActionsDAG & actions_dag,
         ActionsDAG::NodeRawConstPtrs & parsed_args,
         const substrait::Expression_ScalarFunction & scalar_function);
 
     void parseArrayJoinArguments(
-        DB::ActionsDAGPtr & actions_dag,
+        DB::ActionsDAG & actions_dag,
         const std::string & function_name,
         const substrait::Expression_ScalarFunction & scalar_function,
         bool position,
@@ -189,14 +174,14 @@ private:
         bool & is_map);
 
 
-    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr actions_dag, const substrait::Expression & rel);
+    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG& actions_dag, const substrait::Expression & rel);
     const ActionsDAG::Node *
-    toFunctionNode(ActionsDAGPtr actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
+    toFunctionNode(ActionsDAG& actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
     // remove nullable after isNotNull
-    void removeNullableForRequiredColumns(const std::set<String> & require_columns, const ActionsDAGPtr & actions_dag) const;
+    void removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAG & actions_dag) const;
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
     void wrapNullable(
-        const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
+        const std::vector<String> & columns, ActionsDAG& actions_dag, std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
 
     bool isFunction(substrait::Expression_ScalarFunction rel, String function_name);
@@ -213,7 +198,7 @@ private:
     std::vector<RelMetricPtr> metrics;
 
 public:
-    const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
+    const ActionsDAG::Node * addColumn(DB::ActionsDAG& actions_dag, const DataTypePtr & type, const Field & field);
 };
 
 struct SparkBuffer
@@ -237,7 +222,7 @@ public:
 
     Block & getHeader();
     RelMetricPtr getMetric() const { return metric; }
-    void setMetric(RelMetricPtr metric_) { metric = metric_; }
+    void setMetric(const RelMetricPtr & metric_) { metric = metric_; }
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
 
 private:

@@ -71,16 +71,16 @@ public:
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "getCHFunctionName is not implemented for LambdaFunction");
     }
 
-    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAGPtr & actions_dag) const override
+    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         /// Some special cases, for example, `transform(arr, x -> concat(arr, array(x)))` refers to
         /// a column `arr` out of it directly. We need a `arr` as an input column for `lambda_actions_dag`
         DB::NamesAndTypesList parent_header;
-        for (const auto * output_node : actions_dag->getOutputs())
+        for (const auto * output_node : actions_dag.getOutputs())
         {
             parent_header.emplace_back(output_node->result_name, output_node->result_type);
         } 
-        auto lambda_actions_dag = std::make_shared<DB::ActionsDAG>(parent_header);
+        ActionsDAG lambda_actions_dag{parent_header};
 
         /// The first argument is the lambda function body, followings are the lambda arguments which is
         /// needed by the lambda function body.
@@ -93,20 +93,20 @@ public:
         }
         const auto & substrait_lambda_body = substrait_func.arguments()[0].value();
         const auto * lambda_body_node = parseExpression(lambda_actions_dag, substrait_lambda_body);
-        lambda_actions_dag->getOutputs().push_back(lambda_body_node);
-        lambda_actions_dag->removeUnusedActions(Names(1, lambda_body_node->result_name));
+        lambda_actions_dag.getOutputs().push_back(lambda_body_node);
+        lambda_actions_dag.removeUnusedActions(Names(1, lambda_body_node->result_name));
 
         auto expression_actions_settings = DB::ExpressionActionsSettings::fromContext(getContext(), DB::CompileExpressions::yes);
-        auto lambda_actions = std::make_shared<DB::ExpressionActions>(lambda_actions_dag, expression_actions_settings);
+        auto lambda_actions = std::make_shared<DB::ExpressionActions>(std::move(lambda_actions_dag), expression_actions_settings);
 
         DB::Names captured_column_names;
         DB::Names required_column_names = lambda_actions->getRequiredColumns();
         DB::ActionsDAG::NodeRawConstPtrs lambda_children;
         auto lambda_function_args = collectLambdaArguments(*plan_parser, substrait_func);
-        const auto & lambda_actions_inputs = lambda_actions_dag->getInputs();
+        const auto & lambda_actions_inputs = lambda_actions_dag.getInputs();
 
         std::unordered_map<String, const DB::ActionsDAG::Node *> parent_nodes;
-        for (const auto & node : actions_dag->getNodes())
+        for (const auto & node : actions_dag.getNodes())
         {
             parent_nodes[node.result_name] = &node;
         }
@@ -131,7 +131,7 @@ public:
                 {
                     throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not found column {} in actions dag:\n{}",
                         required_column_name,
-                        actions_dag->dumpDAG());
+                        actions_dag.dumpDAG());
                 }
                 /// The nodes must be the ones in `actions_dag`, otherwise `ActionsDAG::evaluatePartialResult` will fail. Because nodes may have the
                 /// same name but their addresses are different.
@@ -147,13 +147,13 @@ public:
             lambda_body_node->result_type,
             lambda_body_node->result_name);
 
-        const auto * result = &actions_dag->addFunction(function_capture, lambda_children, lambda_body_node->result_name);
+        const auto * result = &actions_dag.addFunction(function_capture, lambda_children, lambda_body_node->result_name);
         return result;
     }
 protected:
     DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAGPtr & actions_dag) const override
+        DB::ActionsDAG & actions_dag) const override
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "parseFunctionArguments is not implemented for LambdaFunction");
     }
@@ -161,7 +161,7 @@ protected:
     const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
         const substrait::Expression_ScalarFunction & substrait_func,
         const DB::ActionsDAG::Node * func_node,
-        DB::ActionsDAGPtr & actions_dag) const override
+        DB::ActionsDAG & actions_dag) const override
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "convertNodeTypeIfNeeded is not implemented for NamedLambdaVariable");
     }
@@ -184,24 +184,24 @@ public:
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "getCHFunctionName is not implemented for NamedLambdaVariable");
     }
 
-    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAGPtr & actions_dag) const override
+    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         auto [_, col_name_field] = parseLiteral(substrait_func.arguments()[0].value().literal());
         String col_name = col_name_field.get<String>();
 
         auto type = TypeParser::parseType(substrait_func.output_type());
-        const auto & inputs = actions_dag->getInputs();
+        const auto & inputs = actions_dag.getInputs();
         auto it = std::find_if(inputs.begin(), inputs.end(), [&col_name](const auto * node) { return node->result_name == col_name; });
         if (it == inputs.end())
         {
-            return &(actions_dag->addInput(col_name, type));
+            return &(actions_dag.addInput(col_name, type));
         }
         return *it;
     }
 protected:
     DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAGPtr & actions_dag) const override
+        DB::ActionsDAG & actions_dag) const override
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "parseFunctionArguments is not implemented for NamedLambdaVariable");
     }
@@ -209,7 +209,7 @@ protected:
     const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
         const substrait::Expression_ScalarFunction & substrait_func,
         const DB::ActionsDAG::Node * func_node,
-        DB::ActionsDAGPtr & actions_dag) const override
+        DB::ActionsDAG & actions_dag) const override
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "convertNodeTypeIfNeeded is not implemented for NamedLambdaVariable");
     }

@@ -41,7 +41,7 @@ public:
 
     String getName() const override { return name; }
 
-    const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const override
+    const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const override
     {
         /// Parse sha2(str, 0) or sha2(str, 0) as lower(hex(SHA256(str)))
         /// Parse sha2(str, 224) as lower(hex(SHA224(str)))

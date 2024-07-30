@@ -18,6 +18,7 @@
 
 #include <Builder/SerializedPlanBuilder.h>
 #include <Core/ColumnWithTypeAndName.h>
+#include <Common/BlockTypeUtils.h>
 
 namespace DB
 {
@@ -79,12 +80,13 @@ void FunctionExecutor::parseExtensions()
 
 void FunctionExecutor::parseExpression()
 {
+    DB::ActionsDAG actions_dag{blockToNameAndTypeList(header)};
     /// Notice keep_result must be true, because result_node of current function must be output node in actions_dag
-    auto actions_dag = plan_parser.parseFunction(header, expression, result_name, nullptr, true);
+    plan_parser.parseFunctionWithDAG(expression, result_name, actions_dag, true);
     // std::cout << "actions_dag:" << std::endl;
     // std::cout << actions_dag->dumpDAG() << std::endl;
 
-    expression_actions = std::make_unique<ExpressionActions>(actions_dag);
+    expression_actions = std::make_unique<ExpressionActions>(std::move(actions_dag));
 }
 
 Block FunctionExecutor::getHeader() const

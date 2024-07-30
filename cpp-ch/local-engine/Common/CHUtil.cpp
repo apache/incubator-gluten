@@ -459,7 +459,7 @@ const DB::ColumnWithTypeAndName * NestedColumnExtractHelper::findColumn(const DB
 }
 
 const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
-    DB::ActionsDAGPtr & actions_dag,
+    DB::ActionsDAG & actions_dag,
     const DB::ActionsDAG::Node * node,
     const std::string & type_name,
     const std::string & result_name,
@@ -469,11 +469,11 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     type_name_col.name = type_name;
     type_name_col.column = DB::DataTypeString().createColumnConst(0, type_name_col.name);
     type_name_col.type = std::make_shared<DB::DataTypeString>();
-    const auto * right_arg = &actions_dag->addColumn(std::move(type_name_col));
+    const auto * right_arg = &actions_dag.addColumn(std::move(type_name_col));
     const auto * left_arg = node;
     DB::CastDiagnostic diagnostic = {node->result_name, node->result_name};
     DB::ActionsDAG::NodeRawConstPtrs children = {left_arg, right_arg};
-    return &actions_dag->addFunction(
+    return &actions_dag.addFunction(
         DB::createInternalCastOverloadResolver(cast_type, std::move(diagnostic)), std::move(children), result_name);
 }
 
@@ -1079,14 +1079,14 @@ UInt64 MemoryUtil::getMemoryRSS()
 
 void JoinUtil::reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
 {
-    ActionsDAGPtr project = std::make_shared<ActionsDAG>(plan.getCurrentDataStream().header.getNamesAndTypesList());
+    ActionsDAG project{plan.getCurrentDataStream().header.getNamesAndTypesList()};
     NamesWithAliases project_cols;
     for (const auto & col : cols)
     {
         project_cols.emplace_back(NameWithAlias(col, col));
     }
-    project->project(project_cols);
-    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), project);
+    project.project(project_cols);
+    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), std::move(project));
     project_step->setStepDescription("Reorder Join Output");
     plan.addStep(std::move(project_step));
 }
