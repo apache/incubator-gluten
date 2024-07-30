@@ -70,11 +70,13 @@ DB::Block resetBuildTableBlockName(Block & block, bool only_one = false)
 
 void cleanBuildHashTable(const std::string & hash_table_id, jlong instance)
 {
-    /// Thread status holds raw pointer on query context, thus it always must be destroyed
-    /// It always called by no thread_status. We need create first.
-    /// Otherwise global tracker will not free bhj memory.
-    DB::ThreadStatus thread_status;
-    SharedPointerWrapper<StorageJoinFromReadBuffer>::dispose(instance);
+    auto clean_join = [&]
+    {
+        SharedPointerWrapper<StorageJoinFromReadBuffer>::dispose(instance);
+    };
+    /// Record memory usage in Total Memory Tracker
+    ThreadFromGlobalPoolNoTracingContextPropagation thread(clean_join);
+    thread.join();
     LOG_DEBUG(&Poco::Logger::get("BroadCastJoinBuilder"), "Broadcast hash table {} is cleaned", hash_table_id);
 }
 
@@ -122,6 +124,7 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     header = resetBuildTableBlockName(header);
 
     Blocks data;
+    auto collect_data = [&]
     {
         bool header_empty = header.getNamesAndTypesList().empty();
         bool only_one_column = header_empty;
@@ -157,7 +160,10 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
             info.update(final_block);
             data.emplace_back(std::move(final_block));
         }
-    }
+    };
+    /// Record memory usage in Total Memory Tracker
+    ThreadFromGlobalPoolNoTracingContextPropagation thread(collect_data);
+    thread.join();
 
     ColumnsDescription columns_description(header.getNamesAndTypesList());
 

@@ -28,8 +28,7 @@ public class CHDatasourceJniWrapper {
       String taskId,
       String partition_dir,
       String bucket_dir,
-      byte[] confArray,
-      long allocId);
+      byte[] confArray);
 
   public native String nativeMergeMTParts(
       byte[] plan,

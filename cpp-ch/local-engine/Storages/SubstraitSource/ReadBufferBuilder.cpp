@@ -48,6 +48,7 @@
 #include <Poco/URI.h>
 #include <Common/CHUtil.h>
 #include <Common/FileCacheConcurrentMap.h>
+#include <Common/GlutenConfig.h>
 #include <Common/Throttler.h>
 #include <Common/logger_useful.h>
 #include <Common/safe_cast.h>
@@ -211,7 +212,7 @@ public:
     std::unique_ptr<DB::ReadBuffer>
     build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
     {
-        bool enable_async_io = context->getConfigRef().getBool("hdfs.enable_async_io", true);
+        auto config = HdfsConfig::loadFromContext(context);
         Poco::URI file_uri(file_info.uri_file());
         std::string uri_path = "hdfs://" + file_uri.getHost();
         if (file_uri.getPort())
@@ -233,7 +234,7 @@ public:
 
             auto read_buffer_impl = std::make_unique<DB::ReadBufferFromHDFS>(
                 uri_path, file_uri.getPath(), context->getConfigRef(), read_settings, start_end_pos.second, true);
-            if (enable_async_io)
+            if (config.hdfs_async)
             {
                 auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
                 read_buffer = std::make_unique<DB::AsynchronousReadBufferFromHDFS>(pool_reader, read_settings, std::move(read_buffer_impl));
@@ -249,7 +250,7 @@ public:
         {
             auto read_buffer_impl
                 = std::make_unique<DB::ReadBufferFromHDFS>(uri_path, file_uri.getPath(), context->getConfigRef(), read_settings, 0, true);
-            if (enable_async_io)
+            if (config.hdfs_async)
             {
                 read_buffer = std::make_unique<DB::AsynchronousReadBufferFromHDFS>(
                     context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER),
@@ -380,14 +381,15 @@ class S3FileReadBufferBuilder : public ReadBufferBuilder
 public:
     explicit S3FileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_)
     {
+        auto config = S3Config::loadFromContext(context);
         new_settings = context->getReadSettings();
-        new_settings.enable_filesystem_cache = context->getConfigRef().getBool("s3.local_cache.enabled", false);
+        new_settings.enable_filesystem_cache = config.s3_local_cache_enabled;
 
         if (new_settings.enable_filesystem_cache)
         {
             DB::FileCacheSettings file_cache_settings;
-            file_cache_settings.max_size = static_cast<size_t>(context->getConfigRef().getUInt64("s3.local_cache.max_size", 100L << 30));
-            auto cache_base_path = context->getConfigRef().getString("s3.local_cache.cache_path", "/tmp/gluten/local_cache");
+            file_cache_settings.max_size = config.s3_local_cache_max_size;
+            auto cache_base_path = config.s3_local_cache_cache_path;
 
             if (!fs::exists(cache_base_path))
                 fs::create_directories(cache_base_path);

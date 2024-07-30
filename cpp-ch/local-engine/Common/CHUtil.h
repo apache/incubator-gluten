@@ -188,7 +188,6 @@ public:
     inline static const std::string SPARK_SESSION_TIME_ZONE = "spark.sql.session.timeZone";
 
     inline static const String GLUTEN_TASK_OFFHEAP = "spark.gluten.memory.task.offHeap.size.in.bytes";
-    inline static const String CH_TASK_MEMORY = "off_heap_per_task";
 
     /// On yarn mode, native writing on hdfs cluster takes yarn container user as the user passed to libhdfs3, which
     /// will cause permission issue because yarn container user is not the owner of the hdfs dir to be written.
@@ -252,7 +251,6 @@ public:
 class MemoryUtil
 {
 public:
-    static UInt64 getCurrentMemoryUsage(size_t depth = 1);
     static UInt64 getMemoryRSS();
 };
 
