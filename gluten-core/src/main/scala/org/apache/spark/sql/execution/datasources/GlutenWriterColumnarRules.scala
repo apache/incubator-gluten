@@ -182,12 +182,6 @@ object GlutenWriterColumnarRules {
             rc.withNewChildren(rc.children.map(apply))
           }
         } else {
-          session.sparkContext.setLocalProperty(
-            "staticPartitionWriteOnly",
-            BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
-          session.sparkContext.setLocalProperty("isNativeApplicable", "false")
-          session.sparkContext.setLocalProperty("nativeFormat", "")
-
           rc.withNewChildren(rc.children.map(apply))
         }
       case plan: SparkPlan => plan.withNewChildren(plan.children.map(apply))
