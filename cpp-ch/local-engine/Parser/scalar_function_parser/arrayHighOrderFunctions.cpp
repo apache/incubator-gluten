@@ -15,16 +15,17 @@
  * limitations under the License.
  */
 
-#include <Parser/FunctionParser.h>
-#include <Common/Exception.h>
-#include <Poco/Logger.h>
-#include <Common/logger_useful.h>
-#include <Common/CHUtil.h>
+#include <Core/Types.h>
+#include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeFunction.h>
 #include <DataTypes/DataTypeNullable.h>
-#include <Core/Types.h>
+#include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
 #include <Parser/scalar_function_parser/lambdaFunction.h>
+#include <Poco/Logger.h>
+#include <Common/CHUtil.h>
+#include <Common/Exception.h>
+#include <Common/logger_useful.h>
 
 namespace DB::ErrorCodes
 {
@@ -90,7 +91,16 @@ public:
         assert(parsed_args.size() == 2);
         if (lambda_args.size() == 1)
         {
-            return toFunctionNode(actions_dag, ch_func_name, {parsed_args[1], parsed_args[0]});
+            /// Convert Array(T) to Array(U) if needed, Array(T) is the type of the first argument of transform.
+            /// U is the argument type of lambda function. In some cases Array(T) is not equal to Array(U).
+            /// e.g. in the second query of https://github.com/apache/incubator-gluten/issues/6561, T is String, and U is Nullable(String)
+            /// The difference of both types will result in runtime exceptions in function capture.
+            const auto & src_array_type = parsed_args[0]->result_type;
+            DataTypePtr dst_array_type = std::make_shared<DataTypeArray>(lambda_args.front().type);
+            if (isNullableOrLowCardinalityNullable(src_array_type))
+                dst_array_type = std::make_shared<DataTypeNullable>(dst_array_type);
+            const auto * dst_array_arg = ActionsDAGUtil::convertNodeTypeIfNeeded(actions_dag, parsed_args[0], dst_array_type);
+            return toFunctionNode(actions_dag, ch_func_name, {parsed_args[1], dst_array_arg});
         }
 
         /// transform with index argument.
