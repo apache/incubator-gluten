@@ -220,12 +220,9 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
   {
     ScopedTimer timer(&sortTime_);
     if (options_.useRadixSort) {
-      begin = RadixSort<uint64_t>::sort(
-          arrayPtr_, arraySize_, numRecords, kPartitionIdStartByteIndex, kPartitionIdEndByteIndex);
+      begin = RadixSort::sort(arrayPtr_, arraySize_, numRecords, kPartitionIdStartByteIndex, kPartitionIdEndByteIndex);
     } else {
-      auto ptr = arrayPtr_;
-      qsort(ptr, numRecords, sizeof(uint64_t), compare);
-      (void)ptr;
+      std::sort(arrayPtr_, arrayPtr_ + numRecords);
     }
   }
 

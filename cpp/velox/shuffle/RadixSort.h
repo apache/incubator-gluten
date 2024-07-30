@@ -21,7 +21,9 @@
 
 namespace gluten {
 
-template <typename Element>
+// Spark radix sort implementation. This implementation is for shuffle sort only as it removes unused
+// params (desc, signed) in shuffle.
+// https://github.com/apache/spark/blob/308669fc301916837bacb7c3ec1ecef93190c094/core/src/main/java/org/apache/spark/util/collection/unsafe/sort/RadixSort.java#L25
 class RadixSort {
  public:
   /**
@@ -39,7 +41,7 @@ class RadixSort {
    * @return The starting index of the sorted data within the given array. We return this instead
    *         of always copying the data back to position zero for efficiency.
    */
-  static int32_t sort(Element* array, size_t size, int64_t numRecords, int32_t startByteIndex, int32_t endByteIndex) {
+  static int32_t sort(uint64_t* array, size_t size, int64_t numRecords, int32_t startByteIndex, int32_t endByteIndex) {
     assert(startByteIndex >= 0 && "startByteIndex should >= 0");
     assert(endByteIndex <= 7 && "endByteIndex should <= 7");
     assert(endByteIndex > startByteIndex);
@@ -75,7 +77,7 @@ class RadixSort {
    * @param outIndex the starting index where sorted output data should be written.
    */
   static void sortAtByte(
-      Element* array,
+      uint64_t* array,
       int64_t numRecords,
       std::vector<int64_t>& counts,
       int32_t byteIdx,
@@ -103,7 +105,7 @@ class RadixSort {
    *         significant byte. If the byte does not need sorting the vector entry will be empty.
    */
   static std::vector<std::vector<int64_t>>
-  getCounts(Element* array, int64_t numRecords, int32_t startByteIndex, int32_t endByteIndex) {
+  getCounts(uint64_t* array, int64_t numRecords, int32_t startByteIndex, int32_t endByteIndex) {
     std::vector<std::vector<int64_t>> counts;
     counts.resize(8);
 
