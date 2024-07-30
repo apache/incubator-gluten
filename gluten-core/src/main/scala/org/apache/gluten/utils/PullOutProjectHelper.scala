@@ -22,7 +22,7 @@ import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.execution.aggregate._
-import org.apache.spark.sql.types.{ByteType, DateType, IntegerType, LongType, ShortType}
+import org.apache.spark.sql.types.{ByteType, IntegerType, LongType, ShortType}
 
 import java.util.concurrent.atomic.AtomicInteger
 
