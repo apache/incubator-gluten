@@ -347,7 +347,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
                   orderSpec.foreach(
                     order =>
                       order.dataType match {
-                        case ByteType | ShortType | IntegerType | LongType | DateType =>
+                        case ByteType | ShortType | IntegerType | LongType =>
                         case _ =>
                           throw new GlutenNotSupportException(
                             "Only integral type & date type are" +

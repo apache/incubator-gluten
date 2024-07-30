@@ -304,7 +304,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_commitdate" +
               " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
+            checkSparkOperatorMatch[WindowExec]
           }
 
           runQueryAndCompare(
