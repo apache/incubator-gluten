@@ -242,6 +242,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def memoryIsolation: Boolean = conf.getConf(COLUMNAR_MEMORY_ISOLATION)
 
+  def memoryBacktraceAllocation: Boolean = conf.getConf(COLUMNAR_MEMORY_BACKTRACE_ALLOCATION)
+
   def numTaskSlotsPerExecutor: Int = {
     val numSlots = conf.getConf(NUM_TASK_SLOTS_PER_EXECUTOR)
     assert(numSlots > 0, s"Number of task slot not found. This should not happen.")
@@ -647,6 +649,7 @@ object GlutenConfig {
       SQLConf.LEGACY_SIZE_OF_NULL.key,
       "spark.io.compression.codec",
       "spark.sql.decimalOperations.allowPrecisionLoss",
+      COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key,
@@ -1255,6 +1258,14 @@ object GlutenConfig {
         "to set true if Gluten serves concurrent queries within a single session, since not all " +
         "memory Gluten allocated is guaranteed to be spillable. In the case, the feature should " +
         "be enabled to avoid OOM.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_MEMORY_BACKTRACE_ALLOCATION =
+    buildConf("spark.gluten.memory.backtrace.allocation")
+      .internal()
+      .doc("Print backtrace information for large memory allocations. This helps debugging when " +
+        "Spark OOM happens due to large acquire requests.")
       .booleanConf
       .createWithDefault(false)
 
