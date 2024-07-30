@@ -918,7 +918,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  testWithSpecifiedSparkVersion("mask", Some("3.5")) {
+  testWithSpecifiedSparkVersion("mask", Some("3.4")) {
     runQueryAndCompare("SELECT mask(c_comment) FROM customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
