@@ -112,9 +112,10 @@ bool SparkMergeTreeWriter::useLocalStorage() const
 void SparkMergeTreeWriter::write(const DB::Block & block)
 {
     auto new_block = removeColumnSuffix(block);
-    if (auto converter = ActionsDAG::makeConvertingActions(
-            new_block.getColumnsWithTypeAndName(), header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Position))
-        ExpressionActions(converter).execute(new_block);
+    auto converter = ActionsDAG::makeConvertingActions(
+            new_block.getColumnsWithTypeAndName(), header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Position);
+    const ExpressionActions expression_actions{std::move(converter)};
+    expression_actions.execute(new_block);
 
     bool has_part = chunkToPart(squashing->add({new_block.getColumns(), new_block.rows()}));
 

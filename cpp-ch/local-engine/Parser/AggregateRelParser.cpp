@@ -168,8 +168,8 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
 void AggregateRelParser::addPreProjection()
 {
     auto input_header = plan->getCurrentDataStream().header;
-    ActionsDAGPtr projection_action = std::make_shared<ActionsDAG>(input_header.getColumnsWithTypeAndName());
-    std::string dag_footprint = projection_action->dumpDAG();
+    ActionsDAG projection_action{input_header.getColumnsWithTypeAndName()};
+    std::string dag_footprint = projection_action.dumpDAG();
     for (auto & agg_info : aggregates)
     {
         auto arg_nodes = agg_info.function_parser->parseFunctionArguments(agg_info.parser_func_info, projection_action);
@@ -179,14 +179,14 @@ void AggregateRelParser::addPreProjection()
         {
             agg_info.arg_column_names.emplace_back(arg_node->result_name);
             agg_info.arg_column_types.emplace_back(arg_node->result_type);
-            projection_action->addOrReplaceInOutputs(*arg_node);
+            projection_action.addOrReplaceInOutputs(*arg_node);
         }
     }
-    if (projection_action->dumpDAG() != dag_footprint)
+    if (projection_action.dumpDAG() != dag_footprint)
     {
         /// Avoid unnecessary evaluation
-        projection_action->removeUnusedActions();
-        auto projection_step = std::make_unique<DB::ExpressionStep>(plan->getCurrentDataStream(), projection_action);
+        projection_action.removeUnusedActions();
+        auto projection_step = std::make_unique<DB::ExpressionStep>(plan->getCurrentDataStream(), std::move(projection_action));
         projection_step->setStepDescription("Projection before aggregate");
         steps.emplace_back(projection_step.get());
         plan->addStep(std::move(projection_step));
@@ -482,14 +482,14 @@ void AggregateRelParser::addAggregatingStep()
 void AggregateRelParser::addPostProjection()
 {
     auto input_header = plan->getCurrentDataStream().header;
-    ActionsDAGPtr project_actions_dag = std::make_shared<ActionsDAG>(input_header.getColumnsWithTypeAndName());
-    auto dag_footprint = project_actions_dag->dumpDAG();
+    ActionsDAG project_actions_dag{input_header.getColumnsWithTypeAndName()};
+    auto dag_footprint = project_actions_dag.dumpDAG();
 
     if (has_final_stage)
     {
         for (const auto & agg_info : aggregates)
         {
-            for (const auto * input_node : project_actions_dag->getInputs())
+            for (const auto * input_node : project_actions_dag.getInputs())
             {
                 if (input_node->result_name == agg_info.measure_column_name)
                 {
@@ -503,7 +503,7 @@ void AggregateRelParser::addPostProjection()
         // on the complete mode, it must consider the nullability when converting node type
         for (const auto & agg_info : aggregates)
         {
-            for (const auto * output_node : project_actions_dag->getOutputs())
+            for (const auto * output_node : project_actions_dag.getOutputs())
             {
                 if (output_node->result_name == agg_info.measure_column_name)
                 {
@@ -512,9 +512,9 @@ void AggregateRelParser::addPostProjection()
             }
         }
     }
-    if (project_actions_dag->dumpDAG() != dag_footprint)
+    if (project_actions_dag.dumpDAG() != dag_footprint)
     {
-        QueryPlanStepPtr convert_step = std::make_unique<ExpressionStep>(plan->getCurrentDataStream(), project_actions_dag);
+        QueryPlanStepPtr convert_step = std::make_unique<ExpressionStep>(plan->getCurrentDataStream(), std::move(project_actions_dag));
         convert_step->setStepDescription("Post-projection for aggregate");
         steps.emplace_back(convert_step.get());
         plan->addStep(std::move(convert_step));

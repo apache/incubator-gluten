@@ -41,7 +41,7 @@ public:
 
     const ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,
-        ActionsDAGPtr & actions_dag) const override
+        ActionsDAG & actions_dag) const override
     {
         /// parse cot(x) as 1 / tan(x)
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);

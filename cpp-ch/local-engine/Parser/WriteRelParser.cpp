@@ -66,9 +66,9 @@ DB::ExpressionActionsPtr create_rename_action(const DB::Block & input, const DB:
     for (auto ouput_name = output.begin(), input_iter = input.begin(); ouput_name != output.end(); ++ouput_name, ++input_iter)
         aliases.emplace_back(DB::NameWithAlias(input_iter->name, ouput_name->name));
 
-    const auto actions_dag = std::make_shared<DB::ActionsDAG>(blockToNameAndTypeList(input));
-    actions_dag->project(aliases);
-    return std::make_shared<DB::ExpressionActions>(actions_dag);
+    ActionsDAG actions_dag{blockToNameAndTypeList(input)};
+    actions_dag.project(aliases);
+    return std::make_shared<DB::ExpressionActions>(std::move(actions_dag));
 }
 
 DB::ExpressionActionsPtr create_project_action(const DB::Block & input, const DB::Block & output)
@@ -82,8 +82,8 @@ DB::ExpressionActionsPtr create_project_action(const DB::Block & input, const DB
     assert(final_cols.size() == output.columns());
 
     const auto & original_cols = input.getColumnsWithTypeAndName();
-    ActionsDAGPtr final_project = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
-    return  std::make_shared<DB::ExpressionActions>(final_project);
+    ActionsDAG final_project = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
+    return  std::make_shared<DB::ExpressionActions>(std::move(final_project));
 }
 
 void adjust_output(const DB::QueryPipelineBuilderPtr & builder, const DB::Block& output)

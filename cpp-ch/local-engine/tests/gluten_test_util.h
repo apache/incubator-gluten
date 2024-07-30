@@ -63,7 +63,7 @@ DB::DataTypePtr toDataType(const parquet::ColumnDescriptor & type);
 
 AnotherRowType readParquetSchema(const std::string & file);
 
-DB::ActionsDAGPtr parseFilter(const std::string & filter, const AnotherRowType & name_and_types);
+std::optional<DB::ActionsDAG> parseFilter(const std::string & filter, const AnotherRowType & name_and_types);
 
 }
 

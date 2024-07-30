@@ -127,14 +127,14 @@ class ActionsDAGUtil
 {
 public:
     static const DB::ActionsDAG::Node * convertNodeType(
-        DB::ActionsDAGPtr & actions_dag,
+        DB::ActionsDAG & actions_dag,
         const DB::ActionsDAG::Node * node,
         const std::string & type_name,
         const std::string & result_name = "",
         DB::CastType cast_type = DB::CastType::nonAccurate);
 
     static const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
-        DB::ActionsDAGPtr & actions_dag,
+        DB::ActionsDAG & actions_dag,
         const DB::ActionsDAG::Node * node,
         const DB::DataTypePtr & dst_type,
         const std::string & result_name = "",

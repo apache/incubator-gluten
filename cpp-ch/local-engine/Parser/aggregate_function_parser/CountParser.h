@@ -30,6 +30,6 @@ public:
     String getCHFunctionName(const CommonFunctionInfo &) const override;
     String getCHFunctionName(DB::DataTypes &) const override;
     DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
-        const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const override;
+        const CommonFunctionInfo & func_info, DB::ActionsDAG & actions_dag) const override;
 };
 }
