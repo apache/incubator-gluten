@@ -163,6 +163,10 @@ object GlutenWriterColumnarRules {
             BackendsApiManager.getSettings.enableNativeWriteFiles() =>
         injectFakeRowAdaptor(rc, rc.child)
       case rc @ DataWritingCommandExec(cmd, child) =>
+        // These properties can be set by the same thread in last query submission.
+        session.sparkContext.setLocalProperty("isNativeApplicable", null)
+        session.sparkContext.setLocalProperty("nativeFormat", null)
+        session.sparkContext.setLocalProperty("staticPartitionWriteOnly", null)
         if (BackendsApiManager.getSettings.supportNativeWrite(child.output.toStructType.fields)) {
           val format = getNativeFormat(cmd)
           session.sparkContext.setLocalProperty(

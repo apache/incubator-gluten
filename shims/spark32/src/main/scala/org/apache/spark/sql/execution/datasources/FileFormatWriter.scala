@@ -257,7 +257,7 @@ object FileFormatWriter extends Logging {
       }
 
       val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
-      if ("parquet".equals(nativeFormat)) {
+      if ("parquet" == nativeFormat) {
         (GlutenParquetWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
       } else {
         (GlutenOrcWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)

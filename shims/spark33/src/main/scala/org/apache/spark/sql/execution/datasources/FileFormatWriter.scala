@@ -142,7 +142,7 @@ object FileFormatWriter extends Logging {
     val nativeEnabled =
       "true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")
     val staticPartitionWriteOnly =
-      "true".equals(sparkSession.sparkContext.getLocalProperty("staticPartitionWriteOnly"))
+      "true" == sparkSession.sparkContext.getLocalProperty("staticPartitionWriteOnly")
 
     if (nativeEnabled) {
       logInfo("Use Gluten partition write for hive")
@@ -277,7 +277,7 @@ object FileFormatWriter extends Logging {
       }
 
       val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
-      if ("parquet".equals(nativeFormat)) {
+      if ("parquet" == nativeFormat) {
         (GlutenParquetWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
       } else {
         (GlutenOrcWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
