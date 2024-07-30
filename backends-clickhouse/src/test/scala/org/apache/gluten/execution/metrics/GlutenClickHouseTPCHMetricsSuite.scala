@@ -71,15 +71,16 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         assert(plans.size == 3)
 
         assert(plans(2).metrics("numFiles").value === 1)
-        assert(plans(2).metrics("pruningTime").value === -1)
+        val pruningTimeValue = if (isSparkVersionGE("3.4")) 0 else -1
+        assert(plans(2).metrics("pruningTime").value === pruningTimeValue)
         assert(plans(2).metrics("filesSize").value === 19230111)
 
         assert(plans(1).metrics("numOutputRows").value === 4)
         assert(plans(1).metrics("outputVectors").value === 1)
 
         // Execute Sort operator, it will read the data twice.
-        assert(plans(0).metrics("numOutputRows").value === 4)
-        assert(plans(0).metrics("outputVectors").value === 1)
+        assert(plans.head.metrics("numOutputRows").value === 4)
+        assert(plans.head.metrics("outputVectors").value === 1)
     }
   }
 
@@ -139,7 +140,8 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
           assert(plans.size == 3)
 
           assert(plans(2).metrics("numFiles").value === 1)
-          assert(plans(2).metrics("pruningTime").value === -1)
+          val pruningTimeValue = if (isSparkVersionGE("3.4")) 0 else -1
+          assert(plans(2).metrics("pruningTime").value === pruningTimeValue)
           assert(plans(2).metrics("filesSize").value === 19230111)
 
           assert(plans(1).metrics("numOutputRows").value === 4)

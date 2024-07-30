@@ -234,10 +234,11 @@ class GlutenClickHouseTPCHBucketSuite
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
         }
-        assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
-        assert(plans(0).metrics("numFiles").value === 2)
-        assert(plans(0).metrics("pruningTime").value === -1)
-        assert(plans(0).metrics("numOutputRows").value === 591673)
+        assert(!plans.head.asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
+        assert(plans.head.metrics("numFiles").value === 2)
+        val pruningTimeValue = if (isSparkVersionGE("3.4")) 0 else -1
+        assert(plans.head.metrics("pruningTime").value === pruningTimeValue)
+        assert(plans.head.metrics("numOutputRows").value === 591673)
       })
   }
 
@@ -409,10 +410,11 @@ class GlutenClickHouseTPCHBucketSuite
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
         }
-        assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
-        assert(plans(0).metrics("numFiles").value === 2)
-        assert(plans(0).metrics("pruningTime").value === -1)
-        assert(plans(0).metrics("numOutputRows").value === 11618)
+        assert(!plans.head.asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
+        assert(plans.head.metrics("numFiles").value === 2)
+        val pruningTimeValue = if (isSparkVersionGE("3.4")) 0 else -1
+        assert(plans.head.metrics("pruningTime").value === pruningTimeValue)
+        assert(plans.head.metrics("numOutputRows").value === 11618)
       })
   }
 

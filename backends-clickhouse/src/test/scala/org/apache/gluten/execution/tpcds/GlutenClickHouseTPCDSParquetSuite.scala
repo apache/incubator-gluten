@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.tpcds
+
+import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
@@ -47,7 +49,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     val result = runSql("""
                           |select count(c_customer_sk) from customer
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 100000L)
+    assertResult(100000L)(result.head.getLong(0))
   }
 
   test("test reading from partitioned table") {
@@ -56,7 +58,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
                           |  from store_sales
                           |  where ss_quantity between 1 and 20
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 550458L)
+    assertResult(550458L)(result.head.getLong(0))
   }
 
   test("test reading from partitioned table with partition column filter") {
@@ -67,7 +69,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |  where ss_quantity between 1 and 20
         |  and ss_sold_date_sk = 2452635
         |""".stripMargin,
-      true,
+      compareResult = true,
       _ => {}
     )
   }
@@ -77,8 +79,8 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
                           |select avg(cs_item_sk), avg(cs_order_number)
                           |  from catalog_sales
                           |""".stripMargin) { _ => }
-    assert(result(0).getDouble(0) == 8998.463336886734)
-    assert(result(0).getDouble(1) == 80037.12727449503)
+    assertResult(8998.463336886734)(result.head.getDouble(0))
+    assertResult(80037.12727449503)(result.head.getDouble(1))
   }
 
   test("test union all operator with two tables") {
@@ -89,7 +91,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
                           |  select ws_sold_date_sk as date_sk from web_sales
                           |)
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 791809)
+    assertResult(791809)(result.head.getLong(0))
   }
 
   test("test union all operator with three tables") {
@@ -103,7 +105,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
                           |  )
                           |)
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 791909)
+    assertResult(791909)(result.head.getLong(0))
   }
 
   test("test union operator with two tables") {
@@ -114,7 +116,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
                           |  select ws_sold_date_sk as date_sk from web_sales
                           |)
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 73049)
+    assertResult(73049)(result.head.getLong(0))
   }
 
   test("Test join with mixed condition 1") {
@@ -134,7 +136,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         | ORDER BY ext_price DESC, i_brand, i_brand_id, i_manufact_id, i_manufact
         | LIMIT 100;
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(testSql, true, _ => {})
+    compareResultsAgainstVanillaSpark(testSql, compareResult = true, _ => {})
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
@@ -153,7 +155,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       testSql,
-      true,
+      compareResult = true,
       df => {
         val foundDynamicPruningExpr = df.queryExecution.executedPlan.collect {
           case f: FileSourceScanExecTransformer => f
@@ -164,11 +166,11 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
             .asInstanceOf[FileSourceScanExecTransformer]
             .partitionFilters
             .exists(_.isInstanceOf[DynamicPruningExpression]))
-        assert(
+        assertResult(1823)(
           foundDynamicPruningExpr(1)
             .asInstanceOf[FileSourceScanExecTransformer]
             .selectedPartitions
-            .size == 1823)
+            .length)
       }
     )
   }
@@ -200,13 +202,13 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
             }
           case _ => false
         }
-        assert(foundDynamicPruningExpr.nonEmpty == true)
+        assert(foundDynamicPruningExpr.nonEmpty)
 
         val reuseExchange = df.queryExecution.executedPlan.find {
           case r: ReusedExchangeExec => true
           case _ => false
         }
-        assert(reuseExchange.nonEmpty == true)
+        assert(reuseExchange.nonEmpty)
     }
   }
 
@@ -224,7 +226,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
               }
             case _ => false
           }
-          assert(foundDynamicPruningExpr.nonEmpty == true)
+          assert(foundDynamicPruningExpr.nonEmpty)
 
           val reuseExchange = df.queryExecution.executedPlan.find {
             case r: ReusedExchangeExec => true
@@ -255,7 +257,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |ORDER BY channel
         | LIMIT 100 ;
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(testSql, true, df => {})
+    compareResultsAgainstVanillaSpark(testSql, compareResult = true, df => {})
   }
 
   test("Bug-382 collec_list failure") {
@@ -264,7 +266,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |select cc_call_center_id, collect_list(cc_call_center_sk) from call_center group by cc_call_center_id
         |order by cc_call_center_id
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, df => {})
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, df => {})
   }
 
   test("collec_set") {
@@ -275,7 +277,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |lateral view explode(set) as b
         |order by a, b
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, _ => {})
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, _ => {})
   }
 
   test("GLUTEN-1626: test 'roundHalfup'") {
@@ -286,7 +288,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |from store_sales
         |group by a order by a
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql0, true, _ => {})
+    compareResultsAgainstVanillaSpark(sql0, compareResult = true, _ => {})
 
     val sql1 =
       """
@@ -295,7 +297,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |from store_sales
         |group by a order by a
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql1, true, _ => {})
+    compareResultsAgainstVanillaSpark(sql1, compareResult = true, _ => {})
 
     val sql2 =
       """
@@ -304,7 +306,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |from catalog_sales
         |group by a order by a
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql2, true, _ => {})
+    compareResultsAgainstVanillaSpark(sql2, compareResult = true, _ => {})
 
     val sql3 =
       """
@@ -313,7 +315,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |from catalog_sales
         |group by a order by a
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql3, true, _ => {})
+    compareResultsAgainstVanillaSpark(sql3, compareResult = true, _ => {})
 
     val sql4 =
       """
@@ -322,7 +324,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |from web_sales
         |group by a order by a
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql4, true, _ => {})
+    compareResultsAgainstVanillaSpark(sql4, compareResult = true, _ => {})
 
     val sql5 =
       """
@@ -331,7 +333,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |from web_sales
         |group by a order by a
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql5, true, _ => {})
+    compareResultsAgainstVanillaSpark(sql5, compareResult = true, _ => {})
   }
 
 }

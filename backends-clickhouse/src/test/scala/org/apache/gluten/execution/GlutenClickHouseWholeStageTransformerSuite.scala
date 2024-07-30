@@ -23,6 +23,7 @@ import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 
 import org.apache.commons.io.FileUtils
+import org.scalatest.Tag
 
 import java.io.File
 
@@ -177,13 +178,21 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
     super.beforeAll()
   }
 
-  protected val rootPath = this.getClass.getResource("/").getPath
-  protected val basePath = rootPath + "tests-working-home"
-  protected val warehouse = basePath + "/spark-warehouse"
-  protected val metaStorePathAbsolute = basePath + "/meta"
-  protected val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
+  protected val rootPath: String = this.getClass.getResource("/").getPath
+  protected val basePath: String = rootPath + "tests-working-home"
+  protected val warehouse: String = basePath + "/spark-warehouse"
+  protected val metaStorePathAbsolute: String = basePath + "/meta"
+  protected val hiveMetaStoreDB: String = metaStorePathAbsolute + "/metastore_db"
 
   final override protected val resourcePath: String = "" // ch not need this
   override protected val fileFormat: String = "parquet"
+
+  protected def testSparkVersionLE33(testName: String, testTag: Tag*)(testFun: => Any): Unit = {
+    if (isSparkVersionLE("3.3")) {
+      test(testName, testTag: _*)(testFun)
+    } else {
+      ignore(s"[$SPARK_VERSION_SHORT]-$testName", testTag: _*)(testFun)
+    }
+  }
 }
 // scalastyle:off line.size.limit

@@ -107,7 +107,7 @@ class GlutenClickhouseCountDistinctSuite extends GlutenClickHouseWholeStageTrans
       values (0, null,1), (0,null,2), (1, 1,4) as data(a,b,c) group by try_add(c,b)
       """;
     val df = spark.sql(sql)
-    WholeStageTransformerSuite.checkFallBack(df, noFallback = false)
+    WholeStageTransformerSuite.checkFallBack(df, noFallback = isSparkVersionGE("3.4"))
   }
 
   test("check count distinct with filter") {

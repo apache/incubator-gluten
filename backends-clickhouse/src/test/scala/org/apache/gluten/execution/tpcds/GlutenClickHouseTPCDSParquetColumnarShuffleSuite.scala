@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.tpcds
+
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCDSAbstractSuite}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
@@ -45,7 +47,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
                           |  from store_sales
                           |  where ss_quantity between 1 and 20
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 550458L)
+    assertResult(550458L)(result.head.getLong(0))
   }
 
   test("test reading from partitioned table with partition column filter") {
@@ -56,7 +58,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
         |  where ss_quantity between 1 and 20
         |  and ss_sold_date_sk = 2452635
         |""".stripMargin,
-      true,
+      compareResult = true,
       _ => {}
     )
   }
@@ -66,8 +68,8 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
                           |select avg(cs_item_sk), avg(cs_order_number)
                           |  from catalog_sales
                           |""".stripMargin) { _ => }
-    assert(result(0).getDouble(0) == 8998.463336886734)
-    assert(result(0).getDouble(1) == 80037.12727449503)
+    assertResult(8998.463336886734)(result.head.getDouble(0))
+    assertResult(80037.12727449503)(result.head.getDouble(1))
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
@@ -86,7 +88,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       testSql,
-      true,
+      compareResult = true,
       df => {
         val foundDynamicPruningExpr = df.queryExecution.executedPlan.collect {
           case f: FileSourceScanExecTransformer => f
@@ -97,11 +99,11 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
             .asInstanceOf[FileSourceScanExecTransformer]
             .partitionFilters
             .exists(_.isInstanceOf[DynamicPruningExpression]))
-        assert(
+        assertResult(1823)(
           foundDynamicPruningExpr(1)
             .asInstanceOf[FileSourceScanExecTransformer]
             .selectedPartitions
-            .size == 1823)
+            .length)
       }
     )
   }
@@ -144,13 +146,13 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
             }
           case _ => false
         }
-        assert(foundDynamicPruningExpr.nonEmpty == true)
+        assert(foundDynamicPruningExpr.nonEmpty)
 
         val reuseExchange = df.queryExecution.executedPlan.find {
           case r: ReusedExchangeExec => true
           case _ => false
         }
-        assert(reuseExchange.nonEmpty == true)
+        assert(reuseExchange.nonEmpty)
     }
   }
 
@@ -168,7 +170,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
               }
             case _ => false
           }
-          assert(foundDynamicPruningExpr.nonEmpty == true)
+          assert(foundDynamicPruningExpr.nonEmpty)
 
           val reuseExchange = df.queryExecution.executedPlan.find {
             case r: ReusedExchangeExec => true
@@ -199,6 +201,6 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
         |ORDER BY channel
         | LIMIT 100 ;
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(testSql, true, df => {})
+    compareResultsAgainstVanillaSpark(testSql, compareResult = true, df => {})
   }
 }
