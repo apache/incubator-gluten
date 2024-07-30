@@ -63,7 +63,6 @@ namespace DB
 namespace ErrorCodes
 {
 extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
-extern const int UNKNOWN_EXCEPTION;
 }
 }
 static DB::ColumnWithTypeAndName getColumnFromColumnVector(JNIEnv * /*env*/, jobject /*obj*/, jlong block_address, jint column_position)
@@ -825,23 +824,33 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_CHBlockWriterJniWrapper_nativeC
 }
 
 JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeInitFileWriterWrapper(
-    JNIEnv * env, jobject, jstring file_uri_, jobjectArray names_, jstring format_hint_)
+    JNIEnv * env, jobject, jstring file_uri_, jbyteArray preferred_schema_, jstring format_hint_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    const int num_columns = env->GetArrayLength(names_);
-    DB::Names names;
-    names.reserve(num_columns);
-    for (int i = 0; i < num_columns; i++)
+
+    const auto preferred_schema_ref = local_engine::getByteArrayElementsSafe(env, preferred_schema_);
+    auto parse_named_struct = [&]() -> std::optional<substrait::NamedStruct>
     {
-        auto * name = static_cast<jstring>(env->GetObjectArrayElement(names_, i));
-        names.emplace_back(jstring2string(env, name));
-        env->DeleteLocalRef(name);
-    }
+        std::string_view view{
+            reinterpret_cast<const char *>(preferred_schema_ref.elems()), static_cast<size_t>(preferred_schema_ref.length())};
+
+        substrait::NamedStruct res;
+        bool ok = res.ParseFromString(view);
+        if (!ok)
+            return {};
+        return std::move(res);
+    };
+
+    auto named_struct = parse_named_struct();
+    if (!named_struct.has_value())
+        throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse schema from substrait protobuf failed");
+
+    Block preferred_schema = local_engine::TypeParser::buildBlockFromNamedStructWithoutDFS(*named_struct);
     const auto file_uri = jstring2string(env, file_uri_);
     // for HiveFileFormat, the file url may not end with .parquet, so we pass in the format as a hint
     const auto format_hint = jstring2string(env, format_hint_);
     const auto context = local_engine::QueryContextManager::instance().currentQueryContext();
-    auto * writer = local_engine::createFileWriterWrapper(context, file_uri, names, format_hint).release();
+    auto * writer = local_engine::createFileWriterWrapper(context, file_uri, preferred_schema, format_hint).release();
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }

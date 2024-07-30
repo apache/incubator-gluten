@@ -1006,7 +1006,7 @@ void BackendInitializerUtil::init(const std::string_view plan)
         });
 }
 
-void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, const std::string_view plan)
+void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, std::string_view plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
 

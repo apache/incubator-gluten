@@ -913,12 +913,10 @@ class GlutenClickHouseNativeWriteTableSuite
           (table_name, create_sql, insert_sql)
       },
       (table_name, _) =>
-        if (isSparkVersionGE("3.5")) {
-          compareResultsAgainstVanillaSpark(
-            s"select * from $table_name",
-            compareResult = true,
-            _ => {})
-        }
+        compareResultsAgainstVanillaSpark(
+          s"select * from $table_name",
+          compareResult = true,
+          _ => {})
     )
   }
 }

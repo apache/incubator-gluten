@@ -27,8 +27,8 @@ ORCOutputFormatFile::ORCOutputFormatFile(
     DB::ContextPtr context_,
     const std::string & file_uri_,
     WriteBufferBuilderPtr write_buffer_builder_,
-    const std::vector<std::string> & preferred_column_names_)
-    : OutputFormatFile(context_, file_uri_, write_buffer_builder_, preferred_column_names_)
+    const DB::Block & preferred_schema_)
+    : OutputFormatFile(context_, file_uri_, write_buffer_builder_, preferred_schema_)
 {
 }
 
@@ -37,7 +37,7 @@ OutputFormatFile::OutputFormatPtr ORCOutputFormatFile::createOutputFormat(const 
     auto res = std::make_shared<OutputFormatFile::OutputFormat>();
     res->write_buffer = write_buffer_builder->build(file_uri);
 
-    auto new_header = creatHeaderWithPreferredColumnNames(header);
+    auto new_header = creatHeaderWithPreferredSchema(header);
     // TODO: align all spark orc config with ch orc config
     auto format_settings = DB::getFormatSettings(context);
     auto output_format = std::make_shared<DB::ORCBlockOutputFormat>(*(res->write_buffer), new_header, format_settings);

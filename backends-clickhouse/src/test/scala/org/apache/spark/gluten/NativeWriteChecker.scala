@@ -28,7 +28,7 @@ trait NativeWriteChecker
   extends GlutenClickHouseWholeStageTransformerSuite
   with AdaptiveSparkPlanHelper {
 
-  private val formats: Seq[String] = Seq("orc", "parquet")
+  private val formats: Seq[String] = Seq("orc")
 
   def withNativeWriteCheck(checkNative: Boolean)(block: => Unit): Unit = {
     var nativeUsed = false

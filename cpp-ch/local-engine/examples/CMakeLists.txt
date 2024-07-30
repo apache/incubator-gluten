@@ -16,3 +16,6 @@
 clickhouse_add_executable(signal_demo signal_demo.cpp)
 target_link_libraries(signal_demo PRIVATE gluten_clickhouse_backend_libs
                                           loggers)
+
+clickhouse_add_executable(orc_read orc_read.cpp)
+target_link_libraries(orc_read PRIVATE gluten_clickhouse_backend_libs)
