@@ -754,6 +754,12 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("Test sum/count function") {
+    runQueryAndCompare("""SELECT sum(2),count(2) from lineitem""".stripMargin) {
+      checkGlutenOperatorMatch[BatchScanExecTransformer]
+    }
+  }
+
   test("Test spark_partition_id function") {
     runQueryAndCompare("""SELECT spark_partition_id(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
