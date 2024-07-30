@@ -119,6 +119,10 @@
           <groupId>io.netty</groupId>
           <artifactId>netty-buffer</artifactId>
         </exclusion>
+        <exclusion>
+          <artifactId>commons-codec</artifactId>
+          <groupId>commons-codec</groupId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
