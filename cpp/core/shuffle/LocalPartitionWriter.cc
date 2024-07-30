@@ -490,10 +490,9 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
       ARROW_ASSIGN_OR_RAISE(endInFinalFile, dataFileOs_->Tell());
       partitionLengths_[pid] = endInFinalFile - startInFinalFile;
     }
-    // Close Final file. Clear buffered resources.
-    RETURN_NOT_OK(clearResource());
   }
-
+  // Close Final file. Clear buffered resources.
+  RETURN_NOT_OK(clearResource());
   // Check all spills are merged.
   auto s = 0;
   for (const auto& spill : spills_) {
