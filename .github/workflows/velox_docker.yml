@@ -504,20 +504,10 @@ jobs:
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd /opt && \
-          git clone -b branch-0.9 https://github.com/apache/incubator-uniffle.git && \
-          cd incubator-uniffle && \
-          sed -i '293d' ./server/src/main/java/org/apache/uniffle/server/ShuffleTaskManager.java && \
-          sed -i '270d' ./server/src/main/java/org/apache/uniffle/server/ShuffleTaskManager.java && \
-          sed -i '269d' ./server/src/main/java/org/apache/uniffle/server/ShuffleTaskManager.java && \
-          $MVN_CMD clean install -Phadoop2.8 -Dmaven.compiler.release=8 -DskipTests
-          cd /opt && \
           wget -nv https://archive.apache.org/dist/incubator/uniffle/0.9.0/apache-uniffle-0.9.0-incubating-bin.tar.gz && \
           tar xzf apache-uniffle-0.9.0-incubating-bin.tar.gz -C /opt/ && mv /opt/rss-0.9.0-hadoop2.8 /opt/uniffle && \
           wget -nv https://archive.apache.org/dist/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz && \
           tar xzf hadoop-2.8.5.tar.gz -C /opt/
-          rm -f /opt/uniffle/jars/server/shuffle-server-0.9.0-SNAPSHOT.jar
-          cp /opt/incubator-uniffle/server/target/shuffle-server-0.9.1-SNAPSHOT.jar /opt/uniffle/jars/server/
-          rm -rf /opt/incubator-uniffle
           cd /opt/uniffle && mkdir shuffle_data && \
           bash -c "echo -e 'XMX_SIZE=16g\nHADOOP_HOME=/opt/hadoop-2.8.5' > ./bin/rss-env.sh" && \
           bash -c "echo -e 'rss.coordinator.shuffle.nodes.max 1\nrss.rpc.server.port 19999' > ./conf/coordinator.conf" && \
