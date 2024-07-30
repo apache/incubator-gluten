@@ -15,19 +15,19 @@
 # limitations under the License.
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+export SUDO=sudo
 source ${CURRENT_DIR}/build_helper_functions.sh
 VELOX_ARROW_BUILD_VERSION=15.0.0
-ARROW_PREFIX=$CURRENT_DIR/arrow_ep
-# Always uses BUNDLED in case of that thrift is not installed.
-THRIFT_SOURCE="BUNDLED"
+ARROW_PREFIX=$CURRENT_DIR/../ep/_ep/arrow_ep
 BUILD_TYPE=Release
 
 function prepare_arrow_build() {
-  sudo rm -rf arrow_ep/
+  mkdir -p ${ARROW_PREFIX}/../ && pushd ${ARROW_PREFIX}/../ && sudo rm -rf arrow_ep/
   wget_and_untar https://archive.apache.org/dist/arrow/arrow-${VELOX_ARROW_BUILD_VERSION}/apache-arrow-${VELOX_ARROW_BUILD_VERSION}.tar.gz arrow_ep
-  cd arrow_ep/
+  cd arrow_ep
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow.patch
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow_dataset_scan_option.patch
+  popd
 }
 
 function install_arrow_deps {
@@ -38,15 +38,14 @@ function install_arrow_deps {
 }
 
 function build_arrow_cpp() {
- if [ -n "$1" ]; then
-   BUILD_TYPE=$1
- fi
  pushd $ARROW_PREFIX/cpp
 
  cmake_install \
        -DARROW_PARQUET=ON \
        -DARROW_FILESYSTEM=ON \
        -DARROW_PROTOBUF_USE_SHARED=OFF \
+       -DARROW_DEPENDENCY_USE_SHARED=OFF \
+       -DARROW_DEPENDENCY_SOURCE=BUNDLED \
        -DARROW_WITH_THRIFT=ON \
        -DARROW_WITH_LZ4=ON \
        -DARROW_WITH_SNAPPY=ON \
@@ -59,13 +58,32 @@ function build_arrow_cpp() {
        -DARROW_TESTING=ON \
        -DCMAKE_INSTALL_PREFIX=/usr/local \
        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-       -DARROW_BUILD_STATIC=ON \
-       -DThrift_SOURCE=${THRIFT_SOURCE}
+       -DARROW_BUILD_SHARED=OFF \
+       -DARROW_BUILD_STATIC=ON
+
+ # Install thrift.
+ cd _build/thrift_ep-prefix/src/thrift_ep-build
+ sudo cmake --install ./ --prefix /usr/local/
  popd
 }
 
 function build_arrow_java() {
     ARROW_INSTALL_DIR="${ARROW_PREFIX}/install"
+
+    # set default number of threads as cpu cores minus 2
+    if [[ "$(uname)" == "Darwin" ]]; then
+        physical_cpu_cores=$(sysctl -n hw.physicalcpu)
+        ignore_cores=2
+        if [ "$physical_cpu_cores" -gt "$ignore_cores" ]; then
+            NPROC=${NPROC:-$(($physical_cpu_cores - $ignore_cores))}
+        else
+            NPROC=${NPROC:-$physical_cpu_cores}
+        fi
+    else
+        NPROC=${NPROC:-$(nproc --ignore=2)}
+    fi
+    echo "set cmake build level to ${NPROC}"
+    export CMAKE_BUILD_PARALLEL_LEVEL=$NPROC
 
     pushd $ARROW_PREFIX/java
     # Because arrow-bom module need the -DprocessAllModules
@@ -90,3 +108,10 @@ function build_arrow_java() {
       -Dmaven.test.skip -Drat.skip -Dmaven.gitcommitid.skip -Dcheckstyle.skip -Dassembly.skipAssembly
     popd
 }
+
+echo "Start to build Arrow"
+prepare_arrow_build
+build_arrow_cpp
+echo "Finished building arrow CPP"
+build_arrow_java
+echo "Finished building arrow Java"

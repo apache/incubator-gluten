@@ -42,9 +42,10 @@ class RssPartitionWriter final : public PartitionWriter {
       std::unique_ptr<InMemoryPayload> inMemoryPayload,
       Evict::type evictType,
       bool reuseBuffers,
-      bool hasComplexType) override;
+      bool hasComplexType,
+      bool isFinal) override;
 
-  arrow::Status evict(uint32_t partitionId, int64_t rawSize, const char* data, int64_t length) override;
+  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) override;
 
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 

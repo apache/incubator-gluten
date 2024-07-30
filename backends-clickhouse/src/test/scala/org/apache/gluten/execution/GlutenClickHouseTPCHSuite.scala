@@ -500,5 +500,36 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     compareResultsAgainstVanillaSpark(sql2, true, { _ => })
 
   }
+
+  test("existence join") {
+    spark.sql("create table t1(a int, b int) using parquet")
+    spark.sql("create table t2(a int, b int) using parquet")
+    spark.sql("insert into t1 values(0, 0), (1, 2), (2, 3), (3, 4), (null, 5), (6, null)")
+    spark.sql("insert into t2 values(0, 0), (1, 2), (2, 3), (2,4), (null, 5), (6, null)")
+
+    val sql1 = """
+                 |select * from t1 where exists (select 1 from t2 where t1.a = t2.a) or t1.a > 1
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+
+    val sql2 = """
+                 |select * from t1 where exists (select 1 from t2 where t1.a = t2.a) or t1.a > 3
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+
+    val sql3 = """
+                 |select * from t1 where exists (select 1 from t2 where t1.a = t2.a) or t1.b > 0
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+
+    val sql4 = """
+                 |select * from t1 where exists (select 1 from t2
+                 |where t1.a = t2.a and t1.b = t2.b) or t1.a > 0
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => })
+
+    spark.sql("drop table t1")
+    spark.sql("drop table t2")
+  }
 }
 // scalastyle:off line.size.limit

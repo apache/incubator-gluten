@@ -51,10 +51,16 @@ public:
 
     virtual String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const;
 protected:
-
+    /// Deprecated method
     virtual DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
-        const String & ch_func_name,
+        const String & /*function_name*/,
+        DB::ActionsDAGPtr & actions_dag) const
+    {
+        return parseFunctionArguments(substrait_func, actions_dag);
+    }
+    virtual DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
+        const substrait::Expression_ScalarFunction & substrait_func,
         DB::ActionsDAGPtr & actions_dag) const;
 
     virtual const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
@@ -84,6 +90,11 @@ protected:
         return &action_dag->addFunction(function_builder, args, result_name);
     }
 
+    const ActionsDAG::Node *
+        parseFunctionWithDAG(const substrait::Expression & rel, std::string & result_name, DB::ActionsDAGPtr actions_dag, bool keep_result = false) const
+    {
+        return plan_parser->parseFunctionWithDAG(rel, result_name, actions_dag, keep_result);
+    }
     const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr actions_dag, const substrait::Expression & rel) const
     {
         return plan_parser->parseExpression(actions_dag, rel);
@@ -91,7 +102,7 @@ protected:
 
     std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) const { return plan_parser->parseLiteral(literal); }
 
-    SerializedPlanParser * plan_parser;
+    mutable SerializedPlanParser * plan_parser;
 };
 
 using FunctionParserPtr = std::shared_ptr<FunctionParser>;

@@ -263,7 +263,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
       rand.shuffle(hosts)
       logOnLevel(logLevel, s"get host for $f: ${hosts.distinct.mkString(",")}")
     }
-    hosts.distinct
+    hosts.distinct.toSeq
   }
 
   def updatePartitionMap(f: FilePartition, rddId: Int): Unit = {

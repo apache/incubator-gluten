@@ -17,12 +17,10 @@
 package org.apache.gluten.vectorized;
 
 import org.apache.gluten.metrics.IMetrics;
+import org.apache.gluten.metrics.NativeMetrics;
 
-import org.apache.spark.sql.execution.utils.CHExecUtil;
-import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BatchIterator extends GeneralOutIterator {
@@ -42,38 +40,29 @@ public class BatchIterator extends GeneralOutIterator {
 
   private native boolean nativeHasNext(long nativeHandle);
 
-  private native byte[] nativeNext(long nativeHandle);
-
   private native long nativeCHNext(long nativeHandle);
 
   private native void nativeClose(long nativeHandle);
 
   private native void nativeCancel(long nativeHandle);
 
-  private native IMetrics nativeFetchMetrics(long nativeHandle);
+  private native String nativeFetchMetrics(long nativeHandle);
 
   @Override
-  public boolean hasNextInternal() throws IOException {
+  public boolean hasNextInternal() {
     return nativeHasNext(handle);
   }
 
   @Override
-  public ColumnarBatch nextInternal() throws IOException {
+  public ColumnarBatch nextInternal() {
     long block = nativeCHNext(handle);
     CHNativeBlock nativeBlock = new CHNativeBlock(block);
-    int cols = nativeBlock.numColumns();
-    ColumnVector[] columnVectors = new ColumnVector[cols];
-    for (int i = 0; i < cols; i++) {
-      columnVectors[i] =
-          new CHColumnVector(
-              CHExecUtil.inferSparkDataType(nativeBlock.getTypeByPosition(i)), block, i);
-    }
-    return new ColumnarBatch(columnVectors, nativeBlock.numRows());
+    return nativeBlock.toColumnarBatch();
   }
 
   @Override
-  public IMetrics getMetricsInternal() throws IOException, ClassNotFoundException {
-    return nativeFetchMetrics(handle);
+  public IMetrics getMetricsInternal() {
+    return new NativeMetrics(nativeFetchMetrics(handle));
   }
 
   @Override

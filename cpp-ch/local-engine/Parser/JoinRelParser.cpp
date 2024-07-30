@@ -15,23 +15,26 @@
  * limitations under the License.
  */
 #include "JoinRelParser.h"
+
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
 #include <Interpreters/FullSortingMergeJoin.h>
 #include <Interpreters/GraceHashJoin.h>
-#include <Interpreters/HashJoin.h>
+#include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
 #include <Join/BroadCastJoinBuilder.h>
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/AdvancedParametersParseUtil.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/JoinStep.h>
 #include <google/protobuf/wrappers.pb.h>
+#include <Common/CHUtil.h>
+#include <Functions/FunctionFactory.h>
 
-#include <Poco/Logger.h>
 #include <Common/logger_useful.h>
 
 
@@ -44,105 +47,17 @@ namespace ErrorCodes
     extern const int BAD_ARGUMENTS;
 }
 }
-
-struct JoinOptimizationInfo
-{
-    bool is_broadcast = false;
-    bool is_smj = false;
-    bool is_null_aware_anti_join = false;
-    bool is_existence_join = false;
-    std::string storage_join_key;
-};
-
 using namespace DB;
-
-JoinOptimizationInfo parseJoinOptimizationInfo(const substrait::JoinRel & join)
-{
-    google::protobuf::StringValue optimization;
-    optimization.ParseFromString(join.advanced_extension().optimization().value());
-    JoinOptimizationInfo info;
-    if (optimization.value().contains("isBHJ="))
-    {
-        ReadBufferFromString in(optimization.value());
-        assertString("JoinParameters:", in);
-        assertString("isBHJ=", in);
-        readBoolText(info.is_broadcast, in);
-        assertChar('\n', in);
-        if (info.is_broadcast)
-        {
-            assertString("isNullAwareAntiJoin=", in);
-            readBoolText(info.is_null_aware_anti_join, in);
-            assertChar('\n', in);
-            assertString("buildHashTableId=", in);
-            readString(info.storage_join_key, in);
-            assertChar('\n', in);
-        }
-    }
-    else
-    {
-        ReadBufferFromString in(optimization.value());
-        assertString("JoinParameters:", in);
-        assertString("isSMJ=", in);
-        readBoolText(info.is_smj, in);
-        assertChar('\n', in);
-        if (info.is_smj)
-        {
-            assertString("isNullAwareAntiJoin=", in);
-            readBoolText(info.is_null_aware_anti_join, in);
-            assertChar('\n', in);
-            assertString("isExistenceJoin=", in);
-            readBoolText(info.is_existence_join, in);
-            assertChar('\n', in);
-        }
-    }
-    return info;
-}
-
-
-void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
-{
-    ActionsDAGPtr project = std::make_shared<ActionsDAG>(plan.getCurrentDataStream().header.getNamesAndTypesList());
-    NamesWithAliases project_cols;
-    for (const auto & col : cols)
-    {
-        project_cols.emplace_back(NameWithAlias(col, col));
-    }
-    project->project(project_cols);
-    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), project);
-    project_step->setStepDescription("Reorder Join Output");
-    plan.addStep(std::move(project_step));
-}
 
 namespace local_engine
 {
-
-std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type)
-{
-    switch (join_type)
-    {
-        case substrait::JoinRel_JoinType_JOIN_TYPE_INNER:
-            return {DB::JoinKind::Inner, DB::JoinStrictness::All};
-        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_SEMI:
-            return {DB::JoinKind::Left, DB::JoinStrictness::Semi};
-        case substrait::JoinRel_JoinType_JOIN_TYPE_ANTI:
-            return {DB::JoinKind::Left, DB::JoinStrictness::Anti};
-        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
-            return {DB::JoinKind::Left, DB::JoinStrictness::All};
-        case substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT:
-            return {DB::JoinKind::Right, DB::JoinStrictness::All};
-        case substrait::JoinRel_JoinType_JOIN_TYPE_OUTER:
-            return {DB::JoinKind::Full, DB::JoinStrictness::All};
-        default:
-            throw Exception(ErrorCodes::UNKNOWN_TYPE, "unsupported join type {}.", magic_enum::enum_name(join_type));
-    }
-}
-std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type)
+std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type, bool is_existence_join)
 {
     auto & global_context = SerializedPlanParser::global_context;
     auto table_join = std::make_shared<TableJoin>(
         global_context->getSettings(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
 
-    std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = getJoinKindAndStrictness(join_type);
+    std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = JoinUtil::getJoinKindAndStrictness(join_type, is_existence_join);
     table_join->setKind(kind_and_strictness.first);
     table_join->setStrictness(kind_and_strictness.second);
     return table_join;
@@ -295,14 +210,16 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
 
 DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right)
 {
-    auto join_opt_info = parseJoinOptimizationInfo(join);
+    google::protobuf::StringValue optimization_info;
+    optimization_info.ParseFromString(join.advanced_extension().optimization().value());
+    auto join_opt_info = JoinOptimizationInfo::parse(optimization_info.value());
     auto storage_join = join_opt_info.is_broadcast ? BroadCastJoinBuilder::getJoin(join_opt_info.storage_join_key) : nullptr;
     if (storage_join)
     {
         renamePlanColumns(*left, *right, *storage_join);
     }
 
-    auto table_join = createDefaultTableJoin(join.type());
+    auto table_join = createDefaultTableJoin(join.type(), join_opt_info.is_existence_join);
     DB::Block right_header_before_convert_step = right->getCurrentDataStream().header;
     addConvertStep(*table_join, *left, *right);
 
@@ -344,8 +261,6 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
     QueryPlanPtr query_plan;
 
-    /// Support only one join clause.
-    table_join->addDisjunct();
     /// some examples to explain when the post_join_filter is not empty
     /// - on t1.key = t2.key and t1.v1 > 1 and t2.v1 > 1, 't1.v1> 1' is in the  post filter. but 't2.v1 > 1'
     ///   will be pushed down into right table by spark and is not in the post filter. 't1.key = t2.key ' is
@@ -436,9 +351,37 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         query_plan = std::make_unique<QueryPlan>();
         query_plan->unitePlans(std::move(join_step), {std::move(plans)});
     }
-    reorderJoinOutput(*query_plan, after_join_names);
+
+    JoinUtil::reorderJoinOutput(*query_plan, after_join_names);
+    /// Need to project the right table column into boolean type
+    if (join_opt_info.is_existence_join)
+    {
+        existenceJoinPostProject(*query_plan, left_names);
+    }
 
     return query_plan;
+}
+
+
+/// We use left any join to implement ExistenceJoin.
+/// The result columns of ExistenceJoin are left table columns + one flag column.
+/// The flag column indicates whether a left row is matched or not. We build the flag column here.
+/// The input plan's header is left table columns + right table columns. If one row in the right row is null,
+/// we mark the flag 0, otherwise mark it 1.
+void JoinRelParser::existenceJoinPostProject(DB::QueryPlan & plan, const DB::Names & left_input_cols)
+{
+    auto actions_dag = std::make_shared<DB::ActionsDAG>(plan.getCurrentDataStream().header.getColumnsWithTypeAndName());
+    const auto * right_col_node = actions_dag->getInputs().back();
+    auto function_builder = DB::FunctionFactory::instance().get("isNotNull", getContext());
+    const auto * not_null_node = &actions_dag->addFunction(function_builder, {right_col_node}, right_col_node->result_name);
+    actions_dag->addOrReplaceInOutputs(*not_null_node);
+    DB::Names required_cols = left_input_cols;
+    required_cols.emplace_back(not_null_node->result_name);
+    actions_dag->removeUnusedActions(required_cols);
+    auto project_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentDataStream(), actions_dag);
+    project_step->setStepDescription("ExistenceJoin Post Project");
+    steps.emplace_back(project_step.get());
+    plan.addStep(std::move(project_step));
 }
 
 void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left, DB::QueryPlan & right)
@@ -513,6 +456,8 @@ void JoinRelParser::collectJoinKeys(
 {
     if (!join_rel.has_expression())
         return;
+    /// Support only one join clause.
+    table_join.addDisjunct();
     const auto & expr = join_rel.expression();
     auto & join_clause = table_join.getClauses().back();
     std::list<const const substrait::Expression *> expressions_stack;

@@ -19,13 +19,14 @@
 #include <memory>
 #include <vector>
 #include <Core/Block.h>
+#include <Core/Settings.h>
 #include <IO/WriteBuffer.h>
 #include <Interpreters/TemporaryDataOnDisk.h>
+#include <Parser/SerializedPlanParser.h>
+#include <Shuffle/CachedShuffleWriter.h>
 #include <Shuffle/ShuffleSplitter.h>
 #include <jni/CelebornClient.h>
-#include <Parser/SerializedPlanParser.h>
 
-#include "CachedShuffleWriter.h"
 
 namespace DB
 {

@@ -30,6 +30,11 @@
 #include <IO/ReadHelpers.h>
 #include <Interpreters/BloomFilter.h>
 
+namespace DB::ErrorCodes
+{
+extern const int BAD_ARGUMENTS;
+}
+
 namespace local_engine
 {
 using namespace DB;

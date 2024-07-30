@@ -58,6 +58,7 @@ build/
 Testing/
 cmake-build-debug/
 cmake-build-release/
+ep/_ep/
 
 # Editor temporary/working/backup files #
 .#*

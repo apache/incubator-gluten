@@ -24,7 +24,7 @@
 namespace local_engine
 {
 DB::ActionsDAG::NodeRawConstPtrs
-LeadParser::parseFunctionArguments(const CommonFunctionInfo & func_info, const String & /*ch_func_name*/, DB::ActionsDAGPtr & actions_dag) const
+LeadParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const
 {
     DB::ActionsDAG::NodeRawConstPtrs args;
     const auto & arg0 = func_info.arguments[0].value();
@@ -67,7 +67,7 @@ LeadParser::parseFunctionArguments(const CommonFunctionInfo & func_info, const S
 AggregateFunctionParserRegister<LeadParser> lead_register;
 
 DB::ActionsDAG::NodeRawConstPtrs
-LagParser::parseFunctionArguments(const CommonFunctionInfo & func_info, const String & /*ch_func_name*/, DB::ActionsDAGPtr & actions_dag) const
+LagParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const
 {
     DB::ActionsDAG::NodeRawConstPtrs args;
     const auto & arg0 = func_info.arguments[0].value();

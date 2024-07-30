@@ -20,6 +20,7 @@
 #include <Functions/FunctionHelpers.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 
 namespace DB::ErrorCodes
@@ -146,7 +147,7 @@ public:
     const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const override
     {
         const auto ch_func_name = getCHFunctionName(substrait_func);
-        auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
 
         if (parsed_args.size() != 2)
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
@@ -191,6 +192,7 @@ public:
 
     static constexpr auto name = "add";
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "plus"; }
 
 protected:
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
@@ -206,6 +208,7 @@ public:
 
     static constexpr auto name = "subtract";
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "minus"; }
 
 protected:
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
@@ -220,6 +223,7 @@ public:
     explicit FunctionParserMultiply(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
     static constexpr auto name = "multiply";
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "multiply"; }
 
 protected:
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
@@ -234,6 +238,7 @@ public:
     explicit FunctionParserModulo(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
     static constexpr auto name = "modulus";
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "modulo"; }
 
 protected:
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
@@ -248,6 +253,7 @@ public:
     explicit FunctionParserDivide(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
     static constexpr auto name = "divide";
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "divide"; }
 
 protected:
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override

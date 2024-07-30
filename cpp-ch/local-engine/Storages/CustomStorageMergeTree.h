@@ -65,6 +65,7 @@ public:
 private:
     SimpleIncrement increment;
 
+    void prefectchMetaDataFile(std::unordered_set<std::string> parts);
     void startBackgroundMovesIfNeeded() override;
     std::unique_ptr<MergeTreeSettings> getDefaultSettings() const override;
     LoadPartResult loadDataPart(

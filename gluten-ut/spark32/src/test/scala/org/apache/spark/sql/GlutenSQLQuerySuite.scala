@@ -16,8 +16,6 @@
  */
 package org.apache.spark.sql
 
-import org.apache.gluten.GlutenConfig
-
 import org.apache.spark.SparkException
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.internal.SQLConf
@@ -68,24 +66,6 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
             "SELECT map('k1', 'v1')[k] FROM t GROUP BY map('k1', 'v1')[k]",
             "SELECT map('k1', 'v1')[k] a FROM t GROUP BY a"
           ).foreach(statement => checkAnswer(sql(statement), Row("v1")))
-      }
-    }
-  }
-
-  testGluten("Support run with Vector reader in FileSourceScan or BatchScan") {
-    withSQLConf(
-      SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true",
-      SQLConf.CACHE_VECTORIZED_READER_ENABLED.key -> "true",
-      GlutenConfig.COLUMNAR_BATCHSCAN_ENABLED.key -> "false",
-      GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false"
-    ) {
-      withTable("t1") {
-        sql("""CREATE TABLE t1(name STRING, id BINARY, part BINARY)
-              |USING PARQUET PARTITIONED BY (part)""".stripMargin)
-        sql("INSERT INTO t1 PARTITION(part = 'Spark SQL') VALUES('a', X'537061726B2053514C')")
-        checkAnswer(
-          sql("SELECT name, cast(id as string), cast(part as string) FROM t1"),
-          Row("a", "Spark SQL", "Spark SQL"))
       }
     }
   }

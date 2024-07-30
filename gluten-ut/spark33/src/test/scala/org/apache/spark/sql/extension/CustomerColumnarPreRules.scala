@@ -35,7 +35,7 @@ case class CustomerColumnarPreRules(session: SparkSession) extends Rule[SparkPla
         fileSourceScan.tableIdentifier,
         fileSourceScan.disableBucketedScan
       )
-      if (transformer.doValidate().isValid) {
+      if (transformer.doValidate().ok()) {
         transformer
       } else {
         plan

@@ -56,7 +56,7 @@ sealed trait OffloadSingleNode extends Logging {
 // Aggregation transformation.
 case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case plan if TransformHints.isNotTransformable(plan) =>
+    case plan if FallbackTags.nonEmpty(plan) =>
       plan
     case agg: HashAggregateExec =>
       genHashAggregateExec(agg)
@@ -72,7 +72,7 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
    *   the actually used plan for execution.
    */
   private def genHashAggregateExec(plan: HashAggregateExec): SparkPlan = {
-    if (TransformHints.isNotTransformable(plan)) {
+    if (FallbackTags.nonEmpty(plan)) {
       return plan
     }
 
@@ -87,17 +87,17 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
         case _: TransformSupport =>
           // If the child is transformable, transform aggregation as well.
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)()
+          HashAggregateExecBaseTransformer.from(plan)
         case p: SparkPlan if PlanUtil.isGlutenTableCache(p) =>
-          HashAggregateExecBaseTransformer.from(plan)()
+          HashAggregateExecBaseTransformer.from(plan)
         case _ =>
           // If the child is not transformable, do not transform the agg.
-          TransformHints.tagNotTransformable(plan, "child output schema is empty")
+          FallbackTags.add(plan, "child output schema is empty")
           plan
       }
     } else {
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      HashAggregateExecBaseTransformer.from(plan)()
+      HashAggregateExecBaseTransformer.from(plan)
     }
   }
 }
@@ -105,7 +105,7 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
 // Exchange transformation.
 case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
   override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case p if TransformHints.isNotTransformable(p) =>
+    case p if FallbackTags.nonEmpty(p) =>
       p
     case s: ShuffleExchangeExec
         if (s.child.supportsColumnar || GlutenConfig.getConf.enablePreferColumnar) &&
@@ -124,7 +124,7 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
 case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
 
   override def offload(plan: SparkPlan): SparkPlan = {
-    if (TransformHints.isNotTransformable(plan)) {
+    if (FallbackTags.nonEmpty(plan)) {
       logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
       return plan
     }
@@ -278,6 +278,17 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
         p.copy(genNewProjectList(projectList), addMetadataCol(child, replacedExprs))
       case p @ ProjectExecTransformer(projectList, child) =>
         p.copy(genNewProjectList(projectList), addMetadataCol(child, replacedExprs))
+      case u @ UnionExec(children) =>
+        val newFirstChild = addMetadataCol(children.head, replacedExprs)
+        val newOtherChildren = children.tail.map {
+          child =>
+            // Make sure exprId is unique in each child of Union.
+            val newReplacedExprs = replacedExprs.map {
+              expr => (expr._1, AttributeReference(expr._2.name, expr._2.dataType, false)())
+            }
+            addMetadataCol(child, newReplacedExprs)
+        }
+        u.copy(children = newFirstChild +: newOtherChildren)
       case _ => plan.withNewChildren(plan.children.map(addMetadataCol(_, replacedExprs)))
     }
   }
@@ -291,24 +302,23 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
           f
       }
     }
-    val addHint = AddTransformHintRule()
+    val addHint = AddFallbackTagRule()
     val newProjectList = projectExec.projectList.filterNot(containsInputFileRelatedExpr)
     val newProjectExec = ProjectExec(newProjectList, projectExec.child)
     addHint.apply(newProjectExec)
-    if (TransformHints.isNotTransformable(newProjectExec)) {
+    if (FallbackTags.nonEmpty(newProjectExec)) {
       // Project is still not transformable after remove `input_file_name` expressions.
       projectExec
     } else {
-      // the project with `input_file_name` expression should have at most
-      // one data source, reference:
+      // the project with `input_file_name` expression may have multiple data source
+      // by union all, reference:
       // https://github.com/apache/spark/blob/e459674127e7b21e2767cc62d10ea6f1f941936c
-      // /sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/rules.scala#L506
+      // /sql/core/src/main/scala/org/apache/spark/sql/execution/datasources/rules.scala#L519
       val leafScans = findScanNodes(projectExec)
-      assert(leafScans.size <= 1)
-      if (leafScans.isEmpty || TransformHints.isNotTransformable(leafScans(0))) {
+      if (leafScans.isEmpty || leafScans.exists(FallbackTags.nonEmpty)) {
         // It means
         // 1. projectExec has `input_file_name` but no scan child.
-        // 2. It has scan child node but the scan node fallback.
+        // 2. It has scan children node but the scan node fallback.
         projectExec
       } else {
         val replacedExprs = scala.collection.mutable.Map[String, AttributeReference]()
@@ -326,12 +336,12 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
 
   private def genProjectExec(projectExec: ProjectExec): SparkPlan = {
     if (
-      TransformHints.isNotTransformable(projectExec) &&
+      FallbackTags.nonEmpty(projectExec) &&
       BackendsApiManager.getSettings.supportNativeInputFileRelatedExpr() &&
       projectExec.projectList.exists(containsInputFileRelatedExpr)
     ) {
       tryOffloadProjectExecWithInputFileRelatedExprs(projectExec)
-    } else if (TransformHints.isNotTransformable(projectExec)) {
+    } else if (FallbackTags.nonEmpty(projectExec)) {
       projectExec
     } else {
       logDebug(s"Columnar Processing for ${projectExec.getClass} is currently supported.")
@@ -366,7 +376,7 @@ case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
    *   the actually used plan for execution.
    */
   private def genFilterExec(filter: FilterExec): SparkPlan = {
-    if (TransformHints.isNotTransformable(filter)) {
+    if (FallbackTags.nonEmpty(filter)) {
       return filter
     }
 
@@ -375,11 +385,11 @@ case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
     // Push down the left conditions in Filter into FileSourceScan.
     val newChild: SparkPlan = filter.child match {
       case scan @ (_: FileSourceScanExec | _: BatchScanExec) =>
-        if (TransformHints.maybeTransformable(scan)) {
+        if (FallbackTags.maybeOffloadable(scan)) {
           val newScan =
             FilterHandler.pushFilterToScan(filter.condition, scan)
           newScan match {
-            case ts: TransformSupport if ts.doValidate().isValid => ts
+            case ts: TransformSupport if ts.doValidate().ok() => ts
             case _ => scan
           }
         } else scan
@@ -410,7 +420,7 @@ object OffloadOthers {
 
     def doReplace(p: SparkPlan): SparkPlan = {
       val plan = p
-      if (TransformHints.isNotTransformable(plan)) {
+      if (FallbackTags.nonEmpty(plan)) {
         return plan
       }
       plan match {
@@ -425,16 +435,10 @@ object OffloadOthers {
           ColumnarCoalesceExec(plan.numPartitions, plan.child)
         case plan: SortAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan) {
-            case sort: SortExecTransformer if !sort.global =>
-              sort.child
-            case sort: SortExec if !sort.global =>
-              sort.child
-            case other => other
-          }
+          HashAggregateExecBaseTransformer.from(plan)
         case plan: ObjectHashAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)()
+          HashAggregateExecBaseTransformer.from(plan)
         case plan: UnionExec =>
           val children = plan.children
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -556,12 +560,12 @@ object OffloadOthers {
       case plan: FileSourceScanExec =>
         val transformer = ScanTransformerFactory.createFileSourceScanTransformer(plan)
         val validationResult = transformer.doValidate()
-        if (validationResult.isValid) {
+        if (validationResult.ok()) {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           transformer
         } else {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-          TransformHints.tagNotTransformable(plan, validationResult.reason.get)
+          FallbackTags.add(plan, validationResult.reason())
           plan
         }
       case plan: BatchScanExec =>
@@ -571,12 +575,12 @@ object OffloadOthers {
         val hiveTableScanExecTransformer =
           BackendsApiManager.getSparkPlanExecApiInstance.genHiveTableScanExecTransformer(plan)
         val validateResult = hiveTableScanExecTransformer.doValidate()
-        if (validateResult.isValid) {
+        if (validateResult.ok()) {
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           return hiveTableScanExecTransformer
         }
         logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-        TransformHints.tagNotTransformable(plan, validateResult.reason.get)
+        FallbackTags.add(plan, validateResult.reason())
         plan
       case other =>
         throw new GlutenNotSupportException(s"${other.getClass.toString} is not supported.")

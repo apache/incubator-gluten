@@ -17,7 +17,6 @@
 package org.apache.gluten.extension.columnar.rewrite
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.execution.SortUtils
 
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide, JoinSelectionHelper}
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -52,8 +51,8 @@ object RewriteJoin extends RewriteSingleNode with JoinSelectionHelper {
             smj.joinType,
             buildSide,
             smj.condition,
-            SortUtils.dropPartialSort(smj.left),
-            SortUtils.dropPartialSort(smj.right),
+            smj.left,
+            smj.right,
             smj.isSkewJoin
           )
         case _ => plan

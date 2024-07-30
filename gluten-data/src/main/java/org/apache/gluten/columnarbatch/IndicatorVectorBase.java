@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.columnarbatch;
 
-import org.apache.gluten.exec.Runtime;
+import org.apache.gluten.exec.Runtimes;
 
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
@@ -26,35 +26,14 @@ import org.apache.spark.sql.vectorized.ColumnarMap;
 import org.apache.spark.unsafe.types.UTF8String;
 
 public abstract class IndicatorVectorBase extends ColumnVector {
-  private final Runtime runtime;
-  protected final long handle;
   protected final ColumnarBatchJniWrapper jniWrapper;
+  protected final long handle;
 
-  protected IndicatorVectorBase(Runtime runtime, long handle) {
+  protected IndicatorVectorBase(long handle) {
     super(DataTypes.NullType);
-    this.runtime = runtime;
-    this.jniWrapper = ColumnarBatchJniWrapper.create(runtime);
-    this.handle = takeOwnership(handle);
-  }
-
-  private long takeOwnership(long handle) {
-    // Note: Underlying memory of returned batch still holds
-    //  reference to the original memory manager. As
-    //  a result, once its original resident runtime / mm is
-    //  released, data may become invalid. Currently, it's
-    //  the caller's responsibility to make sure the original
-    //  runtime / mm keep alive even this function
-    //  was called.
-    //
-    // Additionally, as in Gluten we have principle that runtime
-    //  mm that were created earlier will be released
-    //  later, this FILO practice is what helps the runtime that
-    //  took ownership be able to access the data constantly
-    //  because the original runtime will live longer than
-    //  itself.
-    long newHandle = jniWrapper.obtainOwnership(handle);
-    jniWrapper.close(handle);
-    return newHandle;
+    this.jniWrapper =
+        ColumnarBatchJniWrapper.create(Runtimes.contextInstance("IndicatorVectorBase#init"));
+    this.handle = handle;
   }
 
   public String getType() {

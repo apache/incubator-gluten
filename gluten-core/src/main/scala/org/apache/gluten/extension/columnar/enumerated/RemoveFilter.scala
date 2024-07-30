@@ -41,9 +41,12 @@ object RemoveFilter extends RasRule[SparkPlan] {
   override def shift(node: SparkPlan): Iterable[SparkPlan] = {
     val filter = node.asInstanceOf[FilterExecTransformerBase]
     if (filter.isNoop()) {
-      val out = NoopFilter(filter.child, filter.output)
-      out.copyTagsFrom(filter)
-      return List(out)
+      if (filter.output != filter.child.output) {
+        val out = NoopFilter(filter.child, filter.output)
+        out.copyTagsFrom(filter)
+        return List(out)
+      }
+      return List(filter.child)
     }
     List.empty
   }

@@ -35,8 +35,9 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     DB::ReadBuffer & input,
     jlong row_count,
     const std::string & join_keys,
-    substrait::JoinRel_JoinType join_type,
+    jint join_type,
     bool has_mixed_join_condition,
+    bool is_existence_join,
     const std::string & named_struct);
 void cleanBuildHashTable(const std::string & hash_table_id, jlong instance);
 std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const std::string & hash_table_id);

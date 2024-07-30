@@ -348,16 +348,29 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       metrics: Map[String, SQLMetric]): MetricsUpdater = new HashJoinMetricsUpdater(metrics)
 
   override def genNestedLoopJoinTransformerMetrics(
-      sparkContext: SparkContext): Map[String, SQLMetric] = {
-    throw new UnsupportedOperationException(
-      s"NestedLoopJoinTransformer metrics update is not supported in CH backend")
-  }
+      sparkContext: SparkContext): Map[String, SQLMetric] = Map(
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+    "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+    "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+    "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+    "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
+    "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
+    "postProjectTime" ->
+      SQLMetrics.createTimingMetric(sparkContext, "time of postProjection"),
+    "probeTime" ->
+      SQLMetrics.createTimingMetric(sparkContext, "time of probe"),
+    "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "time"),
+    "fillingRightJoinSideTime" -> SQLMetrics.createTimingMetric(
+      sparkContext,
+      "filling right join side time"),
+    "conditionTime" -> SQLMetrics.createTimingMetric(sparkContext, "join condition time")
+  )
 
   override def genNestedLoopJoinTransformerMetricsUpdater(
-      metrics: Map[String, SQLMetric]): MetricsUpdater = {
-    throw new UnsupportedOperationException(
-      s"NestedLoopJoinTransformer metrics update is not supported in CH backend")
-  }
+      metrics: Map[String, SQLMetric]): MetricsUpdater = new BroadcastNestedLoopJoinMetricsUpdater(
+    metrics)
 
   override def genSampleTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
     throw new UnsupportedOperationException(
@@ -370,13 +383,13 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       s"SampleTransformer metrics update is not supported in CH backend")
   }
 
-  def genWriteFilesTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
-    throw new UnsupportedOperationException(
-      s"WriteFilesTransformer metrics update is not supported in CH backend")
-  }
+  def genWriteFilesTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "physicalWrittenBytes" -> SQLMetrics.createMetric(sparkContext, "number of written bytes"),
+      "numWrittenFiles" -> SQLMetrics.createMetric(sparkContext, "number of written files")
+    )
 
   def genWriteFilesTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater = {
-    throw new UnsupportedOperationException(
-      s"WriteFilesTransformer metrics update is not supported in CH backend")
+    new WriteFilesMetricsUpdater(metrics)
   }
 }

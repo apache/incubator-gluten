@@ -58,7 +58,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         }
         dataSchema += newField
     }
-    StructType(dataSchema)
+    StructType(dataSchema.toSeq)
   }
 
   private def createNativeIterator(
@@ -76,7 +76,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         }
         .map(it => new ColumnarNativeIterator(it.asJava).asInstanceOf[GeneralInIterator])
         .asJava
-    new CHNativeExpressionEvaluator().createKernelWithBatchIterator(
+    CHNativeExpressionEvaluator.createKernelWithBatchIterator(
       wsPlan,
       splitInfoByteArray,
       listIterator,
@@ -114,7 +114,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     if (scan.fileFormat == ReadFileFormat.TextReadFormat) {
       val names =
         ConverterUtils.collectAttributeNamesWithoutExprId(scan.outputAttributes())
-      localFilesNode.setFileSchema(getFileSchema(scan.getDataSchema, names.asScala))
+      localFilesNode.setFileSchema(getFileSchema(scan.getDataSchema, names.asScala.toSeq))
     }
   }
 
@@ -122,7 +122,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       partition: InputPartition,
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
-      metadataColumnNames: Seq[String]): SplitInfo = {
+      metadataColumnNames: Seq[String],
+      properties: Map[String, String]): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>
         val partLists = new JArrayList[String]()
@@ -183,7 +184,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           partitionColumns,
           new JArrayList[JMap[String, String]](),
           fileFormat,
-          preferredLocations.toList.asJava
+          preferredLocations.toList.asJava,
+          mapAsJavaMap(properties)
         )
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition: $partition.")
@@ -209,7 +211,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             split match {
               case filesNode: LocalFilesNode =>
                 setFileSchemaForLocalFiles(filesNode, scans(i))
-                filesNode.setFileReadProperties(mapAsJavaMap(scans(i).getProperties))
                 filesNode.getPaths.forEach(f => files += f)
                 filesNode.toProtobuf.toByteArray
               case extensionTableNode: ExtensionTableNode =>
@@ -289,6 +290,10 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       updateNativeMetrics,
       None,
       createNativeIterator(splitInfoByteArray, wsPlan, materializeInput, inputIterators))
+  }
+
+  override def injectWriteFilesTempPath(path: String, fileName: String): Unit = {
+    CHNativeExpressionEvaluator.injectWriteFilesTempPath(path, fileName)
   }
 }
 

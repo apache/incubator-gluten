@@ -19,7 +19,6 @@
 #include <Core/SortDescription.h>
 #include <Parser/RelParser.h>
 #include <Poco/Logger.h>
-#include <Common/logger_useful.h>
 
 namespace local_engine
 {
@@ -50,13 +49,16 @@ private:
     /// Split actions_dag of generate rel into 3 parts: before array join + during array join + after array join
     static SplittedActionsDAGs splitActionsDAGInGenerate(ActionsDAGPtr actions_dag);
 
+    bool isReplicateRows(substrait::GenerateRel rel);
+
+    DB::QueryPlanPtr parseReplicateRows(QueryPlanPtr query_plan, substrait::GenerateRel generate_rel);
 
     const substrait::Rel & getSingleInput(const substrait::Rel & rel) override
     {
         if (rel.has_generate())
             return rel.generate().input();
-        else
-            return rel.project().input();
+
+        return rel.project().input();
     }
 };
 }

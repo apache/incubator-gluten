@@ -20,11 +20,18 @@
 
 #include <Common/Throttler.h>
 #include <Parser/SerializedPlanParser.h>
+
+#include "CompactObjectStorageDiskTransaction.h"
 #if USE_HDFS
 
 namespace local_engine
 {
 using namespace DB;
+
+DiskTransactionPtr GlutenDiskHDFS::createTransaction()
+{
+    return std::make_shared<CompactObjectStorageDiskTransaction>(*this, SerializedPlanParser::global_context->getTempDataOnDisk()->getVolume()->getDisk());
+}
 
 void GlutenDiskHDFS::createDirectory(const String & path)
 {

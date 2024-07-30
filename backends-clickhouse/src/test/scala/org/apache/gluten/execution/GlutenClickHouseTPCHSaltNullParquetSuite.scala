@@ -978,6 +978,33 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("window percent_rank") {
+    val sql =
+      """
+        |select n_regionkey, n_nationkey,
+        | percent_rank(n_nationkey) OVER (PARTITION BY n_regionkey ORDER BY n_nationkey) as n_rank
+        |from nation
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("window ntile") {
+    val sql =
+      """
+        | select n_regionkey, n_nationkey,
+        |   first_value(n_nationkey) over (partition by n_regionkey order by n_nationkey) as
+        |   first_v,
+        |   ntile(4) over (partition by n_regionkey order by n_nationkey) as ntile_v
+        | from
+        |   (
+        |     select n_regionkey, if(n_nationkey = 1, null, n_nationkey) as n_nationkey from nation
+        |   ) as t
+        | order by n_regionkey, n_nationkey
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("window first value with nulls") {
     val sql =
       """
@@ -1727,7 +1754,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql1, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
 
     val sql2 =
       """
@@ -1748,7 +1775,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql2, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
 
     val sql3 =
       """
@@ -1769,7 +1796,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql3, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
 
     val sql4 =
       """
@@ -1790,7 +1817,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql4, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => })
 
     val sql5 =
       """
@@ -1811,7 +1838,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |     on t0.a = t1.a
         |   ) t3
         | )""".stripMargin
-    compareResultsAgainstVanillaSpark(sql5, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql5, true, { _ => })
   }
 
   test("GLUTEN-1874 not null in one stream") {
@@ -2699,6 +2726,72 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |""".stripMargin
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
     spark.sql("drop table test_tbl_4451")
+  }
+
+  test("array functions date add") {
+    spark.sql("create table tb_date(day Date) using parquet")
+    spark.sql("""
+                |insert into tb_date values
+                |(cast('2024-06-01' as Date)),
+                |(cast('2024-06-02' as Date)),
+                |(cast('2024-06-03' as Date)),
+                |(cast('2024-06-04' as Date)),
+                |(cast('2024-06-05' as Date))
+                |""".stripMargin)
+    val sql1 = """
+                 |select * from tb_date where day between
+                 |'2024-06-01' and
+                 |cast('2024-06-01' as Date) + interval 2 day
+                 |order by day
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+    val sql2 = """
+                 |select * from tb_date where day between
+                 |'2024-06-01' and
+                 |cast('2024-06-01' as Date) + interval 48 hour
+                 |order by day
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+    val sql3 = """
+                 |select * from tb_date where day between
+                 |'2024-06-01' and
+                 |cast('2024-06-05' as Date) - interval 2 day
+                 |order by day
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+    val sql4 = """
+                 |select * from tb_date where day between
+                 |'2024-06-01' and
+                 |cast('2024-06-05' as Date) - interval 48 hour
+                 |order by day
+                 |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => })
+
+    spark.sql("drop table tb_date")
+  }
+
+  test("test CartesianProductExec") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      val sql = """
+                  |select t1.n_regionkey, t2.n_regionkey from
+                  |(select n_regionkey from nation) t1
+                  |cross join
+                  |(select n_regionkey from nation) t2
+                  |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+  }
+
+  test("GLUTEN-6583 serializing bug in aggregating with nullable compilated type keys") {
+    val sql = """
+                |select n_regionkey, x, count(1) from (
+                |  select n_regionkey, if(n_regionkey = 'xx', null, x) as x from (
+                |    select n_regionkey, array(n_name, if(n_name != 'KENYA', n_name, null)) as x
+                |    from nation
+                |  )
+                |) group by n_regionkey, x;
+                |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 }
 // scalastyle:on line.size.limit

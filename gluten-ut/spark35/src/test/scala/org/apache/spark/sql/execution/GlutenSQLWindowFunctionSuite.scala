@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.execution.{WindowExecTransformer, WindowGroupLimitExecTransformer}
+import org.apache.gluten.execution.{SortExecTransformer, WindowExecTransformer, WindowGroupLimitExecTransformer}
 
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.Row
@@ -133,6 +133,9 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
           case _: WindowGroupLimitExecTransformer => true
           case _ => false
         }
+      )
+      assert(
+        getExecutedPlan(df).collect { case s: SortExecTransformer if !s.global => s }.size == 1
       )
     }
   }

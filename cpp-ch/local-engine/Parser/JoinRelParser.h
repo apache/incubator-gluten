@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <unordered_set>
+#include <Core/Joins.h>
 #include <Parser/RelParser.h>
 #include <substrait/algebra.pb.h>
 
@@ -30,8 +31,6 @@ namespace local_engine
 {
 
 class StorageJoinFromReadBuffer;
-
-std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type);
 
 class JoinRelParser : public RelParser
 {
@@ -66,6 +65,8 @@ private:
         bool allow_mixed_condition);
 
     void addPostFilter(DB::QueryPlan & plan, const substrait::JoinRel & join);
+
+    void existenceJoinPostProject(DB::QueryPlan & plan, const DB::Names & left_input_cols);
 
     static std::unordered_set<DB::JoinTableSide> extractTableSidesFromExpression(
         const substrait::Expression & expr, const DB::Block & left_header, const DB::Block & right_header);

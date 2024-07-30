@@ -210,7 +210,7 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
       return ValidationResult
-        .notOk(s"Unsupported join type of $hashJoinType for substrait: $substraitJoinType")
+        .failed(s"Unsupported join type of $hashJoinType for substrait: $substraitJoinType")
     }
     val relNode = JoinUtils.createJoinRel(
       streamedKeyExprs,

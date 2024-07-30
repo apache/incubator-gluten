@@ -155,7 +155,7 @@ class ForwardMemoTable[T <: AnyRef] private (override val ras: Ras[T])
     groupBuffer(id)
   }
 
-  override def allClusterKeys(): Seq[RasClusterKey] = clusterKeyBuffer
+  override def allClusterKeys(): Seq[RasClusterKey] = clusterKeyBuffer.toSeq
 
   override def allGroupIds(): Seq[Int] = {
     val from = -dummyGroupBuffer.size

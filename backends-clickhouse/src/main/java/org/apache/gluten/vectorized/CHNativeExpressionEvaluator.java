@@ -28,6 +28,7 @@ import org.apache.gluten.substrait.plan.PlanBuilder;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.internal.SQLConf;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -36,15 +37,12 @@ import java.util.stream.Collectors;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 
-public class CHNativeExpressionEvaluator {
-  private final ExpressionEvaluatorJniWrapper jniWrapper;
+public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
 
-  public CHNativeExpressionEvaluator() {
-    jniWrapper = new ExpressionEvaluatorJniWrapper();
-  }
+  private CHNativeExpressionEvaluator() {}
 
   // Used to initialize the native computing.
-  public void initNative(SparkConf conf) {
+  public static void initNative(SparkConf conf) {
     Tuple2<String, String>[] all = conf.getAll();
     Map<String, String> confMap =
         Arrays.stream(all).collect(Collectors.toMap(Tuple2::_1, Tuple2::_2));
@@ -55,19 +53,19 @@ public class CHNativeExpressionEvaluator {
     // Get the customer config from SparkConf for each backend
     BackendsApiManager.getTransformerApiInstance().postProcessNativeConfig(nativeConfMap, prefix);
 
-    jniWrapper.nativeInitNative(buildNativeConf(nativeConfMap));
+    nativeInitNative(buildNativeConf(nativeConfMap));
   }
 
-  public void finalizeNative() {
-    jniWrapper.nativeFinalizeNative();
+  public static void finalizeNative() {
+    nativeFinalizeNative();
   }
 
   // Used to validate the Substrait plan in native compute engine.
-  public boolean doValidate(byte[] subPlan) {
-    return jniWrapper.nativeDoValidate(subPlan);
+  public static boolean doValidate(byte[] subPlan) {
+    throw new UnsupportedOperationException("doValidate is not supported in Clickhouse Backend");
   }
 
-  private byte[] buildNativeConf(Map<String, String> confs) {
+  private static byte[] buildNativeConf(Map<String, String> confs) {
     StringMapNode stringMapNode = ExpressionBuilder.makeStringMap(confs);
     AdvancedExtensionNode extensionNode =
         ExtensionBuilder.makeAdvancedExtension(
@@ -76,22 +74,28 @@ public class CHNativeExpressionEvaluator {
     return PlanBuilder.makePlan(extensionNode).toProtobuf().toByteArray();
   }
 
-  private Map<String, String> getNativeBackendConf() {
+  private static Map<String, String> getNativeBackendConf() {
     return GlutenConfig.getNativeBackendConf(
         BackendsApiManager.getSettings().getBackendConfigPrefix(), SQLConf.get().getAllConfs());
   }
 
+  public static void injectWriteFilesTempPath(String path, String fileName) {
+    ExpressionEvaluatorJniWrapper.injectWriteFilesTempPath(
+        CHNativeMemoryAllocators.contextInstance().getNativeInstanceId(),
+        path.getBytes(StandardCharsets.UTF_8),
+        fileName.getBytes(StandardCharsets.UTF_8));
+  }
+
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
-  public BatchIterator createKernelWithBatchIterator(
+  public static BatchIterator createKernelWithBatchIterator(
       byte[] wsPlan,
       byte[][] splitInfo,
       List<GeneralInIterator> iterList,
       boolean materializeInput) {
-    long allocId = CHNativeMemoryAllocators.contextInstance().getNativeInstanceId();
     long handle =
-        jniWrapper.nativeCreateKernelWithIterator(
-            allocId,
+        nativeCreateKernelWithIterator(
+            CHNativeMemoryAllocators.contextInstance().getNativeInstanceId(),
             wsPlan,
             splitInfo,
             iterList.toArray(new GeneralInIterator[0]),
@@ -101,10 +105,10 @@ public class CHNativeExpressionEvaluator {
   }
 
   // Only for UT.
-  public BatchIterator createKernelWithBatchIterator(
+  public static BatchIterator createKernelWithBatchIterator(
       long allocId, byte[] wsPlan, byte[][] splitInfo, List<GeneralInIterator> iterList) {
     long handle =
-        jniWrapper.nativeCreateKernelWithIterator(
+        nativeCreateKernelWithIterator(
             allocId,
             wsPlan,
             splitInfo,
@@ -114,7 +118,7 @@ public class CHNativeExpressionEvaluator {
     return createBatchIterator(handle);
   }
 
-  private BatchIterator createBatchIterator(long nativeHandle) {
+  private static BatchIterator createBatchIterator(long nativeHandle) {
     return new BatchIterator(nativeHandle);
   }
 }

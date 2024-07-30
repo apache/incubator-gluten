@@ -20,10 +20,10 @@
 #include <memory>
 #include <shared_mutex>
 #include <thread>
+#include <Core/Settings.h>
 #include <Disks/IO/AsynchronousBoundedReadBuffer.h>
 #include <Disks/IO/ReadBufferFromAzureBlobStorage.h>
 #include <Disks/IO/ReadBufferFromRemoteFSGather.h>
-#include <Disks/ObjectStorages/AzureBlobStorage/AzureBlobStorageAuth.h>
 #include <IO/BoundedReadBuffer.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/ReadBufferFromS3.h>
@@ -51,6 +51,10 @@
 #include <Common/Throttler.h>
 #include <Common/logger_useful.h>
 #include <Common/safe_cast.h>
+
+#if USE_AZURE_BLOB_STORAGE
+#include <Disks/ObjectStorages/AzureBlobStorage/AzureBlobStorageCommon.h>
+#endif
 
 #if USE_AWS_S3
 #include <aws/core/client/DefaultRetryStrategy.h>
@@ -687,7 +691,19 @@ private:
     {
         if (shared_client)
             return shared_client;
-        shared_client = DB::getAzureBlobContainerClient(context->getConfigRef(), "blob");
+
+        const std::string config_prefix = "blob";
+        const Poco::Util::AbstractConfiguration & config = context->getConfigRef();
+        bool is_client_for_disk = false;
+        auto new_settings = DB::AzureBlobStorage::getRequestSettings(config, config_prefix, context);
+        DB::AzureBlobStorage::ConnectionParams params
+        {
+            .endpoint = DB::AzureBlobStorage::processEndpoint(config, config_prefix),
+            .auth_method = DB::AzureBlobStorage::getAuthMethod(config, config_prefix),
+            .client_options = DB::AzureBlobStorage::getClientOptions(*new_settings, is_client_for_disk),
+        };
+
+        shared_client = DB::AzureBlobStorage::getContainerClient(params, true);
         return shared_client;
     }
 };

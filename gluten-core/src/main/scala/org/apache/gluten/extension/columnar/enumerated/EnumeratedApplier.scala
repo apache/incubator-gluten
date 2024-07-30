@@ -45,7 +45,12 @@ class EnumeratedApplier(session: SparkSession)
   with Logging
   with LogLevelUtil {
   // An empirical value.
-  private val aqeStackTraceIndex = 16
+  private val aqeStackTraceIndex =
+    if (scala.util.Properties.releaseVersion.exists(_.startsWith("2.12"))) {
+      16
+    } else {
+      14
+    }
   private val adaptiveContext = AdaptiveContext(session, aqeStackTraceIndex)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan =
@@ -97,6 +102,7 @@ class EnumeratedApplier(session: SparkSession)
       List(
         (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
         (spark: SparkSession) => RewriteTransformer(spark),
+        (_: SparkSession) => EliminateLocalSort,
         (_: SparkSession) => EnsureLocalSortRequirements,
         (_: SparkSession) => CollapseProjectExecTransformer
       ) :::
@@ -128,7 +134,7 @@ class EnumeratedApplier(session: SparkSession)
       // when columnar table cache is enabled.
       (s: SparkSession) => RemoveGlutenTableCacheColumnarToRow(s),
       (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
-      (_: SparkSession) => RemoveTransformHintRule()
+      (_: SparkSession) => RemoveFallbackTagRule()
     )
   }
 }

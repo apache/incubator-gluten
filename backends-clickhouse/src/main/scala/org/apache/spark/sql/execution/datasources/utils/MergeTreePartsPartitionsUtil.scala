@@ -19,11 +19,13 @@ package org.apache.spark.sql.execution.datasources.utils
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.execution.{GlutenMergeTreePartition, MergeTreePartRange, MergeTreePartSplit}
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
+import org.apache.gluten.softaffinity.SoftAffinityManager
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{ExtensionTableBuilder, RelBuilder}
 
+import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -45,6 +47,7 @@ import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.Plan
 
 import java.lang.{Long => JLong}
+import java.util
 import java.util.{ArrayList => JArrayList}
 
 import scala.collection.JavaConverters._
@@ -127,7 +130,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         sparkSession
       )
     }
-    partitions
+    partitions.toSeq
   }
 
   def genInputPartitionSeq(
@@ -163,7 +166,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
         partition =>
           partition.files.map(
             fs => {
-              val path = fs.getPath.toString
+              val path = fs.getPath.toUri.toString
 
               val ret = ClickhouseSnapshot.pathToAddMTPCache.getIfPresent(path)
               if (ret == null) {
@@ -232,11 +235,52 @@ object MergeTreePartsPartitionsUtil extends Logging {
           }
       }
 
-    var currentSize = 0L
-    val currentFiles = new ArrayBuffer[MergeTreePartSplit]
+    val openCostInBytes = sparkSession.sessionState.conf.filesOpenCostInBytes
+    val (partNameWithLocation, locationDistinct) =
+      calculatedLocationForSoftAffinity(splitFiles, relativeTablePath)
+
+    genInputPartitionSeqBySplitFiles(
+      engine,
+      database,
+      tableName,
+      snapshotId,
+      relativeTablePath,
+      absoluteTablePath,
+      tableSchemaJson,
+      partitions,
+      table,
+      clickhouseTableConfigs,
+      splitFiles,
+      openCostInBytes,
+      maxSplitBytes,
+      partNameWithLocation,
+      locationDistinct
+    )
+  }
+
+  def genInputPartitionSeqBySplitFiles(
+      engine: String,
+      database: String,
+      tableName: String,
+      snapshotId: String,
+      relativeTablePath: String,
+      absoluteTablePath: String,
+      tableSchemaJson: String,
+      partitions: ArrayBuffer[InputPartition],
+      table: ClickHouseTableV2,
+      clickhouseTableConfigs: Map[String, String],
+      splitFiles: Seq[MergeTreePartSplit],
+      openCostInBytes: Long,
+      maxSplitBytes: Long,
+      partNameWithLocation: util.HashMap[String, String],
+      locationDistinct: util.HashSet[String]): Unit = {
+
+    val currentSizeByLocation = new util.HashMap[String, Long]
+    val currentFilesByLocation = new util.HashMap[String, ArrayBuffer[MergeTreePartSplit]]
 
     /** Close the current partition and move to the next. */
-    def closePartition(): Unit = {
+    def closePartition(location: String): Unit = {
+      val currentFiles: ArrayBuffer[MergeTreePartSplit] = currentFilesByLocation.get(location)
       if (currentFiles.nonEmpty) {
         val newPartition = GlutenMergeTreePartition(
           partitions.size,
@@ -259,23 +303,35 @@ object MergeTreePartsPartitionsUtil extends Logging {
         partitions += newPartition
       }
       currentFiles.clear()
-      currentSize = 0
+      currentSizeByLocation.put(location, 0)
     }
 
     // generate `Seq[InputPartition]` by file size
-    val openCostInBytes = sparkSession.sessionState.conf.filesOpenCostInBytes
-    // val maxSplitBytes = sparkSession.sessionState.conf.filesMaxPartitionBytes
     // Assign files to partitions using "Next Fit Decreasing"
+    locationDistinct.forEach(
+      location => {
+        currentSizeByLocation.put(location, 0L)
+        currentFilesByLocation.put(location, new ArrayBuffer[MergeTreePartSplit])
+      })
+
     splitFiles.foreach {
       parts =>
-        if ((currentSize + parts.bytesOnDisk > maxSplitBytes)) {
-          closePartition()
+        {
+          val location = partNameWithLocation.get(parts.name)
+          var currentSize = currentSizeByLocation.get(location)
+          val currentFiles = currentFilesByLocation.get(location)
+
+          if (currentSize + parts.bytesOnDisk > maxSplitBytes) {
+            closePartition(location)
+            currentSize = 0L
+          }
+          // Add the given file to the current partition.
+          currentSizeByLocation.put(location, currentSize + parts.bytesOnDisk + openCostInBytes)
+          currentFiles += parts
         }
-        // Add the given file to the current partition.
-        currentSize += parts.bytesOnDisk + openCostInBytes
-        currentFiles += parts
     }
-    closePartition()
+
+    locationDistinct.forEach(closePartition)
   }
 
   /** Generate bucket partition */
@@ -396,7 +452,17 @@ object MergeTreePartsPartitionsUtil extends Logging {
     }
   }
 
-  def getMergeTreePartRange(
+  private def useDriverFilter(filterExprs: Seq[Expression], sparkSession: SparkSession): Boolean = {
+    val enableDriverFilterKey = s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings" +
+      s".enabled_driver_filter_mergetree_index"
+
+    // When using soft affinity, disable driver filter
+    filterExprs.nonEmpty && sparkSession.sessionState.conf.getConfString(
+      enableDriverFilterKey,
+      "false") == "true" && !SoftAffinityManager.usingSoftAffinity
+  }
+
+  private def getMergeTreePartRange(
       selectPartsFiles: Seq[AddMergeTreeParts],
       snapshotId: String,
       database: String,
@@ -409,14 +475,8 @@ object MergeTreePartsPartitionsUtil extends Logging {
       filterExprs: Seq[Expression],
       output: Seq[Attribute],
       sparkSession: SparkSession): Seq[MergeTreePartRange] = {
-    val enableDriverFilter = s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings" +
-      s".enabled_driver_filter_mergetree_index"
 
-    if (
-      filterExprs.nonEmpty && sparkSession.sessionState.conf.getConfString(
-        enableDriverFilter,
-        "false") == "true"
-    ) {
+    if (useDriverFilter(filterExprs, sparkSession)) {
       val size_per_mark = selectPartsFiles.map(part => (part.size, part.marks)).unzip match {
         case (l1, l2) => l1.sum / l2.sum
       }
@@ -532,6 +592,24 @@ object MergeTreePartsPartitionsUtil extends Logging {
               part.size))
         .toSeq
     }
+  }
+
+  private def calculatedLocationForSoftAffinity(
+      splits: Seq[MergeTreePartSplit],
+      relativeTablePath: String): (util.HashMap[String, String], util.HashSet[String]) = {
+    val partNameWithLocation = new util.HashMap[String, String]()
+    val locationDistinct = new util.HashSet[String]()
+
+    splits.foreach(
+      part => {
+        if (!partNameWithLocation.containsKey(part.name)) {
+          val locations = CHAffinity.getNativeMergeTreePartLocations(part.name, relativeTablePath)
+          val localtionKey = locations.sorted.mkString(",")
+          locationDistinct.add(localtionKey)
+          partNameWithLocation.put(part.name, localtionKey)
+        }
+      })
+    (partNameWithLocation, locationDistinct)
   }
 
   def getMaxSplitBytes(

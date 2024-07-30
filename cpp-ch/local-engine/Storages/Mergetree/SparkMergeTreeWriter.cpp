@@ -121,12 +121,11 @@ void SparkMergeTreeWriter::write(const DB::Block & block)
         checkAndMerge();
 }
 
-bool SparkMergeTreeWriter::chunkToPart(Chunk && chunk)
+bool SparkMergeTreeWriter::chunkToPart(Chunk && plan_chunk)
 {
-    if (chunk.hasChunkInfo())
+    if (Chunk result_chunk = DB::Squashing::squash(std::move(plan_chunk)))
     {
-        Chunk squash_chunk = DB::Squashing::squash(std::move(chunk));
-        Block result = header.cloneWithColumns(squash_chunk.getColumns());
+        auto result = squashing->getHeader().cloneWithColumns(result_chunk.detachColumns());
         return blockToPart(result);
     }
     return false;
@@ -232,18 +231,42 @@ void SparkMergeTreeWriter::commitPartToRemoteStorageIfNeeded()
     auto read_settings = context->getReadSettings();
     auto write_settings = context->getWriteSettings();
     Stopwatch watch;
+
+    // Temporary support for S3
+    bool s3_disk = dest_storage->getStoragePolicy()->getAnyDisk()->getName().contains("s3");
     for (const auto & merge_tree_data_part : new_parts.unsafeGet())
     {
         String local_relative_path = storage->getRelativeDataPath() + "/" + merge_tree_data_part->name;
         String remote_relative_path = dest_storage->getRelativeDataPath() + "/" + merge_tree_data_part->name;
 
-        storage->getStoragePolicy()->getAnyDisk()->copyDirectoryContent(
+        if (s3_disk)
+        {
+            storage->getStoragePolicy()->getAnyDisk()->copyDirectoryContent(
             local_relative_path,
             dest_storage->getStoragePolicy()->getAnyDisk(),
             remote_relative_path,
             read_settings,
             write_settings,
             nullptr);
+        }
+        else
+        {
+            std::vector<String> files;
+            storage->getStoragePolicy()->getAnyDisk()->listFiles(local_relative_path, files);
+            auto src_disk = storage->getStoragePolicy()->getAnyDisk();
+            auto dest_disk = dest_storage->getStoragePolicy()->getAnyDisk();
+            auto tx = dest_disk->createTransaction();
+            for (const auto & file : files)
+            {
+                auto read_buffer = src_disk->readFile(local_relative_path + "/" + file, read_settings);
+                auto write_buffer = tx->writeFile(remote_relative_path + "/" + file, DBMS_DEFAULT_BUFFER_SIZE, WriteMode::Rewrite, write_settings);
+                copyData(*read_buffer, *write_buffer);
+                write_buffer->finalize();
+            }
+            tx->commit();
+        }
+
+
         LOG_DEBUG(
             &Poco::Logger::get("SparkMergeTreeWriter"),
             "Upload part {} to disk {} success.",
@@ -306,7 +329,6 @@ DB::MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPartAndFin
 {
     MergeTreeDataWriter::TemporaryPart temp_part;
     writeTempPart(temp_part, block_with_partition, metadata_snapshot);
-    temp_part.finalize();
     return temp_part;
 }
 
@@ -399,6 +421,7 @@ void SparkMergeTreeWriter::writeTempPart(
     new_data_part->partition = std::move(partition);
     new_data_part->minmax_idx = std::move(minmax_idx);
 
+    data_part_storage->beginTransaction();
     SyncGuardPtr sync_guard;
     if (new_data_part->isStoredOnDisk())
     {
@@ -441,6 +464,8 @@ void SparkMergeTreeWriter::writeTempPart(
 
     temp_part.part = new_data_part;
     temp_part.streams.emplace_back(MergeTreeDataWriter::TemporaryPart::Stream{.stream = std::move(out), .finalizer = std::move(finalizer)});
+    temp_part.finalize();
+    data_part_storage->commitTransaction();
 }
 
 std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo()

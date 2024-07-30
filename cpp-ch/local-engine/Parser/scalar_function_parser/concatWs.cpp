@@ -42,6 +42,7 @@ public:
     static constexpr auto name = "concat_ws";
 
     String getName() const override { return name; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return name; }
 
     const ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,
@@ -51,7 +52,7 @@ public:
             parse concat_ws(sep, s1, s2, arr1, arr2, ...)) as
             arrayStringConcat(arrayFlatten(array(s1), array(s2), arr1, arr2, ...), sep)
         */
-        auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.empty())
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires at least one argument", getName());
 

@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.extension.columnar.TransformHints
+import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -95,11 +95,11 @@ object ScanTransformerFactory {
         transformer.setPushDownFilters(allPushDownFilters.get)
         // Validate again if allPushDownFilters is defined.
         val validationResult = transformer.doValidate()
-        if (validationResult.isValid) {
+        if (validationResult.ok()) {
           transformer
         } else {
           val newSource = batchScan.copy(runtimeFilters = transformer.runtimeFilters)
-          TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
+          FallbackTags.add(newSource, validationResult.reason())
           newSource
         }
       } else {
@@ -109,7 +109,7 @@ object ScanTransformerFactory {
       if (validation) {
         throw new GlutenNotSupportException(s"Unsupported scan ${batchScan.scan}")
       }
-      TransformHints.tagNotTransformable(batchScan, "The scan in BatchScanExec is not supported.")
+      FallbackTags.add(batchScan, "The scan in BatchScanExec is not supported.")
       batchScan
     }
   }

@@ -28,10 +28,6 @@ import scala.collection.JavaConverters._
 
 class GlutenClickHouseTPCDSMetricsSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
-  override protected val tpcdsQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original"
-  override protected val queriesResults: String = rootPath + "tpcds-queries-output"
-
   protected val substraitPlansDatPath: String = rootPath + "substrait-plans"
   protected val metricsJsonFilePath: String = rootPath + "metrics-json"
 

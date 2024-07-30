@@ -187,30 +187,21 @@ fi
 concat_velox_param
 
 function build_arrow {
-  echo "Start to build Arrow"
-  export SUDO=sudo
   cd $GLUTEN_DIR/dev
-  source build_arrow.sh
-  prepare_arrow_build
-  build_arrow_cpp $BUILD_TYPE
-  echo "Finished building arrow CPP"
-  build_arrow_java
-  echo "Finished building arrow Java"
+  ./build_arrow.sh
 }
 
 function build_velox {
   echo "Start to build Velox"
   cd $GLUTEN_DIR/ep/build-velox/src
-  ./get_velox.sh --enable_hdfs=$ENABLE_HDFS --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --enable_abfs=$ENABLE_ABFS $VELOX_PARAMETER
   # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
-  ./build_velox.sh --run_setup_script=$RUN_SETUP_SCRIPT --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
+  ./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
                    --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_test_utils=$BUILD_TESTS --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS \
                    --num_threads=$NUM_THREADS
 }
 
-## compile gluten cpp
 function build_gluten_cpp {
-  echo "Start to Gluten CPP"
+  echo "Start to build Gluten CPP"
   cd $GLUTEN_DIR/cpp
   rm -rf build
   mkdir build
@@ -229,6 +220,58 @@ function build_velox_backend {
   build_velox
   build_gluten_cpp
 }
+
+(
+  cd $GLUTEN_DIR/ep/build-velox/src
+  ./get_velox.sh $VELOX_PARAMETER
+)
+
+if [ "$VELOX_HOME" == "" ]; then
+  VELOX_HOME="$GLUTEN_DIR/ep/build-velox/build/velox_ep"
+fi
+
+OS=`uname -s`
+ARCH=`uname -m`
+DEPENDENCY_DIR=${DEPENDENCY_DIR:-$CURRENT_DIR/../ep/_ep}
+mkdir -p ${DEPENDENCY_DIR}
+
+source $GLUTEN_DIR/dev/build_helper_functions.sh
+if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
+  echo "Start to install dependencies"
+  pushd $VELOX_HOME
+  if [ $OS == 'Linux' ]; then
+    setup_linux
+  elif [ $OS == 'Darwin' ]; then
+    setup_macos
+  else
+    echo "Unsupported kernel: $OS"
+    exit 1
+  fi
+  if [ $ENABLE_S3 == "ON" ]; then
+    if [ $OS == 'Darwin' ]; then
+      echo "S3 is not supported on MacOS."
+      exit 1
+    fi
+    ${VELOX_HOME}/scripts/setup-adapters.sh aws
+  fi
+  if [ $ENABLE_HDFS == "ON" ]; then
+    if [ $OS == 'Darwin' ]; then
+      echo "HDFS is not supported on MacOS."
+      exit 1
+    fi
+    pushd $VELOX_HOME
+    install_libhdfs3
+    popd
+  fi
+  if [ $ENABLE_GCS == "ON" ]; then
+    ${VELOX_HOME}/scripts/setup-adapters.sh gcs
+  fi
+  if [ $ENABLE_ABFS == "ON" ]; then
+    export AZURE_SDK_DISABLE_AUTO_VCPKG=ON
+    ${VELOX_HOME}/scripts/setup-adapters.sh abfs
+  fi
+  popd
+fi
 
 commands_to_run=${OTHER_ARGUMENTS:-}
 (

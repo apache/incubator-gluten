@@ -36,35 +36,72 @@ index d49115f12..1aaa8e532 100644
 +  endif()
  endif()
 diff --git a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
-index 3f01df2fd..8c1c493f3 100644
+index 56b673e87..ef48ae9d9 100644
 --- a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
 +++ b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
-@@ -24,6 +24,9 @@ if(VELOX_ENABLE_ARROW)
+@@ -14,16 +14,13 @@
+ project(Arrow)
+ 
+ if(VELOX_ENABLE_ARROW)
+-  find_package(Thrift)
+-  if(Thrift_FOUND)
+-    set(THRIFT_SOURCE "SYSTEM")
+-  else()
+-    set(THRIFT_SOURCE "BUNDLED")
+-  endif()
+-
    set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep")
    set(ARROW_CMAKE_ARGS
-       -DARROW_PARQUET=OFF
+-      -DARROW_PARQUET=OFF
 +      -DARROW_PARQUET=ON
 +      -DARROW_FILESYSTEM=ON
 +      -DARROW_PROTOBUF_USE_SHARED=OFF
++      -DARROW_DEPENDENCY_USE_SHARED=OFF
++      -DARROW_DEPENDENCY_SOURCE=BUNDLED
        -DARROW_WITH_THRIFT=ON
        -DARROW_WITH_LZ4=ON
        -DARROW_WITH_SNAPPY=ON
-@@ -66,6 +69,8 @@ if(VELOX_ENABLE_ARROW)
+@@ -37,18 +34,16 @@ if(VELOX_ENABLE_ARROW)
+       -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}/install
+       -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+       -DARROW_BUILD_STATIC=ON
+-      -DThrift_SOURCE=${THRIFT_SOURCE}
++      -DARROW_BUILD_SHARED=OFF
+       -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH})
+   set(ARROW_LIBDIR ${ARROW_PREFIX}/install/${CMAKE_INSTALL_LIBDIR})
+ 
+   add_library(thrift STATIC IMPORTED GLOBAL)
+-  if(NOT Thrift_FOUND)
+-    set(THRIFT_ROOT ${ARROW_PREFIX}/src/arrow_ep-build/thrift_ep-install)
+-    set(THRIFT_LIB ${THRIFT_ROOT}/lib/libthrift.a)
++  set(THRIFT_ROOT ${ARROW_PREFIX}/src/arrow_ep-build/thrift_ep-install)
++  set(THRIFT_LIB ${THRIFT_ROOT}/lib/libthrift.a)
+ 
+-    file(MAKE_DIRECTORY ${THRIFT_ROOT}/include)
+-    set(THRIFT_INCLUDE_DIR ${THRIFT_ROOT}/include)
+-  endif()
++  file(MAKE_DIRECTORY ${THRIFT_ROOT}/include)
++  set(THRIFT_INCLUDE_DIR ${THRIFT_ROOT}/include)
+ 
+   set_property(TARGET thrift PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                                       ${THRIFT_INCLUDE_DIR})
+@@ -67,6 +62,9 @@ if(VELOX_ENABLE_ARROW)
      arrow_ep
      PREFIX ${ARROW_PREFIX}
      URL ${VELOX_ARROW_SOURCE_URL}
 +    PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/modify_arrow.patch
-+    COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/modify_arrow_dataset_scan_option.patch
++    COMMAND patch -p1 <
++            ${CMAKE_CURRENT_SOURCE_DIR}/modify_arrow_dataset_scan_option.patch
      URL_HASH ${VELOX_ARROW_BUILD_SHA256_CHECKSUM}
      SOURCE_SUBDIR cpp
      CMAKE_ARGS ${ARROW_CMAKE_ARGS}
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index bb7c49907..3372d48b4 100644
+index 2dc95f972..391485879 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -234,10 +234,15 @@ if(VELOX_ENABLE_ABFS)
+@@ -236,10 +236,15 @@ if(VELOX_ENABLE_ABFS)
  endif()
-
+ 
  if(VELOX_ENABLE_HDFS)
 -  find_library(
 -    LIBHDFS3
@@ -81,10 +118,10 @@ index bb7c49907..3372d48b4 100644
 +  endif()
    add_definitions(-DVELOX_ENABLE_HDFS3)
  endif()
-
-@@ -378,7 +383,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+ 
+@@ -380,7 +385,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
-
+ 
  set_source(gflags)
 -resolve_dependency(gflags COMPONENTS ${VELOX_GFLAGS_TYPE})
 +resolve_dependency(gflags)
@@ -92,21 +129,23 @@ index bb7c49907..3372d48b4 100644
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
 diff --git a/velox/common/process/tests/CMakeLists.txt b/velox/common/process/tests/CMakeLists.txt
-index 6797697a1..3e241f8f7 100644
+index f5e6aae72..4c4afe70b 100644
 --- a/velox/common/process/tests/CMakeLists.txt
 +++ b/velox/common/process/tests/CMakeLists.txt
-@@ -18,4 +18,4 @@ add_executable(velox_process_test ProfilerTest.cpp ThreadLocalRegistryTest.cpp
- add_test(velox_process_test velox_process_test)
-
- target_link_libraries(velox_process_test PRIVATE velox_process fmt::fmt gtest
--                                                 velox_time gtest_main)
-+                                                 velox_time gtest_main glog::glog gflags::gflags)
+@@ -24,4 +24,6 @@ target_link_libraries(
+     fmt::fmt
+     gtest
+     velox_time
+-    gtest_main)
++    gtest_main
++    glog::glog
++    gflags::gflags)
 diff --git a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 index e2a638df6..e383cf205 100644
 --- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 +++ b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 @@ -38,7 +38,6 @@ std::shared_ptr<FileSystem> abfsFileSystemGenerator(
-
+ 
  void registerAbfsFileSystem() {
  #ifdef VELOX_ENABLE_ABFS
 -  LOG(INFO) << "Register ABFS";
@@ -125,12 +164,12 @@ index 10ee508ba..027a58ecc 100644
 +  hadoopHomeDirectory.remove_filename().remove_filename();
    setupEnvironment(hadoopHomeDirectory.string());
  }
-
+ 
 diff --git a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
-index 2cabfc29a..54329ce23 100644
+index 97266c253..11d88dcc4 100644
 --- a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
 +++ b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
-@@ -39,7 +39,9 @@ target_link_libraries(
+@@ -38,7 +38,9 @@ target_link_libraries(
    gtest
    gtest_main
    arrow

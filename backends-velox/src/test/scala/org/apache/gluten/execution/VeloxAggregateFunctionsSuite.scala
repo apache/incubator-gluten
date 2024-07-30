@@ -26,6 +26,8 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
+import java.sql.Timestamp
+
 abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -564,6 +566,18 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare(
       "select approx_count_distinct(l_discount), count(distinct l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[HashAggregateExecTransformer]
+    }
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2024-08-22 10:10:10.010")
+        val t2 = Timestamp.valueOf("2014-12-31 00:00:00.012")
+        val t3 = Timestamp.valueOf("1968-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("t").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("select approx_count_distinct(t) from view") {
+          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+        }
     }
   }
 
@@ -1134,6 +1148,32 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
 
     df.select(max(col("txn"))).collect
 
+  }
+
+  test("drop redundant partial sort which has pre-project when offload sortAgg") {
+    // Spark 3.2 does not have this configuration, but it does not affect the test results.
+    withSQLConf("spark.sql.test.forceApplySortAggregate" -> "true") {
+      withTempView("t1") {
+        Seq((-1, 2), (-1, 3), (2, 3), (3, 4), (-3, 5), (4, 5))
+          .toDF("c1", "c2")
+          .createOrReplaceTempView("t1")
+        runQueryAndCompare("select c2, sum(if(c1<0,0,c1)) from t1 group by c2") {
+          df =>
+            {
+              assert(
+                getExecutedPlan(df).count(
+                  plan => {
+                    plan.isInstanceOf[HashAggregateExecTransformer]
+                  }) == 2)
+              assert(
+                getExecutedPlan(df).count(
+                  plan => {
+                    plan.isInstanceOf[SortExecTransformer]
+                  }) == 0)
+            }
+        }
+      }
+    }
   }
 }
 

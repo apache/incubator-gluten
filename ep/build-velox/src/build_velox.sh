@@ -33,7 +33,6 @@ ENABLE_BENCHMARK=OFF
 ENABLE_TESTS=OFF
 # Set to ON for gluten cpp test build.
 BUILD_TEST_UTILS=OFF
-RUN_SETUP_SCRIPT=ON
 NUM_THREADS=""
 OTHER_ARGUMENTS=""
 
@@ -82,10 +81,6 @@ for arg in "$@"; do
     ENABLE_BENCHMARK=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
-  --run_setup_script=*)
-    RUN_SETUP_SCRIPT=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
   --num_threads=*)
     NUM_THREADS=("${arg#*=}")
     shift # Remove argument name from processing
@@ -98,16 +93,8 @@ for arg in "$@"; do
 done
 
 function compile {
-  if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
-    if [ $OS == 'Linux' ]; then
-      setup_linux
-    elif [ $OS == 'Darwin' ]; then
-      setup_macos
-    else
-      echo "Unsupported kernel: $OS"
-      exit 1
-    fi
-  fi
+  # Maybe there is some set option in velox setup script. Run set command again.
+  set -exu
 
   CXX_FLAGS='-Wno-missing-field-initializers'
   COMPILE_OPTION="-DCMAKE_CXX_FLAGS=\"$CXX_FLAGS\" -DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF"
@@ -147,8 +134,7 @@ function compile {
   echo "NUM_THREADS_OPTS: $NUM_THREADS_OPTS"
 
   export simdjson_SOURCE=AUTO
-  # Quick fix for CI error due to velox rebase
-  export Arrow_SOURCE=BUNDLED
+  export Arrow_SOURCE=AUTO
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE $NUM_THREADS_OPTS EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
@@ -211,66 +197,6 @@ function check_commit {
 
   if [ -f ${VELOX_HOME}/velox-build.cache ]; then
     rm -f ${VELOX_HOME}/velox-build.cache
-  fi
-}
-
-function setup_macos {
-  if [ $ARCH == 'x86_64' ]; then
-    ./scripts/setup-macos.sh
-  elif [ $ARCH == 'arm64' ]; then
-    CPU_TARGET="arm64" ./scripts/setup-macos.sh
-  else
-    echo "Unknown arch: $ARCH"
-  fi
-}
-
-function setup_linux {
-  local LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
-  local LINUX_VERSION_ID=$(. /etc/os-release && echo ${VERSION_ID})
-
-  if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" || "$LINUX_DISTRIBUTION" == "pop" ]]; then
-    scripts/setup-ubuntu.sh
-  elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
-    case "$LINUX_VERSION_ID" in
-    8) scripts/setup-centos8.sh ;;
-    7)
-      scripts/setup-centos7.sh
-      set +u
-      export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
-      source /opt/rh/devtoolset-9/enable
-      set -u
-      ;;
-    *)
-      echo "Unsupported centos version: $LINUX_VERSION_ID"
-      exit 1
-      ;;
-    esac
-  elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
-    case "${LINUX_VERSION_ID:0:1}" in
-    2)
-      scripts/setup-centos7.sh
-      set +u
-      export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
-      source /opt/rh/devtoolset-9/enable
-      set -u
-      ;;
-    3) scripts/setup-centos8.sh ;;
-    *)
-      echo "Unsupported alinux version: $LINUX_VERSION_ID"
-      exit 1
-      ;;
-    esac
-  elif [[ "$LINUX_DISTRIBUTION" == "tencentos" ]]; then
-    case "$LINUX_VERSION_ID" in
-    3.2) scripts/setup-centos8.sh ;;
-    *)
-      echo "Unsupported tencentos version: $LINUX_VERSION_ID"
-      exit 1
-      ;;
-    esac
-  else
-    echo "Unsupported linux distribution: $LINUX_DISTRIBUTION"
-    exit 1
   fi
 }
 

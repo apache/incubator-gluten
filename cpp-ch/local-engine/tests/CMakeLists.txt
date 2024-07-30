@@ -12,6 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+file(REAL_PATH "${CMAKE_CURRENT_SOURCE_DIR}" GTEST_REAL_PATH)
+file(REAL_PATH "${GTEST_REAL_PATH}/../../.." GLUTEN_REAL_PATH) # used in
+                                                               # testConfig.h.in
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h.in
                ${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h)
 

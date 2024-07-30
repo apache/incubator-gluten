@@ -16,7 +16,7 @@
     <dependency>
       <groupId>org.apache.gluten</groupId>
       <artifactId>gluten-it-common</artifactId>
-      <version>${gluten.version}</version>
+      <version>${project.version}</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.guava</groupId>

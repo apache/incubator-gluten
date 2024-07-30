@@ -63,7 +63,6 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
         OffloadOthers())
       .toRule,
     RasOffload.from[CoalesceExec](OffloadOthers()).toRule,
-    RasOffload.from[ProjectExec](OffloadOthers()).toRule,
     RasOffload.from[SortAggregateExec](OffloadOthers()).toRule,
     RasOffload.from[ObjectHashAggregateExec](OffloadOthers()).toRule,
     RasOffload.from[UnionExec](OffloadOthers()).toRule,
