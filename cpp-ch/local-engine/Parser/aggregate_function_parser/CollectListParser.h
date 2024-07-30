@@ -52,7 +52,7 @@ public:
         throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Not implement");
     }
     const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
-        const CommonFunctionInfo &, const DB::ActionsDAG::Node * func_node, DB::ActionsDAGPtr & actions_dag, bool /* with_nullability */) const override
+        const CommonFunctionInfo &, const DB::ActionsDAG::Node * func_node, DB::ActionsDAG & actions_dag, bool /* with_nullability */) const override
     {
         const DB::ActionsDAG::Node * ret_node = func_node;
         if (func_node->result_type->isNullable())
@@ -60,11 +60,11 @@ public:
             DB::ActionsDAG::NodeRawConstPtrs args = {func_node};
             auto nested_type = typeid_cast<const DB::DataTypeNullable *>(func_node->result_type.get())->getNestedType();
             DB::Field empty_field = nested_type->getDefault();
-            const auto * default_value_node = &actions_dag->addColumn(
+            const auto * default_value_node = &actions_dag.addColumn(
                 ColumnWithTypeAndName(nested_type->createColumnConst(1, empty_field), nested_type, getUniqueName("[]")));
             args.push_back(default_value_node);
             const auto * if_null_node = toFunctionNode(actions_dag, "ifNull", func_node->result_name, args);
-            actions_dag->addOrReplaceInOutputs(*if_null_node);
+            actions_dag.addOrReplaceInOutputs(*if_null_node);
             ret_node = if_null_node;
         }
         return ret_node;

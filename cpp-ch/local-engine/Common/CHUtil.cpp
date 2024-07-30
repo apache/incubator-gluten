@@ -459,7 +459,7 @@ const DB::ColumnWithTypeAndName * NestedColumnExtractHelper::findColumn(const DB
 }
 
 const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
-    DB::ActionsDAGPtr & actions_dag,
+    DB::ActionsDAG & actions_dag,
     const DB::ActionsDAG::Node * node,
     const std::string & type_name,
     const std::string & result_name,
@@ -469,12 +469,25 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     type_name_col.name = type_name;
     type_name_col.column = DB::DataTypeString().createColumnConst(0, type_name_col.name);
     type_name_col.type = std::make_shared<DB::DataTypeString>();
-    const auto * right_arg = &actions_dag->addColumn(std::move(type_name_col));
+    const auto * right_arg = &actions_dag.addColumn(std::move(type_name_col));
     const auto * left_arg = node;
     DB::CastDiagnostic diagnostic = {node->result_name, node->result_name};
     DB::ActionsDAG::NodeRawConstPtrs children = {left_arg, right_arg};
-    return &actions_dag->addFunction(
+    return &actions_dag.addFunction(
         DB::createInternalCastOverloadResolver(cast_type, std::move(diagnostic)), std::move(children), result_name);
+}
+
+const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeTypeIfNeeded(
+    DB::ActionsDAG & actions_dag,
+    const DB::ActionsDAG::Node * node,
+    const DB::DataTypePtr & dst_type,
+    const std::string & result_name,
+    CastType cast_type)
+{
+    if (node->result_type->equals(*dst_type))
+        return node;
+
+    return convertNodeType(actions_dag, node, dst_type->getName(), result_name, cast_type);
 }
 
 String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
@@ -627,7 +640,7 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
 
     if (backend_conf_map.contains(GLUTEN_TASK_OFFHEAP))
     {
-        config->setString(CH_TASK_MEMORY, backend_conf_map.at(GLUTEN_TASK_OFFHEAP));
+        config->setString(MemoryConfig::CH_TASK_MEMORY, backend_conf_map.at(GLUTEN_TASK_OFFHEAP));
     }
 
     const bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
@@ -844,7 +857,7 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
         size_t index_uncompressed_cache_size = config->getUInt64("index_uncompressed_cache_size", DEFAULT_INDEX_UNCOMPRESSED_CACHE_MAX_SIZE);
         double index_uncompressed_cache_size_ratio = config->getDouble("index_uncompressed_cache_size_ratio", DEFAULT_INDEX_UNCOMPRESSED_CACHE_SIZE_RATIO);
         global_context->setIndexUncompressedCache(index_uncompressed_cache_policy, index_uncompressed_cache_size, index_uncompressed_cache_size_ratio);
-        
+
         String index_mark_cache_policy = config->getString("index_mark_cache_policy", DEFAULT_INDEX_MARK_CACHE_POLICY);
         size_t index_mark_cache_size = config->getUInt64("index_mark_cache_size", DEFAULT_INDEX_MARK_CACHE_MAX_SIZE);
         double index_mark_cache_size_ratio = config->getDouble("index_mark_cache_size_ratio", DEFAULT_INDEX_MARK_CACHE_SIZE_RATIO);
@@ -1050,17 +1063,6 @@ String DateTimeUtil::convertTimeZone(const String & time_zone)
     return res;
 }
 
-UInt64 MemoryUtil::getCurrentMemoryUsage(size_t depth)
-{
-    Int64 current_memory_usage = 0;
-    auto * current_mem_tracker = DB::CurrentThread::getMemoryTracker();
-    for (size_t i = 0; i < depth && current_mem_tracker; ++i)
-        current_mem_tracker = current_mem_tracker->getParent();
-    if (current_mem_tracker)
-        current_memory_usage = current_mem_tracker->get();
-    return current_memory_usage < 0 ? 0 : current_memory_usage;
-}
-
 UInt64 MemoryUtil::getMemoryRSS()
 {
     long rss = 0L;
@@ -1077,14 +1079,14 @@ UInt64 MemoryUtil::getMemoryRSS()
 
 void JoinUtil::reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
 {
-    ActionsDAGPtr project = std::make_shared<ActionsDAG>(plan.getCurrentDataStream().header.getNamesAndTypesList());
+    ActionsDAG project{plan.getCurrentDataStream().header.getNamesAndTypesList()};
     NamesWithAliases project_cols;
     for (const auto & col : cols)
     {
         project_cols.emplace_back(NameWithAlias(col, col));
     }
-    project->project(project_cols);
-    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), project);
+    project.project(project_cols);
+    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), std::move(project));
     project_step->setStepDescription("Reorder Join Output");
     plan.addStep(std::move(project_step));
 }

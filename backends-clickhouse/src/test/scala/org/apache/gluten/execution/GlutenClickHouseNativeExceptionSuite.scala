@@ -17,8 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.memory.alloc.{CHNativeMemoryAllocator, CHReservationListener}
-import org.apache.gluten.utils.UTSystemParameters
+import org.apache.gluten.utils.{TestExceptionUtils, UTSystemParameters}
 
 import org.apache.spark.SparkConf
 
@@ -31,12 +30,11 @@ class GlutenClickHouseNativeExceptionSuite extends GlutenClickHouseWholeStageTra
 
   test("native exception caught by jvm") {
     try {
-      val x = new CHNativeMemoryAllocator(100, CHReservationListener.NOOP)
-      x.close() // this will incur a native exception
+      TestExceptionUtils.generateNativeException()
       assert(false)
     } catch {
       case e: Exception =>
-        assert(e.getMessage.contains("allocator 100 not found"))
+        assert(e.getMessage.contains("test native exception"))
     }
   }
 }

@@ -18,13 +18,13 @@
 #include <cstddef>
 #include <memory>
 #include <vector>
+#include <Common/GlutenConfig.h>
 #include <Core/Block.h>
 #include <Core/Settings.h>
-#include <IO/WriteBuffer.h>
 #include <Interpreters/TemporaryDataOnDisk.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Shuffle/CachedShuffleWriter.h>
-#include <Shuffle/ShuffleSplitter.h>
+#include <Shuffle/ShuffleCommon.h>
 #include <jni/CelebornClient.h>
 
 
@@ -60,53 +60,43 @@ private:
     size_t cached_bytes = 0;
 };
 
-struct PartitionWriterSettings
-{
-    uint64_t spill_memory_overhead = 0;
-
-    void loadFromContext(DB::ContextPtr context);
-};
-
 class CachedShuffleWriter;
 using PartitionPtr = std::shared_ptr<Partition>;
 class PartitionWriter : boost::noncopyable
 {
 public:
-    explicit PartitionWriter(CachedShuffleWriter * shuffle_writer_);
+    explicit PartitionWriter(CachedShuffleWriter * shuffle_writer_, LoggerPtr logger_);
     virtual ~PartitionWriter() = default;
 
     virtual String getName() const = 0;
 
     virtual void write(const PartitionInfo & info, DB::Block & block);
-    size_t evictPartitions(bool for_memory_spill = false, bool flush_block_buffer = false);
-    void stop();
+    virtual void stop() = 0;
 
 protected:
+    virtual size_t evictPartitions() = 0;
+
     size_t bytes() const;
 
-    virtual size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer = false) = 0;
+    virtual bool worthToSpill(size_t cache_size) const;
 
     virtual bool supportsEvictSinglePartition() const { return false; }
 
-    virtual size_t unsafeEvictSinglePartition(bool for_memory_spill, bool flush_block_buffer, size_t partition_id)
+    virtual size_t evictSinglePartition(size_t partition_id)
     {
         throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Evict single partition is not supported for {}", getName());
     }
 
-    virtual void unsafeStop() = 0;
-
     CachedShuffleWriter * shuffle_writer;
     const SplitOptions * options;
-    PartitionWriterSettings settings;
+    MemoryConfig settings;
 
     std::vector<ColumnsBufferPtr> partition_block_buffer;
     std::vector<PartitionPtr> partition_buffer;
 
-    /// Make sure memory spill doesn't happen while write/stop are executed.
-    bool evicting_or_writing{false};
-
     /// Only valid in celeborn partition writer
     size_t last_partition_id;
+    LoggerPtr logger = nullptr;
 };
 
 class Spillable
@@ -138,21 +128,21 @@ public:
 
     String getName() const override { return "LocalPartitionWriter"; }
 
-protected:
-    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
-    void unsafeStop() override;
+    size_t evictPartitions() override;
+    void stop() override;
+
 };
 
 class SortBasedPartitionWriter : public PartitionWriter
 {
-public:
-    explicit SortBasedPartitionWriter(CachedShuffleWriter * shuffle_writer_) : PartitionWriter(shuffle_writer_)
+protected:
+    explicit SortBasedPartitionWriter(CachedShuffleWriter * shuffle_writer_, LoggerPtr logger) : PartitionWriter(shuffle_writer_, logger)
     {
         max_merge_block_size = options->split_size;
         max_sort_buffer_size = options->max_sort_buffer_size;
         max_merge_block_bytes = SerializedPlanParser::global_context->getSettings().prefer_external_sort_block_bytes;
     }
-
+public:
     String getName() const override { return "SortBasedPartitionWriter"; }
     void write(const PartitionInfo & info, DB::Block & block) override;
     size_t adaptiveBlockSize()
@@ -181,80 +171,32 @@ class MemorySortLocalPartitionWriter : public SortBasedPartitionWriter, public S
 {
 public:
     explicit MemorySortLocalPartitionWriter(CachedShuffleWriter* shuffle_writer_)
-        : SortBasedPartitionWriter(shuffle_writer_), Spillable(shuffle_writer_->options)
+        : SortBasedPartitionWriter(shuffle_writer_, getLogger("MemorySortLocalPartitionWriter")), Spillable(shuffle_writer_->options)
     {
     }
 
     ~MemorySortLocalPartitionWriter() override = default;
     String getName() const override { return "MemorySortLocalPartitionWriter"; }
 
-protected:
-    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
-    void unsafeStop() override;
+    size_t evictPartitions() override;
+    void stop() override;
 };
 
 class MemorySortCelebornPartitionWriter : public SortBasedPartitionWriter
 {
 public:
     explicit MemorySortCelebornPartitionWriter(CachedShuffleWriter* shuffle_writer_, std::unique_ptr<CelebornClient> celeborn_client_)
-        : SortBasedPartitionWriter(shuffle_writer_), celeborn_client(std::move(celeborn_client_))
+        : SortBasedPartitionWriter(shuffle_writer_, getLogger("MemorySortCelebornPartitionWriter")), celeborn_client(std::move(celeborn_client_))
     {
     }
 
+    String getName() const override { return "MemorySortCelebornPartitionWriter"; }
     ~MemorySortCelebornPartitionWriter() override = default;
 
-protected:
-    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
-    void unsafeStop() override;
-
-private:
-    std::unique_ptr<CelebornClient> celeborn_client;
-};
-
-class SortedPartitionDataMerger;
-
-class ExternalSortLocalPartitionWriter : public SortBasedPartitionWriter
-{
-public:
-    struct MergeContext
-    {
-        CompressionCodecPtr codec;
-        std::unique_ptr<SortedPartitionDataMerger> merger;
-    };
-
-    explicit ExternalSortLocalPartitionWriter(CachedShuffleWriter * shuffle_writer_) : SortBasedPartitionWriter(shuffle_writer_)
-    {
-        max_merge_block_size = options->split_size;
-        max_sort_buffer_size = options->max_sort_buffer_size;
-        max_merge_block_bytes = SerializedPlanParser::global_context->getSettings().prefer_external_sort_block_bytes;
-        tmp_data = std::make_unique<TemporaryDataOnDisk>(SerializedPlanParser::global_context->getTempDataOnDisk());
-    }
-
-    ~ExternalSortLocalPartitionWriter() override = default;
-
-    String getName() const override { return "ExternalSortLocalPartitionWriter"; }
+    void stop() override;
 
 protected:
-    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
-    /// Prepare for data merging, spill the remaining memory data，and create a merger object.
-    MergeContext prepareMerge();
-    void unsafeStop() override;
-    std::queue<Block> mergeDataInMemory();
-
-    TemporaryDataOnDiskPtr tmp_data;
-    std::vector<TemporaryFileStream *> streams;
-};
-
-class ExternalSortCelebornPartitionWriter : public ExternalSortLocalPartitionWriter
-{
-public:
-    explicit ExternalSortCelebornPartitionWriter(CachedShuffleWriter * shuffle_writer_, std::unique_ptr<CelebornClient> celeborn_client_)
-        : ExternalSortLocalPartitionWriter(shuffle_writer_), celeborn_client(std::move(celeborn_client_))
-    {
-    }
-protected:
-    void unsafeStop() override;
-
+    size_t evictPartitions() override;
 private:
     std::unique_ptr<CelebornClient> celeborn_client;
 };
@@ -266,15 +208,12 @@ public:
     ~CelebornPartitionWriter() override = default;
 
     String getName() const override { return "CelebornPartitionWriter"; }
-
+    void stop() override;
 protected:
-    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
-
+    size_t evictPartitions() override;
     bool supportsEvictSinglePartition() const override { return true; }
-    size_t unsafeEvictSinglePartition(bool for_memory_spill, bool flush_block_buffer, size_t partition_id) override;
-
-    void unsafeStop() override;
-
+    size_t evictSinglePartition(size_t partition_id) override;
+private:
     std::unique_ptr<CelebornClient> celeborn_client;
 };
 }

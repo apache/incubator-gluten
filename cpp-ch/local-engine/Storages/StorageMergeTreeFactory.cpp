@@ -16,6 +16,8 @@
  */
 #include "StorageMergeTreeFactory.h"
 
+#include <Common/GlutenConfig.h>
+
 namespace local_engine
 {
 
@@ -67,14 +69,12 @@ DataPartsVector StorageMergeTreeFactory::getDataPartsByNames(const StorageID & i
 {
     DataPartsVector res;
     auto table_name = getTableName(id, snapshot_id);
-
+    auto config = MergeTreeConfig::loadFromContext(SerializedPlanParser::global_context);
     std::lock_guard lock(datapart_mutex);
     std::unordered_set<String> missing_names;
     if (!datapart_map->has(table_name)) [[unlikely]]
     {
-        auto cache = std::make_shared<Poco::LRUCache<std::string, DataPartPtr>>(
-            SerializedPlanParser::global_context->getConfigRef().getInt64("table_part_metadata_cache_max_count", 1000000)
-            );
+        auto cache = std::make_shared<Poco::LRUCache<std::string, DataPartPtr>>(config.table_part_metadata_cache_max_count);
         datapart_map->add(table_name, cache);
     }
 

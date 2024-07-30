@@ -47,14 +47,8 @@ struct SplitOptions
     int compress_level;
     size_t spill_threshold = 300 * 1024 * 1024;
     std::string hash_algorithm;
-    bool throw_if_memory_exceed = true;
-    /// Whether to flush partition_block_buffer in PartitionWriter before evict.
-    bool flush_block_buffer_before_evict = false;
     size_t max_sort_buffer_size = 1_GiB;
-    // Whether to spill firstly before stop external sort shuffle.
-    bool spill_firstly_before_stop = true;
-    bool force_external_sort = false;
-    bool force_mermory_sort = false;
+    bool force_memory_sort = false;
 };
 
 class ColumnsBuffer
@@ -118,92 +112,6 @@ struct SplitResult
     }
 };
 
-class ShuffleSplitter;
-using ShuffleSplitterPtr = std::unique_ptr<ShuffleSplitter>;
-class ShuffleSplitter : public ShuffleWriterBase
-{
-public:
-    inline const static std::vector<std::string> compress_methods =  {"", "ZSTD", "LZ4"};
-
-    static ShuffleSplitterPtr create(const std::string & short_name, const SplitOptions & options_);
-
-    explicit ShuffleSplitter(const SplitOptions & options);
-    virtual ~ShuffleSplitter() override
-    {
-        if (!stopped)
-            stop();
-    }
-
-    void split(DB::Block & block) override;
-    virtual void computeAndCountPartitionId(DB::Block &) { }
-    std::vector<UInt64> getPartitionLength() const { return split_result.partition_lengths; }
-    void writeIndexFile();
-    SplitResult stop() override;
-
-private:
-    void init();
-    void initOutputIfNeeded(DB::Block & block);
-    void splitBlockByPartition(DB::Block & block);
-    void spillPartition(size_t partition_id);
-    std::string getPartitionTempFile(size_t partition_id);
-    void mergePartitionFiles();
-    std::unique_ptr<DB::WriteBuffer> getPartitionWriteBuffer(size_t partition_id);
-
-protected:
-    bool stopped = false;
-    PartitionInfo partition_info;
-    std::vector<ColumnsBufferPtr> partition_buffer;
-    std::vector<std::unique_ptr<local_engine::NativeWriter>> partition_outputs;
-    std::vector<std::unique_ptr<DB::WriteBuffer>> partition_write_buffers;
-    std::vector<std::unique_ptr<DB::WriteBuffer>> partition_cached_write_buffers;
-    std::vector<local_engine::CompressedWriteBuffer *> compressed_buffers;
-    std::vector<size_t> output_columns_indicies;
-    DB::Block output_header;
-    SplitOptions options;
-    SplitResult split_result;
-};
-
-class RoundRobinSplitter : public ShuffleSplitter
-{
-public:
-    static ShuffleSplitterPtr create(const SplitOptions & options);
-
-    explicit RoundRobinSplitter(const SplitOptions & options_);
-    virtual ~RoundRobinSplitter() override = default;
-
-    void computeAndCountPartitionId(DB::Block & block) override;
-
-private:
-    std::unique_ptr<RoundRobinSelectorBuilder> selector_builder;
-};
-
-class HashSplitter : public ShuffleSplitter
-{
-public:
-    static ShuffleSplitterPtr create(const SplitOptions & options);
-
-    explicit HashSplitter(SplitOptions options_);
-    virtual ~HashSplitter() override = default;
-
-    void computeAndCountPartitionId(DB::Block & block) override;
-
-private:
-    std::unique_ptr<HashSelectorBuilder> selector_builder;
-};
-
-class RangeSplitter : public ShuffleSplitter
-{
-public:
-    static ShuffleSplitterPtr create(const SplitOptions & options);
-
-    explicit RangeSplitter(const SplitOptions & options_);
-    virtual ~RangeSplitter() override = default;
-
-    void computeAndCountPartitionId(DB::Block & block) override;
-
-private:
-    std::unique_ptr<RangeSelectorBuilder> selector_builder;
-};
 struct SplitterHolder
 {
     std::unique_ptr<ShuffleWriterBase> splitter;

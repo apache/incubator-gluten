@@ -102,21 +102,21 @@ TEST(TestJoin, simple)
     std::cerr << "after join:\n";
     for (const auto & key : left_keys)
         std::cerr << key.dump() << std::endl;
-    ActionsDAGPtr left_convert_actions = nullptr;
-    ActionsDAGPtr right_convert_actions = nullptr;
+    std::optional<ActionsDAG> left_convert_actions;
+    std::optional<ActionsDAG> right_convert_actions;
     std::tie(left_convert_actions, right_convert_actions)
         = join->createConvertingActions(left.getColumnsWithTypeAndName(), right.getColumnsWithTypeAndName());
 
     if (right_convert_actions)
     {
-        auto converting_step = std::make_unique<ExpressionStep>(right_plan.getCurrentDataStream(), right_convert_actions);
+        auto converting_step = std::make_unique<ExpressionStep>(right_plan.getCurrentDataStream(), std::move(*right_convert_actions));
         converting_step->setStepDescription("Convert joined columns");
         right_plan.addStep(std::move(converting_step));
     }
 
     if (left_convert_actions)
     {
-        auto converting_step = std::make_unique<ExpressionStep>(right_plan.getCurrentDataStream(), right_convert_actions);
+        auto converting_step = std::make_unique<ExpressionStep>(right_plan.getCurrentDataStream(), std::move(*right_convert_actions));
         converting_step->setStepDescription("Convert joined columns");
         left_plan.addStep(std::move(converting_step));
     }
@@ -134,10 +134,10 @@ TEST(TestJoin, simple)
     auto query_plan = QueryPlan();
     query_plan.unitePlans(std::move(join_step), {std::move(plans)});
     std::cerr << query_plan.getCurrentDataStream().header.dumpStructure() << std::endl;
-    ActionsDAGPtr project = std::make_shared<ActionsDAG>(query_plan.getCurrentDataStream().header.getNamesAndTypesList());
-    project->project(
+    ActionsDAG project{query_plan.getCurrentDataStream().header.getNamesAndTypesList()};
+    project.project(
         {NameWithAlias("colA", "colA"), NameWithAlias("colB", "colB"), NameWithAlias("colD", "colD"), NameWithAlias("colC", "colC")});
-    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(query_plan.getCurrentDataStream(), project);
+    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(query_plan.getCurrentDataStream(), std::move(project));
     query_plan.addStep(std::move(project_step));
     auto pipeline = query_plan.buildQueryPipeline(QueryPlanOptimizationSettings(), BuildQueryPipelineSettings());
     auto executable_pipe = QueryPipelineBuilder::getPipeline(std::move(*pipeline));

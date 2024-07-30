@@ -629,7 +629,7 @@ public read-only account：gluten/hN2xX3uQ4m
 
 ### Celeborn support
 
-Gluten with clickhouse backend supports [Celeborn](https://github.com/apache/celeborn) as remote shuffle service. Currently, the supported Celeborn versions are `0.3.x`, `0.4.x` and `0.5.0`.
+Gluten with clickhouse backend supports [Celeborn](https://github.com/apache/celeborn) as remote shuffle service. Currently, the supported Celeborn versions are `0.3.x`, `0.4.x` and `0.5.x`.
 
 Below introduction is used to enable this feature.
 
@@ -676,15 +676,5 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 # please refer to this URL (https://github.com/apache/celeborn/tree/main/assets/spark-patch) to apply the patch into your own Spark.
 spark.dynamicAllocation.enabled false
 ```
-
-### Columnar shuffle mode
-We have two modes of columnar shuffle   
-1. prefer cache
-2. prefer spill
-
-Switch through the configuration `spark.gluten.sql.columnar.backend.ch.shuffle.preferSpill`, the default is `false`, enable prefer cache shuffle.
-
-In the prefer cache mode, as much memory as possible will be used to cache the shuffle data. When the memory is insufficient,
-spark will actively trigger the memory spill. You can also specify the threshold size through `spark.gluten.sql.columnar.backend.ch.spillThreshold` to Limit memory usage. The default value is `0MB`, which means no limit on memory usage.
 
 

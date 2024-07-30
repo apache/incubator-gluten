@@ -32,11 +32,9 @@ public class ExpressionEvaluatorJniWrapper {
   /**
    * Create a native compute kernel and return a columnar result iterator.
    *
-   * @param allocatorId allocator id
    * @return iterator instance id
    */
   public static native long nativeCreateKernelWithIterator(
-      long allocatorId,
       byte[] wsPlan,
       byte[][] splitInfo,
       GeneralInIterator[] batchItr,
@@ -46,9 +44,7 @@ public class ExpressionEvaluatorJniWrapper {
   /**
    * Set the temp path for writing files.
    *
-   * @param allocatorId allocator id for current task attempt(or thread)
    * @param path the temp path for writing files
    */
-  public static native void injectWriteFilesTempPath(
-      long allocatorId, byte[] path, byte[] filename);
+  public static native void injectWriteFilesTempPath(byte[] path, byte[] filename);
 }

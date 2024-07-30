@@ -924,6 +924,24 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  testWithSpecifiedSparkVersion("mask", Some("3.4")) {
+    runQueryAndCompare("SELECT mask(c_comment) FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT mask(c_comment, 'Y') FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT mask(c_comment, 'Y', 'y') FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT mask(c_comment, 'Y', 'y', 'o') FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT mask(c_comment, 'Y', 'y', 'o', '*') FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("bit_length") {
     runQueryAndCompare(
       "select bit_length(c_comment), bit_length(cast(c_comment as binary))" +

@@ -18,7 +18,7 @@ package org.apache.gluten.vectorized;
 
 import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.backendsapi.BackendsApiManager;
-import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators;
+import org.apache.gluten.memory.CHThreadGroup;
 import org.apache.gluten.substrait.expression.ExpressionBuilder;
 import org.apache.gluten.substrait.expression.StringMapNode;
 import org.apache.gluten.substrait.extensions.AdvancedExtensionNode;
@@ -81,9 +81,7 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
 
   public static void injectWriteFilesTempPath(String path, String fileName) {
     ExpressionEvaluatorJniWrapper.injectWriteFilesTempPath(
-        CHNativeMemoryAllocators.contextInstance().getNativeInstanceId(),
-        path.getBytes(StandardCharsets.UTF_8),
-        fileName.getBytes(StandardCharsets.UTF_8));
+        path.getBytes(StandardCharsets.UTF_8), fileName.getBytes(StandardCharsets.UTF_8));
   }
 
   // Used by WholeStageTransform to create the native computing pipeline and
@@ -93,9 +91,9 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
       byte[][] splitInfo,
       List<GeneralInIterator> iterList,
       boolean materializeInput) {
+    CHThreadGroup.registerNewThreadGroup();
     long handle =
         nativeCreateKernelWithIterator(
-            CHNativeMemoryAllocators.contextInstance().getNativeInstanceId(),
             wsPlan,
             splitInfo,
             iterList.toArray(new GeneralInIterator[0]),
@@ -106,10 +104,10 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
 
   // Only for UT.
   public static BatchIterator createKernelWithBatchIterator(
-      long allocId, byte[] wsPlan, byte[][] splitInfo, List<GeneralInIterator> iterList) {
+      byte[] wsPlan, byte[][] splitInfo, List<GeneralInIterator> iterList) {
+    CHThreadGroup.registerNewThreadGroup();
     long handle =
         nativeCreateKernelWithIterator(
-            allocId,
             wsPlan,
             splitInfo,
             iterList.toArray(new GeneralInIterator[0]),
