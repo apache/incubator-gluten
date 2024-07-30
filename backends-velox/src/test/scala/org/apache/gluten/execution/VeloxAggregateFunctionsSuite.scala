@@ -22,7 +22,6 @@ import org.apache.gluten.extension.columnar.validator.FallbackInjects
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Final, Partial}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
-import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -1141,13 +1140,10 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
               StructField("lastUpdated", LongType, true),
               StructField("version", LongType, true))),
           true)))
-    val df = spark.read.schema(jsonSchema).json(Seq(jsonStr).toDS)
-    df.select(collect_set(col("txn"))).collect
-
-    df.select(min(col("txn"))).collect
-
-    df.select(max(col("txn"))).collect
-
+    spark.read.schema(jsonSchema).json(Seq(jsonStr).toDS).createOrReplaceTempView("t1")
+    runQueryAndCompare("select collect_set(txn), min(txn), max(txn) from t1") {
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+    }
   }
 
   test("drop redundant partial sort which has pre-project when offload sortAgg") {
