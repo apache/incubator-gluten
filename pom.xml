@@ -758,7 +758,7 @@
         <groupId>org.antlr</groupId>
         <artifactId>antlr4-runtime</artifactId>
         <version>${antlr4.version}</version>
-        <scope>provided</scope>
+        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
