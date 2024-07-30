@@ -103,7 +103,7 @@ public:
         DB::Names required_column_names = lambda_actions->getRequiredColumns();
         DB::ActionsDAG::NodeRawConstPtrs lambda_children;
         auto lambda_function_args = collectLambdaArguments(*plan_parser, substrait_func);
-        const auto & lambda_actions_inputs = lambda_actions_dag.getInputs();
+        const auto & lambda_actions_inputs = lambda_actions->getActionsDAG().getInputs();
 
         std::unordered_map<String, const DB::ActionsDAG::Node *> parent_nodes;
         for (const auto & node : actions_dag.getNodes())
