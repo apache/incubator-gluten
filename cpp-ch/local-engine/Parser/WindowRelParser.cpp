@@ -172,6 +172,7 @@ WindowRelParser::parseWindowFrameType(const std::string & function_name, const s
     static const std::unordered_map<std::string, substrait::WindowType> special_function_frame_type = {
         {"rank", substrait::RANGE},
         {"dense_rank", substrait::RANGE},
+        {"percent_rank", substrait::RANGE}
     };
 
     substrait::WindowType frame_type;

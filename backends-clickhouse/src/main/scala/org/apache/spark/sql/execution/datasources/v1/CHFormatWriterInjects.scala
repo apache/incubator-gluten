@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.datasources.v1
 
 import org.apache.gluten.execution.datasource.GlutenRowSplitter
+import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized.CHColumnVector
 
 import org.apache.spark.sql.SparkSession
@@ -37,6 +38,7 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
       nativeConf: java.util.Map[String, String]): OutputWriter = {
     val originPath = path
     val datasourceJniWrapper = new CHDatasourceJniWrapper();
+    CHThreadGroup.registerNewThreadGroup()
     val instance =
       datasourceJniWrapper.nativeInitFileWriterWrapper(
         path,

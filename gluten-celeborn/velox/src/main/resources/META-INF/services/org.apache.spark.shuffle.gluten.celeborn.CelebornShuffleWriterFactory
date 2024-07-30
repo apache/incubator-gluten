@@ -1,1 +1,1 @@
-org.apache.spark.shuffle.VeloxCelebornHashBasedColumnarShuffleWriterFactory
+org.apache.spark.shuffle.VeloxCelebornColumnarShuffleWriterFactory

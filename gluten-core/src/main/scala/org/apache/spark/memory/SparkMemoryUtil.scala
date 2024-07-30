@@ -56,80 +56,82 @@ object SparkMemoryUtil {
     smp.memoryFree + emp.memoryFree
   }
 
-  def dumpMemoryTargetStats(target: MemoryTarget): String = {
-    def collectRootStats(target: MemoryTarget): KnownNameAndStats = {
-      target.accept(new MemoryTargetVisitor[KnownNameAndStats] {
-        override def visit(overAcquire: OverAcquire): KnownNameAndStats = {
-          overAcquire.getTarget.accept(this)
-        }
+  def dumpMemoryManagerStats(tmm: TaskMemoryManager): String = {
+    val stats = tmm.synchronized {
+      val consumers = consumersField.get(tmm).asInstanceOf[util.HashSet[MemoryConsumer]]
 
-        @nowarn
-        override def visit(regularMemoryConsumer: RegularMemoryConsumer): KnownNameAndStats = {
-          collectFromTaskMemoryManager(regularMemoryConsumer.getTaskMemoryManager)
-        }
+      // create stats map
+      val statsMap = new util.HashMap[String, MemoryUsageStats]()
+      consumers.asScala.foreach {
+        case mt: KnownNameAndStats =>
+          statsMap.put(mt.name(), mt.stats())
+        case mc =>
+          statsMap.put(
+            mc.toString,
+            MemoryUsageStats
+              .newBuilder()
+              .setCurrent(mc.getUsed)
+              .setPeak(-1L)
+              .build())
+      }
+      Preconditions.checkState(statsMap.size() == consumers.size())
 
-        override def visit(throwOnOomMemoryTarget: ThrowOnOomMemoryTarget): KnownNameAndStats = {
-          throwOnOomMemoryTarget.target().accept(this)
-        }
+      // add root
+      new KnownNameAndStats {
+        override def name(): String = s"Task.${taskIdField.get(tmm)}"
 
-        override def visit(treeMemoryConsumer: TreeMemoryConsumer): KnownNameAndStats = {
-          collectFromTaskMemoryManager(treeMemoryConsumer.getTaskMemoryManager)
-        }
-
-        override def visit(node: TreeMemoryTargets.Node): KnownNameAndStats = {
-          node.parent().accept(this) // walk up to find the one bound with task memory manager
-        }
-
-        private def collectFromTaskMemoryManager(tmm: TaskMemoryManager): KnownNameAndStats = {
-          tmm.synchronized {
-            val consumers = consumersField.get(tmm).asInstanceOf[util.HashSet[MemoryConsumer]]
-
-            // create stats map
-            val statsMap = new util.HashMap[String, MemoryUsageStats]()
-            consumers.asScala.foreach {
-              case mt: KnownNameAndStats =>
-                statsMap.put(mt.name(), mt.stats())
-              case mc =>
-                statsMap.put(
-                  mc.toString,
-                  MemoryUsageStats
-                    .newBuilder()
-                    .setCurrent(mc.getUsed)
-                    .setPeak(-1L)
-                    .build())
-            }
-            Preconditions.checkState(statsMap.size() == consumers.size())
-
-            // add root
-            new KnownNameAndStats {
-              override def name(): String = s"Task.${taskIdField.get(tmm)}"
-
-              override def stats(): MemoryUsageStats = MemoryUsageStats
-                .newBuilder()
-                .setCurrent(tmm.getMemoryConsumptionForThisTask)
-                .setPeak(-1L)
-                .putAllChildren(statsMap)
-                .build()
-            }
-          }
-        }
-
-        override def visit(loggingMemoryTarget: LoggingMemoryTarget): KnownNameAndStats = {
-          loggingMemoryTarget.delegated().accept(this)
-        }
-
-        override def visit(noopMemoryTarget: NoopMemoryTarget): KnownNameAndStats = {
-          noopMemoryTarget
-        }
-
-        override def visit(dynamicOffHeapSizingMemoryTarget: DynamicOffHeapSizingMemoryTarget)
-            : KnownNameAndStats = {
-          dynamicOffHeapSizingMemoryTarget.delegated().accept(this)
-        }
-      })
+        override def stats(): MemoryUsageStats = MemoryUsageStats
+          .newBuilder()
+          .setCurrent(tmm.getMemoryConsumptionForThisTask)
+          .setPeak(-1L)
+          .putAllChildren(statsMap)
+          .build()
+      }
     }
 
-    prettyPrintStats("Memory consumer stats: ", collectRootStats(target))
+    prettyPrintStats("Memory consumer stats: ", stats)
+  }
+
+  def dumpMemoryTargetStats(target: MemoryTarget): String = {
+    target.accept(new MemoryTargetVisitor[String] {
+      override def visit(overAcquire: OverAcquire): String = {
+        overAcquire.getTarget.accept(this)
+      }
+
+      @nowarn
+      override def visit(regularMemoryConsumer: RegularMemoryConsumer): String = {
+        collectFromTaskMemoryManager(regularMemoryConsumer.getTaskMemoryManager)
+      }
+
+      override def visit(throwOnOomMemoryTarget: ThrowOnOomMemoryTarget): String = {
+        throwOnOomMemoryTarget.target().accept(this)
+      }
+
+      override def visit(treeMemoryConsumer: TreeMemoryConsumer): String = {
+        collectFromTaskMemoryManager(treeMemoryConsumer.getTaskMemoryManager)
+      }
+
+      override def visit(node: TreeMemoryTargets.Node): String = {
+        node.parent().accept(this) // walk up to find the one bound with task memory manager
+      }
+
+      private def collectFromTaskMemoryManager(tmm: TaskMemoryManager): String = {
+        dumpMemoryManagerStats(tmm)
+      }
+
+      override def visit(loggingMemoryTarget: LoggingMemoryTarget): String = {
+        loggingMemoryTarget.delegated().accept(this)
+      }
+
+      override def visit(noopMemoryTarget: NoopMemoryTarget): String = {
+        prettyPrintStats("No-op memory manager stats: ", noopMemoryTarget)
+      }
+
+      override def visit(
+          dynamicOffHeapSizingMemoryTarget: DynamicOffHeapSizingMemoryTarget): String = {
+        dynamicOffHeapSizingMemoryTarget.delegated().accept(this)
+      }
+    })
   }
 
   def prettyPrintStats(title: String, stats: KnownNameAndStats): String = {

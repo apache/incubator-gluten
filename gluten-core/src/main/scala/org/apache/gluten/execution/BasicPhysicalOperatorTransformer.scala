@@ -113,7 +113,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     if (remainingCondition == null) {
       // All the filters can be pushed down and the computing of this Filter
       // is not needed.
-      return ValidationResult.ok
+      return ValidationResult.succeeded
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
@@ -311,15 +311,6 @@ case class ColumnarUnionExec(children: Seq[SparkPlan]) extends SparkPlan with Gl
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
-
-  override protected def doValidateInternal(): ValidationResult = {
-    BackendsApiManager.getValidatorApiInstance
-      .doSchemaValidate(schema)
-      .map {
-        reason => ValidationResult.notOk(s"Found schema check failure for $schema, due to: $reason")
-      }
-      .getOrElse(ValidationResult.ok)
-  }
 }
 
 /**

@@ -133,26 +133,20 @@ void CachedShuffleWriter::lazyInitPartitionWriter(Block & input_sample)
     if (partition_writer)
         return;
 
-//    auto avg_row_size = input_sample.allocatedBytes() / input_sample.rows();
-//    auto overhead_memory = std::max(avg_row_size, input_sample.columns() * 16) * options.split_size * options.partition_num;
-//    auto use_sort_shuffle = overhead_memory > options.spill_threshold * 0.5 || options.partition_num >= 300;
-    auto use_external_sort_shuffle = options.force_external_sort;
-    auto use_memory_sort_shuffle = options.force_mermory_sort;
-    sort_shuffle = use_memory_sort_shuffle || use_external_sort_shuffle;
+    auto avg_row_size = input_sample.allocatedBytes() / input_sample.rows();
+    auto overhead_memory = std::max(avg_row_size, input_sample.columns() * 16) * options.split_size * options.partition_num;
+    auto use_sort_shuffle = overhead_memory > options.spill_threshold * 0.5 || options.partition_num >= 300;
+    sort_shuffle = use_sort_shuffle || options.force_memory_sort;
     if (celeborn_client)
     {
-        if (use_external_sort_shuffle)
-            partition_writer = std::make_unique<ExternalSortCelebornPartitionWriter>(this, std::move(celeborn_client));
-        else if (use_memory_sort_shuffle)
+        if (sort_shuffle)
             partition_writer = std::make_unique<MemorySortCelebornPartitionWriter>(this, std::move(celeborn_client));
         else
             partition_writer = std::make_unique<CelebornPartitionWriter>(this, std::move(celeborn_client));
     }
     else
     {
-        if (use_external_sort_shuffle)
-            partition_writer = std::make_unique<ExternalSortLocalPartitionWriter>(this);
-        else if (use_memory_sort_shuffle)
+        if (sort_shuffle)
             partition_writer = std::make_unique<MemorySortLocalPartitionWriter>(this);
         else
             partition_writer = std::make_unique<LocalPartitionWriter>(this);
@@ -169,9 +163,4 @@ SplitResult CachedShuffleWriter::stop()
     return split_result;
 }
 
-size_t CachedShuffleWriter::evictPartitions()
-{
-    if (!partition_writer) return 0;
-    return partition_writer->evictPartitions(true, options.flush_block_buffer_before_evict);
-}
 }

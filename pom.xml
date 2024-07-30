@@ -21,6 +21,18 @@
 
   <name>Gluten Parent Pom</name>
   <url>https://github.com/apache/incubator-gluten.git</url>
+  <description>Apache Gluten(incubating)</description>
+
+  <organization>
+        <name>Apache</name>
+        <url>http://gluten.apache.org</url>
+  </organization>
+
+  <scm>
+    <connection>scm:git:git://github.com/apache/incubator-gluten.git</connection>
+    <developerConnection>scm:git:ssh://github.com:apache/incubator-gluten.git</developerConnection>
+    <url>http://github.com/apache/incubator-gluten/tree/main</url>
+  </scm>
 
   <licenses>
     <license>
@@ -53,7 +65,7 @@
     <delta.package.name>delta-core</delta.package.name>
     <delta.version>2.4.0</delta.version>
     <delta.binary.version>24</delta.binary.version>
-    <celeborn.version>0.4.1</celeborn.version>
+    <celeborn.version>0.5.1</celeborn.version>
     <uniffle.version>0.8.0</uniffle.version>
     <arrow.version>15.0.0</arrow.version>
     <arrow-gluten.version>15.0.0-gluten</arrow-gluten.version>
@@ -415,6 +427,55 @@
         <module>gluten-ut</module>
       </modules>
     </profile>
+    <profile>
+      <!-- this profile for apache release. -->
+      <id>apache-release</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-release-plugin</artifactId>
+            <configuration>
+              <dryRun>false</dryRun>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <configuration>
+              <skip>false</skip>
+              <interactive>true</interactive>
+            </configuration>
+          </plugin>
+          <plugin>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>source-release-assembly</id>
+                <phase>none</phase>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+                <configuration>
+                  <tarLongFileMode>gnu</tarLongFileMode>
+                  <runOnlyAtExecutionRoot>true</runOnlyAtExecutionRoot>
+                  <appendAssemblyId>true</appendAssemblyId>
+                  <descriptors>
+                    <descriptor>
+                    src/assembly/source-assembly.xml
+                    </descriptor>
+                  </descriptors>
+                  <finalName>apache-gluten-${project.version}</finalName>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+	</plugins>
+      </build>
+    </profile>
   </profiles>
 
   <dependencyManagement>
@@ -655,6 +716,12 @@
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jsr310</artifactId>
+        <version>${fasterxml.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
         <artifactId>jackson-datatype-guava</artifactId>
         <version>${fasterxml.version}</version>
         <scope>provided</scope>
@@ -695,7 +762,7 @@
               </goals>
               <configuration>
                 <classifier>${scala.binary.version}</classifier>
-                <classifier>${sparkbundle.version}</classifier>
+		<classifier>${sparkbundle.version}</classifier>
               </configuration>
             </execution>
           </executions>

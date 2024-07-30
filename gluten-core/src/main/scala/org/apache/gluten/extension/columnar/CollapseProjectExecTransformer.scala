@@ -40,11 +40,11 @@ object CollapseProjectExecTransformer extends Rule[SparkPlan] {
         val collapsedProject = p2.copy(projectList =
           CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList))
         val validationResult = collapsedProject.doValidate()
-        if (validationResult.isValid) {
+        if (validationResult.ok()) {
           logDebug(s"Collapse project $p1 and $p2.")
           collapsedProject
         } else {
-          logDebug(s"Failed to collapse project, due to ${validationResult.reason.getOrElse("")}")
+          logDebug(s"Failed to collapse project, due to ${validationResult.reason()}")
           p1
         }
     }

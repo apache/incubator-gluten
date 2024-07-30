@@ -17,23 +17,35 @@
 package org.apache.gluten.integration.command;
 
 import org.apache.gluten.integration.action.Action;
+import org.apache.gluten.integration.action.DataGenOnly;
 import picocli.CommandLine;
 
 public class DataGenMixin {
+  @CommandLine.Option(names = {"--data-gen-strategy"}, description = "The strategy of data generation, accepted values: skip, once, always", defaultValue = "always")
+  private String dataGenStrategy;
+
   @CommandLine.Option(names = {"-s", "--scale"}, description = "The scale factor of sample TPC-H dataset", defaultValue = "0.1")
   private double scale;
 
   @CommandLine.Option(names = {"--gen-partitioned-data"}, description = "Generate data with partitions", defaultValue = "false")
   private boolean genPartitionedData;
 
-  @CommandLine.Option(names = {"--skip-data-gen"}, description = "Skip data generation", defaultValue = "false")
-  private boolean skipDataGen;
-
   public Action[] makeActions() {
-    if (skipDataGen) {
-      return new Action[0];
+    final DataGenOnly.Strategy strategy;
+    switch (dataGenStrategy) {
+      case "skip":
+        strategy = DataGenOnly.Skip$.MODULE$;
+        break;
+      case "once":
+        strategy = DataGenOnly.Once$.MODULE$;
+        break;
+      case "always":
+        strategy = DataGenOnly.Always$.MODULE$;
+        break;
+      default:
+        throw new IllegalArgumentException("Unexpected data-gen strategy: " + dataGenStrategy);
     }
-    return new Action[]{new org.apache.gluten.integration.action.DataGenOnly(scale, genPartitionedData)};
+    return new Action[]{new org.apache.gluten.integration.action.DataGenOnly(strategy, scale, genPartitionedData)};
   }
 
   public double getScale() {

@@ -258,6 +258,16 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     checkLengthAndPlan(df, 5)
   }
 
+  testWithSpecifiedSparkVersion("coalesce validation", Some("3.4")) {
+    withTempPath {
+      path =>
+        val data = "2019-09-09 01:02:03.456789"
+        val df = Seq(data).toDF("strTs").selectExpr(s"CAST(strTs AS TIMESTAMP_NTZ) AS ts")
+        df.coalesce(1).write.format("parquet").save(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).collect
+    }
+  }
+
   test("groupby") {
     val df = runQueryAndCompare(
       "select l_orderkey, sum(l_partkey) as sum from lineitem " +
@@ -422,18 +432,18 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
           }
 
           // Test same partition/ordering keys.
-//          runQueryAndCompare(
-//            "select avg(l_partkey) over" +
-//              " (partition by l_suppkey order by l_suppkey) from lineitem ") {
-//            checkGlutenOperatorMatch[WindowExecTransformer]
-//          }
+          runQueryAndCompare(
+            "select avg(l_partkey) over" +
+              " (partition by l_suppkey order by l_suppkey) from lineitem ") {
+            checkGlutenOperatorMatch[WindowExecTransformer]
+          }
 
           // Test overlapping partition/ordering keys.
-//          runQueryAndCompare(
-//            "select avg(l_partkey) over" +
-//              " (partition by l_suppkey order by l_suppkey, l_orderkey) from lineitem ") {
-//            checkGlutenOperatorMatch[WindowExecTransformer]
-//          }
+          runQueryAndCompare(
+            "select avg(l_partkey) over" +
+              " (partition by l_suppkey order by l_suppkey, l_orderkey) from lineitem ") {
+            checkGlutenOperatorMatch[WindowExecTransformer]
+          }
         }
     }
   }
@@ -1432,6 +1442,68 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
+  test("test sort merge join") {
+    withTable("t1", "t2") {
+      sql("""
+            |create table t1 using parquet as
+            |select cast(id as int) as c1, cast(id as string) c2 from range(100)
+            |""".stripMargin)
+      sql("""
+            |create table t2 using parquet as
+            |select cast(id as int) as c1, cast(id as string) c2 from range(100) order by c1 desc;
+            |""".stripMargin)
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 inner join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 left join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 left semi join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 right join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 left anti join t2 on t1.c1 = t2.c1 and t1.c1 > 50;
+            |""".stripMargin
+        ) {
+          checkGlutenOperatorMatch[SortMergeJoinExecTransformer]
+        }
+      }
+    }
+  }
+
   test("Fix incorrect path by decode") {
     val c = "?.+<_>|/"
     val path = rootPath + "/test +?.+<_>|"
@@ -1910,5 +1982,11 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     // result length check, table lineitem has 60,000 rows
     val resultLength = df.collect().length
     assert(resultLength > 25000 && resultLength < 35000)
+  }
+
+  test("Deduplicate sorting keys") {
+    runQueryAndCompare("select * from lineitem order by l_orderkey, l_orderkey") {
+      checkGlutenOperatorMatch[SortExecTransformer]
+    }
   }
 }

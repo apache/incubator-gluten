@@ -21,10 +21,11 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
-import org.apache.gluten.substrait.`type`.{ColumnTypeNode, TypeBuilder}
+import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
+import org.apache.gluten.utils.SubstraitUtil
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
@@ -32,7 +33,9 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.MetadataBuilder
 
 import com.google.protobuf.{Any, StringValue}
@@ -40,7 +43,6 @@ import org.apache.parquet.hadoop.ParquetOutputFormat
 
 import java.util.Locale
 
-import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /**
@@ -56,7 +58,7 @@ case class WriteFilesExecTransformer(
     staticPartitions: TablePartitionSpec)
   extends UnaryTransformSupport {
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
-  @transient override lazy val metrics =
+  @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genWriteFilesTransformerMetrics(sparkContext)
 
   override def metricsUpdater(): MetricsUpdater =
@@ -66,25 +68,23 @@ case class WriteFilesExecTransformer(
 
   private val caseInsensitiveOptions = CaseInsensitiveMap(options)
 
-  def genWriteParameters(): Any = {
+  private def genWriteParameters(): Any = {
+    val fileFormatStr = fileFormat match {
+      case register: DataSourceRegister =>
+        register.shortName
+      case _ => "UnknownFileFormat"
+    }
     val compressionCodec =
       WriteFilesExecTransformer.getCompressionCodec(caseInsensitiveOptions).capitalize
     val writeParametersStr = new StringBuffer("WriteParameters:")
-    writeParametersStr.append("is").append(compressionCodec).append("=1").append("\n")
+    writeParametersStr.append("is").append(compressionCodec).append("=1")
+    writeParametersStr.append(";format=").append(fileFormatStr).append("\n")
+
     val message = StringValue
       .newBuilder()
       .setValue(writeParametersStr.toString)
       .build()
     BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
-  }
-
-  def createEnhancement(output: Seq[Attribute]): com.google.protobuf.Any = {
-    val inputTypeNodes = output.map {
-      attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
-    }
-
-    BackendsApiManager.getTransformerApiInstance.packPBMessage(
-      TypeBuilder.makeStruct(false, inputTypeNodes.asJava).toProtobuf)
   }
 
   def getRelNode(
@@ -118,10 +118,11 @@ case class WriteFilesExecTransformer(
     val extensionNode = if (!validation) {
       ExtensionBuilder.makeAdvancedExtension(
         genWriteParameters(),
-        createEnhancement(originalInputAttributes))
+        SubstraitUtil.createEnhancement(originalInputAttributes))
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      ExtensionBuilder.makeAdvancedExtension(createEnhancement(originalInputAttributes))
+      ExtensionBuilder.makeAdvancedExtension(
+        SubstraitUtil.createEnhancement(originalInputAttributes))
     }
     RelBuilder.makeWriteRel(
       input,
@@ -133,7 +134,7 @@ case class WriteFilesExecTransformer(
       operatorId)
   }
 
-  private def getFinalChildOutput(): Seq[Attribute] = {
+  private def getFinalChildOutput: Seq[Attribute] = {
     val metadataExclusionList = conf
       .getConf(GlutenConfig.NATIVE_WRITE_FILES_COLUMN_METADATA_EXCLUSION_LIST)
       .split(",")
@@ -143,15 +144,15 @@ case class WriteFilesExecTransformer(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    val finalChildOutput = getFinalChildOutput()
+    val finalChildOutput = getFinalChildOutput
     val validationResult =
       BackendsApiManager.getSettings.supportWriteFilesExec(
         fileFormat,
         finalChildOutput.toStructType.fields,
         bucketSpec,
         caseInsensitiveOptions)
-    if (!validationResult.isValid) {
-      return ValidationResult.notOk("Unsupported native write: " + validationResult.reason.get)
+    if (!validationResult.ok()) {
+      return ValidationResult.failed("Unsupported native write: " + validationResult.reason())
     }
 
     val substraitContext = new SubstraitContext
@@ -165,7 +166,7 @@ case class WriteFilesExecTransformer(
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     val currRel =
-      getRelNode(context, getFinalChildOutput(), operatorId, childCtx.root, validation = false)
+      getRelNode(context, getFinalChildOutput, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Write Rel should be valid")
     TransformContext(childCtx.outputAttributes, output, currRel)
   }
@@ -196,7 +197,7 @@ object WriteFilesExecTransformer {
     "__file_source_generated_metadata_col"
   )
 
-  def removeMetadata(attr: Attribute, metadataExclusionList: Seq[String]): Attribute = {
+  private def removeMetadata(attr: Attribute, metadataExclusionList: Seq[String]): Attribute = {
     val metadataKeys = INTERNAL_METADATA_KEYS ++ metadataExclusionList
     attr.withMetadata {
       var builder = new MetadataBuilder().withMetadata(attr.metadata)

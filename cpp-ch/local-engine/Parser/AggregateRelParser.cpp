@@ -29,6 +29,7 @@
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/MergingAggregatedStep.h>
 #include <Common/CHUtil.h>
+#include <Common/GlutenConfig.h>
 
 namespace DB
 {
@@ -287,8 +288,8 @@ void AggregateRelParser::addMergingAggregatedStep()
         settings.max_threads,
         PODArrayUtil::adjustMemoryEfficientSize(settings.max_block_size),
         settings.min_hit_rate_to_use_consecutive_keys_optimization);
-    bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", true);
-    if (enable_streaming_aggregating)
+    auto config = StreamingAggregateConfig::loadFromContext(getContext());
+    if (config.enable_streaming_aggregating)
     {
         params.group_by_two_level_threshold = settings.group_by_two_level_threshold;
         auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params, false);
@@ -319,8 +320,8 @@ void AggregateRelParser::addCompleteModeAggregatedStep()
     AggregateDescriptions aggregate_descriptions;
     buildAggregateDescriptions(aggregate_descriptions);
     const auto & settings = getContext()->getSettingsRef();
-    bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", true);
-    if (enable_streaming_aggregating)
+    auto config = StreamingAggregateConfig::loadFromContext(getContext());
+    if (config.enable_streaming_aggregating)
     {
         Aggregator::Params params(
             grouping_keys,
@@ -397,9 +398,9 @@ void AggregateRelParser::addAggregatingStep()
     AggregateDescriptions aggregate_descriptions;
     buildAggregateDescriptions(aggregate_descriptions);
     const auto & settings = getContext()->getSettingsRef();
-    bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", true);
 
-    if (enable_streaming_aggregating)
+    auto config = StreamingAggregateConfig::loadFromContext(getContext());
+    if (config.enable_streaming_aggregating)
     {
         // Disable spilling to disk.
         // If group_by_two_level_threshold_bytes != 0, `Aggregator` will use memory usage as a condition to convert

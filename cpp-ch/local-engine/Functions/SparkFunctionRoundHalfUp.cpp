@@ -29,7 +29,7 @@ Similar to function round,except that in case when given number has equal distan
         )",
             .examples{{"roundHalfUp", "SELECT roundHalfUp(3.165,2)", "3.17"}},
             .categories{"Rounding"}
-        }, FunctionFactory::CaseInsensitive);
+        }, FunctionFactory::Case::Insensitive);
 
 }
 }

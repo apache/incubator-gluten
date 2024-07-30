@@ -19,7 +19,7 @@ package org.apache.gluten.extension.columnar.validator
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, BackendSettingsApi}
 import org.apache.gluten.expression.ExpressionUtils
-import org.apache.gluten.extension.columnar.{FallbackTags, TRANSFORM_UNSUPPORTED}
+import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution._
@@ -109,8 +109,8 @@ object Validators {
   private object FallbackByHint extends Validator {
     override def validate(plan: SparkPlan): Validator.OutCome = {
       if (FallbackTags.nonEmpty(plan)) {
-        val hint = FallbackTags.getTag(plan).asInstanceOf[TRANSFORM_UNSUPPORTED]
-        return fail(hint.reason.getOrElse("Reason not recorded"))
+        val tag = FallbackTags.get(plan)
+        return fail(tag.reason())
       }
       pass()
     }
@@ -141,14 +141,11 @@ object Validators {
     override def validate(plan: SparkPlan): Validator.OutCome = plan match {
       case p: ShuffleExchangeExec if !settings.supportColumnarShuffleExec() => fail(p)
       case p: SortMergeJoinExec if !settings.supportSortMergeJoinExec() => fail(p)
-      case p: WriteFilesExec
-          if !(settings.enableNativeWriteFiles() && settings.supportTransformWriteFiles) =>
+      case p: WriteFilesExec if !settings.enableNativeWriteFiles() =>
         fail(p)
       case p: SortAggregateExec if !settings.replaceSortAggWithHashAgg =>
         fail(p)
       case p: CartesianProductExec if !settings.supportCartesianProductExec() => fail(p)
-      case p: BroadcastNestedLoopJoinExec if !settings.supportBroadcastNestedLoopJoinExec() =>
-        fail(p)
       case p: TakeOrderedAndProjectExec if !settings.supportColumnarShuffleExec() => fail(p)
       case _ => pass()
     }

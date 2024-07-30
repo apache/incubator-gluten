@@ -28,19 +28,14 @@ namespace gluten {
 
 class Partitioner {
  public:
-  static arrow::Result<std::shared_ptr<Partitioner>>
-  make(Partitioning partitioning, int32_t numPartitions, int32_t startPartitionId);
+  static std::shared_ptr<Partitioner> make(Partitioning partitioning, int32_t numPartitions, int32_t startPartitionId);
 
   // Whether the first column is partition key.
   bool hasPid() const {
     return hasPid_;
   }
 
-  virtual arrow::Status compute(
-      const int32_t* pidArr,
-      const int64_t numRows,
-      std::vector<uint32_t>& row2partition,
-      std::vector<uint32_t>& partition2RowCount) = 0;
+  virtual arrow::Status compute(const int32_t* pidArr, const int64_t numRows, std::vector<uint32_t>& row2partition) = 0;
 
   virtual arrow::Status compute(
       const int32_t* pidArr,

@@ -58,7 +58,7 @@ case class CHColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBase(c
             s"${field.dataType} is not supported in ColumnarToRowExecBase.")
       }
     }
-    ValidationResult.ok
+    ValidationResult.succeeded
   }
 
   override def doExecuteInternal(): RDD[InternalRow] = {

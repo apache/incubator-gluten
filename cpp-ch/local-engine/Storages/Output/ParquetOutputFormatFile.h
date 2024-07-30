@@ -32,7 +32,7 @@ public:
     explicit ParquetOutputFormatFile(
         DB::ContextPtr context_,
         const std::string & file_uri_,
-        WriteBufferBuilderPtr write_buffer_builder_,
+        const WriteBufferBuilderPtr & write_buffer_builder_,
         const std::vector<std::string> & preferred_column_names_);
     ~ParquetOutputFormatFile() override = default;
 

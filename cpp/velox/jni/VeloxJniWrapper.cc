@@ -184,7 +184,6 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_i
     jlong handle,
     jlong item) {
   JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
   auto filter = gluten::ObjectStore::retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
   GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
   filter->insert(folly::hasher<int64_t>()(item));
@@ -197,7 +196,6 @@ JNIEXPORT jboolean JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapp
     jlong handle,
     jlong item) {
   JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
   auto filter = gluten::ObjectStore::retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
   GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
   bool out = filter->mayContain(folly::hasher<int64_t>()(item));
@@ -222,7 +220,6 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_m
     jlong handle,
     jlong other) {
   JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
   auto to = gluten::ObjectStore::retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
   auto from = gluten::ObjectStore::retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(other);
   GLUTEN_CHECK(to->isSet(), "Bloom-filter is not initialized");
@@ -237,7 +234,6 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWra
     jobject wrapper,
     jlong handle) {
   JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
   auto filter = gluten::ObjectStore::retrieve<velox::BloomFilter<std::allocator<uint64_t>>>(handle);
   GLUTEN_CHECK(filter->isSet(), "Bloom-filter is not initialized");
   std::vector<char> buffer = serialize(filter.get());

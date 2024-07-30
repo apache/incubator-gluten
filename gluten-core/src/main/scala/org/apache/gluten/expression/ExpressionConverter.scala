@@ -22,6 +22,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.DecimalArithmeticUtil
 
+import org.apache.spark.{SPARK_REVISION, SPARK_VERSION_SHORT}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions._
@@ -556,6 +557,19 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             expressionsMap),
           arrayTransform
         )
+      case arraySort: ArraySort =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genArraySortTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformerInternal(
+            arraySort.argument,
+            attributeSeq,
+            expressionsMap),
+          replaceWithExpressionTransformerInternal(
+            arraySort.function,
+            attributeSeq,
+            expressionsMap),
+          arraySort
+        )
       case tryEval @ TryEval(a: Add) =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTryArithmeticTransformer(
           substraitExprName,
@@ -668,6 +682,26 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           t.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           t
+        )
+      case e: EulerNumber =>
+        LiteralTransformer(Literal(Math.E))
+      case p: Pi =>
+        LiteralTransformer(Literal(Math.PI))
+      case v: SparkVersion =>
+        LiteralTransformer(SPARK_VERSION_SHORT + " " + SPARK_REVISION)
+      case dateAdd: DateAdd =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genDateAddTransformer(
+          attributeSeq,
+          substraitExprName,
+          dateAdd.children,
+          dateAdd
+        )
+      case timeAdd: TimeAdd =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genDateAddTransformer(
+          attributeSeq,
+          substraitExprName,
+          timeAdd.children,
+          timeAdd
         )
       case expr =>
         GenericExpressionTransformer(

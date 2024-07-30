@@ -18,7 +18,6 @@ package org.apache.spark.sql.execution.datasources.v1
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ConverterUtils
-import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
@@ -97,7 +96,6 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
       // use table schema instead of data schema
       SparkShimLoader.getSparkShims.attributesFromStruct(tableSchema)
     )
-    val allocId = CHNativeMemoryAllocators.contextInstance.getNativeInstanceId
     val datasourceJniWrapper = new CHDatasourceJniWrapper()
     val instance =
       datasourceJniWrapper.nativeInitMergeTreeWriterWrapper(
@@ -107,8 +105,7 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
         context.getTaskAttemptID.getTaskID.getId.toString,
         context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
         context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
-        buildNativeConf(nativeConf),
-        allocId
+        buildNativeConf(nativeConf)
       )
 
     new MergeTreeOutputWriter(database, tableName, datasourceJniWrapper, instance, path)
@@ -170,22 +167,10 @@ object CHMergeTreeWriterInjects {
       primaryKeyOption
     )
 
-    val lowCardKey = lowCardKeyOption match {
-      case Some(keys) => keys.mkString(",")
-      case None => ""
-    }
-    val minmaxIndexKey = minmaxIndexKeyOption match {
-      case Some(keys) => keys.mkString(",")
-      case None => ""
-    }
-    val bfIndexKey = bfIndexKeyOption match {
-      case Some(keys) => keys.mkString(",")
-      case None => ""
-    }
-    val setIndexKey = setIndexKeyOption match {
-      case Some(keys) => keys.mkString(",")
-      case None => ""
-    }
+    val lowCardKey = MergeTreeDeltaUtil.columnsToStr(lowCardKeyOption)
+    val minmaxIndexKey = MergeTreeDeltaUtil.columnsToStr(minmaxIndexKeyOption)
+    val bfIndexKey = MergeTreeDeltaUtil.columnsToStr(bfIndexKeyOption)
+    val setIndexKey = MergeTreeDeltaUtil.columnsToStr(setIndexKeyOption)
 
     val substraitContext = new SubstraitContext
     val extensionTableNode = ExtensionTableBuilder.makeExtensionTable(

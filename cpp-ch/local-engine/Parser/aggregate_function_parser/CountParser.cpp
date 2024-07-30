@@ -43,7 +43,7 @@ String CountParser::getCHFunctionName(DB::DataTypes &) const
 }
 
 DB::ActionsDAG::NodeRawConstPtrs CountParser::parseFunctionArguments(
-    const CommonFunctionInfo & func_info, const String & /*ch_func_name*/, DB::ActionsDAGPtr & actions_dag) const
+    const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const
 {
     if (func_info.arguments.size() < 1)
     {

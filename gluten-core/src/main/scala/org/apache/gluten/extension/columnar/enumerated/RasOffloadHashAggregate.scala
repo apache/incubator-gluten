@@ -24,7 +24,7 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 object RasOffloadHashAggregate extends RasOffload {
   override def offload(node: SparkPlan): SparkPlan = node match {
     case agg: HashAggregateExec =>
-      val out = HashAggregateExecBaseTransformer.from(agg)()
+      val out = HashAggregateExecBaseTransformer.from(agg)
       out
     case other => other
   }

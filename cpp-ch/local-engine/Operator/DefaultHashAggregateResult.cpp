@@ -116,7 +116,7 @@ public:
             has_input = true;
             output_chunk = DB::Chunk(result_cols, 1);
             auto info = std::make_shared<DB::AggregatedChunkInfo>();
-            output_chunk.setChunkInfo(info);
+            output_chunk.getChunkInfos().add(std::move(info));
             return Status::Ready;
         }
 
@@ -124,10 +124,10 @@ public:
         if (input.hasData())
         {
             output_chunk = input.pull(true);
-            if (!output_chunk.hasChunkInfo())
+            if (output_chunk.getChunkInfos().empty())
             {
                 auto info = std::make_shared<DB::AggregatedChunkInfo>();
-                output_chunk.setChunkInfo(info);
+                output_chunk.getChunkInfos().add(std::move(info));
             }
             has_input = true;
             return Status::Ready;

@@ -24,32 +24,41 @@ set(ARROW_BUNDLED_DEPS "arrow_bundled_dependencies")
 set(ARROW_INSTALL_DIR "${ARROW_HOME}/install")
 set(ARROW_LIB_DIR "${ARROW_INSTALL_DIR}/lib")
 set(ARROW_LIB64_DIR "${ARROW_INSTALL_DIR}/lib64")
-set(ARROW_INCLUDE_DIR "${ARROW_INSTALL_DIR}/include")
 
 function(FIND_ARROW_LIB LIB_NAME)
   if(NOT TARGET Arrow::${LIB_NAME})
     set(ARROW_LIB_FULL_NAME
         ${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${ARROW_STATIC_LIBRARY_SUFFIX})
     add_library(Arrow::${LIB_NAME} STATIC IMPORTED)
-    # Firstly find the lib from velox's arrow build path. If not found, try to
-    # find it from system.
+    # Firstly find the lib from bundled path in Velox. If not found, try to find
+    # it from system.
     find_library(
       ARROW_LIB_${LIB_NAME}
       NAMES ${ARROW_LIB_FULL_NAME}
-      PATHS ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR})
+      PATHS ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR}
+      NO_DEFAULT_PATH)
+    if(NOT ARROW_LIB_${LIB_NAME})
+      find_library(ARROW_LIB_${LIB_NAME} NAMES ${ARROW_LIB_FULL_NAME})
+    endif()
     if(NOT ARROW_LIB_${LIB_NAME})
       message(FATAL_ERROR "Arrow library Not Found: ${ARROW_LIB_FULL_NAME}")
     endif()
     message(STATUS "Found Arrow library: ${ARROW_LIB_${LIB_NAME}}")
-    if(LIB_NAME STREQUAL ${ARROW_BUNDLED_DEPS})
-      set_target_properties(
-        Arrow::${LIB_NAME} PROPERTIES IMPORTED_LOCATION
-                                      ${ARROW_LIB_${LIB_NAME}})
-    else()
-      set_target_properties(
-        Arrow::${LIB_NAME}
-        PROPERTIES IMPORTED_LOCATION ${ARROW_LIB_${LIB_NAME}}
-                   INTERFACE_INCLUDE_DIRECTORIES ${ARROW_HOME}/install/include)
-    endif()
+
+    # Get the parent-parent directory of the lib file. For example:
+    #
+    # * ${ARROW_LIB_${LIB_NAME}}: /usr/local/lib/libarrow.a
+    # * ${ARROW_LIB_INCLUDE_DIR}: /usr/local
+    #
+    # Then we can get our include directory: /usr/local/include
+    get_filename_component(ARROW_LIB_INCLUDE_DIR "${ARROW_LIB_${LIB_NAME}}"
+                           PATH)
+    get_filename_component(ARROW_LIB_INCLUDE_DIR "${ARROW_LIB_INCLUDE_DIR}"
+                           PATH)
+
+    set_target_properties(
+      Arrow::${LIB_NAME}
+      PROPERTIES IMPORTED_LOCATION ${ARROW_LIB_${LIB_NAME}}
+                 INTERFACE_INCLUDE_DIRECTORIES ${ARROW_LIB_INCLUDE_DIR}/include)
   endif()
 endfunction()

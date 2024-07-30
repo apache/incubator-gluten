@@ -16,6 +16,7 @@
  */
 #pragma once
 #include <shared_mutex>
+#include <Core/Joins.h>
 #include <Interpreters/JoinUtils.h>
 #include <Storages/StorageInMemoryMetadata.h>
 
@@ -35,7 +36,7 @@ class StorageJoinFromReadBuffer
 {
 public:
     StorageJoinFromReadBuffer(
-        DB::ReadBuffer & in_,
+        DB::Blocks & data,
         size_t row_count,
         const DB::Names & key_names_,
         bool use_nulls_,
@@ -65,8 +66,8 @@ private:
     std::shared_ptr<DB::HashJoin> join = nullptr;
 
     void readAllBlocksFromInput(DB::ReadBuffer & in);
-    void buildJoin(DB::ReadBuffer & in, const DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join);
-    void collectAllInputs(DB::ReadBuffer & in, const DB::Block header);
+    void buildJoin(DB::Blocks & data, const DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join);
+    void collectAllInputs(DB::Blocks & data, const DB::Block header);
     void buildJoinLazily(DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join);
 };
 }

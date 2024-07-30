@@ -148,6 +148,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   compressionLevel,
                   compressThreshold,
                   GlutenConfig.getConf().columnarShuffleCompressionMode(),
+                  (int) (long) sparkConf.get(package$.MODULE$.SHUFFLE_SORT_INIT_BUFFER_SIZE()),
+                  (boolean) sparkConf.get(package$.MODULE$.SHUFFLE_SORT_USE_RADIXSORT()),
                   bufferSize,
                   bufferSize,
                   partitionPusher,
@@ -156,7 +158,9 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   GlutenShuffleUtils.getStartPartitionId(
                       columnarDep.nativePartitioning(), partitionId),
                   "uniffle",
-                  isSort ? "sort" : "hash",
+                  isSort
+                      ? GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER()
+                      : GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER(),
                   reallocThreshold);
           runtime.addSpiller(
               new Spiller() {
@@ -178,7 +182,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
         LOG.debug("jniWrapper.write rows {}, split bytes {}", cb.numRows(), bytes);
         columnarDep.metrics().get("dataSize").get().add(bytes);
         // this metric replace part of uniffle shuffle write time
-        columnarDep.metrics().get("splitTime").get().add(System.nanoTime() - startTime);
+        columnarDep.metrics().get("shuffleWallTime").get().add(System.nanoTime() - startTime);
         columnarDep.metrics().get("numInputRows").get().add(cb.numRows());
         columnarDep.metrics().get("inputBatches").get().add(1);
         shuffleWriteMetrics.incRecordsWritten(cb.numRows());
@@ -191,13 +195,13 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       throw new IllegalStateException("nativeShuffleWriter should not be -1L");
     }
     splitResult = jniWrapper.stop(nativeShuffleWriter);
+    columnarDep.metrics().get("shuffleWallTime").get().add(System.nanoTime() - startTime);
     columnarDep
         .metrics()
         .get("splitTime")
         .get()
         .add(
-            System.nanoTime()
-                - startTime
+            columnarDep.metrics().get("shuffleWallTime").get().value()
                 - splitResult.getTotalPushTime()
                 - splitResult.getTotalWriteTime()
                 - splitResult.getTotalCompressTime());

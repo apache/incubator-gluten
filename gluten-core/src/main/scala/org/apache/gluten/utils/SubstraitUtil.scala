@@ -16,9 +16,18 @@
  */
 package org.apache.gluten.utils
 
+import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
+import org.apache.gluten.substrait.`type`.TypeBuilder
+import org.apache.gluten.substrait.SubstraitContext
+import org.apache.gluten.substrait.expression.ExpressionNode
+
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.{FullOuter, InnerLike, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
 
 import io.substrait.proto.{CrossRel, JoinRel}
+
+import scala.collection.JavaConverters._
 
 object SubstraitUtil {
   def toSubstrait(sparkJoin: JoinType): JoinRel.JoinType = sparkJoin match {
@@ -48,7 +57,31 @@ object SubstraitUtil {
       // the left and right relations are exchanged and the
       // join type is reverted.
       CrossRel.JoinType.JOIN_TYPE_LEFT
+    case LeftSemi =>
+      CrossRel.JoinType.JOIN_TYPE_LEFT_SEMI
+    case FullOuter =>
+      CrossRel.JoinType.JOIN_TYPE_OUTER
     case _ =>
       CrossRel.JoinType.UNRECOGNIZED
+  }
+
+  def createEnhancement(output: Seq[Attribute]): com.google.protobuf.Any = {
+    val inputTypeNodes = output.map {
+      attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
+    }
+    // Normally the enhancement node is only used for plan validation. But here the enhancement
+    // is also used in execution phase. In this case an empty typeUrlPrefix need to be passed,
+    // so that it can be correctly parsed into json string on the cpp side.
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(
+      TypeBuilder.makeStruct(false, inputTypeNodes.asJava).toProtobuf)
+  }
+
+  def toSubstraitExpression(
+      expr: Expression,
+      attributeSeq: Seq[Attribute],
+      context: SubstraitContext): ExpressionNode = {
+    ExpressionConverter
+      .replaceWithExpressionTransformer(expr, attributeSeq)
+      .doTransform(context.registeredFunction)
   }
 }

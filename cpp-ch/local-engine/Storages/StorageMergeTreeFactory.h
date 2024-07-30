@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #pragma once
+#include <Common/GlutenConfig.h>
 #include <Poco/LRUCache.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Storages/CustomStorageMergeTree.h>
@@ -34,11 +35,11 @@ public:
     static DataPartsVector getDataPartsByNames(const StorageID & id, const String & snapshot_id, std::unordered_set<String> part_name);
     static void init_cache_map()
     {
+        auto config = MergeTreeConfig::loadFromContext(SerializedPlanParser::global_context);
         auto & storage_map_v = storage_map;
         if (!storage_map_v)
         {
-            storage_map_v = std::make_unique<Poco::LRUCache<std::string, CustomStorageMergeTreePtr>>(
-                SerializedPlanParser::global_context->getConfigRef().getInt64("table_metadata_cache_max_count", 100));
+            storage_map_v = std::make_unique<Poco::LRUCache<std::string, CustomStorageMergeTreePtr>>(config.table_metadata_cache_max_count);
         }
         else
         {
@@ -48,7 +49,7 @@ public:
         if (!datapart_map_v)
         {
             datapart_map_v = std::make_unique<Poco::LRUCache<std::string, std::shared_ptr<Poco::LRUCache<std::string, DataPartPtr>>>>(
-                SerializedPlanParser::global_context->getConfigRef().getInt64("table_metadata_cache_max_count", 100));
+                config.table_metadata_cache_max_count);
         }
         else
         {

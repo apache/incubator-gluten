@@ -86,12 +86,10 @@ case class CartesianProductExecTransformer(
     val (inputRightRelNode, inputRightOutput) =
       (rightPlanContext.root, rightPlanContext.outputAttributes)
 
-    val expressionNode = condition.map {
-      expr =>
-        ExpressionConverter
-          .replaceWithExpressionTransformer(expr, inputLeftOutput ++ inputRightOutput)
-          .doTransform(context.registeredFunction)
-    }
+    val expressionNode =
+      condition.map {
+        SubstraitUtil.toSubstraitExpression(_, inputLeftOutput ++ inputRightOutput, context)
+      }
 
     val extensionNode =
       JoinUtils.createExtensionNode(inputLeftOutput ++ inputRightOutput, validation = false)
@@ -112,7 +110,7 @@ case class CartesianProductExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportCartesianProductExec()) {
-      return ValidationResult.notOk("Cartesian product is not supported in this backend")
+      return ValidationResult.failed("Cartesian product is not supported in this backend")
     }
     val substraitContext = new SubstraitContext
     val expressionNode = condition.map {

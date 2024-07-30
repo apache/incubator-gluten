@@ -22,21 +22,22 @@ import org.apache.spark.SparkConf
 
 class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
-  override protected val tpcdsQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original"
-  override protected val queriesResults: String = rootPath + "tpcds-queries-output"
-
   override protected def excludedTpcdsQueries: Set[String] = Set(
-    // fallback due to left semi/anti
+    // fallback due to left semi/anti/existence join
     "q8",
+    "q10",
     "q14a",
     "q14b",
+    "116",
     "q23a",
     "q23b",
+    "q35",
+    "q38",
     "q51",
     "q69",
     "q70",
     "q78",
+    "q87",
     "q95",
     "q97"
   ) ++ super.excludedTpcdsQueries

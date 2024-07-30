@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.execution.{WindowExecTransformer, WindowGroupLimitExecTransformer}
+import org.apache.gluten.execution.{SortExecTransformer, WindowExecTransformer, WindowGroupLimitExecTransformer}
 
 import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.sql.Row
@@ -47,7 +47,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     Row(95337, 12, decimal(915.61))
   )
 
-  ignoreGluten("Literal in window partition by and sort") {
+  testGluten("Literal in window partition by and sort") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)
@@ -93,7 +93,7 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
     }
   }
 
-  ignoreGluten("Filter on row number") {
+  testGluten("Filter on row number") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)
@@ -134,10 +134,13 @@ class GlutenSQLWindowFunctionSuite extends SQLWindowFunctionSuite with GlutenSQL
           case _ => false
         }
       )
+      assert(
+        getExecutedPlan(df).collect { case s: SortExecTransformer if !s.global => s }.size == 1
+      )
     }
   }
 
-  ignoreGluten("Filter on rank") {
+  testGluten("Filter on rank") {
     withTable("customer") {
       val rdd = spark.sparkContext.parallelize(customerData)
       val customerDF = spark.createDataFrame(rdd, customerSchema)

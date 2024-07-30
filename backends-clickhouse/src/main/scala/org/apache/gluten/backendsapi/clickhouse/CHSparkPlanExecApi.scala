@@ -37,8 +37,6 @@ import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriter
 import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRewrite}
-import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
@@ -49,7 +47,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
-import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation}
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, WriteJobDescription}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
@@ -57,7 +55,7 @@ import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildS
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.{CHExecUtil, PushDownUtil}
 import org.apache.spark.sql.extension.{CommonSubexpressionEliminateRule, RewriteDateTimestampComparisonRule}
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.commons.lang3.ClassUtils
@@ -145,10 +143,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     }
 
     child match {
-      case scan: FileSourceScanExec if (checkMergeTreeFileFormat(scan.relation)) =>
+      case scan: FileSourceScanExec if checkMergeTreeFileFormat(scan.relation) =>
         // For the validation phase of the AddFallbackTagRule
         CHFilterExecTransformer(condition, child)
-      case scan: FileSourceScanExecTransformerBase if (checkMergeTreeFileFormat(scan.relation)) =>
+      case scan: FileSourceScanExecTransformerBase if checkMergeTreeFileFormat(scan.relation) =>
         // For the transform phase, the FileSourceScanExec is already transformed
         CHFilterExecTransformer(condition, child)
       case _ =>
@@ -364,8 +362,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left: SparkPlan,
       right: SparkPlan,
       condition: Option[Expression]): CartesianProductExecTransformer =
-    throw new GlutenNotSupportException(
-      "CartesianProductExecTransformer is not supported in ch backend.")
+    if (!condition.isEmpty) {
+      throw new GlutenNotSupportException(
+        "CartesianProductExecTransformer with condition is not supported in ch backend.")
+    } else {
+      CartesianProductExecTransformer(
+        ColumnarCartesianProductBridge(left),
+        ColumnarCartesianProductBridge(right),
+        condition)
+    }
 
   override def genBroadcastNestedLoopJoinExecTransformer(
       left: SparkPlan,
@@ -373,8 +378,13 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       buildSide: BuildSide,
       joinType: JoinType,
       condition: Option[Expression]): BroadcastNestedLoopJoinExecTransformer =
-    throw new GlutenNotSupportException(
-      "BroadcastNestedLoopJoinExecTransformer is not supported in ch backend.")
+    CHBroadcastNestedLoopJoinExecTransformer(
+      left,
+      right,
+      buildSide,
+      joinType,
+      condition
+    )
 
   override def genSampleExecTransformer(
       lowerBound: Double,
@@ -390,7 +400,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: GetMapValue): ExpressionTransformer =
-    GetMapValueTransformer(substraitExprName, left, right, false, original)
+    GetMapValueTransformer(substraitExprName, left, right, failOnError = false, original)
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
@@ -460,16 +470,23 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       child: SparkPlan,
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation = {
-    val hashedRelationBroadcastMode = mode.asInstanceOf[HashedRelationBroadcastMode]
+
+    val buildKeys: Seq[Expression] = mode match {
+      case mode1: HashedRelationBroadcastMode =>
+        mode1.key
+      case _ =>
+        // IdentityBroadcastMode
+        Seq.empty
+    }
+
     val (newChild, newOutput, newBuildKeys) =
       if (
-        hashedRelationBroadcastMode.key
+        buildKeys
           .forall(k => k.isInstanceOf[AttributeReference] || k.isInstanceOf[BoundReference])
       ) {
         (child, child.output, Seq.empty[Expression])
       } else {
         // pre projection in case of expression join keys
-        val buildKeys = hashedRelationBroadcastMode.key
         val appendedProjections = new ArrayBuffer[NamedExpression]()
         val preProjectionBuildKeys = buildKeys.zipWithIndex.map {
           case (e, idx) =>
@@ -657,15 +674,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHRegExpReplaceTransformer(substraitExprName, children, expr)
   }
 
-  override def createColumnarWriteFilesExec(
-      child: SparkPlan,
-      fileFormat: FileFormat,
-      partitionColumns: Seq[Attribute],
-      bucketSpec: Option[BucketSpec],
-      options: Map[String, String],
-      staticPartitions: TablePartitionSpec): SparkPlan = {
-    throw new GlutenNotSupportException("ColumnarWriteFilesExec is not support in ch backend.")
-  }
+  def createBackendWrite(description: WriteJobDescription): BackendWrite = ClickhouseBackendWrite(
+    description)
 
   override def createColumnarArrowEvalPythonExec(
       udfs: Seq[PythonUDF],
@@ -704,7 +714,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         val columnName = s"${aliasExpr.name}_${aliasExpr.exprId.id}"
         val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
         wExpression.windowFunction match {
-          case wf @ (RowNumber() | Rank(_) | DenseRank(_)) =>
+          case wf @ (RowNumber() | Rank(_) | DenseRank(_) | PercentRank(_)) =>
             val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
@@ -876,7 +886,30 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
   }
 
+  /** Transform array sort to Substrait. */
+  override def genArraySortTransformer(
+      substraitExprName: String,
+      argument: ExpressionTransformer,
+      function: ExpressionTransformer,
+      expr: ArraySort): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(argument, function), expr)
+  }
+
+  override def genDateAddTransformer(
+      attributeSeq: Seq[Attribute],
+      substraitExprName: String,
+      children: Seq[Expression],
+      expr: Expression): ExpressionTransformer = {
+    DateAddTransformer(attributeSeq, substraitExprName, children, expr).doTransform()
+  }
+
   override def genPreProjectForGenerate(generate: GenerateExec): SparkPlan = generate
 
   override def genPostProjectForGenerate(generate: GenerateExec): SparkPlan = generate
+
+  override def genDecimalRoundExpressionOutput(
+      decimalType: DecimalType,
+      toScale: Int): DecimalType = {
+    SparkShimLoader.getSparkShims.genDecimalRoundExpressionOutput(decimalType, toScale)
+  }
 }

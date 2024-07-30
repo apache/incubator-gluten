@@ -14,10 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Parser/FunctionParser.h>
-#include <Common/CHUtil.h>
 #include <Core/Field.h>
 #include <DataTypes/IDataType.h>
+#include <Parser/FunctionParser.h>
+#include <Common/BlockTypeUtils.h>
+#include <Common/CHUtil.h>
 
 namespace DB
 {
@@ -60,7 +61,7 @@ public:
             2. Spark slice returns null if any of the argument is null
         */
 
-        auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 3)
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "Function {} requires exactly three arguments", getName());
 

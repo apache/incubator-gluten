@@ -55,6 +55,7 @@ object CHJoinValidateUtil extends Logging {
     var shouldFallback = false
     val joinType = joinStrategy.joinType
     if (joinType.toString.contains("ExistenceJoin")) {
+      logError("Fallback for join type ExistenceJoin")
       return true
     }
     if (joinType.sql.contains("INNER")) {
@@ -77,6 +78,9 @@ object CHJoinValidateUtil extends Logging {
           joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI")
         case _ => false
       }
+    }
+    if (shouldFallback) {
+      logError(s"Fallback for join type $joinType")
     }
     shouldFallback
   }

@@ -16,15 +16,19 @@
  * limitations under the License.
  */
 #pragma once
+
 #include <filesystem>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
+#include <Core/Settings.h>
 #include <Functions/CastOverloadResolver.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context.h>
 #include <Processors/Chunk.h>
 #include <base/types.h>
+#include <google/protobuf/wrappers.pb.h>
+#include <substrait/algebra.pb.h>
 #include <Common/CurrentThread.h>
 
 namespace DB
@@ -38,6 +42,8 @@ namespace local_engine
 static const String MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE = "mergetree.insert_without_local_storage";
 static const String MERGETREE_MERGE_AFTER_INSERT = "mergetree.merge_after_insert";
 static const std::string DECIMAL_OPERATIONS_ALLOW_PREC_LOSS = "spark.sql.decimalOperations.allowPrecisionLoss";
+static const std::string SPARK_TASK_WRITE_TMEP_DIR = "gluten.write.temp.dir";
+static const std::string SPARK_TASK_WRITE_FILENAME = "gluten.write.file.name";
 
 static const std::unordered_set<String> BOOL_VALUE_SETTINGS{
     MERGETREE_MERGE_AFTER_INSERT, MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, DECIMAL_OPERATIONS_ALLOW_PREC_LOSS};
@@ -47,6 +53,9 @@ static const std::unordered_set<String> LONG_VALUE_SETTINGS{
 class BlockUtil
 {
 public:
+    static constexpr auto VIRTUAL_ROW_COUNT_COLUMN = "__VIRTUAL_ROW_COUNT_COLUMN__";
+    static constexpr auto RIHGT_COLUMN_PREFIX = "broadcast_right_";
+
     // Build a header block with a virtual column which will be
     // use to indicate the number of rows in a block.
     // Commonly seen in the following quries:
@@ -72,6 +81,10 @@ public:
         const std::unordered_set<size_t> & columns_to_skip_flatten = {});
 
     static DB::Block concatenateBlocksMemoryEfficiently(std::vector<DB::Block> && blocks);
+
+    /// The column names may be different in two blocks.
+    /// and the nullability also could be different, with TPCDS-Q1 as an example.
+    static DB::ColumnWithTypeAndName convertColumnAsNecessary(const DB::ColumnWithTypeAndName & column, const DB::ColumnWithTypeAndName & sample_column);
 };
 
 class PODArrayUtil
@@ -119,6 +132,13 @@ public:
         const std::string & type_name,
         const std::string & result_name = "",
         DB::CastType cast_type = DB::CastType::nonAccurate);
+
+    static const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
+        DB::ActionsDAGPtr & actions_dag,
+        const DB::ActionsDAG::Node * node,
+        const DB::DataTypePtr & dst_type,
+        const std::string & result_name = "",
+        DB::CastType cast_type = DB::CastType::nonAccurate);
 };
 
 class QueryPipelineUtil
@@ -140,7 +160,7 @@ public:
     /// Initialize two kinds of resources
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
-    static void init(const std::string & plan);
+    static void init(const std::string_view plan);
     static void updateConfig(const DB::ContextMutablePtr &, const std::string_view);
 
 
@@ -175,7 +195,6 @@ public:
     inline static const std::string SPARK_SESSION_TIME_ZONE = "spark.sql.session.timeZone";
 
     inline static const String GLUTEN_TASK_OFFHEAP = "spark.gluten.memory.task.offHeap.size.in.bytes";
-    inline static const String CH_TASK_MEMORY = "off_heap_per_task";
 
     /// On yarn mode, native writing on hdfs cluster takes yarn container user as the user passed to libhdfs3, which
     /// will cause permission issue because yarn container user is not the owner of the hdfs dir to be written.
@@ -199,7 +218,7 @@ private:
     static std::vector<String> wrapDiskPathConfig(const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config);
 
 
-    static std::map<std::string, std::string> getBackendConfMap(const std::string_view plan);
+    static std::map<std::string, std::string> getBackendConfMap(std::string_view plan);
 
     inline static std::once_flag init_flag;
     inline static Poco::Logger * logger;
@@ -239,7 +258,6 @@ public:
 class MemoryUtil
 {
 public:
-    static UInt64 getCurrentMemoryUsage(size_t depth = 1);
     static UInt64 getMemoryRSS();
 };
 
@@ -294,6 +312,14 @@ public:
 private:
     std::deque<T> deq;
     mutable std::mutex mtx;
+};
+
+class JoinUtil
+{
+public:
+    static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
+    static std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type, bool is_existence_join);
+    static std::pair<DB::JoinKind, DB::JoinStrictness> getCrossJoinKindAndStrictness(substrait::CrossRel_JoinType join_type);
 };
 
 }

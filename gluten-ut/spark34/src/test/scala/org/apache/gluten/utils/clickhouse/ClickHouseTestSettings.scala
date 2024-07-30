@@ -544,7 +544,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Map Concat")
     .exclude("MapFromEntries")
     .exclude("ArraysOverlap")
-    .exclude("ArrayJoin")
     .exclude("ArraysZip")
     .exclude("Sequence of numbers")
     .exclude("Sequence of timestamps")
@@ -711,6 +710,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35926: Support YearMonthIntervalType in width-bucket function")
     .exclude("SPARK-35925: Support DayTimeIntervalType in width-bucket function")
     .exclude("SPARK-37388: width_bucket")
+    .exclude("shift left")
+    .exclude("shift right")
+    .exclude("shift right unsigned")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")

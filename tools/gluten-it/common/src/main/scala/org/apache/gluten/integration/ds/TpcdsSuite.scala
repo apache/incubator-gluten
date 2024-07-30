@@ -17,14 +17,12 @@
 package org.apache.gluten.integration.ds
 
 import org.apache.gluten.integration.action.Action
-import org.apache.gluten.integration.ds.TpcdsSuite.{
-  ALL_QUERY_IDS,
-  HISTORY_WRITE_PATH,
-  TPCDS_WRITE_PATH
-}
+import org.apache.gluten.integration.ds.TpcdsSuite.{ALL_QUERY_IDS, HISTORY_WRITE_PATH, TPCDS_WRITE_RELATIVE_PATH}
 import org.apache.gluten.integration.{DataGen, Suite, TableCreator, TypeModifier}
 import org.apache.log4j.Level
 import org.apache.spark.SparkConf
+
+import java.io.File
 
 class TpcdsSuite(
     val masterUrl: String,
@@ -34,6 +32,7 @@ class TpcdsSuite(
     val extraSparkConf: Map[String, String],
     val logLevel: Level,
     val errorOnMemLeak: Boolean,
+    val dataDir: String,
     val enableUi: Boolean,
     val enableHsUi: Boolean,
     val hsUiPort: Int,
@@ -66,7 +65,7 @@ class TpcdsSuite(
   override private[integration] def dataWritePath(
       scale: Double,
       genPartitionedData: Boolean): String =
-    TPCDS_WRITE_PATH + s"-$scale"
+    new File(dataDir).toPath.resolve(TPCDS_WRITE_RELATIVE_PATH + s"-$scale").toFile.getAbsolutePath
 
   override private[integration] def createDataGen(
       scale: Double,
@@ -95,7 +94,7 @@ class TpcdsSuite(
 }
 
 object TpcdsSuite {
-  private val TPCDS_WRITE_PATH = "/tmp/tpcds-generated"
+  private val TPCDS_WRITE_RELATIVE_PATH = "tpcds-generated"
   private val ALL_QUERY_IDS = Array(
     "q1",
     "q2",

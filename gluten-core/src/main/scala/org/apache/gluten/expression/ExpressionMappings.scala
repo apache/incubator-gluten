@@ -177,6 +177,7 @@ object ExpressionMappings {
     Sig[Second](EXTRACT),
     Sig[FromUnixTime](FROM_UNIXTIME),
     Sig[DateAdd](DATE_ADD),
+    Sig[TimeAdd](TIMESTAMP_ADD),
     Sig[DateSub](DATE_SUB),
     Sig[DateDiff](DATE_DIFF),
     Sig[ToUnixTimestamp](TO_UNIX_TIMESTAMP),
@@ -248,6 +249,7 @@ object ExpressionMappings {
     Sig[ArrayFilter](FILTER),
     Sig[ArrayForAll](FORALL),
     Sig[ArrayExists](EXISTS),
+    Sig[ArraySort](ARRAY_SORT),
     Sig[Shuffle](SHUFFLE),
     Sig[ZipWith](ZIP_WITH),
     Sig[Flatten](FLATTEN),
@@ -260,6 +262,8 @@ object ExpressionMappings {
     Sig[MapEntries](MAP_ENTRIES),
     Sig[MapZipWith](MAP_ZIP_WITH),
     Sig[StringToMap](STR_TO_MAP),
+    Sig[TransformKeys](TRANSFORM_KEYS),
+    Sig[TransformValues](TRANSFORM_VALUES),
     // Struct functions
     Sig[GetStructField](GET_STRUCT_FIELD),
     Sig[CreateNamedStruct](NAMED_STRUCT),
@@ -283,6 +287,8 @@ object ExpressionMappings {
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
     Sig[WidthBucket](WIDTH_BUCKET),
     Sig[ReplicateRows](REPLICATE_ROWS),
+    Sig[RaiseError](RAISE_ERROR),
+    Sig[SparkVersion](VERSION),
     // Decimal
     Sig[UnscaledValue](UNSCALED_VALUE),
     // Generator function

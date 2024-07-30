@@ -56,13 +56,16 @@ class ResourceMap {
 
   void erase(ResourceHandle moduleId) {
     const std::lock_guard<std::mutex> lock(mtx_);
-    GLUTEN_CHECK(map_.erase(moduleId) == 1, "Module not found in resource map: " + std::to_string(moduleId));
+    GLUTEN_CHECK(
+        map_.erase(moduleId) == 1,
+        "ResourceHandle not found in resource map when try to erase: " + std::to_string(moduleId));
   }
 
   TResource lookup(ResourceHandle moduleId) {
     const std::lock_guard<std::mutex> lock(mtx_);
     auto it = map_.find(moduleId);
-    GLUTEN_CHECK(it != map_.end(), "Module not found in resource map: " + std::to_string(moduleId));
+    GLUTEN_CHECK(
+        it != map_.end(), "ResourceHandle not found in resource map when try to lookup: " + std::to_string(moduleId));
     return it->second;
   }
 

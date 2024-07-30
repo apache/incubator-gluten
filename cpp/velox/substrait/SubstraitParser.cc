@@ -395,7 +395,6 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"xxhash64", "xxhash64_with_seed"},
     {"modulus", "remainder"},
     {"date_format", "format_datetime"},
-    {"collect_set", "set_agg"},
     {"negative", "unaryminus"},
     {"get_array_item", "get"}};
 

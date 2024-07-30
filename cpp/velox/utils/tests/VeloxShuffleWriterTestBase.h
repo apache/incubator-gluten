@@ -68,12 +68,13 @@ struct ShuffleTestParams {
   arrow::Compression::type compressionType;
   int32_t compressionThreshold;
   int32_t mergeBufferSize;
+  bool useRadixSort;
 
   std::string toString() const {
     std::ostringstream out;
     out << "shuffleWriterType = " << shuffleWriterType << ", partitionWriterType = " << partitionWriterType
         << ", compressionType = " << compressionType << ", compressionThreshold = " << compressionThreshold
-        << ", mergeBufferSize = " << mergeBufferSize;
+        << ", mergeBufferSize = " << mergeBufferSize << ", useRadixSort = " << (useRadixSort ? "true" : "false");
     return out.str();
   }
 };
@@ -172,12 +173,27 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
         makeNullableFlatVector<facebook::velox::StringView>(
             std::vector<std::optional<facebook::velox::StringView>>(2048, std::nullopt)),
     };
+    childrenComplex_ = {
+        makeNullableFlatVector<int32_t>({std::nullopt, 1}),
+        makeRowVector({
+            makeFlatVector<int32_t>({1, 3}),
+            makeNullableFlatVector<facebook::velox::StringView>({std::nullopt, "de"}),
+        }),
+        makeNullableFlatVector<facebook::velox::StringView>({std::nullopt, "10 I'm not inline string"}),
+        makeArrayVector<int64_t>({
+            {1, 2, 3, 4, 5},
+            {1, 2, 3},
+        }),
+        makeMapVector<int32_t, facebook::velox::StringView>(
+            {{{1, "str1000"}, {2, "str2000"}}, {{3, "str3000"}, {4, "str4000"}}}),
+    };
 
     inputVector1_ = makeRowVector(children1_);
     inputVector2_ = makeRowVector(children2_);
     inputVectorNoNull_ = makeRowVector(childrenNoNull_);
     inputVectorLargeBinary1_ = makeRowVector(childrenLargeBinary1_);
     inputVectorLargeBinary2_ = makeRowVector(childrenLargeBinary2_);
+    inputVectorComplex_ = makeRowVector(childrenComplex_);
   }
 
   arrow::Status splitRowVector(VeloxShuffleWriter& shuffleWriter, facebook::velox::RowVectorPtr vector) {
@@ -217,6 +233,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
   std::vector<facebook::velox::VectorPtr> childrenNoNull_;
   std::vector<facebook::velox::VectorPtr> childrenLargeBinary1_;
   std::vector<facebook::velox::VectorPtr> childrenLargeBinary2_;
+  std::vector<facebook::velox::VectorPtr> childrenComplex_;
 
   facebook::velox::RowVectorPtr inputVector1_;
   facebook::velox::RowVectorPtr inputVector2_;
@@ -225,6 +242,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
   std::string largeString2_;
   facebook::velox::RowVectorPtr inputVectorLargeBinary1_;
   facebook::velox::RowVectorPtr inputVectorLargeBinary2_;
+  facebook::velox::RowVectorPtr inputVectorComplex_;
 };
 
 class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams>, public VeloxShuffleWriterTestBase {
@@ -233,6 +251,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     RETURN_NOT_OK(VeloxShuffleWriterTestBase::initShuffleWriterOptions());
 
     ShuffleTestParams params = GetParam();
+    shuffleWriterOptions_.useRadixSort = params.useRadixSort;
     partitionWriterOptions_.compressionType = params.compressionType;
     switch (partitionWriterOptions_.compressionType) {
       case arrow::Compression::UNCOMPRESSED:
@@ -258,19 +277,18 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
       ShuffleWriterOptions shuffleWriterOptions,
       uint32_t numPartitions,
       int32_t bufferSize) {
-    std::shared_ptr<VeloxShuffleWriter> shuffleWriter;
-    if (GetParam().shuffleWriterType == kHashShuffle) {
+    if (shuffleWriterOptions.shuffleWriterType == ShuffleWriterType::kHashShuffle) {
       shuffleWriterOptions.bufferSize = bufferSize;
-      GLUTEN_ASSIGN_OR_THROW(
-          shuffleWriter,
-          VeloxHashBasedShuffleWriter::create(
-              numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions), pool_, arrowPool));
-    } else if (GetParam().shuffleWriterType == kSortShuffle) {
-      GLUTEN_ASSIGN_OR_THROW(
-          shuffleWriter,
-          VeloxSortBasedShuffleWriter::create(
-              numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions), pool_, arrowPool));
     }
+    GLUTEN_ASSIGN_OR_THROW(
+        auto shuffleWriter,
+        VeloxShuffleWriter::create(
+            GetParam().shuffleWriterType,
+            numPartitions,
+            std::move(partitionWriter),
+            std::move(shuffleWriterOptions),
+            pool_,
+            arrowPool));
     return shuffleWriter;
   }
 
@@ -529,7 +547,7 @@ class VeloxShuffleWriterMemoryTest : public VeloxShuffleWriterTestBase, public t
         PartitionWriterType::kLocal, numPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
-        VeloxHashBasedShuffleWriter::create(
+        VeloxHashShuffleWriter::create(
             numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions_), pool_, arrowPool));
     return shuffleWriter;
   }

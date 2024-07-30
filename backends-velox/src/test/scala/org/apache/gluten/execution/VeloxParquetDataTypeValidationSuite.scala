@@ -484,7 +484,6 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
           val df = spark.read
             .format("parquet")
             .load(data_path)
-            .drop("timestamp")
             .drop("array")
             .drop("struct")
             .drop("map")

@@ -128,9 +128,10 @@ object ExpressionNames {
   final val UUID = "uuid"
   final val BIT_LENGTH = "bit_length"
   final val OCTET_LENGTH = "octet_length"
-  final val LEVENSHTEIN = "levenshteinDistance"
+  final val LEVENSHTEIN = "levenshtein"
   final val UNBASE64 = "unbase64"
   final val BASE64 = "base64"
+  final val MASK = "mask"
 
   // URL functions
   final val PARSE_URL = "parse_url"
@@ -261,6 +262,7 @@ object ExpressionNames {
   final val ARRAY_EXCEPT = "array_except"
   final val ARRAY_REPEAT = "array_repeat"
   final val ARRAY_REMOVE = "array_remove"
+  final val ARRAY_SORT = "array_sort"
   final val ARRAYS_ZIP = "arrays_zip"
   final val FILTER = "filter"
   final val FORALL = "forall"
@@ -315,6 +317,8 @@ object ExpressionNames {
   final val MONOTONICALLY_INCREASING_ID = "monotonically_increasing_id"
   final val WIDTH_BUCKET = "width_bucket"
   final val REPLICATE_ROWS = "replicaterows"
+  final val RAISE_ERROR = "raise_error"
+  final val VERSION = "version"
 
   // Directly use child expression transformer
   final val KNOWN_NULLABLE = "known_nullable"

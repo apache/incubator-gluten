@@ -20,10 +20,14 @@ import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, Trans
 import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
 
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
+import org.apache.spark.sql.catalyst.plans.{JoinType, LeftSemi}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike, ShuffleExchangeLike}
+import org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec
 import org.apache.spark.sql.internal.SQLConf
 
 object MiscColumnarRules {
@@ -188,6 +192,24 @@ object MiscColumnarRules {
     override def apply(plan: SparkPlan): SparkPlan = plan.transformDown {
       case ColumnarToRowLike(child) if PlanUtil.isGlutenTableCache(child) =>
         child
+    }
+  }
+
+  // Remove unnecessary bnlj like sql:
+  //   ``` select l.* from l left semi join r; ```
+  // The result always is left table.
+  case class RemoveBroadcastNestedLoopJoin() extends Rule[SparkPlan] {
+    override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
+      case BroadcastNestedLoopJoinExec(
+            left: SparkPlan,
+            right: SparkPlan,
+            buildSide: BuildSide,
+            joinType: JoinType,
+            condition: Option[Expression]) if condition.isEmpty && joinType == LeftSemi =>
+        buildSide match {
+          case BuildLeft => right
+          case BuildRight => left
+        }
     }
   }
 }
