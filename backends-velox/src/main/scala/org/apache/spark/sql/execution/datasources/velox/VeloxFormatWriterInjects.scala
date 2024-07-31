@@ -77,7 +77,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
         val batch = row.asInstanceOf[FakeRow].batch
         Preconditions.checkState(ColumnarBatches.isLightBatch(batch))
         ColumnarBatches.retain(batch)
-        val batchHandler = {
+        val batchHandle = {
           if (batch.numCols == 0) {
             // the operation will find a zero column batch from a task-local pool
             ColumnarBatchJniWrapper.create(runtime).getForEmptySchema(batch.numRows)
@@ -87,7 +87,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
             ColumnarBatches.getNativeHandle(offloaded)
           }
         }
-        datasourceJniWrapper.writeBatch(dsHandle, batchHandler)
+        datasourceJniWrapper.writeBatch(dsHandle, batchHandle)
         batch.close()
       }
 

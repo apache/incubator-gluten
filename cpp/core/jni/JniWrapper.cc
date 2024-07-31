@@ -1097,11 +1097,11 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_wr
     JNIEnv* env,
     jobject wrapper,
     jlong dsHandle,
-    jlong batchHandler) {
+    jlong batchHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
   auto datasource = ObjectStore::retrieve<Datasource>(dsHandle);
-  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandler);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   datasource->write(batch);
   JNI_METHOD_END()
 }
