@@ -31,7 +31,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 
 Install the software required for compilation, run `sudo ./ep/build-clickhouse/src/install_ubuntu.sh`.
 Under the hood, it will install the following software:
-- Clang 16.0
+- Clang 18.0
 - cmake 3.20 or higher version
 - ninja-build 1.8.2
 
@@ -66,7 +66,7 @@ Otherwise, do:
     ```shell
     export GLUTEN_SOURCE=/path/to/gluten
     export CH_SOURCE_DIR=/path/to/ClickHouse
-    cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=${CH_SOURCE_DIR} "-DCMAKE_C_COMPILER=$(command -v clang-16)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-16)" "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=${CH_SOURCE_DIR} "-DCMAKE_C_COMPILER=$(command -v clang-18)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-18)" "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
     ```
 
     Next, you need to compile Kyligence/Clickhouse. There are two options:
