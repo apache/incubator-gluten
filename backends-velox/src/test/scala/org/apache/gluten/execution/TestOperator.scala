@@ -29,7 +29,7 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DecimalType, IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{ArrayType, DecimalType, IntegerType, StringType, StructField, StructType}
 
 import java.util.concurrent.TimeUnit
 
@@ -102,6 +102,33 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
         "where l_comment is null") { _ => }
     assert(df.isEmpty)
     checkLengthAndPlan(df, 0)
+
+    // Struct of array.
+    val data =
+      Row(Row(Array("a", "b", "c"), null)) ::
+        Row(Row(Array("d", "e", "f"), Array(1, 2, 3))) ::
+        Row(Row(null, null)) :: Nil
+
+    val schema = new StructType()
+      .add(
+        "struct",
+        new StructType()
+          .add("a0", ArrayType(StringType))
+          .add("a1", ArrayType(IntegerType)))
+
+    val dataFrame = spark.createDataFrame(JavaConverters.seqAsJavaList(data), schema)
+
+    withTempPath {
+      path =>
+        dataFrame.write.parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("select * from view where struct is null") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+        runQueryAndCompare("select * from view where struct.a0 is null") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+    }
   }
 
   test("is_null_has_null") {
@@ -119,6 +146,33 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       "select l_orderkey from lineitem where l_comment is not null " +
         "and l_orderkey = 1") { _ => }
     checkLengthAndPlan(df, 6)
+
+    // Struct of array.
+    val data =
+      Row(Row(Array("a", "b", "c"), null)) ::
+        Row(Row(Array("d", "e", "f"), Array(1, 2, 3))) ::
+        Row(Row(null, null)) :: Nil
+
+    val schema = new StructType()
+      .add(
+        "struct",
+        new StructType()
+          .add("a0", ArrayType(StringType))
+          .add("a1", ArrayType(IntegerType)))
+
+    val dataFrame = spark.createDataFrame(JavaConverters.seqAsJavaList(data), schema)
+
+    withTempPath {
+      path =>
+        dataFrame.write.parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("select * from view where struct is not null") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+        runQueryAndCompare("select * from view where struct.a0 is not null") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+    }
   }
 
   test("is_null and is_not_null coexist") {
