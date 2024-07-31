@@ -270,7 +270,6 @@
         <sparkshim.module.name>spark33</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark33</sparkshim.artifactId>
         <spark.version>3.3.1</spark.version>
-        <!-- keep using iceberg v1.3.1 for parquet compatibilty. -->
         <iceberg.version>1.4.3</iceberg.version>
         <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.3.0</delta.version>
