@@ -1100,8 +1100,8 @@ JNIEXPORT void JNICALL Java_io_glutenproject_datasource_DatasourceJniWrapper_wri
     jlong batchHandler) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto datasource = ctx->objectStore()->retrieve<Datasource>(dsHandle);
-  auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(batchHandler);
+  auto datasource = ObjectStore::retrieve<Datasource>(dsHandle);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandler);
   datasource->write(batch);
   JNI_METHOD_END()
 }
