@@ -438,13 +438,13 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
     plan match {
       case exec: HashAggregateExec if exec.aggregateExpressions.nonEmpty =>
-        // Check Sum(1) or Count(1).
+        // Check Sum(Literal) or Count(Literal).
         exec.aggregateExpressions.forall(
           expression => {
             val aggFunction = expression.aggregateFunction
             aggFunction match {
-              case _: Sum | _: Count =>
-                aggFunction.children.size == 1 && aggFunction.children.head.equals(Literal(1))
+              case Sum(Literal(_, _), _) => true
+              case Count(Seq(Literal(_, _))) => true
               case _ => false
             }
           })
