@@ -94,6 +94,7 @@ void CompactObjectStorageDiskTransaction::commit()
         whole_meta.addObject(key, 0, offset);
         metadata_tx->writeStringToFile(local_path, whole_meta.serializeToString());
         out.sync();
+        out.finalize();
     };
 
     merge_files(files | std::ranges::views::filter([](auto file) { return !isMetaDataFile(file.first); }), *data_write_buffer, data_key, data_path);
