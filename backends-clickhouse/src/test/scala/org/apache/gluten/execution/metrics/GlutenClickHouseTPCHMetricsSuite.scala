@@ -28,7 +28,7 @@ import org.apache.spark.util.TaskResources
 import scala.collection.JavaConverters._
 
 class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite {
-  private val parquetMaxBlockSize = 4096;
+  private val parquetMaxBlockSize = 4096
   override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
@@ -71,8 +71,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         assert(plans.size == 3)
 
         assert(plans(2).metrics("numFiles").value === 1)
-        val pruningTimeValue = if (isSparkVersionGE("3.4")) 0 else -1
-        assert(plans(2).metrics("pruningTime").value === pruningTimeValue)
+        assert(plans(2).metrics("pruningTime").value === pruningTimeValueSpark)
         assert(plans(2).metrics("filesSize").value === 19230111)
 
         assert(plans(1).metrics("numOutputRows").value === 4)
@@ -140,16 +139,15 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
           assert(plans.size == 3)
 
           assert(plans(2).metrics("numFiles").value === 1)
-          val pruningTimeValue = if (isSparkVersionGE("3.4")) 0 else -1
-          assert(plans(2).metrics("pruningTime").value === pruningTimeValue)
+          assert(plans(2).metrics("pruningTime").value === pruningTimeValueSpark)
           assert(plans(2).metrics("filesSize").value === 19230111)
 
           assert(plans(1).metrics("numOutputRows").value === 4)
           assert(plans(1).metrics("outputVectors").value === 1)
 
           // Execute Sort operator, it will read the data twice.
-          assert(plans(0).metrics("numOutputRows").value === 4)
-          assert(plans(0).metrics("outputVectors").value === 1)
+          assert(plans.head.metrics("numOutputRows").value === 4)
+          assert(plans.head.metrics("outputVectors").value === 1)
       }
     }
   }
@@ -167,7 +165,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         )
 
       assert(nativeMetricsList.size == 1)
-      val nativeMetricsData = nativeMetricsList(0)
+      val nativeMetricsData = nativeMetricsList.head
       assert(nativeMetricsData.metricsDataList.size() == 3)
 
       assert(nativeMetricsData.metricsDataList.get(0).getName.equals("kRead"))
@@ -289,7 +287,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
             assert(joinPlan.metrics("inputBytes").value == 1920000)
         }
 
-        val wholeStageTransformer2 = allWholeStageTransformers(0)
+        val wholeStageTransformer2 = allWholeStageTransformers.head
 
         GlutenClickHouseMetricsUTUtils.executeMetricsUpdater(
           wholeStageTransformer2,
@@ -327,7 +325,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         )
 
       assert(nativeMetricsList.size == 1)
-      val nativeMetricsData = nativeMetricsList(0)
+      val nativeMetricsData = nativeMetricsList.head
       assert(nativeMetricsData.metricsDataList.size() == 5)
 
       assert(nativeMetricsData.metricsDataList.get(0).getName.equals("kRead"))
@@ -401,7 +399,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         )
 
       assert(nativeMetricsListFinal.size == 1)
-      val nativeMetricsDataFinal = nativeMetricsListFinal(0)
+      val nativeMetricsDataFinal = nativeMetricsListFinal.head
       assert(nativeMetricsDataFinal.metricsDataList.size() == 3)
 
       assert(nativeMetricsDataFinal.metricsDataList.get(0).getName.equals("kRead"))

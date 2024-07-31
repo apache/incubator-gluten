@@ -66,8 +66,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         assert(plans.size == 5)
 
         assert(plans(4).metrics("numFiles").value === 1)
-        val pruningTimeValue = if (isSparkVersionGE("3.4")) 0 else -1
-        assert(plans(4).metrics("pruningTime").value === pruningTimeValue)
+        assert(plans(4).metrics("pruningTime").value === pruningTimeValueSpark)
         assert(plans(4).metrics("filesSize").value === 19230111)
         assert(plans(4).metrics("numOutputRows").value === 600572)
 
@@ -99,8 +98,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
           assert(plans.size == 3)
 
           assert(plans(2).metrics("numFiles").value === 1)
-          val pruningTimeValue = if (isSparkVersionGE("3.4")) 0 else -1
-          assert(plans(2).metrics("pruningTime").value === pruningTimeValue)
+          assert(plans(2).metrics("pruningTime").value === pruningTimeValueSpark)
           assert(plans(2).metrics("filesSize").value === 19230111)
 
           assert(plans(1).metrics("numInputRows").value === 591673)

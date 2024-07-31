@@ -263,8 +263,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         }
         assert(!plans.head.asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans.head.metrics("numFiles").value === 4)
-        val pruningTimeValue = if (isSparkVersionGE("3.4")) 0 else -1
-        assert(plans.head.metrics("pruningTime").value === pruningTimeValue)
+        assert(plans.head.metrics("pruningTime").value === pruningTimeValueSpark)
         assert(plans.head.metrics("numOutputRows").value === 600572)
       }
     )
@@ -458,8 +457,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         }
         assert(!plans.head.asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans.head.metrics("numFiles").value === 4)
-        val pruningTimeValue = if (isSparkVersionGE("3.4")) 0 else -1
-        assert(plans.head.metrics("pruningTime").value === pruningTimeValue)
+        assert(plans.head.metrics("pruningTime").value === pruningTimeValueSpark)
         assert(plans.head.metrics("numOutputRows").value === 600572)
       }
     )

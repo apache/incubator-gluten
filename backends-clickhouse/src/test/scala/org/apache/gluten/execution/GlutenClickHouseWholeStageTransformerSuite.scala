@@ -194,5 +194,7 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
       ignore(s"[$SPARK_VERSION_SHORT]-$testName", testTag: _*)(testFun)
     }
   }
+
+  lazy val pruningTimeValueSpark: Int = if (isSparkVersionLE("3.3")) -1 else 0
 }
 // scalastyle:off line.size.limit
