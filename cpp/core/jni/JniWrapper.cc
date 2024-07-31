@@ -236,7 +236,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_createRunt
 
   std::unique_ptr<AllocationListener> listener =
       std::make_unique<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod);
-  bool backtrace = std::stoi(sparkConf.at(kBacktraceAllocation));
+  bool backtrace = sparkConf.at(kBacktraceAllocation) == "true";
   if (backtrace) {
     listener = std::make_unique<BacktraceAllocationListener>(std::move(listener));
   }
