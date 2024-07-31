@@ -649,7 +649,6 @@ object GlutenConfig {
       SQLConf.LEGACY_SIZE_OF_NULL.key,
       "spark.io.compression.codec",
       "spark.sql.decimalOperations.allowPrecisionLoss",
-      COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key,
@@ -676,7 +675,10 @@ object GlutenConfig {
 
     val keyWithDefault = ImmutableList.of(
       (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
-      (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString)
+      (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
+      (
+        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
+        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
