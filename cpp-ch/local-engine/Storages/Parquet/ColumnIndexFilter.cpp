@@ -787,13 +787,13 @@ const ColumnIndexFilter::AtomMap ColumnIndexFilter::atom_map{
          return true;
      }}};
 
-ColumnIndexFilter::ColumnIndexFilter(const DB::ActionsDAGPtr & filter_dag, DB::ContextPtr context)
+ColumnIndexFilter::ColumnIndexFilter(const DB::ActionsDAG & filter_dag, DB::ContextPtr context)
 {
-    const auto inverted_dag = DB::KeyCondition::cloneASTWithInversionPushDown({filter_dag->getOutputs().at(0)}, context);
+    const auto inverted_dag = DB::KeyCondition::cloneASTWithInversionPushDown({filter_dag.getOutputs().at(0)}, context);
 
-    assert(inverted_dag->getOutputs().size() == 1);
+    assert(inverted_dag.getOutputs().size() == 1);
 
-    const auto * inverted_dag_filter_node = inverted_dag->getOutputs()[0];
+    const auto * inverted_dag_filter_node = inverted_dag.getOutputs()[0];
 
     DB::RPNBuilder<RPNElement> builder(
         inverted_dag_filter_node,

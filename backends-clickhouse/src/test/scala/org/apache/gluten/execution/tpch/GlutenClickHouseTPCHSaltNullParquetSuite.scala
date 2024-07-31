@@ -14,9 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.tpch
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.execution._
 import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.{SparkConf, SparkException}
@@ -41,7 +42,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   override protected val queriesResults: String = rootPath + "queries-output"
 
   protected val BACKEND_CONF_KEY = "spark.gluten.sql.columnar.backend.ch."
-  protected val BACKEND_RUNTIME_CINF_KEY = BACKEND_CONF_KEY + "runtime_config."
+  protected val BACKEND_RUNTIME_CINF_KEY: String = BACKEND_CONF_KEY + "runtime_config."
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -205,7 +206,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.size == 8)
+    assertResult(8)(result.length)
   }
 
   test("TPCH Q1") {
@@ -753,8 +754,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     runQueryAndCompare(query)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
-  // see issue https://github.com/Kyligence/ClickHouse/issues/93
-  ignore("TPCH Q22") {
+  test("TPCH Q22") {
     runTPCHQuery(22) { df => }
   }
 
@@ -1253,7 +1253,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |select n_regionkey, collect_list(if(n_regionkey=0, n_name, null)) as t from nation group by n_regionkey
         |order by n_regionkey
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, df => {})
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, df => {})
   }
 
   test("collect_set") {
@@ -1366,7 +1366,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     }
   }
 
-  test("test posexplode issue: https://github.com/oap-project/gluten/issues/1767") {
+  testSparkVersionLE33("test posexplode issue: https://github.com/oap-project/gluten/issues/1767") {
     spark.sql("create table test_1767 (id bigint, data map<string, string>) using parquet")
     spark.sql("INSERT INTO test_1767 values(1, map('k', 'v'))")
 
@@ -1855,7 +1855,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         | ) t1
         |) t2 where rank = 1
     """.stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, isSparkVersionLE("3.3"))
   }
 
   test("GLUTEN-1874 not null in both streams") {
@@ -1873,7 +1873,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         | ) t1
         |) t2 where rank = 1
     """.stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, isSparkVersionLE("3.3"))
   }
 
   test("GLUTEN-2095: test cast(string as binary)") {
@@ -2158,12 +2158,12 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("GLUTEN-3149/GLUTEN-5580: Fix convert float to int") {
-    val tbl_create_sql = "create table test_tbl_3149(a int, b bigint) using parquet";
+    val tbl_create_sql = "create table test_tbl_3149(a int, b bigint) using parquet"
     val tbl_insert_sql = "insert into test_tbl_3149 values(1, 0), (2, 171396196666200)"
     val select_sql_1 = "select cast(a * 1.0f/b as int) as x from test_tbl_3149 where a = 1"
     val select_sql_2 = "select cast(b/100 as int) from test_tbl_3149 where a = 2"
     spark.sql(tbl_create_sql)
-    spark.sql(tbl_insert_sql);
+    spark.sql(tbl_insert_sql)
     compareResultsAgainstVanillaSpark(select_sql_1, true, { _ => })
     compareResultsAgainstVanillaSpark(select_sql_2, true, { _ => })
     spark.sql("drop table test_tbl_3149")
@@ -2223,12 +2223,12 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   test("GLUTEN-3134: Bug fix left join not match") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "1B")) {
       val left_tbl_create_sql =
-        "create table test_tbl_left_3134(id bigint, name string) using parquet";
+        "create table test_tbl_left_3134(id bigint, name string) using parquet"
       val right_tbl_create_sql =
-        "create table test_tbl_right_3134(id string, name string) using parquet";
+        "create table test_tbl_right_3134(id string, name string) using parquet"
       val left_data_insert_sql =
-        "insert into test_tbl_left_3134 values(2, 'a'), (3, 'b'), (673, 'c')";
-      val right_data_insert_sql = "insert into test_tbl_right_3134 values('673', 'c')";
+        "insert into test_tbl_left_3134 values(2, 'a'), (3, 'b'), (673, 'c')"
+      val right_data_insert_sql = "insert into test_tbl_right_3134 values('673', 'c')"
       val join_select_sql_1 = "select a.id, b.cnt from " +
         "(select id from test_tbl_left_3134) as a " +
         "left join (select id, 12 as cnt from test_tbl_right_3134 group by id) as b on a.id = b.id"
@@ -2254,9 +2254,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     }
   }
 
-  // Please see the issue: https://github.com/oap-project/gluten/issues/3731
-  ignore(
-    "GLUTEN-3534: Fix incorrect logic of judging whether supports pre-project for the shuffle") {
+  test("GLUTEN-3534: Fix incorrect logic of judging whether supports pre-project for the shuffle") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runQueryAndCompare(
         s"""
@@ -2275,9 +2273,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
            |order by t1.l_orderkey, t2.o_orderkey, t2.o_year, t1.l_cnt, t2.o_cnt
            |limit 100
            |
-           |""".stripMargin,
-        true,
-        true
+           |""".stripMargin
       )(df => {})
 
       runQueryAndCompare(
@@ -2296,9 +2292,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
            |order by t1.l_orderkey, t2.o_orderkey, t2.o_year
            |limit 100
            |
-           |""".stripMargin,
-        true,
-        true
+           |""".stripMargin
       )(df => {})
     }
   }
@@ -2405,8 +2399,8 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("GLUTEN-3521: Bug fix substring index start from 1") {
-    val tbl_create_sql = "create table test_tbl_3521(id bigint, name string) using parquet";
-    val data_insert_sql = "insert into test_tbl_3521 values(1, 'abcdefghijk'), (2, '2023-10-32')";
+    val tbl_create_sql = "create table test_tbl_3521(id bigint, name string) using parquet"
+    val data_insert_sql = "insert into test_tbl_3521 values(1, 'abcdefghijk'), (2, '2023-10-32')"
     val select_sql =
       "select id, substring(name, 0), substring(name, 0, 3), substring(name from 0), substring(name from 0 for 100) from test_tbl_3521"
     spark.sql(tbl_create_sql)
@@ -2452,7 +2446,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |  ) t1
         |) t2 where rank = 1 order by p_partkey limit 100
         |""".stripMargin
-    runQueryAndCompare(sql)({ _ => })
+    runQueryAndCompare(sql, noFallBack = isSparkVersionLE("3.3"))({ _ => })
   }
 
   test("GLUTEN-4190: crush on flattening a const null column") {
@@ -2485,9 +2479,9 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("GLUTEN-4085: Fix unix_timestamp") {
-    val tbl_create_sql = "create table test_tbl_4085(id bigint, data string) using parquet";
+    val tbl_create_sql = "create table test_tbl_4085(id bigint, data string) using parquet"
     val data_insert_sql =
-      "insert into test_tbl_4085 values(1, '2023-12-18'),(2, '2023-12-19'), (3, '2023-12-20')";
+      "insert into test_tbl_4085 values(1, '2023-12-18'),(2, '2023-12-19'), (3, '2023-12-20')"
     val select_sql =
       "select id, unix_timestamp(to_date(data), 'yyyy-MM-dd') from test_tbl_4085"
     spark.sql(tbl_create_sql)
@@ -2497,8 +2491,8 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("GLUTEN-3951: Bug fix floor") {
-    val tbl_create_sql = "create table test_tbl_3951(d double) using parquet";
-    val data_insert_sql = "insert into test_tbl_3951 values(1.0), (2.0), (2.5)";
+    val tbl_create_sql = "create table test_tbl_3951(d double) using parquet"
+    val data_insert_sql = "insert into test_tbl_3951 values(1.0), (2.0), (2.5)"
     val select_sql =
       "select floor(d), floor(log10(d-1)), floor(log10(d-2)) from test_tbl_3951"
     spark.sql(tbl_create_sql)
@@ -2559,7 +2553,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("GLUTEN-4279: Bug fix hour diff") {
-    val tbl_create_sql = "create table test_tbl_4279(id bigint, data string) using parquet";
+    val tbl_create_sql = "create table test_tbl_4279(id bigint, data string) using parquet"
     val tbl_insert_sql = "insert into test_tbl_4279 values(1, '2024-01-04 11:22:33'), " +
       "(2, '2024-01-04 11:22:33.456+08'), (3, '2024'), (4, '2024-01'), (5, '2024-01-04'), " +
       "(6, '2024-01-04 12'), (7, '2024-01-04 12:12'), (8, '11:22:33'), (9, '22:33')," +
@@ -2636,10 +2630,10 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
 
   test("Inequal join support") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
-      spark.sql("create table ineq_join_t1 (key bigint, value bigint) using parquet");
-      spark.sql("create table ineq_join_t2 (key bigint, value bigint) using parquet");
-      spark.sql("insert into ineq_join_t1 values(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)");
-      spark.sql("insert into ineq_join_t2 values(2, 2), (2, 1), (3, 3), (4, 6), (5, 3)");
+      spark.sql("create table ineq_join_t1 (key bigint, value bigint) using parquet")
+      spark.sql("create table ineq_join_t2 (key bigint, value bigint) using parquet")
+      spark.sql("insert into ineq_join_t1 values(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)")
+      spark.sql("insert into ineq_join_t2 values(2, 2), (2, 1), (3, 3), (4, 6), (5, 3)")
       val sql1 =
         """
           | select t1.key, t1.value, t2.key, t2.value from ineq_join_t1 as t1

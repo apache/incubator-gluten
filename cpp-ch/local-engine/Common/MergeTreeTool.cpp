@@ -113,7 +113,7 @@ std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(
          if (table.order_by_key != MergeTreeTable::TUPLE)
              metadata->primary_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context);
          else
-            metadata->primary_key.expression = std::make_shared<ExpressionActions>(std::make_shared<ActionsDAG>());
+            metadata->primary_key.expression = std::make_shared<ExpressionActions>(ActionsDAG{});
     }
     else
     {

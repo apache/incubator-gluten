@@ -39,7 +39,7 @@ public:
 
     const ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,
-        ActionsDAGPtr & actions_dag) const override
+        ActionsDAG & actions_dag) const override
     {
         // In Spark: md5(str)
         // In CH: lower(hex(MD5(str)))

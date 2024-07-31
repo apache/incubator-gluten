@@ -603,7 +603,7 @@ class GlutenClickHouseNativeWriteTableSuite
       ("timestamp_field", "timestamp")
     )
     def excludeTimeFieldForORC(format: String): Seq[String] = {
-      if (format.equals("orc") && isSparkVersionGE("3.4")) {
+      if (format.equals("orc") && isSparkVersionGE("3.5")) {
         // FIXME:https://github.com/apache/incubator-gluten/pull/6507
         fields.keys.filterNot(_.equals("timestamp_field")).toSeq
       } else {
@@ -913,7 +913,7 @@ class GlutenClickHouseNativeWriteTableSuite
           (table_name, create_sql, insert_sql)
       },
       (table_name, _) =>
-        if (isSparkVersionGE("3.4")) {
+        if (isSparkVersionGE("3.5")) {
           compareResultsAgainstVanillaSpark(
             s"select * from $table_name",
             compareResult = true,

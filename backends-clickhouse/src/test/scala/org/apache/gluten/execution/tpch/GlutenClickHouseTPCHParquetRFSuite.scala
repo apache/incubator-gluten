@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.tpch
+
+import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 
@@ -60,7 +62,10 @@ class GlutenClickHouseTPCHParquetRFSuite extends GlutenClickHouseTPCHSaltNullPar
             }
             assert(filterExecs.size == 4)
             assert(
-              filterExecs(0).asInstanceOf[FilterExecTransformer].toString.contains("might_contain"))
+              filterExecs.head
+                .asInstanceOf[FilterExecTransformer]
+                .toString
+                .contains("might_contain"))
           }
         }
       )

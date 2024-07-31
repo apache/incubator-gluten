@@ -86,7 +86,23 @@ void Spill::setSpillFile(const std::string& spillFile) {
   spillFile_ = spillFile;
 }
 
+void Spill::setSpillTime(int64_t spillTime) {
+  spillTime_ = spillTime;
+}
+
+void Spill::setCompressTime(int64_t compressTime) {
+  compressTime_ = compressTime;
+}
+
 std::string Spill::spillFile() const {
   return spillFile_;
+}
+
+int64_t Spill::spillTime() const {
+  return spillTime_;
+}
+
+int64_t Spill::compressTime() const {
+  return compressTime_;
 }
 } // namespace gluten

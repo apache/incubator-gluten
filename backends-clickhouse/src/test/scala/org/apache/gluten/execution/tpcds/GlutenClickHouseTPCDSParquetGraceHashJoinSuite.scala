@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.tpcds
+
+import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
@@ -34,7 +36,7 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
       .set("spark.gluten.sql.columnar.backend.ch.runtime_settings.max_bytes_in_join", "314572800")
   }
 
-  executeTPCDSTest(false);
+  executeTPCDSTest(false)
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
     val testSql =
@@ -52,7 +54,7 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       testSql,
-      true,
+      compareResult = true,
       df => {
         val foundDynamicPruningExpr = df.queryExecution.executedPlan.collect {
           case f: FileSourceScanExecTransformer => f
@@ -63,11 +65,11 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
             .asInstanceOf[FileSourceScanExecTransformer]
             .partitionFilters
             .exists(_.isInstanceOf[DynamicPruningExpression]))
-        assert(
+        assertResult(1823)(
           foundDynamicPruningExpr(1)
             .asInstanceOf[FileSourceScanExecTransformer]
             .selectedPartitions
-            .size == 1823)
+            .length)
       }
     )
   }
@@ -86,7 +88,7 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
               }
             case _ => false
           }
-          assert(foundDynamicPruningExpr.nonEmpty == true)
+          assert(foundDynamicPruningExpr.nonEmpty)
 
           val reuseExchange = df.queryExecution.executedPlan.find {
             case r: ReusedExchangeExec => true

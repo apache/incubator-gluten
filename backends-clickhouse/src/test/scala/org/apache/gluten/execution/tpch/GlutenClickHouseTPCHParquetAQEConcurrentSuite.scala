@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.tpch
+
+import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame

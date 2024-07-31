@@ -164,18 +164,16 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
 {
     /// To support mixed join conditions, we must make sure that the column names in the right be the same as
     /// storage_join's right sample block.
-    ActionsDAGPtr project = ActionsDAG::makeConvertingActions(
+    ActionsDAG right_project = ActionsDAG::makeConvertingActions(
         right.getCurrentDataStream().header.getColumnsWithTypeAndName(),
         storage_join.getRightSampleBlock().getColumnsWithTypeAndName(),
         ActionsDAG::MatchColumnsMode::Position);
 
-    if (project)
-    {
-        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), project);
-        project_step->setStepDescription("Rename Broadcast Table Name");
-        steps.emplace_back(project_step.get());
-        right.addStep(std::move(project_step));
-    }
+    QueryPlanStepPtr right_project_step =
+        std::make_unique<ExpressionStep>(right.getCurrentDataStream(), std::move(right_project));
+    right_project_step->setStepDescription("Rename Broadcast Table Name");
+    steps.emplace_back(right_project_step.get());
+    right.addStep(std::move(right_project_step));
 
     /// If the columns name in right table is duplicated with left table, we need to rename the left table's columns,
     /// avoid the columns name in the right table be changed in `addConvertStep`.
@@ -194,18 +192,16 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
             new_left_cols.emplace_back(col.column, col.type, col.name);
         }
     }
-    project = ActionsDAG::makeConvertingActions(
+    ActionsDAG left_project = ActionsDAG::makeConvertingActions(
         left.getCurrentDataStream().header.getColumnsWithTypeAndName(),
         new_left_cols,
         ActionsDAG::MatchColumnsMode::Position);
 
-    if (project)
-    {
-        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), project);
-        project_step->setStepDescription("Rename Left Table Name for broadcast join");
-        steps.emplace_back(project_step.get());
-        left.addStep(std::move(project_step));
-    }
+    QueryPlanStepPtr left_project_step =
+        std::make_unique<ExpressionStep>(left.getCurrentDataStream(), std::move(left_project));
+    left_project_step->setStepDescription("Rename Left Table Name for broadcast join");
+    steps.emplace_back(left_project_step.get());
+    left.addStep(std::move(left_project_step));
 }
 
 DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right)
@@ -370,15 +366,15 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 /// we mark the flag 0, otherwise mark it 1.
 void JoinRelParser::existenceJoinPostProject(DB::QueryPlan & plan, const DB::Names & left_input_cols)
 {
-    auto actions_dag = std::make_shared<DB::ActionsDAG>(plan.getCurrentDataStream().header.getColumnsWithTypeAndName());
-    const auto * right_col_node = actions_dag->getInputs().back();
+    DB::ActionsDAG actions_dag{plan.getCurrentDataStream().header.getColumnsWithTypeAndName()};
+    const auto * right_col_node = actions_dag.getInputs().back();
     auto function_builder = DB::FunctionFactory::instance().get("isNotNull", getContext());
-    const auto * not_null_node = &actions_dag->addFunction(function_builder, {right_col_node}, right_col_node->result_name);
-    actions_dag->addOrReplaceInOutputs(*not_null_node);
+    const auto * not_null_node = &actions_dag.addFunction(function_builder, {right_col_node}, right_col_node->result_name);
+    actions_dag.addOrReplaceInOutputs(*not_null_node);
     DB::Names required_cols = left_input_cols;
     required_cols.emplace_back(not_null_node->result_name);
-    actions_dag->removeUnusedActions(required_cols);
-    auto project_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentDataStream(), actions_dag);
+    actions_dag.removeUnusedActions(required_cols);
+    auto project_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentDataStream(), std::move(actions_dag));
     project_step->setStepDescription("ExistenceJoin Post Project");
     steps.emplace_back(project_step.get());
     plan.addStep(std::move(project_step));
@@ -406,19 +402,19 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
     }
     if (!right_table_alias.empty())
     {
-        ActionsDAGPtr rename_dag = std::make_shared<ActionsDAG>(right.getCurrentDataStream().header.getNamesAndTypesList());
+        ActionsDAG rename_dag{right.getCurrentDataStream().header.getNamesAndTypesList()};
         auto original_right_columns = right.getCurrentDataStream().header;
         for (const auto & column_alias : right_table_alias)
         {
             if (original_right_columns.has(column_alias.first))
             {
                 auto pos = original_right_columns.getPositionByName(column_alias.first);
-                const auto & alias = rename_dag->addAlias(*rename_dag->getInputs()[pos], column_alias.second);
-                rename_dag->getOutputs()[pos] = &alias;
+                const auto & alias = rename_dag.addAlias(*rename_dag.getInputs()[pos], column_alias.second);
+                rename_dag.getOutputs()[pos] = &alias;
             }
         }
 
-        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), rename_dag);
+        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), std::move(rename_dag));
         project_step->setStepDescription("Right Table Rename");
         steps.emplace_back(project_step.get());
         right.addStep(std::move(project_step));
@@ -428,14 +424,14 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
     {
         table_join.addJoinedColumn(column);
     }
-    ActionsDAGPtr left_convert_actions = nullptr;
-    ActionsDAGPtr right_convert_actions = nullptr;
+    std::optional<ActionsDAG> left_convert_actions;
+    std::optional<ActionsDAG> right_convert_actions;
     std::tie(left_convert_actions, right_convert_actions) = table_join.createConvertingActions(
         left.getCurrentDataStream().header.getColumnsWithTypeAndName(), right.getCurrentDataStream().header.getColumnsWithTypeAndName());
 
     if (right_convert_actions)
     {
-        auto converting_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), right_convert_actions);
+        auto converting_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), std::move(*right_convert_actions));
         converting_step->setStepDescription("Convert joined columns");
         steps.emplace_back(converting_step.get());
         right.addStep(std::move(converting_step));
@@ -443,7 +439,7 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
 
     if (left_convert_actions)
     {
-        auto converting_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), left_convert_actions);
+        auto converting_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), std::move(*left_convert_actions));
         converting_step->setStepDescription("Convert joined columns");
         steps.emplace_back(converting_step.get());
         left.addStep(std::move(converting_step));
@@ -564,8 +560,8 @@ bool JoinRelParser::applyJoinFilter(
             auto input_exprs = get_input_expressions(left_header);
             input_exprs.push_back(expr);
             auto actions_dag = expressionsToActionsDAG(input_exprs, left_header);
-            table_join.getClauses().back().analyzer_left_filter_condition_column_name = actions_dag->getOutputs().back()->result_name;
-            QueryPlanStepPtr before_join_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), actions_dag);
+            table_join.getClauses().back().analyzer_left_filter_condition_column_name = actions_dag.getOutputs().back()->result_name;
+            QueryPlanStepPtr before_join_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), std::move(actions_dag));
             before_join_step->setStepDescription("Before JOIN LEFT");
             steps.emplace_back(before_join_step.get());
             left.addStep(std::move(before_join_step));
@@ -581,12 +577,12 @@ bool JoinRelParser::applyJoinFilter(
             /// clear unused columns in actions_dag
             for (const auto & col : left_header.getColumnsWithTypeAndName())
             {
-                actions_dag->removeUnusedResult(col.name);
+                actions_dag.removeUnusedResult(col.name);
             }
-            actions_dag->removeUnusedActions();
+            actions_dag.removeUnusedActions();
 
-            table_join.getClauses().back().analyzer_right_filter_condition_column_name = actions_dag->getOutputs().back()->result_name;
-            QueryPlanStepPtr before_join_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), actions_dag);
+            table_join.getClauses().back().analyzer_right_filter_condition_column_name = actions_dag.getOutputs().back()->result_name;
+            QueryPlanStepPtr before_join_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), std::move(actions_dag));
             before_join_step->setStepDescription("Before JOIN RIGHT");
             steps.emplace_back(before_join_step.get());
             right.addStep(std::move(before_join_step));
@@ -598,7 +594,7 @@ bool JoinRelParser::applyJoinFilter(
             return false;
         auto mixed_join_expressions_actions = expressionsToActionsDAG({expr}, mixed_header);
         table_join.getMixedJoinExpression()
-            = std::make_shared<DB::ExpressionActions>(mixed_join_expressions_actions, ExpressionActionsSettings::fromContext(context));
+            = std::make_shared<DB::ExpressionActions>(std::move(mixed_join_expressions_actions), ExpressionActionsSettings::fromContext(context));
     }
     else
     {
@@ -610,7 +606,7 @@ bool JoinRelParser::applyJoinFilter(
 void JoinRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::JoinRel & join)
 {
     std::string filter_name;
-    auto actions_dag = std::make_shared<ActionsDAG>(query_plan.getCurrentDataStream().header.getColumnsWithTypeAndName());
+    ActionsDAG actions_dag{query_plan.getCurrentDataStream().header.getColumnsWithTypeAndName()};
     if (!join.post_join_filter().has_scalar_function())
     {
 	// It may be singular_or_list
@@ -619,9 +615,9 @@ void JoinRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::J
     }
     else
     {
-        getPlanParser()->parseFunction(query_plan.getCurrentDataStream().header, join.post_join_filter(), filter_name, actions_dag, true);
+        getPlanParser()->parseFunctionWithDAG(join.post_join_filter(), filter_name, actions_dag, true);
     }
-    auto filter_step = std::make_unique<FilterStep>(query_plan.getCurrentDataStream(), actions_dag, filter_name, true);
+    auto filter_step = std::make_unique<FilterStep>(query_plan.getCurrentDataStream(), std::move(actions_dag), filter_name, true);
     filter_step->setStepDescription("Post Join Filter");
     steps.emplace_back(filter_step.get());
     query_plan.addStep(std::move(filter_step));

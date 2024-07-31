@@ -14,23 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.tpcds
+
+import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
-import org.apache.spark.sql.execution.ReusedSubqueryExec
+import org.apache.spark.sql.execution.{ColumnarSubqueryBroadcastExec, ReusedSubqueryExec}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
-class GlutenClickHouseTPCDSParquetAQESuite
+class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
   extends GlutenClickHouseTPCDSAbstractSuite
   with AdaptiveSparkPlanHelper {
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.shuffle.manager", "sort")
-      .set("spark.io.compression.codec", "snappy")
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+      .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       // Currently, it can not support to read multiple partitioned file in one task.
@@ -42,20 +44,13 @@ class GlutenClickHouseTPCDSParquetAQESuite
 
   executeTPCDSTest(true)
 
-  test("test 'select count(*)'") {
-    val result = runSql("""
-                          |select count(c_customer_sk) from customer
-                          |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 100000L)
-  }
-
   test("test reading from partitioned table") {
     val result = runSql("""
                           |select count(*)
                           |  from store_sales
                           |  where ss_quantity between 1 and 20
                           |""".stripMargin) { _ => }
-    assert(result(0).getLong(0) == 550458L)
+    assertResult(550458L)(result.head.getLong(0))
   }
 
   test("test reading from partitioned table with partition column filter") {
@@ -66,7 +61,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
         |  where ss_quantity between 1 and 20
         |  and ss_sold_date_sk = 2452635
         |""".stripMargin,
-      true,
+      compareResult = true,
       _ => {}
     )
   }
@@ -76,8 +71,8 @@ class GlutenClickHouseTPCDSParquetAQESuite
                           |select avg(cs_item_sk), avg(cs_order_number)
                           |  from catalog_sales
                           |""".stripMargin) { _ => }
-    assert(result(0).getDouble(0) == 8998.463336886734)
-    assert(result(0).getDouble(1) == 80037.12727449503)
+    assertResult(8998.463336886734)(result.head.getDouble(0))
+    assertResult(80037.12727449503)(result.head.getDouble(1))
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {
@@ -96,7 +91,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       testSql,
-      true,
+      compareResult = true,
       df => {
         val foundDynamicPruningExpr = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
@@ -107,11 +102,11 @@ class GlutenClickHouseTPCDSParquetAQESuite
             .asInstanceOf[FileSourceScanExecTransformer]
             .partitionFilters
             .exists(_.isInstanceOf[DynamicPruningExpression]))
-        assert(
+        assertResult(1823)(
           foundDynamicPruningExpr(1)
             .asInstanceOf[FileSourceScanExecTransformer]
             .selectedPartitions
-            .size == 1823)
+            .length)
       }
     )
   }
@@ -126,7 +121,18 @@ class GlutenClickHouseTPCDSParquetAQESuite
         }
         // On Spark 3.2, there are 15 AdaptiveSparkPlanExec,
         // and on Spark 3.3, there are 5 AdaptiveSparkPlanExec and 10 ReusedSubqueryExec
-        assert(subqueryAdaptiveSparkPlan.filter(_ == true).size == 15)
+        assertResult(15)(subqueryAdaptiveSparkPlan.count(_ == true))
+    }
+  }
+
+  test("GLUTEN-1848: Fix execute subquery repeatedly issue with ReusedSubquery") {
+    runTPCDSQuery("q5") {
+      df =>
+        val subqueriesId = collectWithSubqueries(df.queryExecution.executedPlan) {
+          case s: ColumnarSubqueryBroadcastExec => s.id
+          case r: ReusedSubqueryExec => r.child.id
+        }
+        assert(subqueriesId.distinct.size == 1)
     }
   }
 
@@ -141,12 +147,12 @@ class GlutenClickHouseTPCDSParquetAQESuite
               } =>
             f
         }
-        assert(foundDynamicPruningExpr.nonEmpty == true)
+        assert(foundDynamicPruningExpr.nonEmpty)
 
         val reusedExchangeExec = collectWithSubqueries(df.queryExecution.executedPlan) {
           case r: ReusedExchangeExec => r
         }
-        assert(reusedExchangeExec.nonEmpty == true)
+        assert(reusedExchangeExec.nonEmpty)
     }
   }
 
@@ -164,7 +170,7 @@ class GlutenClickHouseTPCDSParquetAQESuite
                 } =>
               f
           }
-          assert(foundDynamicPruningExpr.nonEmpty == true)
+          assert(foundDynamicPruningExpr.nonEmpty)
 
           val reusedExchangeExec = collectWithSubqueries(df.queryExecution.executedPlan) {
             case r: ReusedExchangeExec => r
@@ -194,6 +200,45 @@ class GlutenClickHouseTPCDSParquetAQESuite
         |ORDER BY channel
         | LIMIT 100 ;
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(testSql, true, df => {})
+    compareResultsAgainstVanillaSpark(testSql, compareResult = true, df => {})
+  }
+
+  test("GLUTEN-1620: fix 'attribute binding failed.' when executing hash agg with aqe") {
+    val sql =
+      """
+        |select
+        |cs_ship_mode_sk,
+        |   count(distinct cs_order_number) as `order count`
+        |  ,avg(cs_ext_ship_cost) as `avg shipping cost`
+        |  ,sum(cs_ext_ship_cost) as `total shipping cost`
+        |  ,sum(cs_net_profit) as `total net profit`
+        |from
+        |   catalog_sales cs1
+        |  ,date_dim
+        |  ,customer_address
+        |  ,call_center
+        |where
+        |    d_date between '1999-5-01' and
+        |           (cast('1999-5-01' as date) + interval '60' day)
+        |and cs1.cs_ship_date_sk = d_date_sk
+        |and cs1.cs_ship_addr_sk = ca_address_sk
+        |and ca_state = 'OH'
+        |and cs1.cs_call_center_sk = cc_call_center_sk
+        |and cc_county in ('Ziebach County','Williamson County','Walker County','Williamson County',
+        |                  'Ziebach County'
+        |)
+        |and exists (select *
+        |            from catalog_sales cs2
+        |            where cs1.cs_order_number = cs2.cs_order_number
+        |              and cs1.cs_warehouse_sk <> cs2.cs_warehouse_sk)
+        |and not exists(select *
+        |               from catalog_returns cr1
+        |               where cs1.cs_order_number = cr1.cr_order_number)
+        |group by cs_ship_mode_sk
+        |order by cs_ship_mode_sk, count(distinct cs_order_number)
+        | LIMIT 100 ;
+        |""".stripMargin
+    // There are some BroadcastHashJoin with NOT condition
+    compareResultsAgainstVanillaSpark(sql, true, { df => }, false)
   }
 }

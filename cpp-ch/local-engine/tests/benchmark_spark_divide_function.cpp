@@ -66,59 +66,59 @@ static std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
     return res;
 }
 
-static const ActionsDAG::Node * addFunction(ActionsDAGPtr & actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
+static const ActionsDAG::Node * addFunction(ActionsDAG & actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
 {
     auto function_builder = FunctionFactory::instance().get(function, local_engine::SerializedPlanParser::global_context);
     std::string args_name = join(args, ',');
     auto result_name = function + "(" + args_name + ")";
-    return &actions_dag->addFunction(function_builder, args, result_name);
+    return &actions_dag.addFunction(function_builder, args, result_name);
 }
 
 static void BM_CHDivideFunction(benchmark::State & state)
 {
-    ActionsDAGPtr dag = std::make_shared<ActionsDAG>();
+    ActionsDAG dag;
     Block block = createDataBlock("d1", "d2", 30000000);
     ColumnWithTypeAndName col1 = block.getByPosition(0);
     ColumnWithTypeAndName col2 = block.getByPosition(1);
-    const ActionsDAG::Node * left_arg = &dag->addColumn(col1);
-    const ActionsDAG::Node * right_arg = &dag->addColumn(col2);
+    const ActionsDAG::Node * left_arg = &dag.addColumn(col1);
+    const ActionsDAG::Node * right_arg = &dag.addColumn(col2);
     addFunction(dag, "divide", {left_arg, right_arg});
-    ExpressionActions expr_actions(dag);
+    ExpressionActions expr_actions(std::move(dag));
     for (auto _ : state)
         expr_actions.execute(block);
 }
 
 static void BM_SparkDivideFunction(benchmark::State & state)
 {
-    ActionsDAGPtr dag = std::make_shared<ActionsDAG>();
+    ActionsDAG dag;
     Block block = createDataBlock("d1", "d2", 30000000);
     ColumnWithTypeAndName col1 = block.getByPosition(0);
     ColumnWithTypeAndName col2 = block.getByPosition(1);
-    const ActionsDAG::Node * left_arg = &dag->addColumn(col1);
-    const ActionsDAG::Node * right_arg = &dag->addColumn(col2);
+    const ActionsDAG::Node * left_arg = &dag.addColumn(col1);
+    const ActionsDAG::Node * right_arg = &dag.addColumn(col2);
     addFunction(dag, "sparkDivide", {left_arg, right_arg});
-    ExpressionActions expr_actions(dag);
+    ExpressionActions expr_actions(std::move(dag));
     for (auto _ : state)
         expr_actions.execute(block);
 }
 
 static void BM_GlutenDivideFunctionParser(benchmark::State & state)
 {
-    ActionsDAGPtr dag = std::make_shared<ActionsDAG>();
+    ActionsDAG dag;
     Block block = createDataBlock("d1", "d2", 30000000);
     ColumnWithTypeAndName col1 = block.getByPosition(0);
     ColumnWithTypeAndName col2 = block.getByPosition(1);
-    const ActionsDAG::Node * left_arg = &dag->addColumn(col1);
-    const ActionsDAG::Node * right_arg = &dag->addColumn(col2);
+    const ActionsDAG::Node * left_arg = &dag.addColumn(col1);
+    const ActionsDAG::Node * right_arg = &dag.addColumn(col2);
     const ActionsDAG::Node * divide_arg = addFunction(dag, "divide", {left_arg, right_arg});
     DataTypePtr float64_type = std::make_shared<DataTypeFloat64>();
     ColumnWithTypeAndName col_zero(float64_type->createColumnConst(1, 0), float64_type, toString(0));
     ColumnWithTypeAndName col_null(float64_type->createColumnConst(1, Field{}), float64_type, "null");
-    const ActionsDAG::Node * zero_arg = &dag->addColumn(col_zero);
-    const ActionsDAG::Node * null_arg = &dag->addColumn(col_null);
+    const ActionsDAG::Node * zero_arg = &dag.addColumn(col_zero);
+    const ActionsDAG::Node * null_arg = &dag.addColumn(col_null);
     const ActionsDAG::Node * equals_arg = addFunction(dag, "equals", {right_arg, zero_arg});
     const ActionsDAG::Node * if_arg = addFunction(dag, "if", {equals_arg, null_arg, divide_arg});
-    ExpressionActions expr_actions(dag);
+    ExpressionActions expr_actions(std::move(dag));
     for (auto _ : state)
         expr_actions.execute(block);
 }

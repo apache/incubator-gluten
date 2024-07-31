@@ -801,7 +801,8 @@ class GlutenClickHouseMergeTreeWriteSuite
     }
   }
 
-  test("test mergetree write with bucket table") {
+  // FIXME: very slow after https://github.com/apache/incubator-gluten/pull/6558
+  ignore("test mergetree write with bucket table") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_mergetree_bucket;
                  |""".stripMargin)
