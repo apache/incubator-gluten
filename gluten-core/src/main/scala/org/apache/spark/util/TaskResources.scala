@@ -25,7 +25,7 @@ import _root_.org.apache.gluten.sql.shims.SparkShimLoader
 import _root_.org.apache.gluten.utils.TaskListener
 
 import java.util
-import java.util.{Collections, UUID}
+import java.util.{Collections, Properties, UUID}
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
@@ -40,8 +40,8 @@ object TaskResources extends TaskListener with Logging {
   }
   val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
 
-  private def newUnsafeTaskContext(): TaskContext = {
-    SparkShimLoader.getSparkShims.createTestTaskContext()
+  private def newUnsafeTaskContext(properties: Properties): TaskContext = {
+    SparkShimLoader.getSparkShims.createTestTaskContext(properties)
   }
 
   private def setUnsafeTaskContext(): Unit = {
@@ -49,7 +49,12 @@ object TaskResources extends TaskListener with Logging {
       throw new UnsupportedOperationException(
         "TaskResources#runUnsafe should only be used outside Spark task")
     }
-    TaskContext.setTaskContext(newUnsafeTaskContext())
+    val properties = new Properties()
+    SQLConf.get.getAllConfs.foreach {
+      case (key, value) if key.startsWith("spark") =>
+        properties.put(key, value)
+    }
+    TaskContext.setTaskContext(newUnsafeTaskContext(properties))
   }
 
   private def unsetUnsafeTaskContext(): Unit = {
