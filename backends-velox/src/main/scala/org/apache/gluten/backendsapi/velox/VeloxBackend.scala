@@ -350,7 +350,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
                         case ByteType | ShortType | IntegerType | LongType =>
                         case _ =>
                           throw new GlutenNotSupportException(
-                            "Only integral type & date type are" +
+                            "Only integral type is" +
                               " supported for sort key when literal bound type is used!")
                       })
                 case _ =>
