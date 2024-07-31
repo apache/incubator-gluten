@@ -21,7 +21,7 @@ import org.apache.gluten.integration.action.DataGenOnly;
 import picocli.CommandLine;
 
 public class DataGenMixin {
-  @CommandLine.Option(names = {"--data-gen-strategy"}, description = "The strategy of data generation, accepted values: skip, once, always", defaultValue = "always")
+  @CommandLine.Option(names = {"--data-gen"}, description = "The strategy of data generation, accepted values: skip, once, always", defaultValue = "always")
   private String dataGenStrategy;
 
   @CommandLine.Option(names = {"-s", "--scale"}, description = "The scale factor of sample TPC-H dataset", defaultValue = "0.1")
