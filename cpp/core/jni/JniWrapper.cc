@@ -1093,7 +1093,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_cl
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_datasource_DatasourceJniWrapper_writeBatch( // NOLINT
+JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_writeBatch( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong dsHandle,
