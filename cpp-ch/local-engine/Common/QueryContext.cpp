@@ -24,6 +24,7 @@
 #include <Common/ThreadStatus.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
+#include <Common/ConcurrentMap.h>
 #include <base/unit.h>
 #include <sstream>
 #include <iomanip>
@@ -48,8 +49,7 @@ struct QueryContext
     ContextMutablePtr query_context;
 };
 
-std::unordered_map<int64_t, std::shared_ptr<QueryContext>> query_map;
-std::mutex query_map_mutex;
+ConcurrentMap<int64_t, std::shared_ptr<QueryContext>> query_map;
 
 int64_t QueryContextManager::initializeQuery()
 {
@@ -72,9 +72,8 @@ int64_t QueryContextManager::initializeQuery()
 
     query_context->thread_group->memory_tracker.setSoftLimit(memory_limit);
     query_context->thread_group->memory_tracker.setHardLimit(memory_limit + config.extra_memory_hard_limit);
-    std::lock_guard<std::mutex> lock_guard(query_map_mutex);
     int64_t id = reinterpret_cast<int64_t>(query_context->thread_group.get());
-    query_map.emplace(id, query_context);
+    query_map.insert(id, query_context);
     return id;
 }
 
@@ -84,9 +83,8 @@ DB::ContextMutablePtr QueryContextManager::currentQueryContext()
     {
         throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found.");
     }
-    std::lock_guard lock_guard(query_map_mutex);
     int64_t id = reinterpret_cast<int64_t>(CurrentThread::getGroup().get());
-    return query_map[id]->query_context;
+    return query_map.get(id)->query_context;
 }
 
 void QueryContextManager::logCurrentPerformanceCounters(ProfileEvents::Counters & counters)
@@ -116,10 +114,9 @@ void QueryContextManager::logCurrentPerformanceCounters(ProfileEvents::Counters 
 
 size_t QueryContextManager::currentPeakMemory(int64_t id)
 {
-    std::lock_guard lock_guard(query_map_mutex);
     if (!query_map.contains(id))
         throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "context released {}", id);
-    return query_map[id]->thread_group->memory_tracker.getPeak();
+    return query_map.get(id)->thread_group->memory_tracker.getPeak();
 }
 
 void QueryContextManager::finalizeQuery(int64_t id)
@@ -130,8 +127,7 @@ void QueryContextManager::finalizeQuery(int64_t id)
     }
     std::shared_ptr<QueryContext> context;
     {
-        std::lock_guard lock_guard(query_map_mutex);
-        context = query_map[id];
+        context = query_map.get(id);
     }
     auto query_context = context->thread_status->getQueryContext();
     if (!query_context)
@@ -152,7 +148,6 @@ void QueryContextManager::finalizeQuery(int64_t id)
     context->thread_status.reset();
     query_context.reset();
     {
-        std::lock_guard lock_guard(query_map_mutex);
         query_map.erase(id);
     }
 }
