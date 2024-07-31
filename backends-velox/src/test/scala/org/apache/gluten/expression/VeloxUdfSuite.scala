@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.tags.{SkipTestTags, UDFTest}
 
 import org.apache.spark.SparkConf
@@ -88,6 +89,15 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
         .sameElements(Array(Row(105L, 6, 6L, 5, 6, 11, 6L, 11L, Date.valueOf("2024-03-30")))))
   }
 
+  test("test udf allow type conversion") {
+    withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "true") {
+      val df = spark.sql("""select myudf1("100"), myudf1(1), mydate('2024-03-25', 5)""")
+      assert(
+        df.collect()
+          .sameElements(Array(Row(105L, 6L, Date.valueOf("2024-03-30")))))
+    }
+  }
+
   test("test udaf") {
     val df = spark.sql("""select
                          |  myavg(1),
@@ -100,6 +110,15 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
     assert(
       df.collect()
         .sameElements(Array(Row(1.0, 1.0, 1.0, 1.0, 1L))))
+  }
+
+  test("test udaf allow type conversion") {
+    withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "true") {
+      val df = spark.sql("""select myavg("1"), myavg("1.0"), mycount_if("true")""")
+      assert(
+        df.collect()
+          .sameElements(Array(Row(1.0, 1.0, 1L))))
+    }
   }
 }
 
