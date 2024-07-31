@@ -14,9 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.tpch
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.execution._
 import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.SparkConf
@@ -65,7 +66,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         assert(plans.size == 5)
 
         assert(plans(4).metrics("numFiles").value === 1)
-        assert(plans(4).metrics("pruningTime").value === -1)
+        assert(plans(4).metrics("pruningTime").value === pruningTimeValueSpark)
         assert(plans(4).metrics("filesSize").value === 19230111)
         assert(plans(4).metrics("numOutputRows").value === 600572)
 
@@ -80,8 +81,8 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         assert(plans(1).metrics("numOutputRows").value === 8)
         assert(plans(1).metrics("outputVectors").value === 2)
 
-        assert(plans(0).metrics("numInputRows").value === 4)
-        assert(plans(0).metrics("numOutputRows").value === 4)
+        assert(plans.head.metrics("numInputRows").value === 4)
+        assert(plans.head.metrics("numOutputRows").value === 4)
     }
   }
 
@@ -97,7 +98,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
           assert(plans.size == 3)
 
           assert(plans(2).metrics("numFiles").value === 1)
-          assert(plans(2).metrics("pruningTime").value === -1)
+          assert(plans(2).metrics("pruningTime").value === pruningTimeValueSpark)
           assert(plans(2).metrics("filesSize").value === 19230111)
 
           assert(plans(1).metrics("numInputRows").value === 591673)
@@ -105,8 +106,8 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
           assert(plans(1).metrics("outputVectors").value === 1)
 
           // Execute Sort operator, it will read the data twice.
-          assert(plans(0).metrics("numOutputRows").value === 8)
-          assert(plans(0).metrics("outputVectors").value === 2)
+          assert(plans.head.metrics("numOutputRows").value === 8)
+          assert(plans.head.metrics("outputVectors").value === 2)
       }
     }
   }
@@ -147,8 +148,8 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
           assert(inputIteratorTransformers(1).metrics("numInputRows").value === 3111)
           assert(inputIteratorTransformers(1).metrics("numOutputRows").value === 3111)
 
-          assert(inputIteratorTransformers(0).metrics("numInputRows").value === 15224)
-          assert(inputIteratorTransformers(0).metrics("numOutputRows").value === 15224)
+          assert(inputIteratorTransformers.head.metrics("numInputRows").value === 15224)
+          assert(inputIteratorTransformers.head.metrics("numOutputRows").value === 15224)
       }
     }
   }

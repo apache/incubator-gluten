@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.tpch
+
+import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.DataFrame
@@ -259,10 +261,10 @@ class GlutenClickHouseTPCHParquetBucketSuite
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
         }
-        assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
-        assert(plans(0).metrics("numFiles").value === 4)
-        assert(plans(0).metrics("pruningTime").value === -1)
-        assert(plans(0).metrics("numOutputRows").value === 600572)
+        assert(!plans.head.asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
+        assert(plans.head.metrics("numFiles").value === 4)
+        assert(plans.head.metrics("pruningTime").value === pruningTimeValueSpark)
+        assert(plans.head.metrics("numOutputRows").value === 600572)
       }
     )
   }
@@ -319,7 +321,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         }
 
         if (sparkVersion.equals("3.2")) {
-          assert(!(plans(11).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
+          assert(!plans(11).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         } else {
           assert(plans(11).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         }
@@ -359,14 +361,14 @@ class GlutenClickHouseTPCHParquetBucketSuite
             .isInstanceOf[InputIteratorTransformer])
 
         if (sparkVersion.equals("3.2")) {
-          assert(!(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
+          assert(!plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         } else {
           assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         }
         assert(plans(2).metrics("numFiles").value === 4)
         assert(plans(2).metrics("numOutputRows").value === 15000)
 
-        assert(!(plans(3).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
+        assert(!plans(3).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(3).metrics("numFiles").value === 4)
         assert(plans(3).metrics("numOutputRows").value === 150000)
       }
@@ -404,12 +406,12 @@ class GlutenClickHouseTPCHParquetBucketSuite
         }
         // bucket join
         assert(
-          plans(0)
+          plans.head
             .asInstanceOf[HashJoinLikeExecTransformer]
             .left
             .isInstanceOf[ProjectExecTransformer])
         assert(
-          plans(0)
+          plans.head
             .asInstanceOf[HashJoinLikeExecTransformer]
             .right
             .isInstanceOf[ProjectExecTransformer])
@@ -453,10 +455,10 @@ class GlutenClickHouseTPCHParquetBucketSuite
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
         }
-        assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
-        assert(plans(0).metrics("numFiles").value === 4)
-        assert(plans(0).metrics("pruningTime").value === -1)
-        assert(plans(0).metrics("numOutputRows").value === 600572)
+        assert(!plans.head.asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
+        assert(plans.head.metrics("numFiles").value === 4)
+        assert(plans.head.metrics("pruningTime").value === pruningTimeValueSpark)
+        assert(plans.head.metrics("numOutputRows").value === 600572)
       }
     )
   }
@@ -472,12 +474,12 @@ class GlutenClickHouseTPCHParquetBucketSuite
         }
         // bucket join
         assert(
-          plans(0)
+          plans.head
             .asInstanceOf[HashJoinLikeExecTransformer]
             .left
             .isInstanceOf[FilterExecTransformerBase])
         assert(
-          plans(0)
+          plans.head
             .asInstanceOf[HashJoinLikeExecTransformer]
             .right
             .isInstanceOf[ProjectExecTransformer])
@@ -654,7 +656,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       SQL,
-      true,
+      compareResult = true,
       df => {}
     )
   }
@@ -675,7 +677,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       SQL,
-      true,
+      compareResult = true,
       df => { checkHashAggregateCount(df, 1) }
     )
 
@@ -690,7 +692,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       SQL1,
-      true,
+      compareResult = true,
       df => { checkHashAggregateCount(df, 1) }
     )
 
@@ -702,7 +704,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       SQL2,
-      true,
+      compareResult = true,
       df => { checkHashAggregateCount(df, 1) }
     )
 
@@ -716,7 +718,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       SQL3,
-      true,
+      compareResult = true,
       df => { checkHashAggregateCount(df, 2) }
     )
 
@@ -731,7 +733,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       SQL4,
-      true,
+      compareResult = true,
       df => { checkHashAggregateCount(df, 4) }
     )
 
@@ -745,7 +747,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       SQL5,
-      true,
+      compareResult = true,
       df => { checkHashAggregateCount(df, 4) }
     )
 
@@ -755,7 +757,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       SQL6,
-      true,
+      compareResult = true,
       df => {
         // there is a shuffle between two phase hash aggregate.
         checkHashAggregateCount(df, 2)
@@ -773,7 +775,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(
       SQL7,
-      true,
+      compareResult = true,
       df => {
         checkHashAggregateCount(df, 1)
       }
@@ -790,7 +792,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
           |""".stripMargin
       compareResultsAgainstVanillaSpark(
         SQL,
-        true,
+        compareResult = true,
         df => {
           checkHashAggregateCount(df, 0)
           val plans = collect(df.queryExecution.executedPlan) { case agg: SortAggregateExec => agg }

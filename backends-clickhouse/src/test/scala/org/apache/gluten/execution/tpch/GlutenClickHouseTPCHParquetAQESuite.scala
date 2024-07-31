@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.tpch
+
+import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
@@ -345,9 +347,7 @@ class GlutenClickHouseTPCHParquetAQESuite
            |order by t1.l_orderkey, t2.o_orderkey, t2.o_year, t1.l_cnt, t2.o_cnt
            |limit 100
            |
-           |""".stripMargin,
-        true,
-        true
+           |""".stripMargin
       )(df => {})
 
       runQueryAndCompare(
@@ -366,10 +366,7 @@ class GlutenClickHouseTPCHParquetAQESuite
            |order by t1.l_orderkey, t2.o_orderkey, t2.o_year
            |limit 100
            |
-           |""".stripMargin,
-        true,
-        true
-      )(df => {})
+           |""".stripMargin)(df => {})
     }
   }
 }

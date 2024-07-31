@@ -14,8 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.tpcds
 
+import org.apache.gluten.execution.{CHSortMergeJoinExecTransformer, GlutenClickHouseTPCDSAbstractSuite}
 import org.apache.gluten.test.FallbackUtil
 
 import org.apache.spark.SparkConf
@@ -64,7 +65,7 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
           |i.i_current_price > 1.0 """.stripMargin
       compareResultsAgainstVanillaSpark(
         testSql,
-        true,
+        compareResult = true,
         df => {
           val smjTransformers = df.queryExecution.executedPlan.collect {
             case f: CHSortMergeJoinExecTransformer => f
@@ -83,7 +84,7 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
         """.stripMargin
       compareResultsAgainstVanillaSpark(
         testSql,
-        true,
+        compareResult = true,
         df => {
           val smjTransformers = df.queryExecution.executedPlan.collect {
             case f: CHSortMergeJoinExecTransformer => f
@@ -102,7 +103,7 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
         """.stripMargin
       compareResultsAgainstVanillaSpark(
         testSql,
-        true,
+        compareResult = true,
         df => {
           val smjTransformers = df.queryExecution.executedPlan.collect {
             case f: CHSortMergeJoinExecTransformer => f
@@ -124,7 +125,7 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
       val smjTransformers = df.queryExecution.executedPlan.collect {
         case f: CHSortMergeJoinExecTransformer => f
       }
-      assert(smjTransformers.size == 0)
+      assert(smjTransformers.isEmpty)
       assert(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
     }
   }
@@ -140,18 +141,18 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
       val smjTransformers = df.queryExecution.executedPlan.collect {
         case f: CHSortMergeJoinExecTransformer => f
       }
-      assert(smjTransformers.size == 0)
+      assert(smjTransformers.isEmpty)
       assert(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
     }
   }
 
-  val createItem =
+  val createItem: String =
     """CREATE TABLE myitem (
       |  i_current_price DECIMAL(7,2),
       |  i_category STRING)
       |USING parquet""".stripMargin
 
-  val insertItem =
+  val insertItem: String =
     """insert into myitem values
       |(null,null),
       |(null,null),
@@ -174,7 +175,7 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
           """.stripMargin
         compareResultsAgainstVanillaSpark(
           testSql,
-          true,
+          compareResult = true,
           df => {
             val smjTransformers = df.queryExecution.executedPlan.collect {
               case f: CHSortMergeJoinExecTransformer => f
@@ -206,7 +207,7 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
         spark.sql(testSql).show()
         compareResultsAgainstVanillaSpark(
           testSql,
-          true,
+          compareResult = true,
           df => {
             val smjTransformers = df.queryExecution.executedPlan.collect {
               case f: CHSortMergeJoinExecTransformer => f
