@@ -35,6 +35,7 @@ import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
@@ -241,20 +242,6 @@ object FileFormatWriter extends Logging {
       statsTrackers = statsTrackers
     )
 
-    // We should first sort by partition columns, then bucket id, and finally sorting columns.
-    val requiredOrdering = partitionColumns.drop(numStaticPartitionCols) ++
-      writerBucketSpec.map(_.bucketIdExpression) ++ sortColumns
-    // the sort order doesn't matter
-    val actualOrdering = empty2NullPlan.outputOrdering.map(_.child)
-    val orderingMatched = if (requiredOrdering.length > actualOrdering.length) {
-      false
-    } else {
-      requiredOrdering.zip(actualOrdering).forall {
-        case (requiredOrder, childOutputOrder) =>
-          requiredOrder.semanticEquals(childOutputOrder)
-      }
-    }
-
     SQLExecution.checkSQLExecutionId(sparkSession)
 
     // propagate the description UUID into the jobs, so that committers
@@ -264,6 +251,29 @@ object FileFormatWriter extends Logging {
     // This call shouldn't be put into the `try` block below because it only initializes and
     // prepares the job, any exception thrown from here shouldn't cause abortJob() to be called.
     committer.setupJob(job)
+
+    // We should first sort by partition columns, then bucket id, and finally sorting columns.
+    val requiredOrdering = partitionColumns.drop(numStaticPartitionCols) ++
+      writerBucketSpec.map(_.bucketIdExpression) ++ sortColumns
+
+    // SPARK-40588: plan may contain an AdaptiveSparkPlanExec, which does not know
+    // its final plan's ordering, so we have to materialize that plan first
+    def materializeAdaptiveSparkPlan(plan: SparkPlan): SparkPlan = plan match {
+      case a: AdaptiveSparkPlanExec => a.finalPhysicalPlan
+      case p: SparkPlan => p.withNewChildren(p.children.map(materializeAdaptiveSparkPlan))
+    }
+    val materializedPlan = materializeAdaptiveSparkPlan(empty2NullPlan)
+
+    // the sort order doesn't matter
+    val actualOrdering = materializedPlan.outputOrdering.map(_.child)
+    val orderingMatched = if (requiredOrdering.length > actualOrdering.length) {
+      false
+    } else {
+      requiredOrdering.zip(actualOrdering).forall {
+        case (requiredOrder, childOutputOrder) =>
+          requiredOrder.semanticEquals(childOutputOrder)
+      }
+    }
 
     def nativeWrap(plan: SparkPlan) = {
       var wrapped: SparkPlan = plan
@@ -287,9 +297,9 @@ object FileFormatWriter extends Logging {
     try {
       val (rdd, concurrentOutputWriterSpec) = if (orderingMatched) {
         if (!nativeEnabled || (staticPartitionWriteOnly && nativeEnabled)) {
-          (empty2NullPlan.execute(), None)
+          (materializedPlan.execute(), None)
         } else {
-          nativeWrap(empty2NullPlan)
+          nativeWrap(materializedPlan)
         }
       } else {
         // SPARK-21165: the `requiredOrdering` is based on the attributes from analyzed plan, and
@@ -298,7 +308,7 @@ object FileFormatWriter extends Logging {
         val orderingExpr = bindReferences(
           requiredOrdering.map(SortOrder(_, Ascending)),
           finalOutputSpec.outputColumns)
-        val sortPlan = SortExec(orderingExpr, global = false, child = empty2NullPlan)
+        val sortPlan = SortExec(orderingExpr, global = false, child = materializedPlan)
 
         val maxWriters = sparkSession.sessionState.conf.maxConcurrentOutputFileWriters
         var concurrentWritersEnabled = maxWriters > 0 && sortColumns.isEmpty
@@ -311,12 +321,12 @@ object FileFormatWriter extends Logging {
 
         if (concurrentWritersEnabled) {
           (
-            empty2NullPlan.execute(),
+            materializedPlan.execute(),
             Some(ConcurrentOutputWriterSpec(maxWriters, () => sortPlan.createSorter())))
         } else {
           if (staticPartitionWriteOnly && nativeEnabled) {
             // remove the sort operator for static partition write.
-            (empty2NullPlan.execute(), None)
+            (materializedPlan.execute(), None)
           } else {
             if (!nativeEnabled) {
               (sortPlan.execute(), None)
@@ -335,14 +345,14 @@ object FileFormatWriter extends Logging {
         rdd
       }
 
-      val jobIdInstant = new Date().getTime
+      val jobTrackerID = SparkHadoopWriterUtils.createJobTrackerID(new Date())
       val ret = new Array[WriteTaskResult](rddWithNonEmptyPartitions.partitions.length)
       sparkSession.sparkContext.runJob(
         rddWithNonEmptyPartitions,
         (taskContext: TaskContext, iter: Iterator[InternalRow]) => {
           executeTask(
             description = description,
-            jobIdInstant = jobIdInstant,
+            jobTrackerID = jobTrackerID,
             sparkStageId = taskContext.stageId(),
             sparkPartitionId = taskContext.partitionId(),
             sparkAttemptNumber = taskContext.taskAttemptId().toInt & Integer.MAX_VALUE,
@@ -381,7 +391,7 @@ object FileFormatWriter extends Logging {
   /** Writes data out in a single Spark task. */
   private def executeTask(
       description: WriteJobDescription,
-      jobIdInstant: Long,
+      jobTrackerID: String,
       sparkStageId: Int,
       sparkPartitionId: Int,
       sparkAttemptNumber: Int,
@@ -389,7 +399,7 @@ object FileFormatWriter extends Logging {
       iterator: Iterator[InternalRow],
       concurrentOutputWriterSpec: Option[ConcurrentOutputWriterSpec]): WriteTaskResult = {
 
-    val jobId = SparkHadoopWriterUtils.createJobID(new Date(jobIdInstant), sparkStageId)
+    val jobId = SparkHadoopWriterUtils.createJobID(jobTrackerID, sparkStageId)
     val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
     val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)
 
