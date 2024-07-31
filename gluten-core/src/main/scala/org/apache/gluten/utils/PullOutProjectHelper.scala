@@ -153,6 +153,17 @@ trait PullOutProjectHelper {
     }
   }
 
+  private def createPreComputeRangeFrameBound(
+      childExpr: Expression,
+      boundExpr: Expression,
+      expressionMap: mutable.HashMap[Expression, NamedExpression]): PreComputeRangeFrameBound = {
+    val aliasExpr = expressionMap.getOrElseUpdate(
+      boundExpr.canonicalized,
+      Alias(childExpr, generatePreAliasName)()
+    )
+    PreComputeRangeFrameBound(aliasExpr.asInstanceOf[Alias], boundExpr)
+  }
+
   private def preComputeRangeFrameBoundary(
       bound: Expression,
       orderSpec: SortOrder,
@@ -161,11 +172,11 @@ trait PullOutProjectHelper {
       case _: PreComputeRangeFrameBound => bound
       case _ if !bound.foldable => bound
       case _ if bound.foldable =>
-        val a = expressionMap
-          .getOrElseUpdate(
-            bound.canonicalized,
-            Alias(Add(orderSpec.child, bound), generatePreAliasName)())
-        PreComputeRangeFrameBound(a.asInstanceOf[Alias], bound)
+        if (orderSpec.child.dataType == DateType) {
+          createPreComputeRangeFrameBound(DateAdd(orderSpec.child, bound), bound, expressionMap)
+        } else {
+          createPreComputeRangeFrameBound(Add(orderSpec.child, bound), bound, expressionMap)
+        }
     }
   }
 
