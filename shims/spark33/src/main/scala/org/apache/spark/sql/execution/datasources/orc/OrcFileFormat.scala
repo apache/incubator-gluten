@@ -66,7 +66,7 @@ class OrcFileFormat extends FileFormat with DataSourceRegister with Serializable
       options: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
     // Why if (false)? Such code requires comments when being written.
-    if ("true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable") && false) {
+    if ("true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")) {
       GlutenOrcWriterInjects.getInstance().inferSchema(sparkSession, options, files)
     } else { // the vanilla spark case
       OrcUtils.inferSchema(sparkSession, files, options)

@@ -201,7 +201,7 @@ class ParquetFileFormat extends FileFormat with DataSourceRegister with Logging 
       parameters: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
     // Why if (false)? Such code requires comments when being written.
-    if ("true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable") && false) {
+    if ("true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")) {
       GlutenParquetWriterInjects.getInstance().inferSchema(sparkSession, parameters, files)
     } else { // the vanilla spark case
       ParquetUtils.inferSchema(sparkSession, parameters, files)
