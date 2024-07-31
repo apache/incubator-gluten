@@ -21,7 +21,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, FileSourceMetadataAttribute, PlanExpression, Predicate}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BloomFilterMightContain, BoundReference, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, FileSourceMetadataAttribute, PlanExpression, Predicate}
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -79,6 +79,13 @@ abstract class FileSourceScanExecShim(
   private def isDynamicPruningFilter(e: Expression): Boolean =
     e.find(_.isInstanceOf[PlanExpression[_]]).isDefined
 
+  private def isBloomFilterMightContain(e: Expression): Boolean =
+    e.find(
+      expr =>
+        expr.isInstanceOf[BloomFilterMightContain] ||
+          expr.prettyName == "velox_might_contain")
+      .isDefined
+
   protected def setFilesNumAndSizeMetric(
       partitions: Seq[PartitionDirectory],
       static: Boolean): Unit = {
@@ -98,7 +105,9 @@ abstract class FileSourceScanExecShim(
 
   @transient override lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
     val dynamicPartitionFilters =
-      partitionFilters.filter(isDynamicPruningFilter)
+      partitionFilters
+        .filter(isDynamicPruningFilter)
+        .filterNot(isBloomFilterMightContain)
     val selected = if (dynamicPartitionFilters.nonEmpty) {
       GlutenTimeMetric.withMillisTime {
         // call the file index for the files matching all filters except dynamic partition filters

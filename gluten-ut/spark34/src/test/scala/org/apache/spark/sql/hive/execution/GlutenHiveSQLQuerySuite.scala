@@ -20,6 +20,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+import org.apache.spark.sql.internal.SQLConf
 
 class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
 
@@ -46,6 +47,44 @@ class GlutenHiveSQLQuerySuite extends GlutenHiveSQLQuerySuiteBase {
       TableIdentifier("test_orc"),
       ignoreIfNotExists = true,
       purge = false)
+  }
+
+  testGluten("test bloom filter join on partition column") {
+    val tables = Seq("test_tbl1", "test_tbl2")
+    tables.foreach {
+      t =>
+        sql(s"DROP TABLE IF EXISTS $t")
+        sql(
+          s"CREATE TABLE $t (a int) partitioned by (date STRING) " +
+            s"stored as parquet")
+    }
+
+    withSQLConf(
+      SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "false",
+      SQLConf.RUNTIME_BLOOM_FILTER_ENABLED.key -> "true",
+      SQLConf.RUNTIME_BLOOM_FILTER_APPLICATION_SIDE_SCAN_SIZE_THRESHOLD.key -> "1",
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1"
+    ) {
+      sql(
+        "INSERT OVERWRITE TABLE test_tbl1 partition (date='20240101') " +
+          "select id from range(10)");
+      sql(
+        "INSERT OVERWRITE TABLE test_tbl2 partition (date='20240101') " +
+          "select id from range(5, 10)");
+
+      val df = spark.sql(
+        "select count(1) from test_tbl1 join test_tbl2 " +
+          "on test_tbl1.date = test_tbl2.date where test_tbl2.a > 7")
+      checkAnswer(df, Seq(Row(20)))
+    }
+
+    tables.foreach {
+      t =>
+        spark.sessionState.catalog.dropTable(
+          TableIdentifier(t),
+          ignoreIfNotExists = true,
+          purge = false)
+    }
   }
 
 }
