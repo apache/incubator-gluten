@@ -725,7 +725,9 @@ object GlutenConfig {
       (AWS_S3_RETRY_MODE.key, AWS_S3_RETRY_MODE.defaultValueString),
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
-        conf.getOrElse(GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, "-1")),
+        conf.getOrElse(
+          NUM_TASK_SLOTS_PER_EXECUTOR.key,
+          NUM_TASK_SLOTS_PER_EXECUTOR.defaultValueString)),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
