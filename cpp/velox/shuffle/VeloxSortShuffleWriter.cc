@@ -205,7 +205,7 @@ void VeloxSortShuffleWriter::insertRows(facebook::velox::row::CompactRow& row, u
   }
 }
 
-arrow::Status VeloxSortShuffleWriter::maybeSpill(int32_t nextRows) {
+arrow::Status VeloxSortShuffleWriter::maybeSpill(uint32_t nextRows) {
   if ((uint64_t)offset_ + nextRows > std::numeric_limits<uint32_t>::max()) {
     RETURN_NOT_OK(evictAllPartitions());
   }
@@ -213,9 +213,12 @@ arrow::Status VeloxSortShuffleWriter::maybeSpill(int32_t nextRows) {
 }
 
 arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
+  VELOX_CHECK(offset_ > 0);
   EvictGuard evictGuard{evictState_};
 
   auto numRecords = offset_;
+  // offset_ is used for checking spillable data.
+  offset_ = 0;
   int32_t begin = 0;
   {
     ScopedTimer timer(&sortTime_);
@@ -257,7 +260,6 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
     pageCursor_ = 0;
 
     // Reset and reallocate array_ to minimal size. Allocate array_ can trigger spill.
-    offset_ = 0;
     initArray();
   }
   return arrow::Status::OK();

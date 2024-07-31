@@ -71,7 +71,7 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   void insertRows(facebook::velox::row::CompactRow& row, uint32_t offset, uint32_t rows);
 
-  arrow::Status maybeSpill(int32_t nextRows);
+  arrow::Status maybeSpill(uint32_t nextRows);
 
   arrow::Status evictAllPartitions();
 
