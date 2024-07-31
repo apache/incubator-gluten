@@ -22,7 +22,9 @@ import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.util.Utils;
 import picocli.CommandLine;
 
+import javax.management.*;
 import java.io.File;
+import java.lang.management.ManagementFactory;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -106,8 +108,11 @@ public final class SparkRunModes {
       @CommandLine.ArgGroup(exclusive = false)
       ManualClusterResource manual;
 
+      @CommandLine.ArgGroup(exclusive = false)
+      AutoClusterResource auto;
+
       private ClusterResource getActive() {
-        return findNonNull(manual);
+        return findNonNull(manual, auto);
       }
 
       @Override
@@ -204,6 +209,102 @@ public final class SparkRunModes {
       if (!enabled) {
         throw new IllegalStateException("Manual cluster resource is not enabled");
       }
+    }
+  }
+  
+  private static class AutoClusterResource implements ClusterResource {
+    @CommandLine.Option(names = {"--auto-cluster-resource"}, description = "Local cluster mode: Automatically configure cluster resource", required = true)
+    private boolean enabled;
+
+    private final int lcWorkers;
+    private final int lcWorkerCores;
+    private final long lcWorkerHeapMem;
+    private final int lcExecutorCores;
+    private final long lcExecutorHeapMem;
+    private final long lcExecutorOffHeapMem;
+
+    public AutoClusterResource() {
+      final int totalCores = Runtime.getRuntime().availableProcessors();
+      final long totalMem = (long) (getTotalMem() * 0.8);
+      Preconditions.checkState(totalMem >= 64, "--auto-cluster-resource mode requires for at least 64 MiB physical memory available. Current: " + totalMem);
+      Preconditions.checkState(totalCores >= 1, "--auto-cluster-resource mode requires for at least 1 CPU core available. Current: " + totalCores);
+      if (totalCores % 2 == 1) {
+        // Platform has an odd number of CPU cores.
+        this.lcWorkers = 1;
+        this.lcWorkerCores = totalCores;
+        this.lcExecutorCores = 1;
+      } else {
+        // Platform has an even number of CPU cores.
+        this.lcWorkers = 2;
+        this.lcWorkerCores = totalCores / this.lcWorkers;
+        if (lcWorkerCores % 2 == 1) {
+          this.lcExecutorCores = 1;
+        } else {
+          this.lcExecutorCores = 2;
+        }
+      }
+      Preconditions.checkState(totalCores % this.lcExecutorCores == 0);
+      final int numExecutors = totalCores / this.lcExecutorCores;
+      Preconditions.checkState(this.lcWorkerCores % this.lcExecutorCores == 0);
+      final int numExecutorsPerWorker = this.lcWorkerCores / this.lcExecutorCores;
+      final long executorMem = totalMem / numExecutors;
+      this.lcExecutorHeapMem = (long) (executorMem * 0.33);
+      this.lcExecutorOffHeapMem = (long) (executorMem * 0.67);
+      this.lcWorkerHeapMem = this.lcExecutorHeapMem * numExecutorsPerWorker;
+      System.out.printf("Automatically configured cluster resource settings: %n" +
+          "  lcWorkers: [%d]%n" +
+          "  lcWorkerCores: [%d]%n" +
+          "  lcWorkerHeapMem: [%dMiB]%n" +
+          "  lcExecutorCores: [%d]%n" +
+          "  lcExecutorHeapMem: [%dMiB]%n" +
+          "  lcExecutorOffHeapMem: [%dMiB]%n",
+          lcWorkers,
+          lcWorkerCores,
+          lcWorkerHeapMem,
+          lcExecutorCores,
+          lcExecutorHeapMem,
+          lcExecutorOffHeapMem);
+    }
+
+    private static long getTotalMem() {
+      try {
+        final MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+        final Object attribute = mBeanServer.getAttribute(new ObjectName("java.lang", "type", "OperatingSystem"), "TotalPhysicalMemorySize");
+        final long totalMem = Long.parseLong(attribute.toString()) / 1024 / 1024;
+        return totalMem;
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public int lcWorkers() {
+      return lcWorkers;
+    }
+
+    @Override
+    public int lcWorkerCores() {
+      return lcWorkerCores;
+    }
+
+    @Override
+    public long lcWorkerHeapMem() {
+      return lcWorkerHeapMem;
+    }
+
+    @Override
+    public int lcExecutorCores() {
+      return lcExecutorCores;
+    }
+
+    @Override
+    public long lcExecutorHeapMem() {
+      return lcExecutorHeapMem;
+    }
+
+    @Override
+    public long lcExecutorOffHeapMem() {
+      return lcExecutorOffHeapMem;
     }
   }
 
