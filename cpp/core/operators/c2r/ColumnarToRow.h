@@ -31,7 +31,7 @@ class ColumnarToRowConverter {
   // We will start conversion from the 'rowId' row of 'cb'. The maximum memory consumption during the grabbing and
   // swapping process is 'memoryThreshold' bytes. The number of rows successfully converted is stored in the 'numRows_'
   // variable.
-  virtual void convert(std::shared_ptr<ColumnarBatch> cb = nullptr, int64_t rowId = 0) = 0;
+  virtual void convert(std::shared_ptr<ColumnarBatch> cb = nullptr, int64_t startRow = 0) = 0;
 
   virtual int32_t numRows() {
     return numRows_;
