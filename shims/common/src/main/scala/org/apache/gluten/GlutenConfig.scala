@@ -305,7 +305,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxBloomFilterMaxNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS)
 
-  case class ResizeRange(min: Int, max: Int)
+  case class ResizeRange(min: Int, max: Int) {
+    assert(max >= min)
+    assert(min > 0, "Min batch size should be larger than 0")
+    assert(max > 0, "Max batch size should be larger than 0")
+  }
 
   private object ResizeRange {
     def parse(pattern: String): ResizeRange = {
