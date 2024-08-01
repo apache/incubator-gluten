@@ -523,23 +523,6 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
-  // Convert the native batch to Spark unsafe row.
-  return ctx->saveObject(ctx->createColumnar2RowConverter());
-  JNI_METHOD_END(kInvalidObjectHandle)
-}
-
-JNIEXPORT jobject JNICALL
-Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToRowConvert( // NOLINT
-    JNIEnv* env,
-    jobject wrapper,
-    jlong c2rHandle,
-    jlong batchHandle,
-    jlong rowId) {
-  JNI_METHOD_START
-  auto columnarToRowConverter = ObjectStore::retrieve<ColumnarToRowConverter>(c2rHandle);
-  auto cb = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
-  auto ctx = gluten::getRuntime(env, wrapper);
-
   auto& conf = ctx->getConfMap();
   int64_t column2RowMemThreshold;
   auto it = conf.find(kColumnToRowMemoryThreshold);
@@ -556,7 +539,23 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
     column2RowMemThreshold = std::stoll(kColumnToRowMemoryDefaultThreshold);
   }
 
-  columnarToRowConverter->convert(cb, rowId, column2RowMemThreshold);
+  // Convert the native batch to Spark unsafe row.
+  return ctx->saveObject(ctx->createColumnar2RowConverter(column2RowMemThreshold));
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT jobject JNICALL
+Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToRowConvert( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong c2rHandle,
+    jlong batchHandle,
+    jlong startRow) {
+  JNI_METHOD_START
+  auto columnarToRowConverter = ObjectStore::retrieve<ColumnarToRowConverter>(c2rHandle);
+  auto cb = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
+
+  columnarToRowConverter->convert(cb, startRow);
 
   const auto& offsets = columnarToRowConverter->getOffsets();
   const auto& lengths = columnarToRowConverter->getLengths();
