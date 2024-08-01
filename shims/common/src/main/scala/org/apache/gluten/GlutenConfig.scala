@@ -1504,7 +1504,7 @@ object GlutenConfig {
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
-      .createWithDefault("INFO")
+      .createWithDefault("WARN")
 
   val VALIDATION_PRINT_FAILURE_STACK_ =
     buildConf("spark.gluten.sql.validation.printStackOnFailure")
