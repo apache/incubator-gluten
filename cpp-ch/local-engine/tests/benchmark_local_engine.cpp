@@ -808,7 +808,7 @@ QueryPlanPtr readFromMergeTree(MergeTreeWithSnapshot storage)
 QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, String right_key, size_t block_size = 8192)
 {
     auto join = std::make_shared<TableJoin>(
-        global_context->getSettings(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
+        global_context->getSettingsRef(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
     auto left_columns = left->getCurrentDataStream().header.getColumnsWithTypeAndName();
     auto right_columns = right->getCurrentDataStream().header.getColumnsWithTypeAndName();
     join->setKind(JoinKind::Left);

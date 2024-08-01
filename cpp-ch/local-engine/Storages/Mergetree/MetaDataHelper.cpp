@@ -80,7 +80,7 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
             return;
 
         // Increase the speed of metadata recovery
-        auto max_concurrency = std::max(10UL, SerializedPlanParser::global_context->getSettings().max_threads.value);
+        auto max_concurrency = std::max(10UL, SerializedPlanParser::global_context->getSettingsRef().max_threads.value);
         auto max_threads = std::min(max_concurrency, not_exists_part.size());
         FreeThreadPool thread_pool(
             CurrentMetrics::LocalThread,

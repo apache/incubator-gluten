@@ -55,7 +55,7 @@ std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinTyp
 {
     auto & global_context = SerializedPlanParser::global_context;
     auto table_join = std::make_shared<TableJoin>(
-        global_context->getSettings(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
+        global_context->getSettingsRef(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
 
     std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = JoinUtil::getJoinKindAndStrictness(join_type, is_existence_join);
     table_join->setKind(kind_and_strictness.first);

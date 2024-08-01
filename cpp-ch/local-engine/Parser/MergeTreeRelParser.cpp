@@ -185,7 +185,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
 
     auto ranges = merge_tree_table.extractRange(selected_parts);
     std::string ret;
-    if (context->getSettings().tryGetString("enabled_driver_filter_mergetree_index", ret) && ret == "'true'")
+    if (context->getSettingsRef().tryGetString("enabled_driver_filter_mergetree_index", ret) && ret == "'true'")
         storage->analysisPartsByRanges(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
     else
         storage->wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
