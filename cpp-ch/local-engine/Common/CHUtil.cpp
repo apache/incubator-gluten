@@ -1013,7 +1013,7 @@ void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context,
     // configs cannot be updated per query
     // settings can be updated per query
 
-    auto settings = context->getSettings(); // make a copy
+    auto settings = context->getSettingsCopy(); // make a copy
     initSettings(backend_conf_map, settings);
     updateNewSettings(context, settings);
 }

@@ -140,7 +140,7 @@ protected:
     {
         max_merge_block_size = options->split_size;
         max_sort_buffer_size = options->max_sort_buffer_size;
-        max_merge_block_bytes = SerializedPlanParser::global_context->getSettings().prefer_external_sort_block_bytes;
+        max_merge_block_bytes = SerializedPlanParser::global_context->getSettingsRef().prefer_external_sort_block_bytes;
     }
 public:
     String getName() const override { return "SortBasedPartitionWriter"; }
