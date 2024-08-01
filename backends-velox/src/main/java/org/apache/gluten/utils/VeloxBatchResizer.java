@@ -25,13 +25,13 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-public final class VeloxBatchAppender {
+public final class VeloxBatchResizer {
   public static ColumnarBatchOutIterator create(
-      int minOutputBatchSize, Iterator<ColumnarBatch> in) {
-    final Runtime runtime = Runtimes.contextInstance("VeloxBatchAppender");
+      int minOutputBatchSize, int maxOutputBatchSize, Iterator<ColumnarBatch> in) {
+    final Runtime runtime = Runtimes.contextInstance("VeloxBatchResizer");
     long outHandle =
-        VeloxBatchAppenderJniWrapper.create(runtime)
-            .create(minOutputBatchSize, new ColumnarBatchInIterator(in));
+        VeloxBatchResizerJniWrapper.create(runtime)
+            .create(minOutputBatchSize, maxOutputBatchSize, new ColumnarBatchInIterator(in));
     return new ColumnarBatchOutIterator(runtime, outHandle);
   }
 }
