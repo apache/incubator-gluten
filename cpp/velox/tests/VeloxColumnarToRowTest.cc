@@ -34,7 +34,7 @@ class VeloxColumnarToRowTest : public ::testing::Test, public test::VectorTestBa
   }
 
   void testRowBufferAddr(velox::RowVectorPtr vector, uint8_t* expectArr, int32_t expectArrSize) {
-    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(pool_);
+    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(pool_, 64 << 20);
 
     auto cb = std::make_shared<VeloxColumnarBatch>(vector);
     columnarToRowConverter->convert(cb);
