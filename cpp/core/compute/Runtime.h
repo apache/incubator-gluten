@@ -97,7 +97,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row.
-  virtual std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter() = 0;
+  virtual std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter(int64_t column2RowMemThreshold) = 0;
 
   virtual std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(struct ArrowSchema* cSchema) = 0;
 
