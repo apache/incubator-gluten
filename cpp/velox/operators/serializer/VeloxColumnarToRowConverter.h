@@ -29,17 +29,20 @@ namespace gluten {
 
 class VeloxColumnarToRowConverter final : public ColumnarToRowConverter {
  public:
-  explicit VeloxColumnarToRowConverter(std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool)
-      : ColumnarToRowConverter(), veloxPool_(veloxPool) {}
+  explicit VeloxColumnarToRowConverter(
+      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+      int64_t memThreshold)
+      : ColumnarToRowConverter(), veloxPool_(veloxPool), memThreshold_(memThreshold) {}
 
-  void convert(std::shared_ptr<ColumnarBatch> cb, int64_t rowId = 0, int64_t memoryThreshold = INT64_MAX) override;
+  void convert(std::shared_ptr<ColumnarBatch> cb, int64_t startRow = 0) override;
 
  private:
-  void refreshStates(facebook::velox::RowVectorPtr rowVector, int64_t rowId, int64_t memoryThreshold);
+  void refreshStates(facebook::velox::RowVectorPtr rowVector, int64_t startRow);
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::shared_ptr<facebook::velox::row::UnsafeRowFast> fast_;
   facebook::velox::BufferPtr veloxBuffers_;
+  int64_t memThreshold_;
 };
 
 } // namespace gluten
