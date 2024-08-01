@@ -41,7 +41,7 @@ void VeloxColumnarToRowConverter::refreshStates(
   if (auto fixedRowSize = velox::row::UnsafeRowFast::fixedRowSize(velox::asRowType(rowVector->type()))) {
     if (memoryThreshold < fixedRowSize.value()) {
       memoryThreshold = fixedRowSize.value();
-      LOG(ERROR) << "spark.gluten.sql.columnarToRowMemoryThreshold(" + velox::succinctBytes(memoryThreshold) +
+      LOG(WARNING) << "spark.gluten.sql.columnarToRowMemoryThreshold(" + velox::succinctBytes(memoryThreshold) +
               ") is too small, it can't hold even one row(" + velox::succinctBytes(fixedRowSize.value()) + ")";
     }
     auto rowSize = fixedRowSize.value();
@@ -54,7 +54,7 @@ void VeloxColumnarToRowConverter::refreshStates(
       if (UNLIKELY(totalMemorySize + rowSize > memoryThreshold)) {
         if (i == rowId) {
           memoryThreshold = rowSize;
-          LOG(INFO) << "spark.gluten.sql.columnarToRowMemoryThreshold(" + velox::succinctBytes(memoryThreshold) +
+          LOG(WARNING) << "spark.gluten.sql.columnarToRowMemoryThreshold(" + velox::succinctBytes(memoryThreshold) +
                   ") is too small, it can't hold even one row(" + velox::succinctBytes(rowSize) + ")";
         }
         break;
@@ -68,7 +68,10 @@ void VeloxColumnarToRowConverter::refreshStates(
   if (veloxBuffers_ == nullptr) {
     veloxBuffers_ = velox::AlignedBuffer::allocate<uint8_t>(memoryThreshold, veloxPool_.get());
   }
-
+  if (veloxBuffers_->capacity() < totalMemorySize) {
+    velox::AlignedBuffer::reallocate<uint8_t>(&veloxBuffers_, totalMemorySize);
+  }
+  
   bufferAddress_ = veloxBuffers_->asMutable<uint8_t>();
   memset(bufferAddress_, 0, sizeof(int8_t) * totalMemorySize);
 }
