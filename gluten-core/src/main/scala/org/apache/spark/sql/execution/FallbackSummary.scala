@@ -43,7 +43,7 @@ case class FallbackSummary(
 
 object FallbackSummary {
 
-  //
+  // Construct FallbackSummary from QueryExecution, which may be used by third parties like kyuubi.
   def apply(sparkSession: SparkSession, qe: QueryExecution): FallbackSummary = {
     collectQueryExecutionFallbackSummary(sparkSession, qe)
   }
