@@ -44,6 +44,14 @@ object TaskResources extends TaskListener with Logging {
     SparkShimLoader.getSparkShims.createTestTaskContext(properties)
   }
 
+  implicit private class PropertiesOps(properties: Properties) {
+    def setIfMissing(key: String, value: String): Unit = {
+      if (!properties.containsKey(key)) {
+        properties.setProperty(key, value)
+      }
+    }
+  }
+
   private def setUnsafeTaskContext(): Unit = {
     if (inSparkTask()) {
       throw new UnsupportedOperationException(
@@ -54,6 +62,8 @@ object TaskResources extends TaskListener with Logging {
       case (key, value) if key.startsWith("spark") =>
         properties.put(key, value)
     }
+    properties.setIfMissing("spark.memory.offHeap.enabled", "true")
+    properties.setIfMissing("spark.memory.offHeap.size", "1TB")
     TaskContext.setTaskContext(newUnsafeTaskContext(properties))
   }
 
