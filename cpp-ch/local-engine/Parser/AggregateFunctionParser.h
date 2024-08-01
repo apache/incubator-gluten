@@ -97,7 +97,7 @@ public:
 
     /// Do some preprojections for the function arguments, and return the necessary arguments for the CH function.
     virtual DB::ActionsDAG::NodeRawConstPtrs
-    parseFunctionArguments(const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const;
+    parseFunctionArguments(const CommonFunctionInfo & func_info, DB::ActionsDAG & actions_dag) const;
 
     // `PartialMerge` is applied on the merging stages.
     // `If` is applied when the aggreate function has a filter. This should only happen on the 1st stage.
@@ -109,7 +109,7 @@ public:
     virtual const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
         const CommonFunctionInfo & func_info,
         const DB::ActionsDAG::Node * func_node,
-        DB::ActionsDAGPtr & actions_dag,
+        DB::ActionsDAG & actions_dag,
         bool with_nullability) const;
 
     /// Parameters are only used in aggregate functions at present. e.g. percentiles(0.5)(x).
@@ -129,28 +129,28 @@ protected:
     String getUniqueName(const String & name) const { return plan_parser->getUniqueName(name); }
 
     const DB::ActionsDAG::Node *
-    addColumnToActionsDAG(DB::ActionsDAGPtr & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
+    addColumnToActionsDAG(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
     {
-        return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
+        return &actions_dag.addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
     }
 
     const DB::ActionsDAG::Node *
-    toFunctionNode(DB::ActionsDAGPtr & action_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+    toFunctionNode(DB::ActionsDAG & action_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
     {
         return plan_parser->toFunctionNode(action_dag, func_name, args);
     }
 
     const DB::ActionsDAG::Node * toFunctionNode(
-        DB::ActionsDAGPtr & action_dag,
+        DB::ActionsDAG & action_dag,
         const String & func_name,
         const String & result_name,
         const DB::ActionsDAG::NodeRawConstPtrs & args) const
     {
         auto function_builder = DB::FunctionFactory::instance().get(func_name, getContext());
-        return &action_dag->addFunction(function_builder, args, result_name);
+        return &action_dag.addFunction(function_builder, args, result_name);
     }
 
-    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr actions_dag, const substrait::Expression & rel) const
+    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG& actions_dag, const substrait::Expression & rel) const
     {
         return plan_parser->parseExpression(actions_dag, rel);
     }

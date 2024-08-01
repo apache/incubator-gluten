@@ -20,6 +20,7 @@
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "shuffle/Payload.h"
 #include "shuffle/ShuffleReader.h"
+#include "shuffle/VeloxSortShuffleWriter.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
 
@@ -64,6 +65,8 @@ class VeloxHashShuffleReaderDeserializer final : public ColumnarBatchIterator {
 
 class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
  public:
+  using RowSizeType = VeloxSortShuffleWriter::RowSizeType;
+
   VeloxSortShuffleReaderDeserializer(
       std::shared_ptr<arrow::io::InputStream> in,
       const std::shared_ptr<arrow::Schema>& schema,

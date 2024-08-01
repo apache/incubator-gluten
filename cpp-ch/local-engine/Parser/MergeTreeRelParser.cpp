@@ -179,13 +179,13 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     auto * source_step_with_filter = static_cast<SourceStepWithFilter *>(read_step.get());
     if (const auto & storage_prewhere_info = query_info->prewhere_info)
     {
-        source_step_with_filter->addFilter(storage_prewhere_info->prewhere_actions, storage_prewhere_info->prewhere_column_name);
+        source_step_with_filter->addFilter(storage_prewhere_info->prewhere_actions.clone(), storage_prewhere_info->prewhere_column_name);
         source_step_with_filter->applyFilters();
     }
 
     auto ranges = merge_tree_table.extractRange(selected_parts);
     std::string ret;
-    if (context->getSettings().tryGetString("enabled_driver_filter_mergetree_index", ret) && ret == "'true'")
+    if (context->getSettingsRef().tryGetString("enabled_driver_filter_mergetree_index", ret) && ret == "'true'")
         storage->analysisPartsByRanges(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
     else
         storage->wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
@@ -213,11 +213,11 @@ PrewhereInfoPtr MergeTreeRelParser::parsePreWhereInfo(const substrait::Expressio
     prewhere_info->remove_prewhere_column = true;
 
     for (const auto & name : input.getNames())
-        prewhere_info->prewhere_actions->tryRestoreColumn(name);
+        prewhere_info->prewhere_actions.tryRestoreColumn(name);
     return prewhere_info;
 }
 
-DB::ActionsDAGPtr MergeTreeRelParser::optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, Block & block)
+DB::ActionsDAG MergeTreeRelParser::optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, Block & block)
 {
     Conditions res;
     std::set<Int64> pk_positions;
@@ -238,7 +238,7 @@ DB::ActionsDAGPtr MergeTreeRelParser::optimizePrewhereAction(const substrait::Ex
 
     // filter less size column first
     res.sort();
-    auto filter_action = std::make_shared<ActionsDAG>(block.getNamesAndTypesList());
+    ActionsDAG filter_action{block.getNamesAndTypesList()};
 
     if (res.size() == 1)
     {
@@ -252,28 +252,28 @@ DB::ActionsDAGPtr MergeTreeRelParser::optimizePrewhereAction(const substrait::Ex
         {
             String ignore;
             parseToAction(filter_action, cond.node, ignore);
-            args.emplace_back(&filter_action->getNodes().back());
+            args.emplace_back(&filter_action.getNodes().back());
         }
 
         auto function_builder = FunctionFactory::instance().get("and", context);
         std::string args_name = join(args, ',');
         filter_name = +"and(" + args_name + ")";
-        const auto * and_function = &filter_action->addFunction(function_builder, args, filter_name);
-        filter_action->addOrReplaceInOutputs(*and_function);
+        const auto * and_function = &filter_action.addFunction(function_builder, args, filter_name);
+        filter_action.addOrReplaceInOutputs(*and_function);
     }
 
-    filter_action->removeUnusedActions(Names{filter_name}, false, true);
+    filter_action.removeUnusedActions(Names{filter_name}, false, true);
     return filter_action;
 }
 
-void MergeTreeRelParser::parseToAction(ActionsDAGPtr & filter_action, const substrait::Expression & rel, std::string & filter_name)
+void MergeTreeRelParser::parseToAction(ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name)
 {
     if (rel.has_scalar_function())
         getPlanParser()->parseFunctionWithDAG(rel, filter_name, filter_action, true);
     else
     {
         const auto * in_node = parseExpression(filter_action, rel);
-        filter_action->addOrReplaceInOutputs(*in_node);
+        filter_action.addOrReplaceInOutputs(*in_node);
         filter_name = in_node->result_name;
     }
 }
@@ -423,7 +423,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
     {
         ActionDAGNodes filter_nodes;
         filter_nodes.nodes.emplace_back(
-            &storage_prewhere_info->prewhere_actions->findInOutputs(storage_prewhere_info->prewhere_column_name));
+            &storage_prewhere_info->prewhere_actions.findInOutputs(storage_prewhere_info->prewhere_column_name));
         read_from_mergetree->applyFilters(std::move(filter_nodes));
     }
 

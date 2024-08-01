@@ -754,6 +754,12 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
+  test("Test sum/count function") {
+    runQueryAndCompare("""SELECT sum(2),count(2) from lineitem""".stripMargin) {
+      checkGlutenOperatorMatch[BatchScanExecTransformer]
+    }
+  }
+
   test("Test spark_partition_id function") {
     runQueryAndCompare("""SELECT spark_partition_id(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
@@ -914,6 +920,24 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
     runQueryAndCompare(
       "SELECT regexp_replace(c_comment, '\\w', 'something', 3) FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  testWithSpecifiedSparkVersion("mask", Some("3.4")) {
+    runQueryAndCompare("SELECT mask(c_comment) FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT mask(c_comment, 'Y') FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT mask(c_comment, 'Y', 'y') FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT mask(c_comment, 'Y', 'y', 'o') FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT mask(c_comment, 'Y', 'y', 'o', '*') FROM customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }

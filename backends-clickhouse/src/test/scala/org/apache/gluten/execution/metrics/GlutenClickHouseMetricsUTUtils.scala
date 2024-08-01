@@ -17,7 +17,6 @@
 package org.apache.gluten.execution.metrics
 
 import org.apache.gluten.execution.WholeStageTransformer
-import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators
 import org.apache.gluten.metrics.{MetricsUtil, NativeMetrics}
 import org.apache.gluten.utils.SubstraitPlanPrinterUtil
 import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, GeneralInIterator}
@@ -45,9 +44,7 @@ object GlutenClickHouseMetricsUTUtils {
       SubstraitPlanPrinterUtil.jsonToSubstraitPlan(
         substraitPlanJsonStr.replaceAll("basePath", basePath.substring(1)))
 
-    val mockMemoryAllocator = CHNativeMemoryAllocators.contextInstanceForUT()
     val resIter = CHNativeExpressionEvaluator.createKernelWithBatchIterator(
-      mockMemoryAllocator.getNativeInstanceId,
       substraitPlan.toByteArray,
       new Array[Array[Byte]](0),
       inBatchIters)
@@ -75,7 +72,6 @@ object GlutenClickHouseMetricsUTUtils {
 
     iter.foreach(_.toString)
     resIter.close()
-    mockMemoryAllocator.close()
 
     nativeMetricsList.toSeq
   }

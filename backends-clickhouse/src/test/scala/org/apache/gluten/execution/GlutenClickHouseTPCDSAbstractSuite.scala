@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.benchmarks.GenTPCDSTableScripts
-import org.apache.gluten.utils.UTSystemParameters
+import org.apache.gluten.utils.{Arm, UTSystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
@@ -46,8 +46,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
     rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original"
   protected val queriesResults: String = rootPath + "tpcds-decimal-queries-output"
 
-  /** Return values: (sql num, is fall back, skip fall back assert) */
-  def tpcdsAllQueries(isAqe: Boolean): Seq[(String, Boolean, Boolean)] =
+  /** Return values: (sql num, is fall back) */
+  def tpcdsAllQueries(isAqe: Boolean): Seq[(String, Boolean)] =
     Range
       .inclusive(1, 99)
       .flatMap(
@@ -57,24 +57,24 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
           } else {
             Seq("q" + "%d".format(queryNum))
           }
-          val noFallBack = queryNum match {
-            case i if i == 10 || i == 16 || i == 35 || i == 45 || i == 94 =>
-              // Q10 BroadcastHashJoin, ExistenceJoin
-              // Q16 ShuffledHashJoin, NOT condition
-              // Q35 BroadcastHashJoin, ExistenceJoin
-              // Q45 BroadcastHashJoin, ExistenceJoin
-              // Q94 BroadcastHashJoin, LeftSemi, NOT condition
-              (false, false)
-            case other => (true, false)
-          }
-          sqlNums.map((_, noFallBack._1, noFallBack._2))
+          val native = !fallbackSets(isAqe).contains(queryNum)
+          sqlNums.map((_, native))
         })
 
-  // FIXME "q17", stddev_samp inconsistent results, CH return NaN, Spark return null
+  protected def fallbackSets(isAqe: Boolean): Set[Int] = {
+    val more = if (isSparkVersionGE("3.5")) Set(44, 67, 70) else Set.empty[Int]
+
+    // q16 smj + left semi + not condition
+    // Q94 BroadcastHashJoin, LeftSemi, NOT condition
+    if (isAqe) {
+      Set(16, 94) | more
+    } else {
+      // q10, q35 smj + existence join
+      Set(10, 16, 35, 94) | more
+    }
+  }
   protected def excludedTpcdsQueries: Set[String] = Set(
-    "q61", // inconsistent results
-    "q66", // inconsistent results
-    "q67" // inconsistent results
+    "q66" // inconsistent results
   )
 
   def executeTPCDSTest(isAqe: Boolean): Unit = {
@@ -82,11 +82,12 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       s =>
         if (excludedTpcdsQueries.contains(s._1)) {
           ignore(s"TPCDS ${s._1.toUpperCase()}") {
-            runTPCDSQuery(s._1, noFallBack = s._2, skipFallBackAssert = s._3) { df => }
+            runTPCDSQuery(s._1, noFallBack = s._2) { df => }
           }
         } else {
-          test(s"TPCDS ${s._1.toUpperCase()}") {
-            runTPCDSQuery(s._1, noFallBack = s._2, skipFallBackAssert = s._3) { df => }
+          val tag = if (s._2) "Native" else "Fallback"
+          test(s"TPCDS[$tag] ${s._1.toUpperCase()}") {
+            runTPCDSQuery(s._1, noFallBack = s._2) { df => }
           }
         })
   }
@@ -151,7 +152,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
   }
 
   override protected def afterAll(): Unit = {
-    ClickhouseSnapshot.clearAllFileStatusCache
+    ClickhouseSnapshot.clearAllFileStatusCache()
     DeltaLog.clearCache()
 
     try {
@@ -182,11 +183,10 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       tpcdsQueries: String = tpcdsQueries,
       queriesResults: String = queriesResults,
       compareResult: Boolean = true,
-      noFallBack: Boolean = true,
-      skipFallBackAssert: Boolean = false)(customCheck: DataFrame => Unit): Unit = {
+      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
 
     val sqlFile = tpcdsQueries + "/" + queryNum + ".sql"
-    val sql = Source.fromFile(new File(sqlFile), "UTF-8").mkString
+    val sql = Arm.withResource(Source.fromFile(new File(sqlFile), "UTF-8"))(_.mkString)
     val df = spark.sql(sql)
 
     if (compareResult) {
@@ -211,13 +211,13 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       // using WARN to guarantee printed
       log.warn(s"query: $queryNum, finish comparing with saved result")
     } else {
-      val start = System.currentTimeMillis();
+      val start = System.currentTimeMillis()
       val ret = df.collect()
       // using WARN to guarantee printed
       log.warn(s"query: $queryNum skipped comparing, time cost to collect: ${System
           .currentTimeMillis() - start} ms, ret size: ${ret.length}")
     }
-    WholeStageTransformerSuite.checkFallBack(df, noFallBack, skipFallBackAssert)
+    WholeStageTransformerSuite.checkFallBack(df, noFallBack)
     customCheck(df)
   }
 }

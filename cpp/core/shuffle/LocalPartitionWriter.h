@@ -83,7 +83,7 @@ class LocalPartitionWriter : public PartitionWriter {
 
   arrow::Status requestSpill(bool isFinal);
 
-  arrow::Status finishSpill();
+  arrow::Status finishSpill(bool close);
 
   std::string nextSpilledFileDir();
 
@@ -94,8 +94,6 @@ class LocalPartitionWriter : public PartitionWriter {
   arrow::Status clearResource();
 
   arrow::Status populateMetrics(ShuffleWriterMetrics* metrics);
-
-  bool useSpillFileAsDataFile();
 
   std::string dataFile_;
   std::vector<std::string> localDirs_;
@@ -113,10 +111,9 @@ class LocalPartitionWriter : public PartitionWriter {
   std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
 
   int64_t totalBytesEvicted_{0};
-  int64_t totalBytesWritten_{0};
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_;
 
-  uint32_t lastEvictPid_{0};
+  int32_t lastEvictPid_{-1};
 };
 } // namespace gluten

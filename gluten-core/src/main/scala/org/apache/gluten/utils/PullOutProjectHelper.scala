@@ -22,8 +22,10 @@ import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.execution.aggregate._
+import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.types.{ByteType, DateType, IntegerType, LongType, ShortType}
 
+import java.sql.Date
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable
@@ -161,13 +163,31 @@ trait PullOutProjectHelper {
       case _: PreComputeRangeFrameBound => bound
       case _ if !bound.foldable => bound
       case _ if bound.foldable =>
+        val orderExpr = if (expressionMap.contains(orderSpec.child)) {
+          expressionMap(orderSpec.child).asInstanceOf[Alias].child
+        } else {
+          orderSpec.child
+        }
         val a = expressionMap
           .getOrElseUpdate(
             bound.canonicalized,
-            Alias(Add(orderSpec.child, bound), generatePreAliasName)())
+            Alias(Add(orderExpr, bound), generatePreAliasName)())
         PreComputeRangeFrameBound(a.asInstanceOf[Alias], bound)
     }
   }
+
+  protected def windowNeedPreComputeRangeFrame(w: WindowExec): Boolean =
+    w.windowExpression.exists(_.find {
+      case we: WindowExpression =>
+        we.windowSpec.frameSpecification match {
+          case swf: SpecifiedWindowFrame
+              if needPreComputeRangeFrame(swf) && supportPreComputeRangeFrame(
+                we.windowSpec.orderSpec) =>
+            true
+          case _ => false
+        }
+      case _ => false
+    }.isDefined)
 
   protected def needPreComputeRangeFrame(swf: SpecifiedWindowFrame): Boolean = {
     BackendsApiManager.getSettings.needPreComputeRangeFrameBoundary &&
@@ -182,6 +202,36 @@ trait PullOutProjectHelper {
         // Only integral type & date type are supported for sort key with Range Frame
         case _ => false
       }
+    }
+  }
+
+  /**
+   * Convert DateType to IntType for orderSpec if needPreComputeRangeFrame, because spark's frame
+   * type does not support DateType. It does not affect the correctness of sort.
+   */
+  protected def rewriteOrderSpecs(
+      window: WindowExec,
+      orderSpecs: Seq[SortOrder],
+      expressionMap: mutable.HashMap[Expression, NamedExpression]): Seq[SortOrder] = {
+    if (windowNeedPreComputeRangeFrame(window)) {
+      // This is guaranteed by Spark, but we still check it here
+      if (orderSpecs.size != 1) {
+        throw new GlutenException(
+          s"A range window frame with value boundaries expects one and only one " +
+            s"order by expression: ${orderSpecs.mkString(",")}")
+      }
+      val orderSpec = orderSpecs.head
+      orderSpec.child.dataType match {
+        case DateType =>
+          val alias = Alias(
+            DateDiff(orderSpec.child, Literal(Date.valueOf("1970-01-01"))),
+            generatePreAliasName)()
+          expressionMap.getOrElseUpdate(alias.toAttribute, alias)
+          Seq(orderSpec.copy(child = alias.toAttribute))
+        case _ => orderSpecs
+      }
+    } else {
+      orderSpecs
     }
   }
 
@@ -202,12 +252,6 @@ trait PullOutProjectHelper {
 
     val newWindowSpec = we.windowSpec.frameSpecification match {
       case swf: SpecifiedWindowFrame if needPreComputeRangeFrame(swf) =>
-        // This is guaranteed by Spark, but we still check it here
-        if (orderSpecs.size != 1) {
-          throw new GlutenException(
-            s"A range window frame with value boundaries expects one and only one " +
-              s"order by expression: ${orderSpecs.mkString(",")}")
-        }
         val orderSpec = orderSpecs.head
         val lowerFrameCol = preComputeRangeFrameBoundary(swf.lower, orderSpec, expressionMap)
         val upperFrameCol = preComputeRangeFrameBoundary(swf.upper, orderSpec, expressionMap)

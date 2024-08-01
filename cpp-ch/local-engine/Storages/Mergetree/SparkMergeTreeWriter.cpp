@@ -26,6 +26,7 @@
 #include <Storages/Mergetree/MetaDataHelper.h>
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Common/CHUtil.h>
+#include <Common/QueryContext.h>
 
 
 namespace CurrentMetrics
@@ -111,9 +112,10 @@ bool SparkMergeTreeWriter::useLocalStorage() const
 void SparkMergeTreeWriter::write(const DB::Block & block)
 {
     auto new_block = removeColumnSuffix(block);
-    if (auto converter = ActionsDAG::makeConvertingActions(
-            new_block.getColumnsWithTypeAndName(), header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Position))
-        ExpressionActions(converter).execute(new_block);
+    auto converter = ActionsDAG::makeConvertingActions(
+            new_block.getColumnsWithTypeAndName(), header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Position);
+    const ExpressionActions expression_actions{std::move(converter)};
+    expression_actions.execute(new_block);
 
     bool has_part = chunkToPart(squashing->add({new_block.getColumns(), new_block.rows()}));
 
@@ -149,43 +151,12 @@ bool SparkMergeTreeWriter::blockToPart(Block & block)
 
         new_parts.emplace_back(writeTempPartAndFinalize(item, metadata_snapshot).part);
         part_num++;
-        manualFreeMemory(before_write_memory);
         /// Reset earlier to free memory
         item.block.clear();
         item.partition.clear();
     }
 
     return true;
-}
-
-void SparkMergeTreeWriter::manualFreeMemory(size_t before_write_memory)
-{
-    // If mergetree disk is not local fs, like remote fs s3 or hdfs,
-    // it may alloc memory in current thread, and free on global thread.
-    // Now, wo have not idea to clear global memory by used spark thread tracker.
-    // So we manually correct the memory usage.
-    if (isRemoteStorage && insert_without_local_storage)
-        return;
-
-    auto disk = storage->getStoragePolicy()->getAnyDisk();
-    std::lock_guard lock(memory_mutex);
-    auto * memory_tracker = CurrentThread::getMemoryTracker();
-    if (memory_tracker && CurrentMemoryTracker::before_free)
-    {
-        CurrentThread::flushUntrackedMemory();
-        const size_t ch_alloc = memory_tracker->get();
-        if (disk->getName().contains("s3") && context->getSettings().s3_allow_parallel_part_upload && ch_alloc > before_write_memory)
-        {
-            const size_t diff_ch_alloc = before_write_memory - ch_alloc;
-            memory_tracker->adjustWithUntrackedMemory(diff_ch_alloc);
-        }
-
-        const size_t spark_alloc = CurrentMemoryTracker::current_memory();
-        const size_t diff_alloc = spark_alloc - memory_tracker->get();
-
-        if (diff_alloc > 0)
-            CurrentMemoryTracker::before_free(diff_alloc);
-    }
 }
 
 void SparkMergeTreeWriter::finalize()
@@ -231,42 +202,24 @@ void SparkMergeTreeWriter::commitPartToRemoteStorageIfNeeded()
     auto read_settings = context->getReadSettings();
     auto write_settings = context->getWriteSettings();
     Stopwatch watch;
-
-    // Temporary support for S3
-    bool s3_disk = dest_storage->getStoragePolicy()->getAnyDisk()->getName().contains("s3");
     for (const auto & merge_tree_data_part : new_parts.unsafeGet())
     {
         String local_relative_path = storage->getRelativeDataPath() + "/" + merge_tree_data_part->name;
         String remote_relative_path = dest_storage->getRelativeDataPath() + "/" + merge_tree_data_part->name;
 
-        if (s3_disk)
+        std::vector<String> files;
+        storage->getStoragePolicy()->getAnyDisk()->listFiles(local_relative_path, files);
+        auto src_disk = storage->getStoragePolicy()->getAnyDisk();
+        auto dest_disk = dest_storage->getStoragePolicy()->getAnyDisk();
+        auto tx = dest_disk->createTransaction();
+        for (const auto & file : files)
         {
-            storage->getStoragePolicy()->getAnyDisk()->copyDirectoryContent(
-            local_relative_path,
-            dest_storage->getStoragePolicy()->getAnyDisk(),
-            remote_relative_path,
-            read_settings,
-            write_settings,
-            nullptr);
+            auto read_buffer = src_disk->readFile(local_relative_path + "/" + file, read_settings);
+            auto write_buffer = tx->writeFile(remote_relative_path + "/" + file, DBMS_DEFAULT_BUFFER_SIZE, WriteMode::Rewrite, write_settings);
+            copyData(*read_buffer, *write_buffer);
+            write_buffer->finalize();
         }
-        else
-        {
-            std::vector<String> files;
-            storage->getStoragePolicy()->getAnyDisk()->listFiles(local_relative_path, files);
-            auto src_disk = storage->getStoragePolicy()->getAnyDisk();
-            auto dest_disk = dest_storage->getStoragePolicy()->getAnyDisk();
-            auto tx = dest_disk->createTransaction();
-            for (const auto & file : files)
-            {
-                auto read_buffer = src_disk->readFile(local_relative_path + "/" + file, read_settings);
-                auto write_buffer = tx->writeFile(remote_relative_path + "/" + file, DBMS_DEFAULT_BUFFER_SIZE, WriteMode::Rewrite, write_settings);
-                copyData(*read_buffer, *write_buffer);
-                write_buffer->finalize();
-            }
-            tx->commit();
-        }
-
-
+        tx->commit();
         LOG_DEBUG(
             &Poco::Logger::get("SparkMergeTreeWriter"),
             "Upload part {} to disk {} success.",
@@ -523,15 +476,14 @@ void SparkMergeTreeWriter::checkAndMerge(bool force)
     {
         for (const auto & selected_part : prepare_merge_parts)
             tmp_parts.emplace(selected_part->name);
-
+        // check thread group initailized in task thread
+        currentThreadGroupMemoryUsage();
         thread_pool.scheduleOrThrow(
             [this, prepare_merge_parts, thread_group = CurrentThread::getGroup()]() -> void
             {
                 Stopwatch watch;
-                setThreadName("InsertWithMerge");
-                ThreadStatus thread_status;
-                thread_status.attachToGroup(thread_group);
-
+                CurrentThread::detachFromGroupIfNotDetached();
+                CurrentThread::attachToGroup(thread_group);
                 size_t before_size = 0;
                 size_t after_size = 0;
                 for (const auto & prepare_merge_part : prepare_merge_parts)

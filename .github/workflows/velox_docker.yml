@@ -296,7 +296,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q67,q95 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen-strategy=skip -m=OffHeapExecutionMemory \
+            --data-gen=skip -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
             -d=OFFHEAP_SIZE:6g,spark.memory.offHeap.size=6g \
             -d=OFFHEAP_SIZE:4g,spark.memory.offHeap.size=4g \
@@ -308,7 +308,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q67 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen-strategy=skip -m=OffHeapExecutionMemory \
+            --data-gen=skip -m=OffHeapExecutionMemory \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
             -d=OFFHEAP_SIZE:6g,spark.memory.offHeap.size=6g \
             -d=OFFHEAP_SIZE:4g,spark.memory.offHeap.size=4g \
@@ -319,7 +319,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q95 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen-strategy=skip -m=OffHeapExecutionMemory \
+            --data-gen=skip -m=OffHeapExecutionMemory \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
             -d=OFFHEAP_SIZE:6g,spark.memory.offHeap.size=6g \
             -d=OFFHEAP_SIZE:4g,spark.memory.offHeap.size=4g \
@@ -330,7 +330,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q23a,q23b -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen-strategy=skip -m=OffHeapExecutionMemory \
+            --data-gen=skip -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
             -d=OFFHEAP_SIZE:2g,spark.memory.offHeap.size=2g \
             -d=FLUSH_MODE:DISABLED,spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
@@ -341,7 +341,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q23a,q23b -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen-strategy=skip -m=OffHeapExecutionMemory \
+            --data-gen=skip -m=OffHeapExecutionMemory \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
             -d=OFFHEAP_SIZE:2g,spark.memory.offHeap.size=2g \
             -d=FLUSH_MODE:DISABLED,spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
@@ -352,7 +352,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q97 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen-strategy=skip -m=OffHeapExecutionMemory \
+            --data-gen=skip -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
             -d=OFFHEAP_SIZE:2g,spark.memory.offHeap.size=2g \
@@ -408,7 +408,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries \
             --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen-strategy=skip  --random-kill-tasks --no-session-reuse
+            --data-gen=skip  --random-kill-tasks --no-session-reuse
 
   # run-tpc-test-ubuntu-sf30:
   #   needs: build-native-lib-centos-7
@@ -457,10 +457,10 @@ jobs:
   #         cd tools/gluten-it \
   #         && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
   #           --local --preset=velox --benchmark-type=h --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-  #           --data-gen-strategy=skip --shard=${{ matrix.shard }} \
+  #           --data-gen=skip --shard=${{ matrix.shard }} \
   #         && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
   #           --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-  #           --data-gen-strategy=skip --shard=${{ matrix.shard }}
+  #           --data-gen=skip --shard=${{ matrix.shard }}
 
   run-tpc-test-centos8-uniffle:
     needs: build-native-lib-centos-7
@@ -492,38 +492,39 @@ jobs:
           wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
-      - name: Build for Spark ${{ matrix.spark }}
-        run: |
-          cd $GITHUB_WORKSPACE/ && \
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
-          $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Puniffle -DskipTests
-      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with uniffle 0.8.0
+      - name: Build for Uniffle 0.9.0
         run: |
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd /opt && \
-          git clone -b branch-0.8 https://github.com/apache/incubator-uniffle.git && \
+          git clone -b v0.9.0 https://github.com/apache/incubator-uniffle.git && \
           cd incubator-uniffle && \
-          sed -i '250d' ./server/src/main/java/org/apache/uniffle/server/ShuffleTaskManager.java && \
-          sed -i '228d' ./server/src/main/java/org/apache/uniffle/server/ShuffleTaskManager.java && \
-          sed -i '226d' ./server/src/main/java/org/apache/uniffle/server/ShuffleTaskManager.java && \
-          $MVN_CMD clean install -Phadoop2.8 -DskipTests
+          $MVN_CMD clean install -Phadoop2.8,spark3 -DskipTests
           cd /opt && \
-          wget -nv https://archive.apache.org/dist/incubator/uniffle/0.8.0/apache-uniffle-0.8.0-incubating-bin.tar.gz && \
-          tar xzf apache-uniffle-0.8.0-incubating-bin.tar.gz -C /opt/ && mv /opt/rss-0.8.0-hadoop2.8 /opt/uniffle && \
+          wget -nv https://archive.apache.org/dist/incubator/uniffle/0.9.0/apache-uniffle-0.9.0-incubating-bin.tar.gz && \
+          tar xzf apache-uniffle-0.9.0-incubating-bin.tar.gz -C /opt/ && mv /opt/rss-0.9.0-hadoop2.8 /opt/uniffle && \
           wget -nv https://archive.apache.org/dist/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz && \
           tar xzf hadoop-2.8.5.tar.gz -C /opt/
-          rm -f /opt/uniffle/jars/server/shuffle-server-0.8.0-SNAPSHOT.jar
-          cp /opt/incubator-uniffle/server/target/shuffle-server-0.8.1-SNAPSHOT.jar /opt/uniffle/jars/server/
           rm -rf /opt/incubator-uniffle
           cd /opt/uniffle && mkdir shuffle_data && \
           bash -c "echo -e 'XMX_SIZE=16g\nHADOOP_HOME=/opt/hadoop-2.8.5' > ./bin/rss-env.sh" && \
           bash -c "echo -e 'rss.coordinator.shuffle.nodes.max 1\nrss.rpc.server.port 19999' > ./conf/coordinator.conf" && \
-          bash -c "echo -e 'rss.server.app.expired.withoutHeartbeat 7200000\nrss.server.heartbeat.delay 3000\nrss.rpc.server.port 19997\nrss.jetty.http.port 19996\nrss.server.netty.port 19995\nrss.storage.basePath /opt/uniffle/shuffle_data\nrss.storage.type MEMORY_LOCALFILE\nrss.coordinator.quorum localhost:19999\nrss.server.flush.thread.alive 10\nrss.server.single.buffer.flush.threshold 64m' > ./conf/server.conf" && \
+          bash -c "echo -e 'rss.server.app.expired.withoutHeartbeat 7200000\nrss.server.heartbeat.delay 3000\nrss.rpc.server.port 19997\nrss.rpc.server.type GRPC_NETTY\nrss.jetty.http.port 19996\nrss.server.netty.port 19995\nrss.storage.basePath /opt/uniffle/shuffle_data\nrss.storage.type MEMORY_LOCALFILE\nrss.coordinator.quorum localhost:19999\nrss.server.flush.thread.alive 10\nrss.server.single.buffer.flush.threshold 64m' > ./conf/server.conf" && \
           bash ./bin/start-coordinator.sh && bash ./bin/start-shuffle-server.sh
-          cd $GITHUB_WORKSPACE/tools/gluten-it && $MVN_CMD clean install -Pspark-3.2 -Puniffle && \
+      - name: Build for Spark ${{ matrix.spark }}
+        run: |
+          export MAVEN_HOME=/usr/lib/maven && \
+          export PATH=${PATH}:${MAVEN_HOME}/bin && \
+          cd $GITHUB_WORKSPACE/ && \
+          $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Puniffle -DskipTests
+      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with uniffle-0.9.0
+        run: |
+          export MAVEN_HOME=/usr/lib/maven && \
+          export PATH=${PATH}:${MAVEN_HOME}/bin && \
+          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
+          cd $GITHUB_WORKSPACE/tools/gluten-it && \
+          $MVN_CMD clean install -Pspark-3.2 -Puniffle  && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-uniffle --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1
 
@@ -533,7 +534,7 @@ jobs:
       fail-fast: false
       matrix:
         spark: [ "spark-3.2" ]
-        celeborn: [ "celeborn-0.5.0", "celeborn-0.4.1", "celeborn-0.3.2-incubating" ]
+        celeborn: [ "celeborn-0.5.1", "celeborn-0.4.2", "celeborn-0.3.2-incubating" ]
     runs-on: ubuntu-20.04
     container: ubuntu:22.04
     steps:
@@ -564,9 +565,9 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with ${{ matrix.celeborn }}
         run: |
           EXTRA_PROFILE=""
-          if [ "${{ matrix.celeborn }}" = "celeborn-0.4.1" ]; then
+          if [ "${{ matrix.celeborn }}" = "celeborn-0.4.2" ]; then
             EXTRA_PROFILE="-Pceleborn-0.4"
-          elif [ "${{ matrix.celeborn }}" = "celeborn-0.5.0" ]; then
+          elif [ "${{ matrix.celeborn }}" = "celeborn-0.5.1" ]; then
             EXTRA_PROFILE="-Pceleborn-0.5"
           fi
           echo "EXTRA_PROFILE: ${EXTRA_PROFILE}"

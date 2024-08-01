@@ -137,7 +137,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf
       .getConfString("spark.celeborn.client.spark.shuffle.writer", GLUTEN_HASH_SHUFFLE_WRITER)
       .toLowerCase(Locale.ROOT)
-      .replace(GLUTEN_SORT_SHUFFLE_WRITER, GLUTEN_RSS_SORT_SHUFFLE_WRITER)
 
   def enableColumnarShuffle: Boolean = conf.getConf(COLUMNAR_SHUFFLE_ENABLED)
 
@@ -318,8 +317,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
       .getOrElse(defaultSize)
   }
 
-  def chColumnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED)
-
   def chColumnarShuffleSpillThreshold: Long = {
     val threshold = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
     if (threshold == 0) {
@@ -329,18 +326,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
-  def chColumnarThrowIfMemoryExceed: Boolean = conf.getConf(COLUMNAR_CH_THROW_IF_MEMORY_EXCEED)
-
-  def chColumnarFlushBlockBufferBeforeEvict: Boolean =
-    conf.getConf(COLUMNAR_CH_FLUSH_BLOCK_BUFFER_BEFORE_EVICT)
-
   def chColumnarMaxSortBufferSize: Long = conf.getConf(COLUMNAR_CH_MAX_SORT_BUFFER_SIZE)
-
-  def chColumnarSpillFirstlyBeforeStop: Boolean =
-    conf.getConf(COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP)
-
-  def chColumnarForceExternalSortShuffle: Boolean =
-    conf.getConf(COLUMNAR_CH_FORCE_EXTERNAL_SORT_SHUFFLE)
 
   def chColumnarForceMemorySortShuffle: Boolean =
     conf.getConf(COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE)
@@ -1482,16 +1468,6 @@ object GlutenConfig {
       .intConf
       .createOptional
 
-  val COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED =
-    buildConf("spark.gluten.sql.columnar.backend.ch.shuffle.preferSpill")
-      .internal()
-      .doc(
-        "Whether to spill the partition buffers when buffers are full. " +
-          "If false, the partition buffers will be cached in memory first, " +
-          "and the cached buffers will be spilled when reach maximum memory.")
-      .booleanConf
-      .createWithDefault(false)
-
   val COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.backend.ch.spillThreshold")
       .internal()
@@ -1499,40 +1475,12 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0MB")
 
-  val COLUMNAR_CH_THROW_IF_MEMORY_EXCEED =
-    buildConf("spark.gluten.sql.columnar.backend.ch.throwIfMemoryExceed")
-      .internal()
-      .doc("Throw exception if memory exceeds threshold on ch backend.")
-      .booleanConf
-      .createWithDefault(true)
-
-  val COLUMNAR_CH_FLUSH_BLOCK_BUFFER_BEFORE_EVICT =
-    buildConf("spark.gluten.sql.columnar.backend.ch.flushBlockBufferBeforeEvict")
-      .internal()
-      .doc("Whether to flush partition_block_buffer before execute evict in CH PartitionWriter.")
-      .booleanConf
-      .createWithDefault(false)
-
   val COLUMNAR_CH_MAX_SORT_BUFFER_SIZE =
     buildConf("spark.gluten.sql.columnar.backend.ch.maxSortBufferSize")
       .internal()
       .doc("The maximum size of sort shuffle buffer in CH backend.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0")
-
-  val COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP =
-    buildConf("spark.gluten.sql.columnar.backend.ch.spillFirstlyBeforeStop")
-      .internal()
-      .doc("Whether to spill the sort buffers before stopping the shuffle writer.")
-      .booleanConf
-      .createWithDefault(true)
-
-  val COLUMNAR_CH_FORCE_EXTERNAL_SORT_SHUFFLE =
-    buildConf("spark.gluten.sql.columnar.backend.ch.forceExternalSortShuffle")
-      .internal()
-      .doc("Whether to force to use external sort shuffle in CH backend. ")
-      .booleanConf
-      .createWithDefault(false)
 
   val COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE =
     buildConf("spark.gluten.sql.columnar.backend.ch.forceMemorySortShuffle")
@@ -1569,7 +1517,7 @@ object GlutenConfig {
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
-      .createWithDefault("INFO")
+      .createWithDefault("WARN")
 
   val VALIDATION_PRINT_FAILURE_STACK_ =
     buildConf("spark.gluten.sql.validation.printStackOnFailure")

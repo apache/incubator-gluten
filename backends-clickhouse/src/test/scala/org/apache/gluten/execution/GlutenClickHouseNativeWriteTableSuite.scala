@@ -603,7 +603,7 @@ class GlutenClickHouseNativeWriteTableSuite
       ("timestamp_field", "timestamp")
     )
     def excludeTimeFieldForORC(format: String): Seq[String] = {
-      if (format.equals("orc") && isSparkVersionGE("3.4")) {
+      if (format.equals("orc") && isSparkVersionGE("3.5")) {
         // FIXME:https://github.com/apache/incubator-gluten/pull/6507
         fields.keys.filterNot(_.equals("timestamp_field")).toSeq
       } else {
@@ -903,33 +903,17 @@ class GlutenClickHouseNativeWriteTableSuite
                | ) partitioned by (day string)
                | stored as $format""".stripMargin
 
-          // FIXME:
-          // Spark analyzer(>=3.4) will resolve map type to
-          //   map_from_arrays(transform(map_keys(map('t1','a','t2','b')), v->v),
-          //                   transform(map_values(map('t1','a','t2','b')), v->v))
-          // which cause core dump. see https://github.com/apache/incubator-gluten/issues/6561
-          // for details.
           val insert_sql =
-            if (isSparkVersionLE("3.3")) {
-              s"""insert overwrite $table_name partition (day)
-                 |select id as a,
-                 |       str_to_map(concat('t1:','a','&t2:','b'),'&',':'),
-                 |       struct('1', null) as c,
-                 |       '2024-01-08' as day
-                 |from range(10)""".stripMargin
-            } else {
-              s"""insert overwrite $table_name partition (day)
-                 |select id as a,
-                 |       map('t1', 'a', 't2', 'b'),
-                 |       struct('1', null) as c,
-                 |       '2024-01-08' as day
-                 |from range(10)""".stripMargin
-            }
+            s"""insert overwrite $table_name partition (day)
+               |select id as a,
+               |       str_to_map(concat('t1:','a','&t2:','b'),'&',':'),
+               |       struct('1', null) as c,
+               |       '2024-01-08' as day
+               |from range(10)""".stripMargin
           (table_name, create_sql, insert_sql)
       },
       (table_name, _) =>
-        if (isSparkVersionGE("3.4")) {
-          // FIXME: Don't Know Why Failed
+        if (isSparkVersionGE("3.5")) {
           compareResultsAgainstVanillaSpark(
             s"select * from $table_name",
             compareResult = true,

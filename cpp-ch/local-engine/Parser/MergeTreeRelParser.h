@@ -100,9 +100,9 @@ public:
     std::unordered_map<std::string, UInt64> column_sizes;
 
 private:
-    void parseToAction(ActionsDAGPtr & filter_action, const substrait::Expression & rel, std::string & filter_name);
+    void parseToAction(ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name);
     PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input);
-    ActionsDAGPtr optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, Block & block);
+    ActionsDAG optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, Block & block);
     String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func);
     void collectColumns(const substrait::Expression & rel, NameSet & columns, Block & block);
     UInt64 getColumnsSize(const NameSet & columns);

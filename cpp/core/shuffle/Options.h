@@ -35,9 +35,12 @@ static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
 static constexpr double kDefaultMergeBufferThreshold = 0.25;
 static constexpr bool kEnableBufferedWrite = true;
+static constexpr bool kDefaultUseRadixSort = true;
+static constexpr int32_t kDefaultSortBufferSize = 4096;
 
 enum ShuffleWriterType { kHashShuffle, kSortShuffle, kRssSortShuffle };
 enum PartitionWriterType { kLocal, kRss };
+enum SortAlgorithm { kRadixSort, kQuickSort };
 
 struct ShuffleReaderOptions {
   arrow::Compression::type compressionType = arrow::Compression::type::LZ4_FRAME;
@@ -56,6 +59,10 @@ struct ShuffleWriterOptions {
   int32_t startPartitionId = 0;
   int64_t threadId = -1;
   ShuffleWriterType shuffleWriterType = kHashShuffle;
+
+  // Sort shuffle writer.
+  int32_t sortBufferInitialSize = kDefaultSortBufferSize;
+  bool useRadixSort = kDefaultUseRadixSort;
 };
 
 struct PartitionWriterOptions {

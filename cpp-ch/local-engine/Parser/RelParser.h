@@ -59,16 +59,16 @@ protected:
     // Get coresponding function name in ClickHouse.
     std::optional<String> parseFunctionName(UInt32 function_ref, const substrait::Expression_ScalarFunction & function);
 
-    const DB::ActionsDAG::Node * parseArgument(ActionsDAGPtr action_dag, const substrait::Expression & rel)
+    const DB::ActionsDAG::Node * parseArgument(ActionsDAG& action_dag, const substrait::Expression & rel)
     {
         return plan_parser->parseExpression(action_dag, rel);
     }
 
-    const DB::ActionsDAG::Node * parseExpression(ActionsDAGPtr action_dag, const substrait::Expression & rel)
+    const DB::ActionsDAG::Node * parseExpression(ActionsDAG& action_dag, const substrait::Expression & rel)
     {
         return plan_parser->parseExpression(action_dag, rel);
     }
-    DB::ActionsDAGPtr expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header)
+    DB::ActionsDAG expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header)
     {
         return plan_parser->expressionsToActionsDAG(expressions, header, header);
     }
@@ -77,7 +77,7 @@ protected:
     std::vector<IQueryPlanStep *> steps;
 
     const ActionsDAG::Node *
-    buildFunctionNode(ActionsDAGPtr action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
+    buildFunctionNode(ActionsDAG& action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
     {
         return plan_parser->toFunctionNode(action_dag, function, args);
     }

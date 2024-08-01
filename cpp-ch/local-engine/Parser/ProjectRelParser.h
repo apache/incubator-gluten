@@ -27,9 +27,9 @@ class ProjectRelParser : public RelParser
 public:
     struct SplittedActionsDAGs
     {
-        ActionsDAGPtr before_array_join; /// Optional
-        ActionsDAGPtr array_join;
-        ActionsDAGPtr after_array_join;  /// Optional
+        ActionsDAG before_array_join; /// Optional
+        ActionsDAG array_join;
+        ActionsDAG after_array_join;  /// Optional
     };
 
     explicit ProjectRelParser(SerializedPlanParser * plan_paser_);
@@ -44,10 +44,10 @@ private:
     DB::QueryPlanPtr parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_);
     DB::QueryPlanPtr parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_);
 
-    static const DB::ActionsDAG::Node * findArrayJoinNode(ActionsDAGPtr actions_dag);
+    static const DB::ActionsDAG::Node * findArrayJoinNode(const ActionsDAG& actions_dag);
 
     /// Split actions_dag of generate rel into 3 parts: before array join + during array join + after array join
-    static SplittedActionsDAGs splitActionsDAGInGenerate(ActionsDAGPtr actions_dag);
+    static SplittedActionsDAGs splitActionsDAGInGenerate(const ActionsDAG& actions_dag);
 
     bool isReplicateRows(substrait::GenerateRel rel);
 

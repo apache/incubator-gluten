@@ -131,6 +131,7 @@ object ExpressionNames {
   final val LEVENSHTEIN = "levenshtein"
   final val UNBASE64 = "unbase64"
   final val BASE64 = "base64"
+  final val MASK = "mask"
 
   // URL functions
   final val PARSE_URL = "parse_url"
