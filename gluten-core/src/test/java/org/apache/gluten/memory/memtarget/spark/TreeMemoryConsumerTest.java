@@ -26,6 +26,7 @@ import org.apache.spark.TaskContext;
 import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.util.TaskResources$;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -35,13 +36,18 @@ import java.util.concurrent.atomic.AtomicLong;
 import scala.Function0;
 
 public class TreeMemoryConsumerTest {
-  @Test
-  public void testIsolated() {
-    final SQLConf conf = new SQLConf();
+  @Before
+  public void setUp() throws Exception {
+    final SQLConf conf = SQLConf.get();
+    conf.setConfString("spark.memory.offHeap.enabled", "true");
+    conf.setConfString("spark.memory.offHeap.size", "400");
     conf.setConfString(
         GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
+  }
+
+  @Test
+  public void testIsolated() {
     test(
-        conf,
         () -> {
           final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.isolated();
           final TreeMemoryTarget consumer =
@@ -59,11 +65,7 @@ public class TreeMemoryConsumerTest {
 
   @Test
   public void testShared() {
-    final SQLConf conf = new SQLConf();
-    conf.setConfString(
-        GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
     test(
-        conf,
         () -> {
           final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.shared();
           final TreeMemoryTarget consumer =
@@ -81,11 +83,7 @@ public class TreeMemoryConsumerTest {
 
   @Test
   public void testIsolatedAndShared() {
-    final SQLConf conf = new SQLConf();
-    conf.setConfString(
-        GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
     test(
-        conf,
         () -> {
           final TreeMemoryTarget shared =
               TreeMemoryConsumers.shared()
@@ -108,13 +106,7 @@ public class TreeMemoryConsumerTest {
 
   @Test
   public void testSpill() {
-    final SQLConf conf = new SQLConf();
-    conf.setConfString("spark.memory.offHeap.enabled", "true");
-    conf.setConfString("spark.memory.offHeap.size", "400");
-    conf.setConfString(
-        GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
     test(
-        conf,
         () -> {
           final Spillers.AppendableSpillerList spillers = Spillers.appendable();
           final TreeMemoryTarget shared =
@@ -152,13 +144,7 @@ public class TreeMemoryConsumerTest {
 
   @Test
   public void testOverSpill() {
-    final SQLConf conf = new SQLConf();
-    conf.setConfString("spark.memory.offHeap.enabled", "true");
-    conf.setConfString("spark.memory.offHeap.size", "400");
-    conf.setConfString(
-        GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
     test(
-        conf,
         () -> {
           final Spillers.AppendableSpillerList spillers = Spillers.appendable();
           final TreeMemoryTarget shared =
@@ -194,20 +180,12 @@ public class TreeMemoryConsumerTest {
         });
   }
 
-  private void test(SQLConf conf, Runnable r) {
+  private void test(Runnable r) {
     TaskResources$.MODULE$.runUnsafe(
         new Function0<Object>() {
           @Override
           public Object apply() {
-            SQLConf.withExistingConf(
-                conf,
-                new Function0<Object>() {
-                  @Override
-                  public Object apply() {
-                    r.run();
-                    return null;
-                  }
-                });
+            r.run();
             return null;
           }
         });
