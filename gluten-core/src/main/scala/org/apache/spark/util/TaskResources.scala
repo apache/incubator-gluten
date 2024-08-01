@@ -61,6 +61,7 @@ object TaskResources extends TaskListener with Logging {
     SQLConf.get.getAllConfs.foreach {
       case (key, value) if key.startsWith("spark") =>
         properties.put(key, value)
+      case _ =>
     }
     properties.setIfMissing("spark.memory.offHeap.enabled", "true")
     properties.setIfMissing("spark.memory.offHeap.size", "1TB")
