@@ -71,7 +71,12 @@ class CHCelebornColumnarShuffleWriter[K, V](
       }
     }
 
-    assert(nativeShuffleWriter != -1L)
+    // If all of the ColumnarBatch have empty rows, the nativeShuffleWriter still equals -1
+    if (nativeShuffleWriter == -1L) {
+      handleEmptyIterator()
+      return
+    }
+
     splitResult = jniWrapper.stop(nativeShuffleWriter)
 
     dep.metrics("splitTime").add(splitResult.getSplitTime)

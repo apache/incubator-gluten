@@ -82,7 +82,12 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
       }
     }
 
-    assert(nativeShuffleWriter != -1L)
+    // If all of the ColumnarBatch have empty rows, the nativeShuffleWriter still equals -1
+    if (nativeShuffleWriter == -1L) {
+      handleEmptyIterator()
+      return
+    }
+
     val startTime = System.nanoTime()
     splitResult = jniWrapper.stop(nativeShuffleWriter)
 
