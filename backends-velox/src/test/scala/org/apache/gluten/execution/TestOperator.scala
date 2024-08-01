@@ -356,6 +356,13 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
         withSQLConf("spark.gluten.sql.columnar.backend.velox.window.type" -> windowType) {
           runQueryAndCompare(
             "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_commitdate" +
+              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
+            checkSparkOperatorMatch[WindowExecTransformer]
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
               " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW), " +
               "min(l_comment) over" +
