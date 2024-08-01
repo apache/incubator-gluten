@@ -35,7 +35,7 @@ void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr ro
   fast_ = std::make_unique<velox::row::UnsafeRowFast>(rowVector);
 
   if (auto fixedRowSize = velox::row::UnsafeRowFast::fixedRowSize(velox::asRowType(rowVector->type()))) {
-    memThreshold_ == std::max<int64_t>(memThreshold_, fixedRowSize.value());
+    memThreshold_ = std::max<int64_t>(memThreshold_, fixedRowSize.value());
     auto rowSize = fixedRowSize.value();
     numRows_ = std::min<int64_t>(memThreshold_ / rowSize, vectorLength - startRow);
   } else {
