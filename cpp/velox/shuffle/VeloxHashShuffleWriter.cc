@@ -1404,7 +1404,7 @@ arrow::Result<uint32_t> VeloxHashShuffleWriter::partitionBufferSizeAfterShrink(u
 arrow::Status VeloxHashShuffleWriter::preAllocPartitionBuffers(uint32_t preAllocBufferSize) {
   for (auto& pid : partitionUsed_) {
     auto newSize = std::max(preAllocBufferSize, partition2RowCount_[pid]);
-    DLOG_IF(INFO, partitionBufferSize_[pid] != newSize)
+    LOG_IF(WARNING, partitionBufferSize_[pid] != newSize)
         << "Actual partition buffer size - current: " << partitionBufferSize_[pid] << ", newSize: " << newSize
         << std::endl;
     // Make sure the size to be allocated is larger than the size to be filled.
