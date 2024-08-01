@@ -837,7 +837,8 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     withSQLConf(
       "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
       "spark.gluten.sql.columnar.maxBatchSize" -> "2",
-      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.range" -> s"$minBatchSize~$maxBatchSize"
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.range" ->
+        s"$minBatchSize~$maxBatchSize"
     ) {
       val df = runQueryAndCompare(
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +
@@ -861,7 +862,8 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     withSQLConf(
       "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
       "spark.gluten.sql.columnar.maxBatchSize" -> "100",
-      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.range" -> s"$minBatchSize~$maxBatchSize"
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.range" ->
+        s"$minBatchSize~$maxBatchSize"
     ) {
       val df = runQueryAndCompare(
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +

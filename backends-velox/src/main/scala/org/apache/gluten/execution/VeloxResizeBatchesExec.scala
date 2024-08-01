@@ -36,7 +36,10 @@ import scala.collection.JavaConverters._
  * An operator to coalesce input batches by appending the later batches to the one that comes
  * earlier.
  */
-case class VeloxResizeBatchesExec(override val child: SparkPlan, minOutputBatchSize: Int, maxOutputBatchSize: Int)
+case class VeloxResizeBatchesExec(
+    override val child: SparkPlan,
+    minOutputBatchSize: Int,
+    maxOutputBatchSize: Int)
   extends GlutenPlan
   with UnaryExecNode {
 
