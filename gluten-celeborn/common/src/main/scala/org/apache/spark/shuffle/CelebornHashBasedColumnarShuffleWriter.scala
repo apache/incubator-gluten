@@ -109,9 +109,7 @@ abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
   @throws[IOException]
   final override def write(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
-      partitionLengths = new Array[Long](dep.partitioner.numPartitions)
-      client.mapperEnd(shuffleId, mapId, context.attemptNumber, numMappers)
-      mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+      handleEmptyIterator()
       return
     }
     internalWrite(records)
@@ -158,5 +156,11 @@ abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
     client.pushMergedData(shuffleId, mapId, context.attemptNumber)
     client.mapperEnd(shuffleId, mapId, context.attemptNumber, numMappers)
     writeMetrics.incWriteTime(System.nanoTime - pushMergedDataTime)
+  }
+
+  def handleEmptyIterator(): Unit = {
+    partitionLengths = new Array[Long](dep.partitioner.numPartitions)
+    client.mapperEnd(shuffleId, mapId, context.attemptNumber, numMappers)
+    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
   }
 }
