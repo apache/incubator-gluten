@@ -16,64 +16,50 @@
  */
 package org.apache.gluten.integration.command;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import org.apache.spark.launcher.SparkLauncher;
 import org.apache.spark.util.Utils;
 import picocli.CommandLine;
 
+import javax.management.*;
 import java.io.File;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.lang.management.ManagementFactory;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public final class SparkRunModes {
-  public interface Mode {
-    String getSparkMasterUrl();
-    Map<String, String> extraSparkConf();
+  private static <T> T findNonNull(T... objects) {
+    final List<T> nonNullObjects = Arrays.stream(objects).filter(Objects::nonNull).collect(Collectors.toList());
+    Preconditions.checkState(nonNullObjects.size() == 1, "There are zero or more than one non-null objects: " + nonNullObjects);
+    return nonNullObjects.get(0);
   }
 
-  public static class ModeEnumeration implements Mode {
-    @CommandLine.ArgGroup(exclusive = false)
-    LocalMode localMode;
+  public interface Mode {
+    String getSparkMasterUrl();
 
-    @CommandLine.ArgGroup(exclusive = false)
-    LocalClusterMode localClusterMode;
+    Map<String, String> extraSparkConf();
 
-    private Mode getActiveMode() {
-      int enabledModeCount = 0;
-      if (localMode != null) {
-        enabledModeCount++;
-      }
-      if (localClusterMode != null) {
-        enabledModeCount++;
-      }
+    class Enumeration implements Mode {
+      @CommandLine.ArgGroup(exclusive = false)
+      LocalMode localMode;
 
-      if (enabledModeCount != 1) {
-        throw new IllegalStateException("Only one single run mode can be specified");
+      @CommandLine.ArgGroup(exclusive = false)
+      LocalClusterMode localClusterMode;
+
+      private Mode getActiveMode() {
+        return findNonNull(localMode, localClusterMode);
       }
 
-      if (localMode != null) {
-        return localMode;
+      @Override
+      public String getSparkMasterUrl() {
+        return getActiveMode().getSparkMasterUrl();
       }
 
-      if (localClusterMode != null) {
-        return localClusterMode;
+      @Override
+      public Map<String, String> extraSparkConf() {
+        return getActiveMode().extraSparkConf();
       }
-
-      throw new IllegalStateException("unreachable code");
-    }
-
-    @Override
-    public String getSparkMasterUrl() {
-      return getActiveMode().getSparkMasterUrl();
-    }
-
-    @Override
-    public Map<String, String> extraSparkConf() {
-      return getActiveMode().extraSparkConf();
     }
   }
 
@@ -83,6 +69,9 @@ public final class SparkRunModes {
 
     @CommandLine.Option(names = {"--threads"}, description = "Local mode: Run Spark locally with as many worker threads", defaultValue = "4")
     private int localThreads;
+
+    @CommandLine.Option(names = {"--off-heap-size"}, description = "Local mode: Total off-heap memory size", defaultValue = "6g")
+    private String offHeapSize;
 
     @Override
     public String getSparkMasterUrl() {
@@ -95,15 +84,71 @@ public final class SparkRunModes {
 
     @Override
     public Map<String, String> extraSparkConf() {
-      return Collections.emptyMap();
+      return ImmutableMap.<String, String>builder()
+          .put("spark.memory.offHeap.enabled", "true")
+          .put("spark.memory.offHeap.size", offHeapSize)
+          .build();
     }
   }
 
-  private static class LocalClusterMode implements Mode {
-    // We should transfer the jars to be tested in the integration testing to executors
-    public static final String[] EXTRA_JARS = new String[]{"gluten-package-1.2.0-SNAPSHOT.jar"};
+  private interface ClusterResource {
+    int lcWorkers();
 
-    @CommandLine.Option(names = {"--local-cluster"}, description = "Run in Spark local cluster mode", required = true)
+    int lcWorkerCores();
+
+    long lcWorkerHeapMem(); // in MiB.
+
+    int lcExecutorCores();
+
+    long lcExecutorHeapMem(); // in MiB.
+
+    long lcExecutorOffHeapMem(); // in MiB.
+
+    class Enumeration implements ClusterResource {
+      @CommandLine.ArgGroup(exclusive = false)
+      ManualClusterResource manual;
+
+      @CommandLine.ArgGroup(exclusive = false)
+      AutoClusterResource auto;
+
+      private ClusterResource getActive() {
+        return findNonNull(manual, auto);
+      }
+
+      @Override
+      public int lcWorkers() {
+        return getActive().lcWorkers();
+      }
+
+      @Override
+      public int lcWorkerCores() {
+        return getActive().lcWorkerCores();
+      }
+
+      @Override
+      public long lcWorkerHeapMem() {
+        return getActive().lcWorkerHeapMem();
+      }
+
+      @Override
+      public int lcExecutorCores() {
+        return getActive().lcExecutorCores();
+      }
+
+      @Override
+      public long lcExecutorHeapMem() {
+        return getActive().lcExecutorHeapMem();
+      }
+
+      @Override
+      public long lcExecutorOffHeapMem() {
+        return getActive().lcExecutorOffHeapMem();
+      }
+    }
+  }
+
+  private static class ManualClusterResource implements ClusterResource {
+    @CommandLine.Option(names = {"--manual-cluster-resource"}, description = "Local cluster mode: Manually configure cluster resource", required = true)
     private boolean enabled;
 
     @CommandLine.Option(names = {"--workers"}, description = "Local cluster mode: Number of workers", defaultValue = "2")
@@ -112,14 +157,163 @@ public final class SparkRunModes {
     @CommandLine.Option(names = {"--worker-cores"}, description = "Local cluster mode: Number of cores per worker", defaultValue = "2")
     private int lcWorkerCores;
 
-    @CommandLine.Option(names = {"--worker-mem"}, description = "Local cluster mode: Memory per worker", defaultValue = "4g")
-    private String lcWorkerMem;
+    @CommandLine.Option(names = {"--worker-heap-size"}, description = "Local cluster mode: Heap memory per worker", defaultValue = "4g")
+    private String lcWorkerHeapMem;
 
     @CommandLine.Option(names = {"--executor-cores"}, description = "Local cluster mode: Number of cores per executor", defaultValue = "1")
     private int lcExecutorCores;
 
-    @CommandLine.Option(names = {"--executor-mem"}, description = "Local cluster mode: Memory per executor", defaultValue = "2g")
-    private String lcExecutorMem;
+    @CommandLine.Option(names = {"--executor-heap-size"}, description = "Local cluster mode: Heap memory per executor", defaultValue = "2g")
+    private String lcExecutorHeapMem;
+
+    @CommandLine.Option(names = {"--executor-off-heap-size"}, description = "Local cluster mode: Off-heap memory per executor", defaultValue = "6g")
+    private String lcExecutorOffHeapMem;
+
+    @Override
+    public int lcWorkers() {
+      ensureEnabled();
+      return lcWorkers;
+    }
+
+    @Override
+    public int lcWorkerCores() {
+      ensureEnabled();
+      return lcWorkerCores;
+    }
+
+    @Override
+    public long lcWorkerHeapMem() {
+      ensureEnabled();
+      return Utils.byteStringAsMb(lcWorkerHeapMem);
+    }
+
+    @Override
+    public int lcExecutorCores() {
+      ensureEnabled();
+      return lcExecutorCores;
+    }
+
+    @Override
+    public long lcExecutorHeapMem() {
+      ensureEnabled();
+      return Utils.byteStringAsMb(lcExecutorHeapMem);
+    }
+
+    @Override
+    public long lcExecutorOffHeapMem() {
+      ensureEnabled();
+      return Utils.byteStringAsMb(lcExecutorOffHeapMem);
+    }
+
+    private void ensureEnabled() {
+      if (!enabled) {
+        throw new IllegalStateException("Manual cluster resource is not enabled");
+      }
+    }
+  }
+  
+  private static class AutoClusterResource implements ClusterResource {
+    @CommandLine.Option(names = {"--auto-cluster-resource"}, description = "Local cluster mode: Automatically configure cluster resource", required = true)
+    private boolean enabled;
+
+    private final int lcWorkers;
+    private final int lcWorkerCores;
+    private final long lcWorkerHeapMem;
+    private final int lcExecutorCores;
+    private final long lcExecutorHeapMem;
+    private final long lcExecutorOffHeapMem;
+
+    public AutoClusterResource() {
+      final int totalCores = Runtime.getRuntime().availableProcessors();
+      final long totalMem = (long) (getTotalMem() * 0.8);
+      Preconditions.checkState(totalMem >= 64, "--auto-cluster-resource mode requires for at least 64 MiB physical memory available. Current: " + totalMem);
+      Preconditions.checkState(totalCores >= 1, "--auto-cluster-resource mode requires for at least 1 CPU core available. Current: " + totalCores);
+      if (totalCores % 2 == 1) {
+        // Platform has an odd number of CPU cores.
+        this.lcWorkers = 1;
+        this.lcWorkerCores = totalCores;
+        this.lcExecutorCores = 1;
+      } else {
+        // Platform has an even number of CPU cores.
+        this.lcWorkers = 2;
+        this.lcWorkerCores = totalCores / this.lcWorkers;
+        if (lcWorkerCores % 2 == 1) {
+          this.lcExecutorCores = 1;
+        } else {
+          this.lcExecutorCores = 2;
+        }
+      }
+      Preconditions.checkState(totalCores % this.lcExecutorCores == 0);
+      final int numExecutors = totalCores / this.lcExecutorCores;
+      Preconditions.checkState(this.lcWorkerCores % this.lcExecutorCores == 0);
+      final int numExecutorsPerWorker = this.lcWorkerCores / this.lcExecutorCores;
+      final long executorMem = totalMem / numExecutors;
+      this.lcExecutorHeapMem = (long) (executorMem * 0.33);
+      this.lcExecutorOffHeapMem = (long) (executorMem * 0.67);
+      this.lcWorkerHeapMem = this.lcExecutorHeapMem * numExecutorsPerWorker;
+      System.out.printf("Automatically configured cluster resource settings: %n" +
+          "  lcWorkers: [%d]%n" +
+          "  lcWorkerCores: [%d]%n" +
+          "  lcWorkerHeapMem: [%dMiB]%n" +
+          "  lcExecutorCores: [%d]%n" +
+          "  lcExecutorHeapMem: [%dMiB]%n" +
+          "  lcExecutorOffHeapMem: [%dMiB]%n",
+          lcWorkers,
+          lcWorkerCores,
+          lcWorkerHeapMem,
+          lcExecutorCores,
+          lcExecutorHeapMem,
+          lcExecutorOffHeapMem);
+    }
+
+    private static long getTotalMem() {
+      try {
+        final MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+        final Object attribute = mBeanServer.getAttribute(new ObjectName("java.lang", "type", "OperatingSystem"), "TotalPhysicalMemorySize");
+        final long totalMem = Long.parseLong(attribute.toString()) / 1024 / 1024;
+        return totalMem;
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public int lcWorkers() {
+      return lcWorkers;
+    }
+
+    @Override
+    public int lcWorkerCores() {
+      return lcWorkerCores;
+    }
+
+    @Override
+    public long lcWorkerHeapMem() {
+      return lcWorkerHeapMem;
+    }
+
+    @Override
+    public int lcExecutorCores() {
+      return lcExecutorCores;
+    }
+
+    @Override
+    public long lcExecutorHeapMem() {
+      return lcExecutorHeapMem;
+    }
+
+    @Override
+    public long lcExecutorOffHeapMem() {
+      return lcExecutorOffHeapMem;
+    }
+  }
+
+  private static class LocalClusterMode implements Mode {
+    @CommandLine.Option(names = {"--local-cluster"}, description = "Run in Spark local cluster mode", required = true)
+    private boolean enabled;
+
+    @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
+    ClusterResource.Enumeration resourceEnumeration;
 
     @Override
     public String getSparkMasterUrl() {
@@ -132,26 +326,16 @@ public final class SparkRunModes {
       if (!System.getenv().containsKey("SPARK_SCALA_VERSION")) {
         throw new IllegalArgumentException("SPARK_SCALA_VERSION not set! Please set it first or use --local instead. Example: export SPARK_SCALA_VERSION=2.12");
       }
-      return String.format("local-cluster[%d,%d,%d]", lcWorkers, lcWorkerCores, Utils.byteStringAsMb(lcWorkerMem));
+      return String.format("local-cluster[%d,%d,%d]", resourceEnumeration.lcWorkers(), resourceEnumeration.lcWorkerCores(), resourceEnumeration.lcWorkerHeapMem());
     }
 
     @Override
     public Map<String, String> extraSparkConf() {
-      final Set<String> extraJarSet = Arrays.stream(EXTRA_JARS).collect(Collectors.toSet());
-      String classpath = System.getProperty("java.class.path");
-      String[] classPathValues = classpath.split(File.pathSeparator);
-      Optional<String> extraClassPath = Arrays.stream(classPathValues).filter(classPath -> {
-        File file = new File(classPath);
-        return file.exists() && file.isFile() && extraJarSet.contains(file.getName());
-      }).map(classPath -> {
-        File file = new File(classPath);
-        return file.getAbsolutePath();
-      }).reduce((s1, s2) -> s1 + File.pathSeparator + s2);
-
       final Map<String, String> extras = new HashMap<>();
-      extras.put(SparkLauncher.EXECUTOR_CORES, String.valueOf(lcExecutorCores));
-      extras.put(SparkLauncher.EXECUTOR_MEMORY, lcExecutorMem);
-      extraClassPath.ifPresent(path -> extras.put("spark.executor.extraClassPath", path));
+      extras.put(SparkLauncher.EXECUTOR_CORES, String.valueOf(resourceEnumeration.lcExecutorCores()));
+      extras.put(SparkLauncher.EXECUTOR_MEMORY, String.format("%dm", resourceEnumeration.lcExecutorHeapMem()));
+      extras.put("spark.memory.offHeap.enabled", "true");
+      extras.put("spark.memory.offHeap.size", String.format("%dm", resourceEnumeration.lcExecutorOffHeapMem()));
       return extras;
     }
   }
