@@ -241,6 +241,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def memoryIsolation: Boolean = conf.getConf(COLUMNAR_MEMORY_ISOLATION)
 
+  def memoryBacktraceAllocation: Boolean = conf.getConf(COLUMNAR_MEMORY_BACKTRACE_ALLOCATION)
+
   def numTaskSlotsPerExecutor: Int = {
     val numSlots = conf.getConf(NUM_TASK_SLOTS_PER_EXECUTOR)
     assert(numSlots > 0, s"Number of task slot not found. This should not happen.")
@@ -659,7 +661,10 @@ object GlutenConfig {
 
     val keyWithDefault = ImmutableList.of(
       (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
-      (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString)
+      (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
+      (
+        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
+        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -706,7 +711,9 @@ object GlutenConfig {
       (AWS_S3_RETRY_MODE.key, AWS_S3_RETRY_MODE.defaultValueString),
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
-        conf.getOrElse(GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, "-1")),
+        conf.getOrElse(
+          NUM_TASK_SLOTS_PER_EXECUTOR.key,
+          NUM_TASK_SLOTS_PER_EXECUTOR.defaultValueString)),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
@@ -1241,6 +1248,14 @@ object GlutenConfig {
         "to set true if Gluten serves concurrent queries within a single session, since not all " +
         "memory Gluten allocated is guaranteed to be spillable. In the case, the feature should " +
         "be enabled to avoid OOM.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_MEMORY_BACKTRACE_ALLOCATION =
+    buildConf("spark.gluten.memory.backtrace.allocation")
+      .internal()
+      .doc("Print backtrace information for large memory allocations. This helps debugging when " +
+        "Spark OOM happens due to large acquire requests.")
       .booleanConf
       .createWithDefault(false)
 

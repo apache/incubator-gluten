@@ -104,9 +104,6 @@ const int32_t kVeloxAsyncTimeoutOnTaskStoppingDefault = 30000; // 30s
 // udf
 const std::string kVeloxUdfLibraryPaths = "spark.gluten.sql.columnar.backend.velox.internal.udfLibraryPaths";
 
-// backtrace allocation
-const std::string kBacktraceAllocation = "spark.gluten.backtrace.allocation";
-
 // VeloxShuffleReader print flag.
 const std::string kVeloxShuffleReaderPrintFlag = "spark.gluten.velox.shuffleReaderPrintFlag";
 
