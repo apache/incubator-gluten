@@ -6,12 +6,12 @@ AdaptiveSparkPlan (30)
       +- ^ InputIteratorTransformer (18)
          +- ShuffleQueryStage (16), Statistics(X)
             +- ColumnarExchange (15)
-               +- VeloxAppendBatches (14)
+               +- VeloxResizeBatches (14)
                   +- ^ RegularHashAggregateExecTransformer (12)
                      +- ^ InputIteratorTransformer (11)
                         +- ShuffleQueryStage (9), Statistics(X)
                            +- ColumnarExchange (8)
-                              +- VeloxAppendBatches (7)
+                              +- VeloxResizeBatches (7)
                                  +- ^ ProjectExecTransformer (5)
                                     +- ^ FlushableHashAggregateExecTransformer (4)
                                        +- ^ ProjectExecTransformer (3)
@@ -58,9 +58,9 @@ Input [17]: [l_returnflag#X, l_linestatus#X, sum#X, isEmpty#X, sum#X, isEmpty#X,
 Input [18]: [hash_partition_key#X, l_returnflag#X, l_linestatus#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, count#X, sum#X, count#X, sum#X, count#X, count#X]
 Arguments: false
 
-(7) VeloxAppendBatches
+(7) VeloxResizeBatches
 Input [18]: [hash_partition_key#X, l_returnflag#X, l_linestatus#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, count#X, sum#X, count#X, sum#X, count#X, count#X]
-Arguments: X
+Arguments: X, X
 
 (8) ColumnarExchange
 Input [18]: [hash_partition_key#X, l_returnflag#X, l_linestatus#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, isEmpty#X, sum#X, count#X, sum#X, count#X, sum#X, count#X, count#X]
@@ -87,9 +87,9 @@ Results [10]: [l_returnflag#X, l_linestatus#X, sum(l_quantity#X)#X AS sum_qty#X,
 Input [10]: [l_returnflag#X, l_linestatus#X, sum_qty#X, sum_base_price#X, sum_disc_price#X, sum_charge#X, avg_qty#X, avg_price#X, avg_disc#X, count_order#X]
 Arguments: false
 
-(14) VeloxAppendBatches
+(14) VeloxResizeBatches
 Input [10]: [l_returnflag#X, l_linestatus#X, sum_qty#X, sum_base_price#X, sum_disc_price#X, sum_charge#X, avg_qty#X, avg_price#X, avg_disc#X, count_order#X]
-Arguments: X
+Arguments: X, X
 
 (15) ColumnarExchange
 Input [10]: [l_returnflag#X, l_linestatus#X, sum_qty#X, sum_base_price#X, sum_disc_price#X, sum_charge#X, avg_qty#X, avg_price#X, avg_disc#X, count_order#X]

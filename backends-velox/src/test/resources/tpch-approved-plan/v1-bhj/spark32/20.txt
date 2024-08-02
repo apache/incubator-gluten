@@ -6,7 +6,7 @@ AdaptiveSparkPlan (112)
       +- ^ InputIteratorTransformer (70)
          +- ShuffleQueryStage (68)
             +- ColumnarExchange (67)
-               +- VeloxAppendBatches (66)
+               +- VeloxResizeBatches (66)
                   +- ^ ProjectExecTransformer (64)
                      +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (63)
                         :- ^ ProjectExecTransformer (54)
@@ -15,7 +15,7 @@ AdaptiveSparkPlan (112)
                         :     :  +- AQEShuffleRead (8)
                         :     :     +- ShuffleQueryStage (7)
                         :     :        +- ColumnarExchange (6)
-                        :     :           +- VeloxAppendBatches (5)
+                        :     :           +- VeloxResizeBatches (5)
                         :     :              +- ^ ProjectExecTransformer (3)
                         :     :                 +- ^ FilterExecTransformer (2)
                         :     :                    +- ^ Scan parquet (1)
@@ -42,7 +42,7 @@ AdaptiveSparkPlan (112)
                         :                             +- ^ InputIteratorTransformer (42)
                         :                                +- ShuffleQueryStage (40)
                         :                                   +- ColumnarExchange (39)
-                        :                                      +- VeloxAppendBatches (38)
+                        :                                      +- VeloxResizeBatches (38)
                         :                                         +- ^ ProjectExecTransformer (36)
                         :                                            +- ^ FlushableHashAggregateExecTransformer (35)
                         :                                               +- ^ BroadcastHashJoinExecTransformer LeftSemi BuildRight (34)
@@ -118,9 +118,9 @@ Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
 Input [5]: [hash_partition_key#X, s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
 Arguments: false
 
-(5) VeloxAppendBatches
+(5) VeloxResizeBatches
 Input [5]: [hash_partition_key#X, s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
-Arguments: X
+Arguments: X, X
 
 (6) ColumnarExchange
 Input [5]: [hash_partition_key#X, s_suppkey#X, s_name#X, s_address#X, s_nationkey#X]
@@ -255,9 +255,9 @@ Input [4]: [l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 Input [5]: [hash_partition_key#X, l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: false
 
-(38) VeloxAppendBatches
+(38) VeloxResizeBatches
 Input [5]: [hash_partition_key#X, l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
-Arguments: X
+Arguments: X, X
 
 (39) ColumnarExchange
 Input [5]: [hash_partition_key#X, l_partkey#X, l_suppkey#X, sum#X, isEmpty#X]
@@ -370,9 +370,9 @@ Input [4]: [s_name#X, s_address#X, s_nationkey#X, n_nationkey#X]
 Input [2]: [s_name#X, s_address#X]
 Arguments: false
 
-(66) VeloxAppendBatches
+(66) VeloxResizeBatches
 Input [2]: [s_name#X, s_address#X]
-Arguments: X
+Arguments: X, X
 
 (67) ColumnarExchange
 Input [2]: [s_name#X, s_address#X]
