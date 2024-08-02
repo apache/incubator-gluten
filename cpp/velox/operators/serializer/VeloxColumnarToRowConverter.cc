@@ -56,7 +56,7 @@ void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr ro
     numRows_ = endRow - startRow;
   }
 
-  if (nullptr == veloxBuffers_) {
+  if (veloxBuffers_ == nullptr) {
     veloxBuffers_ = velox::AlignedBuffer::allocate<uint8_t>(memThreshold_, veloxPool_.get());
   } else if (veloxBuffers_->capacity() < memThreshold_) {
     velox::AlignedBuffer::reallocate<uint8_t>(&veloxBuffers_, memThreshold_);

@@ -525,7 +525,7 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
 
   auto& conf = ctx->getConfMap();
   int64_t column2RowMemThreshold;
-  auto it = conf.find(kColumnToRowMemoryThreshold);
+  auto it = conf.find(kColumnarToRowMemoryThreshold);
   bool confIsLegal =
       ((it == conf.end()) ? false : std::all_of(it->second.begin(), it->second.end(), [](unsigned char c) {
         return std::isdigit(c);
@@ -534,9 +534,9 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
     column2RowMemThreshold = std::stoll(it->second);
   } else {
     LOG(INFO)
-        << "Because the spark.gluten.sql.columnToRowMemoryThreshold configuration item is invalid, the kColumnToRowMemoryDefaultThreshold default value is used, which is "
-        << kColumnToRowMemoryDefaultThreshold << " byte";
-    column2RowMemThreshold = std::stoll(kColumnToRowMemoryDefaultThreshold);
+        << "Because the spark.gluten.sql.columnarToRowMemoryThreshold configuration item is invalid, the kColumnarToRowMemoryDefaultThreshold default value is used, which is "
+        << kColumnarToRowMemoryDefaultThreshold << " byte";
+    column2RowMemThreshold = std::stoll(kColumnarToRowMemoryDefaultThreshold);
   }
 
   // Convert the native batch to Spark unsafe row.
