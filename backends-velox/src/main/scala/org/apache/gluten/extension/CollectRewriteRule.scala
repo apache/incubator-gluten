@@ -52,7 +52,13 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
   }
 
   private def needReplace(plan: LogicalPlan): Boolean = plan match {
-    // Do not replace with objectHashAggregate if disable objectHashAgg collectRewrite.
+    // Do not replace collect in objectHashAggregate if disable objectHashAgg collectRewrite. When
+    // AggregateExpressions does not support HashAgg, spark_collect aggregate will be converted
+    // to objectHashAggregate, and velox_collect will be converted to sortAggregate in AggUtils,
+    // because velox_collect is not TypedImperativeAggregate. If collect aggregate fallback,
+    // disable objectHashAgg collectRewrite it will fallback to objectHashAggregate, otherwise
+    // fallback to sortAggregate. The performance of objectHashAggregate is much greater than
+    // sortAggregate.
     case PhysicalAggregation(_, aggregateExpr, _, _)
         if !GlutenConfig.getConf.veloxObjectHashAggCollectRewriteEnabled =>
       val aggregateExpressions = aggregateExpr.map(expr => expr.asInstanceOf[AggregateExpression])
