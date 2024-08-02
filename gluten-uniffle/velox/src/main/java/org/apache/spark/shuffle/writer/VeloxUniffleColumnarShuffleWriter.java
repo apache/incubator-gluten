@@ -126,8 +126,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
 
   @Override
   protected void writeImpl(Iterator<Product2<K, V>> records) {
-    if (!records.hasNext() && !isMemoryShuffleEnabled) {
-      super.sendCommit();
+    if (!records.hasNext()) {
+      sendCommit();
       return;
     }
     // writer already init
@@ -189,11 +189,13 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       }
     }
 
-    long startTime = System.nanoTime();
     LOG.info("nativeShuffleWriter value {}", nativeShuffleWriter);
+    // If all of the ColumnarBatch have empty rows, the nativeShuffleWriter still equals -1
     if (nativeShuffleWriter == -1L) {
-      throw new IllegalStateException("nativeShuffleWriter should not be -1L");
+      sendCommit();
+      return;
     }
+    long startTime = System.nanoTime();
     SplitResult splitResult;
     try {
       splitResult = jniWrapper.stop(nativeShuffleWriter);
@@ -219,14 +221,19 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
     long pushMergedDataTime = System.nanoTime();
     // clear all
     sendRestBlockAndWait();
-    if (!isMemoryShuffleEnabled) {
-      super.sendCommit();
-    }
+    sendCommit();
     long writeDurationMs = System.nanoTime() - pushMergedDataTime;
     shuffleWriteMetrics.incWriteTime(writeDurationMs);
     LOG.info(
         "Finish write shuffle with rest write {} ms",
         TimeUnit.MILLISECONDS.toNanos(writeDurationMs));
+  }
+
+  @Override
+  protected void sendCommit() {
+    if (!isMemoryShuffleEnabled) {
+      super.sendCommit();
+    }
   }
 
   @Override
