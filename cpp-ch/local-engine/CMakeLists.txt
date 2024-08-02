@@ -19,6 +19,31 @@ else()
   add_definitions(-DENABLE_MULTITARGET_CODE=0)
 endif()
 
+get_filename_component(CURRENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} ABSOLUTE)
+if(IS_SYMLINK "${CURRENT_DIR}")
+  get_filename_component(REAL_DIR "${CURRENT_DIR}" REALPATH)
+  get_filename_component(PARENT_DIR "${REAL_DIR}" DIRECTORY)
+else()
+  get_filename_component(PARENT_DIR "${CURRENT_DIR}" DIRECTORY)
+endif()
+execute_process(
+  COMMAND git log -n 1 --pretty=format:%h,%an,%ad -- "${PARENT_DIR}"
+  WORKING_DIRECTORY ${PARENT_DIR}
+  OUTPUT_VARIABLE LAST_CHANGE
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+string(REPLACE "," ";" CHANGE_PARTS ${LAST_CHANGE})
+list(GET CHANGE_PARTS 0 COMMIT_HASH)
+list(GET CHANGE_PARTS 1 COMMIT_AUTHOR)
+list(GET CHANGE_PARTS 2 COMMIT_DATE)
+
+message("Last change in gluten/cpp-ch directory:")
+message("Commit: ${COMMIT_HASH}")
+message("Author: ${COMMIT_AUTHOR}")
+message("Date: ${COMMIT_DATE}")
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/gluten_version.h.in
+               ${CMAKE_CURRENT_SOURCE_DIR}/gluten_version.h)
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w -ffunction-sections -fdata-sections")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w -ffunction-sections -fdata-sections")
 set(CMAKE_SHARED_LINKER_FLAGS
