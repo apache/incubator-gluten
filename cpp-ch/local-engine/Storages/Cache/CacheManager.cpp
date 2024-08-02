@@ -104,7 +104,7 @@ void CacheManager::cachePart(const MergeTreeTable& table, const MergeTreePart& p
                 storage_snapshot,
                 *query_info,
                 context,
-                context->getSettings().max_block_size,
+                context->getSettingsRef().max_block_size,
                 1);
             QueryPlan plan;
             plan.addStep(std::move(read_step));

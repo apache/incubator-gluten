@@ -106,7 +106,7 @@ case class GlutenCHCacheDataCommand(
     }
 
     val selectedAddFiles = if (tsfilter.isDefined) {
-      val allParts = snapshot.filesForScan(Seq.empty, false)
+      val allParts = DeltaAdapter.snapshotFilesForScan(snapshot, Seq.empty, Seq.empty, false)
       allParts.files.filter(_.modificationTime >= tsfilter.get.toLong).toSeq
     } else if (partitionColumn.isDefined && partitionValue.isDefined) {
       val partitionColumns = snapshot.metadata.partitionSchema.fieldNames
@@ -121,9 +121,15 @@ case class GlutenCHCacheDataCommand(
         partitionColumnField.nullable)()
       val isNotNullExpr = IsNotNull(partitionColumnAttr)
       val greaterThanOrEqual = GreaterThanOrEqual(partitionColumnAttr, Literal(partitionValue.get))
-      snapshot.filesForScan(Seq(isNotNullExpr, greaterThanOrEqual), false).files
+      DeltaAdapter
+        .snapshotFilesForScan(
+          snapshot,
+          Seq(partitionColumnAttr),
+          Seq(isNotNullExpr, greaterThanOrEqual),
+          false)
+        .files
     } else {
-      snapshot.filesForScan(Seq.empty, false).files
+      DeltaAdapter.snapshotFilesForScan(snapshot, Seq.empty, Seq.empty, false).files
     }
 
     val executorIdsToAddFiles =
@@ -248,17 +254,16 @@ case class GlutenCHCacheDataCommand(
         executorIdsToParts.foreach(
           value => {
             val executorData = GlutenDriverEndpoint.executorDataMap.get(toExecutorId(value._1))
-            if (executorData == null)
-              if (executorData != null) {
-                futureList.append(
-                  executorData.executorEndpointRef.ask[CacheLoadResult](
-                    GlutenMergeTreeCacheLoad(value._2, selectedColumns.toSet.asJava)
-                  ))
-              } else {
-                throw new GlutenException(
-                  s"executor ${value._1} not found," +
-                    s" all executors are ${GlutenDriverEndpoint.executorDataMap.toString}")
-              }
+            if (executorData != null) {
+              futureList.append(
+                executorData.executorEndpointRef.ask[CacheLoadResult](
+                  GlutenMergeTreeCacheLoad(value._2, selectedColumns.toSet.asJava)
+                ))
+            } else {
+              throw new GlutenException(
+                s"executor ${value._1} not found," +
+                  s" all executors are ${GlutenDriverEndpoint.executorDataMap.toString}")
+            }
           })
         futureList.foreach(
           f => {
@@ -277,8 +282,6 @@ case class GlutenCHCacheDataCommand(
 object GlutenCHCacheDataCommand {
   val ALL_EXECUTORS = "allExecutors"
 
-  private def toExecutorId(executorId: String): String = {
-    val parts = executorId.split("_")
-    parts(parts.size - 1)
-  }
+  private def toExecutorId(executorId: String): String =
+    executorId.split("_").last
 }

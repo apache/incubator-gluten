@@ -19,15 +19,13 @@ package org.apache.gluten.parser
 import org.apache.gluten.sql.parser.{GlutenClickhouseSqlBaseBaseListener, GlutenClickhouseSqlBaseBaseVisitor, GlutenClickhouseSqlBaseLexer, GlutenClickhouseSqlBaseParser}
 import org.apache.gluten.sql.parser.GlutenClickhouseSqlBaseParser._
 
-import org.apache.spark.sql.{AnalysisException, SparkSession}
-import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.parser.{ParseErrorListener, ParseException, ParserInterface}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.execution.commands.GlutenCHCacheDataCommand
 import org.apache.spark.sql.internal.VariableSubstitution
-import org.apache.spark.sql.types.{DataType, StructType}
 
 import org.antlr.v4.runtime._
 import org.antlr.v4.runtime.atn.PredictionMode
@@ -38,20 +36,10 @@ import java.util.Locale
 
 import scala.collection.JavaConverters._
 
-class GlutenClickhouseSqlParser(spark: SparkSession, delegate: ParserInterface)
-  extends ParserInterface {
+trait GlutenClickhouseSqlParserBase extends ParserInterface {
 
-  private val astBuilder = new GlutenClickhouseSqlAstBuilder
-  private val substitution = new VariableSubstitution
-
-  override def parsePlan(sqlText: String): LogicalPlan =
-    parse(sqlText) {
-      parser =>
-        astBuilder.visit(parser.singleStatement()) match {
-          case plan: LogicalPlan => plan
-          case _ => delegate.parsePlan(sqlText)
-        }
-    }
+  protected val astBuilder = new GlutenClickhouseSqlAstBuilder
+  protected val substitution = new VariableSubstitution
 
   protected def parse[T](command: String)(toResult: GlutenClickhouseSqlBaseParser => T): T = {
     val lexer = new GlutenClickhouseSqlBaseLexer(
@@ -94,34 +82,6 @@ class GlutenClickhouseSqlParser(spark: SparkSession, delegate: ParserInterface)
           stop = position,
           errorClass = Some("GLUTEN_CH_PARSING_ANALYSIS_ERROR"))
     }
-  }
-
-  override def parseExpression(sqlText: String): Expression = {
-    delegate.parseExpression(sqlText)
-  }
-
-  override def parseTableIdentifier(sqlText: String): TableIdentifier = {
-    delegate.parseTableIdentifier(sqlText)
-  }
-
-  override def parseFunctionIdentifier(sqlText: String): FunctionIdentifier = {
-    delegate.parseFunctionIdentifier(sqlText)
-  }
-
-  override def parseMultipartIdentifier(sqlText: String): Seq[String] = {
-    delegate.parseMultipartIdentifier(sqlText)
-  }
-
-  override def parseTableSchema(sqlText: String): StructType = {
-    delegate.parseTableSchema(sqlText)
-  }
-
-  override def parseDataType(sqlText: String): DataType = {
-    delegate.parseDataType(sqlText)
-  }
-
-  override def parseQuery(sqlText: String): LogicalPlan = {
-    delegate.parseQuery(sqlText)
   }
 }
 

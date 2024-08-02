@@ -536,10 +536,6 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client-runtime</artifactId>
           </exclusion>
-<!--          <exclusion>-->
-<!--            <groupId>org.antlr</groupId>-->
-<!--            <artifactId>*</artifactId>-->
-<!--          </exclusion>-->
         </exclusions>
       </dependency>
       <dependency>
@@ -551,10 +547,6 @@
             <groupId>org.apache.arrow</groupId>
             <artifactId>*</artifactId>
           </exclusion>
-<!--          <exclusion>-->
-<!--            <groupId>org.antlr</groupId>-->
-<!--            <artifactId>*</artifactId>-->
-<!--          </exclusion>-->
         </exclusions>
         <scope>provided</scope>
       </dependency>
@@ -637,10 +629,6 @@
             <groupId>org.apache.arrow</groupId>
             <artifactId>*</artifactId>
           </exclusion>
-<!--          <exclusion>-->
-<!--            <groupId>org.antlr</groupId>-->
-<!--            <artifactId>*</artifactId>-->
-<!--          </exclusion>-->
         </exclusions>
         <type>test-jar</type>
         <scope>test</scope>
@@ -695,16 +683,16 @@
         <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
         <version>${delta.version}</version>
         <scope>provided</scope>
-<!--        <exclusions>-->
-<!--          <exclusion>-->
-<!--            <groupId>org.antlr</groupId>-->
-<!--            <artifactId>*</artifactId>-->
-<!--          </exclusion>-->
-<!--          <exclusion>-->
-<!--            <groupId>org.scala-lang</groupId>-->
-<!--            <artifactId>scala-library</artifactId>-->
-<!--          </exclusion>-->
-<!--        </exclusions>-->
+        <exclusions>
+          <exclusion>
+            <groupId>org.antlr</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.scalatest</groupId>
@@ -754,12 +742,6 @@
         <artifactId>maven-source-plugin</artifactId>
         <version>3.2.1</version>
       </dependency>
-<!--      <dependency>-->
-<!--        <groupId>org.antlr</groupId>-->
-<!--        <artifactId>antlr4-runtime</artifactId>-->
-<!--        <version>${antlr4.version}</version>-->
-<!--        <scope>compile</scope>-->
-<!--      </dependency>-->
     </dependencies>
   </dependencyManagement>
 
