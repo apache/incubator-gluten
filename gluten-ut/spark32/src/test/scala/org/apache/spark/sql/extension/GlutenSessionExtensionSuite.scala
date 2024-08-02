@@ -37,7 +37,12 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
     assert(spark.sessionState.analyzer.postHocResolutionRules.contains(MyRule(spark)))
     assert(spark.sessionState.analyzer.extendedCheckRules.contains(MyCheckRule(spark)))
     assert(spark.sessionState.optimizer.batches.flatMap(_.rules).contains(MyRule(spark)))
-    assert(spark.sessionState.sqlParser.isInstanceOf[MyParser])
+    if (BackendTestUtils.isCHBackendLoaded()) {
+      assert(
+        spark.sessionState.sqlParser.getClass.getSimpleName.equals("GlutenClickhouseSqlParser"))
+    } else {
+      assert(spark.sessionState.sqlParser.isInstanceOf[MyParser])
+    }
     assert(
       spark.sessionState.functionRegistry
         .lookupFunction(MyExtensions.myFunction._1)

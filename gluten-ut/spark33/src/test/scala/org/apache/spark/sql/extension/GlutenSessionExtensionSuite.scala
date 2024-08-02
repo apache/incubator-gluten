@@ -17,7 +17,7 @@
 package org.apache.spark.sql.extension
 
 import org.apache.gluten.extension.ColumnarOverrideRules
-
+import org.apache.gluten.utils.BackendTestUtils
 import org.apache.spark.SparkConf
 import org.apache.spark.sql._
 import org.apache.spark.sql.internal.StaticSQLConf.SPARK_SESSION_EXTENSIONS
@@ -37,7 +37,12 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
     assert(spark.sessionState.analyzer.postHocResolutionRules.contains(MyRule(spark)))
     assert(spark.sessionState.analyzer.extendedCheckRules.contains(MyCheckRule(spark)))
     assert(spark.sessionState.optimizer.batches.flatMap(_.rules).contains(MyRule(spark)))
-    assert(spark.sessionState.sqlParser.isInstanceOf[MyParser])
+    if (BackendTestUtils.isCHBackendLoaded()) {
+      assert(
+        spark.sessionState.sqlParser.getClass.getSimpleName.equals("GlutenClickhouseSqlParser"))
+    } else {
+      assert(spark.sessionState.sqlParser.isInstanceOf[MyParser])
+    }
     assert(
       spark.sessionState.functionRegistry
         .lookupFunction(MyExtensions.myFunction._1)
