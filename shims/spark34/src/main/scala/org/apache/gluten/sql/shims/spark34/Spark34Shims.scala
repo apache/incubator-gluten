@@ -32,7 +32,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, InternalRowComparableWrapper, TimestampFormatter}
@@ -492,5 +492,14 @@ class Spark34Shims extends SparkShims {
       caseSensitive.getOrElse(conf.caseSensitiveAnalysis),
       RebaseSpec(LegacyBehaviorPolicy.CORRECTED)
     )
+  }
+
+  override def supportsHashAggregate(aggregateBufferAttributes: Seq[Attribute]): Boolean = {
+    Aggregate.supportsHashAggregate(aggregateBufferAttributes)
+  }
+
+  override def supportsObjectHashAggregate(
+      aggregateExpressions: Seq[AggregateExpression]): Boolean = {
+    Aggregate.supportsObjectHashAggregate(aggregateExpressions)
   }
 }

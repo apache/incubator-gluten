@@ -28,7 +28,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BinaryExpression, Expression}
-import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggregate
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, TypedImperativeAggregate}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -267,4 +267,8 @@ trait SparkShims {
       DecimalType(math.min(integralLeastNumDigits + newScale, 38), newScale)
     }
   }
+
+  def supportsHashAggregate(aggregateBufferAttributes: Seq[Attribute]): Boolean
+
+  def supportsObjectHashAggregate(aggregateExpressions: Seq[AggregateExpression]): Boolean
 }

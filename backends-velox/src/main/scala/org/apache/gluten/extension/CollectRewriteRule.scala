@@ -19,6 +19,7 @@ package org.apache.gluten.extension
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.expression.ExpressionMappings
 import org.apache.gluten.expression.aggregate.{VeloxCollectList, VeloxCollectSet}
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.LogicalPlanSelector
 
 import org.apache.spark.sql.SparkSession
@@ -55,10 +56,10 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
     case PhysicalAggregation(_, aggregateExpr, _, _)
         if !GlutenConfig.getConf.veloxObjectHashAggCollectRewriteEnabled =>
       val aggregateExpressions = aggregateExpr.map(expr => expr.asInstanceOf[AggregateExpression])
-      val useHash = Aggregate.supportsHashAggregate(
+      val useHash = SparkShimLoader.getSparkShims.supportsHashAggregate(
         aggregateExpressions.flatMap(_.aggregateFunction.aggBufferAttributes))
       val useObjectHash = plan.conf.useObjectHashAggregation &&
-        Aggregate.supportsObjectHashAggregate(aggregateExpressions)
+        SparkShimLoader.getSparkShims.supportsObjectHashAggregate(aggregateExpressions)
       useHash || !useObjectHash
     case _ => true
   }
