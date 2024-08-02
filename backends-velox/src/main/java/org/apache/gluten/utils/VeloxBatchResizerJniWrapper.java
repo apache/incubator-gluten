@@ -20,15 +20,15 @@ import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.RuntimeAware;
 import org.apache.gluten.vectorized.ColumnarBatchInIterator;
 
-public class VeloxBatchAppenderJniWrapper implements RuntimeAware {
+public class VeloxBatchResizerJniWrapper implements RuntimeAware {
   private final Runtime runtime;
 
-  private VeloxBatchAppenderJniWrapper(Runtime runtime) {
+  private VeloxBatchResizerJniWrapper(Runtime runtime) {
     this.runtime = runtime;
   }
 
-  public static VeloxBatchAppenderJniWrapper create(Runtime runtime) {
-    return new VeloxBatchAppenderJniWrapper(runtime);
+  public static VeloxBatchResizerJniWrapper create(Runtime runtime) {
+    return new VeloxBatchResizerJniWrapper(runtime);
   }
 
   @Override
@@ -36,5 +36,6 @@ public class VeloxBatchAppenderJniWrapper implements RuntimeAware {
     return runtime.getHandle();
   }
 
-  public native long create(int minOutputBatchSize, ColumnarBatchInIterator itr);
+  public native long create(
+      int minOutputBatchSize, int maxOutputBatchSize, ColumnarBatchInIterator itr);
 }

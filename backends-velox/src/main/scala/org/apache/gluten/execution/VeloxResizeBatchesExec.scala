@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.utils.VeloxBatchAppender
+import org.apache.gluten.utils.VeloxBatchResizer
 import org.apache.gluten.utils.iterator.Iterators
 
 import org.apache.spark.rdd.RDD
@@ -33,10 +33,13 @@ import java.util.concurrent.atomic.AtomicLong
 import scala.collection.JavaConverters._
 
 /**
- * An operator to coalesce input batches by appending the later batches to the one that comes
- * earlier.
+ * An operator to resize input batches by appending the later batches to the one that comes earlier,
+ * or splitting one batch to smaller ones.
  */
-case class VeloxAppendBatchesExec(override val child: SparkPlan, minOutputBatchSize: Int)
+case class VeloxResizeBatchesExec(
+    override val child: SparkPlan,
+    minOutputBatchSize: Int,
+    maxOutputBatchSize: Int)
   extends GlutenPlan
   with UnaryExecNode {
 
@@ -45,7 +48,7 @@ case class VeloxAppendBatchesExec(override val child: SparkPlan, minOutputBatchS
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-    "appendTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to append batches")
+    "selfTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to append / split batches")
   )
 
   override def supportsColumnar: Boolean = true
@@ -56,15 +59,15 @@ case class VeloxAppendBatchesExec(override val child: SparkPlan, minOutputBatchS
     val numInputBatches = longMetric("numInputBatches")
     val numOutputRows = longMetric("numOutputRows")
     val numOutputBatches = longMetric("numOutputBatches")
-    val appendTime = longMetric("appendTime")
+    val selfTime = longMetric("selfTime")
 
     child.executeColumnar().mapPartitions {
       in =>
         // Append millis = Out millis - In millis.
         val appendMillis = new AtomicLong(0L)
-
-        val appender = VeloxBatchAppender.create(
+        val appender = VeloxBatchResizer.create(
           minOutputBatchSize,
+          maxOutputBatchSize,
           Iterators
             .wrap(in)
             .collectReadMillis(inMillis => appendMillis.getAndAdd(-inMillis))
@@ -84,7 +87,7 @@ case class VeloxAppendBatchesExec(override val child: SparkPlan, minOutputBatchS
           .recyclePayload(_.close())
           .recycleIterator {
             appender.close()
-            appendTime += appendMillis.get()
+            selfTime += appendMillis.get()
           }
           .create()
           .map {

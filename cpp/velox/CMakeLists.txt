@@ -527,7 +527,7 @@ set(VELOX_SRCS
     utils/VeloxArrowUtils.cc
     utils/ConfigExtractor.cc
     utils/Common.cc
-    utils/VeloxBatchAppender.cc)
+    utils/VeloxBatchResizer.cc)
 
 if(ENABLE_HDFS)
   list(APPEND VELOX_SRCS utils/HdfsUtils.cc)

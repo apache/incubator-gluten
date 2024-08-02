@@ -894,16 +894,18 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
 
   test("combine small batches before shuffle") {
     val minBatchSize = 15
+    val maxBatchSize = 100
     withSQLConf(
-      "spark.gluten.sql.columnar.backend.velox.coalesceBatchesBeforeShuffle" -> "true",
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
       "spark.gluten.sql.columnar.maxBatchSize" -> "2",
-      "spark.gluten.sql.columnar.backend.velox.minBatchSizeForShuffle" -> s"$minBatchSize"
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.range" ->
+        s"$minBatchSize~$maxBatchSize"
     ) {
       val df = runQueryAndCompare(
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +
           "where l_orderkey < 100 group by l_orderkey") { _ => }
       checkLengthAndPlan(df, 27)
-      val ops = collect(df.queryExecution.executedPlan) { case p: VeloxAppendBatchesExec => p }
+      val ops = collect(df.queryExecution.executedPlan) { case p: VeloxResizeBatchesExec => p }
       assert(ops.size == 1)
       val op = ops.head
       assert(op.minOutputBatchSize == minBatchSize)
@@ -912,6 +914,31 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       assert(metrics("numInputBatches").value == 14)
       assert(metrics("numOutputRows").value == 27)
       assert(metrics("numOutputBatches").value == 2)
+    }
+  }
+
+  test("split small batches before shuffle") {
+    val minBatchSize = 1
+    val maxBatchSize = 4
+    withSQLConf(
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
+      "spark.gluten.sql.columnar.maxBatchSize" -> "100",
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.range" ->
+        s"$minBatchSize~$maxBatchSize"
+    ) {
+      val df = runQueryAndCompare(
+        "select l_orderkey, sum(l_partkey) as sum from lineitem " +
+          "where l_orderkey < 100 group by l_orderkey") { _ => }
+      checkLengthAndPlan(df, 27)
+      val ops = collect(df.queryExecution.executedPlan) { case p: VeloxResizeBatchesExec => p }
+      assert(ops.size == 1)
+      val op = ops.head
+      assert(op.minOutputBatchSize == minBatchSize)
+      val metrics = op.metrics
+      assert(metrics("numInputRows").value == 27)
+      assert(metrics("numInputBatches").value == 1)
+      assert(metrics("numOutputRows").value == 27)
+      assert(metrics("numOutputBatches").value == 7)
     }
   }
 

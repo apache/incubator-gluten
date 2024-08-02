@@ -22,11 +22,12 @@
 #include "velox/vector/ComplexVector.h"
 
 namespace gluten {
-class VeloxBatchAppender : public ColumnarBatchIterator {
+class VeloxBatchResizer : public ColumnarBatchIterator {
  public:
-  VeloxBatchAppender(
+  VeloxBatchResizer(
       facebook::velox::memory::MemoryPool* pool,
       int32_t minOutputBatchSize,
+      int32_t maxOutputBatchSize,
       std::unique_ptr<ColumnarBatchIterator> in);
 
   std::shared_ptr<ColumnarBatch> next() override;
@@ -36,6 +37,9 @@ class VeloxBatchAppender : public ColumnarBatchIterator {
  private:
   facebook::velox::memory::MemoryPool* pool_;
   const int32_t minOutputBatchSize_;
+  const int32_t maxOutputBatchSize_;
   std::unique_ptr<ColumnarBatchIterator> in_;
+
+  std::unique_ptr<ColumnarBatchIterator> next_ = nullptr;
 };
 } // namespace gluten

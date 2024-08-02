@@ -8,7 +8,7 @@ AdaptiveSparkPlan (54)
             +- ^ InputIteratorTransformer (30)
                +- ShuffleQueryStage (28), Statistics(X)
                   +- ColumnarExchange (27)
-                     +- VeloxAppendBatches (26)
+                     +- VeloxResizeBatches (26)
                         +- ^ ProjectExecTransformer (24)
                            +- ^ FlushableHashAggregateExecTransformer (23)
                               +- ^ ProjectExecTransformer (22)
@@ -162,9 +162,9 @@ Input [5]: [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
 Input [6]: [hash_partition_key#X, l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
 Arguments: false
 
-(26) VeloxAppendBatches
+(26) VeloxResizeBatches
 Input [6]: [hash_partition_key#X, l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
-Arguments: X
+Arguments: X, X
 
 (27) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
