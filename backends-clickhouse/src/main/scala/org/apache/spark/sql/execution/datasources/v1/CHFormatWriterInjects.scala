@@ -17,11 +17,8 @@
 package org.apache.spark.sql.execution.datasources.v1
 
 import org.apache.gluten.execution.datasource.GlutenRowSplitter
-<<<<<<< HEAD
-import org.apache.gluten.memory.CHThreadGroup
-=======
 import org.apache.gluten.expression.ConverterUtils
->>>>>>> 87de1cd33 ([GLUTEN-6588][CH] Cast columns if necessary before finally writing to ORC/Parquet files during native inserting)
+import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized.CHColumnVector
 
 import org.apache.spark.sql.SparkSession
