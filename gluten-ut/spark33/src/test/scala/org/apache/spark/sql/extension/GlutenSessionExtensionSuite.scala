@@ -18,6 +18,7 @@ package org.apache.spark.sql.extension
 
 import org.apache.gluten.extension.ColumnarOverrideRules
 import org.apache.gluten.utils.BackendTestUtils
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql._
 import org.apache.spark.sql.internal.StaticSQLConf.SPARK_SESSION_EXTENSIONS
