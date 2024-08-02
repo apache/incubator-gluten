@@ -16,11 +16,12 @@
  */
 
 #include "CHUtil.h"
+
 #include <filesystem>
-#include <format>
 #include <memory>
 #include <optional>
 #include <unistd.h>
+
 #include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
