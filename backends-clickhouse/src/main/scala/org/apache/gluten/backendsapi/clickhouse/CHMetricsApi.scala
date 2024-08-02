@@ -222,6 +222,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to spill"),
       "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to compress"),
       "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to prepare"),
+      "shuffleWallTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "shuffle wall time"),
       "avgReadBatchNumRows" -> SQLMetrics
         .createAverageMetric(sparkContext, "avg read batch num rows"),
       "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),

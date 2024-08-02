@@ -63,7 +63,9 @@ class CHCelebornColumnarShuffleWriter[K, V](
       } else {
         initShuffleWriter(cb)
         val col = cb.column(0).asInstanceOf[CHColumnVector]
+        val startTime = System.nanoTime()
         jniWrapper.split(nativeShuffleWriter, col.getBlockAddress)
+        dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
@@ -77,8 +79,10 @@ class CHCelebornColumnarShuffleWriter[K, V](
       return
     }
 
+    val startTime = System.nanoTime()
     splitResult = jniWrapper.stop(nativeShuffleWriter)
 
+    dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
     dep.metrics("splitTime").add(splitResult.getSplitTime)
     dep.metrics("IOTime").add(splitResult.getDiskWriteTime)
     dep.metrics("serializeTime").add(splitResult.getSerializationTime)
