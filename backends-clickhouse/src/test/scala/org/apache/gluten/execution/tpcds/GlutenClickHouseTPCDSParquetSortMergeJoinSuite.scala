@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.tpcds
 
-import org.apache.gluten.execution.{CHSortMergeJoinExecTransformer, GlutenClickHouseTPCDSAbstractSuite}
+import org.apache.gluten.execution.{CHShuffledHashJoinExecTransformer, CHSortMergeJoinExecTransformer, GlutenClickHouseTPCDSAbstractSuite}
 import org.apache.gluten.test.FallbackUtil
 
 import org.apache.spark.SparkConf
@@ -114,7 +114,7 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
     }
   }
 
-  test("sort merge join: left semi join should fallback") {
+  test("sort merge join: left semi join should be replaced with hash join") {
     withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "-1") {
       val testSql =
         """SELECT  count(*) cnt
@@ -125,12 +125,16 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
       val smjTransformers = df.queryExecution.executedPlan.collect {
         case f: CHSortMergeJoinExecTransformer => f
       }
-      assert(smjTransformers.isEmpty)
-      assert(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
+      val hashJoinTransformers = df.queryExecution.executedPlan.collect {
+        case f: CHShuffledHashJoinExecTransformer => f
+      }
+      assert(smjTransformers.size == 0)
+      assert(hashJoinTransformers.size > 0)
+      assert(!FallbackUtil.hasFallback(df.queryExecution.executedPlan))
     }
   }
 
-  test("sort merge join: left anti join should fallback") {
+  test("sort merge join: left anti join should be replace with hash join") {
     withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "-1") {
       val testSql =
         """SELECT  count(*) cnt
@@ -141,8 +145,12 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
       val smjTransformers = df.queryExecution.executedPlan.collect {
         case f: CHSortMergeJoinExecTransformer => f
       }
-      assert(smjTransformers.isEmpty)
-      assert(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
+      val hashJoinTransformers = df.queryExecution.executedPlan.collect {
+        case f: CHShuffledHashJoinExecTransformer => f
+      }
+      assert(smjTransformers.size == 0)
+      assert(hashJoinTransformers.size > 0)
+      assert(!FallbackUtil.hasFallback(df.queryExecution.executedPlan))
     }
   }
 

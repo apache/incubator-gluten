@@ -21,7 +21,7 @@ import org.apache.gluten.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.{CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, RewriteToDateExpresstionRule}
+import org.apache.gluten.extension.{CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, RewriteSortMergeJoinToHashJoinRule, RewriteToDateExpresstionRule}
 import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import org.apache.gluten.extension.columnar.transition.Convention
@@ -555,8 +555,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedQueryStagePrepRules(): List[SparkSession => Rule[SparkPlan]] =
+  override def genExtendedQueryStagePrepRules(): List[SparkSession => Rule[SparkPlan]] = {
     List(spark => FallbackBroadcastHashJoinPrepQueryStage(spark))
+  }
 
   /**
    * Generate extended Analyzers. Currently only for ClickHouse backend.
@@ -597,7 +598,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarTransformRules(): List[SparkSession => Rule[SparkPlan]] =
-    List()
+    List(spark => RewriteSortMergeJoinToHashJoinRule(spark))
 
   override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
     List()

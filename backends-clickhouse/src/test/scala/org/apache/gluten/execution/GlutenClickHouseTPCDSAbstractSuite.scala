@@ -66,12 +66,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
 
     // q16 smj + left semi + not condition
     // Q94 BroadcastHashJoin, LeftSemi, NOT condition
-    if (isAqe) {
-      Set(16, 94) | more
-    } else {
-      // q10, q35 smj + existence join
-      Set(10, 16, 35, 94) | more
-    }
+    Set(16, 94) | more
   }
   protected def excludedTpcdsQueries: Set[String] = Set(
     "q66" // inconsistent results
