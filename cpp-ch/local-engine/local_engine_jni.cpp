@@ -63,6 +63,7 @@ namespace DB
 namespace ErrorCodes
 {
 extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
+extern const int UNKNOWN_EXCEPTION;
 }
 }
 static DB::ColumnWithTypeAndName getColumnFromColumnVector(JNIEnv * /*env*/, jobject /*obj*/, jlong block_address, jint column_position)
