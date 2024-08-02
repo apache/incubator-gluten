@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.expression.ExpressionMappings
 import org.apache.gluten.expression.aggregate.{VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.utils.LogicalPlanSelector
@@ -23,6 +24,7 @@ import org.apache.gluten.utils.LogicalPlanSelector
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{And, Coalesce, Expression, IsNotNull, Literal, WindowExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.catalyst.planning.PhysicalAggregation
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Window}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.types.ArrayType
@@ -38,7 +40,7 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
   import CollectRewriteRule._
   override def apply(plan: LogicalPlan): LogicalPlan = LogicalPlanSelector.maybe(spark, plan) {
     val out = plan.transformUp {
-      case node =>
+      case node if needReplace(node) =>
         val out = replaceCollectSet(replaceCollectList(node))
         out
     }
@@ -46,6 +48,19 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
       return plan
     }
     out
+  }
+
+  private def needReplace(plan: LogicalPlan): Boolean = plan match {
+    // Do not replace with objectHashAggregate if disable objectHashAgg collectRewrite.
+    case PhysicalAggregation(_, aggregateExpr, _, _)
+        if !GlutenConfig.getConf.veloxObjectHashAggCollectRewriteEnabled =>
+      val aggregateExpressions = aggregateExpr.map(expr => expr.asInstanceOf[AggregateExpression])
+      val useHash = Aggregate.supportsHashAggregate(
+        aggregateExpressions.flatMap(_.aggregateFunction.aggBufferAttributes))
+      val useObjectHash = plan.conf.useObjectHashAggregation &&
+        Aggregate.supportsObjectHashAggregate(aggregateExpressions)
+      useHash || !useObjectHash
+    case _ => true
   }
 
   private def replaceCollectList(node: LogicalPlan): LogicalPlan = {

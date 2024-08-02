@@ -107,6 +107,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxOrcScanEnabled: Boolean =
     conf.getConf(VELOX_ORC_SCAN_ENABLED)
 
+  def veloxObjectHashAggCollectRewriteEnabled: Boolean =
+    conf.getConf(VELOX_OBJECTHASHAGG_COLLECT_REWRITE_ENABLED)
+
   def forceComplexTypeScanFallbackEnabled: Boolean =
     conf.getConf(VELOX_FORCE_COMPLEX_TYPE_SCAN_FALLBACK)
 
@@ -1937,6 +1940,14 @@ object GlutenConfig {
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
       .internal()
       .doc("Enable velox orc scan. If disabled, vanilla spark orc scan will be used.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val VELOX_OBJECTHASHAGG_COLLECT_REWRITE_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.objectHashAggregate.collect.rewrite.enabled")
+      .internal()
+      .doc("Enable velox rewrite collect in objectHashAggregate. If disabled, vanilla spark " +
+        "objectHashAggregate contains collect will be used.")
       .booleanConf
       .createWithDefault(true)
 

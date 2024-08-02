@@ -21,7 +21,7 @@ import org.apache.gluten.extension.columnar.validator.FallbackInjects
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Final, Partial}
-import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
+import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, ObjectHashAggregateExec}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -1167,6 +1167,19 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
                     plan.isInstanceOf[SortExecTransformer]
                   }) == 0)
             }
+        }
+      }
+    }
+  }
+
+  test("fallback objectHashAgg contains collect when disable objectHashAgg collect rewrite") {
+    withSQLConf(GlutenConfig.VELOX_OBJECTHASHAGG_COLLECT_REWRITE_ENABLED.key -> "false") {
+      withTempView("t1") {
+        Seq(("a", 2), ("b", 3))
+          .toDF("c1", "c2")
+          .createOrReplaceTempView("t1")
+        runQueryAndCompare("select collect_set(c1), collect_list(c2) from t1") {
+          df => assert(getExecutedPlan(df).count(_.isInstanceOf[ObjectHashAggregateExec]) == 2)
         }
       }
     }
