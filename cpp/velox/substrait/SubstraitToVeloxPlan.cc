@@ -1600,17 +1600,28 @@ bool SubstraitToVeloxPlanConverter::childrenFunctionsOnSameField(
 bool SubstraitToVeloxPlanConverter::canPushdownFunction(
     const ::substrait::Expression_ScalarFunction& scalarFunction,
     const std::string& filterName,
-    uint32_t& fieldIdx) {
-  // Condtions can be pushed down.
+    uint32_t& fieldIdx,
+    const std::vector<TypePtr>& veloxTypeList) {
+  // Conditions can be pushed down.
   static const std::unordered_set<std::string> supportedFunctions = {sIsNotNull, sIsNull, sGte, sGt, sLte, sLt, sEqual};
 
-  bool canPushdown = false;
-  if (supportedFunctions.find(filterName) != supportedFunctions.end() &&
-      fieldOrWithLiteral(scalarFunction.arguments(), fieldIdx)) {
-    // The arg should be field or field with literal.
-    canPushdown = true;
+  if (supportedFunctions.find(filterName) == supportedFunctions.end()) {
+    return false;
   }
-  return canPushdown;
+
+  // The arg should be field or field with literal.
+  if(!fieldOrWithLiteral(scalarFunction.arguments(), fieldIdx)) {
+    return false;
+  }
+
+  // check whether data type is supported or not
+  if (!veloxTypeList.empty() &&
+      fieldIdx < veloxTypeList.size() &&
+      !isPushdownSupported(veloxTypeList.at(fieldIdx))) {
+    return false;
+  }
+
+  return true;
 }
 
 bool SubstraitToVeloxPlanConverter::canPushdownNot(
@@ -1688,44 +1699,14 @@ bool SubstraitToVeloxPlanConverter::canPushdownOr(
 
 bool SubstraitToVeloxPlanConverter::isPushdownSupported(TypePtr inputType) {
   // keep the same with mapToFilters
-  if (inputType->isDate()) {
-    return true;
-  }
   switch (inputType->kind()) {
-    case TypeKind::TINYINT:
-    case TypeKind::SMALLINT:
-    case TypeKind::INTEGER:
-    case TypeKind::BIGINT:
-    case TypeKind::REAL:
-    case TypeKind::DOUBLE:
-    case TypeKind::BOOLEAN:
-    case TypeKind::VARCHAR:
-    case TypeKind::ARRAY:
-    case TypeKind::MAP:
-      return true;
+    case TypeKind::TIMESTAMP:
+    case TypeKind::VARBINARY:
+    case TypeKind::HUGEINT:
+      return false;
     default:
       return false;
   }
-}
-
-bool SubstraitToVeloxPlanConverter::canPushdownScalarFunction(
-    const ::substrait::Expression_ScalarFunction& function,
-    const std::vector<TypePtr>& veloxTypeList) {
-  for (const auto& arg : function.arguments()) {
-    if (arg.value().has_scalar_function()) {
-      const auto& scalarFunction = arg.value().scalar_function();
-      if (!canPushdownScalarFunction(scalarFunction, veloxTypeList)) {
-        return false;
-      }
-    } else if (arg.value().has_selection()) {
-      auto value = arg.value();
-      uint32_t fieldIndex = SubstraitParser::parseReferenceSegment(value.selection().direct_reference());
-      if (!veloxTypeList.empty() && !isPushdownSupported(veloxTypeList.at(fieldIndex))) {
-        return false;
-      }
-    }
-  }
-  return true;
 }
 
 void SubstraitToVeloxPlanConverter::separateFilters(
@@ -1754,12 +1735,6 @@ void SubstraitToVeloxPlanConverter::separateFilters(
   for (const auto& scalarFunction : scalarFunctions) {
     auto filterNameSpec = SubstraitParser::findFunctionSpec(functionMap_, scalarFunction.function_reference());
     auto filterName = SubstraitParser::getNameBeforeDelimiter(filterNameSpec);
-    // Add filters to remaining functions if datatype is not supported.
-    if (!canPushdownScalarFunction(scalarFunction, veloxTypeList)) {
-      remainingFunctions.emplace_back(scalarFunction);
-      continue;
-    }
-
     // Check whether NOT and OR functions can be pushed down.
     // If yes, the scalar function will be added into the subfield functions.
     if (filterName == sNot) {
@@ -1777,7 +1752,7 @@ void SubstraitToVeloxPlanConverter::separateFilters(
     } else {
       // Check if the condition is supported to be pushed down.
       uint32_t fieldIdx;
-      if (canPushdownFunction(scalarFunction, filterName, fieldIdx) &&
+      if (canPushdownFunction(scalarFunction, filterName, fieldIdx, veloxTypeList) &&
           rangeRecorders.at(fieldIdx).setCertainRangeForFunction(filterName)) {
         subfieldFunctions.emplace_back(scalarFunction);
       } else {
