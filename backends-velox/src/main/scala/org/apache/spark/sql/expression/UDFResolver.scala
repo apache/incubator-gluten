@@ -75,18 +75,21 @@ trait UDFSignatureBase {
   val expressionType: ExpressionType
   val children: Seq[DataType]
   val variableArity: Boolean
+  val allowTypeConversion: Boolean
 }
 
 case class UDFSignature(
     expressionType: ExpressionType,
     children: Seq[DataType],
-    variableArity: Boolean)
+    variableArity: Boolean,
+    allowTypeConversion: Boolean)
   extends UDFSignatureBase
 
 case class UDAFSignature(
     expressionType: ExpressionType,
     children: Seq[DataType],
     variableArity: Boolean,
+    allowTypeConversion: Boolean,
     intermediateAttrs: Seq[AttributeReference])
   extends UDFSignatureBase
 
@@ -131,26 +134,30 @@ object UDFResolver extends Logging {
       name: String,
       returnType: Array[Byte],
       argTypes: Array[Byte],
-      variableArity: Boolean): Unit = {
+      variableArity: Boolean,
+      allowTypeConversion: Boolean): Unit = {
     registerUDF(
       name,
       ConverterUtils.parseFromBytes(returnType),
       ConverterUtils.parseFromBytes(argTypes),
-      variableArity)
+      variableArity,
+      allowTypeConversion)
   }
 
   private def registerUDF(
       name: String,
       returnType: ExpressionType,
       argTypes: ExpressionType,
-      variableArity: Boolean): Unit = {
+      variableArity: Boolean,
+      allowTypeConversion: Boolean): Unit = {
     assert(argTypes.dataType.isInstanceOf[StructType])
     val v =
       UDFMap.getOrElseUpdate(name, mutable.MutableList[UDFSignature]())
     v += UDFSignature(
       returnType,
       argTypes.dataType.asInstanceOf[StructType].fields.map(_.dataType),
-      variableArity)
+      variableArity,
+      allowTypeConversion)
     UDFNames += name
     logInfo(s"Registered UDF: $name($argTypes) -> $returnType")
   }
@@ -160,13 +167,15 @@ object UDFResolver extends Logging {
       returnType: Array[Byte],
       argTypes: Array[Byte],
       intermediateTypes: Array[Byte],
-      variableArity: Boolean): Unit = {
+      variableArity: Boolean,
+      enableTypeConversion: Boolean): Unit = {
     registerUDAF(
       name,
       ConverterUtils.parseFromBytes(returnType),
       ConverterUtils.parseFromBytes(argTypes),
       ConverterUtils.parseFromBytes(intermediateTypes),
-      variableArity
+      variableArity,
+      enableTypeConversion
     )
   }
 
@@ -175,7 +184,8 @@ object UDFResolver extends Logging {
       returnType: ExpressionType,
       argTypes: ExpressionType,
       intermediateTypes: ExpressionType,
-      variableArity: Boolean): Unit = {
+      variableArity: Boolean,
+      allowTypeConversion: Boolean): Unit = {
     assert(argTypes.dataType.isInstanceOf[StructType])
 
     val aggBufferAttributes: Seq[AttributeReference] =
@@ -195,6 +205,7 @@ object UDFResolver extends Logging {
       returnType,
       argTypes.dataType.asInstanceOf[StructType].fields.map(_.dataType),
       variableArity,
+      allowTypeConversion,
       aggBufferAttributes)
     UDAFNames += name
     logInfo(s"Registered UDAF: $name($argTypes) -> $returnType")
@@ -366,7 +377,8 @@ object UDFResolver extends Logging {
           name,
           sig.expressionType.dataType,
           sig.expressionType.nullable,
-          if (!allowTypeConversion) children else applyCast(children, sig))
+          if (!allowTypeConversion && !sig.allowTypeConversion) children
+          else applyCast(children, sig))
       case None =>
         throw new UnsupportedOperationException(errorMessage)
     }
@@ -388,8 +400,10 @@ object UDFResolver extends Logging {
           name,
           sig.expressionType.dataType,
           sig.expressionType.nullable,
-          if (!allowTypeConversion) children else applyCast(children, sig),
-          sig.intermediateAttrs)
+          if (!allowTypeConversion && !sig.allowTypeConversion) children
+          else applyCast(children, sig),
+          sig.intermediateAttrs
+        )
       case None =>
         throw new UnsupportedOperationException(errorMessage)
     }
@@ -399,7 +413,9 @@ object UDFResolver extends Logging {
       sig: UDFSignatureBase,
       requiredDataTypes: Seq[DataType],
       allowTypeConversion: Boolean): Boolean = {
-    if (!tryBindStrict(sig, requiredDataTypes) && allowTypeConversion) {
+    if (
+      !tryBindStrict(sig, requiredDataTypes) && (allowTypeConversion || sig.allowTypeConversion)
+    ) {
       tryBindWithTypeConversion(sig, requiredDataTypes)
     } else {
       true

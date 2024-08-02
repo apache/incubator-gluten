@@ -19,7 +19,7 @@ package org.apache.gluten.expression
 import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.tags.{SkipTestTags, UDFTest}
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.{GlutenQueryTest, Row, SparkSession}
 import org.apache.spark.sql.catalyst.plans.SQLHelper
 
@@ -95,6 +95,15 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
       assert(
         df.collect()
           .sameElements(Array(Row(105L, 6L, Date.valueOf("2024-03-30")))))
+    }
+
+    withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "false") {
+      assert(
+        spark
+          .sql("select mydate2('2024-03-25', 5)")
+          .collect()
+          .sameElements(Array(Row(Date.valueOf("2024-03-30")))))
+      assertThrows[SparkException](spark.sql("select mydate('2024-03-25', 5)").collect())
     }
   }
 
