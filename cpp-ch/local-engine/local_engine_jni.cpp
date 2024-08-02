@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <format>
 #include <numeric>
 #include <string>
 #include <jni.h>
@@ -55,6 +54,7 @@
 #include <Common/ExceptionUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
+#include <Common/ErrorCodes.h>
 
 
 #ifdef __cplusplus
@@ -843,9 +843,9 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
 
     auto named_struct = parse_named_struct();
     if (!named_struct.has_value())
-        throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse schema from substrait protobuf failed");
+        throw DB::Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse schema from substrait protobuf failed");
 
-    Block preferred_schema = local_engine::TypeParser::buildBlockFromNamedStructWithoutDFS(*named_struct);
+    DB::Block preferred_schema = local_engine::TypeParser::buildBlockFromNamedStructWithoutDFS(*named_struct);
     const auto file_uri = jstring2string(env, file_uri_);
     // for HiveFileFormat, the file url may not end with .parquet, so we pass in the format as a hint
     const auto format_hint = jstring2string(env, format_hint_);
