@@ -327,7 +327,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxResizeBatchesShuffleInputRange: ResizeRange = {
     val standardSize = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
     val defaultRange: ResizeRange =
-      ResizeRange((0.25 * standardSize).toInt.max(1), 4 * standardSize)
+      ResizeRange((0.25 * standardSize).toInt.max(1), (1.5 * standardSize).toInt.max(1))
     conf
       .getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_RANGE)
       .map(ResizeRange.parse)

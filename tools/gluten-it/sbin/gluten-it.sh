@@ -38,6 +38,7 @@ echo "SPARK_SCALA_VERSION set at [$SPARK_SCALA_VERSION]."
 
 $JAVA_HOME/bin/java $GLUTEN_IT_JVM_ARGS \
     -XX:+IgnoreUnrecognizedVMOptions \
+    --add-modules=jdk.incubator.vector \
     --add-opens=java.base/java.lang=ALL-UNNAMED \
     --add-opens=java.base/java.lang.invoke=ALL-UNNAMED \
     --add-opens=java.base/java.lang.reflect=ALL-UNNAMED \
@@ -48,11 +49,11 @@ $JAVA_HOME/bin/java $GLUTEN_IT_JVM_ARGS \
     --add-opens=java.base/java.util.concurrent=ALL-UNNAMED \
     --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED \
     --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED \
-    --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED \
     --add-opens=java.base/sun.nio.ch=ALL-UNNAMED \
     --add-opens=java.base/sun.nio.cs=ALL-UNNAMED \
     --add-opens=java.base/sun.security.action=ALL-UNNAMED \
     --add-opens=java.base/sun.util.calendar=ALL-UNNAMED \
+    --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED \
     -Djdk.reflect.useDirectMethodHandle=false \
     -Dio.netty.tryReflectionSetAccessible=true \
     -cp $JAR_PATH \
