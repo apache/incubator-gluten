@@ -60,8 +60,8 @@ void CompactObjectStorageDiskTransaction::commit()
     std::filesystem::path meta_path = std::filesystem::path(prefix_path) / "meta.bin";
 
     auto object_storage = disk.getObjectStorage();
-    auto data_key = object_storage->generateObjectKeyForPath(data_path);
-    auto meta_key = object_storage->generateObjectKeyForPath(meta_path);
+    auto data_key = object_storage->generateObjectKeyForPath(data_path, std::nullopt);
+    auto meta_key = object_storage->generateObjectKeyForPath(meta_path, std::nullopt);
 
     disk.createDirectories(prefix_path);
     auto data_write_buffer = object_storage->writeObject(DB::StoredObject(data_key.serialize(), data_path), DB::WriteMode::Rewrite);
