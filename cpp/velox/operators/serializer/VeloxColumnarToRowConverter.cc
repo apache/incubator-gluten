@@ -34,13 +34,16 @@ void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr ro
 
   fast_ = std::make_unique<velox::row::UnsafeRowFast>(rowVector);
 
+  int64_t totalMemorySize;
+
   if (auto fixedRowSize = velox::row::UnsafeRowFast::fixedRowSize(velox::asRowType(rowVector->type()))) {
-    memThreshold_ = std::max<int64_t>(memThreshold_, fixedRowSize.value());
     auto rowSize = fixedRowSize.value();
-    numRows_ = std::min<int64_t>(memThreshold_ / rowSize, vectorLength - startRow);
+    // make sure it has at least one row
+    numRows_ = std::max<int32_t>(1, std::min<int64_t>(memThreshold_ / rowSize, vectorLength - startRow));
+    totalMemorySize = numRows_ * rowSize;
   } else {
     // Calculate the first row size
-    int64_t totalMemorySize = fast_->rowSize(startRow);
+    totalMemorySize = fast_->rowSize(startRow);
 
     auto endRow = startRow + 1;
     for (; endRow < vectorLength; ++endRow) {
@@ -52,18 +55,17 @@ void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr ro
       }
     }
     // Make sure the threshold is larger than the first row size
-    memThreshold_ = std::max<int64_t>(totalMemorySize, memThreshold_);
     numRows_ = endRow - startRow;
   }
 
-  if (veloxBuffers_ == nullptr) {
-    veloxBuffers_ = velox::AlignedBuffer::allocate<uint8_t>(memThreshold_, veloxPool_.get());
-  } else if (veloxBuffers_->capacity() < memThreshold_) {
-    velox::AlignedBuffer::reallocate<uint8_t>(&veloxBuffers_, memThreshold_);
+  if (nullptr == veloxBuffers_) {
+    veloxBuffers_ = velox::AlignedBuffer::allocate<uint8_t>(totalMemorySize, veloxPool_.get());
+  } else if (veloxBuffers_->capacity() < totalMemorySize) {
+    velox::AlignedBuffer::reallocate<uint8_t>(&veloxBuffers_, totalMemorySize);
   }
 
   bufferAddress_ = veloxBuffers_->asMutable<uint8_t>();
-  memset(bufferAddress_, 0, sizeof(int8_t) * memThreshold_);
+  memset(bufferAddress_, 0, sizeof(int8_t) * totalMemorySize);
 }
 
 void VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb, int64_t startRow) {
