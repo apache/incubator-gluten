@@ -7,7 +7,6 @@
  * the License.  You may obtain a copy of the License at
  *
  *    http://www.apache.org/licenses/LICENSE-2.0
- *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,6 +17,7 @@
 #include <stdint.h>
 #include <cmath>
 #include <type_traits>
+#include <limits>
 
 namespace gluten {
 template <typename T>
@@ -38,12 +38,18 @@ struct RoundFunction {
       return number;
     }
 
-    double factor = std::pow(10, decimals);
-    static const TNum kInf = std::numeric_limits<TNum>::infinity();
-    if (number < 0) {
-      return (std::round(std::nextafter(number, -kInf) * factor * -1) / factor) * -1;
+    /*
+    * Using long double for high precision during intermediate calculations.
+    * TODO: Make this more efficient with Boost to support high arbitrary precision at runtime.
+    */
+    long double num = static_cast<long double>(number);
+    long double factor = std::pow(10.0L, static_cast<long double>(decimals));
+    static const long double kInf = std::numeric_limits<long double>::infinity();
+
+    if (num < 0) {
+      return static_cast<TNum>((std::round(std::nextafter(num, -kInf) * factor * -1) / factor) * -1);
     }
-    return std::round(std::nextafter(number, kInf) * factor) / factor;
+    return static_cast<TNum>(std::round(std::nextafter(num, kInf) * factor) / factor);
   }
 
   template <typename TInput>
