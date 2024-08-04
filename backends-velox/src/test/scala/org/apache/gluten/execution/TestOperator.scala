@@ -351,14 +351,20 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
   }
 
   test("window expression") {
-    Seq("sort", "streaming").foreach {
-      windowType =>
+    Seq(("sort", 0), ("streaming", 1)).foreach {
+      case (windowType, localSortSize) =>
         withSQLConf("spark.gluten.sql.columnar.backend.velox.window.type" -> windowType) {
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_commitdate" +
               " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
-            checkSparkOperatorMatch[WindowExecTransformer]
+            df =>
+              checkSparkOperatorMatch[WindowExecTransformer](df)
+              assert(
+                getExecutedPlan(df).collect {
+                  case s: SortExecTransformer if !s.global => s
+                }.size == localSortSize
+              )
           }
 
           runQueryAndCompare(

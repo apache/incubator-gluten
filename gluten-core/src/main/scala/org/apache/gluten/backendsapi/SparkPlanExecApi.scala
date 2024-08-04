@@ -35,6 +35,7 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
+import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
@@ -467,6 +468,9 @@ trait SparkPlanExecApi {
   }
 
   def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]]
+
+  def genInjectExtendedParser(): List[(SparkSession, ParserInterface) => ParserInterface] =
+    List.empty
 
   def genGetStructFieldTransformer(
       substraitExprName: String,

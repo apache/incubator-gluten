@@ -103,7 +103,7 @@ object GlutenDriverEndpoint extends Logging with RemovalListener[String, util.Se
   var glutenDriverEndpointRef: RpcEndpointRef = _
 
   // keep executorRef on memory
-  private val executorDataMap = new ConcurrentHashMap[String, ExecutorData]
+  val executorDataMap = new ConcurrentHashMap[String, ExecutorData]
 
   // If spark.scheduler.listenerbus.eventqueue.capacity is set too small,
   //   the listener may lose messages.
@@ -131,4 +131,4 @@ object GlutenDriverEndpoint extends Logging with RemovalListener[String, util.Se
   }
 }
 
-private class ExecutorData(val executorEndpointRef: RpcEndpointRef) {}
+class ExecutorData(val executorEndpointRef: RpcEndpointRef) {}

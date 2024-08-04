@@ -67,6 +67,7 @@ struct MergeTreeTable
     std::vector<MergeTreePart> parts;
     std::unordered_set<String> getPartNames() const;
     RangesInDataParts extractRange(DataPartsVector parts_vector) const;
+    bool sameStructWith(const MergeTreeTable& other);
 };
 
 std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(const DB::NamesAndTypesList &columns, ContextPtr context, const MergeTreeTable &);

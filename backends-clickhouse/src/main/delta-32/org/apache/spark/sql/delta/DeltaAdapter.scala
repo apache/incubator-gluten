@@ -16,6 +16,17 @@
  */
 package org.apache.spark.sql.delta
 
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.delta.stats.DeltaScan
+
 object DeltaAdapter extends DeltaAdapterTrait {
   override def snapshot(deltaLog: DeltaLog): Snapshot = deltaLog.unsafeVolatileSnapshot
+
+  override def snapshotFilesForScan(
+      snapshot: Snapshot,
+      projection: Seq[Attribute],
+      filters: Seq[Expression],
+      keepNumRecords: Boolean): DeltaScan = {
+    snapshot.filesForScan(filters, keepNumRecords)
+  }
 }

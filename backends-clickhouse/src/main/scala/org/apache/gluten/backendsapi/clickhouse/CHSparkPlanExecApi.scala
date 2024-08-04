@@ -25,6 +25,7 @@ import org.apache.gluten.extension.{CountDistinctWithoutExpand, FallbackBroadcas
 import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.parser.GlutenClickhouseSqlParser
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
@@ -40,6 +41,7 @@ import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRew
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
+import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RangePartitioning}
@@ -611,6 +613,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] =
     List()
+
+  override def genInjectExtendedParser()
+      : List[(SparkSession, ParserInterface) => ParserInterface] = {
+    List((spark, parserInterface) => new GlutenClickhouseSqlParser(spark, parserInterface))
+  }
 
   /** Define backend specfic expression mappings. */
   override def extraExpressionMappings: Seq[Sig] = {

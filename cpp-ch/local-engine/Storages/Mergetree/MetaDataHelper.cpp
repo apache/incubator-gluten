@@ -105,7 +105,7 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
                     return;
                 else
                     metadata_disk->createDirectories(part_path);
-                auto key = s3->generateObjectKeyForPath(metadata_file_path.generic_string());
+                auto key = s3->generateObjectKeyForPath(metadata_file_path.generic_string(), std::nullopt);
                 StoredObject metadata_object(key.serialize());
                 auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object));
                 for (const auto & item : part_metadata)

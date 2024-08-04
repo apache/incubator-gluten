@@ -78,6 +78,7 @@ MergeTreeRelParser::parseStorage(const MergeTreeTable & merge_tree_table, Contex
     auto global_storage = StorageMergeTreeFactory::getStorage(
         StorageID(merge_tree_table.database, merge_tree_table.table),
         merge_tree_table.snapshot_id,
+        merge_tree_table,
         [&]() -> CustomStorageMergeTreePtr
         {
             auto custom_storage_merge_tree = std::make_shared<CustomStorageMergeTree>(
@@ -96,13 +97,6 @@ MergeTreeRelParser::parseStorage(const MergeTreeTable & merge_tree_table, Contex
         restoreMetaData(global_storage, merge_tree_table, *context);
 
     return global_storage;
-}
-
-CustomStorageMergeTreePtr
-MergeTreeRelParser::parseStorage(const substrait::ReadRel::ExtensionTable & extension_table, ContextMutablePtr context)
-{
-    auto merge_tree_table = parseMergeTreeTable(extension_table);
-    return parseStorage(merge_tree_table, context, true);
 }
 
 CustomStorageMergeTreePtr
@@ -131,7 +125,9 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     DB::QueryPlanPtr query_plan, const substrait::ReadRel & rel, const substrait::ReadRel::ExtensionTable & extension_table)
 {
     auto merge_tree_table = parseMergeTreeTable(extension_table);
-    auto storage = parseStorage(extension_table, global_context);
+    // ignore snapshot id for query
+    merge_tree_table.snapshot_id = "";
+    auto storage = parseStorage(merge_tree_table, global_context, true);
 
     DB::Block input;
     if (rel.has_base_schema() && rel.base_schema().names_size())
@@ -392,6 +388,8 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
     google::protobuf::StringValue table;
     table.ParseFromString(read_rel.advanced_extension().enhancement().value());
     auto merge_tree_table = parseMergeTreeTableString(table.value());
+    // ignore snapshot id for query
+    merge_tree_table.snapshot_id = "";
     auto custom_storage_mergetree = parseStorage(merge_tree_table, global_context, true);
 
     auto input = TypeParser::buildBlockFromNamedStruct(read_rel.base_schema());

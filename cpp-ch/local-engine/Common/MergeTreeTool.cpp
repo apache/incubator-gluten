@@ -231,4 +231,36 @@ RangesInDataParts MergeTreeTable::extractRange(DataPartsVector parts_vector) con
         });
     return ranges_in_data_parts;
 }
+
+bool sameColumns(const substrait::NamedStruct & left, const substrait::NamedStruct & right)
+{
+    if (left.names_size() != right.names_size())
+        return false;
+    std::unordered_map<String, substrait::Type::KindCase> map;
+    for (size_t i = 0; i < left.names_size(); i++)
+        map.emplace(left.names(i), left.struct_().types(i).kind_case());
+    for (size_t i = 0; i < right.names_size(); i++)
+    {
+        if (!map.contains(right.names(i)) || map[right.names(i)] != right.struct_().types(i).kind_case())
+            return false;
+    }
+    return true;
+}
+
+bool MergeTreeTable::sameStructWith(const MergeTreeTable & other)
+{
+    return database == other.database &&
+        table == other.table &&
+        snapshot_id == other.snapshot_id &&
+        sameColumns(schema, other.schema) &&
+        order_by_key == other.order_by_key &&
+        low_card_key == other.low_card_key &&
+        minmax_index_key == other.minmax_index_key &&
+        bf_index_key == other.bf_index_key &&
+        set_index_key == other.set_index_key &&
+        primary_key == other.primary_key &&
+        relative_path == other.relative_path &&
+        absolute_path == other.absolute_path &&
+        table_configs.storage_policy == other.table_configs.storage_policy;
+}
 }

@@ -324,7 +324,7 @@ PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_, LoggerPt
         partition_block_buffer[partition_id] = std::make_shared<ColumnsBuffer>(options->split_size);
         partition_buffer[partition_id] = std::make_shared<Partition>();
     }
-    settings = MemoryConfig::loadFromContext(SerializedPlanParser::global_context);
+    settings.loadFromContext(SerializedPlanParser::global_context);
 }
 
 size_t PartitionWriter::bytes() const
