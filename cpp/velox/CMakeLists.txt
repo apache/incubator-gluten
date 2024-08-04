@@ -89,6 +89,17 @@ if(NOT DEFINED VELOX_BUILD_PATH)
   endif()
 endif()
 
+function(ADD_VELOX_DEPENDENCY VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
+  if(NOT EXISTS ${VELOX_DEP_LIB_PATH})
+    message(FATAL_ERROR "Velox library not exists: ${VELOX_DEP_LIB_PATH}")
+  endif()
+  set(VELOX_DEP_LIB facebook::velox::${VELOX_DEP_LIB_NAME})
+  add_library(${VELOX_DEP_LIB} STATIC IMPORTED)
+  set_target_properties(${VELOX_DEP_LIB} PROPERTIES IMPORTED_LOCATION
+                                                    ${VELOX_DEP_LIB_PATH})
+  target_link_libraries(velox PUBLIC ${VELOX_DEP_LIB})
+endfunction()
+
 macro(find_libhdfs3)
   find_package(libhdfs3 CONFIG)
   if(libhdfs3_FOUND AND TARGET HDFS::hdfs3)
@@ -249,6 +260,31 @@ set_target_properties(
   facebook::velox PROPERTIES IMPORTED_LOCATION
                              ${VELOX_BUILD_PATH}/lib/libvelox.a)
 target_link_libraries(velox PUBLIC facebook::velox)
+
+target_link_libraries(velox PUBLIC Folly::folly)
+
+find_re2()
+target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
+
+# since
+# https://github.com/facebookincubator/velox/commit/47970417ac92135e862c0fde350d4d60fa2f1423
+if(Stemmer_FOUND)
+  target_link_libraries(velox PUBLIC stemmer::stemmer)
+else()
+  add_velox_dependency(
+    velox "${VELOX_BUILD_PATH}/_deps/libstemmer/src/libstemmer/libstemmer.a")
+endif()
+
+set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+find_package(simdjson CONFIG)
+if(simdjson_FOUND AND TARGET simdjson::simdjson)
+  target_link_libraries(velox PUBLIC simdjson::simdjson)
+else()
+  add_velox_dependency(external::simdjson
+                       "${VELOX_BUILD_PATH}/_deps/simdjson-build/libsimdjson.a")
+endif()
+set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
