@@ -582,7 +582,13 @@ if(BUILD_JEMALLOC)
 endif()
 
 target_link_libraries(velox PUBLIC gluten)
-add_velox_dependencies()
+
+add_velox_objects()
+add_library(facebook::velox STATIC IMPORTED)
+set_target_properties(
+  facebook::velox PROPERTIES IMPORTED_LOCATION
+                             ${VELOX_BUILD_PATH}/lib/libvelox.a)
+target_link_libraries(velox PUBLIC facebook::velox)
 
 target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
