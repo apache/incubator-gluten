@@ -16,11 +16,12 @@
  */
 
 #include "CHUtil.h"
+
 #include <filesystem>
-#include <format>
 #include <memory>
 #include <optional>
 #include <unistd.h>
+
 #include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
@@ -1009,7 +1010,7 @@ void BackendInitializerUtil::init(const std::string_view plan)
         });
 }
 
-void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, const std::string_view plan)
+void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, std::string_view plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
 

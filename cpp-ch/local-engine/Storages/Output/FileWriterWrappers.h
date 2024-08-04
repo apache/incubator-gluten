@@ -41,6 +41,7 @@ class FileWriterWrapper
 public:
     explicit FileWriterWrapper(const OutputFormatFilePtr & file_) : file(file_) { }
     virtual ~FileWriterWrapper() = default;
+
     virtual void consume(DB::Block & block) = 0;
     virtual void close() = 0;
 
@@ -53,10 +54,9 @@ using FileWriterWrapperPtr = std::shared_ptr<FileWriterWrapper>;
 class NormalFileWriter : public FileWriterWrapper
 {
 public:
-    //TODO: EmptyFileReader and ConstColumnsFileReader ?
-    //TODO: to support complex types
     NormalFileWriter(const OutputFormatFilePtr & file_, const DB::ContextPtr & context_);
     ~NormalFileWriter() override = default;
+
     void consume(DB::Block & block) override;
     void close() override;
 
@@ -71,13 +71,13 @@ private:
 std::unique_ptr<FileWriterWrapper> createFileWriterWrapper(
     const DB::ContextPtr & context,
     const std::string & file_uri,
-    const DB::Names & preferred_column_names,
+    const DB::Block & preferred_schema,
     const std::string & format_hint);
 
-OutputFormatFilePtr create_output_format_file(
+OutputFormatFilePtr createOutputFormatFile(
     const DB::ContextPtr & context,
     const std::string & file_uri,
-    const DB::Names & preferred_column_names,
+    const DB::Block & preferred_schema,
     const std::string & format_hint);
 
 class WriteStats : public DB::ISimpleTransform
@@ -191,7 +191,7 @@ public:
         : SinkToStorage(header)
         , partition_id_(partition_id.empty() ? NO_PARTITION_ID : partition_id)
         , relative_path_(relative)
-        , output_format_(create_output_format_file(context, makeFilename(base_path, partition_id, relative), header.getNames(), format_hint)
+        , output_format_(createOutputFormatFile(context, makeFilename(base_path, partition_id, relative), header, format_hint)
                              ->createOutputFormat(header))
     {
     }

@@ -17,10 +17,8 @@
 #include "ParquetOutputFormatFile.h"
 
 #if USE_PARQUET
-
 #    include <memory>
 #    include <string>
-#    include <utility>
 
 #    include <Formats/FormatFactory.h>
 #    include <Formats/FormatSettings.h>
@@ -35,8 +33,8 @@ ParquetOutputFormatFile::ParquetOutputFormatFile(
     DB::ContextPtr context_,
     const std::string & file_uri_,
     const WriteBufferBuilderPtr & write_buffer_builder_,
-    const std::vector<std::string> & preferred_column_names_)
-    : OutputFormatFile(context_, file_uri_, write_buffer_builder_, preferred_column_names_)
+    const DB::Block & preferred_schema_)
+    : OutputFormatFile(context_, file_uri_, write_buffer_builder_, preferred_schema_)
 {
 }
 
@@ -45,7 +43,7 @@ OutputFormatFile::OutputFormatPtr ParquetOutputFormatFile::createOutputFormat(co
     auto res = std::make_shared<OutputFormatFile::OutputFormat>();
     res->write_buffer = write_buffer_builder->build(file_uri);
 
-    auto new_header = creatHeaderWithPreferredColumnNames(header);
+    auto new_header = creatHeaderWithPreferredSchema(header);
     // TODO: align all spark parquet config with ch parquet config
     auto format_settings = DB::getFormatSettings(context);
     auto output_format = std::make_shared<DB::ParquetBlockOutputFormat>(*(res->write_buffer), new_header, format_settings);
