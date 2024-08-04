@@ -54,7 +54,7 @@ class ColumnarArrowPythonRunner(
     schema: StructType,
     timeZoneId: String,
     conf: Map[String, String])
-  extends BasePythonRunnerShim(funcs, evalType, argOffsets) {
+  extends BasePythonRunnerShim(funcs.toSeq, evalType, argOffsets) {
 
   override val simplifiedTraceback: Boolean = SQLConf.get.pysparkSimplifiedTraceback
 
@@ -239,7 +239,7 @@ case class ColumnarArrowEvalPythonExec(
     val arrowSafeTypeCheck = Seq(
       SQLConf.PANDAS_ARROW_SAFE_TYPE_CONVERSION.key ->
         conf.arrowSafeTypeConversion.toString)
-    Map(timeZoneConf ++ pandasColsByName ++ arrowSafeTypeCheck: _*)
+    Map(timeZoneConf.toSeq ++ pandasColsByName.toSeq ++ arrowSafeTypeCheck: _*)
   }
 
   private val pythonRunnerConf = getPythonRunnerConfMap(conf)
@@ -280,7 +280,7 @@ case class ColumnarArrowEvalPythonExec(
       case children =>
         // There should not be any other UDFs, or the children can't be evaluated directly.
         assert(children.forall(_.find(_.isInstanceOf[PythonUDF]).isEmpty))
-        (ChainedPythonFunctions(Seq(udf.func)), udf.children)
+        (ChainedPythonFunctions(Seq(udf.func).toSeq), udf.children)
     }
   }
 
@@ -410,7 +410,7 @@ object PullOutArrowEvalPythonPreProjectHelper extends PullOutProjectHelper {
         val (chained, children) = collectFunctions(u)
         (ChainedPythonFunctions(chained.funcs ++ Seq(udf.func)), children)
       case children =>
-        (ChainedPythonFunctions(Seq(udf.func)), udf.children)
+        (ChainedPythonFunctions(Seq(udf.func).toSeq), udf.children)
     }
   }
 
