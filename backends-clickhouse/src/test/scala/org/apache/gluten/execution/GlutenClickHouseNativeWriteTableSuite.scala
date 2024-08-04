@@ -65,7 +65,7 @@ class GlutenClickHouseNativeWriteTableSuite
       // TODO: support default ANSI policy
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.sql.warehouse.dir", getWarehouseDir)
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
       .setMaster("local[1]")
   }
 

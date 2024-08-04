@@ -40,8 +40,6 @@ using namespace DB;
 class MergeTreeRelParser : public RelParser
 {
 public:
-    static CustomStorageMergeTreePtr
-    parseStorage(const substrait::ReadRel::ExtensionTable & extension_table, ContextMutablePtr context);
     static CustomStorageMergeTreePtr parseStorage(
         const MergeTreeTable & merge_tree_table, ContextMutablePtr context, bool restore = false);
 
