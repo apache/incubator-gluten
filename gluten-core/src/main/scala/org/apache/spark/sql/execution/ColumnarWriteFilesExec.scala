@@ -36,16 +36,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.FileAlreadyExistsException
+import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import java.util.Date
-
-/**
- * This trait is used in [[ColumnarWriteFilesRDD]] to inject the staging write path before
- * initializing the native plan and collect native write files metrics for each backend.
- */
-trait BackendWrite {
-  def collectNativeWriteFilesMetrics(batch: ColumnarBatch): Option[WriteTaskResult]
-}
 
 /**
  * This RDD is used to make sure we have injected staging write path before initializing the native
@@ -71,11 +64,12 @@ class ColumnarWriteFilesRDD(
   }
 
   private def writeFilesForEmptyIterator(
-      commitProtocol: SparkWriteFilesCommitProtocol): WriteTaskResult = {
-    val taskAttemptContext = commitProtocol.taskAttemptContext
+      taskAttemptContext: TaskAttemptContext,
+      sparkPartitionId: Int
+  ): WriteTaskResult = {
 
     val dataWriter =
-      if (commitProtocol.sparkPartitionId != 0) {
+      if (sparkPartitionId != 0) {
         // In case of empty job, leave first partition to save meta for file format like parquet.
         new EmptyDirectoryDataWriter(description, taskAttemptContext, committer)
       } else if (description.partitionColumns.isEmpty) {
@@ -90,41 +84,40 @@ class ColumnarWriteFilesRDD(
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[WriterCommitMessage] = {
-    val commitProtocol = new SparkWriteFilesCommitProtocol(jobTrackerID, description, committer)
-    val backendWrite =
-      BackendsApiManager.getSparkPlanExecApiInstance.createBackendWrite(description)
+
+    val commitProtocol =
+      BackendsApiManager.getSparkPlanExecApiInstance.createCommitter(
+        description,
+        committer,
+        jobTrackerID)
 
     commitProtocol.setupTask()
-    val writePath = commitProtocol.newTaskAttemptTempPath()
-    val writeFileName = commitProtocol.getFilename
-    logDebug(s"Native staging write path: $writePath and file name: $writeFileName")
 
-    var writeTaskResult: WriteTaskResult = null
     try {
       Utils.tryWithSafeFinallyAndFailureCallbacks(block = {
-        BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath, writeFileName)
 
         // Initialize the native plan
         val iter = firstParent[ColumnarBatch].iterator(split, context)
         assert(iter.hasNext)
         val resultColumnarBatch = iter.next()
         assert(resultColumnarBatch != null)
-        val nativeWriteTaskResult = backendWrite.collectNativeWriteFilesMetrics(resultColumnarBatch)
-        if (nativeWriteTaskResult.isEmpty) {
-          // If we are writing an empty iterator, then velox would do nothing.
-          // Here we fallback to use vanilla Spark write files to generate an empty file for
-          // metadata only.
-          writeTaskResult = writeFilesForEmptyIterator(commitProtocol)
-          // We have done commit task inside `writeFilesForEmptyIterator`.
-        } else {
-          writeTaskResult = nativeWriteTaskResult.get
-          commitProtocol.commitTask()
-        }
+        val writeTaskResult = commitProtocol
+          .commitTask(resultColumnarBatch)
+          .orElse({
+            // If we are writing an empty iterator, then gluten backend would do nothing.
+            // Here we fallback to use vanilla Spark write files to generate an empty file for
+            // metadata only.
+            Some(writeFilesForEmptyIterator(commitProtocol.taskAttemptContext, context.partitionId))
+            // We have done commit task inside `writeFilesForEmptyIterator`.
+          })
+          .get
+        reportTaskMetrics(writeTaskResult)
+        Iterator.single(writeTaskResult)
       })(
         catchBlock = {
           // If there is an error, abort the task
           commitProtocol.abortTask()
-          logError(s"Job ${commitProtocol.getJobId} aborted.")
+          logError(s"Job ${commitProtocol.jobId} aborted.")
         }
       )
     } catch {
@@ -134,14 +127,9 @@ class ColumnarWriteFilesRDD(
         throw new TaskOutputFileAlreadyExistException(f)
       case t: Throwable =>
         throw new SparkException(
-          s"Task failed while writing rows to staging path: $writePath, " +
-            s"output path: ${description.path}",
+          s"Task failed while writing rows to output path: ${description.path}",
           t)
     }
-
-    assert(writeTaskResult != null)
-    reportTaskMetrics(writeTaskResult)
-    Iterator.single(writeTaskResult)
   }
 
   override protected def getPartitions: Array[Partition] = firstParent[ColumnarBatch].partitions
@@ -274,7 +262,7 @@ object ColumnarWriteFilesExec {
     protected def doExecuteWrite(writeFilesSpec: WriteFilesSpec): RDD[WriterCommitMessage] = {
       throw new GlutenException(
         s"Internal Error ${this.getClass} has write support" +
-          s" mismatch:\n${this}")
+          s" mismatch:\n$this")
     }
   }
 }

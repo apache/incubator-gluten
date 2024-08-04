@@ -32,6 +32,7 @@ import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSeria
 
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.api.python.{ColumnarArrowEvalPythonExec, PullOutArrowEvalPythonPreProjectHelper}
+import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
@@ -556,9 +557,11 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     ShuffleUtil.genColumnarShuffleWriter(parameters)
   }
 
-  override def createBackendWrite(description: WriteJobDescription): BackendWrite = {
-    VeloxBackendWrite(description)
-  }
+  def createCommitter(
+      description: WriteJobDescription,
+      committer: FileCommitProtocol,
+      jobTrackerID: String): GlutenCommitProtocol =
+    new VeloxBackendWrite(description, committer, jobTrackerID)
 
   override def createColumnarArrowEvalPythonExec(
       udfs: Seq[PythonUDF],

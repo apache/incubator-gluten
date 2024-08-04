@@ -24,6 +24,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 
 import org.apache.spark.ShuffleDependency
+import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
@@ -40,7 +41,7 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{BackendWrite, ColumnarWriteFilesExec, FileSourceScanExec, GenerateExec, LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, FileSourceScanExec, GenerateExec, GlutenCommitProtocol, LeafExecNode, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteJobDescription}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
@@ -399,8 +400,11 @@ trait SparkPlanExecApi {
       staticPartitions)
   }
 
-  /** Create BackendWrite */
-  def createBackendWrite(description: WriteJobDescription): BackendWrite
+  /** Create GlutenCommitProtocol for different Backend */
+  def createCommitter(
+      description: WriteJobDescription,
+      committer: FileCommitProtocol,
+      jobTrackerID: String): GlutenCommitProtocol
 
   /** Create ColumnarArrowEvalPythonExec, for velox backend */
   def createColumnarArrowEvalPythonExec(

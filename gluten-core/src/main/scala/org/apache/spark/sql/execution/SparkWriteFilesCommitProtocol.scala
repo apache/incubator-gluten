@@ -16,10 +16,13 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
+
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, HadoopMapReduceCommitProtocol}
-import org.apache.spark.sql.execution.datasources.WriteJobDescription
+import org.apache.spark.sql.execution.datasources.{WriteJobDescription, WriteTaskResult}
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
@@ -29,31 +32,88 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 
 import java.lang.reflect.Field
 
+object CreateFileNameSpec {
+  def apply(taskContext: TaskAttemptContext, description: WriteJobDescription): FileNameSpec = {
+    val fileCounter = 0
+    val suffix = f".c$fileCounter%03d" +
+      description.outputWriterFactory.getFileExtension(taskContext)
+    FileNameSpec("", suffix)
+  }
+}
+
+/** [[HadoopMapReduceAdapter]] for [[HadoopMapReduceCommitProtocol]]. */
+case class HadoopMapReduceAdapter(sparkCommitter: HadoopMapReduceCommitProtocol) {
+  private lazy val committer: OutputCommitter = {
+    val field: Field = classOf[HadoopMapReduceCommitProtocol].getDeclaredField("committer")
+    field.setAccessible(true)
+    field.get(sparkCommitter).asInstanceOf[OutputCommitter]
+  }
+  private lazy val GetFilename = {
+    val m = classOf[HadoopMapReduceCommitProtocol]
+      .getDeclaredMethod("getFilename", classOf[TaskAttemptContext], classOf[FileNameSpec])
+    m.setAccessible(true)
+    m
+  }
+
+  private def newTaskAttemptTempPath(defaultPath: String): String = {
+    assert(committer != null)
+    val stagingDir: Path = committer match {
+      // For FileOutputCommitter it has its own staging path called "work path".
+      case f: FileOutputCommitter =>
+        new Path(Option(f.getWorkPath).map(_.toString).getOrElse(defaultPath))
+      case _ =>
+        new Path(defaultPath)
+    }
+    stagingDir.toString
+  }
+
+  private def getFilename(taskContext: TaskAttemptContext, spec: FileNameSpec): String = {
+    GetFilename.invoke(sparkCommitter, taskContext, spec).asInstanceOf[String]
+  }
+
+  def getTaskAttemptTempPathAndFilename(
+      taskContext: TaskAttemptContext,
+      description: WriteJobDescription): (String, String) = {
+    val stageDir = newTaskAttemptTempPath(description.path)
+    val filename = getFilename(taskContext, CreateFileNameSpec(taskContext, description))
+    (stageDir, filename)
+  }
+}
+
+/** [[GlutenCommitProtocol]] wrapper for [[FileCommitProtocol]]. */
+trait GlutenCommitProtocol {
+  def setupTask(): Unit
+  def commitTask(batch: ColumnarBatch): Option[WriteTaskResult]
+  def abortTask(): Unit
+  def jobId: String
+  def taskAttemptContext: TaskAttemptContext
+}
+
 /**
- * A wrapper for [[HadoopMapReduceCommitProtocol]]. This class only affects the task side commit
- * process. e.g., `setupTask`, `newTaskAttemptTempPath`, `commitTask`, `abortTask`. The job commit
- * process is at vanilla Spark driver side.
+ * A wrapper for [[FileCommitProtocol]]. This class only affects the task side commit process. e.g.,
+ * `setupTask`, `newTaskAttemptTempPath`, `commitTask`, `abortTask`. The job commit process is at
+ * vanilla Spark driver side.
  */
-class SparkWriteFilesCommitProtocol(
-    jobTrackerID: String,
-    description: WriteJobDescription,
-    committer: FileCommitProtocol)
-  extends Logging {
-  assert(committer.isInstanceOf[HadoopMapReduceCommitProtocol])
+abstract class SparkWriteFilesCommitProtocol(
+    val description: WriteJobDescription,
+    val committer: FileCommitProtocol,
+    val jobTrackerID: String)
+  extends GlutenCommitProtocol
+  with Logging {
 
   val sparkStageId: Int = TaskContext.get().stageId()
   val sparkPartitionId: Int = TaskContext.get().partitionId()
   private val sparkAttemptNumber = TaskContext.get().taskAttemptId().toInt & Int.MaxValue
-  private val jobId = createJobID(jobTrackerID, sparkStageId)
+  private val jobID = createJobID(jobTrackerID, sparkStageId)
 
-  private val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
+  private val taskId = new TaskID(jobID, TaskType.MAP, sparkPartitionId)
   private val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)
 
   // Set up the attempt context required to use in the output committer.
-  val taskAttemptContext: TaskAttemptContext = {
+  override lazy val taskAttemptContext: TaskAttemptContext = {
     // Set up the configuration object
     val hadoopConf = description.serializableHadoopConf.value
-    hadoopConf.set("mapreduce.job.id", jobId.toString)
+    hadoopConf.set("mapreduce.job.id", jobID.toString)
     hadoopConf.set("mapreduce.task.id", taskAttemptId.getTaskID.toString)
     hadoopConf.set("mapreduce.task.attempt.id", taskAttemptId.toString)
     hadoopConf.setBoolean("mapreduce.task.ismap", true)
@@ -62,57 +122,14 @@ class SparkWriteFilesCommitProtocol(
     new TaskAttemptContextImpl(hadoopConf, taskAttemptId)
   }
 
-  private lazy val internalCommitter: OutputCommitter = {
-    val field: Field = classOf[HadoopMapReduceCommitProtocol].getDeclaredField("committer")
-    field.setAccessible(true)
-    field.get(committer).asInstanceOf[OutputCommitter]
-  }
-
-  private lazy val internalGetFilename = {
-    val m = classOf[HadoopMapReduceCommitProtocol]
-      .getDeclaredMethod("getFilename", classOf[TaskAttemptContext], classOf[FileNameSpec])
-    m.setAccessible(true)
-    m
-  }
-
-  def getFilename: String = {
-    val fileCounter = 0
-    val suffix = f".c$fileCounter%03d" +
-      description.outputWriterFactory.getFileExtension(taskAttemptContext)
-    val fileNameSpec = FileNameSpec("", suffix)
-    internalGetFilename.invoke(committer, taskAttemptContext, fileNameSpec).asInstanceOf[String]
-  }
-
-  def setupTask(): Unit = {
+  override def setupTask(): Unit = {
     committer.setupTask(taskAttemptContext)
+    doSetupNativeTask()
   }
 
-  def getJobId: String = jobId.toString
+  override def jobId: String = jobID.toString
 
-  def newTaskAttemptTempPath(): String = {
-    assert(internalCommitter != null)
-    val stagingDir: Path = internalCommitter match {
-      // For FileOutputCommitter it has its own staging path called "work path".
-      case f: FileOutputCommitter =>
-        new Path(Option(f.getWorkPath).map(_.toString).getOrElse(description.path))
-      case _ =>
-        new Path(description.path)
-    }
-    stagingDir.toString
-  }
-
-  def commitTask(): Unit = {
-    val (_, taskCommitTime) = Utils.timeTakenMs {
-      committer.commitTask(taskAttemptContext)
-    }
-
-    // Just for update task commit time
-    description.statsTrackers.foreach {
-      stats => stats.newTaskInstance().getFinalStats(taskCommitTime)
-    }
-  }
-
-  def abortTask(): Unit = {
+  override def abortTask(): Unit = {
     committer.abortTask(taskAttemptContext)
   }
 
@@ -122,5 +139,46 @@ class SparkWriteFilesCommitProtocol(
       throw new IllegalArgumentException("Job number is negative")
     }
     new JobID(jobTrackerID, id)
+  }
+
+  def doSetupNativeTask(): Unit
+}
+
+abstract class SparkHadoopMapReduceCommitProtocol(
+    description: WriteJobDescription,
+    committer: FileCommitProtocol,
+    jobTrackerID: String)
+  extends SparkWriteFilesCommitProtocol(description, committer, jobTrackerID) {
+  assert(committer.isInstanceOf[HadoopMapReduceCommitProtocol])
+
+  private lazy val hadoopMapReduceAdapter: HadoopMapReduceAdapter = HadoopMapReduceAdapter(
+    committer.asInstanceOf[HadoopMapReduceCommitProtocol])
+
+  def doCollectNativeResult(batch: ColumnarBatch): Option[WriteTaskResult]
+
+  override def commitTask(batch: ColumnarBatch): Option[WriteTaskResult] = {
+    doCollectNativeResult(batch).map(
+      nativeWriteTaskResult => {
+        val (_, taskCommitTime) = Utils.timeTakenMs {
+          committer.commitTask(taskAttemptContext)
+        }
+
+        // Just for update task commit time
+        description.statsTrackers.foreach {
+          stats => stats.newTaskInstance().getFinalStats(taskCommitTime)
+        }
+        nativeWriteTaskResult
+      })
+  }
+
+  /**
+   * This function is used in [[ColumnarWriteFilesRDD]] to inject the staging write path before
+   * initializing the native plan and collect native write files metrics for each backend.
+   */
+  override def doSetupNativeTask(): Unit = {
+    val (writePath, writeFileName) =
+      hadoopMapReduceAdapter.getTaskAttemptTempPathAndFilename(taskAttemptContext, description)
+    logDebug(s"Native staging write path: $writePath and file name: $writeFileName")
+    BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath, writeFileName)
   }
 }

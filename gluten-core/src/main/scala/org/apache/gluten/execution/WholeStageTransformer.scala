@@ -308,7 +308,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
           wsCtx.substraitContext.registeredAggregationParams
         )
       )
-      (0 until allScanPartitions.head.size).foreach(
+      allScanPartitions.head.indices.foreach(
         i => {
           val currentPartitions = allScanPartitions.map(_(i))
           currentPartitions.indices.foreach(

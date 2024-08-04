@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.spark.internal.Logging
+import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.execution.datasources._
@@ -24,11 +24,13 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.collection.mutable
 
-case class ClickhouseBackendWrite(description: WriteJobDescription)
-  extends BackendWrite
-  with Logging {
+class ClickhouseBackendWrite(
+    description: WriteJobDescription,
+    committer: FileCommitProtocol,
+    jobTrackerID: String)
+  extends SparkHadoopMapReduceCommitProtocol(description, committer, jobTrackerID) {
 
-  override def collectNativeWriteFilesMetrics(cb: ColumnarBatch): Option[WriteTaskResult] = {
+  override def doCollectNativeResult(cb: ColumnarBatch): Option[WriteTaskResult] = {
     val numFiles = cb.numRows()
     // Write an empty iterator
     if (numFiles == 0) {

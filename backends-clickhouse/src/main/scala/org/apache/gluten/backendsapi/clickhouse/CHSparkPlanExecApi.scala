@@ -32,6 +32,7 @@ import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
 import org.apache.gluten.vectorized.CHColumnarBatchSerializer
 
 import org.apache.spark.{ShuffleDependency, SparkException}
+import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, HashPartitioningWrapper}
@@ -364,7 +365,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left: SparkPlan,
       right: SparkPlan,
       condition: Option[Expression]): CartesianProductExecTransformer =
-    if (!condition.isEmpty) {
+    if (condition.isDefined) {
       throw new GlutenNotSupportException(
         "CartesianProductExecTransformer with condition is not supported in ch backend.")
     } else {
@@ -682,8 +683,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHRegExpReplaceTransformer(substraitExprName, children, expr)
   }
 
-  def createBackendWrite(description: WriteJobDescription): BackendWrite = ClickhouseBackendWrite(
-    description)
+  def createCommitter(
+      description: WriteJobDescription,
+      committer: FileCommitProtocol,
+      jobTrackerID: String): GlutenCommitProtocol =
+    new ClickhouseBackendWrite(description, committer, jobTrackerID)
 
   override def createColumnarArrowEvalPythonExec(
       udfs: Seq[PythonUDF],
