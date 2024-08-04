@@ -204,8 +204,8 @@ class ColumnarArrowPythonRunner(
 }
 
 case class ColumnarArrowEvalPythonExec(
-    udfs: Seq[PythonUDF],
-    resultAttrs: Seq[Attribute],
+    udfs: scala.collection.immutable.Seq[PythonUDF],
+    resultAttrs: scala.collection.immutable.Seq[Attribute],
     child: SparkPlan,
     evalType: Int)
   extends EvalPythonExec
@@ -220,7 +220,7 @@ case class ColumnarArrowEvalPythonExec(
   )
 
   override protected def evaluate(
-      funcs: Seq[ChainedPythonFunctions],
+      funcs: scala.collection.immutable.Seq[ChainedPythonFunctions],
       argOffsets: Array[Array[Int]],
       iter: Iterator[InternalRow],
       schema: StructType,
