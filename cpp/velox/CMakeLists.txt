@@ -89,6 +89,7 @@ if(NOT DEFINED VELOX_BUILD_PATH)
   endif()
 endif()
 
+set(VELOX_COMPONENTS_PATH "${VELOX_BUILD_PATH}/velox")
 function(ADD_VELOX_DEPENDENCY VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
   if(NOT EXISTS ${VELOX_DEP_LIB_PATH})
     message(FATAL_ERROR "Velox library not exists: ${VELOX_DEP_LIB_PATH}")
@@ -99,6 +100,16 @@ function(ADD_VELOX_DEPENDENCY VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
                                                     ${VELOX_DEP_LIB_PATH})
   target_link_libraries(velox PUBLIC ${VELOX_DEP_LIB})
 endfunction()
+
+macro(add_duckdb)
+  find_package(DuckDB)
+  if(NOT DuckDB_FOUND)
+    message(FATAL_ERROR "Cannot find DuckDB.")
+  else()
+    message(STATUS "Found DuckDB library from ${DuckDB_DIR}")
+    target_link_libraries(velox PUBLIC duckdb_static)
+  endif()
+endmacro()
 
 macro(find_libhdfs3)
   find_package(libhdfs3 CONFIG)
@@ -260,6 +271,18 @@ set_target_properties(
   facebook::velox PROPERTIES IMPORTED_LOCATION
                              ${VELOX_BUILD_PATH}/lib/libvelox.a)
 target_link_libraries(velox PUBLIC facebook::velox)
+
+if(BUILD_TESTS)
+    add_velox_dependency(
+      exec::test
+      "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a")
+    add_velox_dependency(
+          parse::parser "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
+    add_velox_dependency(
+          duckdb::parser
+          "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_parser.a")
+    add_duckdb()
+endif()
 
 target_link_libraries(velox PUBLIC Folly::folly)
 
