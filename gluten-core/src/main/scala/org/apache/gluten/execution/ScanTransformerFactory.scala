@@ -127,7 +127,7 @@ object ScanTransformerFactory {
           .getOrElse(getClass.getClassLoader)
         val serviceLoader = ServiceLoader.load(classOf[DataSourceScanTransformerRegister], loader)
         serviceLoader.asScala
-          .filter(_.scanClassName.equalsIgnoreCase(scanClassName))
+          .filter(service => scanClassName.contains(service.scanClassName))
           .toList match {
           case head :: Nil =>
             // there is exactly one registered alias
