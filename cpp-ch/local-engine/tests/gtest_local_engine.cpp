@@ -29,7 +29,6 @@
 #include <Parser/SubstraitParserUtils.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
-#include <Storages/CustomMergeTreeSink.h>
 #include <Storages/CustomStorageMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <gtest/gtest.h>
