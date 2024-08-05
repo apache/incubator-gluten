@@ -105,6 +105,7 @@ object ExpressionMappings {
     Sig[Levenshtein](LEVENSHTEIN),
     Sig[UnBase64](UNBASE64),
     Sig[Base64](BASE64),
+    Sig[FormatString](FORMAT),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
