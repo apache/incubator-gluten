@@ -32,7 +32,7 @@ public:
         return "formatDateTimeInJodaSyntax";
     }
 
-    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAGPtr & actions_dag) const override
+    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         DB::ActionsDAG::NodeRawConstPtrs parsed_args;
         const auto & args = substrait_func.arguments();

@@ -38,7 +38,6 @@ abstract class Suite(
     private val enableUi: Boolean,
     private val enableHsUi: Boolean,
     private val hsUiPort: Int,
-    private val offHeapSize: String,
     private val disableAqe: Boolean,
     private val disableBhj: Boolean,
     private val disableWscg: Boolean,
@@ -75,8 +74,6 @@ abstract class Suite(
   sessionSwitcher
     .defaultConf()
     .setWarningOnOverriding("spark.unsafe.exceptionOnMemoryLeak", s"$errorOnMemLeak")
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.memory.offHeap.enabled", "true")
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.memory.offHeap.size", offHeapSize)
 
   if (!enableUi) {
     sessionSwitcher.defaultConf().setWarningOnOverriding("spark.ui.enabled", "false")

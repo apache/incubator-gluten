@@ -15,19 +15,17 @@
  * limitations under the License.
  */
 #include "FileWriterWrappers.h"
-#include <algorithm>
-#include <Processors/Executors/PushingPipelineExecutor.h>
-#include <Processors/QueryPlan/QueryPlan.h>
-#include <Processors/QueryPlan/ReadFromPreparedSource.h>
-#include <QueryPipeline/QueryPipeline.h>
 
 namespace local_engine
 {
 
-NormalFileWriter::NormalFileWriter(OutputFormatFilePtr file_, DB::ContextPtr context_) : FileWriterWrapper(file_), context(context_)
+const std::string SubstraitFileSink::NO_PARTITION_ID{"__NO_PARTITION_ID__"};
+const std::string SubstraitPartitionedFileSink::DEFAULT_PARTITION_NAME{"__HIVE_DEFAULT_PARTITION__"};
+
+NormalFileWriter::NormalFileWriter(const OutputFormatFilePtr & file_, const DB::ContextPtr & context_)
+    : FileWriterWrapper(file_), context(context_)
 {
 }
-
 
 void NormalFileWriter::consume(DB::Block & block)
 {
@@ -37,6 +35,22 @@ void NormalFileWriter::consume(DB::Block & block)
         output_format = file->createOutputFormat(block.cloneEmpty());
         pipeline = std::make_unique<DB::QueryPipeline>(output_format->output);
         writer = std::make_unique<DB::PushingPipelineExecutor>(*pipeline);
+    }
+
+    /// In case input block didn't have the same types as the preferred schema, we cast the input block to the preferred schema.
+    /// Notice that preferred_schema is the actual file schema, which is also the data schema of current inserted table.
+    /// Refer to issue: https://github.com/apache/incubator-gluten/issues/6588
+    size_t index = 0;
+    const auto & preferred_schema = file->getPreferredSchema();
+    for (auto & column : block)
+    {
+        if (column.name.starts_with("__bucket_value__"))
+            continue;
+
+        const auto & preferred_column = preferred_schema.getByPosition(index++);
+        column.column = DB::castColumn(column, preferred_column.type);
+        column.name = preferred_column.name;
+        column.type = preferred_column.type;
     }
 
     /// Although gluten will append MaterializingTransform to the end of the pipeline before native insert in most cases, there are some cases in which MaterializingTransform won't be appended.
@@ -54,8 +68,8 @@ void NormalFileWriter::close()
         writer->finish();
 }
 
-FileWriterWrapper *
-createFileWriterWrapper(const std::string & file_uri, const std::vector<std::string> & preferred_column_names, const std::string & format_hint)
+OutputFormatFilePtr createOutputFormatFile(
+    const DB::ContextPtr & context, const std::string & file_uri, const DB::Block & preferred_schema, const std::string & format_hint)
 {
     // the passed in file_uri is exactly what is expected to see in the output folder
     // e.g /xxx/中文/timestamp_field=2023-07-13 03%3A00%3A17.622/abc.parquet
@@ -63,10 +77,14 @@ createFileWriterWrapper(const std::string & file_uri, const std::vector<std::str
     std::string encoded;
     Poco::URI::encode(file_uri, "", encoded); // encode the space and % seen in the file_uri
     Poco::URI poco_uri(encoded);
-    auto context = DB::Context::createCopy(local_engine::SerializedPlanParser::global_context);
     auto write_buffer_builder = WriteBufferBuilderFactory::instance().createBuilder(poco_uri.getScheme(), context);
-    auto file = OutputFormatFileUtil::createFile(context, write_buffer_builder, encoded, preferred_column_names, format_hint);
-    return new NormalFileWriter(file, context);
+    return OutputFormatFileUtil::createFile(context, write_buffer_builder, encoded, preferred_schema, format_hint);
+}
+
+std::unique_ptr<FileWriterWrapper> createFileWriterWrapper(
+    const DB::ContextPtr & context, const std::string & file_uri, const DB::Block & preferred_schema, const std::string & format_hint)
+{
+    return std::make_unique<NormalFileWriter>(createOutputFormatFile(context, file_uri, preferred_schema, format_hint), context);
 }
 
 }

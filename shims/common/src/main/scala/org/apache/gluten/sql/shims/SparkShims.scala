@@ -38,19 +38,19 @@ import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.{FileSourceScanExec, GlobalLimitExec, SparkPlan, TakeOrderedAndProjectExec}
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetFilters}
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFilters
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ShuffleExchangeLike}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.parquet.schema.MessageType
 
-import java.util.{ArrayList => JArrayList, Map => JMap}
+import java.util.{Map => JMap, Properties}
 
 import scala.reflect.ClassTag
 
@@ -156,7 +156,7 @@ trait SparkShims {
 
   def enableNativeWriteFilesByDefault(): Boolean = false
 
-  def createTestTaskContext(): TaskContext
+  def createTestTaskContext(properties: Properties): TaskContext
 
   def broadcastInternal[T: ClassTag](sc: SparkContext, value: T): Broadcast[T] = {
     // Since Spark 3.4, the `sc.broadcast` has been optimized to use `sc.broadcastInternal`.
@@ -248,4 +248,23 @@ trait SparkShims {
       conf: SQLConf,
       schema: MessageType,
       caseSensitive: Option[Boolean] = None): ParquetFilters
+
+  def genDecimalRoundExpressionOutput(decimalType: DecimalType, toScale: Int): DecimalType = {
+    val p = decimalType.precision
+    val s = decimalType.scale
+    // After rounding we may need one more digit in the integral part,
+    // e.g. `ceil(9.9, 0)` -> `10`, `ceil(99, -1)` -> `100`.
+    val integralLeastNumDigits = p - s + 1
+    if (toScale < 0) {
+      // negative scale means we need to adjust `-scale` number of digits before the decimal
+      // point, which means we need at lease `-scale + 1` digits (after rounding).
+      val newPrecision = math.max(integralLeastNumDigits, -toScale + 1)
+      // We have to accept the risk of overflow as we can't exceed the max precision.
+      DecimalType(math.min(newPrecision, DecimalType.MAX_PRECISION), 0)
+    } else {
+      val newScale = math.min(s, toScale)
+      // We have to accept the risk of overflow as we can't exceed the max precision.
+      DecimalType(math.min(integralLeastNumDigits + newScale, 38), newScale)
+    }
+  }
 }

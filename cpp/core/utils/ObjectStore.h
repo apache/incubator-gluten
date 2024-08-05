@@ -73,10 +73,7 @@ class ObjectStore {
   ObjectHandle save(std::shared_ptr<void> obj);
 
  private:
-  static ResourceMap<ObjectStore*>& stores() {
-    static ResourceMap<ObjectStore*> stores;
-    return stores;
-  }
+  static ResourceMap<ObjectStore*>& stores();
 
   ObjectHandle toObjHandle(ResourceHandle rh) {
     ObjectHandle prefix = static_cast<ObjectHandle>(storeId_) << (sizeof(ResourceHandle) * 8);

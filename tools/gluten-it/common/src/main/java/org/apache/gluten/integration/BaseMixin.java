@@ -48,6 +48,9 @@ public class BaseMixin {
   @CommandLine.Option(names = {"--error-on-memleak"}, description = "Fail the test when memory leak is detected by Spark's memory manager", defaultValue = "false")
   private boolean errorOnMemLeak;
 
+  @CommandLine.Option(names = {"--data-dir"}, description = "Location for storing data used by tests", defaultValue = "/tmp")
+  private String dataDir;
+
   @CommandLine.Option(names = {"--enable-ui"}, description = "Enable Spark UI", defaultValue = "false")
   private boolean enableUi;
 
@@ -58,10 +61,7 @@ public class BaseMixin {
   private int hsUiPort;
 
   @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
-  SparkRunModes.ModeEnumeration runModeEnumeration;
-
-  @CommandLine.Option(names = {"--off-heap-size"}, description = "Off heap memory size per executor", defaultValue = "6g")
-  private String offHeapSize;
+  SparkRunModes.Mode.Enumeration runModeEnumeration;
 
   @CommandLine.Option(names = {"--disable-aqe"}, description = "Disable Spark SQL adaptive query execution", defaultValue = "false")
   private boolean disableAqe;
@@ -129,20 +129,20 @@ public class BaseMixin {
     switch (benchmarkType) {
       case "h":
         suite = new TpchSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
-            baselineConf, extraSparkConfScala, level, errorOnMemLeak, enableUi,
-            enableHsUi, hsUiPort, offHeapSize, disableAqe, disableBhj,
+            baselineConf, extraSparkConfScala, level, errorOnMemLeak, dataDir, enableUi,
+            enableHsUi, hsUiPort, disableAqe, disableBhj,
             disableWscg, shufflePartitions, scanPartitions);
         break;
       case "ds":
         suite = new TpcdsSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
-            baselineConf, extraSparkConfScala, level, errorOnMemLeak, enableUi,
-            enableHsUi, hsUiPort, offHeapSize, disableAqe, disableBhj,
+            baselineConf, extraSparkConfScala, level, errorOnMemLeak, dataDir, enableUi,
+            enableHsUi, hsUiPort, disableAqe, disableBhj,
             disableWscg, shufflePartitions, scanPartitions);
         break;
       case "clickbench":
         suite = new ClickBenchSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
-            baselineConf, extraSparkConfScala, level, errorOnMemLeak, enableUi,
-            enableHsUi, hsUiPort, offHeapSize, disableAqe, disableBhj,
+            baselineConf, extraSparkConfScala, level, errorOnMemLeak, dataDir, enableUi,
+            enableHsUi, hsUiPort, disableAqe, disableBhj,
             disableWscg, shufflePartitions, scanPartitions);
         break;
       default:

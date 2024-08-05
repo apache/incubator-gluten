@@ -29,11 +29,7 @@ class RandomPartitioner final : public Partitioner {
     dist_ = std::uniform_int_distribution<std::mt19937::result_type>(0, numPartitions - 1);
   }
 
-  arrow::Status compute(
-      const int32_t* pidArr,
-      const int64_t numRows,
-      std::vector<uint32_t>& row2Partition,
-      std::vector<uint32_t>& partition2RowCount) override;
+  arrow::Status compute(const int32_t* pidArr, const int64_t numRows, std::vector<uint32_t>& row2Partition) override;
 
   arrow::Status compute(
       const int32_t* pidArr,

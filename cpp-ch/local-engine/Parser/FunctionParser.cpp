@@ -22,6 +22,7 @@
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Parser/TypeParser.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 
 namespace DB
@@ -46,7 +47,7 @@ String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunct
 }
 
 ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
-    const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const
+    const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const
 {
     ActionsDAG::NodeRawConstPtrs parsed_args;
     const auto & args = substrait_func.arguments();
@@ -58,7 +59,7 @@ ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
 
 
 const ActionsDAG::Node *
-FunctionParser::parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const
+FunctionParser::parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const
 {
     auto ch_func_name = getCHFunctionName(substrait_func);
     auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
@@ -67,7 +68,7 @@ FunctionParser::parse(const substrait::Expression_ScalarFunction & substrait_fun
 }
 
 const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
-    const substrait::Expression_ScalarFunction & substrait_func, const ActionsDAG::Node * func_node, ActionsDAGPtr & actions_dag) const
+    const substrait::Expression_ScalarFunction & substrait_func, const ActionsDAG::Node * func_node, ActionsDAG & actions_dag) const
 {
     const auto & output_type = substrait_func.output_type();
     if (!TypeParser::isTypeMatched(output_type, func_node->result_type))

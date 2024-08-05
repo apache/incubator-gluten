@@ -47,7 +47,7 @@ public:
     /// - make a post-projection for the function result. e.g. type conversion.
     virtual const DB::ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAGPtr & actions_dag) const;
+        DB::ActionsDAG & actions_dag) const;
 
     virtual String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const;
 protected:
@@ -55,47 +55,47 @@ protected:
     virtual DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
         const String & /*function_name*/,
-        DB::ActionsDAGPtr & actions_dag) const
+        DB::ActionsDAG & actions_dag) const
     {
         return parseFunctionArguments(substrait_func, actions_dag);
     }
     virtual DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
-        DB::ActionsDAGPtr & actions_dag) const;
+        DB::ActionsDAG & actions_dag) const;
 
     virtual const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
         const substrait::Expression_ScalarFunction & substrait_func,
         const DB::ActionsDAG::Node * func_node,
-        DB::ActionsDAGPtr & actions_dag) const;
+        DB::ActionsDAG & actions_dag) const;
 
     DB::ContextPtr getContext() const { return plan_parser->context; }
 
     String getUniqueName(const String & name) const { return plan_parser->getUniqueName(name); }
 
-    const DB::ActionsDAG::Node * addColumnToActionsDAG(DB::ActionsDAGPtr & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
+    const DB::ActionsDAG::Node * addColumnToActionsDAG(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
     {
-        return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
+        return &actions_dag.addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
     }
 
     const DB::ActionsDAG::Node *
-    toFunctionNode(DB::ActionsDAGPtr & action_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+    toFunctionNode(DB::ActionsDAG & action_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
     {
         return plan_parser->toFunctionNode(action_dag, func_name, args);
     }
 
     const DB::ActionsDAG::Node *
-    toFunctionNode(DB::ActionsDAGPtr & action_dag, const String & func_name, const String & result_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+    toFunctionNode(DB::ActionsDAG & action_dag, const String & func_name, const String & result_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
     {
         auto function_builder = DB::FunctionFactory::instance().get(func_name, getContext());
-        return &action_dag->addFunction(function_builder, args, result_name);
+        return &action_dag.addFunction(function_builder, args, result_name);
     }
 
     const ActionsDAG::Node *
-        parseFunctionWithDAG(const substrait::Expression & rel, std::string & result_name, DB::ActionsDAGPtr actions_dag, bool keep_result = false) const
+        parseFunctionWithDAG(const substrait::Expression & rel, std::string & result_name, DB::ActionsDAG& actions_dag, bool keep_result = false) const
     {
         return plan_parser->parseFunctionWithDAG(rel, result_name, actions_dag, keep_result);
     }
-    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr actions_dag, const substrait::Expression & rel) const
+    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG& actions_dag, const substrait::Expression & rel) const
     {
         return plan_parser->parseExpression(actions_dag, rel);
     }

@@ -116,11 +116,13 @@ class ClickhouseOptimisticTransaction(
         var options = writeOptions match {
           case None => Map.empty[String, String]
           case Some(writeOptions) =>
-            writeOptions.options.filterKeys {
-              key =>
-                key.equalsIgnoreCase(DeltaOptions.MAX_RECORDS_PER_FILE) ||
-                key.equalsIgnoreCase(DeltaOptions.COMPRESSION)
-            }.toMap
+            writeOptions.options
+              .filterKeys {
+                key =>
+                  key.equalsIgnoreCase(DeltaOptions.MAX_RECORDS_PER_FILE) ||
+                  key.equalsIgnoreCase(DeltaOptions.COMPRESSION)
+              }
+              .map(identity)
         }
 
         spark.conf.getAll.foreach(
@@ -175,7 +177,7 @@ class ClickhouseOptimisticTransaction(
       // 1. insert FakeRowAdaptor
       // 2. DeltaInvariantCheckerExec transform
       // 3. DeltaTaskStatisticsTracker collect null count / min values / max values
-      // 4. set the parameters 'staticPartitionWriteOnly', 'isNativeAppliable',
+      // 4. set the parameters 'staticPartitionWriteOnly', 'isNativeApplicable',
       //    'nativeFormat' in the LocalProperty of the sparkcontext
       super.writeFiles(inputData, writeOptions, additionalConstraints)
     }

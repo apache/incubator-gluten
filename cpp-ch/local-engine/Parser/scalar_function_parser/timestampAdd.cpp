@@ -44,26 +44,30 @@ public:
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return "timestamp_add"; }
 
-    const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const override
+    const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const override
     {
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
-        if (parsed_args.size() != 4)
-            throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly four arguments", getName());
+        if (parsed_args.size() < 3)
+            throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires at least three arguments", getName());
 
         const auto & unit_field = substrait_func.arguments().at(0);
         if (!unit_field.value().has_literal() || !unit_field.value().literal().has_string())
             throw Exception(
                 ErrorCodes::BAD_ARGUMENTS, "Unsupported unit argument, should be a string literal, but: {}", unit_field.DebugString());
 
-        const auto & timezone_field = substrait_func.arguments().at(3);
-        if (!timezone_field.value().has_literal() || !timezone_field.value().literal().has_string())
+        String timezone;
+        if (parsed_args.size() == 4)
+        {
+            const auto & timezone_field = substrait_func.arguments().at(3);
+            if (!timezone_field.value().has_literal() || !timezone_field.value().literal().has_string())
             throw Exception(
                 ErrorCodes::BAD_ARGUMENTS,
                 "Unsupported timezone_field argument, should be a string literal, but: {}",
                 timezone_field.DebugString());
+            timezone = timezone_field.value().literal().string();
+        }
 
         const auto & unit = Poco::toUpper(unit_field.value().literal().string());
-        auto timezone = timezone_field.value().literal().string();
 
         std::string ch_function_name;
         if (unit == "MICROSECOND")

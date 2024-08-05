@@ -20,6 +20,7 @@
 #include <Functions/FunctionHelpers.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 
 namespace DB::ErrorCodes
@@ -84,7 +85,7 @@ class FunctionParserBinaryArithmetic : public FunctionParser
 {
 protected:
     ActionsDAG::NodeRawConstPtrs convertBinaryArithmeticFunDecimalArgs(
-        ActionsDAGPtr & actions_dag,
+        ActionsDAG & actions_dag,
         const ActionsDAG::NodeRawConstPtrs & args,
         const DecimalType & eval_type,
         const substrait::Expression_ScalarFunction & arithmeticFun) const
@@ -103,10 +104,10 @@ protected:
         const String type_name = ch_type->getName();
         const DataTypePtr str_type = std::make_shared<DataTypeString>();
         const ActionsDAG::Node * type_node
-            = &actions_dag->addColumn(ColumnWithTypeAndName(str_type->createColumnConst(1, type_name), str_type, getUniqueName(type_name)));
+            = &actions_dag.addColumn(ColumnWithTypeAndName(str_type->createColumnConst(1, type_name), str_type, getUniqueName(type_name)));
         cast_args.emplace_back(type_node);
         const ActionsDAG::Node * cast_node = toFunctionNode(actions_dag, "CAST", cast_args);
-        actions_dag->addOrReplaceInOutputs(*cast_node);
+        actions_dag.addOrReplaceInOutputs(*cast_node);
         new_args.emplace_back(cast_node);
         new_args.emplace_back(args[1]);
         return new_args;
@@ -125,7 +126,7 @@ protected:
     virtual DecimalType internalEvalType(Int32 p1, Int32 s1, Int32 p2, Int32 s2) const = 0;
 
     const ActionsDAG::Node *
-    checkDecimalOverflow(ActionsDAGPtr & actions_dag, const ActionsDAG::Node * func_node, Int32 precision, Int32 scale) const
+    checkDecimalOverflow(ActionsDAG & actions_dag, const ActionsDAG::Node * func_node, Int32 precision, Int32 scale) const
     {
         //TODO: checkDecimalOverflowSpark throw exception per configuration
         const DB::ActionsDAG::NodeRawConstPtrs overflow_args
@@ -136,14 +137,14 @@ protected:
     }
 
     virtual const DB::ActionsDAG::Node *
-    createFunctionNode(DB::ActionsDAGPtr & actions_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+    createFunctionNode(DB::ActionsDAG & actions_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
     {
         return toFunctionNode(actions_dag, func_name, args);
     }
 
 public:
     explicit FunctionParserBinaryArithmetic(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
-    const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const override
+    const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const override
     {
         const auto ch_func_name = getCHFunctionName(substrait_func);
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
@@ -261,7 +262,7 @@ protected:
     }
 
     const DB::ActionsDAG::Node * createFunctionNode(
-        DB::ActionsDAGPtr & actions_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & new_args) const override
+        DB::ActionsDAG & actions_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & new_args) const override
     {
         assert(func_name == name);
         const auto * left_arg = new_args[0];

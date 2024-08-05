@@ -22,6 +22,8 @@
 #include <Common/CurrentThread.h>
 #include <Common/formatReadable.h>
 #include <Common/BitHelpers.h>
+#include <Common/GlutenConfig.h>
+#include <Common/QueryContext.h>
 
 namespace DB
 {
@@ -114,12 +116,13 @@ GraceMergingAggregatedTransform::GraceMergingAggregatedTransform(const DB::Block
     , no_pre_aggregated(no_pre_aggregated_)
     , tmp_data_disk(std::make_unique<DB::TemporaryDataOnDisk>(context_->getTempDataOnDisk()))
 {
-    max_buckets = context->getConfigRef().getUInt64("max_grace_aggregate_merging_buckets", 32);
-    throw_on_overflow_buckets = context->getConfigRef().getBool("throw_on_overflow_grace_aggregate_merging_buckets", false);
-    aggregated_keys_before_extend_buckets = context->getConfigRef().getUInt64("aggregated_keys_before_extend_grace_aggregate_merging_buckets", 8196);
+    auto config = GraceMergingAggregateConfig::loadFromContext(context);
+    max_buckets = config.max_grace_aggregate_merging_buckets;
+    throw_on_overflow_buckets = config.throw_on_overflow_grace_aggregate_merging_buckets;
+    aggregated_keys_before_extend_buckets = config.aggregated_keys_before_extend_grace_aggregate_merging_buckets;
     aggregated_keys_before_extend_buckets = PODArrayUtil::adjustMemoryEfficientSize(aggregated_keys_before_extend_buckets);
-    max_pending_flush_blocks_per_bucket = context->getConfigRef().getUInt64("max_pending_flush_blocks_per_grace_aggregate_merging_bucket", 1024 * 1024);
-    max_allowed_memory_usage_ratio = context->getConfigRef().getDouble("max_allowed_memory_usage_ratio_for_aggregate_merging", 0.9);
+    max_pending_flush_blocks_per_bucket = config.max_pending_flush_blocks_per_grace_aggregate_merging_bucket;
+    max_allowed_memory_usage_ratio = config.max_allowed_memory_usage_ratio_for_aggregate_merging;
     // bucket 0 is for in-memory data, it's just a placeholder.
     buckets.emplace(0, BufferFileStream());
 
@@ -160,7 +163,7 @@ GraceMergingAggregatedTransform::Status GraceMergingAggregatedTransform::prepare
                 "Output one chunk. rows: {}, bytes: {}, current memory usage: {}",
                 output_chunk.getNumRows(),
                 ReadableSize(output_chunk.bytes()),
-                ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
+                ReadableSize(currentThreadGroupMemoryUsage()));
             total_output_rows += output_chunk.getNumRows();
             total_output_blocks++;
             output.push(std::move(output_chunk));
@@ -189,7 +192,7 @@ GraceMergingAggregatedTransform::Status GraceMergingAggregatedTransform::prepare
             "Input one new chunk. rows: {}, bytes: {}, current memory usage: {}",
             input_chunk.getNumRows(),
             ReadableSize(input_chunk.bytes()),
-            ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
+            ReadableSize(currentThreadGroupMemoryUsage()));
         total_input_rows += input_chunk.getNumRows();
         total_input_blocks++;
         has_input = true;
@@ -277,7 +280,7 @@ bool GraceMergingAggregatedTransform::extendBuckets()
 
 void GraceMergingAggregatedTransform::rehashDataVariants()
 {
-    auto before_memoery_usage = MemoryUtil::getCurrentMemoryUsage();
+    auto before_memoery_usage = currentThreadGroupMemoryUsage();
 
     auto converter = currentDataVariantToBlockConverter(false);
     checkAndSetupCurrentDataVariants();
@@ -318,7 +321,7 @@ void GraceMergingAggregatedTransform::rehashDataVariants()
         current_bucket_index,
         getBucketsNum(),
         ReadableSize(before_memoery_usage),
-        ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
+        ReadableSize(currentThreadGroupMemoryUsage()));
 };
 
 DB::Blocks GraceMergingAggregatedTransform::scatterBlock(const DB::Block & block)
@@ -539,7 +542,7 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block, bool
         block.info.bucket_num,
         current_bucket_index,
         getBucketsNum(),
-        ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
+        ReadableSize(currentThreadGroupMemoryUsage()));
 
     /// the block could be one read from disk. block.info.bucket_num stores the number of buckets when it was scattered.
     /// so if the buckets number is not changed since it was scattered, we don't need to scatter it again.
@@ -590,11 +593,13 @@ bool GraceMergingAggregatedTransform::isMemoryOverflow()
     /// More greedy memory usage strategy.
     if (!current_data_variants)
         return false;
-    if (!context->getSettingsRef().max_memory_usage)
+
+    auto memory_soft_limit = DB::CurrentThread::getGroup()->memory_tracker.getSoftLimit();
+    if (!memory_soft_limit)
         return false;
-    auto max_mem_used = static_cast<size_t>(context->getSettingsRef().max_memory_usage * max_allowed_memory_usage_ratio);
+    auto max_mem_used = static_cast<size_t>(memory_soft_limit * max_allowed_memory_usage_ratio);
     auto current_result_rows = current_data_variants->size();
-    auto current_mem_used = MemoryUtil::getCurrentMemoryUsage();
+    auto current_mem_used = currentThreadGroupMemoryUsage();
     if (per_key_memory_usage > 0)
     {
         if (current_mem_used + per_key_memory_usage * current_result_rows >= max_mem_used)

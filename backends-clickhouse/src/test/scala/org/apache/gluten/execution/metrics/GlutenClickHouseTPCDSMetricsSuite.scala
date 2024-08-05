@@ -23,14 +23,11 @@ import org.apache.gluten.vectorized.GeneralInIterator
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.InputIteratorTransformer
+import org.apache.spark.util.TaskResources
 
 import scala.collection.JavaConverters._
 
 class GlutenClickHouseTPCDSMetricsSuite extends GlutenClickHouseTPCDSAbstractSuite {
-
-  override protected val tpcdsQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original"
-  override protected val queriesResults: String = rootPath + "tpcds-queries-output"
 
   protected val substraitPlansDatPath: String = rootPath + "substrait-plans"
   protected val metricsJsonFilePath: String = rootPath + "metrics-json"
@@ -46,35 +43,36 @@ class GlutenClickHouseTPCDSMetricsSuite extends GlutenClickHouseTPCDSAbstractSui
   }
 
   test("test tpcds q47 metrics") {
-    // Test getting metrics
-    val inBatchIters = new java.util.ArrayList[GeneralInIterator](
-      Array(0).map(iter => new ColumnarNativeIterator(Iterator.empty.asJava)).toSeq.asJava)
-    val outputAttributes = new java.util.ArrayList[Attribute](0)
+    TaskResources.runUnsafe({
+      // Test getting metrics
+      val inBatchIters = new java.util.ArrayList[GeneralInIterator](
+        Array(0).map(iter => new ColumnarNativeIterator(Iterator.empty.asJava)).toSeq.asJava)
+      val outputAttributes = new java.util.ArrayList[Attribute](0)
 
-    val nativeMetricsList = GlutenClickHouseMetricsUTUtils
-      .executeSubstraitPlan(
-        substraitPlansDatPath + "/tpcds-q47-wholestage-9.json",
-        basePath,
-        inBatchIters,
-        outputAttributes
-      )
+      val nativeMetricsList = GlutenClickHouseMetricsUTUtils
+        .executeSubstraitPlan(
+          substraitPlansDatPath + "/tpcds-q47-wholestage-9.json",
+          basePath,
+          inBatchIters,
+          outputAttributes
+        )
 
-    assert(nativeMetricsList.size == 1)
-    val nativeMetricsData = nativeMetricsList(0)
-    assert(nativeMetricsData.metricsDataList.size() == 7)
+      assert(nativeMetricsList.size == 1)
+      val nativeMetricsData = nativeMetricsList(0)
+      assert(nativeMetricsData.metricsDataList.size() == 7)
 
-    assert(nativeMetricsData.metricsDataList.get(1).getName.equals("kSort"))
-    assert(
-      nativeMetricsData.metricsDataList
-        .get(1)
-        .getSteps
-        .get(0)
-        .getProcessors
-        .get(0)
-        .getOutputRows == 0)
-    assert(nativeMetricsData.metricsDataList.get(2).getName.equals("kWindow"))
-    assert(nativeMetricsData.metricsDataList.get(4).getName.equals("kWindow"))
-
+      assert(nativeMetricsData.metricsDataList.get(1).getName.equals("kSort"))
+      assert(
+        nativeMetricsData.metricsDataList
+          .get(1)
+          .getSteps
+          .get(0)
+          .getProcessors
+          .get(0)
+          .getOutputRows == 0)
+      assert(nativeMetricsData.metricsDataList.get(2).getName.equals("kWindow"))
+      assert(nativeMetricsData.metricsDataList.get(4).getName.equals("kWindow"))
+    })
     // Test metrics update
     val df = GlutenClickHouseMetricsUTUtils.getTPCDSQueryExecution(spark, "q47", tpcdsQueries)
     val allWholeStageTransformers = df.queryExecution.executedPlan.collect {

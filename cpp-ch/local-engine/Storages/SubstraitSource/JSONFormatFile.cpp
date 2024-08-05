@@ -16,6 +16,7 @@
  */
 #include "JSONFormatFile.h"
 
+
 #include <Formats/FormatFactory.h>
 #include <Formats/FormatSettings.h>
 #include <Processors/Formats/Impl/JSONEachRowRowInputFormat.h>

@@ -25,7 +25,8 @@ import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.types.StructType
 
-import org.apache.iceberg.{CombinedScanTask, DeleteFile, FileFormat, FileScanTask, ScanTask}
+import org.apache.iceberg.{CombinedScanTask, DeleteFile, FileFormat, FileScanTask, ScanTask, Schema}
+import org.apache.iceberg.spark.SparkSchemaUtil
 
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, Map => JMap}
@@ -104,7 +105,6 @@ object GlutenIcebergSourceUtil {
         task =>
           val spec = task.spec()
           if (spec.isPartitioned) {
-            var partitionSchema = new StructType()
             val readFields = scan.readSchema().fields.map(_.name).toSet
             // Iceberg will generate some non-table fields as partition fields, such as x_bucket,
             // which will not appear in readFields, they also cannot be filtered.
@@ -116,11 +116,11 @@ object GlutenIcebergSourceUtil {
                 .asScala
                 .filter(f => !tableFields.contains(f.name) || readFields.contains(f.name()))
             partitionFields.foreach {
-              field =>
-                TypeUtil.validatePartitionColumnType(field.`type`().typeId())
-                partitionSchema = partitionSchema.add(field.name(), field.`type`().toString)
+              field => TypeUtil.validatePartitionColumnType(field.`type`().typeId())
             }
-            return partitionSchema
+
+            val icebergSchema = new Schema(partitionFields.toList.asJava)
+            return SparkSchemaUtil.convert(icebergSchema)
           } else {
             return new StructType()
           }

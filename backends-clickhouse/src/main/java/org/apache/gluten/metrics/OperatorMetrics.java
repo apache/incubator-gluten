@@ -27,6 +27,9 @@ public class OperatorMetrics implements IOperatorMetrics {
   public JoinParams joinParams;
   public AggregationParams aggParams;
 
+  public long physicalWrittenBytes;
+  public long numWrittenFiles;
+
   /** Create an instance for operator metrics. */
   public OperatorMetrics(
       List<MetricsData> metricsList, JoinParams joinParams, AggregationParams aggParams) {

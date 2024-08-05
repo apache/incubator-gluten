@@ -16,9 +16,7 @@
  */
 package org.apache.spark.shuffle.gluten.uniffle;
 
-import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
-import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.shuffle.ColumnarShuffleDependency;
@@ -36,19 +34,9 @@ import org.slf4j.LoggerFactory;
 public class UniffleShuffleManager extends RssShuffleManager {
   private static final Logger LOG = LoggerFactory.getLogger(UniffleShuffleManager.class);
 
-  private boolean isDriver() {
-    return "driver".equals(SparkEnv.get().executorId());
-  }
-
   public UniffleShuffleManager(SparkConf conf, boolean isDriver) {
     super(conf, isDriver);
     conf.set(RssSparkConfig.SPARK_RSS_CONFIG_PREFIX + RssSparkConfig.RSS_ROW_BASED.key(), "false");
-  }
-
-  @Override
-  public <K, V, C> ShuffleHandle registerShuffle(
-      int shuffleId, ShuffleDependency<K, V, C> dependency) {
-    return super.registerShuffle(shuffleId, dependency);
   }
 
   @Override
@@ -62,7 +50,7 @@ public class UniffleShuffleManager extends RssShuffleManager {
       ColumnarShuffleDependency<K, V, V> dependency =
           (ColumnarShuffleDependency<K, V, V>) rssHandle.getDependency();
       setPusherAppId(rssHandle);
-      String taskId = "" + context.taskAttemptId() + "_" + context.attemptNumber();
+      String taskId = context.taskAttemptId() + "_" + context.attemptNumber();
       ShuffleWriteMetrics writeMetrics;
       if (metrics != null) {
         writeMetrics = new WriteMetrics(metrics);

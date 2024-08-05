@@ -16,13 +16,58 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.SparkException
+import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.sql.catalyst.optimizer.NullPropagation
 import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.types._
 
 import java.sql.Timestamp
 
-class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
+class ScalarFunctionsValidateSuiteRasOff extends ScalarFunctionsValidateSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.gluten.ras.enabled", "false")
+  }
+
+  // Since https://github.com/apache/incubator-gluten/pull/6200.
+  test("Test input_file_name function") {
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from
+                         | (select l_orderkey from lineitem
+                         | union all
+                         | select o_orderkey as l_orderkey from orders)
+                         | limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+}
+
+class ScalarFunctionsValidateSuiteRasOn extends ScalarFunctionsValidateSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.gluten.ras.enabled", "true")
+  }
+
+  // TODO: input_file_name is not yet supported in RAS
+  ignore("Test input_file_name function") {
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) { _ => }
+
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from
+                         | (select l_orderkey from lineitem
+                         | union all
+                         | select o_orderkey as l_orderkey from orders)
+                         | limit 100""".stripMargin) { _ => }
+  }
+}
+
+abstract class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
   disableFallbackCheck
   import testImplicits._
 
@@ -657,10 +702,12 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  test("Test input_file_name function") {
-    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from lineitem limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
+  test("Test sequence function optimized by Spark constant folding") {
+    withSQLConf(("spark.sql.optimizer.excludedRules", NullPropagation.ruleName)) {
+      runQueryAndCompare("""SELECT sequence(1, 5), l_orderkey
+                           | from lineitem limit 100""".stripMargin) {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
     }
   }
 
@@ -694,6 +741,22 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     runQueryAndCompare("""SELECT Pi(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test version function") {
+    runQueryAndCompare("""SELECT version() from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("""SELECT version(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test sum/count function") {
+    runQueryAndCompare("""SELECT sum(2),count(2) from lineitem""".stripMargin) {
+      checkGlutenOperatorMatch[BatchScanExecTransformer]
     }
   }
 
@@ -857,6 +920,24 @@ class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
     runQueryAndCompare(
       "SELECT regexp_replace(c_comment, '\\w', 'something', 3) FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  testWithSpecifiedSparkVersion("mask", Some("3.4")) {
+    runQueryAndCompare("SELECT mask(c_comment) FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT mask(c_comment, 'Y') FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT mask(c_comment, 'Y', 'y') FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT mask(c_comment, 'Y', 'y', 'o') FROM customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare("SELECT mask(c_comment, 'Y', 'y', 'o', '*') FROM customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }

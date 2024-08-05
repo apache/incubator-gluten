@@ -77,7 +77,7 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
 
   private def canPropagate(plan: SparkPlan): Boolean = plan match {
     case _: ProjectExecTransformer => true
-    case _: VeloxAppendBatchesExec => true
+    case _: VeloxResizeBatchesExec => true
     case _ => false
   }
 }

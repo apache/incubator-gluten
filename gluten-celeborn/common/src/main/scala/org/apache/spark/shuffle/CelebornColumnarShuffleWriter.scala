@@ -23,6 +23,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SHUFFLE_COMPRESS
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.BlockManager
 
 import org.apache.celeborn.client.ShuffleClient
@@ -52,14 +53,27 @@ abstract class CelebornColumnarShuffleWriter[K, V](
 
   protected val mapId: Int = context.partitionId()
 
+  protected lazy val nativeBufferSize: Int = {
+    val bufferSize = GlutenConfig.getConf.shuffleWriterBufferSize
+    val maxBatchSize = GlutenConfig.getConf.maxBatchSize
+    if (bufferSize > maxBatchSize) {
+      logInfo(
+        s"${GlutenConfig.SHUFFLE_WRITER_BUFFER_SIZE.key} ($bufferSize) exceeds max " +
+          s" batch size. Limited to ${GlutenConfig.COLUMNAR_MAX_BATCH_SIZE.key} ($maxBatchSize).")
+      maxBatchSize
+    } else {
+      bufferSize
+    }
+  }
+
   protected val clientPushBufferMaxSize: Int = celebornConf.clientPushBufferMaxSize
 
   protected val clientPushSortMemoryThreshold: Long = celebornConf.clientPushSortMemoryThreshold
 
-  protected val clientSortMemoryMaxSize: Long = celebornConf.clientPushSortMemoryThreshold
-
   protected val shuffleWriterType: String =
-    celebornConf.shuffleWriterMode.name.toLowerCase(Locale.ROOT)
+    celebornConf.shuffleWriterMode.name
+      .toLowerCase(Locale.ROOT)
+      .replace(GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER, GlutenConfig.GLUTEN_RSS_SORT_SHUFFLE_WRITER)
 
   protected val celebornPartitionPusher = new CelebornPartitionPusher(
     shuffleId,
@@ -96,6 +110,10 @@ abstract class CelebornColumnarShuffleWriter[K, V](
 
   @throws[IOException]
   final override def write(records: Iterator[Product2[K, V]]): Unit = {
+    if (!records.hasNext) {
+      handleEmptyIterator()
+      return
+    }
     internalWrite(records)
   }
 
@@ -122,9 +140,17 @@ abstract class CelebornColumnarShuffleWriter[K, V](
     }
   }
 
+  def createShuffleWriter(columnarBatch: ColumnarBatch): Unit = {}
+
   def closeShuffleWriter(): Unit = {}
 
   def getPartitionLengths: Array[Long] = partitionLengths
+
+  def initShuffleWriter(columnarBatch: ColumnarBatch): Unit = {
+    if (nativeShuffleWriter == -1L) {
+      createShuffleWriter(columnarBatch)
+    }
+  }
 
   def pushMergedDataToCeleborn(): Unit = {
     val pushMergedDataTime = System.nanoTime

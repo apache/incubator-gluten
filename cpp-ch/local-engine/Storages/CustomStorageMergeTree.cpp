@@ -16,9 +16,9 @@
  */
 #include "CustomStorageMergeTree.h"
 
-
-#include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Interpreters/MergeTreeTransaction.h>
+#include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
+#include <Storages/MergeTree/MergeTreeSettings.h>
 #include <Storages/MergeTree/checkDataPart.h>
 
 namespace DB
@@ -148,9 +148,26 @@ CustomStorageMergeTree::CustomStorageMergeTree(
 
 std::atomic<int> CustomStorageMergeTree::part_num;
 
+
+
+void CustomStorageMergeTree::prefectchMetaDataFile(std::unordered_set<std::string> parts)
+{
+    auto disk = getDisks().front();
+    if (!disk->isRemote()) return;
+    std::vector<String> meta_paths;
+    std::ranges::for_each(parts, [&](const String & name) { meta_paths.emplace_back(fs::path(relative_data_path) / name / "meta.bin"); });
+    for (const auto & meta_path: meta_paths)
+    {
+        if (!disk->exists(meta_path)) continue;
+        auto in = disk->readFile(meta_path);
+        String ignore_data;
+        readStringUntilEOF(ignore_data, *in);
+    }
+}
+
 std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames(std::unordered_set<std::string> parts)
 {
-    auto parts_lock = lockParts();
+    prefectchMetaDataFile(parts);
     std::vector<MergeTreeDataPartPtr> data_parts;
     const auto disk = getStoragePolicy()->getDisks().at(0);
     for (const auto& name : parts)
@@ -161,8 +178,6 @@ std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames
         data_parts.emplace_back(res.part);
     }
 
-    // without it "test mergetree optimize partitioned by one low card column" will log ERROR
-    calculateColumnAndSecondaryIndexSizesImpl();
     return data_parts;
 }
 
@@ -211,6 +226,7 @@ MergeTreeData::LoadPartResult CustomStorageMergeTree::loadDataPart(
     res.part->loadVersionMetadata();
 
     res.part->setState(to_state);
+    auto parts_lock = lockParts();
 
     DataPartIteratorByInfo it;
     bool inserted;
@@ -238,6 +254,9 @@ MergeTreeData::LoadPartResult CustomStorageMergeTree::loadDataPart(
 
     if (res.part->hasLightweightDelete())
         has_lightweight_delete_parts.store(true);
+
+    // without it "test mergetree optimize partitioned by one low card column" will log ERROR
+    calculateColumnAndSecondaryIndexSizesImpl();
 
     LOG_TRACE(log, "Finished loading {} part {} on disk {}", magic_enum::enum_name(to_state), part_name, part_disk_ptr->getName());
     return res;

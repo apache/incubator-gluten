@@ -68,7 +68,8 @@ static const std::unordered_set<std::string> kBlackList = {
     "trunc",
     "sequence",
     "approx_percentile",
-    "get_array_struct_fields"};
+    "get_array_struct_fields",
+    "map_from_arrays"};
 
 } // namespace
 
@@ -189,22 +190,11 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
     return validateRound(scalarFunction, inputType);
   } else if (name == "extract") {
     return validateExtractExpr(params);
-  } else if (name == "map_from_arrays") {
-    LOG_VALIDATION_MSG("map_from_arrays is not supported.");
-    return false;
   } else if (name == "concat") {
     for (const auto& type : types) {
       if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
           type.find("list") != std::string::npos) {
         LOG_VALIDATION_MSG(type + " is not supported in concat.");
-        return false;
-      }
-    }
-  } else if (name == "murmur3hash") {
-    for (const auto& type : types) {
-      if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
-          type.find("list") != std::string::npos) {
-        LOG_VALIDATION_MSG(type + " is not supported in murmur3hash.");
         return false;
       }
     }
@@ -906,11 +896,13 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
     switch (joinRel.type()) {
       case ::substrait::JoinRel_JoinType_JOIN_TYPE_INNER:
       case ::substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
+      case ::substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT:
       case ::substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_SEMI:
       case ::substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT_SEMI:
+      case ::substrait::JoinRel_JoinType_JOIN_TYPE_ANTI:
         break;
       default:
-        LOG_VALIDATION_MSG("Sort merge join only support inner, left, left semi and right semi join.");
+        LOG_VALIDATION_MSG("Sort merge join type is not supported: " + std::to_string(joinRel.type()));
         return false;
     }
   }
@@ -1045,15 +1037,6 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
         if (resolveType == nullptr) {
           LOG_VALIDATION_MSG("Validation failed for function " + funcName + " resolve type in AggregateRel.");
           return false;
-        }
-        static const std::unordered_set<std::string> notSupportComplexTypeAggFuncs = {"set_agg", "min", "max"};
-        if (notSupportComplexTypeAggFuncs.find(baseFuncName) != notSupportComplexTypeAggFuncs.end() &&
-            exec::isRawInput(funcStep)) {
-          auto type = binder.tryResolveType(signature->argumentTypes()[0]);
-          if (type->isArray() || type->isMap() || type->isRow()) {
-            LOG_VALIDATION_MSG("Validation failed for function " + baseFuncName + " complex type is not supported.");
-            return false;
-          }
         }
 
         resolved = true;

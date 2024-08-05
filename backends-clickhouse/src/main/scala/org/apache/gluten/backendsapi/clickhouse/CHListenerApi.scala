@@ -83,12 +83,12 @@ class CHListenerApi extends ListenerApi with Logging {
     val externalSortKey = s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings" +
       s".max_bytes_before_external_sort"
     if (conf.getLong(externalSortKey, -1) < 0) {
-      if (conf.getBoolean("spark.memory.offHeap.enabled", false)) {
-        val memSize = JavaUtils.byteStringAsBytes(conf.get("spark.memory.offHeap.size")).toInt
-        if (memSize > 0) {
-          val cores = conf.getInt("spark.executor.cores", 1)
-          val sortMemLimit = ((memSize / cores) * 0.8).toInt
-          logInfo(s"max memory for sorting: $sortMemLimit")
+      if (conf.getBoolean("spark.memory.offHeap.enabled", defaultValue = false)) {
+        val memSize = JavaUtils.byteStringAsBytes(conf.get("spark.memory.offHeap.size"))
+        if (memSize > 0L) {
+          val cores = conf.getInt("spark.executor.cores", 1).toLong
+          val sortMemLimit = ((memSize / cores) * 0.8).toLong
+          logDebug(s"max memory for sorting: $sortMemLimit")
           conf.set(externalSortKey, sortMemLimit.toString)
         }
       }
@@ -97,8 +97,7 @@ class CHListenerApi extends ListenerApi with Logging {
     // Load supported hive/python/scala udfs
     UDFMappings.loadFromSparkConf(conf)
 
-    val initKernel = new CHNativeExpressionEvaluator()
-    initKernel.initNative(conf)
+    CHNativeExpressionEvaluator.initNative(conf)
 
     // inject backend-specific implementations to override spark classes
     // FIXME: The following set instances twice in local mode?
@@ -110,7 +109,6 @@ class CHListenerApi extends ListenerApi with Logging {
 
   private def shutdown(): Unit = {
     CHBroadcastBuildSideCache.cleanAll()
-    val kernel = new CHNativeExpressionEvaluator()
-    kernel.finalizeNative()
+    CHNativeExpressionEvaluator.finalizeNative()
   }
 }

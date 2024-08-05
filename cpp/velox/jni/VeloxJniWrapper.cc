@@ -31,7 +31,7 @@
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
 #include "utils/ObjectStore.h"
-#include "utils/VeloxBatchAppender.h"
+#include "utils/VeloxBatchResizer.h"
 #include "velox/common/base/BloomFilter.h"
 
 #include <iostream>
@@ -244,17 +244,18 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWra
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBatchAppenderJniWrapper_create( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBatchResizerJniWrapper_create( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jint minOutputBatchSize,
+    jint maxOutputBatchSize,
     jobject jIter) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
   auto pool = dynamic_cast<gluten::VeloxMemoryManager*>(ctx->memoryManager())->getLeafMemoryPool();
   auto iter = gluten::makeJniColumnarBatchIterator(env, jIter, ctx, nullptr);
   auto appender = std::make_shared<gluten::ResultIterator>(
-      std::make_unique<gluten::VeloxBatchAppender>(pool.get(), minOutputBatchSize, std::move(iter)));
+      std::make_unique<gluten::VeloxBatchResizer>(pool.get(), minOutputBatchSize, maxOutputBatchSize, std::move(iter)));
   return ctx->saveObject(appender);
   JNI_METHOD_END(gluten::kInvalidObjectHandle)
 }

@@ -19,17 +19,16 @@ package org.apache.spark
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
 import org.apache.spark.metrics.MetricsSystem
-import org.apache.spark.network.util.ByteUnit
 
 import java.util.Properties
 
+import scala.collection.JavaConverters._
+
 object TaskContextUtils {
-  def createTestTaskContext(): TaskContext = {
+  def createTestTaskContext(properties: Properties): TaskContext = {
     val conf = new SparkConf()
-    conf.set("spark.memory.offHeap.enabled", "true")
-    conf.set("spark.memory.offHeap.size", "1TB")
-    val memoryManager =
-      new UnifiedMemoryManager(conf, ByteUnit.TiB.toBytes(2), ByteUnit.TiB.toBytes(1), 1)
+    conf.setAll(properties.asScala)
+    val memoryManager = UnifiedMemoryManager(conf, 1)
     new TaskContextImpl(
       -1,
       -1,
@@ -37,7 +36,7 @@ object TaskContextUtils {
       -1L,
       -1,
       new TaskMemoryManager(memoryManager, -1L),
-      new Properties,
+      properties,
       MetricsSystem.createMetricsSystem("GLUTEN_UNSAFE", conf),
       TaskMetrics.empty,
       Map.empty

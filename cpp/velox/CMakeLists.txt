@@ -234,30 +234,22 @@ macro(ADD_VELOX_DEPENDENCIES)
     connector::hive::iceberg::IcebergSplitReader
     "${VELOX_COMPONENTS_PATH}/connectors/hive/iceberg/libvelox_hive_iceberg_splitreader.a"
   )
-  if(ENABLE_HDFS)
-    add_velox_dependency(
-      connector::hive::hdfs
-      "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/hdfs/libvelox_hdfs.a"
-    )
-  endif()
-  if(ENABLE_GCS)
-    add_velox_dependency(
-      connector::hive::gcs
-      "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/gcs/libvelox_gcs.a"
-    )
-  endif()
-  if(ENABLE_S3)
-    add_velox_dependency(
-      connector::hive::s3fs
-      "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/s3fs/libvelox_s3fs.a"
-    )
-  endif()
-  if(ENABLE_ABFS)
-    add_velox_dependency(
-      connector::hive::abfs
-      "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/abfs/libvelox_abfs.a"
-    )
-  endif()
+  add_velox_dependency(
+    connector::hive::hdfs
+    "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/hdfs/libvelox_hdfs.a"
+  )
+  add_velox_dependency(
+    connector::hive::gcs
+    "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/gcs/libvelox_gcs.a"
+  )
+  add_velox_dependency(
+    connector::hive::s3fs
+    "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/s3fs/libvelox_s3fs.a"
+  )
+  add_velox_dependency(
+    connector::hive::abfs
+    "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/abfs/libvelox_abfs.a"
+  )
   add_velox_dependency(
     dwio::dwrf::writer
     "${VELOX_COMPONENTS_PATH}/dwio/dwrf/writer/libvelox_dwio_dwrf_writer.a")
@@ -297,8 +289,8 @@ macro(ADD_VELOX_DEPENDENCIES)
 
     add_velox_dependency(
       tpch::gen "${VELOX_COMPONENTS_PATH}/tpch/gen/libvelox_tpch_gen.a")
-    add_velox_dependency(
-      dbgen "${VELOX_COMPONENTS_PATH}/tpch/gen/dbgen/libvelox_dbgen.a")
+    add_velox_dependency(dbgen
+                         "${VELOX_COMPONENTS_PATH}/tpch/gen/dbgen/libdbgen.a")
   endif()
 
   add_velox_dependency(
@@ -412,8 +404,9 @@ macro(ADD_VELOX_DEPENDENCIES)
     common::test_util
     "${VELOX_COMPONENTS_PATH}/common/testutil/libvelox_test_util.a")
 
-  add_velox_dependency(external::md5
-                       "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
+  add_velox_dependency(
+    external::md5
+    "${VELOX_COMPONENTS_PATH}/external/md5/libvelox_external_md5.a")
   add_velox_dependency(
     external::date
     "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
@@ -517,8 +510,9 @@ set(VELOX_SRCS
     operators/writer/VeloxParquetDatasource.cc
     shuffle/VeloxShuffleReader.cc
     shuffle/VeloxShuffleWriter.cc
-    shuffle/VeloxHashBasedShuffleWriter.cc
-    shuffle/VeloxSortBasedShuffleWriter.cc
+    shuffle/VeloxHashShuffleWriter.cc
+    shuffle/VeloxSortShuffleWriter.cc
+    shuffle/VeloxRssSortShuffleWriter.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
     substrait/SubstraitToVeloxPlan.cc
@@ -533,7 +527,7 @@ set(VELOX_SRCS
     utils/VeloxArrowUtils.cc
     utils/ConfigExtractor.cc
     utils/Common.cc
-    utils/VeloxBatchAppender.cc)
+    utils/VeloxBatchResizer.cc)
 
 if(ENABLE_HDFS)
   list(APPEND VELOX_SRCS utils/HdfsUtils.cc)
@@ -613,21 +607,6 @@ else()
                        "${VELOX_BUILD_PATH}/_deps/simdjson-build/libsimdjson.a")
 endif()
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
-
-if(ENABLE_GLUTEN_VCPKG)
-  find_package(Thrift CONFIG)
-else()
-  # Prefer the shared library on system.
-  set(ARROW_THRIFT_USE_SHARED ON)
-  find_package(Thrift)
-endif()
-
-if(Thrift_FOUND)
-  target_link_libraries(velox PUBLIC thrift::thrift)
-else()
-  add_velox_dependency(
-    thrift "${ARROW_HOME}/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")
-endif()
 
 if(BUILD_TESTS)
   add_subdirectory(tests)

@@ -20,6 +20,7 @@
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <Functions/FunctionHelpers.h>
+#include <Parser/RelParser.h>
 #include <Parser/TypeParser.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
@@ -39,7 +40,7 @@ namespace local_engine
 
 DB::ActionsDAG::NodeRawConstPtrs AggregateFunctionParser::parseFunctionArguments(
     const CommonFunctionInfo & func_info,
-    DB::ActionsDAGPtr & actions_dag) const
+    DB::ActionsDAG & actions_dag) const
 {
     DB::ActionsDAG::NodeRawConstPtrs collected_args;
     for (const auto & arg : func_info.arguments)
@@ -55,7 +56,7 @@ DB::ActionsDAG::NodeRawConstPtrs AggregateFunctionParser::parseFunctionArguments
             DB::ActionsDAG::NodeRawConstPtrs args;
             args.emplace_back(arg_node);
             const auto * node = toFunctionNode(actions_dag, "toNullable", args);
-            actions_dag->addOrReplaceInOutputs(*node);
+            actions_dag.addOrReplaceInOutputs(*node);
             arg_node = node;
         }
 
@@ -78,8 +79,7 @@ std::pair<String, DB::DataTypes> AggregateFunctionParser::tryApplyCHCombinator(
     auto get_aggregate_function = [](const String & name, const DB::DataTypes & arg_types) -> DB::AggregateFunctionPtr
     {
         DB::AggregateFunctionProperties properties;
-        auto action = NullsAction::EMPTY;
-        auto func = DB::AggregateFunctionFactory::instance().get(name, action, arg_types, DB::Array{}, properties);
+        auto func = RelParser::getAggregateFunction(name, arg_types, properties);
         if (!func)
         {
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknown aggregate function {}", name);
@@ -147,7 +147,7 @@ std::pair<String, DB::DataTypes> AggregateFunctionParser::tryApplyCHCombinator(
 const DB::ActionsDAG::Node * AggregateFunctionParser::convertNodeTypeIfNeeded(
     const CommonFunctionInfo & func_info,
     const DB::ActionsDAG::Node * func_node,
-    DB::ActionsDAGPtr & actions_dag,
+    DB::ActionsDAG & actions_dag,
     bool with_nullability) const
 {
     const auto & output_type = func_info.output_type;
@@ -156,7 +156,7 @@ const DB::ActionsDAG::Node * AggregateFunctionParser::convertNodeTypeIfNeeded(
     {
         func_node = ActionsDAGUtil::convertNodeType(
             actions_dag, func_node, TypeParser::parseType(output_type)->getName(), func_node->result_name);
-        actions_dag->addOrReplaceInOutputs(*func_node);
+        actions_dag.addOrReplaceInOutputs(*func_node);
     }
 
     if (output_type.has_decimal())
@@ -167,7 +167,7 @@ const DB::ActionsDAG::Node * AggregateFunctionParser::convertNodeTypeIfNeeded(
                plan_parser->addColumn(actions_dag, std::make_shared<DataTypeInt32>(), output_type.decimal().precision()),
                plan_parser->addColumn(actions_dag, std::make_shared<DataTypeInt32>(), output_type.decimal().scale())};
         func_node = toFunctionNode(actions_dag, checkDecimalOverflowSparkOrNull, func_node->result_name, overflow_args);
-        actions_dag->addOrReplaceInOutputs(*func_node);
+        actions_dag.addOrReplaceInOutputs(*func_node);
     }
 
     return func_node;

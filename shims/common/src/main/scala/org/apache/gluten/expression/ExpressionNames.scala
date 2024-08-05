@@ -131,6 +131,7 @@ object ExpressionNames {
   final val LEVENSHTEIN = "levenshtein"
   final val UNBASE64 = "unbase64"
   final val BASE64 = "base64"
+  final val MASK = "mask"
 
   // URL functions
   final val PARSE_URL = "parse_url"
@@ -317,6 +318,7 @@ object ExpressionNames {
   final val WIDTH_BUCKET = "width_bucket"
   final val REPLICATE_ROWS = "replicaterows"
   final val RAISE_ERROR = "raise_error"
+  final val VERSION = "version"
 
   // Directly use child expression transformer
   final val KNOWN_NULLABLE = "known_nullable"

@@ -5,13 +5,13 @@ AdaptiveSparkPlan (47)
    +- AQEShuffleRead (29)
       +- ShuffleQueryStage (28), Statistics(X)
          +- ColumnarExchange (27)
-            +- VeloxAppendBatches (26)
+            +- VeloxResizeBatches (26)
                +- ^ ProjectExecTransformer (24)
                   +- ^ ShuffledHashJoinExecTransformer Inner BuildRight (23)
                      :- ^ InputIteratorTransformer (9)
                      :  +- ShuffleQueryStage (7), Statistics(X)
                      :     +- ColumnarExchange (6)
-                     :        +- VeloxAppendBatches (5)
+                     :        +- VeloxResizeBatches (5)
                      :           +- ^ ProjectExecTransformer (3)
                      :              +- ^ NoopFilter (2)
                      :                 +- ^ Scan parquet (1)
@@ -20,7 +20,7 @@ AdaptiveSparkPlan (47)
                            +- ^ InputIteratorTransformer (20)
                               +- ShuffleQueryStage (18), Statistics(X)
                                  +- ColumnarExchange (17)
-                                    +- VeloxAppendBatches (16)
+                                    +- VeloxResizeBatches (16)
                                        +- ^ ProjectExecTransformer (14)
                                           +- ^ FlushableHashAggregateExecTransformer (13)
                                              +- ^ ProjectExecTransformer (12)
@@ -64,9 +64,9 @@ Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Input [5]: [hash_partition_key#X, s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Arguments: false
 
-(5) VeloxAppendBatches
+(5) VeloxResizeBatches
 Input [5]: [hash_partition_key#X, s_suppkey#X, s_name#X, s_address#X, s_phone#X]
-Arguments: X
+Arguments: X, X
 
 (6) ColumnarExchange
 Input [5]: [hash_partition_key#X, s_suppkey#X, s_name#X, s_address#X, s_phone#X]
@@ -112,9 +112,9 @@ Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: false
 
-(16) VeloxAppendBatches
+(16) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
-Arguments: X
+Arguments: X, X
 
 (17) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
@@ -154,9 +154,9 @@ Input [6]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, supplier_no#X, total_
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 Arguments: false
 
-(26) VeloxAppendBatches
+(26) VeloxResizeBatches
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
-Arguments: X
+Arguments: X, X
 
 (27) ColumnarExchange
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
@@ -267,7 +267,7 @@ AdaptiveSparkPlan (73)
                +- ^ InputIteratorTransformer (58)
                   +- ShuffleQueryStage (56), Statistics(X)
                      +- ColumnarExchange (55)
-                        +- VeloxAppendBatches (54)
+                        +- VeloxResizeBatches (54)
                            +- ^ ProjectExecTransformer (52)
                               +- ^ FlushableHashAggregateExecTransformer (51)
                                  +- ^ ProjectExecTransformer (50)
@@ -314,9 +314,9 @@ Input [3]: [l_suppkey#X, sum#X, isEmpty#X]
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
 Arguments: false
 
-(54) VeloxAppendBatches
+(54) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
-Arguments: X
+Arguments: X, X
 
 (55) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]

@@ -27,7 +27,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, EulerNumber, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Pi, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, EulerNumber, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Pi, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SparkVersion, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
@@ -224,7 +224,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
       val unsupportedTypes = fields.flatMap {
         field =>
           field.dataType match {
-            case _: TimestampType => Some("TimestampType")
             case _: StructType => Some("StructType")
             case _: ArrayType => Some("ArrayType")
             case _: MapType => Some("MapType")
@@ -293,7 +292,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
     fields.map {
       field =>
         field.dataType match {
-          case _: TimestampType | _: StructType | _: ArrayType | _: MapType => return false
+          case _: StructType | _: ArrayType | _: MapType => return false
           case _ =>
         }
     }
@@ -430,7 +429,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
       expr match {
         // Block directly falling back the below functions by FallbackEmptySchemaRelation.
         case alias: Alias => checkExpr(alias.child)
-        case _: Rand | _: Uuid | _: MakeYMInterval | _: SparkPartitionID | _: EulerNumber | _: Pi =>
+        case _: Rand | _: Uuid | _: MakeYMInterval | _: SparkPartitionID | _: EulerNumber | _: Pi |
+            _: SparkVersion =>
           true
         case _ => false
       }
@@ -438,13 +438,13 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
     plan match {
       case exec: HashAggregateExec if exec.aggregateExpressions.nonEmpty =>
-        // Check Sum(1) or Count(1).
+        // Check Sum(Literal) or Count(Literal).
         exec.aggregateExpressions.forall(
           expression => {
             val aggFunction = expression.aggregateFunction
             aggFunction match {
-              case _: Sum | _: Count =>
-                aggFunction.children.size == 1 && aggFunction.children.head.equals(Literal(1))
+              case Sum(Literal(_, _), _) => true
+              case Count(Seq(Literal(_, _))) => true
               case _ => false
             }
           })
@@ -493,8 +493,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def requiredChildOrderingForWindowGroupLimit(): Boolean = false
 
   override def staticPartitionWriteOnly(): Boolean = true
-
-  override def supportTransformWriteFiles: Boolean = true
 
   override def allowDecimalArithmetic: Boolean = true
 
