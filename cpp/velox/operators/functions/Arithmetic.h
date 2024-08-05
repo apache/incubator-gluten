@@ -16,8 +16,8 @@
 #include <folly/CPortability.h>
 #include <stdint.h>
 #include <cmath>
-#include <type_traits>
 #include <limits>
+#include <type_traits>
 
 namespace gluten {
 template <typename T>
@@ -39,9 +39,9 @@ struct RoundFunction {
     }
 
     /*
-    * Using long double for high precision during intermediate calculations.
-    * TODO: Make this more efficient with Boost to support high arbitrary precision at runtime.
-    */
+     * Using long double for high precision during intermediate calculations.
+     * TODO: Make this more efficient with Boost to support high arbitrary precision at runtime.
+     */
     long double num = static_cast<long double>(number);
     long double factor = std::pow(10.0L, static_cast<long double>(decimals));
     static const long double kInf = std::numeric_limits<long double>::infinity();
