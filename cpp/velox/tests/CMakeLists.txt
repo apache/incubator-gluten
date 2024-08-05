@@ -39,9 +39,13 @@ set(VELOX_TEST_COMMON_SRCS JsonToProtoConverter.cc FilePathGenerator.cc)
 add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
 # TODO: ORC is not well supported. add_velox_test(orc_test SOURCES OrcTest.cc)
 add_velox_test(
-  velox_operators_test SOURCES VeloxColumnarToRowTest.cc
-  VeloxRowToColumnarTest.cc VeloxColumnarBatchSerializerTest.cc
-  VeloxColumnarBatchTest.cc VeloxBatchResizerTest.cc)
+  velox_operators_test
+  SOURCES
+  VeloxColumnarToRowTest.cc
+  VeloxRowToColumnarTest.cc
+  VeloxColumnarBatchSerializerTest.cc
+  VeloxColumnarBatchTest.cc
+  VeloxBatchResizerTest.cc)
 add_velox_test(
   velox_plan_conversion_test
   SOURCES
