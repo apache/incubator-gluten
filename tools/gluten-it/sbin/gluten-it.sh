@@ -30,6 +30,10 @@ SPARK_JVM_OPTIONS=$($JAVA_HOME/bin/java -cp $JAR_PATH org.apache.gluten.integrat
 
 EMBEDDED_SPARK_HOME=$BASEDIR/../spark-home
 
+# We temporarily disallow setting these two variables by caller.
+SPARK_HOME=""
+SPARK_SCALA_VERSION=""
+
 export SPARK_HOME=${SPARK_HOME:-$EMBEDDED_SPARK_HOME}
 export SPARK_SCALA_VERSION=${SPARK_SCALA_VERSION:-'2.12'}
 
