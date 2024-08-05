@@ -16,8 +16,6 @@
 
 set -euf
 
-GLUTEN_IT_JVM_ARGS=${GLUTEN_IT_JVM_ARGS:-"-Xmx2G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log"}
-
 BASEDIR=$(dirname $0)
 
 LIB_DIR=$BASEDIR/../package/target/lib
@@ -28,6 +26,8 @@ fi
 
 JAR_PATH=$LIB_DIR/*
 
+SPARK_JVM_OPTIONS=$($JAVA_HOME/bin/java -cp $JAR_PATH org.apache.gluten.integration.SparkJvmOptions)
+
 EMBEDDED_SPARK_HOME=$BASEDIR/../spark-home
 
 export SPARK_HOME=${SPARK_HOME:-$EMBEDDED_SPARK_HOME}
@@ -36,25 +36,10 @@ export SPARK_SCALA_VERSION=${SPARK_SCALA_VERSION:-'2.12'}
 echo "SPARK_HOME set at [$SPARK_HOME]."
 echo "SPARK_SCALA_VERSION set at [$SPARK_SCALA_VERSION]."
 
-$JAVA_HOME/bin/java $GLUTEN_IT_JVM_ARGS \
-    -XX:+IgnoreUnrecognizedVMOptions \
-    --add-modules=jdk.incubator.vector \
-    --add-opens=java.base/java.lang=ALL-UNNAMED \
-    --add-opens=java.base/java.lang.invoke=ALL-UNNAMED \
-    --add-opens=java.base/java.lang.reflect=ALL-UNNAMED \
-    --add-opens=java.base/java.io=ALL-UNNAMED \
-    --add-opens=java.base/java.net=ALL-UNNAMED \
-    --add-opens=java.base/java.nio=ALL-UNNAMED \
-    --add-opens=java.base/java.util=ALL-UNNAMED \
-    --add-opens=java.base/java.util.concurrent=ALL-UNNAMED \
-    --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED \
-    --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED \
-    --add-opens=java.base/sun.nio.ch=ALL-UNNAMED \
-    --add-opens=java.base/sun.nio.cs=ALL-UNNAMED \
-    --add-opens=java.base/sun.security.action=ALL-UNNAMED \
-    --add-opens=java.base/sun.util.calendar=ALL-UNNAMED \
-    --add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED \
-    -Djdk.reflect.useDirectMethodHandle=false \
-    -Dio.netty.tryReflectionSetAccessible=true \
+GLUTEN_IT_JVM_ARGS=${GLUTEN_IT_JVM_ARGS:-"-Xmx2G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log"}
+
+$JAVA_HOME/bin/java \
+    $SPARK_JVM_OPTIONS \
+    $GLUTEN_IT_JVM_ARGS \
     -cp $JAR_PATH \
     org.apache.gluten.integration.Cli $@
