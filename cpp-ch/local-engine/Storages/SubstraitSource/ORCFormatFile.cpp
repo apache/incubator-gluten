@@ -24,6 +24,7 @@
 #    include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #    include <Processors/Formats/Impl/NativeORCBlockInputFormat.h>
 #    include <Storages/SubstraitSource/OrcUtil.h>
+#    include <Common/CHUtil.h>
 
 namespace local_engine
 {
@@ -67,8 +68,13 @@ FormatFile::InputFormatPtr ORCFormatFile::createInputFormat(const DB::Block & he
         std::back_inserter(skip_stripe_indices));
 
     format_settings.orc.skip_stripes = std::unordered_set<int>(skip_stripe_indices.begin(), skip_stripe_indices.end());
-
-    auto input_format = std::make_shared<DB::NativeORCBlockInputFormat>(*file_format->read_buffer, header, format_settings);
+    if (context->getConfigRef().has("timezone"))
+    {
+        const String config_timezone = context->getConfigRef().getString("timezone");
+        const String mapped_timezone = DateTimeUtil::convertTimeZone(config_timezone);
+        format_settings.orc.reader_time_zone_name = mapped_timezone;
+    }
+    auto input_format = std::make_shared<DB::NativeORCBlockInputFormat>(*file_format->read_buffer, header, format_settngs);
     file_format->input = input_format;
     return file_format;
 }
