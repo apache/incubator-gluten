@@ -52,7 +52,7 @@ public:
     virtual const DB::Block getPreferredSchema() const { return preferred_schema; }
 
 protected:
-    DB::Block creatHeaderWithPreferredSchema(const DB::Block & header);
+    DB::Block createHeaderWithPreferredSchema(const DB::Block & header);
 
     DB::ContextPtr context;
     std::string file_uri;
