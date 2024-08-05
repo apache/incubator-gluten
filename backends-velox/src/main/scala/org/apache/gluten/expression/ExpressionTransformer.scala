@@ -54,19 +54,20 @@ case class VeloxNamedStructTransformer(
 case class VeloxGetStructFieldTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
+    ordinal: Int,
     original: GetStructField)
   extends UnaryExpressionTransformer {
   override def doTransform(args: Object): ExpressionNode = {
     val childNode = child.doTransform(args)
     childNode match {
       case node: StructLiteralNode =>
-        node.getFieldLiteral(original.ordinal)
+        node.getFieldLiteral(ordinal)
       case node: SelectionNode =>
         // Append the nested index to selection node.
-        node.addNestedChildIdx(JInteger.valueOf(original.ordinal))
+        node.addNestedChildIdx(JInteger.valueOf(ordinal))
       case node: NullLiteralNode =>
         val nodeType =
-          node.getTypeNode.asInstanceOf[StructNode].getFieldTypes.get(original.ordinal)
+          node.getTypeNode.asInstanceOf[StructNode].getFieldTypes.get(ordinal)
         ExpressionBuilder.makeNullLiteral(nodeType)
       case other =>
         throw new GlutenNotSupportException(s"$other is not supported.")

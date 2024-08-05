@@ -98,56 +98,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
       }
     }
 
-    val parquetTypeValidatorWithComplexTypeFallback: PartialFunction[StructField, String] = {
-      case StructField(_, arrayType: ArrayType, _, _) =>
-        arrayType.simpleString + " is forced to fallback."
-      case StructField(_, mapType: MapType, _, _) =>
-        mapType.simpleString + " is forced to fallback."
-      case StructField(_, structType: StructType, _, _) =>
-        structType.simpleString + " is forced to fallback."
-      case StructField(_, timestampType: TimestampType, _, _)
-          if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
-        timestampType.simpleString + " is forced to fallback."
-    }
-    val orcTypeValidatorWithComplexTypeFallback: PartialFunction[StructField, String] = {
-      case StructField(_, arrayType: ArrayType, _, _) =>
-        arrayType.simpleString + " is forced to fallback."
-      case StructField(_, mapType: MapType, _, _) =>
-        mapType.simpleString + " is forced to fallback."
-      case StructField(_, structType: StructType, _, _) =>
-        structType.simpleString + " is forced to fallback."
-      case StructField(_, stringType: StringType, _, metadata)
-          if isCharType(stringType, metadata) =>
-        CharVarcharUtils.getRawTypeString(metadata) + " not support"
-      case StructField(_, TimestampType, _, _) => "TimestampType not support"
-    }
     format match {
-      case ParquetReadFormat =>
-        val typeValidator: PartialFunction[StructField, String] = {
-          // Parquet scan of nested array with struct/array as element type is unsupported in Velox.
-          case StructField(_, arrayType: ArrayType, _, _)
-              if arrayType.elementType.isInstanceOf[StructType] =>
-            "StructType as element in ArrayType"
-          case StructField(_, arrayType: ArrayType, _, _)
-              if arrayType.elementType.isInstanceOf[ArrayType] =>
-            "ArrayType as element in ArrayType"
-          // Parquet scan of nested map with struct as key type,
-          // or array type as value type is not supported in Velox.
-          case StructField(_, mapType: MapType, _, _) if mapType.keyType.isInstanceOf[StructType] =>
-            "StructType as Key in MapType"
-          case StructField(_, mapType: MapType, _, _)
-              if mapType.valueType.isInstanceOf[ArrayType] =>
-            "ArrayType as Value in MapType"
-          case StructField(_, TimestampType, _, _)
-              if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
-            "TimestampType"
-        }
-        if (!GlutenConfig.getConf.forceComplexTypeScanFallbackEnabled) {
-          validateTypes(typeValidator)
-        } else {
-          validateTypes(parquetTypeValidatorWithComplexTypeFallback)
-        }
-      case DwrfReadFormat => ValidationResult.succeeded
+      case ParquetReadFormat | DwrfReadFormat => ValidationResult.succeeded
       case OrcReadFormat =>
         if (!GlutenConfig.getConf.veloxOrcScanEnabled) {
           ValidationResult.failed(s"Velox ORC scan is turned off.")
@@ -170,11 +122,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
               CharVarcharUtils.getRawTypeString(metadata) + " not support"
             case StructField(_, TimestampType, _, _) => "TimestampType not support"
           }
-          if (!GlutenConfig.getConf.forceComplexTypeScanFallbackEnabled) {
-            validateTypes(typeValidator)
-          } else {
-            validateTypes(orcTypeValidatorWithComplexTypeFallback)
-          }
+          validateTypes(typeValidator)
         }
       case _ => ValidationResult.failed(s"Unsupported file format for $format.")
     }
