@@ -130,11 +130,12 @@ object VeloxBackendSettings extends BackendSettingsApi {
               if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
             "TimestampType"
         }
-        if (!GlutenConfig.getConf.forceComplexTypeScanFallbackEnabled) {
-          validateTypes(typeValidator)
-        } else {
-          validateTypes(parquetTypeValidatorWithComplexTypeFallback)
-        }
+//        if (!GlutenConfig.getConf.forceComplexTypeScanFallbackEnabled) {
+//          validateTypes(typeValidator)
+//        } else {
+//          validateTypes(parquetTypeValidatorWithComplexTypeFallback)
+//        }
+        ValidationResult.succeeded
       case DwrfReadFormat => ValidationResult.succeeded
       case OrcReadFormat =>
         if (!GlutenConfig.getConf.veloxOrcScanEnabled) {
@@ -158,11 +159,12 @@ object VeloxBackendSettings extends BackendSettingsApi {
               CharVarcharUtils.getRawTypeString(metadata) + " not support"
             case StructField(_, TimestampType, _, _) => "TimestampType not support"
           }
-          if (!GlutenConfig.getConf.forceComplexTypeScanFallbackEnabled) {
-            validateTypes(typeValidator)
-          } else {
-            validateTypes(orcTypeValidatorWithComplexTypeFallback)
-          }
+          ValidationResult.succeeded
+//          if (!GlutenConfig.getConf.forceComplexTypeScanFallbackEnabled) {
+//            validateTypes(typeValidator)
+//          } else {
+//            validateTypes(orcTypeValidatorWithComplexTypeFallback)
+//          }
         }
       case _ => ValidationResult.failed(s"Unsupported file format for $format.")
     }
