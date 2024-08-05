@@ -92,7 +92,7 @@ object DeltaRewriteTransformerRules {
       def mapAttribute(attr: Attribute) = {
         val newAttr = if (!plan.isMetadataColumn(attr)) {
           DeltaColumnMapping
-            .createPhysicalAttributes(Seq(attr), fmt.referenceSchema, fmt.columnMappingMode)
+            .createPhysicalAttributes(attr.toSeq, fmt.referenceSchema, fmt.columnMappingMode)
             .head
         } else {
           attr
@@ -142,7 +142,7 @@ object DeltaRewriteTransformerRules {
       val expr = (transformedAttrs, originColumnNames).zipped.map {
         (attr, columnName) => Alias(attr, columnName)(exprId = attr.exprId)
       }
-      val projectExecTransformer = ProjectExecTransformer(expr, scanExecTransformer)
+      val projectExecTransformer = ProjectExecTransformer(expr.toSeq, scanExecTransformer)
       projectExecTransformer
     case _ => plan
   }
