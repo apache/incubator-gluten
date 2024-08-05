@@ -1625,8 +1625,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
         (0 to 3).toDF("x").write.parquet(path.getCanonicalPath)
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
         runQueryAndCompare(
-          "SELECT x FROM view WHERE cast(x as timestamp) " +
-            "IN ('1970-01-01 08:00:00.001','1970-01-01 08:00:00.2')")(df => print(df))
+          """
+            |SELECT x FROM view
+            |WHERE cast(x as timestamp)
+            |IN ('1970-01-01 08:00:00.001','1970-01-01 08:00:00.2')
+          """.stripMargin
+        )(_)
     }
   }
 
