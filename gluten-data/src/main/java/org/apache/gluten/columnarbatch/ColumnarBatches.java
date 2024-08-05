@@ -19,6 +19,7 @@ package org.apache.gluten.columnarbatch;
 import org.apache.gluten.exception.GlutenException;
 import org.apache.gluten.exec.Runtime;
 import org.apache.gluten.exec.Runtimes;
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;
 import org.apache.gluten.utils.ImplicitClass;
@@ -31,7 +32,11 @@ import org.apache.arrow.c.CDataDictionaryProvider;
 import org.apache.arrow.c.Data;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.expressions.ToStringUtil;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
+import org.apache.spark.sql.internal.SQLConf;
+import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.utils.SparkArrowUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
@@ -39,6 +44,8 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+
+import scala.Option;
 
 public class ColumnarBatches {
   private static final Field FIELD_COLUMNS;
@@ -378,5 +385,13 @@ public class ColumnarBatches {
 
   public static long getNativeHandle(ColumnarBatch batch) {
     return getIndicatorVector(batch).handle();
+  }
+
+  public static String toString(ColumnarBatch batch, int start, int length) {
+    ColumnarBatch loadedBatch = ensureLoaded(ArrowBufferAllocators.contextInstance(), batch);
+    StructType type = SparkArrowUtil.fromArrowSchema(ArrowUtil.toSchema(loadedBatch));
+    String timeZone = SQLConf.get().sessionLocalTimeZone();
+    ToStringUtil toStringUtil = new ToStringUtil(Option.apply(timeZone));
+    return toStringUtil.evalBatch(loadedBatch, start, length, type, 20);
   }
 }

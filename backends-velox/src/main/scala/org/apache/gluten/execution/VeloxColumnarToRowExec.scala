@@ -99,6 +99,22 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
 }
 
 object VeloxColumnarToRowExec {
+
+  def toRowIterator(
+      batches: Iterator[ColumnarBatch],
+      output: Seq[Attribute]): Iterator[InternalRow] = {
+    val numOutputRows = new SQLMetric("numOutputRows")
+    val numInputBatches = new SQLMetric("numInputBatches")
+    val convertTime = new SQLMetric("convertTime")
+    toRowIterator(
+      batches,
+      output,
+      numOutputRows,
+      numInputBatches,
+      convertTime
+    )
+  }
+
   def toRowIterator(
       batches: Iterator[ColumnarBatch],
       output: Seq[Attribute],

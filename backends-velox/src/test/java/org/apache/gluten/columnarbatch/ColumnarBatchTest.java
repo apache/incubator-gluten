@@ -16,10 +16,12 @@
  */
 package org.apache.gluten.columnarbatch;
 
+import org.apache.gluten.execution.RowToVeloxColumnarExec;
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 import org.apache.gluten.test.VeloxBackendTestBase;
 import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 
+import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 import org.apache.spark.util.TaskResources$;
@@ -29,6 +31,8 @@ import org.junit.Test;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.StreamSupport;
+
+import scala.collection.JavaConverters;
 
 public class ColumnarBatchTest extends VeloxBackendTestBase {
 
@@ -91,9 +95,48 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
         });
   }
 
+  @Test
+  public void testToString() {
+    TaskResources$.MODULE$.runUnsafe(
+        () -> {
+          final ColumnarBatch batch = newArrowBatch(20);
+          StructType structType = new StructType();
+          structType = structType.add("a", DataTypes.BooleanType, true);
+          structType = structType.add("b", DataTypes.IntegerType, true);
+          ColumnarBatch veloxBatch =
+              RowToVeloxColumnarExec.toColumnarBatchIterator(
+                      JavaConverters.asScalaIterator(batch.rowIterator()), structType, 20)
+                  .next();
+          Assert.assertEquals("true | 15\nfalse | 14", ColumnarBatches.toString(veloxBatch, 0, 2));
+          Assert.assertEquals(
+              "true | -3\nfalse | NULL", ColumnarBatches.toString(veloxBatch, 18, 2));
+          veloxBatch.close();
+          return null;
+        });
+  }
+
   private static ColumnarBatch newArrowBatch(String schema, int numRows) {
     final ArrowWritableColumnVector[] columns =
         ArrowWritableColumnVector.allocateColumns(numRows, StructType.fromDDL(schema));
+    for (ArrowWritableColumnVector col : columns) {
+      col.setValueCount(numRows);
+    }
+    final ColumnarBatch batch = new ColumnarBatch(columns);
+    batch.setNumRows(numRows);
+    return batch;
+  }
+
+  private static ColumnarBatch newArrowBatch(int numRows) {
+    String schema = "a boolean, b int";
+    final ArrowWritableColumnVector[] columns =
+        ArrowWritableColumnVector.allocateColumns(numRows, StructType.fromDDL(schema));
+    ArrowWritableColumnVector col1 = columns[0];
+    ArrowWritableColumnVector col2 = columns[1];
+    for (int j = 0; j < numRows; j++) {
+      col1.putBoolean(j, j % 2 == 0);
+      col2.putInt(j, 15 - j);
+    }
+    col2.putNull(numRows - 1);
     for (ArrowWritableColumnVector col : columns) {
       col.setValueCount(numRows);
     }

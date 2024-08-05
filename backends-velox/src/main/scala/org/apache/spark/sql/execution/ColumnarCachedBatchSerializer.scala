@@ -28,7 +28,6 @@ import org.apache.gluten.vectorized.ColumnarBatchSerializerJniWrapper
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.columnar.{CachedBatch, CachedBatchSerializer}
@@ -134,22 +133,9 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
         conf)
     }
 
-    // note, these metrics are unused but just make `RowToVeloxColumnarExec` happy
-    val metrics = BackendsApiManager.getMetricsApiInstance.genRowToColumnarMetrics(
-      SparkSession.getActiveSession.orNull.sparkContext)
-    val numInputRows = metrics("numInputRows")
-    val numOutputBatches = metrics("numOutputBatches")
-    val convertTime = metrics("convertTime")
     val numRows = conf.columnBatchSize
     val rddColumnarBatch = input.mapPartitions {
-      it =>
-        RowToVeloxColumnarExec.toColumnarBatchIterator(
-          it,
-          localSchema,
-          numInputRows,
-          numOutputBatches,
-          convertTime,
-          numRows)
+      it => RowToVeloxColumnarExec.toColumnarBatchIterator(it, localSchema, numRows)
     }
     convertColumnarBatchToCachedBatch(rddColumnarBatch, schema, storageLevel, conf)
   }
@@ -169,22 +155,10 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
         conf)
     }
 
-    // note, these metrics are unused but just make `VeloxColumnarToRowExec` happy
-    val metrics = BackendsApiManager.getMetricsApiInstance.genColumnarToRowMetrics(
-      SparkSession.getActiveSession.orNull.sparkContext)
-    val numOutputRows = metrics("numOutputRows")
-    val numInputBatches = metrics("numInputBatches")
-    val convertTime = metrics("convertTime")
     val rddColumnarBatch =
       convertCachedBatchToColumnarBatch(input, cacheAttributes, selectedAttributes, conf)
     rddColumnarBatch.mapPartitions {
-      it =>
-        VeloxColumnarToRowExec.toRowIterator(
-          it,
-          selectedAttributes,
-          numOutputRows,
-          numInputBatches,
-          convertTime)
+      it => VeloxColumnarToRowExec.toRowIterator(it, selectedAttributes)
     }
   }
 
