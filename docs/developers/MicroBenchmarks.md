@@ -352,6 +352,12 @@ Benchmark                                                               Time    
 ShuffleWriteRead/iterations:1/process_time/real_time/threads:1 121637629714 ns   121309450910 ns            1 elapsed_time=121.638G read_input_time=25.2637G shuffle_compress_time=10.8311G shuffle_decompress_time=4.04055G shuffle_deserialize_time=7.24289G shuffle_spill_time=0 shuffle_split_time=69.9098G shuffle_write_time=2.03274G
 ```
 
+## Enable debug mode
+
+`spark.gluten.sql.debug`(debug mode) is set to false by default thereby the google glog levels are limited to only print `WARNING` or higher severity logs.
+Unless `spark.gluten.sql.debug` is set in the INI file via `--conf`, the logging behavior is same as debug mode off.
+Developers can use `--debug-mode` command line flag to turn on debug mode when needed, and set verbosity/severity level via command line flags `--v` and `--minloglevel`. Note that constructing and deconstructing log strings can be very time-consuming, which may cause benchmark times to be inaccurate.
+
 ## Simulate write tasks
 
 The last operator for a write task is a file write operator, and the output from Velox pipeline only

@@ -44,23 +44,23 @@ using namespace gluten;
 
 namespace {
 
+DEFINE_bool(run_example, false, "Run the example and exit.");
 DEFINE_bool(print_result, true, "Print result for execution");
 DEFINE_string(save_output, "", "Path to parquet file for saving the task output iterator");
 DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
+DEFINE_bool(run_shuffle, false, "Only run shuffle write.");
+DEFINE_bool(run_shuffle_read, false, "Whether to run shuffle read when run_shuffle is true.");
+DEFINE_string(shuffle_writer, "hash", "Shuffle writer type. Can be hash or sort");
 DEFINE_string(
     partitioning,
     "rr",
     "Short partitioning name. Valid options are rr, hash, range, single, random (only for test purpose)");
-DEFINE_string(shuffle_writer, "hash", "Shuffle writer type. Can be hash or sort");
 DEFINE_bool(rss, false, "Mocking rss.");
 DEFINE_string(
     compression,
     "lz4",
     "Specify the compression codec. Valid options are lz4, zstd, qat_gzip, qat_zstd, iaa_gzip");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
-DEFINE_bool(run_shuffle, false, "Only run shuffle write.");
-DEFINE_bool(run_shuffle_read, false, "Whether to run shuffle read when run_shuffle is true.");
-DEFINE_bool(run_example, false, "Run the example and exit.");
 
 DEFINE_string(plan, "", "Path to input json file of the substrait plan.");
 DEFINE_string(
@@ -417,13 +417,26 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
 };
 
 int main(int argc, char** argv) {
-  ::benchmark::Initialize(&argc, argv);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+  std::ostringstream ss;
+  ss << "Setting flags from command line args: " << std::endl;
+  std::vector<google::CommandLineFlagInfo> flags;
+  google::GetAllFlags(&flags);
+  auto filename = std::filesystem::path(__FILE__).filename();
+  for (const auto& flag : flags) {
+    if (std::filesystem::path(flag.filename).filename() == filename) {
+      ss << "    FLAGS_" << flag.name << ": default = " << flag.default_value << ", current = " << flag.current_value
+         << std::endl;
+    }
+  }
+  LOG(WARNING) << ss.str();
+
+  ::benchmark::Initialize(&argc, argv);
 
   // Init Velox backend.
   auto backendConf = gluten::defaultConf();
   auto sessionConf = gluten::defaultConf();
-  backendConf.insert({gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)});
   if (!FLAGS_conf.empty()) {
     abortIfFileNotExists(FLAGS_conf);
     std::ifstream file(FLAGS_conf);
@@ -542,22 +555,12 @@ int main(int argc, char** argv) {
 
     if (!errorMsg.empty()) {
       LOG(ERROR) << "Incorrect usage: " << errorMsg << std::endl
-                 << "If simulating a first stage, the usage is:" << std::endl
-                 << "./generic_benchmark "
-                 << "--plan /absolute-path/to/substrait_json_file "
-                 << "--split /absolute-path/to/split_json_file_1,/abosolute-path/to/split_json_file_2,..."
-                 << "--data /absolute-path/to/data_file_1,/absolute-path/to/data_file_2,..." << std::endl
-                 << "If simulating a middle stage, the usage is:" << std::endl
-                 << "./generic_benchmark "
-                 << "--plan /absolute-path/to/substrait_json_file "
-                 << "--data /absolute-path/to/data_file_1,/absolute-path/to/data_file_2,...";
-      LOG(ERROR) << "*** Please check docs/developers/MicroBenchmarks.md for the full usage. ***";
+                 << "*** Please check docs/developers/MicroBenchmarks.md for the full usage. ***";
       ::benchmark::Shutdown();
       std::exit(EXIT_FAILURE);
     }
   }
 
-  // Check whether input files exist.
   LOG(WARNING) << "Using substrait json file: " << std::endl << substraitJsonFile;
   if (!splitFiles.empty()) {
     LOG(WARNING) << "Using " << splitFiles.size() << " input split file(s): ";
@@ -594,15 +597,6 @@ int main(int argc, char** argv) {
                    ->UseRealTime();                                                                    \
     setUpBenchmark(bm);                                                                                \
   } while (0)
-
-  LOG(WARNING) << "Using options: ";
-  LOG(WARNING) << "threads: " << FLAGS_threads;
-  LOG(WARNING) << "iterations: " << FLAGS_iterations;
-  LOG(WARNING) << "cpu: " << FLAGS_cpu;
-  LOG(WARNING) << "print_result: " << FLAGS_print_result;
-  LOG(WARNING) << "save_output: " << FLAGS_save_output;
-  LOG(WARNING) << "batch_size: " << FLAGS_batch_size;
-  LOG(WARNING) << "write_path: " << FLAGS_write_path;
 
   if (dataFiles.empty()) {
     GENERIC_BENCHMARK(FileReaderType::kNone);

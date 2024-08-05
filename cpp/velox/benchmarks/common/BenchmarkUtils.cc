@@ -23,6 +23,8 @@
 #include "utils/StringUtil.h"
 #include "velox/dwio/common/Options.h"
 
+#include <glog/logging.h>
+
 using namespace facebook;
 namespace fs = std::filesystem;
 
@@ -30,6 +32,7 @@ DEFINE_int64(batch_size, 4096, "To set velox::core::QueryConfig::kPreferredOutpu
 DEFINE_int32(cpu, -1, "Run benchmark on specific CPU");
 DEFINE_int32(threads, 1, "The number of threads to run this benchmark");
 DEFINE_int32(iterations, 1, "The number of iterations to run this benchmark");
+DEFINE_bool(debug_mode, false, "Whether to enable debug mode. Same as setting `spark.gluten.sql.debug`");
 
 namespace gluten {
 namespace {
@@ -39,7 +42,9 @@ std::unordered_map<std::string, std::string> bmConfMap = defaultConf();
 std::unordered_map<std::string, std::string> defaultConf() {
   return {
       {gluten::kSparkBatchSize, std::to_string(FLAGS_batch_size)},
-  };
+      {gluten::kDebugModeEnabled, std::to_string(FLAGS_debug_mode)},
+      {gluten::kGlogVerboseLevel, std::to_string(FLAGS_v)},
+      {gluten::kGlogSeverityLevel, std::to_string(FLAGS_minloglevel)}};
 }
 
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
