@@ -900,12 +900,10 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
 
   test("combine small batches before shuffle") {
     val minBatchSize = 15
-    val maxBatchSize = 100
     withSQLConf(
       "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
       "spark.gluten.sql.columnar.maxBatchSize" -> "2",
-      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.range" ->
-        s"$minBatchSize~$maxBatchSize"
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.min" -> s"$minBatchSize"
     ) {
       val df = runQueryAndCompare(
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +

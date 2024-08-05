@@ -187,7 +187,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleCompressionThreshold: Int =
     conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
 
-  // FIXME: Not clear: MIN or MAX ?
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
   def shuffleWriterBufferSize: Int = conf
@@ -327,7 +326,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxResizeBatchesShuffleInputRange: ResizeRange = {
     val standardSize = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
     val defaultRange: ResizeRange =
-      ResizeRange((0.25 * standardSize).toInt.max(1), (1.5 * standardSize).toInt.max(1))
+      ResizeRange((0.25 * standardSize).toInt.max(1), Int.MaxValue)
     conf
       .getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_RANGE)
       .map(ResizeRange.parse)
@@ -1480,15 +1479,14 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_RANGE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.range")
+    buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.minSize")
       .internal()
       .doc(
-        s"The minimum and maximum batch sizes for shuffle. If the batch size is " +
-          s"smaller / bigger than minimum / maximum value, it will be combined with other " +
-          s"batches / split before sending to shuffle. Only functions when " +
+        s"The minimum batch size for shuffle. If size of an input batch is " +
+          s"smaller than the value, it will be combined with other " +
+          s"batches before sending to shuffle. Only functions when " +
           s"${COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT.key} is set to true. " +
-          s"A valid value for the option is min~max. " +
-          s"E.g., s.g.s.c.b.v.resizeBatches.shuffleInput.range=100~10000")
+          s"Default value: 0.25 * <max batch size>")
       .stringConf
       .createOptional
 
