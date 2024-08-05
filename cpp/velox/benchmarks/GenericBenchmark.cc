@@ -59,7 +59,7 @@ DEFINE_string(
     "Specify the compression codec. Valid options are lz4, zstd, qat_gzip, qat_zstd, iaa_gzip");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
 DEFINE_bool(run_shuffle, false, "Only run shuffle write.");
-DEFINE_bool(run_shuffle_read, true, "Whether to run shuffle read when run_shuffle is true.");
+DEFINE_bool(run_shuffle_read, false, "Whether to run shuffle read when run_shuffle is true.");
 DEFINE_bool(run_example, false, "Run the example and exit.");
 
 DEFINE_string(plan, "", "Path to input json file of the substrait plan.");
@@ -187,7 +187,7 @@ void setCpu(::benchmark::State& state) {
   if (FLAGS_cpu != -1) {
     cpu += FLAGS_cpu;
   }
-  LOG(INFO) << "Setting CPU for thread " << state.thread_index() << " to " << cpu;
+  LOG(WARNING) << "Setting CPU for thread " << state.thread_index() << " to " << cpu;
   gluten::setCpu(cpu);
 }
 
@@ -264,14 +264,19 @@ void updateBenchmarkMetrics(
       writerMetrics.writeTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
   state.counters["shuffle_spill_time"] = benchmark::Counter(
       writerMetrics.evictTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
-  state.counters["shuffle_split_time"] = benchmark::Counter(
-      writerMetrics.splitTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
   state.counters["shuffle_compress_time"] = benchmark::Counter(
       writerMetrics.compressTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
   state.counters["shuffle_decompress_time"] = benchmark::Counter(
       readerMetrics.decompressTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
   state.counters["shuffle_deserialize_time"] = benchmark::Counter(
       readerMetrics.deserializeTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+
+  auto splitTime = writerMetrics.splitTime;
+  if (FLAGS_scan_mode == "stream") {
+    splitTime -= readInputTime;
+  }
+  state.counters["shuffle_split_time"] =
+      benchmark::Counter(splitTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
 }
 
 } // namespace
@@ -351,7 +356,7 @@ auto BM_Generic = [](::benchmark::State& state,
             return;
           }
           if (FLAGS_print_result) {
-            LOG(INFO) << maybeBatch.ValueOrDie()->ToString();
+            LOG(WARNING) << maybeBatch.ValueOrDie()->ToString();
           }
           if (!FLAGS_save_output.empty()) {
             GLUTEN_THROW_NOT_OK(writer.writeInBatches(maybeBatch.ValueOrDie()));
@@ -374,7 +379,7 @@ auto BM_Generic = [](::benchmark::State& state,
       const auto* task = rawIter->task();
       const auto* planNode = rawIter->veloxPlan();
       auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
-      LOG(INFO) << statsStr;
+      LOG(WARNING) << statsStr;
     }
   }
 
@@ -478,7 +483,7 @@ int main(int argc, char** argv) {
   std::vector<std::string> dataFiles{};
 
   if (FLAGS_run_example) {
-    LOG(INFO) << "Running example...";
+    LOG(WARNING) << "Running example...";
     dataFiles.resize(2);
     try {
       substraitJsonFile = getGeneratedFilePath("example.json");
@@ -553,17 +558,17 @@ int main(int argc, char** argv) {
   }
 
   // Check whether input files exist.
-  LOG(INFO) << "Using substrait json file: " << std::endl << substraitJsonFile;
+  LOG(WARNING) << "Using substrait json file: " << std::endl << substraitJsonFile;
   if (!splitFiles.empty()) {
-    LOG(INFO) << "Using " << splitFiles.size() << " input split file(s): ";
+    LOG(WARNING) << "Using " << splitFiles.size() << " input split file(s): ";
     for (const auto& splitFile : splitFiles) {
-      LOG(INFO) << splitFile;
+      LOG(WARNING) << splitFile;
     }
   }
   if (!dataFiles.empty()) {
-    LOG(INFO) << "Using " << dataFiles.size() << " input data file(s): ";
+    LOG(WARNING) << "Using " << dataFiles.size() << " input data file(s): ";
     for (const auto& dataFile : dataFiles) {
-      LOG(INFO) << dataFile;
+      LOG(WARNING) << dataFile;
     }
   }
 
@@ -590,14 +595,14 @@ int main(int argc, char** argv) {
     setUpBenchmark(bm);                                                                                \
   } while (0)
 
-  LOG(INFO) << "Using options: ";
-  LOG(INFO) << "threads: " << FLAGS_threads;
-  LOG(INFO) << "iterations: " << FLAGS_iterations;
-  LOG(INFO) << "cpu: " << FLAGS_cpu;
-  LOG(INFO) << "print_result: " << FLAGS_print_result;
-  LOG(INFO) << "save_output: " << FLAGS_save_output;
-  LOG(INFO) << "batch_size: " << FLAGS_batch_size;
-  LOG(INFO) << "write_path: " << FLAGS_write_path;
+  LOG(WARNING) << "Using options: ";
+  LOG(WARNING) << "threads: " << FLAGS_threads;
+  LOG(WARNING) << "iterations: " << FLAGS_iterations;
+  LOG(WARNING) << "cpu: " << FLAGS_cpu;
+  LOG(WARNING) << "print_result: " << FLAGS_print_result;
+  LOG(WARNING) << "save_output: " << FLAGS_save_output;
+  LOG(WARNING) << "batch_size: " << FLAGS_batch_size;
+  LOG(WARNING) << "write_path: " << FLAGS_write_path;
 
   if (dataFiles.empty()) {
     GENERIC_BENCHMARK(FileReaderType::kNone);
@@ -605,10 +610,10 @@ int main(int argc, char** argv) {
     FileReaderType readerType;
     if (FLAGS_scan_mode == "buffered") {
       readerType = FileReaderType::kBuffered;
-      LOG(INFO) << "Using buffered mode for reading parquet data.";
+      LOG(WARNING) << "Using buffered mode for reading parquet data.";
     } else {
       readerType = FileReaderType::kStream;
-      LOG(INFO) << "Using stream mode for reading parquet data.";
+      LOG(WARNING) << "Using stream mode for reading parquet data.";
     }
     if (FLAGS_run_shuffle) {
       SHUFFLE_WRITE_READ_BENCHMARK(readerType);
