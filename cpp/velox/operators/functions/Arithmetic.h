@@ -39,10 +39,8 @@ struct RoundFunction {
       return number;
     }
 
-    /*
-     * Using long double for high precision during intermediate calculations.
-     * TODO: Make this more efficient with Boost to support high arbitrary precision at runtime.
-     */
+    // Using long double for high precision during intermediate calculations.
+    // TODO: Make this more efficient with Boost to support high arbitrary precision at runtime.
     long double factor = std::pow(10.0L, static_cast<long double>(decimals));
     static const TNum kInf = std::numeric_limits<TNum>::infinity();
 
