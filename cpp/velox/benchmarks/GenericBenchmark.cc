@@ -30,6 +30,7 @@
 #include "compute/VeloxPlanConverter.h"
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
+#include "config/VeloxConfig.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
@@ -77,6 +78,7 @@ DEFINE_string(
     "Scan mode for reading parquet data."
     "'stream' mode: Input file scan happens inside of the pipeline."
     "'buffered' mode: First read all data into memory and feed the pipeline with it.");
+DEFINE_bool(debug_mode, false, "Whether to enable debug mode. Same as setting `spark.gluten.sql.debug`");
 
 struct WriterMetrics {
   int64_t splitTime{0};
@@ -437,6 +439,9 @@ int main(int argc, char** argv) {
   // Init Velox backend.
   auto backendConf = gluten::defaultConf();
   auto sessionConf = gluten::defaultConf();
+  backendConf.insert({gluten::kDebugModeEnabled, std::to_string(FLAGS_debug_mode)});
+  backendConf.insert({gluten::kGlogVerboseLevel, std::to_string(FLAGS_v)});
+  backendConf.insert({gluten::kGlogSeverityLevel, std::to_string(FLAGS_minloglevel)});
   if (!FLAGS_conf.empty()) {
     abortIfFileNotExists(FLAGS_conf);
     std::ifstream file(FLAGS_conf);
