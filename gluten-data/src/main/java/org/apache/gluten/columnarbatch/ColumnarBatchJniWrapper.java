@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.columnarbatch;
 
-import org.apache.gluten.exec.Runtime;
-import org.apache.gluten.exec.RuntimeAware;
+import org.apache.gluten.runtime.Runtime;
+import org.apache.gluten.runtime.RuntimeAware;
 
 public class ColumnarBatchJniWrapper implements RuntimeAware {
   private final Runtime runtime;

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.exec;
+package org.apache.gluten.runtime;
 
 import org.apache.gluten.memory.listener.ReservationListener;
 

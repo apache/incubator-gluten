@@ -18,7 +18,7 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.exec.Runtimes
+import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.vectorized._
 

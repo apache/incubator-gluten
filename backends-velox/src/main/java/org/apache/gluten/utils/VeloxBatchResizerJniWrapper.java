@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.utils;
 
-import org.apache.gluten.exec.Runtime;
-import org.apache.gluten.exec.RuntimeAware;
+import org.apache.gluten.runtime.Runtime;
+import org.apache.gluten.runtime.RuntimeAware;
 import org.apache.gluten.vectorized.ColumnarBatchInIterator;
 
 public class VeloxBatchResizerJniWrapper implements RuntimeAware {

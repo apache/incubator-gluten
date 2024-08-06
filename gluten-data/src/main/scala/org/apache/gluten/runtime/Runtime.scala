@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.exec
+package org.apache.gluten.runtime
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
@@ -44,7 +44,7 @@ trait Runtime {
 }
 
 object Runtime {
-  private[exec] def apply(name: String): Runtime with TaskResource = {
+  private[runtime] def apply(name: String): Runtime with TaskResource = {
     new RuntimeImpl(name)
   }
 
