@@ -106,6 +106,7 @@ class CHCelebornColumnarShuffleWriter[K, V](
       mapId,
       nativeBufferSize,
       customizedCompressCodec,
+      compressionLevel,
       GlutenConfig.getConf.chColumnarShuffleSpillThreshold,
       CHBackendSettings.shuffleHashAlgorithm,
       celebornPartitionPusher,

@@ -59,14 +59,16 @@ object CHExecUtil extends Logging {
       dataSize: SQLMetric,
       iter: Iterator[ColumnarBatch],
       compressionCodec: Option[String] = Some("lz4"),
+      compressionLevel: Option[Int] = Some(Int.MinValue),
       bufferSize: Int = 4 << 10): Iterator[(Int, Array[Byte])] = {
     var count = 0
     val bos = new ByteArrayOutputStream()
     val buffer = new Array[Byte](bufferSize) // 4K
+    val level = compressionLevel.getOrElse(Int.MinValue)
     val blockOutputStream =
       compressionCodec
-        .map(new BlockOutputStream(bos, buffer, dataSize, true, _, bufferSize))
-        .getOrElse(new BlockOutputStream(bos, buffer, dataSize, false, "", bufferSize))
+        .map(new BlockOutputStream(bos, buffer, dataSize, true, _, level, bufferSize))
+        .getOrElse(new BlockOutputStream(bos, buffer, dataSize, false, "", level, bufferSize))
     while (iter.hasNext) {
       val batch = iter.next()
       count += batch.numRows
