@@ -33,6 +33,7 @@
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
+#include "operators/functions/SparkExprToSubfieldFilterParser.h"
 #include "udf/UdfLoader.h"
 #include "utils/Exception.h"
 #include "velox/common/caching/SsdCache.h"
@@ -155,6 +156,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::parquet::registerParquetReaderFactory();
   velox::parquet::registerParquetWriterFactory();
   velox::orc::registerOrcReaderFactory();
+  velox::exec::ExprToSubfieldFilterParser::registerParserFactory(
+      []() { return std::make_shared<SparkExprToSubfieldFilterParser>(); });
 
   // Register Velox functions
   registerAllFunctions();
