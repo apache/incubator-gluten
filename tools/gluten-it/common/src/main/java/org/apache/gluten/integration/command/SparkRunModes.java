@@ -332,6 +332,7 @@ public final class SparkRunModes {
     @Override
     public Map<String, String> extraSparkConf() {
       final Map<String, String> extras = new HashMap<>();
+      extras.put(SparkLauncher.EXECUTOR_DEFAULT_JAVA_OPTIONS, "-Dio.netty.tryReflectionSetAccessible=true");
       extras.put(SparkLauncher.EXECUTOR_CORES, String.valueOf(resourceEnumeration.lcExecutorCores()));
       extras.put(SparkLauncher.EXECUTOR_MEMORY, String.format("%dm", resourceEnumeration.lcExecutorHeapMem()));
       extras.put("spark.memory.offHeap.enabled", "true");

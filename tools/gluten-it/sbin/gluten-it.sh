@@ -39,10 +39,12 @@ export SPARK_SCALA_VERSION=${SPARK_SCALA_VERSION:-'2.12'}
 echo "SPARK_HOME set at [$SPARK_HOME]."
 echo "SPARK_SCALA_VERSION set at [$SPARK_SCALA_VERSION]."
 
-GLUTEN_IT_JVM_ARGS=${GLUTEN_IT_JVM_ARGS:-"-Xmx2G -XX:ErrorFile=/var/log/java/hs_err_pid%p.log"}
+GLUTEN_IT_JVM_ARGS=${GLUTEN_IT_JVM_ARGS:-"-Xmx2G"}
 
 $JAVA_HOME/bin/java \
     $SPARK_JVM_OPTIONS \
     $GLUTEN_IT_JVM_ARGS \
+    -XX:ErrorFile=/var/log/java/hs_err_pid%p.log \
+    -Dio.netty.tryReflectionSetAccessible=true \
     -cp $JAR_PATH \
     org.apache.gluten.integration.Cli $@
