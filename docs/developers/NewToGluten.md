@@ -289,7 +289,7 @@ Search `default formatter` in `Settings`, select Clang-Format.
 
 If your formatOnSave still make no effect, you can use shortcut `SHIFT+ALT+F` to format one file manually.
 
-### Cmake format
+### CMake format
 
 To format cmake files, like CMakeLists.txt & *.cmake, please install `cmake-format`.
 ```

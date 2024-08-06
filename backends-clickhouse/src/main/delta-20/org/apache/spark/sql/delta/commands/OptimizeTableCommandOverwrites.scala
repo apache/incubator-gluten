@@ -17,7 +17,7 @@
 package org.apache.spark.sql.delta.commands
 
 import org.apache.gluten.expression.ConverterUtils
-
+import org.apache.gluten.memory.CHThreadGroup
 import org.apache.spark.{TaskContext, TaskOutputFileAlreadyExistException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
@@ -38,13 +38,11 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSour
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{SerializableConfiguration, SystemClock, Utils}
-
 import org.apache.hadoop.fs.{FileAlreadyExistsException, Path}
 import org.apache.hadoop.mapreduce.{TaskAttemptContext, TaskAttemptID, TaskID, TaskType}
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 
 import java.util.{Date, UUID}
-
 import scala.collection.mutable.ArrayBuffer
 
 object OptimizeTableCommandOverwrites extends Logging {
@@ -76,7 +74,7 @@ object OptimizeTableCommandOverwrites extends Logging {
       sparkPartitionId: Int,
       sparkAttemptNumber: Int
   ): MergeTreeWriteTaskResult = {
-
+    CHThreadGroup.registerNewThreadGroup()
     val jobId = SparkHadoopWriterUtils.createJobID(new Date(description.jobIdInstant), sparkStageId)
     val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
     val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)

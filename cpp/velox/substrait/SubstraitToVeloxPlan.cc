@@ -1530,8 +1530,7 @@ bool SubstraitToVeloxPlanConverter::fieldOrWithLiteral(
   if (arguments.size() == 1) {
     if (arguments[0].value().has_selection()) {
       // Only field exists.
-      fieldIndex = SubstraitParser::parseReferenceSegment(arguments[0].value().selection().direct_reference());
-      return true;
+      return SubstraitParser::parseReferenceSegment(arguments[0].value().selection().direct_reference(), fieldIndex);
     } else {
       return false;
     }
@@ -1546,13 +1545,17 @@ bool SubstraitToVeloxPlanConverter::fieldOrWithLiteral(
   for (const auto& param : arguments) {
     auto typeCase = param.value().rex_type_case();
     switch (typeCase) {
-      case ::substrait::Expression::RexTypeCase::kSelection:
-        fieldIndex = SubstraitParser::parseReferenceSegment(param.value().selection().direct_reference());
+      case ::substrait::Expression::RexTypeCase::kSelection: {
+        if (!SubstraitParser::parseReferenceSegment(param.value().selection().direct_reference(), fieldIndex)) {
+          return false;
+        }
         fieldExists = true;
         break;
-      case ::substrait::Expression::RexTypeCase::kLiteral:
+      }
+      case ::substrait::Expression::RexTypeCase::kLiteral: {
         literalExists = true;
         break;
+      }
       default:
         break;
     }
@@ -1564,7 +1567,7 @@ bool SubstraitToVeloxPlanConverter::fieldOrWithLiteral(
 bool SubstraitToVeloxPlanConverter::childrenFunctionsOnSameField(
     const ::substrait::Expression_ScalarFunction& function) {
   // Get the column indices of the children functions.
-  std::vector<int32_t> colIndices;
+  std::vector<uint32_t> colIndices;
   for (const auto& arg : function.arguments()) {
     if (arg.value().has_scalar_function()) {
       const auto& scalarFunction = arg.value().scalar_function();
@@ -1572,14 +1575,16 @@ bool SubstraitToVeloxPlanConverter::childrenFunctionsOnSameField(
         if (param.value().has_selection()) {
           const auto& field = param.value().selection();
           VELOX_CHECK(field.has_direct_reference());
-          int32_t colIdx = SubstraitParser::parseReferenceSegment(field.direct_reference());
+          uint32_t colIdx;
+          if (!SubstraitParser::parseReferenceSegment(field.direct_reference(), colIdx)) {
+            return false;
+          }
           colIndices.emplace_back(colIdx);
         }
       }
     } else if (arg.value().has_singular_or_list()) {
       const auto& singularOrList = arg.value().singular_or_list();
-      int32_t colIdx = getColumnIndexFromSingularOrList(singularOrList);
-      colIndices.emplace_back(colIdx);
+      colIndices.emplace_back(getColumnIndexFromSingularOrList(singularOrList));
     } else {
       return false;
     }
@@ -1711,8 +1716,9 @@ void SubstraitToVeloxPlanConverter::separateFilters(
     if (format == dwio::common::FileFormat::ORC && scalarFunction.arguments().size() > 0) {
       auto value = scalarFunction.arguments().at(0).value();
       if (value.has_selection()) {
-        uint32_t fieldIndex = SubstraitParser::parseReferenceSegment(value.selection().direct_reference());
-        if (!veloxTypeList.empty() && veloxTypeList.at(fieldIndex)->isDecimal()) {
+        uint32_t fieldIndex;
+        bool parsed = SubstraitParser::parseReferenceSegment(value.selection().direct_reference(), fieldIndex);
+        if (!parsed || (!veloxTypeList.empty() && veloxTypeList.at(fieldIndex)->isDecimal())) {
           remainingFunctions.emplace_back(scalarFunction);
           continue;
         }
@@ -1870,14 +1876,20 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
   for (const auto& param : scalarFunction.arguments()) {
     auto typeCase = param.value().rex_type_case();
     switch (typeCase) {
-      case ::substrait::Expression::RexTypeCase::kSelection:
+      case ::substrait::Expression::RexTypeCase::kSelection: {
         typeCases.emplace_back("kSelection");
-        colIdx = SubstraitParser::parseReferenceSegment(param.value().selection().direct_reference());
+        uint32_t index;
+        VELOX_CHECK(
+            SubstraitParser::parseReferenceSegment(param.value().selection().direct_reference(), index),
+            "Failed to parse the column index from the selection.");
+        colIdx = index;
         break;
-      case ::substrait::Expression::RexTypeCase::kLiteral:
+      }
+      case ::substrait::Expression::RexTypeCase::kLiteral: {
         typeCases.emplace_back("kLiteral");
         substraitLit = param.value().literal();
         break;
+      }
       default:
         VELOX_NYI("Substrait conversion not supported for arg type '{}'", std::to_string(typeCase));
     }
@@ -2177,18 +2189,17 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       VELOX_CHECK(value == filterInfo.upperBounds_[0].value().value<bool>(), "invalid state of bool equal");
       filters[common::Subfield(inputName)] = std::make_unique<common::BoolValue>(value, nullAllowed);
     }
-  } else if constexpr (KIND == facebook::velox::TypeKind::ARRAY || KIND == facebook::velox::TypeKind::MAP) {
-    // Only IsNotNull and IsNull are supported for array and map types.
-    if (rangeSize == 0) {
-      if (!nullAllowed) {
-        filters[common::Subfield(inputName)] = std::make_unique<common::IsNotNull>();
-      } else if (isNull) {
-        filters[common::Subfield(inputName)] = std::make_unique<common::IsNull>();
-      } else {
-        VELOX_NYI(
-            "Only IsNotNull and IsNull are supported in constructSubfieldFilters for input type '{}'.",
-            inputType->toString());
-      }
+  } else if constexpr (
+      KIND == facebook::velox::TypeKind::ARRAY || KIND == facebook::velox::TypeKind::MAP ||
+      KIND == facebook::velox::TypeKind::ROW) {
+    // Only IsNotNull and IsNull are supported for complex types.
+    VELOX_CHECK_EQ(rangeSize, 0, "Only IsNotNull and IsNull are supported for complex type.");
+    if (!nullAllowed) {
+      filters[common::Subfield(inputName)] = std::make_unique<common::IsNotNull>();
+    } else if (isNull) {
+      filters[common::Subfield(inputName)] = std::make_unique<common::IsNull>();
+    } else {
+      VELOX_NYI("Only IsNotNull and IsNull are supported for input type '{}'.", inputType->toString());
     }
   } else {
     using NativeType = typename RangeTraits<KIND>::NativeType;
@@ -2393,6 +2404,10 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
           constructSubfieldFilters<TypeKind::MAP, common::Filter>(
               colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
           break;
+        case TypeKind::ROW:
+          constructSubfieldFilters<TypeKind::ROW, common::Filter>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
         default:
           VELOX_NYI(
               "Subfield filters creation not supported for input type '{}' in mapToFilters", inputType->toString());
@@ -2494,7 +2509,11 @@ uint32_t SubstraitToVeloxPlanConverter::getColumnIndexFromSingularOrList(
   } else {
     VELOX_FAIL("Unsupported type in IN pushdown.");
   }
-  return SubstraitParser::parseReferenceSegment(selection.direct_reference());
+  uint32_t index;
+  VELOX_CHECK(
+      SubstraitParser::parseReferenceSegment(selection.direct_reference(), index),
+      "Failed to parse column index from SingularOrList.");
+  return index;
 }
 
 void SubstraitToVeloxPlanConverter::setFilterInfo(

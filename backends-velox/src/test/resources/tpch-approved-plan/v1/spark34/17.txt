@@ -12,14 +12,14 @@ AdaptiveSparkPlan (63)
                   :     :- ^ InputIteratorTransformer (9)
                   :     :  +- ShuffleQueryStage (7), Statistics(X)
                   :     :     +- ColumnarExchange (6)
-                  :     :        +- VeloxAppendBatches (5)
+                  :     :        +- VeloxResizeBatches (5)
                   :     :           +- ^ ProjectExecTransformer (3)
                   :     :              +- ^ FilterExecTransformer (2)
                   :     :                 +- ^ Scan parquet (1)
                   :     +- ^ InputIteratorTransformer (18)
                   :        +- ShuffleQueryStage (16), Statistics(X)
                   :           +- ColumnarExchange (15)
-                  :              +- VeloxAppendBatches (14)
+                  :              +- VeloxResizeBatches (14)
                   :                 +- ^ ProjectExecTransformer (12)
                   :                    +- ^ FilterExecTransformer (11)
                   :                       +- ^ Scan parquet (10)
@@ -29,7 +29,7 @@ AdaptiveSparkPlan (63)
                            +- ^ InputIteratorTransformer (30)
                               +- ShuffleQueryStage (28), Statistics(X)
                                  +- ColumnarExchange (27)
-                                    +- VeloxAppendBatches (26)
+                                    +- VeloxResizeBatches (26)
                                        +- ^ ProjectExecTransformer (24)
                                           +- ^ FlushableHashAggregateExecTransformer (23)
                                              +- ^ FilterExecTransformer (22)
@@ -78,9 +78,9 @@ Input [3]: [l_partkey#X, l_quantity#X, l_extendedprice#X]
 Input [4]: [hash_partition_key#X, l_partkey#X, l_quantity#X, l_extendedprice#X]
 Arguments: false
 
-(5) VeloxAppendBatches
+(5) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, l_partkey#X, l_quantity#X, l_extendedprice#X]
-Arguments: X
+Arguments: X, X
 
 (6) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_partkey#X, l_quantity#X, l_extendedprice#X]
@@ -115,9 +115,9 @@ Input [3]: [p_partkey#X, p_brand#X, p_container#X]
 Input [2]: [hash_partition_key#X, p_partkey#X]
 Arguments: false
 
-(14) VeloxAppendBatches
+(14) VeloxResizeBatches
 Input [2]: [hash_partition_key#X, p_partkey#X]
-Arguments: X
+Arguments: X, X
 
 (15) ColumnarExchange
 Input [2]: [hash_partition_key#X, p_partkey#X]
@@ -169,9 +169,9 @@ Input [3]: [l_partkey#X, sum#X, count#X]
 Input [4]: [hash_partition_key#X, l_partkey#X, sum#X, count#X]
 Arguments: false
 
-(26) VeloxAppendBatches
+(26) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, l_partkey#X, sum#X, count#X]
-Arguments: X
+Arguments: X, X
 
 (27) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_partkey#X, sum#X, count#X]

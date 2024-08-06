@@ -26,7 +26,7 @@
 namespace gluten {
 
 struct Evict {
-  enum type { kCache, kSpill };
+  enum type { kCache, kSpill, kSortSpill };
 };
 
 class PartitionWriter : public Reclaimable {
@@ -47,9 +47,10 @@ class PartitionWriter : public Reclaimable {
       std::unique_ptr<InMemoryPayload> inMemoryPayload,
       Evict::type evictType,
       bool reuseBuffers,
-      bool hasComplexType) = 0;
+      bool hasComplexType,
+      bool isFinal) = 0;
 
-  virtual arrow::Status evict(uint32_t partitionId, int64_t rawSize, const char* data, int64_t length) = 0;
+  virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) = 0;
 
   uint64_t cachedPayloadSize() {
     return payloadPool_->bytes_allocated();

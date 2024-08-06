@@ -33,7 +33,7 @@ class AddMergeTreeParts(
     val database: String,
     val table: String,
     val engine: String, // default is "MergeTree"
-    override val path: String, // table path
+    val tablePath: String, // table path
     val targetNode: String, // the node which the current part is generated
     val name: String, // part name
     val uuid: String,
@@ -98,7 +98,7 @@ object AddFileTags {
       database: String,
       table: String,
       engine: String,
-      path: String,
+      tablePath: String,
       targetNode: String,
       name: String,
       uuid: String,
@@ -125,7 +125,7 @@ object AddFileTags {
       "database" -> database,
       "table" -> table,
       "engine" -> engine,
-      "path" -> path,
+      "path" -> tablePath,
       "targetNode" -> targetNode,
       "partition" -> partition,
       "uuid" -> uuid,
@@ -161,7 +161,7 @@ object AddFileTags {
       addFile.tags.get("database").get,
       addFile.tags.get("table").get,
       addFile.tags.get("engine").get,
-      addFile.path,
+      addFile.tags.get("path").get,
       addFile.tags.get("targetNode").get,
       addFile.path,
       addFile.tags.get("uuid").get,
@@ -199,6 +199,7 @@ object AddFileTags {
         mapper.readValue(returnedMetrics, new TypeReference[JList[WriteReturnedMetric]]() {})
       var addFiles = new ArrayBuffer[AddFile]()
       val path = new Path(originPathStr)
+      val modificationTime = System.currentTimeMillis()
       addFiles.appendAll(values.asScala.map {
         value =>
           AddFileTags.partsInfoToAddFile(
@@ -213,7 +214,7 @@ object AddFileTags {
             value.getDiskSize,
             -1L,
             -1L,
-            -1L,
+            modificationTime,
             "",
             -1L,
             -1L,

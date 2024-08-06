@@ -6,7 +6,7 @@ AdaptiveSparkPlan (92)
       +- ^ InputIteratorTransformer (56)
          +- ShuffleQueryStage (54), Statistics(X)
             +- ColumnarExchange (53)
-               +- VeloxAppendBatches (52)
+               +- VeloxResizeBatches (52)
                   +- ^ ProjectExecTransformer (50)
                      +- ^ FlushableHashAggregateExecTransformer (49)
                         +- ^ ProjectExecTransformer (48)
@@ -301,9 +301,9 @@ Input [2]: [s_name#X, count#X]
 Input [3]: [hash_partition_key#X, s_name#X, count#X]
 Arguments: false
 
-(52) VeloxAppendBatches
+(52) VeloxResizeBatches
 Input [3]: [hash_partition_key#X, s_name#X, count#X]
-Arguments: X
+Arguments: X, X
 
 (53) ColumnarExchange
 Input [3]: [hash_partition_key#X, s_name#X, count#X]

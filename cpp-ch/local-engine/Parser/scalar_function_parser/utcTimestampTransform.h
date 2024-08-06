@@ -39,7 +39,7 @@ public:
     explicit FunctionParserUtcTimestampTransform(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
     ~FunctionParserUtcTimestampTransform() override = default;
 
-    const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const override
+    const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const override
     {
         /// Convert timezone value to clickhouse backend supported, i.e. GMT+8 -> Etc/GMT-8, +08:00 -> Etc/GMT-8
         if (substrait_func.arguments_size() != 2)

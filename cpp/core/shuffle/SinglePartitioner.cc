@@ -19,13 +19,9 @@
 
 namespace gluten {
 
-arrow::Status gluten::SinglePartitioner::compute(
-    const int32_t* pidArr,
-    const int64_t numRows,
-    std::vector<uint32_t>& row2partition,
-    std::vector<uint32_t>& partition2RowCount) {
-  // nothing is need do here
-  return arrow::Status::OK();
+arrow::Status
+gluten::SinglePartitioner::compute(const int32_t* pidArr, const int64_t numRows, std::vector<uint32_t>& row2partition) {
+  return arrow::Status::Invalid("SinglePartitioner doesn't support computing partition id.");
 }
 
 arrow::Status gluten::SinglePartitioner::compute(

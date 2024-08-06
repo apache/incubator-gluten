@@ -61,10 +61,7 @@ public class BaseMixin {
   private int hsUiPort;
 
   @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
-  SparkRunModes.ModeEnumeration runModeEnumeration;
-
-  @CommandLine.Option(names = {"--off-heap-size"}, description = "Off heap memory size per executor", defaultValue = "6g")
-  private String offHeapSize;
+  SparkRunModes.Mode.Enumeration runModeEnumeration;
 
   @CommandLine.Option(names = {"--disable-aqe"}, description = "Disable Spark SQL adaptive query execution", defaultValue = "false")
   private boolean disableAqe;
@@ -133,19 +130,19 @@ public class BaseMixin {
       case "h":
         suite = new TpchSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
             baselineConf, extraSparkConfScala, level, errorOnMemLeak, dataDir, enableUi,
-            enableHsUi, hsUiPort, offHeapSize, disableAqe, disableBhj,
+            enableHsUi, hsUiPort, disableAqe, disableBhj,
             disableWscg, shufflePartitions, scanPartitions);
         break;
       case "ds":
         suite = new TpcdsSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
             baselineConf, extraSparkConfScala, level, errorOnMemLeak, dataDir, enableUi,
-            enableHsUi, hsUiPort, offHeapSize, disableAqe, disableBhj,
+            enableHsUi, hsUiPort, disableAqe, disableBhj,
             disableWscg, shufflePartitions, scanPartitions);
         break;
       case "clickbench":
         suite = new ClickBenchSuite(runModeEnumeration.getSparkMasterUrl(), actions, testConf,
             baselineConf, extraSparkConfScala, level, errorOnMemLeak, dataDir, enableUi,
-            enableHsUi, hsUiPort, offHeapSize, disableAqe, disableBhj,
+            enableHsUi, hsUiPort, disableAqe, disableBhj,
             disableWscg, shufflePartitions, scanPartitions);
         break;
       default:

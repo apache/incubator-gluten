@@ -196,7 +196,7 @@ public:
     static const AtomMap atom_map;
 
     /// Construct key condition from ActionsDAG nodes
-    ColumnIndexFilter(const DB::ActionsDAGPtr & filter_dag, DB::ContextPtr context);
+    ColumnIndexFilter(const DB::ActionsDAG & filter_dag, DB::ContextPtr context);
 
 private:
     static bool extractAtomFromTree(const DB::RPNBuilderTreeNode & node, RPNElement & out);

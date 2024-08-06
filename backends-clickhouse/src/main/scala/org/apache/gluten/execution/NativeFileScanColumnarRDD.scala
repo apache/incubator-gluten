@@ -49,9 +49,8 @@ class NativeFileScanColumnarRDD(
 
     val resIter = GlutenTimeMetric.millis(scanTime) {
       _ =>
-        val transKernel = new CHNativeExpressionEvaluator()
         val inBatchIters = new util.ArrayList[GeneralInIterator]()
-        transKernel.createKernelWithBatchIterator(
+        CHNativeExpressionEvaluator.createKernelWithBatchIterator(
           inputPartition.plan,
           splitInfoByteArray,
           inBatchIters,

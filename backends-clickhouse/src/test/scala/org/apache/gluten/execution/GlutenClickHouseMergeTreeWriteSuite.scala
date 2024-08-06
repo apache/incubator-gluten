@@ -806,33 +806,32 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |DROP TABLE IF EXISTS lineitem_mergetree_bucket;
                  |""".stripMargin)
 
-    spark.sql(
-      s"""
-         |CREATE TABLE IF NOT EXISTS lineitem_mergetree_bucket
-         |(
-         | l_orderkey      bigint,
-         | l_partkey       bigint,
-         | l_suppkey       bigint,
-         | l_linenumber    bigint,
-         | l_quantity      double,
-         | l_extendedprice double,
-         | l_discount      double,
-         | l_tax           double,
-         | l_returnflag    string,
-         | l_linestatus    string,
-         | l_shipdate      date,
-         | l_commitdate    date,
-         | l_receiptdate   date,
-         | l_shipinstruct  string,
-         | l_shipmode      string,
-         | l_comment       string
-         |)
-         |USING clickhouse
-         |PARTITIONED BY (l_shipdate)
-         |CLUSTERED BY (l_partkey)
-         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey, l_returnflag)"} INTO 4 BUCKETS
-         |LOCATION '$basePath/lineitem_mergetree_bucket'
-         |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_bucket
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |PARTITIONED BY (l_returnflag)
+                 |CLUSTERED BY (l_partkey)
+                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey)"} INTO 4 BUCKETS
+                 |LOCATION '$basePath/lineitem_mergetree_bucket'
+                 |""".stripMargin)
 
     spark.sql(s"""
                  | insert into table lineitem_mergetree_bucket
@@ -880,7 +879,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         if (sparkVersion.equals("3.2")) {
           assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
         } else {
-          assertResult("l_orderkey,l_returnflag")(
+          assertResult("l_orderkey")(
             ClickHouseTableV2
               .getTable(fileIndex.deltaLog)
               .orderByKeyOption
@@ -889,20 +888,21 @@ class GlutenClickHouseMergeTreeWriteSuite
         }
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).primaryKeyOption.isEmpty)
         assertResult(1)(ClickHouseTableV2.getTable(fileIndex.deltaLog).partitionColumns.size)
-        assertResult("l_shipdate")(
+        assertResult("l_returnflag")(
           ClickHouseTableV2
             .getTable(fileIndex.deltaLog)
             .partitionColumns
             .head)
         val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
 
-        assertResult(10089)(addFiles.size)
+        assertResult(12)(addFiles.size)
         assertResult(600572)(addFiles.map(_.rows).sum)
-        assertResult(4)(addFiles.count(_.partitionValues("l_shipdate").equals("1992-06-01")))
-        assertResult(4)(addFiles.count(_.partitionValues("l_shipdate").equals("1993-01-01")))
-        assertResult(4)(addFiles.count(_.partitionValues("l_shipdate").equals("1995-01-21")))
-        assertResult(1)(addFiles.count(
-          f => f.partitionValues("l_shipdate").equals("1995-01-21") && f.bucketNum.equals("00000")))
+        assertResult(4)(addFiles.count(_.partitionValues("l_returnflag").equals("A")))
+        assertResult(4)(addFiles.count(_.partitionValues("l_returnflag").equals("N")))
+        assertResult(4)(addFiles.count(_.partitionValues("l_returnflag").equals("R")))
+        assertResult(1)(
+          addFiles.count(
+            f => f.partitionValues("l_returnflag").equals("A") && f.bucketNum.equals("00000")))
     }
     // check part pruning effect of filter on bucket column
     val df = spark.sql(s"""
@@ -917,7 +917,7 @@ class GlutenClickHouseMergeTreeWriteSuite
       .flatMap(partition => partition.asInstanceOf[GlutenMergeTreePartition].partList)
       .map(_.name)
       .distinct
-    assertResult(4)(touchedParts.size)
+    assertResult(12)(touchedParts.size)
 
     // test upsert on partitioned & bucketed table
     upsertSourceTableAndCheck("lineitem_mergetree_bucket")
@@ -1970,6 +1970,85 @@ class GlutenClickHouseMergeTreeWriteSuite
           assert(df.queryExecution.executedPlan.isInstanceOf[LocalTableScanExec])
         }
       })
+  }
+
+  test("test mergetree with column case sensitive") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS LINEITEM_MERGETREE_CASE_SENSITIVE;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS LINEITEM_MERGETREE_CASE_SENSITIVE
+                 |(
+                 | L_ORDERKEY      bigint,
+                 | L_PARTKEY       bigint,
+                 | L_SUPPKEY       bigint,
+                 | L_LINENUMBER    bigint,
+                 | L_QUANTITY      double,
+                 | L_EXTENDEDPRICE double,
+                 | L_DISCOUNT      double,
+                 | L_TAX           double,
+                 | L_RETURNFLAG    string,
+                 | L_LINESTATUS    string,
+                 | L_SHIPDATE      date,
+                 | L_COMMITDATE    date,
+                 | L_RECEIPTDATE   date,
+                 | L_SHIPINSTRUCT  string,
+                 | L_SHIPMODE      string,
+                 | L_COMMENT       string
+                 |)
+                 |USING clickhouse
+                 |PARTITIONED BY (L_SHIPDATE)
+                 |TBLPROPERTIES (orderByKey='L_DISCOUNT')
+                 |LOCATION '$basePath/LINEITEM_MERGETREE_CASE_SENSITIVE'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_case_sensitive
+                 | select * from lineitem
+                 |""".stripMargin)
+
+    val sqlStr =
+      s"""
+         |SELECT
+         |    sum(l_extendedprice * l_discount) AS revenue
+         |FROM
+         |    lineitem_mergetree_case_sensitive
+         |WHERE
+         |    l_shipdate >= date'1994-01-01'
+         |    AND l_shipdate < date'1994-01-01' + interval 1 year
+         |    AND l_discount BETWEEN 0.06 - 0.01 AND 0.06 + 0.01
+         |    AND l_quantity < 24
+         |""".stripMargin
+    runTPCHQueryBySQL(6, sqlStr) { _ => }
+  }
+
+  test("test mergetree with partition with whitespace") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_partition_with_whitespace;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_partition_with_whitespace
+                 |(
+                 | l_returnflag    string,
+                 | l_linestatus    string
+                 |)
+                 |USING clickhouse
+                 |PARTITIONED BY (l_returnflag)
+                 |LOCATION '$basePath/lineitem_mergetree_partition_with_whitespace'
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_partition_with_whitespace
+                 | (l_returnflag, l_linestatus) values ('a A', 'abc')
+                 |""".stripMargin)
+
+    val sqlStr =
+      s"""
+         |SELECT * from lineitem_mergetree_partition_with_whitespace
+         |""".stripMargin
+    runSql(sqlStr) { _ => }
   }
 }
 // scalastyle:off line.size.limit

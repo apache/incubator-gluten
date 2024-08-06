@@ -28,9 +28,9 @@
 #include "compute/VeloxPlanConverter.h"
 #include "config/VeloxConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
-#include "shuffle/VeloxHashBasedShuffleWriter.h"
+#include "shuffle/VeloxHashShuffleWriter.h"
+#include "shuffle/VeloxRssSortShuffleWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
-#include "shuffle/VeloxSortBasedShuffleWriter.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 

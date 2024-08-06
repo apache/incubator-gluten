@@ -28,6 +28,7 @@
 #include <Parsers/parseQuery.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/Exception.h>
 
 namespace fs = std::filesystem;
@@ -40,7 +41,7 @@ extern const int LOGICAL_ERROR;
 namespace local_engine::test
 {
 using namespace DB;
-ActionsDAGPtr parseFilter(const std::string & filter, const AnotherRowType & name_and_types)
+std::optional<ActionsDAG> parseFilter(const std::string & filter, const AnotherRowType & name_and_types)
 {
     using namespace DB;
 

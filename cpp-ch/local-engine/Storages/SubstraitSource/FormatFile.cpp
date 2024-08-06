@@ -36,6 +36,7 @@
 #include <Storages/SubstraitSource/TextFormatFile.h>
 #endif
 
+#include <Common/GlutenConfig.h>
 #include <Storages/SubstraitSource/JSONFormatFile.h>
 
 namespace DB
@@ -81,8 +82,8 @@ FormatFilePtr FormatFileUtil::createFile(
 #if USE_PARQUET
     if (file.has_parquet())
     {
-        bool useLocalFormat = context->getConfigRef().getBool("use_local_format", false);
-        return std::make_shared<ParquetFormatFile>(context, file, read_buffer_builder, useLocalFormat);
+        auto config = ExecutorConfig::loadFromContext(context);
+        return std::make_shared<ParquetFormatFile>(context, file, read_buffer_builder, config.use_local_format);
     }
 #endif
 
@@ -94,8 +95,8 @@ FormatFilePtr FormatFileUtil::createFile(
 #if USE_HIVE
     if (file.has_text())
     {
-        if (context->getSettings().has(BackendInitializerUtil::USE_EXCEL_PARSER)
-            && context->getSettings().getString(BackendInitializerUtil::USE_EXCEL_PARSER) == "'true'")
+        if (context->getSettingsRef().has(BackendInitializerUtil::USE_EXCEL_PARSER)
+            && context->getSettingsRef().getString(BackendInitializerUtil::USE_EXCEL_PARSER) == "'true'")
             return std::make_shared<ExcelTextFormatFile>(context, file, read_buffer_builder);
         else
             return std::make_shared<TextFormatFile>(context, file, read_buffer_builder);

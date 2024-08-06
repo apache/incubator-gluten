@@ -43,7 +43,7 @@ String CountParser::getCHFunctionName(DB::DataTypes &) const
 }
 
 DB::ActionsDAG::NodeRawConstPtrs CountParser::parseFunctionArguments(
-    const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const
+    const CommonFunctionInfo & func_info, DB::ActionsDAG & actions_dag) const
 {
     if (func_info.arguments.size() < 1)
     {
@@ -63,9 +63,9 @@ DB::ActionsDAG::NodeRawConstPtrs CountParser::parseFunctionArguments(
         auto nullable_uint_col = nullable_uint8_type->createColumn();
         nullable_uint_col->insertDefault();
         const auto * const_1_node
-            = &actions_dag->addColumn(DB::ColumnWithTypeAndName(uint8_type->createColumnConst(1, 1), uint8_type, getUniqueName("1")));
+            = &actions_dag.addColumn(DB::ColumnWithTypeAndName(uint8_type->createColumnConst(1, 1), uint8_type, getUniqueName("1")));
         const auto * null_node
-            = &actions_dag->addColumn(DB::ColumnWithTypeAndName(std::move(nullable_uint_col), nullable_uint8_type, getUniqueName("null")));
+            = &actions_dag.addColumn(DB::ColumnWithTypeAndName(std::move(nullable_uint_col), nullable_uint8_type, getUniqueName("null")));
 
         DB::ActionsDAG::NodeRawConstPtrs multi_if_args;
         for (const auto & arg : func_info.arguments)

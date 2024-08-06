@@ -31,7 +31,7 @@ In general, we use IDEA for Gluten development and CLion for ClickHouse backend 
 
 Install the software required for compilation, run `sudo ./ep/build-clickhouse/src/install_ubuntu.sh`.
 Under the hood, it will install the following software:
-- Clang 16.0
+- Clang 18.0
 - cmake 3.20 or higher version
 - ninja-build 1.8.2
 
@@ -66,7 +66,7 @@ Otherwise, do:
     ```shell
     export GLUTEN_SOURCE=/path/to/gluten
     export CH_SOURCE_DIR=/path/to/ClickHouse
-    cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=${CH_SOURCE_DIR} "-DCMAKE_C_COMPILER=$(command -v clang-16)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-16)" "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=${CH_SOURCE_DIR} "-DCMAKE_C_COMPILER=$(command -v clang-18)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-18)" "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
     ```
 
     Next, you need to compile Kyligence/Clickhouse. There are two options:
@@ -629,7 +629,7 @@ public read-only account：gluten/hN2xX3uQ4m
 
 ### Celeborn support
 
-Gluten with clickhouse backend supports [Celeborn](https://github.com/apache/celeborn) as remote shuffle service. Currently, the supported Celeborn versions are `0.3.x`, `0.4.x` and `0.5.0`.
+Gluten with clickhouse backend supports [Celeborn](https://github.com/apache/celeborn) as remote shuffle service. Currently, the supported Celeborn versions are `0.3.x`, `0.4.x` and `0.5.x`.
 
 Below introduction is used to enable this feature.
 
@@ -676,15 +676,5 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 # please refer to this URL (https://github.com/apache/celeborn/tree/main/assets/spark-patch) to apply the patch into your own Spark.
 spark.dynamicAllocation.enabled false
 ```
-
-### Columnar shuffle mode
-We have two modes of columnar shuffle   
-1. prefer cache
-2. prefer spill
-
-Switch through the configuration `spark.gluten.sql.columnar.backend.ch.shuffle.preferSpill`, the default is `false`, enable prefer cache shuffle.
-
-In the prefer cache mode, as much memory as possible will be used to cache the shuffle data. When the memory is insufficient,
-spark will actively trigger the memory spill. You can also specify the threshold size through `spark.gluten.sql.columnar.backend.ch.spillThreshold` to Limit memory usage. The default value is `0MB`, which means no limit on memory usage.
 
 

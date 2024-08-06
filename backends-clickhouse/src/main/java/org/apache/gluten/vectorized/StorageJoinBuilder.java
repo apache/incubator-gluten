@@ -45,6 +45,7 @@ public class StorageJoinBuilder {
       String joinKeys,
       int joinType,
       boolean hasMixedFiltCondition,
+      boolean isExistenceJoin,
       byte[] namedStruct);
 
   private StorageJoinBuilder() {}
@@ -89,6 +90,7 @@ public class StorageJoinBuilder {
         joinKey,
         joinType,
         broadCastContext.hasMixedFiltCondition(),
+        broadCastContext.isExistenceJoin(),
         toNameStruct(output).toByteArray());
   }
 

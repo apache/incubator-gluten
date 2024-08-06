@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.datasources;
 public class CHDatasourceJniWrapper {
 
   public native long nativeInitFileWriterWrapper(
-      String filePath, String[] preferredColumnNames, String formatHint);
+      String filePath, byte[] preferredSchema, String formatHint);
 
   public native long nativeInitMergeTreeWriterWrapper(
       byte[] plan,
@@ -28,8 +28,7 @@ public class CHDatasourceJniWrapper {
       String taskId,
       String partition_dir,
       String bucket_dir,
-      byte[] confArray,
-      long allocId);
+      byte[] confArray);
 
   public native String nativeMergeMTParts(
       byte[] plan,

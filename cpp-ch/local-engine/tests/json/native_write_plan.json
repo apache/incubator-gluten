@@ -1,0 +1,203 @@
+{
+  "relations": [
+    {
+      "root": {
+        "input": {
+          "write": {
+            "namedTable": {
+              "advancedExtension": {
+                "optimization": {
+                  "@type": "type.googleapis.com/google.protobuf.StringValue",
+                  "value": "WriteParameters:isSnappy=1;format=parquet\n"
+                },
+                "enhancement": {
+                  "@type": "type.googleapis.com/substrait.Type",
+                  "struct": {
+                    "types": [
+                      {
+                        "i64": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "i64": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "decimal": {
+                          "scale": 2,
+                          "precision": 15,
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }
+                    ],
+                    "nullability": "NULLABILITY_REQUIRED"
+                  }
+                }
+              }
+            },
+            "tableSchema": {
+              "names": [
+                "s_suppkey",
+                "s_name",
+                "s_address",
+                "s_nationkey",
+                "s_phone",
+                "s_acctbal",
+                "s_comment111"
+              ],
+              "struct": {
+                "types": [
+                  {
+                    "i64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "string": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "string": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "i64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "string": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "decimal": {
+                      "scale": 2,
+                      "precision": 15,
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "string": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  }
+                ]
+              },
+              "columnTypes": [
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL"
+              ]
+            },
+            "input": {
+              "read": {
+                "common": {
+                  "direct": {}
+                },
+                "baseSchema": {
+                  "names": [
+                    "s_suppkey",
+                    "s_name",
+                    "s_address",
+                    "s_nationkey",
+                    "s_phone",
+                    "s_acctbal",
+                    "s_comment"
+                  ],
+                  "struct": {
+                    "types": [
+                      {
+                        "i64": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "i64": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "decimal": {
+                          "scale": 2,
+                          "precision": 15,
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }
+                    ]
+                  },
+                  "columnTypes": [
+                    "NORMAL_COL",
+                    "NORMAL_COL",
+                    "NORMAL_COL",
+                    "NORMAL_COL",
+                    "NORMAL_COL",
+                    "NORMAL_COL",
+                    "NORMAL_COL"
+                  ]
+                },
+                "advancedExtension": {
+                  "optimization": {
+                    "@type": "type.googleapis.com/google.protobuf.StringValue",
+                    "value": "isMergeTree=0\n"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "outputSchema": {
+          "nullability": "NULLABILITY_REQUIRED"
+        }
+      }
+    }
+  ]
+}

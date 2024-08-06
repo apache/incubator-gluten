@@ -15,15 +15,13 @@
  * limitations under the License.
  */
 
-#include <Storages/SubstraitSource/ParquetFormatFile.h>
-
-
 #include "config.h"
 
 #if USE_PARQUET
 
 #include <ranges>
 #include <Core/Range.h>
+#include <Common/BlockTypeUtils.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeDateTime.h>
@@ -41,6 +39,7 @@
 #include <QueryPipeline/QueryPipeline.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/VectorizedParquetRecordReader.h>
+#include <Storages/SubstraitSource/ParquetFormatFile.h>
 #include <gtest/gtest.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/level_conversion.h>
@@ -426,7 +425,7 @@ TEST(ParquetRead, LowLevelRead)
 TEST(ParquetRead, VectorizedColumnReader)
 {
     const std::string sample(local_engine::test::data_file("sample.parquet"));
-    Block blockHeader({{DOUBLE(), "b"}, {BIGINT(), "a"}});
+    Block blockHeader({{local_engine::DOUBLE(), "b"}, {local_engine::BIGINT(), "a"}});
     ReadBufferFromFile in(sample);
     const FormatSettings format_settings{};
     auto arrow_file = local_engine::test::asArrowFileForParquet(in, format_settings);

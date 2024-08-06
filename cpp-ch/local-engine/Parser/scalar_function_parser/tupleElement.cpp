@@ -34,7 +34,7 @@ namespace local_engine
         static constexpr auto name = #substrait_name; \
         String getName () const override { return name; } \
         String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return #ch_name; } \
-        const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAGPtr & actions_dag) const override \
+        const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override \
         { \
             DB::ActionsDAG::NodeRawConstPtrs parsed_args; \
             auto ch_function_name = getCHFunctionName(substrait_func); \

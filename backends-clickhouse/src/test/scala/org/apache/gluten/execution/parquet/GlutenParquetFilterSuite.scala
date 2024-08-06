@@ -460,26 +460,34 @@ class GlutenParquetFilterSuite
       "orders1" -> Nil)
   )
 
+  def runTest(i: Int): Unit = withDataFrame(tpchSQL(i + 1, tpchQueriesResourceFolder)) {
+    df =>
+      val scans = df.queryExecution.executedPlan
+        .collect { case scan: FileSourceScanExecTransformer => scan }
+      assertResult(result(i).size)(scans.size)
+      scans.zipWithIndex
+        .foreach {
+          case (scan, fileIndex) =>
+            val tableName = scan.tableIdentifier
+              .map(_.table)
+              .getOrElse(scan.relation.options("path").split("/").last)
+            val predicates = scan.filterExprs()
+            val expected = result(i)(s"$tableName$fileIndex")
+            assertResult(expected.size)(predicates.size)
+            if (expected.isEmpty) assert(predicates.isEmpty)
+            else compareExpressions(expected.reduceLeft(And), predicates.reduceLeft(And))
+        }
+  }
+
   tpchQueries.zipWithIndex.foreach {
     case (q, i) =>
-      test(q) {
-        withDataFrame(tpchSQL(i + 1, tpchQueriesResourceFolder)) {
-          df =>
-            val scans = df.queryExecution.executedPlan
-              .collect { case scan: FileSourceScanExecTransformer => scan }
-            assertResult(result(i).size)(scans.size)
-            scans.zipWithIndex
-              .foreach {
-                case (scan, fileIndex) =>
-                  val tableName = scan.tableIdentifier
-                    .map(_.table)
-                    .getOrElse(scan.relation.options("path").split("/").last)
-                  val predicates = scan.filterExprs()
-                  val expected = result(i)(s"$tableName$fileIndex")
-                  assertResult(expected.size)(predicates.size)
-                  if (expected.isEmpty) assert(predicates.isEmpty)
-                  else compareExpressions(expected.reduceLeft(And), predicates.reduceLeft(And))
-              }
+      if (q == "q2" || q == "q9") {
+        testSparkVersionLE33(q) {
+          runTest(i)
+        }
+      } else {
+        test(q) {
+          runTest(i)
         }
       }
   }

@@ -30,7 +30,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{ColumnarToRowExec, LeafExecNode, SparkPlan}
 import org.apache.spark.util.{SparkTaskUtil, TaskResources}
 
-import java.util.Objects
+import java.util.{Objects, Properties}
 
 object GlutenPlanModel {
   def apply(): PlanModel[SparkPlan] = {
@@ -71,7 +71,7 @@ object GlutenPlanModel {
   }
 
   private object PlanModelImpl extends PlanModel[SparkPlan] {
-    private val fakeTc = SparkShimLoader.getSparkShims.createTestTaskContext()
+    private val fakeTc = SparkShimLoader.getSparkShims.createTestTaskContext(new Properties())
     private def fakeTc[T](body: => T): T = {
       assert(!TaskResources.inSparkTask())
       SparkTaskUtil.setTaskContext(fakeTc)

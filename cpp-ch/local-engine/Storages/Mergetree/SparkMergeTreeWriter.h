@@ -73,7 +73,6 @@ private:
     void checkAndMerge(bool force = false);
     void safeEmplaceBackPart(DB::MergeTreeDataPartPtr);
     void safeAddPart(DB::MergeTreeDataPartPtr);
-    void manualFreeMemory(size_t before_write_memory);
     void saveMetadata();
     void commitPartToRemoteStorageIfNeeded();
     void finalizeMerge();
@@ -99,7 +98,7 @@ private:
     DB::Block header;
     bool merge_after_insert;
     bool insert_without_local_storage;
-    FreeThreadPool thread_pool;
+    ThreadPool thread_pool;
     size_t merge_min_size = 1024 * 1024 * 1024;
     size_t merge_limit_parts = 10;
     std::mutex memory_mutex;

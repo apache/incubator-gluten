@@ -99,7 +99,7 @@ String ParseURLParser::selectCHFunctionName(const substrait::Expression_ScalarFu
 }
 
 DB::ActionsDAG::NodeRawConstPtrs ParseURLParser::parseFunctionArguments(
-    const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAGPtr & actions_dag) const
+    const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const
 {
     DB::ActionsDAG::NodeRawConstPtrs arg_nodes;
     arg_nodes.push_back(parseExpression(actions_dag, substrait_func.arguments(0).value()));
@@ -111,7 +111,7 @@ DB::ActionsDAG::NodeRawConstPtrs ParseURLParser::parseFunctionArguments(
 }
 
 const DB::ActionsDAG::Node * ParseURLParser::convertNodeTypeIfNeeded(
-    const substrait::Expression_ScalarFunction & substrait_func, const DB::ActionsDAG::Node * func_node, DB::ActionsDAGPtr & actions_dag) const
+    const substrait::Expression_ScalarFunction & substrait_func, const DB::ActionsDAG::Node * func_node, DB::ActionsDAG & actions_dag) const
 {
     auto ch_function_name = getCHFunctionName(substrait_func);
     if (ch_function_name != CH_URL_PROTOL_FUNCTION)
@@ -121,7 +121,7 @@ const DB::ActionsDAG::Node * ParseURLParser::convertNodeTypeIfNeeded(
     // Empty string is converted to NULL.
     auto str_type = std::make_shared<DB::DataTypeString>();
     const auto * empty_str_node
-        = &actions_dag->addColumn(ColumnWithTypeAndName(str_type->createColumnConst(1, DB::Field("")), str_type, getUniqueName("")));
+        = &actions_dag.addColumn(ColumnWithTypeAndName(str_type->createColumnConst(1, DB::Field("")), str_type, getUniqueName("")));
     return toFunctionNode(actions_dag, "nullIf", {func_node, empty_str_node});
 }
 

@@ -67,6 +67,7 @@ FormatFile::InputFormatPtr ORCFormatFile::createInputFormat(const DB::Block & he
         std::back_inserter(skip_stripe_indices));
 
     format_settings.orc.skip_stripes = std::unordered_set<int>(skip_stripe_indices.begin(), skip_stripe_indices.end());
+
     auto input_format = std::make_shared<DB::NativeORCBlockInputFormat>(*file_format->read_buffer, header, format_settings);
     file_format->input = input_format;
     return file_format;

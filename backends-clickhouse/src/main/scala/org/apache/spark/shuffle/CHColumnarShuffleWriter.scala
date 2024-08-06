@@ -18,8 +18,7 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
-import org.apache.gluten.memory.alloc.CHNativeMemoryAllocators
-import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
+import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized._
 
 import org.apache.spark.SparkEnv
@@ -54,13 +53,7 @@ class CHColumnarShuffleWriter[K, V](
   private val splitSize = GlutenConfig.getConf.maxBatchSize
   private val customizedCompressCodec =
     GlutenShuffleUtils.getCompressionCodec(conf).toUpperCase(Locale.ROOT)
-  private val preferSpill = GlutenConfig.getConf.chColumnarShufflePreferSpill
-  private val throwIfMemoryExceed = GlutenConfig.getConf.chColumnarThrowIfMemoryExceed
-  private val flushBlockBufferBeforeEvict =
-    GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict
   private val maxSortBufferSize = GlutenConfig.getConf.chColumnarMaxSortBufferSize
-  private val spillFirstlyBeforeStop = GlutenConfig.getConf.chColumnarSpillFirstlyBeforeStop
-  private val forceExternalSortShuffle = GlutenConfig.getConf.chColumnarForceExternalSortShuffle
   private val forceMemorySortShuffle = GlutenConfig.getConf.chColumnarForceMemorySortShuffle
   private val spillThreshold = GlutenConfig.getConf.chColumnarShuffleSpillThreshold
   private val jniWrapper = new CHShuffleSplitterJniWrapper
@@ -81,6 +74,7 @@ class CHColumnarShuffleWriter[K, V](
 
   @throws[IOException]
   override def write(records: Iterator[Product2[K, V]]): Unit = {
+    CHThreadGroup.registerNewThreadGroup()
     internalCHWrite(records)
   }
 
@@ -108,35 +102,10 @@ class CHColumnarShuffleWriter[K, V](
         dataTmp.getAbsolutePath,
         localDirs,
         subDirsPerLocalDir,
-        preferSpill,
         spillThreshold,
         CHBackendSettings.shuffleHashAlgorithm,
-        throwIfMemoryExceed,
-        flushBlockBufferBeforeEvict,
         maxSortBufferSize,
-        spillFirstlyBeforeStop,
-        forceExternalSortShuffle,
         forceMemorySortShuffle
-      )
-      CHNativeMemoryAllocators.createSpillable(
-        "ShuffleWriter",
-        new Spiller() {
-          override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
-            if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-              return 0L;
-            }
-            if (nativeSplitter == 0) {
-              throw new IllegalStateException(
-                "Fatal: spill() called before a shuffle writer " +
-                  "is created. This behavior should be optimized by moving memory " +
-                  "allocations from make() to split()")
-            }
-            logError(s"Gluten shuffle writer: Trying to spill $size bytes of data")
-            val spilled = splitterJniWrapper.evict(nativeSplitter);
-            logError(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
-            spilled
-          }
-        }
       )
     }
     while (records.hasNext) {

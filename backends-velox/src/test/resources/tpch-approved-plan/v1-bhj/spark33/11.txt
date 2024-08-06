@@ -6,13 +6,13 @@ AdaptiveSparkPlan (60)
       +- ^ InputIteratorTransformer (37)
          +- ShuffleQueryStage (35), Statistics(X)
             +- ColumnarExchange (34)
-               +- VeloxAppendBatches (33)
+               +- VeloxResizeBatches (33)
                   +- ^ FilterExecTransformer (31)
                      +- ^ RegularHashAggregateExecTransformer (30)
                         +- ^ InputIteratorTransformer (29)
                            +- ShuffleQueryStage (27), Statistics(X)
                               +- ColumnarExchange (26)
-                                 +- VeloxAppendBatches (25)
+                                 +- VeloxResizeBatches (25)
                                     +- ^ ProjectExecTransformer (23)
                                        +- ^ FlushableHashAggregateExecTransformer (22)
                                           +- ^ ProjectExecTransformer (21)
@@ -160,9 +160,9 @@ Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 Input [4]: [hash_partition_key#X, ps_partkey#X, sum#X, isEmpty#X]
 Arguments: false
 
-(25) VeloxAppendBatches
+(25) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, ps_partkey#X, sum#X, isEmpty#X]
-Arguments: X
+Arguments: X, X
 
 (26) ColumnarExchange
 Input [4]: [hash_partition_key#X, ps_partkey#X, sum#X, isEmpty#X]
@@ -193,9 +193,9 @@ Arguments: (isnotnull(value#X) AND (cast(value#X as decimal(38,6)) > Subquery su
 Input [2]: [ps_partkey#X, value#X]
 Arguments: false
 
-(33) VeloxAppendBatches
+(33) VeloxResizeBatches
 Input [2]: [ps_partkey#X, value#X]
-Arguments: X
+Arguments: X, X
 
 (34) ColumnarExchange
 Input [2]: [ps_partkey#X, value#X]
@@ -330,7 +330,7 @@ AdaptiveSparkPlan (102)
          +- ^ InputIteratorTransformer (81)
             +- ShuffleQueryStage (79), Statistics(X)
                +- ColumnarExchange (78)
-                  +- VeloxAppendBatches (77)
+                  +- VeloxResizeBatches (77)
                      +- ^ FlushableHashAggregateExecTransformer (75)
                         +- ^ ProjectExecTransformer (74)
                            +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (73)
@@ -429,9 +429,9 @@ Results [2]: [sum#X, isEmpty#X]
 Input [2]: [sum#X, isEmpty#X]
 Arguments: false
 
-(77) VeloxAppendBatches
+(77) VeloxResizeBatches
 Input [2]: [sum#X, isEmpty#X]
-Arguments: X
+Arguments: X, X
 
 (78) ColumnarExchange
 Input [2]: [sum#X, isEmpty#X]

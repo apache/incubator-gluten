@@ -191,7 +191,6 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     shuffle/FallbackRangePartitioner.cc
     shuffle/HashPartitioner.cc
     shuffle/LocalPartitionWriter.cc
-    shuffle/Options.cc
     shuffle/Partitioner.cc
     shuffle/Partitioning.cc
     shuffle/Payload.cc
@@ -200,6 +199,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     shuffle/RoundRobinPartitioner.cc
     shuffle/ShuffleMemoryPool.cc
     shuffle/ShuffleReader.cc
+    shuffle/ShuffleWriter.cc
     shuffle/SinglePartitioner.cc
     shuffle/Spill.cc
     shuffle/Utils.cc

@@ -162,7 +162,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   jniByteInputStreamClose = getMethodIdOrError(env, jniByteInputStreamClass, "close", "()V");
 
   splitResultClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/GlutenSplitResult;");
-  splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJJ[J[J)V");
+  splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJJJJ[J[J)V");
 
   columnarBatchSerializeResultClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/ColumnarBatchSerializeResult;");
@@ -215,6 +215,10 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   gluten::getJniCommonState()->close();
 }
 
+namespace {
+const std::string kBacktraceAllocation = "spark.gluten.memory.backtrace.allocation";
+}
+
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_createRuntime( // NOLINT
     JNIEnv* env,
     jclass,
@@ -226,13 +230,17 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_createRunt
   if (env->GetJavaVM(&vm) != JNI_OK) {
     throw gluten::GlutenException("Unable to get JavaVM instance");
   }
-
-  auto backendType = jStringToCString(env, jbackendType);
-  std::unique_ptr<AllocationListener> listener =
-      std::make_unique<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod);
-
   auto safeArray = gluten::getByteArrayElementsSafe(env, sessionConf);
   auto sparkConf = gluten::parseConfMap(env, safeArray.elems(), safeArray.length());
+  auto backendType = jStringToCString(env, jbackendType);
+
+  std::unique_ptr<AllocationListener> listener =
+      std::make_unique<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod);
+  bool backtrace = sparkConf.at(kBacktraceAllocation) == "true";
+  if (backtrace) {
+    listener = std::make_unique<BacktraceAllocationListener>(std::move(listener));
+  }
+
   auto runtime = gluten::Runtime::create(backendType, std::move(listener), sparkConf);
   return reinterpret_cast<jlong>(runtime);
   JNI_METHOD_END(kInvalidObjectHandle)
@@ -755,6 +763,8 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
     jint compressionLevel,
     jint compressionThreshold,
     jstring compressionModeJstr,
+    jint sortBufferInitialSize,
+    jboolean useRadixSort,
     jstring dataFileJstr,
     jint numSubDirs,
     jstring localDirsJstr,
@@ -780,14 +790,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrappe
       .partitioning = gluten::toPartitioning(jStringToCString(env, partitioningNameJstr)),
       .taskAttemptId = (int64_t)taskAttemptId,
       .startPartitionId = startPartitionId,
-  };
-  auto shuffleWriterTypeC = env->GetStringUTFChars(shuffleWriterTypeJstr, JNI_FALSE);
-  auto shuffleWriterType = std::string(shuffleWriterTypeC);
-  env->ReleaseStringUTFChars(shuffleWriterTypeJstr, shuffleWriterTypeC);
-
-  if (shuffleWriterType == "sort") {
-    shuffleWriterOptions.shuffleWriterType = kSortShuffle;
-  }
+      .shuffleWriterType = gluten::ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterTypeJstr)),
+      .sortBufferInitialSize = sortBufferInitialSize,
+      .useRadixSort = static_cast<bool>(useRadixSort)};
 
   // Build PartitionWriterOptions.
   auto partitionWriterOptions = PartitionWriterOptions{
@@ -945,9 +950,11 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ShuffleWriterJniWrap
       shuffleWriter->totalWriteTime(),
       shuffleWriter->totalEvictTime(),
       shuffleWriter->totalCompressTime(),
+      shuffleWriter->totalSortTime(),
+      shuffleWriter->totalC2RTime(),
       shuffleWriter->totalBytesWritten(),
       shuffleWriter->totalBytesEvicted(),
-      shuffleWriter->maxPartitionBufferSize(),
+      shuffleWriter->peakBytesAllocated(),
       partitionLengthArr,
       rawPartitionLengthArr);
 
@@ -996,9 +1003,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ShuffleReaderJniWrappe
   options.batchSize = batchSize;
   // TODO: Add coalesce option and maximum coalesced size.
 
-  if (jStringToCString(env, shuffleWriterType) == "sort") {
-    options.shuffleWriterType = kSortShuffle;
-  }
+  options.shuffleWriterType = gluten::ShuffleWriter::stringToType(jStringToCString(env, shuffleWriterType));
   std::shared_ptr<arrow::Schema> schema =
       gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
 
@@ -1096,22 +1101,16 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_cl
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_write( // NOLINT
+JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_writeBatch( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong dsHandle,
-    jobject jIter) {
+    jlong batchHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
   auto datasource = ObjectStore::retrieve<Datasource>(dsHandle);
-  auto iter = makeJniColumnarBatchIterator(env, jIter, ctx, nullptr);
-  while (true) {
-    auto batch = iter->next();
-    if (!batch) {
-      break;
-    }
-    datasource->write(batch);
-  }
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
+  datasource->write(batch);
   JNI_METHOD_END()
 }
 

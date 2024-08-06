@@ -43,7 +43,7 @@ public:
 
     const ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,
-        ActionsDAGPtr & actions_dag) const override
+        ActionsDAG & actions_dag) const override
     {
         /// parse factorial(x) as if (x > 20 || x < 0) null else factorial(x)
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);

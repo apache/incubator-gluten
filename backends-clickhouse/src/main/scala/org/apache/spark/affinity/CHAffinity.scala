@@ -35,6 +35,12 @@ abstract class MixedAffinity(manager: AffinityManager) extends Affinity(manager)
     getHostLocations(filePartition.relativeTablePath + "/" + filePartition.partList(0).name)
   }
 
+  def getNativeMergeTreePartLocations(
+      partName: String,
+      relativeTablePath: String): Array[String] = {
+    getHostLocations(relativeTablePath + "/" + partName)
+  }
+
   def getHostLocations(filePath: String): Array[String] = {
     if (manager.usingSoftAffinity) {
       internalGetHostLocations(filePath)

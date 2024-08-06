@@ -6,12 +6,12 @@ AdaptiveSparkPlan (46)
       +- ^ InputIteratorTransformer (28)
          +- ShuffleQueryStage (26), Statistics(X)
             +- ColumnarExchange (25)
-               +- VeloxAppendBatches (24)
+               +- VeloxResizeBatches (24)
                   +- ^ RegularHashAggregateExecTransformer (22)
                      +- ^ InputIteratorTransformer (21)
                         +- ShuffleQueryStage (19), Statistics(X)
                            +- ColumnarExchange (18)
-                              +- VeloxAppendBatches (17)
+                              +- VeloxResizeBatches (17)
                                  +- ^ ProjectExecTransformer (15)
                                     +- ^ FlushableHashAggregateExecTransformer (14)
                                        +- ^ ProjectExecTransformer (13)
@@ -115,9 +115,9 @@ Input [2]: [o_orderpriority#X, count#X]
 Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
 Arguments: false
 
-(17) VeloxAppendBatches
+(17) VeloxResizeBatches
 Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
-Arguments: X
+Arguments: X, X
 
 (18) ColumnarExchange
 Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
@@ -144,9 +144,9 @@ Results [2]: [o_orderpriority#X, count(1)#X AS order_count#X]
 Input [2]: [o_orderpriority#X, order_count#X]
 Arguments: false
 
-(24) VeloxAppendBatches
+(24) VeloxResizeBatches
 Input [2]: [o_orderpriority#X, order_count#X]
-Arguments: X
+Arguments: X, X
 
 (25) ColumnarExchange
 Input [2]: [o_orderpriority#X, order_count#X]

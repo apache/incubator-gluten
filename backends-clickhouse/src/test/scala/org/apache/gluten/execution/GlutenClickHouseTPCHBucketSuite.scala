@@ -234,10 +234,10 @@ class GlutenClickHouseTPCHBucketSuite
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
         }
-        assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
-        assert(plans(0).metrics("numFiles").value === 2)
-        assert(plans(0).metrics("pruningTime").value === -1)
-        assert(plans(0).metrics("numOutputRows").value === 591673)
+        assert(!plans.head.asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
+        assert(plans.head.metrics("numFiles").value === 2)
+        assert(plans.head.metrics("pruningTime").value === pruningTimeValueSpark)
+        assert(plans.head.metrics("numOutputRows").value === 591673)
       })
   }
 
@@ -291,7 +291,7 @@ class GlutenClickHouseTPCHBucketSuite
         }
 
         if (sparkVersion.equals("3.2")) {
-          assert(!(plans(11).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
+          assert(!plans(11).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         } else {
           assert(plans(11).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         }
@@ -327,14 +327,14 @@ class GlutenClickHouseTPCHBucketSuite
             .isInstanceOf[InputIteratorTransformer])
 
         if (sparkVersion.equals("3.2")) {
-          assert(!(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
+          assert(!plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         } else {
           assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         }
         assert(plans(2).metrics("numFiles").value === 2)
         assert(plans(2).metrics("numOutputRows").value === 3111)
 
-        assert(!(plans(3).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
+        assert(!plans(3).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         assert(plans(3).metrics("numFiles").value === 2)
         assert(plans(3).metrics("numOutputRows").value === 72678)
       })
@@ -366,12 +366,12 @@ class GlutenClickHouseTPCHBucketSuite
         }
         // bucket join
         assert(
-          plans(0)
+          plans.head
             .asInstanceOf[HashJoinLikeExecTransformer]
             .left
             .isInstanceOf[ProjectExecTransformer])
         assert(
-          plans(0)
+          plans.head
             .asInstanceOf[HashJoinLikeExecTransformer]
             .right
             .isInstanceOf[ProjectExecTransformer])
@@ -409,10 +409,10 @@ class GlutenClickHouseTPCHBucketSuite
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
         }
-        assert(!(plans(0).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
-        assert(plans(0).metrics("numFiles").value === 2)
-        assert(plans(0).metrics("pruningTime").value === -1)
-        assert(plans(0).metrics("numOutputRows").value === 11618)
+        assert(!plans.head.asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
+        assert(plans.head.metrics("numFiles").value === 2)
+        assert(plans.head.metrics("pruningTime").value === pruningTimeValueSpark)
+        assert(plans.head.metrics("numOutputRows").value === 11618)
       })
   }
 
@@ -425,12 +425,12 @@ class GlutenClickHouseTPCHBucketSuite
         }
         // bucket join
         assert(
-          plans(0)
+          plans.head
             .asInstanceOf[HashJoinLikeExecTransformer]
             .left
             .isInstanceOf[FilterExecTransformerBase])
         assert(
-          plans(0)
+          plans.head
             .asInstanceOf[HashJoinLikeExecTransformer]
             .right
             .isInstanceOf[ProjectExecTransformer])
@@ -585,7 +585,7 @@ class GlutenClickHouseTPCHBucketSuite
     def checkResult(df: DataFrame, exceptedResult: Seq[Row]): Unit = {
       // check the result
       val result = df.collect()
-      assert(result.size == exceptedResult.size)
+      assert(result.length == exceptedResult.size)
       val sortedRes = result.map {
         s =>
           Row.fromSeq(s.toSeq.map {
@@ -786,7 +786,7 @@ class GlutenClickHouseTPCHBucketSuite
           |order by l_orderkey, l_returnflag, t
           |limit 10
           |""".stripMargin
-      runSql(SQL7, false)(
+      runSql(SQL7, noFallBack = false)(
         df => {
           checkResult(
             df,

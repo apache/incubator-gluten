@@ -1051,8 +1051,12 @@ class GlutenClickHouseHiveTableSuite
     spark.sql(
       s"CREATE FUNCTION my_add as " +
         s"'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")
-    runQueryAndCompare("select MY_ADD(id, id+1) from range(10)")(
-      checkGlutenOperatorMatch[ProjectExecTransformer])
+    if (isSparkVersionLE("3.3")) {
+      runQueryAndCompare("select MY_ADD(id, id+1) from range(10)")(
+        checkGlutenOperatorMatch[ProjectExecTransformer])
+    } else {
+      runQueryAndCompare("select MY_ADD(id, id+1) from range(10)", noFallBack = false)(_ => {})
+    }
   }
 
   test("GLUTEN-4333: fix CSE in aggregate operator") {

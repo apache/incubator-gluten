@@ -22,7 +22,7 @@
 namespace local_engine
 {
 DB::ActionsDAG::NodeRawConstPtrs
-NtileParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::ActionsDAGPtr & actions_dag) const
+NtileParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::ActionsDAG & actions_dag) const
 {
     if (func_info.arguments.size() != 1)
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "Function ntile takes exactly one argument");

@@ -17,7 +17,7 @@
 #pragma once
 #include <algorithm>
 #include <memory>
-#include <Shuffle/ShuffleSplitter.h>
+#include <Shuffle/ShuffleCommon.h>
 #include <Shuffle/SelectorBuilder.h>
 #include <Shuffle/ShuffleWriterBase.h>
 #include <jni.h>
@@ -46,7 +46,6 @@ public:
     ~CachedShuffleWriter() override = default;
 
     void split(DB::Block & block) override;
-    size_t evictPartitions() override;
     SplitResult stop() override;
 
 private:

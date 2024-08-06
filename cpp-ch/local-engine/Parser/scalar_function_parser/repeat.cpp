@@ -33,7 +33,7 @@ public:
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return name; }
 
-    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAGPtr & actions_dag) const override
+    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         // repeat. the field index must be unsigned integer in CH, cast the signed integer in substrait
         // which must be a positive value into unsigned integer here.

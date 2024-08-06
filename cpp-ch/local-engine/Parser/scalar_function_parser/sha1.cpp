@@ -40,7 +40,7 @@ public:
 
     String getName() const override { return name; }
 
-    const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const override
+    const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const override
     {
         /// Parse sha1(str) as lower(hex(sha1(str)))
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);

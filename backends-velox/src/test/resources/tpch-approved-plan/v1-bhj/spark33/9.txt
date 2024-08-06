@@ -6,12 +6,12 @@ AdaptiveSparkPlan (100)
       +- ^ InputIteratorTransformer (63)
          +- ShuffleQueryStage (61), Statistics(X)
             +- ColumnarExchange (60)
-               +- VeloxAppendBatches (59)
+               +- VeloxResizeBatches (59)
                   +- ^ RegularHashAggregateExecTransformer (57)
                      +- ^ InputIteratorTransformer (56)
                         +- ShuffleQueryStage (54), Statistics(X)
                            +- ColumnarExchange (53)
-                              +- VeloxAppendBatches (52)
+                              +- VeloxResizeBatches (52)
                                  +- ^ ProjectExecTransformer (50)
                                     +- ^ FlushableHashAggregateExecTransformer (49)
                                        +- ^ ProjectExecTransformer (48)
@@ -308,9 +308,9 @@ Input [4]: [nation#X, o_year#X, sum#X, isEmpty#X]
 Input [5]: [hash_partition_key#X, nation#X, o_year#X, sum#X, isEmpty#X]
 Arguments: false
 
-(52) VeloxAppendBatches
+(52) VeloxResizeBatches
 Input [5]: [hash_partition_key#X, nation#X, o_year#X, sum#X, isEmpty#X]
-Arguments: X
+Arguments: X, X
 
 (53) ColumnarExchange
 Input [5]: [hash_partition_key#X, nation#X, o_year#X, sum#X, isEmpty#X]
@@ -337,9 +337,9 @@ Results [3]: [nation#X, o_year#X, sum(amount#X)#X AS sum_profit#X]
 Input [3]: [nation#X, o_year#X, sum_profit#X]
 Arguments: false
 
-(59) VeloxAppendBatches
+(59) VeloxResizeBatches
 Input [3]: [nation#X, o_year#X, sum_profit#X]
-Arguments: X
+Arguments: X, X
 
 (60) ColumnarExchange
 Input [3]: [nation#X, o_year#X, sum_profit#X]

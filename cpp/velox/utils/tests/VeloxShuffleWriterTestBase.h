@@ -68,12 +68,13 @@ struct ShuffleTestParams {
   arrow::Compression::type compressionType;
   int32_t compressionThreshold;
   int32_t mergeBufferSize;
+  bool useRadixSort;
 
   std::string toString() const {
     std::ostringstream out;
     out << "shuffleWriterType = " << shuffleWriterType << ", partitionWriterType = " << partitionWriterType
         << ", compressionType = " << compressionType << ", compressionThreshold = " << compressionThreshold
-        << ", mergeBufferSize = " << mergeBufferSize;
+        << ", mergeBufferSize = " << mergeBufferSize << ", useRadixSort = " << (useRadixSort ? "true" : "false");
     return out.str();
   }
 };
@@ -250,6 +251,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     RETURN_NOT_OK(VeloxShuffleWriterTestBase::initShuffleWriterOptions());
 
     ShuffleTestParams params = GetParam();
+    shuffleWriterOptions_.useRadixSort = params.useRadixSort;
     partitionWriterOptions_.compressionType = params.compressionType;
     switch (partitionWriterOptions_.compressionType) {
       case arrow::Compression::UNCOMPRESSED:
@@ -275,19 +277,18 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
       ShuffleWriterOptions shuffleWriterOptions,
       uint32_t numPartitions,
       int32_t bufferSize) {
-    std::shared_ptr<VeloxShuffleWriter> shuffleWriter;
-    if (GetParam().shuffleWriterType == kHashShuffle) {
+    if (shuffleWriterOptions.shuffleWriterType == ShuffleWriterType::kHashShuffle) {
       shuffleWriterOptions.bufferSize = bufferSize;
-      GLUTEN_ASSIGN_OR_THROW(
-          shuffleWriter,
-          VeloxHashBasedShuffleWriter::create(
-              numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions), pool_, arrowPool));
-    } else if (GetParam().shuffleWriterType == kSortShuffle) {
-      GLUTEN_ASSIGN_OR_THROW(
-          shuffleWriter,
-          VeloxSortBasedShuffleWriter::create(
-              numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions), pool_, arrowPool));
     }
+    GLUTEN_ASSIGN_OR_THROW(
+        auto shuffleWriter,
+        VeloxShuffleWriter::create(
+            GetParam().shuffleWriterType,
+            numPartitions,
+            std::move(partitionWriter),
+            std::move(shuffleWriterOptions),
+            pool_,
+            arrowPool));
     return shuffleWriter;
   }
 
@@ -546,7 +547,7 @@ class VeloxShuffleWriterMemoryTest : public VeloxShuffleWriterTestBase, public t
         PartitionWriterType::kLocal, numPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
-        VeloxHashBasedShuffleWriter::create(
+        VeloxHashShuffleWriter::create(
             numPartitions, std::move(partitionWriter), std::move(shuffleWriterOptions_), pool_, arrowPool));
     return shuffleWriter;
   }

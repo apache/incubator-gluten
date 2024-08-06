@@ -32,7 +32,7 @@ public:
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return "repeat"; }
 
-    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAGPtr & actions_dag) const override
+    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         // convert space function to repeat
         DB::ActionsDAG::NodeRawConstPtrs parsed_args;

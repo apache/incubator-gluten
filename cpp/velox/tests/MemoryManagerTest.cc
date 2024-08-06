@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#include "benchmarks/common/BenchmarkUtils.h"
 #include "compute/VeloxBackend.h"
 #include "config/VeloxConfig.h"
 #include "memory/VeloxMemoryManager.h"
@@ -50,7 +49,7 @@ class MemoryManagerTest : public ::testing::Test {
     std::unordered_map<std::string, std::string> conf = {
         {kMemoryReservationBlockSize, std::to_string(kMemoryReservationBlockSizeDefault)},
         {kVeloxMemInitCapacity, std::to_string(kVeloxMemInitCapacityDefault)}};
-    initVeloxBackend(conf);
+    gluten::VeloxBackend::create(conf);
   }
 
   void SetUp() override {

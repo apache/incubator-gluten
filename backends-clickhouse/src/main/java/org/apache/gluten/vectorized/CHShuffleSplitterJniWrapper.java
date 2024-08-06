@@ -30,14 +30,9 @@ public class CHShuffleSplitterJniWrapper {
       String dataFile,
       String localDirs,
       int subDirsPerLocalDir,
-      boolean preferSpill,
       long spillThreshold,
       String hashAlgorithm,
-      boolean throwIfMemoryExceed,
-      boolean flushBlockBufferBeforeEvict,
       long maxSortBufferSize,
-      boolean spillFirstlyBeforeStop,
-      boolean forceExternalSort,
       boolean forceMemorySort) {
     return nativeMake(
         part.getShortName(),
@@ -51,14 +46,9 @@ public class CHShuffleSplitterJniWrapper {
         dataFile,
         localDirs,
         subDirsPerLocalDir,
-        preferSpill,
         spillThreshold,
         hashAlgorithm,
-        throwIfMemoryExceed,
-        flushBlockBufferBeforeEvict,
         maxSortBufferSize,
-        spillFirstlyBeforeStop,
-        forceExternalSort,
         forceMemorySort);
   }
 
@@ -71,9 +61,6 @@ public class CHShuffleSplitterJniWrapper {
       long spillThreshold,
       String hashAlgorithm,
       Object pusher,
-      boolean throwIfMemoryExceed,
-      boolean flushBlockBufferBeforeEvict,
-      boolean forceExternalSort,
       boolean forceMemorySort) {
     return nativeMakeForRSS(
         part.getShortName(),
@@ -87,9 +74,6 @@ public class CHShuffleSplitterJniWrapper {
         spillThreshold,
         hashAlgorithm,
         pusher,
-        throwIfMemoryExceed,
-        flushBlockBufferBeforeEvict,
-        forceExternalSort,
         forceMemorySort);
   }
 
@@ -105,14 +89,9 @@ public class CHShuffleSplitterJniWrapper {
       String dataFile,
       String localDirs,
       int subDirsPerLocalDir,
-      boolean preferSpill,
       long spillThreshold,
       String hashAlgorithm,
-      boolean throwIfMemoryExceed,
-      boolean flushBlockBufferBeforeEvict,
       long maxSortBufferSize,
-      boolean spillFirstlyBeforeStop,
-      boolean forceSort,
       boolean forceMemorySort);
 
   public native long nativeMakeForRSS(
@@ -127,14 +106,9 @@ public class CHShuffleSplitterJniWrapper {
       long spillThreshold,
       String hashAlgorithm,
       Object pusher,
-      boolean throwIfMemoryExceed,
-      boolean flushBlockBufferBeforeEvict,
-      boolean forceSort,
       boolean forceMemorySort);
 
   public native void split(long splitterId, long block);
-
-  public native long evict(long splitterId);
 
   public native CHSplitResult stop(long splitterId) throws IOException;
 

@@ -34,7 +34,7 @@ public:
         return "JSONExtract";
     }
 
-    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAGPtr & actions_dag) const override
+    const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         DB::ActionsDAG::NodeRawConstPtrs parsed_args;
         auto ch_function_name = getCHFunctionName(substrait_func);

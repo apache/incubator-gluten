@@ -141,7 +141,9 @@ createShuffleWriter(Runtime* runtime, const std::string& dataFile, const std::ve
 
   auto options = ShuffleWriterOptions{};
   options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
-  if (FLAGS_shuffle_writer == "sort") {
+  if (FLAGS_rss) {
+    options.shuffleWriterType = gluten::kRssSortShuffle;
+  } else if (FLAGS_shuffle_writer == "sort") {
     options.shuffleWriterType = gluten::kSortShuffle;
   }
   auto shuffleWriter =
@@ -190,7 +192,8 @@ void runShuffle(
   {
     gluten::ScopedTimer timer(&totalTime);
     while (resultIter->hasNext()) {
-      GLUTEN_THROW_NOT_OK(shuffleWriter->write(resultIter->next(), ShuffleWriter::kMinMemLimit));
+      GLUTEN_THROW_NOT_OK(
+          shuffleWriter->write(resultIter->next(), ShuffleWriter::kMaxMemLimit - shuffleWriter->cachedPayloadSize()));
     }
     GLUTEN_THROW_NOT_OK(shuffleWriter->stop());
   }

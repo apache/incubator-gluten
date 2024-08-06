@@ -39,7 +39,7 @@ namespace local_engine
 class LocalFileWriteBufferBuilder : public WriteBufferBuilder
 {
 public:
-    explicit LocalFileWriteBufferBuilder(DB::ContextPtr context_) : WriteBufferBuilder(context_) { }
+    explicit LocalFileWriteBufferBuilder(const DB::ContextPtr & context_) : WriteBufferBuilder(context_) { }
     ~LocalFileWriteBufferBuilder() override = default;
 
     std::unique_ptr<DB::WriteBuffer> build(const std::string & file_uri_) override
@@ -61,7 +61,7 @@ public:
 class HDFSFileWriteBufferBuilder : public WriteBufferBuilder
 {
 public:
-    explicit HDFSFileWriteBufferBuilder(DB::ContextPtr context_) : WriteBufferBuilder(context_) { }
+    explicit HDFSFileWriteBufferBuilder(const DB::ContextPtr & context_) : WriteBufferBuilder(context_) { }
     ~HDFSFileWriteBufferBuilder() override = default;
 
     std::unique_ptr<DB::WriteBuffer> build(const std::string & file_uri_) override
@@ -81,8 +81,7 @@ public:
         auto first = new_file_uri.find('/', new_file_uri.find("//") + 2);
         auto last = new_file_uri.find_last_of('/');
         auto dir = new_file_uri.substr(first, last - first);
-        int err = hdfsCreateDirectory(fs.get(), dir.c_str());
-        if (err)
+        if (hdfsCreateDirectory(fs.get(), dir.c_str()))
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Cannot create dir for {} because {}", dir, std::string(hdfsGetLastError()));
 
         DB::WriteSettings write_settings;
@@ -106,7 +105,7 @@ WriteBufferBuilderFactory & WriteBufferBuilderFactory::instance()
     return instance;
 }
 
-WriteBufferBuilderPtr WriteBufferBuilderFactory::createBuilder(const String & schema, DB::ContextPtr context)
+WriteBufferBuilderPtr WriteBufferBuilderFactory::createBuilder(const String & schema, const DB::ContextPtr & context)
 {
     auto it = builders.find(schema);
     if (it == builders.end())
@@ -114,7 +113,7 @@ WriteBufferBuilderPtr WriteBufferBuilderFactory::createBuilder(const String & sc
     return it->second(context);
 }
 
-void WriteBufferBuilderFactory::registerBuilder(const String & schema, NewBuilder newer)
+void WriteBufferBuilderFactory::registerBuilder(const String & schema, const NewBuilder & newer)
 {
     auto it = builders.find(schema);
     if (it != builders.end())

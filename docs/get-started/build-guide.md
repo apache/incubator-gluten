@@ -20,7 +20,7 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | enable_iaa             | Enable IAA for shuffle data de/compression.                                                        | OFF     |
 | enable_hbm             | Enable HBM allocator.                                                                              | OFF     |
 | enable_s3              | Build with S3 support.                                                                             | OFF     |
-| enable_gcs             | Build with GCs support.                                                                            | OFF     |
+| enable_gcs             | Build with GCS support.                                                                            | OFF     |
 | enable_hdfs            | Build with HDFS support.                                                                           | OFF     |
 | enable_abfs            | Build with ABFS support.                                                                           | OFF     |
 | enable_ep_cache        | Enable caching for external project build (Velox).                                                 | OFF     |
@@ -31,26 +31,25 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | velox_home             | Specify your own Velox source path to build.                                                       | ""      |
 | build_velox_tests      | Build Velox tests.                                                                                 | OFF     |
 | build_velox_benchmarks | Build Velox benchmarks (velox_tests and connectors will be disabled if ON)                         | OFF     |
-| compile_arrow_java     | Compile arrow java for gluten build to use to fix invalid pointer issues.                          | ON      |
+| build_arrow            | Build arrow java/cpp and install the libs in local. Can turn it OFF after first build.             | ON      |
 | spark_version          | Build for specified version of Spark(3.2, 3.3, 3.4, 3.5, ALL). `ALL` means build for all versions. | ALL     |
 
 ### Velox build parameters for build_velox.sh
 Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 
-| Parameters         | Description                                                             | Default                                  |
-|--------------------|-------------------------------------------------------------------------|------------------------------------------|
-| velox_home         | Specify Velox source path to build.                                     | GLUTEN_SRC/ep/build-velox/build/velox_ep |
-| build_type         | Velox build type, i.e., CMAKE_BUILD_TYPE.                               | Release                                  |
-| enable_s3          | Build Velox with S3 support.                                            | OFF                                      |
-| enable_gcs         | Build Velox with GCS support.                                           | OFF                                      |
-| enable_hdfs        | Build Velox with HDFS support.                                          | OFF                                      |
-| enable_abfs        | Build Velox with ABFS support.                                          | OFF                                      |
-| run_setup_script   | Run setup script to install Velox dependencies before build.            | ON                                       |
-| enable_ep_cache    | Enable and reuse cache of Velox build.                                  | OFF                                      |
-| build_test_utils   | Build Velox with cmake arg -DVELOX_BUILD_TEST_UTILS=ON if ON.           | OFF                                      |
-| build_tests        | Build Velox test.                                                       | OFF                                      |
-| build_benchmarks   | Build Velox benchmarks.                                                 | OFF                                      |
-| compile_arrow_java | Build arrow java for gluten build to use to fix invalid pointer issues. | ON                                      |
+| Parameters       | Description                                                   | Default                                  |
+|------------------|---------------------------------------------------------------|------------------------------------------|
+| velox_home       | Specify Velox source path to build.                           | GLUTEN_SRC/ep/build-velox/build/velox_ep |
+| build_type       | Velox build type, i.e., CMAKE_BUILD_TYPE.                     | Release                                  |
+| enable_s3        | Build Velox with S3 support.                                  | OFF                                      |
+| enable_gcs       | Build Velox with GCS support.                                 | OFF                                      |
+| enable_hdfs      | Build Velox with HDFS support.                                | OFF                                      |
+| enable_abfs      | Build Velox with ABFS support.                                | OFF                                      |
+| run_setup_script | Run setup script to install Velox dependencies before build.  | ON                                       |
+| enable_ep_cache  | Enable and reuse cache of Velox build.                        | OFF                                      |
+| build_test_utils | Build Velox with cmake arg -DVELOX_BUILD_TEST_UTILS=ON if ON. | OFF                                      |
+| build_tests      | Build Velox test.                                             | OFF                                      |
+| build_benchmarks | Build Velox benchmarks.                                       | OFF                                      |
 
 ### Maven build parameters
 The below parameters can be set via `-P` for mvn.

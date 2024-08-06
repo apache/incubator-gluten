@@ -6,12 +6,12 @@ AdaptiveSparkPlan (55)
       +- ^ InputIteratorTransformer (36)
          +- ShuffleQueryStage (34)
             +- ColumnarExchange (33)
-               +- VeloxAppendBatches (32)
+               +- VeloxResizeBatches (32)
                   +- ^ RegularHashAggregateExecTransformer (30)
                      +- ^ InputIteratorTransformer (29)
                         +- ShuffleQueryStage (27)
                            +- ColumnarExchange (26)
-                              +- VeloxAppendBatches (25)
+                              +- VeloxResizeBatches (25)
                                  +- ^ ProjectExecTransformer (23)
                                     +- ^ FlushableHashAggregateExecTransformer (22)
                                        +- ^ ProjectExecTransformer (21)
@@ -19,7 +19,7 @@ AdaptiveSparkPlan (55)
                                              +- ^ InputIteratorTransformer (19)
                                                 +- ShuffleQueryStage (17)
                                                    +- ColumnarExchange (16)
-                                                      +- VeloxAppendBatches (15)
+                                                      +- VeloxResizeBatches (15)
                                                          +- ^ ProjectExecTransformer (13)
                                                             +- ^ FlushableHashAggregateExecTransformer (12)
                                                                +- ^ ProjectExecTransformer (11)
@@ -112,9 +112,9 @@ Input [2]: [c_custkey#X, count#X]
 Input [3]: [hash_partition_key#X, c_custkey#X, count#X]
 Arguments: false
 
-(15) VeloxAppendBatches
+(15) VeloxResizeBatches
 Input [3]: [hash_partition_key#X, c_custkey#X, count#X]
-Arguments: X
+Arguments: X, X
 
 (16) ColumnarExchange
 Input [3]: [hash_partition_key#X, c_custkey#X, count#X]
@@ -156,9 +156,9 @@ Input [2]: [c_count#X, count#X]
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
 Arguments: false
 
-(25) VeloxAppendBatches
+(25) VeloxResizeBatches
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
-Arguments: X
+Arguments: X, X
 
 (26) ColumnarExchange
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
@@ -185,9 +185,9 @@ Results [2]: [c_count#X, count(1)#X AS custdist#X]
 Input [2]: [c_count#X, custdist#X]
 Arguments: false
 
-(32) VeloxAppendBatches
+(32) VeloxResizeBatches
 Input [2]: [c_count#X, custdist#X]
-Arguments: X
+Arguments: X, X
 
 (33) ColumnarExchange
 Input [2]: [c_count#X, custdist#X]

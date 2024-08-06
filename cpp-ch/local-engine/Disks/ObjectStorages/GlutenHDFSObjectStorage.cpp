@@ -33,7 +33,7 @@ std::unique_ptr<ReadBufferFromFileBase> GlutenHDFSObjectStorage::readObject( ///
     return std::make_unique<ReadBufferFromHDFS>(hdfs_uri, hdfs_path, config, HDFSObjectStorage::patchSettings(read_settings));
 }
 
-DB::ObjectStorageKey local_engine::GlutenHDFSObjectStorage::generateObjectKeyForPath(const std::string & path) const
+DB::ObjectStorageKey local_engine::GlutenHDFSObjectStorage::generateObjectKeyForPath(const std::string & path, const std::optional<std::string> & key_prefix) const
 {
     initializeHDFSFS();
     /// what ever data_source_description.description value is, consider that key as relative key

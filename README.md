@@ -76,7 +76,7 @@ spark-shell \
  --conf spark.memory.offHeap.enabled=true \
  --conf spark.memory.offHeap.size=20g \
  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
- --jars https://github.com/apache/incubator-gluten/releases/download/v1.0.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04_x86_64-1.0.0.jar
+ --jars https://github.com/apache/incubator-gluten/releases/download/v1.1.1/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04_x86_64-1.1.1.jar
 ```
 
 # 3.2 Custom Build
@@ -120,8 +120,8 @@ Gluten successfully joined Apache Incubator since March'24. We welcome developer
 https://gluten.apache.org/
 
 ### Mailing lists
-For any technical discussion, please send email to [dev@gluten.apache.org](mailto:dev@gluten.apache.org). See [archives](https://lists.apache.org/list.html?dev@gluten.apache.org).
-Please click [here](mailto:dev-subscribe@gluten.apache.org) to subscribe.
+For any technical discussion, please send email to [dev@gluten.apache.org](mailto:dev@gluten.apache.org). You can go to [archives](https://lists.apache.org/list.html?dev@gluten.apache.org)
+for getting historical discussions. Please click [here](mailto:dev-subscribe@gluten.apache.org) to subscribe the mail list.
 
 ### Wechat group
 We also have a Wechat group (in Chinese) which may be more friendly for PRC developers/users. Due to the limitation of wechat group, please contact with weitingchen at apache.org or zhangzc at apache.org to be invited to the group. 
@@ -156,16 +156,15 @@ Gluten is licensed under [Apache 2.0 license](https://www.apache.org/licenses/LI
 
 # 7 Contact
 
-Gluten was initiated by Intel and Kyligence in 2022. Several companies such as Intel, Kyligence, BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft and others, are actively participating in the development of Gluten. If you are interested in Gluten project, please contact below email address for further discussion.
+Gluten was initiated by Intel and Kyligence in 2022. Several companies are also actively participating in the development, such as BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft, etc. If you are interested in Gluten project, please contact and subscribe below mailing lists for further discussion.
 
-binwei.yang@intel.com; weiting.chen@intel.com;
-chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io;
-zuochunwei@meituan.com;yangchuan.zy@alibaba-inc.com;xiyu.zk@alibaba-inc.com;joey.ljy@alibaba-inc.com
+* For community activity: dev@gluten.apache.org
+* For code repository activity: commits@gluten.apache.org
 
 # 8 Thanks to our contributors
 
 <a href="https://github.com/apache/incubator-gluten/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=apache/incubator-gluten" />
+  <img src="https://contrib.rocks/image?repo=apache/incubator-gluten&columns=25" />
 </a>
 
 ##### \* LEGAL NOTICE: Your use of this software and any required dependent software (the "Software Package") is subject to the terms and conditions of the software license agreements for the Software Package, which may also include notices, disclaimers, or license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the "TPP.txt" or other similarly-named text file included with the Software Package for additional details.

@@ -25,7 +25,7 @@ namespace gluten {
 
 class ColumnarBatchSerializer {
  public:
-  ColumnarBatchSerializer(arrow::MemoryPool* arrowPool, struct ArrowSchema* cSchema) : arrowPool_(arrowPool) {}
+  ColumnarBatchSerializer(arrow::MemoryPool* arrowPool) : arrowPool_(arrowPool) {}
 
   virtual ~ColumnarBatchSerializer() = default;
 

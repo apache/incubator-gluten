@@ -58,7 +58,7 @@ case class HLLRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
     // be parsed by velox, it would cause the error: 'Unexpected type of HLL'.
     dataType match {
       case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
-          StringType | _: CharType | _: DecimalType | DateType =>
+          StringType | _: CharType | _: DecimalType | DateType | TimestampType | BinaryType =>
         true
       case _ => false
     }

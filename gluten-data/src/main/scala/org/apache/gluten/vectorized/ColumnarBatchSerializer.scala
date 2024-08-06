@@ -47,12 +47,13 @@ class ColumnarBatchSerializer(
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
     deserializeTime: SQLMetric,
-    decompressTime: Option[SQLMetric],
+    decompressTime: SQLMetric,
     isSort: Boolean)
   extends Serializer
   with Serializable {
 
-  private val shuffleWriterType = if (isSort) "sort" else "hash"
+  private val shuffleWriterType =
+    if (isSort) GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER else GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
@@ -73,7 +74,7 @@ private class ColumnarBatchSerializerInstance(
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
     deserializeTime: SQLMetric,
-    decompressTime: Option[SQLMetric],
+    decompressTime: SQLMetric,
     shuffleWriterType: String)
   extends SerializerInstance
   with Logging {
@@ -113,10 +114,7 @@ private class ColumnarBatchSerializerInstance(
       val readerMetrics = new ShuffleReaderMetrics()
       jniWrapper.populateMetrics(shuffleReaderHandle, readerMetrics)
       deserializeTime += readerMetrics.getDeserializeTime
-      decompressTime match {
-        case Some(t) => t += readerMetrics.getDecompressTime
-        case None =>
-      }
+      decompressTime += readerMetrics.getDecompressTime
 
       jniWrapper.close(shuffleReaderHandle)
       cSchema.release()

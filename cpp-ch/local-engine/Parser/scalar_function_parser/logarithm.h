@@ -39,11 +39,11 @@ public:
     ~FunctionParserLogBase() override = default;
 
     virtual String getCHFunctionName() const = 0;
-    virtual const DB::ActionsDAG::Node * getParameterLowerBound(ActionsDAGPtr &, const DataTypePtr &) const { return nullptr; }
+    virtual const DB::ActionsDAG::Node * getParameterLowerBound(ActionsDAG &, const DataTypePtr &) const { return nullptr; }
 
     const ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,
-        ActionsDAGPtr & actions_dag) const override
+        ActionsDAG & actions_dag) const override
     {
         /*
             parse log(x) as

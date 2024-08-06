@@ -23,6 +23,6 @@ echo "Install and Use the Clang compiler"
 sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
 
 echo "add CC and CXX to .bashrc"
-echo "export CC=clang-16" >> ~/.bashrc
-echo "export CXX=clang++-16" >> ~/.bashrc
+echo "export CC=clang-18" >> ~/.bashrc
+echo "export CXX=clang++-18" >> ~/.bashrc
 source ~/.bashrc

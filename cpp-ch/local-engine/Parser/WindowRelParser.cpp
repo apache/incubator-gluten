@@ -323,8 +323,8 @@ void WindowRelParser::initWindowsInfos(const substrait::WindowRel & win_rel)
 void WindowRelParser::tryAddProjectionBeforeWindow()
 {
     auto header = current_plan->getCurrentDataStream().header;
-    ActionsDAGPtr actions_dag = std::make_shared<ActionsDAG>(header.getColumnsWithTypeAndName());
-    auto dag_footprint = actions_dag->dumpDAG();
+    ActionsDAG actions_dag{header.getColumnsWithTypeAndName()};
+    auto dag_footprint = actions_dag.dumpDAG();
 
     for (auto & win_info : win_infos )
     {
@@ -335,13 +335,13 @@ void WindowRelParser::tryAddProjectionBeforeWindow()
         {
             win_info.arg_column_names.emplace_back(arg_node->result_name);
             win_info.arg_column_types.emplace_back(arg_node->result_type);
-            actions_dag->addOrReplaceInOutputs(*arg_node);
+            actions_dag.addOrReplaceInOutputs(*arg_node);
         }
     }
 
-    if (actions_dag->dumpDAG() != dag_footprint)
+    if (actions_dag.dumpDAG() != dag_footprint)
     {
-        auto project_step = std::make_unique<ExpressionStep>(current_plan->getCurrentDataStream(), actions_dag);
+        auto project_step = std::make_unique<ExpressionStep>(current_plan->getCurrentDataStream(), std::move(actions_dag));
         project_step->setStepDescription("Add projections before window");
         steps.emplace_back(project_step.get());
         current_plan->addStep(std::move(project_step));
@@ -352,19 +352,19 @@ void WindowRelParser::tryAddProjectionAfterWindow()
 {
     // The final result header is : original header ++ [window aggregate columns]
     auto header = current_plan->getCurrentDataStream().header;
-    ActionsDAGPtr actions_dag = std::make_shared<ActionsDAG>(header.getColumnsWithTypeAndName());
-    auto dag_footprint = actions_dag->dumpDAG();
+    ActionsDAG actions_dag{header.getColumnsWithTypeAndName()};
+    auto dag_footprint = actions_dag.dumpDAG();
 
     for (size_t i = 0; i < win_infos.size(); ++i)
     {
         auto & win_info = win_infos[i];
-        const auto * win_result_node = &actions_dag->findInOutputs(win_info.result_column_name);
+        const auto * win_result_node = &actions_dag.findInOutputs(win_info.result_column_name);
         win_info.function_parser->convertNodeTypeIfNeeded(win_info.parser_func_info, win_result_node, actions_dag, false);
     }
 
-    if (actions_dag->dumpDAG() != dag_footprint)
+    if (actions_dag.dumpDAG() != dag_footprint)
     {
-        auto project_step = std::make_unique<ExpressionStep>(current_plan->getCurrentDataStream(), actions_dag);
+        auto project_step = std::make_unique<ExpressionStep>(current_plan->getCurrentDataStream(), std::move(actions_dag));
         project_step->setStepDescription("Add projections for window result");
         steps.emplace_back(project_step.get());
         current_plan->addStep(std::move(project_step));
@@ -374,11 +374,11 @@ void WindowRelParser::tryAddProjectionAfterWindow()
     auto current_header = current_plan->getCurrentDataStream().header;
     if (!DB::blocksHaveEqualStructure(output_header, current_header))
     {
-        ActionsDAGPtr convert_action = ActionsDAG::makeConvertingActions(
+        ActionsDAG convert_action = ActionsDAG::makeConvertingActions(
             current_header.getColumnsWithTypeAndName(),
             output_header.getColumnsWithTypeAndName(),
             DB::ActionsDAG::MatchColumnsMode::Name);
-        QueryPlanStepPtr convert_step = std::make_unique<DB::ExpressionStep>(current_plan->getCurrentDataStream(), convert_action);
+        QueryPlanStepPtr convert_step = std::make_unique<DB::ExpressionStep>(current_plan->getCurrentDataStream(), std::move(convert_action));
         convert_step->setStepDescription("Convert window Output");
         steps.emplace_back(convert_step.get());
         current_plan->addStep(std::move(convert_step));

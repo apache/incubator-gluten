@@ -26,7 +26,7 @@
 #include <Interpreters/Context_fwd.h>
 #include <Processors/Chunk.h>
 #include <Shuffle/SelectorBuilder.h>
-#include <Shuffle/ShuffleSplitter.h>
+#include <Shuffle/ShuffleCommon.h>
 #include <base/types.h>
 #include <Common/BlockIterator.h>
 

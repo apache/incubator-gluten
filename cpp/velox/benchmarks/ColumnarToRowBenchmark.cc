@@ -30,6 +30,7 @@
 
 #include <chrono>
 
+#include "benchmarks/common/BenchmarkUtils.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
@@ -43,7 +44,7 @@ using namespace facebook;
 using namespace arrow;
 namespace gluten {
 
-const int kBatchBufferSize = 32768;
+const int kBatchBufferSize = 4096;
 
 class GoogleBenchmarkColumnarToRow {
  public:
@@ -149,7 +150,7 @@ class GoogleBenchmarkColumnarToRowCacheScanBenchmark : public GoogleBenchmarkCol
       }
     } while (recordBatch);
 
-    LOG(INFO) << " parquet parse done elapsed time = " << elapseRead / 1000000 << " rows = " << numRows;
+    LOG(WARNING) << " parquet parse done elapsed time = " << elapseRead / 1000000 << " rows = " << numRows;
 
     // reuse the columnarToRowConverter for batches caused system % increase a lot
     auto ctxPool = defaultLeafVeloxMemoryPool();
@@ -266,6 +267,10 @@ int main(int argc, char** argv) {
   LOG(INFO) << "threads = " << threads;
   LOG(INFO) << "datafile = " << datafile;
   LOG(INFO) << "cpu = " << cpu;
+
+  auto backendConf = gluten::defaultConf();
+  gluten::initVeloxBackend(backendConf);
+  memory::MemoryManager::testingSetInstance({});
 
   gluten::GoogleBenchmarkColumnarToRowCacheScanBenchmark bck(datafile);
 

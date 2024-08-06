@@ -22,9 +22,10 @@ import org.apache.gluten.extension.columnar.validator.FallbackInjects
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Final, Partial}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
-import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+
+import java.sql.Timestamp
 
 abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
@@ -564,6 +565,18 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
     runQueryAndCompare(
       "select approx_count_distinct(l_discount), count(distinct l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[HashAggregateExecTransformer]
+    }
+    withTempPath {
+      path =>
+        val t1 = Timestamp.valueOf("2024-08-22 10:10:10.010")
+        val t2 = Timestamp.valueOf("2014-12-31 00:00:00.012")
+        val t3 = Timestamp.valueOf("1968-12-31 23:59:59.001")
+        Seq(t1, t2, t3).toDF("t").write.parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("select approx_count_distinct(t) from view") {
+          checkGlutenOperatorMatch[HashAggregateExecTransformer]
+        }
     }
   }
 
@@ -1127,13 +1140,10 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
               StructField("lastUpdated", LongType, true),
               StructField("version", LongType, true))),
           true)))
-    val df = spark.read.schema(jsonSchema).json(Seq(jsonStr).toDS)
-    df.select(collect_set(col("txn"))).collect
-
-    df.select(min(col("txn"))).collect
-
-    df.select(max(col("txn"))).collect
-
+    spark.read.schema(jsonSchema).json(Seq(jsonStr).toDS).createOrReplaceTempView("t1")
+    runQueryAndCompare("select collect_set(txn), min(txn), max(txn) from t1") {
+      checkGlutenOperatorMatch[HashAggregateExecTransformer]
+    }
   }
 
   test("drop redundant partial sort which has pre-project when offload sortAgg") {

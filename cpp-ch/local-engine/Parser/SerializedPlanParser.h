@@ -35,9 +35,6 @@
 namespace local_engine
 {
 
-DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr nested_type);
-DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type);
-
 std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c);
 
 class SerializedPlanParser;
@@ -83,20 +80,16 @@ private:
     friend class MergeTreeRelParser;
     friend class ProjectRelParser;
 
-    std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan);
-
-    DB::QueryPlanPtr parse(const std::string_view plan);
-    DB::QueryPlanPtr parse(const substrait::Plan & plan);
+    std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan);
 
 public:
     explicit SerializedPlanParser(const ContextPtr & context);
 
-    /// UT only
-    DB::QueryPlanPtr parseJson(const std::string_view & json_plan);
-    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan) { return createExecutor(parse((plan))); }
+    /// visible for UT
+    DB::QueryPlanPtr parse(const substrait::Plan & plan);
+    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan) { return createExecutor(parse(plan), plan); }
+    DB::QueryPipelineBuilderPtr buildQueryPipeline(DB::QueryPlan & query_plan);
     ///
-
-    template <bool JsonPlan>
     std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
 
     DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
@@ -104,9 +97,6 @@ public:
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
     static bool isReadFromMergeTree(const substrait::ReadRel & rel);
-
-    static substrait::ReadRel::LocalFiles parseLocalFiles(const std::string & split_info);
-    static substrait::ReadRel::ExtensionTable parseExtensionTable(const std::string & split_info);
 
     void addInputIter(jobject iter, bool materialize_input)
     {
@@ -128,7 +118,7 @@ public:
     }
 
     void parseExtensions(const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions);
-    std::shared_ptr<DB::ActionsDAG> expressionsToActionsDAG(
+    DB::ActionsDAG expressionsToActionsDAG(
         const std::vector<substrait::Expression> & expressions, const DB::Block & header, const DB::Block & read_schema);
     RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
     const std::unordered_map<std::string, std::string> & getFunctionMapping() { return function_mapping; }
@@ -147,52 +137,36 @@ public:
     std::vector<QueryPlanPtr> extra_plan_holder;
 
 private:
-    static DB::NamesAndTypesList blockToNameAndTypeList(const DB::Block & header);
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
     void
     collectJoinKeys(const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start);
 
-    DB::ActionsDAGPtr parseFunction(
-        const Block & header,
+    void parseFunctionOrExpression(
         const substrait::Expression & rel,
         std::string & result_name,
-        DB::ActionsDAGPtr actions_dag = nullptr,
+        DB::ActionsDAG& actions_dag,
         bool keep_result = false);
-    DB::ActionsDAGPtr parseFunctionOrExpression(
-        const Block & header,
-        const substrait::Expression & rel,
-        std::string & result_name,
-        DB::ActionsDAGPtr actions_dag = nullptr,
-        bool keep_result = false);
-    DB::ActionsDAGPtr parseArrayJoin(
-        const Block & input,
+    void parseJsonTuple(
         const substrait::Expression & rel,
         std::vector<String> & result_names,
-        DB::ActionsDAGPtr actions_dag = nullptr,
-        bool keep_result = false,
-        bool position = false);
-    DB::ActionsDAGPtr parseJsonTuple(
-        const Block & input,
-        const substrait::Expression & rel,
-        std::vector<String> & result_names,
-        DB::ActionsDAGPtr actions_dag = nullptr,
+        DB::ActionsDAG& actions_dag,
         bool keep_result = false,
         bool position = false);
     const ActionsDAG::Node * parseFunctionWithDAG(
-        const substrait::Expression & rel, std::string & result_name, DB::ActionsDAGPtr actions_dag = nullptr, bool keep_result = false);
+        const substrait::Expression & rel, std::string & result_name, DB::ActionsDAG& actions_dag, bool keep_result = false);
     ActionsDAG::NodeRawConstPtrs parseArrayJoinWithDAG(
         const substrait::Expression & rel,
         std::vector<String> & result_name,
-        DB::ActionsDAGPtr actions_dag = nullptr,
+        DB::ActionsDAG& actions_dag,
         bool keep_result = false,
         bool position = false);
     void parseFunctionArguments(
-        DB::ActionsDAGPtr & actions_dag,
+        DB::ActionsDAG & actions_dag,
         ActionsDAG::NodeRawConstPtrs & parsed_args,
         const substrait::Expression_ScalarFunction & scalar_function);
 
     void parseArrayJoinArguments(
-        DB::ActionsDAGPtr & actions_dag,
+        DB::ActionsDAG & actions_dag,
         const std::string & function_name,
         const substrait::Expression_ScalarFunction & scalar_function,
         bool position,
@@ -200,14 +174,14 @@ private:
         bool & is_map);
 
 
-    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr actions_dag, const substrait::Expression & rel);
+    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG& actions_dag, const substrait::Expression & rel);
     const ActionsDAG::Node *
-    toFunctionNode(ActionsDAGPtr actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
+    toFunctionNode(ActionsDAG& actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
     // remove nullable after isNotNull
-    void removeNullableForRequiredColumns(const std::set<String> & require_columns, const ActionsDAGPtr & actions_dag) const;
+    void removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAG & actions_dag) const;
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
     void wrapNullable(
-        const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
+        const std::vector<String> & columns, ActionsDAG& actions_dag, std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
 
     bool isFunction(substrait::Expression_ScalarFunction rel, String function_name);
@@ -224,14 +198,8 @@ private:
     std::vector<RelMetricPtr> metrics;
 
 public:
-    const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
+    const ActionsDAG::Node * addColumn(DB::ActionsDAG& actions_dag, const DataTypePtr & type, const Field & field);
 };
-
-template <bool JsonPlan>
-std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const std::string_view plan)
-{
-    return createExecutor(JsonPlan ? parseJson(plan) : parse(plan));
-}
 
 struct SparkBuffer
 {
@@ -242,7 +210,7 @@ struct SparkBuffer
 class LocalExecutor : public BlockIterator
 {
 public:
-    LocalExecutor(const ContextPtr & context_, QueryPlanPtr query_plan, QueryPipeline && pipeline, const Block & header_);
+    LocalExecutor(QueryPlanPtr query_plan, QueryPipeline && pipeline, bool dump_pipeline_ = false);
     ~LocalExecutor();
 
     SparkRowInfoPtr next();
@@ -254,7 +222,7 @@ public:
 
     Block & getHeader();
     RelMetricPtr getMetric() const { return metric; }
-    void setMetric(RelMetricPtr metric_) { metric = metric_; }
+    void setMetric(const RelMetricPtr & metric_) { metric = metric_; }
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
 
 private:
@@ -266,7 +234,7 @@ private:
     QueryPipeline query_pipeline;
     std::unique_ptr<PullingPipelineExecutor> executor;
     Block header;
-    ContextPtr context;
+    bool dump_pipeline;
     std::unique_ptr<CHColumnToSparkRow> ch_column_to_spark_row;
     std::unique_ptr<SparkBuffer> spark_buffer;
     QueryPlanPtr current_query_plan;

@@ -1,0 +1,246 @@
+{
+  "relations": [
+    {
+      "root": {
+        "input": {
+          "write": {
+            "namedTable": {
+              "advancedExtension": {
+                "optimization": {
+                  "@type": "type.googleapis.com/google.protobuf.StringValue",
+                  "value": "WriteParameters:isSnappy=1;format=orc\n"
+                },
+                "enhancement": {
+                  "@type": "type.googleapis.com/substrait.Type",
+                  "struct": {
+                    "types": [
+                      {
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "i32": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "i64": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "fp32": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "fp64": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "i16": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "i8": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "bool": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "decimal": {
+                          "scale": 18,
+                          "precision": 38,
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "date": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }
+                    ],
+                    "nullability": "NULLABILITY_REQUIRED"
+                  }
+                }
+              }
+            },
+            "tableSchema": {
+              "names": [
+                "string_field",
+                "int_field",
+                "long_field",
+                "float_field",
+                "double_field",
+                "short_field",
+                "byte_field",
+                "boolean_field",
+                "decimal_field",
+                "date_field"
+              ],
+              "struct": {
+                "types": [
+                  {
+                    "string": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "i32": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "i64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "fp32": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "i16": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "i8": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "bool": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "decimal": {
+                      "scale": 18,
+                      "precision": 38,
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "date": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  }
+                ]
+              },
+              "columnTypes": [
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL"
+              ]
+            },
+            "input": {
+              "read": {
+                "baseSchema": {
+                  "names": [
+                    "string_field#0",
+                    "int_field#1",
+                    "long_field#2",
+                    "float_field#3",
+                    "double_field#4",
+                    "short_field#5",
+                    "byte_field#6",
+                    "boolean_field#7",
+                    "decimal_field#8",
+                    "date_field#9"
+                  ],
+                  "struct": {
+                    "types": [
+                      {
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "i32": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "i64": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "fp32": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "fp64": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "i16": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "i8": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "bool": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "decimal": {
+                          "scale": 18,
+                          "precision": 38,
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      },
+                      {
+                        "date": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "localFiles": {
+                  "items": [
+                    {
+                      "uriFile": "iterator:0"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "outputSchema": {
+          "nullability": "NULLABILITY_REQUIRED"
+        }
+      }
+    }
+  ]
+}

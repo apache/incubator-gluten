@@ -338,7 +338,7 @@ void RangeSelectorBuilder::initActionsDAG(const DB::Block & block)
         exprs.emplace_back(expression);
 
     auto projection_actions_dag = plan_parser.expressionsToActionsDAG(exprs, block, block);
-    projection_expression_actions = std::make_unique<DB::ExpressionActions>(projection_actions_dag);
+    projection_expression_actions = std::make_unique<DB::ExpressionActions>(std::move(projection_actions_dag));
     has_init_actions_dag = true;
 }
 

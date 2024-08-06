@@ -46,7 +46,7 @@ public:
     const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
         const CommonFunctionInfo & func_info,
         const DB::ActionsDAG::Node * func_node,
-        DB::ActionsDAGPtr & actions_dag,
+        DB::ActionsDAG & actions_dag,
         bool with_nullability) const override
     {
         /// result is nullable.
@@ -56,11 +56,11 @@ public:
         auto nullable_col = null_type->createColumn();
         nullable_col->insertDefault();
         const auto * null_node
-            = &actions_dag->addColumn(DB::ColumnWithTypeAndName(std::move(nullable_col), null_type, getUniqueName("null")));
+            = &actions_dag.addColumn(DB::ColumnWithTypeAndName(std::move(nullable_col), null_type, getUniqueName("null")));
         DB::ActionsDAG::NodeRawConstPtrs convert_nan_func_args = {is_nan_func_node, null_node, func_node};
 
         func_node = toFunctionNode(actions_dag, "if", func_node->result_name, convert_nan_func_args);
-        actions_dag->addOrReplaceInOutputs(*func_node);
+        actions_dag.addOrReplaceInOutputs(*func_node);
         return func_node;
     }
 };

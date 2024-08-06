@@ -19,6 +19,7 @@
 #include <memory>
 #include <optional>
 #include <vector>
+#include <substrait/plan.pb.h>
 
 #include <Core/Block.h>
 #include <IO/ReadBuffer.h>
@@ -26,7 +27,6 @@
 #include <Parser/TypeParser.h>
 #include <Processors/Formats/IInputFormat.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
-#include <substrait/plan.pb.h>
 
 namespace DB
 {

@@ -14,10 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Parser/FunctionParser.h>
-#include <Common/CHUtil.h>
 #include <Core/Field.h>
 #include <DataTypes/IDataType.h>
+#include <Parser/FunctionParser.h>
+#include <Common/BlockTypeUtils.h>
+#include <Common/CHUtil.h>
 
 namespace DB
 {
@@ -42,7 +43,7 @@ public:
 
     const ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,
-        ActionsDAGPtr & actions_dag) const override
+        ActionsDAG & actions_dag) const override
     {
         /**
             parse slice(arr, start, length) as
@@ -103,7 +104,7 @@ public:
 private:
     // if (start=0) then throwIf(start=0) else start
     const ActionsDAG::Node * makeStartIfNode(
-        ActionsDAGPtr & actions_dag,
+        ActionsDAG & actions_dag,
         const ActionsDAG::Node * start_arg,
         const ActionsDAG::Node * zero_const_node) const
     {
@@ -115,7 +116,7 @@ private:
 
      // if (length<0) then throwIf(length<0) else length
     const ActionsDAG::Node * makeLengthIfNode(
-        ActionsDAGPtr & actions_dag,
+        ActionsDAG & actions_dag,
         const ActionsDAG::Node * length_arg,
         const ActionsDAG::Node * zero_const_node) const
     {

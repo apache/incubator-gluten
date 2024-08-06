@@ -183,7 +183,7 @@ substrait::ReadRel::LocalFiles createLocalFiles(const std::string & filename, co
     return files;
 }
 
-void doRead(const substrait::ReadRel::LocalFiles & files, const DB::ActionsDAGPtr & pushDown, const DB::Block & header)
+void doRead(const substrait::ReadRel::LocalFiles & files, const std::optional<DB::ActionsDAG> & pushDown, const DB::Block & header)
 {
     const auto builder = std::make_unique<DB::QueryPipelineBuilder>();
     const auto source
@@ -215,7 +215,7 @@ void BM_ColumnIndexRead_Filter_ReturnAllResult(benchmark::State & state)
     const std::string filter1 = "l_shipdate is not null AND l_shipdate <= toDate32('1998-09-01')";
     const substrait::ReadRel::LocalFiles files = createLocalFiles(filename, true);
     const AnotherRowType schema = local_engine::test::readParquetSchema(filename);
-    const ActionsDAGPtr pushDown = local_engine::test::parseFilter(filter1, schema);
+    auto pushDown = local_engine::test::parseFilter(filter1, schema);
     const Block header = {toBlockRowType(schema)};
 
     for (auto _ : state)
@@ -232,7 +232,7 @@ void BM_ColumnIndexRead_Filter_ReturnHalfResult(benchmark::State & state)
     const std::string filter1 = "l_orderkey is not null AND l_orderkey > 300977829";
     const substrait::ReadRel::LocalFiles files = createLocalFiles(filename, true);
     const AnotherRowType schema = local_engine::test::readParquetSchema(filename);
-    const ActionsDAGPtr pushDown = local_engine::test::parseFilter(filter1, schema);
+    auto pushDown = local_engine::test::parseFilter(filter1, schema);
     const Block header = {toBlockRowType(schema)};
 
     for (auto _ : state)

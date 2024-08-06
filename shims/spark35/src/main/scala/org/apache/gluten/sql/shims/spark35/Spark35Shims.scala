@@ -58,7 +58,7 @@ import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.parquet.schema.MessageType
 
 import java.time.ZoneOffset
-import java.util.{HashMap => JHashMap, Map => JMap}
+import java.util.{HashMap => JHashMap, Map => JMap, Properties}
 
 import scala.reflect.ClassTag
 
@@ -78,6 +78,7 @@ class Spark35Shims extends SparkShims {
       Sig[Csc](ExpressionNames.CSC),
       Sig[KnownNullable](ExpressionNames.KNOWN_NULLABLE),
       Sig[Empty2Null](ExpressionNames.EMPTY2NULL),
+      Sig[Mask](ExpressionNames.MASK),
       Sig[TimestampAdd](ExpressionNames.TIMESTAMP_ADD),
       Sig[RoundFloor](ExpressionNames.FLOOR),
       Sig[RoundCeil](ExpressionNames.CEIL)
@@ -325,8 +326,8 @@ class Spark35Shims extends SparkShims {
 
   override def enableNativeWriteFilesByDefault(): Boolean = true
 
-  override def createTestTaskContext(): TaskContext = {
-    TaskContextUtils.createTestTaskContext()
+  override def createTestTaskContext(properties: Properties): TaskContext = {
+    TaskContextUtils.createTestTaskContext(properties)
   }
 
   override def broadcastInternal[T: ClassTag](sc: SparkContext, value: T): Broadcast[T] = {

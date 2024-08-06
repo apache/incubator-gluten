@@ -21,10 +21,11 @@ import org.apache.gluten.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.{CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, RewriteToDateExpresstionRule}
+import org.apache.gluten.extension.{CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, RewriteSortMergeJoinToHashJoinRule, RewriteToDateExpresstionRule}
 import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.parser.GlutenClickhouseSqlParser
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
@@ -40,6 +41,7 @@ import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRew
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
+import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RangePartitioning}
@@ -362,8 +364,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left: SparkPlan,
       right: SparkPlan,
       condition: Option[Expression]): CartesianProductExecTransformer =
-    throw new GlutenNotSupportException(
-      "CartesianProductExecTransformer is not supported in ch backend.")
+    if (!condition.isEmpty) {
+      throw new GlutenNotSupportException(
+        "CartesianProductExecTransformer with condition is not supported in ch backend.")
+    } else {
+      CartesianProductExecTransformer(
+        ColumnarCartesianProductBridge(left),
+        ColumnarCartesianProductBridge(right),
+        condition)
+    }
 
   override def genBroadcastNestedLoopJoinExecTransformer(
       left: SparkPlan,
@@ -548,8 +557,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedQueryStagePrepRules(): List[SparkSession => Rule[SparkPlan]] =
+  override def genExtendedQueryStagePrepRules(): List[SparkSession => Rule[SparkPlan]] = {
     List(spark => FallbackBroadcastHashJoinPrepQueryStage(spark))
+  }
 
   /**
    * Generate extended Analyzers. Currently only for ClickHouse backend.
@@ -590,7 +600,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarTransformRules(): List[SparkSession => Rule[SparkPlan]] =
-    List()
+    List(spark => RewriteSortMergeJoinToHashJoinRule(spark))
 
   override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
     List()
@@ -603,6 +613,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genExtendedStrategies(): List[SparkSession => Strategy] =
     List()
+
+  override def genInjectExtendedParser()
+      : List[(SparkSession, ParserInterface) => ParserInterface] = {
+    List((spark, parserInterface) => new GlutenClickhouseSqlParser(spark, parserInterface))
+  }
 
   /** Define backend specfic expression mappings. */
   override def extraExpressionMappings: Seq[Sig] = {
@@ -667,8 +682,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHRegExpReplaceTransformer(substraitExprName, children, expr)
   }
 
-  def createBackendWrite(description: WriteJobDescription): BackendWrite =
-    throw new UnsupportedOperationException("createBackendWrite is not supported in ch backend.")
+  def createBackendWrite(description: WriteJobDescription): BackendWrite = ClickhouseBackendWrite(
+    description)
 
   override def createColumnarArrowEvalPythonExec(
       udfs: Seq[PythonUDF],

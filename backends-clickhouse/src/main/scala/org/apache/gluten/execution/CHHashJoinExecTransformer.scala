@@ -29,6 +29,37 @@ import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import io.substrait.proto.JoinRel
+
+object JoinTypeTransform {
+  def toNativeJoinType(joinType: JoinType): JoinType = {
+    joinType match {
+      case ExistenceJoin(_) =>
+        LeftSemi
+      case _ =>
+        joinType
+    }
+  }
+
+  def toSubstraitType(joinType: JoinType): JoinRel.JoinType = {
+    joinType match {
+      case _: InnerLike =>
+        JoinRel.JoinType.JOIN_TYPE_INNER
+      case FullOuter =>
+        JoinRel.JoinType.JOIN_TYPE_OUTER
+      case LeftOuter | RightOuter =>
+        JoinRel.JoinType.JOIN_TYPE_LEFT
+      case LeftSemi | ExistenceJoin(_) =>
+        JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
+      case LeftAnti =>
+        JoinRel.JoinType.JOIN_TYPE_ANTI
+      case _ =>
+        // TODO: Support cross join with Cross Rel
+        JoinRel.JoinType.UNRECOGNIZED
+    }
+  }
+}
+
 case class CHShuffledHashJoinExecTransformer(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
@@ -55,7 +86,7 @@ case class CHShuffledHashJoinExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     val shouldFallback =
       CHJoinValidateUtil.shouldFallback(
-        ShuffleHashJoinStrategy(joinType),
+        ShuffleHashJoinStrategy(finalJoinType),
         left.outputSet,
         right.outputSet,
         condition)
@@ -64,6 +95,9 @@ case class CHShuffledHashJoinExecTransformer(
     }
     super.doValidateInternal()
   }
+  private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
+  override protected lazy val substraitJoinType: JoinRel.JoinType =
+    JoinTypeTransform.toSubstraitType(joinType)
 }
 
 case class CHBroadcastBuildSideRDD(
@@ -82,6 +116,7 @@ case class BroadCastHashJoinContext(
     buildSideJoinKeys: Seq[Expression],
     joinType: JoinType,
     hasMixedFiltCondition: Boolean,
+    isExistenceJoin: Boolean,
     buildSideStructure: Seq[Attribute],
     buildHashTableId: String)
 
@@ -112,7 +147,7 @@ case class CHBroadcastHashJoinExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     val shouldFallback =
       CHJoinValidateUtil.shouldFallback(
-        BroadcastHashJoinStrategy(joinType),
+        BroadcastHashJoinStrategy(finalJoinType),
         left.outputSet,
         right.outputSet,
         condition)
@@ -141,8 +176,9 @@ case class CHBroadcastHashJoinExecTransformer(
     val context =
       BroadCastHashJoinContext(
         buildKeyExprs,
-        joinType,
+        finalJoinType,
         isMixedCondition(condition),
+        joinType.isInstanceOf[ExistenceJoin],
         buildPlan.output,
         buildHashTableId)
     val broadcastRDD = CHBroadcastBuildSideRDD(sparkContext, broadcast, context)
@@ -161,4 +197,13 @@ case class CHBroadcastHashJoinExecTransformer(
     }
     res
   }
+
+  // ExistenceJoin is introduced in #SPARK-14781. It returns all rows from the left table with
+  // a new column to indecate whether the row is matched in the right table.
+  // Indeed, the ExistenceJoin is transformed into left any join in CH.
+  // We don't have left any join in substrait, so use left semi join instead.
+  // and isExistenceJoin is set to true to indicate that it is an existence join.
+  private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
+  override protected lazy val substraitJoinType: JoinRel.JoinType =
+    JoinTypeTransform.toSubstraitType(joinType)
 }

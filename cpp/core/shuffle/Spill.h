@@ -31,7 +31,7 @@ class Spill final {
  public:
   enum SpillType { kSequentialSpill, kBatchedSpill };
 
-  Spill(SpillType type, uint32_t numPartitions, const std::string& spillFile);
+  Spill(SpillType type);
 
   ~Spill();
 
@@ -50,6 +50,18 @@ class Spill final {
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec);
 
+  void setSpillFile(const std::string& spillFile);
+
+  void setSpillTime(int64_t spillTime);
+
+  void setCompressTime(int64_t compressTime);
+
+  std::string spillFile() const;
+
+  int64_t spillTime() const;
+
+  int64_t compressTime() const;
+
  private:
   struct PartitionPayload {
     uint32_t partitionId{};
@@ -61,6 +73,8 @@ class Spill final {
   std::list<PartitionPayload> partitionPayloads_{};
   std::shared_ptr<arrow::io::MemoryMappedFile> inputStream_{};
   std::string spillFile_;
+  int64_t spillTime_;
+  int64_t compressTime_;
 
   arrow::io::InputStream* rawIs_;
 

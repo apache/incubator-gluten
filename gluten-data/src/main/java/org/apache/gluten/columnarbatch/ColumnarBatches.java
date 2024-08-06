@@ -100,7 +100,6 @@ public class ColumnarBatches {
         newVectors[i] = from.column(i);
       }
       FIELD_COLUMNS.set(target, newVectors);
-      System.out.println();
     } catch (IllegalAccessException e) {
       throw new GlutenException(e);
     }

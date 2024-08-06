@@ -24,6 +24,9 @@ import org.apache.spark.sql.SparkSessionExtensions
 object OthersExtensionOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
     BackendsApiManager.getSparkPlanExecApiInstance
+      .genInjectExtendedParser()
+      .foreach(extensions.injectParser)
+    BackendsApiManager.getSparkPlanExecApiInstance
       .genExtendedAnalyzers()
       .foreach(extensions.injectResolutionRule)
     BackendsApiManager.getSparkPlanExecApiInstance

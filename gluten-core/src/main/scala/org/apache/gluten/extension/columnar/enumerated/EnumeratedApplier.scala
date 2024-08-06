@@ -102,8 +102,8 @@ class EnumeratedApplier(session: SparkSession)
       List(
         (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
         (spark: SparkSession) => RewriteTransformer(spark),
-        (_: SparkSession) => EliminateLocalSort,
         (_: SparkSession) => EnsureLocalSortRequirements,
+        (_: SparkSession) => EliminateLocalSort,
         (_: SparkSession) => CollapseProjectExecTransformer
       ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarTransformRules() :::

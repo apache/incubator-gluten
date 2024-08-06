@@ -76,17 +76,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
             }
           case _ => false
         }.isDefined) ||
-        window.windowExpression.exists(_.find {
-          case we: WindowExpression =>
-            we.windowSpec.frameSpecification match {
-              case swf: SpecifiedWindowFrame
-                  if needPreComputeRangeFrame(swf) && supportPreComputeRangeFrame(
-                    we.windowSpec.orderSpec) =>
-                true
-              case _ => false
-            }
-          case _ => false
-        }.isDefined)
+        windowNeedPreComputeRangeFrame(window)
       case plan if SparkShimLoader.getSparkShims.isWindowGroupLimitExec(plan) =>
         val window = SparkShimLoader.getSparkShims
           .getWindowGroupLimitExecShim(plan)
@@ -176,14 +166,16 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
 
     case window: WindowExec if needsPreProject(window) =>
       val expressionMap = new mutable.HashMap[Expression, NamedExpression]()
-      // Handle orderSpec.
-      val newOrderSpec = getNewSortOrder(window.orderSpec, expressionMap)
-
-      // Handle partitionSpec.
+      // Handle foldable orderSpec and foldable partitionSpec. Spark analyzer rule
+      // ExtractWindowExpressions will extract expressions from non-foldable orderSpec and
+      // partitionSpec.
+      var newOrderSpec = getNewSortOrder(window.orderSpec, expressionMap)
       val newPartitionSpec =
         window.partitionSpec.map(replaceExpressionWithAttribute(_, expressionMap))
 
       // Handle windowExpressions.
+      newOrderSpec = rewriteOrderSpecs(window, newOrderSpec, expressionMap)
+
       val newWindowExpressions = window.windowExpression.toIndexedSeq.map {
         _.transform {
           case we: WindowExpression => rewriteWindowExpression(we, newOrderSpec, expressionMap)

@@ -96,10 +96,10 @@ index 56b673e87..ef48ae9d9 100644
      SOURCE_SUBDIR cpp
      CMAKE_ARGS ${ARROW_CMAKE_ARGS}
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index bb7c49907..3372d48b4 100644
+index 2dc95f972..391485879 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -234,10 +234,15 @@ if(VELOX_ENABLE_ABFS)
+@@ -236,10 +236,15 @@ if(VELOX_ENABLE_ABFS)
  endif()
  
  if(VELOX_ENABLE_HDFS)
@@ -119,7 +119,7 @@ index bb7c49907..3372d48b4 100644
    add_definitions(-DVELOX_ENABLE_HDFS3)
  endif()
  
-@@ -378,7 +383,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+@@ -380,7 +385,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
  
  set_source(gflags)
@@ -129,15 +129,17 @@ index bb7c49907..3372d48b4 100644
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
 diff --git a/velox/common/process/tests/CMakeLists.txt b/velox/common/process/tests/CMakeLists.txt
-index 6797697a1..3e241f8f7 100644
+index f5e6aae72..4c4afe70b 100644
 --- a/velox/common/process/tests/CMakeLists.txt
 +++ b/velox/common/process/tests/CMakeLists.txt
-@@ -18,4 +18,4 @@ add_executable(velox_process_test ProfilerTest.cpp ThreadLocalRegistryTest.cpp
- add_test(velox_process_test velox_process_test)
- 
- target_link_libraries(velox_process_test PRIVATE velox_process fmt::fmt gtest
--                                                 velox_time gtest_main)
-+                                                 velox_time gtest_main glog::glog gflags::gflags)
+@@ -24,4 +24,6 @@ target_link_libraries(
+     fmt::fmt
+     gtest
+     velox_time
+-    gtest_main)
++    gtest_main
++    glog::glog
++    gflags::gflags)
 diff --git a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 index e2a638df6..e383cf205 100644
 --- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
@@ -164,10 +166,10 @@ index 10ee508ba..027a58ecc 100644
  }
  
 diff --git a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
-index 2cabfc29a..54329ce23 100644
+index 97266c253..11d88dcc4 100644
 --- a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
 +++ b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
-@@ -39,7 +39,9 @@ target_link_libraries(
+@@ -38,7 +38,9 @@ target_link_libraries(
    gtest
    gtest_main
    arrow

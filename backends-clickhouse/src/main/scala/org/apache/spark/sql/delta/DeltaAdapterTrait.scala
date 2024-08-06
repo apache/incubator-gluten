@@ -16,7 +16,16 @@
  */
 package org.apache.spark.sql.delta
 
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.delta.stats.DeltaScan
+
 trait DeltaAdapterTrait {
 
   def snapshot(deltaLog: DeltaLog): Snapshot
+
+  def snapshotFilesForScan(
+      snapshot: Snapshot,
+      projection: Seq[Attribute],
+      filters: Seq[Expression],
+      keepNumRecords: Boolean): DeltaScan
 }

@@ -35,7 +35,7 @@
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Shuffle/ShuffleReader.h>
-#include <Shuffle/ShuffleSplitter.h>
+
 #include <Storages/CustomMergeTreeSink.h>
 #include <Storages/CustomStorageMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
@@ -234,7 +234,7 @@ DB::ContextMutablePtr global_context;
         std::ifstream t(path);
         std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
         std::cout << "the plan from: " << path << std::endl;
-        auto local_executor = parser.createExecutor<false>(str);
+        auto local_executor = parser.createExecutor(str);
         state.ResumeTiming();
         while (local_executor->hasNext()) [[maybe_unused]]
             auto * x = local_executor->nextColumnar();
@@ -585,8 +585,7 @@ DB::ContextMutablePtr global_context;
             readIntBinary(x, buf);
             readIntBinary(y, buf);
             readIntBinary(z, buf);
-            std::cout << std::to_string(x) + " " << std::to_string(y) + " " << std::to_string(z) + " "
-                      << "\n";
+            std::cout << std::to_string(x) + " " << std::to_string(y) + " " << std::to_string(z) + " " << "\n";
             data_buf.seek(x, SEEK_SET);
             assert(!data_buf.eof());
             std::string data;
@@ -809,7 +808,7 @@ QueryPlanPtr readFromMergeTree(MergeTreeWithSnapshot storage)
 QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, String right_key, size_t block_size = 8192)
 {
     auto join = std::make_shared<TableJoin>(
-        global_context->getSettings(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
+        global_context->getSettingsRef(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
     auto left_columns = left->getCurrentDataStream().header.getColumnsWithTypeAndName();
     auto right_columns = right->getCurrentDataStream().header.getColumnsWithTypeAndName();
     join->setKind(JoinKind::Left);
@@ -824,20 +823,20 @@ QueryPlanPtr joinPlan(QueryPlanPtr left, QueryPlanPtr right, String left_key, St
 
     auto left_keys = left->getCurrentDataStream().header.getNamesAndTypesList();
     join->addJoinedColumnsAndCorrectTypes(left_keys, true);
-    ActionsDAGPtr left_convert_actions = nullptr;
-    ActionsDAGPtr right_convert_actions = nullptr;
+    std::optional<ActionsDAG> left_convert_actions;
+    std::optional<ActionsDAG> right_convert_actions;
     std::tie(left_convert_actions, right_convert_actions) = join->createConvertingActions(left_columns, right_columns);
 
     if (right_convert_actions)
     {
-        auto converting_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), right_convert_actions);
+        auto converting_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), std::move(*right_convert_actions));
         converting_step->setStepDescription("Convert joined columns");
         right->addStep(std::move(converting_step));
     }
 
     if (left_convert_actions)
     {
-        auto converting_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), right_convert_actions);
+        auto converting_step = std::make_unique<ExpressionStep>(right->getCurrentDataStream(), std::move(*right_convert_actions));
         converting_step->setStepDescription("Convert joined columns");
         left->addStep(std::move(converting_step));
     }

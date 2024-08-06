@@ -24,7 +24,7 @@ class FunctionParserFromUtcTimestamp : public FunctionParserUtcTimestampTransfor
 {
 public:
     explicit FunctionParserFromUtcTimestamp(SerializedPlanParser * plan_parser_) : FunctionParserUtcTimestampTransform(plan_parser_) { }
-    ~FunctionParserFromUtcTimestamp() = default;
+    ~FunctionParserFromUtcTimestamp() override = default;
 
     static constexpr auto name = "from_utc_timestamp";
     String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return "from_utc_timestamp"; }

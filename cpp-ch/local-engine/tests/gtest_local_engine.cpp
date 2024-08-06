@@ -26,6 +26,7 @@
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Storages/CustomMergeTreeSink.h>
@@ -95,7 +96,7 @@ void registerOutputFormatParquet(DB::FormatFactory & factory);
 
 int main(int argc, char ** argv)
 {
-    BackendInitializerUtil::init(test::pb_util::JsonStringToBinary<substrait::Plan>(
+    BackendInitializerUtil::init(local_engine::JsonStringToBinary<substrait::Plan>(
         {reinterpret_cast<const char *>(gresource_embedded_config_jsonData), gresource_embedded_config_jsonSize}));
 
     auto & factory = FormatFactory::instance();

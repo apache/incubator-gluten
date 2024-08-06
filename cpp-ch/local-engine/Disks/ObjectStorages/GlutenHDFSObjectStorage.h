@@ -41,7 +41,7 @@ public:
       const DB::ReadSettings & read_settings = DB::ReadSettings{},
       std::optional<size_t> read_hint = {},
       std::optional<size_t> file_size = {}) const override;
-    DB::ObjectStorageKey generateObjectKeyForPath(const std::string & path) const override;
+    DB::ObjectStorageKey generateObjectKeyForPath(const std::string & path, const std::optional<std::string> & key_prefix) const override;
     hdfsFS getHDFSFS() const { return hdfs_fs.get(); }
 };
 #endif

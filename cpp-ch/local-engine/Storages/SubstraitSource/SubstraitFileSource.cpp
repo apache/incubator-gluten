@@ -76,11 +76,11 @@ SubstraitFileSource::SubstraitFileSource(
     }
 }
 
-void SubstraitFileSource::setKeyCondition(const DB::ActionsDAGPtr & filter_actions_dag, DB::ContextPtr context_)
+void SubstraitFileSource::setKeyCondition(const std::optional<DB::ActionsDAG> & filter_actions_dag, DB::ContextPtr context_)
 {
     setKeyConditionImpl(filter_actions_dag, context_, to_read_header);
     if (filter_actions_dag)
-        column_index_filter = std::make_shared<ColumnIndexFilter>(filter_actions_dag, context_);
+        column_index_filter = std::make_shared<ColumnIndexFilter>(filter_actions_dag.value(), context_);
 }
 
 DB::Chunk SubstraitFileSource::generate()

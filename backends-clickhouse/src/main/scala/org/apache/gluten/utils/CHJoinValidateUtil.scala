@@ -18,7 +18,7 @@ package org.apache.gluten.utils
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{AttributeSet, Expression}
-import org.apache.spark.sql.catalyst.plans.JoinType
+import org.apache.spark.sql.catalyst.plans._
 
 trait JoinStrategy {
   val joinType: JoinType
@@ -54,10 +54,8 @@ object CHJoinValidateUtil extends Logging {
       condition: Option[Expression]): Boolean = {
     var shouldFallback = false
     val joinType = joinStrategy.joinType
-    if (joinType.toString.contains("ExistenceJoin")) {
-      return true
-    }
-    if (joinType.sql.contains("INNER")) {
+
+    if (!joinType.isInstanceOf[ExistenceJoin] && joinType.sql.contains("INNER")) {
       shouldFallback = false;
     } else if (
       condition.isDefined && hasTwoTableColumn(leftOutputSet, rightOutputSet, condition.get)
@@ -74,9 +72,13 @@ object CHJoinValidateUtil extends Logging {
     } else {
       shouldFallback = joinStrategy match {
         case SortMergeJoinStrategy(joinTy) =>
-          joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI")
+          joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI") || joinTy.toString.contains(
+            "ExistenceJoin")
         case _ => false
       }
+    }
+    if (shouldFallback) {
+      logError(s"Fallback for join type $joinType")
     }
     shouldFallback
   }

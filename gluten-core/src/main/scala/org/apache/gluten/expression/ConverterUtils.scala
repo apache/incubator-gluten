@@ -138,7 +138,7 @@ object ConverterUtils extends Logging {
   /** Convert StructType to Json */
   def convertNamedStructJson(tableSchema: StructType): String = {
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(tableSchema)
-    val nameList = tableSchema.fieldNames
+    val nameList = tableSchema.fieldNames.map(normalizeColName)
 
     val structBuilder = Type.Struct.newBuilder
     for (typeNode <- typeNodes.asScala) {
