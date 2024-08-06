@@ -270,18 +270,69 @@ add_library(facebook::velox STATIC IMPORTED)
 set_target_properties(
   facebook::velox PROPERTIES IMPORTED_LOCATION
                              ${VELOX_BUILD_PATH}/lib/libvelox.a)
-target_link_libraries(velox PUBLIC facebook::velox)
 
 if(BUILD_TESTS)
-    add_velox_dependency(
-      exec::test
+  add_library(facebook::velox::dbgen STATIC IMPORTED)
+  set_target_properties(
+    facebook::velox::dbgen
+    PROPERTIES IMPORTED_LOCATION
+               "${VELOX_BUILD_PATH}/velox/tpch/gen/dbgen/libdbgen.a")
+  target_link_libraries(facebook::velox INTERFACE facebook::velox::dbgen)
+
+  add_library(facebook::velox::vector_test STATIC IMPORTED)
+  set_target_properties(
+    facebook::velox::vector_test
+    PROPERTIES
+      IMPORTED_LOCATION
+      "${VELOX_BUILD_PATH}/velox/vector/tests/utils/libvelox_vector_test_lib.a")
+
+  add_library(facebook::velox::dwio_common_test STATIC IMPORTED)
+  set_target_properties(
+    facebook::velox::dwio_common_test
+    PROPERTIES
+      IMPORTED_LOCATION
+      "${VELOX_BUILD_PATH}/velox/dwio/common/tests/utils/libvelox_dwio_common_test_utils.a"
+  )
+
+  add_library(facebook::velox::file_test STATIC IMPORTED)
+  set_target_properties(
+    facebook::velox::file_test
+    PROPERTIES
+      IMPORTED_LOCATION
+      "${VELOX_BUILD_PATH}/velox/common/file/tests/libvelox_file_test_utils.a")
+
+  add_library(facebook::velox::temp_path STATIC IMPORTED)
+  set_target_properties(
+    facebook::velox::temp_path
+    PROPERTIES IMPORTED_LOCATION
+               "${VELOX_BUILD_PATH}/velox/exec/tests/utils/libvelox_temp_path.a"
+  )
+
+  add_library(facebook::velox::test STATIC IMPORTED)
+  set_target_properties(
+    facebook::velox::test
+    PROPERTIES
+      IMPORTED_LOCATION
       "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a")
-    add_velox_dependency(
-          parse::parser "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
-    add_velox_dependency(
-          duckdb::parser
-          "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_parser.a")
-    add_duckdb()
+  target_link_libraries(
+    facebook::velox::test
+    INTERFACE facebook::velox facebook::velox::vector_test
+              facebook::velox::dwio_common_test facebook::velox::file_test
+              facebook::velox::temp_path)
+
+  target_link_libraries(velox PUBLIC facebook::velox::test)
+else()
+  target_link_libraries(velox PUBLIC facebook::velox)
+endif()
+
+if(BUILD_TESTS)
+  # add_velox_dependency( exec::test
+  # "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a")
+  # add_velox_dependency( parse::parser
+  # "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
+  # add_velox_dependency( duckdb::parser
+  # "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_parser.a")
+  add_duckdb()
 endif()
 
 target_link_libraries(velox PUBLIC Folly::folly)
