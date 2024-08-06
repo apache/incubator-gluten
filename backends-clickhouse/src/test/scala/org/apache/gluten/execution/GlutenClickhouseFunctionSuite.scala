@@ -227,11 +227,8 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("array decimal32") {
-    runQueryAndCompare(
-      """
-        |SELECT array(1.0, 2.0)
-        |""".stripMargin
-    )(df => checkFallbackOperators(df, 0))
+    compareResultsAgainstVanillaSpark("SELECT array(1.0, 2.0)", true, { _ => }, false)
+    compareResultsAgainstVanillaSpark("SELECT map(1.0, '2', 3.0, '4')", true, { _ => }, false)
   }
 
 }
