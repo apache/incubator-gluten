@@ -43,16 +43,14 @@ struct RoundFunction {
      * Using long double for high precision during intermediate calculations.
      * TODO: Make this more efficient with Boost to support high arbitrary precision at runtime.
      */
-    long double num = static_cast<long double>(number);
     long double factor = std::pow(10.0L, static_cast<long double>(decimals));
-    static const long double kInf = std::numeric_limits<long double>::infinity();
+    static const TNum kInf = std::numeric_limits<TNum>::infinity();
 
-    if (num < 0) {
-      return static_cast<TNum>((std::round(std::nextafter(num, -kInf) * factor * -1) / factor) * -1);
+    if (number < 0) {
+      return static_cast<TNum>((std::round(std::nextafter(number, -kInf) * factor * -1) / factor) * -1);
     }
-    return static_cast<TNum>(std::round(std::nextafter(num, kInf) * factor) / factor);
+    return static_cast<TNum>(std::round(std::nextafter(number, kInf) * factor) / factor);
   }
-
   template <typename TInput>
   FOLLY_ALWAYS_INLINE void call(TInput& result, const TInput& a, const int32_t b = 0) {
     result = round(a, b);
