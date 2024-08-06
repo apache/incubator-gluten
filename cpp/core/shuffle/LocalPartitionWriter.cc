@@ -609,11 +609,23 @@ arrow::Status LocalPartitionWriter::evict(uint32_t partitionId, std::unique_ptr<
 
   if (lastEvictPid_ != -1 && partitionId < lastEvictPid_) {
     RETURN_NOT_OK(finishSpill(true));
+    lastEvictPid_ = -1;
+  }
+  RETURN_NOT_OK(requestSpill(stop));
+
+  if (!stop) {
+    RETURN_NOT_OK(spiller_->spill(partitionId, std::move(blockPayload)));
+  } else {
+    if (spills_.size() > 0) {
+      for (auto pid = lastEvictPid_ + 1; pid <= partitionId; ++pid) {
+        auto bytesEvicted = totalBytesEvicted_;
+        RETURN_NOT_OK(mergeSpills(pid));
+        partitionLengths_[pid] = totalBytesEvicted_ - bytesEvicted;
+      }
+    }
+    RETURN_NOT_OK(spiller_->spill(partitionId, std::move(blockPayload)));
   }
   lastEvictPid_ = partitionId;
-
-  RETURN_NOT_OK(requestSpill(stop));
-  RETURN_NOT_OK(spiller_->spill(partitionId, std::move(blockPayload)));
   return arrow::Status::OK();
 }
 

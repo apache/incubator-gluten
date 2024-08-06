@@ -312,8 +312,7 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
   if (hasComplexType_) {
     uint32_t numRows;
     GLUTEN_ASSIGN_OR_THROW(
-        auto arrowBuffers,
-        BlockPayload::deserialize(in_.get(), schema_, codec_, memoryPool_, numRows, decompressTime_));
+        auto arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, decompressTime_));
     if (numRows == 0) {
       // Reach EOS.
       return nullptr;
@@ -332,7 +331,7 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
   uint32_t numRows = 0;
   while (!merged_ || merged_->numRows() < batchSize_) {
     GLUTEN_ASSIGN_OR_THROW(
-        arrowBuffers, BlockPayload::deserialize(in_.get(), schema_, codec_, memoryPool_, numRows, decompressTime_));
+        arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, decompressTime_));
     if (numRows == 0) {
       reachEos_ = true;
       break;
@@ -401,7 +400,7 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
   while (cachedRows_ < batchSize_) {
     uint32_t numRows;
     GLUTEN_ASSIGN_OR_THROW(
-        auto arrowBuffers, BlockPayload::deserialize(in_.get(), schema_, codec_, arrowPool_, numRows, decompressTime_));
+        auto arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, arrowPool_, numRows, decompressTime_));
 
     if (numRows == 0) {
       reachEos_ = true;
