@@ -316,22 +316,16 @@ if(BUILD_TESTS)
       "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a")
   target_link_libraries(
     facebook::velox::test
-    INTERFACE facebook::velox facebook::velox::vector_test
+    INTERFACE facebook::velox::vector_test
               facebook::velox::dwio_common_test facebook::velox::file_test
               facebook::velox::temp_path)
 
   target_link_libraries(velox PUBLIC facebook::velox::test)
-else()
-  target_link_libraries(velox PUBLIC facebook::velox)
 endif()
 
+target_link_libraries(velox PUBLIC facebook::velox)
+
 if(BUILD_TESTS)
-  # add_velox_dependency( exec::test
-  # "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a")
-  # add_velox_dependency( parse::parser
-  # "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
-  # add_velox_dependency( duckdb::parser
-  # "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_parser.a")
   add_duckdb()
 endif()
 
