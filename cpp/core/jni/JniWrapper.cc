@@ -218,6 +218,10 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   gluten::getJniCommonState()->close();
 }
 
+namespace {
+const std::string kBacktraceAllocation = "spark.gluten.memory.backtrace.allocation";
+}
+
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_createRuntime( // NOLINT
     JNIEnv* env,
     jclass,
@@ -229,13 +233,17 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_createRunt
   if (env->GetJavaVM(&vm) != JNI_OK) {
     throw gluten::GlutenException("Unable to get JavaVM instance");
   }
-
-  auto backendType = jStringToCString(env, jbackendType);
-  std::unique_ptr<AllocationListener> listener =
-      std::make_unique<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod);
-
   auto safeArray = gluten::getByteArrayElementsSafe(env, sessionConf);
   auto sparkConf = gluten::parseConfMap(env, safeArray.elems(), safeArray.length());
+  auto backendType = jStringToCString(env, jbackendType);
+
+  std::unique_ptr<AllocationListener> listener =
+      std::make_unique<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod);
+  bool backtrace = sparkConf.at(kBacktraceAllocation) == "true";
+  if (backtrace) {
+    listener = std::make_unique<BacktraceAllocationListener>(std::move(listener));
+  }
+
   auto runtime = gluten::Runtime::create(backendType, std::move(listener), sparkConf);
   return reinterpret_cast<jlong>(runtime);
   JNI_METHOD_END(kInvalidObjectHandle)
@@ -1114,22 +1122,16 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_cl
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_write( // NOLINT
+JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_DatasourceJniWrapper_writeBatch( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong dsHandle,
-    jobject jIter) {
+    jlong batchHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
   auto datasource = ObjectStore::retrieve<Datasource>(dsHandle);
-  auto iter = makeJniColumnarBatchIterator(env, jIter, ctx, nullptr);
-  while (true) {
-    auto batch = iter->next();
-    if (!batch) {
-      break;
-    }
-    datasource->write(batch);
-  }
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
+  datasource->write(batch);
   JNI_METHOD_END()
 }
 

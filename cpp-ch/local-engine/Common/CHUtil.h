@@ -161,8 +161,7 @@ public:
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
     static void init(const std::string_view plan);
-    static void updateConfig(const DB::ContextMutablePtr &, const std::string_view);
-
+    static void updateConfig(const DB::ContextMutablePtr &, std::string_view);
 
     // use excel text parser
     inline static const std::string USE_EXCEL_PARSER = "use_excel_serialization";

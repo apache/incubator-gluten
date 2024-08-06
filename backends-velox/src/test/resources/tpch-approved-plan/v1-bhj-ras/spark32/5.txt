@@ -6,12 +6,12 @@ AdaptiveSparkPlan (102)
       +- ^ InputIteratorTransformer (64)
          +- ShuffleQueryStage (62)
             +- ColumnarExchange (61)
-               +- VeloxAppendBatches (60)
+               +- VeloxResizeBatches (60)
                   +- ^ RegularHashAggregateExecTransformer (58)
                      +- ^ InputIteratorTransformer (57)
                         +- ShuffleQueryStage (55)
                            +- ColumnarExchange (54)
-                              +- VeloxAppendBatches (53)
+                              +- VeloxResizeBatches (53)
                                  +- ^ ProjectExecTransformer (51)
                                     +- ^ FlushableHashAggregateExecTransformer (50)
                                        +- ^ ProjectExecTransformer (49)
@@ -314,9 +314,9 @@ Input [3]: [n_name#X, sum#X, isEmpty#X]
 Input [4]: [hash_partition_key#X, n_name#X, sum#X, isEmpty#X]
 Arguments: false
 
-(53) VeloxAppendBatches
+(53) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, n_name#X, sum#X, isEmpty#X]
-Arguments: X
+Arguments: X, X
 
 (54) ColumnarExchange
 Input [4]: [hash_partition_key#X, n_name#X, sum#X, isEmpty#X]
@@ -343,9 +343,9 @@ Results [2]: [n_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedpric
 Input [2]: [n_name#X, revenue#X]
 Arguments: false
 
-(60) VeloxAppendBatches
+(60) VeloxResizeBatches
 Input [2]: [n_name#X, revenue#X]
-Arguments: X
+Arguments: X, X
 
 (61) ColumnarExchange
 Input [2]: [n_name#X, revenue#X]

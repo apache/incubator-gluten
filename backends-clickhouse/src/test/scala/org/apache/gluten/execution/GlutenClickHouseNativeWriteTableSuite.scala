@@ -65,7 +65,7 @@ class GlutenClickHouseNativeWriteTableSuite
       // TODO: support default ANSI policy
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.sql.warehouse.dir", getWarehouseDir)
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
       .setMaster("local[1]")
   }
 
@@ -913,12 +913,10 @@ class GlutenClickHouseNativeWriteTableSuite
           (table_name, create_sql, insert_sql)
       },
       (table_name, _) =>
-        if (isSparkVersionGE("3.5")) {
-          compareResultsAgainstVanillaSpark(
-            s"select * from $table_name",
-            compareResult = true,
-            _ => {})
-        }
+        compareResultsAgainstVanillaSpark(
+          s"select * from $table_name",
+          compareResult = true,
+          _ => {})
     )
   }
 }

@@ -7,7 +7,7 @@ AdaptiveSparkPlan (35)
          +- ^ InputIteratorTransformer (19)
             +- ShuffleQueryStage (17), Statistics(X)
                +- ColumnarExchange (16)
-                  +- VeloxAppendBatches (15)
+                  +- VeloxResizeBatches (15)
                      +- ^ FlushableHashAggregateExecTransformer (13)
                         +- ^ ProjectExecTransformer (12)
                            +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (11)
@@ -97,9 +97,9 @@ Results [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 Input [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
 Arguments: false
 
-(15) VeloxAppendBatches
+(15) VeloxResizeBatches
 Input [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
-Arguments: X
+Arguments: X, X
 
 (16) ColumnarExchange
 Input [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]

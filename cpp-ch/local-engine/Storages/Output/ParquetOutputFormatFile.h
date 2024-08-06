@@ -20,7 +20,6 @@
 
 #if USE_PARQUET
 
-#include <memory>
 #include <IO/WriteBuffer.h>
 #include <Storages/Output/OutputFormatFile.h>
 
@@ -33,7 +32,7 @@ public:
         DB::ContextPtr context_,
         const std::string & file_uri_,
         const WriteBufferBuilderPtr & write_buffer_builder_,
-        const std::vector<std::string> & preferred_column_names_);
+        const DB::Block & preferred_schema_);
     ~ParquetOutputFormatFile() override = default;
 
     OutputFormatFile::OutputFormatPtr createOutputFormat(const DB::Block & header) override;

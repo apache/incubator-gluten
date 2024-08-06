@@ -14,17 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "CustomMergeTreeSink.h"
+package org.apache.gluten.execution;
 
-void local_engine::CustomMergeTreeSink::consume(Chunk chunk)
-{
-    auto block = metadata_snapshot->getSampleBlock().cloneWithColumns(chunk.detachColumns());
-    DB::BlockWithPartition block_with_partition(Block(block), DB::Row{});
-    auto part = storage.writer.writeTempPart(block_with_partition, metadata_snapshot, context);
-    MergeTreeData::Transaction transaction(storage, NO_TRANSACTION_RAW);
-    {
-        auto lock = storage.lockParts();
-        storage.renameTempPartAndAdd(part.part, transaction, lock);
-        transaction.commit(&lock);
-    }
+import java.util.Set;
+
+public class CHNativeCacheManager {
+  public static void cacheParts(String table, Set<String> columns, boolean async) {
+    nativeCacheParts(table, String.join(",", columns), async);
+  }
+
+  private static native void nativeCacheParts(String table, String columns, boolean async);
 }

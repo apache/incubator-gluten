@@ -352,9 +352,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       plan match {
         case shuffle: ColumnarShuffleExchangeExec
             if !shuffle.useSortBasedShuffle &&
-              GlutenConfig.getConf.veloxCoalesceBatchesBeforeShuffle =>
+              GlutenConfig.getConf.veloxResizeBatchesShuffleInput =>
+          val range = GlutenConfig.getConf.veloxResizeBatchesShuffleInputRange
           val appendBatches =
-            VeloxAppendBatchesExec(shuffle.child, GlutenConfig.getConf.veloxMinBatchSizeForShuffle)
+            VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
           shuffle.withNewChildren(Seq(appendBatches))
         case _ => plan
       }

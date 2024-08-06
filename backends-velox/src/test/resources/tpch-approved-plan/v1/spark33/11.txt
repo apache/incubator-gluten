@@ -6,13 +6,13 @@ AdaptiveSparkPlan (82)
       +- ^ InputIteratorTransformer (53)
          +- ShuffleQueryStage (51), Statistics(X)
             +- ColumnarExchange (50)
-               +- VeloxAppendBatches (49)
+               +- VeloxResizeBatches (49)
                   +- ^ FilterExecTransformer (47)
                      +- ^ RegularHashAggregateExecTransformer (46)
                         +- ^ InputIteratorTransformer (45)
                            +- ShuffleQueryStage (43), Statistics(X)
                               +- ColumnarExchange (42)
-                                 +- VeloxAppendBatches (41)
+                                 +- VeloxResizeBatches (41)
                                     +- ^ ProjectExecTransformer (39)
                                        +- ^ FlushableHashAggregateExecTransformer (38)
                                           +- ^ ProjectExecTransformer (37)
@@ -20,27 +20,27 @@ AdaptiveSparkPlan (82)
                                                 :- ^ InputIteratorTransformer (26)
                                                 :  +- ShuffleQueryStage (24), Statistics(X)
                                                 :     +- ColumnarExchange (23)
-                                                :        +- VeloxAppendBatches (22)
+                                                :        +- VeloxResizeBatches (22)
                                                 :           +- ^ ProjectExecTransformer (20)
                                                 :              +- ^ ShuffledHashJoinExecTransformer Inner BuildRight (19)
                                                 :                 :- ^ InputIteratorTransformer (9)
                                                 :                 :  +- ShuffleQueryStage (7), Statistics(X)
                                                 :                 :     +- ColumnarExchange (6)
-                                                :                 :        +- VeloxAppendBatches (5)
+                                                :                 :        +- VeloxResizeBatches (5)
                                                 :                 :           +- ^ ProjectExecTransformer (3)
                                                 :                 :              +- ^ FilterExecTransformer (2)
                                                 :                 :                 +- ^ Scan parquet (1)
                                                 :                 +- ^ InputIteratorTransformer (18)
                                                 :                    +- ShuffleQueryStage (16), Statistics(X)
                                                 :                       +- ColumnarExchange (15)
-                                                :                          +- VeloxAppendBatches (14)
+                                                :                          +- VeloxResizeBatches (14)
                                                 :                             +- ^ ProjectExecTransformer (12)
                                                 :                                +- ^ FilterExecTransformer (11)
                                                 :                                   +- ^ Scan parquet (10)
                                                 +- ^ InputIteratorTransformer (35)
                                                    +- ShuffleQueryStage (33), Statistics(X)
                                                       +- ColumnarExchange (32)
-                                                         +- VeloxAppendBatches (31)
+                                                         +- VeloxResizeBatches (31)
                                                             +- ^ ProjectExecTransformer (29)
                                                                +- ^ FilterExecTransformer (28)
                                                                   +- ^ Scan parquet (27)
@@ -91,9 +91,9 @@ Input [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Input [5]: [hash_partition_key#X, ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Arguments: false
 
-(5) VeloxAppendBatches
+(5) VeloxResizeBatches
 Input [5]: [hash_partition_key#X, ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
-Arguments: X
+Arguments: X, X
 
 (6) ColumnarExchange
 Input [5]: [hash_partition_key#X, ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
@@ -128,9 +128,9 @@ Input [2]: [s_suppkey#X, s_nationkey#X]
 Input [3]: [hash_partition_key#X, s_suppkey#X, s_nationkey#X]
 Arguments: false
 
-(14) VeloxAppendBatches
+(14) VeloxResizeBatches
 Input [3]: [hash_partition_key#X, s_suppkey#X, s_nationkey#X]
-Arguments: X
+Arguments: X, X
 
 (15) ColumnarExchange
 Input [3]: [hash_partition_key#X, s_suppkey#X, s_nationkey#X]
@@ -159,9 +159,9 @@ Input [6]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X, s_suppke
 Input [5]: [hash_partition_key#X, ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 Arguments: false
 
-(22) VeloxAppendBatches
+(22) VeloxResizeBatches
 Input [5]: [hash_partition_key#X, ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
-Arguments: X
+Arguments: X, X
 
 (23) ColumnarExchange
 Input [5]: [hash_partition_key#X, ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
@@ -196,9 +196,9 @@ Input [2]: [n_nationkey#X, n_name#X]
 Input [2]: [hash_partition_key#X, n_nationkey#X]
 Arguments: false
 
-(31) VeloxAppendBatches
+(31) VeloxResizeBatches
 Input [2]: [hash_partition_key#X, n_nationkey#X]
-Arguments: X
+Arguments: X, X
 
 (32) ColumnarExchange
 Input [2]: [hash_partition_key#X, n_nationkey#X]
@@ -238,9 +238,9 @@ Input [3]: [ps_partkey#X, sum#X, isEmpty#X]
 Input [4]: [hash_partition_key#X, ps_partkey#X, sum#X, isEmpty#X]
 Arguments: false
 
-(41) VeloxAppendBatches
+(41) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, ps_partkey#X, sum#X, isEmpty#X]
-Arguments: X
+Arguments: X, X
 
 (42) ColumnarExchange
 Input [4]: [hash_partition_key#X, ps_partkey#X, sum#X, isEmpty#X]
@@ -271,9 +271,9 @@ Arguments: (isnotnull(value#X) AND (cast(value#X as decimal(38,6)) > Subquery su
 Input [2]: [ps_partkey#X, value#X]
 Arguments: false
 
-(49) VeloxAppendBatches
+(49) VeloxResizeBatches
 Input [2]: [ps_partkey#X, value#X]
-Arguments: X
+Arguments: X, X
 
 (50) ColumnarExchange
 Input [2]: [ps_partkey#X, value#X]
@@ -435,13 +435,13 @@ AdaptiveSparkPlan (136)
                   :- ^ InputIteratorTransformer (103)
                   :  +- ShuffleQueryStage (101), Statistics(X)
                   :     +- ColumnarExchange (100)
-                  :        +- VeloxAppendBatches (99)
+                  :        +- VeloxResizeBatches (99)
                   :           +- ^ ProjectExecTransformer (97)
                   :              +- ^ ShuffledHashJoinExecTransformer Inner BuildRight (96)
                   :                 :- ^ InputIteratorTransformer (91)
                   :                 :  +- ShuffleQueryStage (89), Statistics(X)
                   :                 :     +- ColumnarExchange (88)
-                  :                 :        +- VeloxAppendBatches (87)
+                  :                 :        +- VeloxResizeBatches (87)
                   :                 :           +- ^ ProjectExecTransformer (85)
                   :                 :              +- ^ FilterExecTransformer (84)
                   :                 :                 +- ^ Scan parquet (83)
@@ -494,9 +494,9 @@ Input [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Input [4]: [hash_partition_key#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
 Arguments: false
 
-(87) VeloxAppendBatches
+(87) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
-Arguments: X
+Arguments: X, X
 
 (88) ColumnarExchange
 Input [4]: [hash_partition_key#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
@@ -538,9 +538,9 @@ Input [5]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X, s_suppkey#X, s_nationk
 Input [4]: [hash_partition_key#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
 Arguments: false
 
-(99) VeloxAppendBatches
+(99) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
-Arguments: X
+Arguments: X, X
 
 (100) ColumnarExchange
 Input [4]: [hash_partition_key#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]

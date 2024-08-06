@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.datasources.v1
 
 import org.apache.gluten.execution.datasource.GlutenRowSplitter
+import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized.CHColumnVector
 
@@ -26,6 +27,7 @@ import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.orc.OrcUtils
 import org.apache.spark.sql.types.StructType
 
+import io.substrait.proto.{NamedStruct, Type}
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
@@ -39,10 +41,20 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     val originPath = path
     val datasourceJniWrapper = new CHDatasourceJniWrapper();
     CHThreadGroup.registerNewThreadGroup()
+
+    val namedStructBuilder = NamedStruct.newBuilder
+    val structBuilder = Type.Struct.newBuilder
+    for (field <- dataSchema.fields) {
+      namedStructBuilder.addNames(field.name)
+      structBuilder.addTypes(ConverterUtils.getTypeNode(field.dataType, field.nullable).toProtobuf)
+    }
+    namedStructBuilder.setStruct(structBuilder.build)
+    var namedStruct = namedStructBuilder.build
+
     val instance =
       datasourceJniWrapper.nativeInitFileWriterWrapper(
         path,
-        dataSchema.fieldNames,
+        namedStruct.toByteArray,
         getFormatName());
 
     new OutputWriter {

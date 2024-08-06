@@ -16,11 +16,12 @@
  */
 
 #include "CHUtil.h"
+
 #include <filesystem>
-#include <format>
 #include <memory>
 #include <optional>
 #include <unistd.h>
+
 #include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
@@ -71,6 +72,7 @@
 #include <Common/LoggerExtend.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
+#include <Storages/Cache/CacheManager.h>
 
 namespace DB
 {
@@ -975,6 +977,8 @@ void BackendInitializerUtil::init(const std::string_view plan)
     // Init the table metadata cache map
     StorageMergeTreeFactory::init_cache_map();
 
+    CacheManager::initialize(SerializedPlanParser::global_context);
+
     std::call_once(
         init_flag,
         [&]
@@ -1006,7 +1010,7 @@ void BackendInitializerUtil::init(const std::string_view plan)
         });
 }
 
-void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, const std::string_view plan)
+void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, std::string_view plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
 

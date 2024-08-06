@@ -104,9 +104,6 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   FLAGS_gluten_velox_aysnc_timeout_on_task_stopping =
       backendConf_->get<int32_t>(kVeloxAsyncTimeoutOnTaskStopping, kVeloxAsyncTimeoutOnTaskStoppingDefault);
 
-  // Set backtrace_allocation
-  gluten::backtrace_allocation = backendConf_->get<bool>(kBacktraceAllocation, false);
-
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
   initJolFilesystem();

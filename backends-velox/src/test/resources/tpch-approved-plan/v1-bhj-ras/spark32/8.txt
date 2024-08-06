@@ -6,13 +6,13 @@ AdaptiveSparkPlan (131)
       +- ^ InputIteratorTransformer (83)
          +- ShuffleQueryStage (81)
             +- ColumnarExchange (80)
-               +- VeloxAppendBatches (79)
+               +- VeloxResizeBatches (79)
                   +- ^ ProjectExecTransformer (77)
                      +- ^ RegularHashAggregateExecTransformer (76)
                         +- ^ InputIteratorTransformer (75)
                            +- ShuffleQueryStage (73)
                               +- ColumnarExchange (72)
-                                 +- VeloxAppendBatches (71)
+                                 +- VeloxResizeBatches (71)
                                     +- ^ ProjectExecTransformer (69)
                                        +- ^ FlushableHashAggregateExecTransformer (68)
                                           +- ^ ProjectExecTransformer (67)
@@ -415,9 +415,9 @@ Input [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 Input [6]: [hash_partition_key#X, o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
 Arguments: false
 
-(71) VeloxAppendBatches
+(71) VeloxResizeBatches
 Input [6]: [hash_partition_key#X, o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
-Arguments: X
+Arguments: X, X
 
 (72) ColumnarExchange
 Input [6]: [hash_partition_key#X, o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
@@ -448,9 +448,9 @@ Input [3]: [o_year#X, sum(CASE WHEN (nation#X = BRAZIL) THEN volume#X ELSE 0.000
 Input [2]: [o_year#X, mkt_share#X]
 Arguments: false
 
-(79) VeloxAppendBatches
+(79) VeloxResizeBatches
 Input [2]: [o_year#X, mkt_share#X]
-Arguments: X
+Arguments: X, X
 
 (80) ColumnarExchange
 Input [2]: [o_year#X, mkt_share#X]
