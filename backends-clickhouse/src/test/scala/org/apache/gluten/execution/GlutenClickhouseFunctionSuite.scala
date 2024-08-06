@@ -226,4 +226,12 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     spark.sql("drop table t2")
   }
 
+  test("array decimal32") {
+    runQueryAndCompare(
+      """
+        |SELECT array(1.0, 2.0)
+        |""".stripMargin
+    )(df => checkFallbackOperators(df, 0))
+  }
+
 }

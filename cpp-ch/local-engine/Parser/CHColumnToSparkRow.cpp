@@ -586,12 +586,11 @@ int64_t BackingDataLengthCalculator::getArrayElementSize(const DataTypePtr & nes
     else if (nested_which.isUInt16() || nested_which.isInt16() || nested_which.isDate())
         return 2;
     else if (
-        nested_which.isUInt32() || nested_which.isInt32() || nested_which.isFloat32() || nested_which.isDate32()
-        || nested_which.isDecimal32())
+        nested_which.isUInt32() || nested_which.isInt32() || nested_which.isFloat32() || nested_which.isDate32())
         return 4;
     else if (
         nested_which.isUInt64() || nested_which.isInt64() || nested_which.isFloat64() || nested_which.isDateTime64()
-        || nested_which.isDecimal64())
+        || nested_which.isDecimal32() || nested_which.isDecimal64())
         return 8;
     else
         return 8;
@@ -701,6 +700,12 @@ int64_t VariableLengthDataWriter::writeArray(size_t row_idx, const DB::Array & a
                     // Fix 'Invalid Field get from type Float64 to type Int64' in debug build.
                     auto v = elem.get<Float64>();
                     writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
+                }
+                else if (writer.getWhichDataType().isDecimal32())
+                {
+                  // We can not use get<char>() directly here to process Decimal32 field,
+                  // because it will get 4 byte data, but Decimal32 is 8 byte in Spark, which will cause error conversion.
+                  writer.write(elem, buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
                 }
                 else
                     writer.unsafeWrite(
