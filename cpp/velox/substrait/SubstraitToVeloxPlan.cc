@@ -1610,14 +1610,12 @@ bool SubstraitToVeloxPlanConverter::canPushdownFunction(
   }
 
   // The arg should be field or field with literal.
-  if(!fieldOrWithLiteral(scalarFunction.arguments(), fieldIdx)) {
+  if (!fieldOrWithLiteral(scalarFunction.arguments(), fieldIdx)) {
     return false;
   }
 
   // check whether data type is supported or not
-  if (!veloxTypeList.empty() &&
-      fieldIdx < veloxTypeList.size() &&
-      !isPushdownSupported(veloxTypeList.at(fieldIdx))) {
+  if (!veloxTypeList.empty() && fieldIdx < veloxTypeList.size() && !isPushdownSupported(veloxTypeList.at(fieldIdx))) {
     return false;
   }
 
