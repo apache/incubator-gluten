@@ -157,7 +157,7 @@ class GoogleBenchmarkColumnarToRowCacheScanBenchmark : public GoogleBenchmarkCol
     for (auto _ : state) {
       for (const auto& vector : vectors) {
         auto row = std::dynamic_pointer_cast<velox::RowVector>(vector);
-        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(ctxPool);
+        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(ctxPool, 64 << 20);
         auto cb = std::make_shared<VeloxColumnarBatch>(row);
         TIME_NANO_START(writeTime);
         columnarToRowConverter->convert(cb);
@@ -212,7 +212,7 @@ class GoogleBenchmarkColumnarToRowIterateScanBenchmark : public GoogleBenchmarkC
         numBatches += 1;
         numRows += recordBatch->num_rows();
         auto vector = recordBatch2RowVector(*recordBatch);
-        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(ctxPool);
+        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(ctxPool, 64 << 20);
         auto row = std::dynamic_pointer_cast<velox::RowVector>(vector);
         auto cb = std::make_shared<VeloxColumnarBatch>(row);
         TIME_NANO_START(writeTime);

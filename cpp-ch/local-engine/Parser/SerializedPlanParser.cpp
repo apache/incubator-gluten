@@ -1105,6 +1105,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG& actio
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
             ActionsDAG::NodeRawConstPtrs args;
 
+            String cast_function = "CAST";
             const auto & input = rel.cast().input();
             args.emplace_back(parseExpression(actions_dag, input));
 
@@ -1144,10 +1145,15 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG& actio
                     /// Refer to https://github.com/apache/incubator-gluten/issues/4956
                     args[0] = toFunctionNode(actions_dag, "trim", {args[0]});
                 }
+                else if (isString(non_nullable_input_type) && substrait_type.has_bool_())
+                {
+                    /// cast(string to boolean)
+                    cast_function = "accurateCastOrNull";
+                }
 
                 /// Common process
                 args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
-                function_node = toFunctionNode(actions_dag, "CAST", args);
+                function_node = toFunctionNode(actions_dag, cast_function, args);
             }
 
             actions_dag.addOrReplaceInOutputs(*function_node);

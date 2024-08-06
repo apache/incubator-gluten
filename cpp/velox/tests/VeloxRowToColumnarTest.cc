@@ -33,7 +33,7 @@ class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBa
   }
 
   void testRowVectorEqual(velox::RowVectorPtr vector) {
-    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(pool_);
+    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(pool_, 64 << 10);
 
     auto columnarBatch = std::make_shared<VeloxColumnarBatch>(vector);
     columnarToRowConverter->convert(columnarBatch);

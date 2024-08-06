@@ -222,6 +222,30 @@ class MyDateRegisterer final : public gluten::UdfRegisterer {
   const std::string name_ = "mydate";
   const char* myDateArg_[2] = {kDate, kInteger};
 };
+
+// name: mydate
+// signatures:
+//    date, integer -> bigint
+// type: SimpleFunction
+// enable type conversion
+class MyDate2Registerer final : public gluten::UdfRegisterer {
+ public:
+  int getNumUdf() override {
+    return 1;
+  }
+
+  void populateUdfEntries(int& index, gluten::UdfEntry* udfEntries) override {
+    udfEntries[index++] = {name_.c_str(), kDate, 2, myDateArg_, false, true};
+  }
+
+  void registerSignatures() override {
+    facebook::velox::registerFunction<mydate::MyDateSimpleFunction, Date, Date, int32_t>({name_});
+  }
+
+ private:
+  const std::string name_ = "mydate2";
+  const char* myDateArg_[2] = {kDate, kInteger};
+};
 } // namespace mydate
 
 std::vector<std::shared_ptr<gluten::UdfRegisterer>>& globalRegisters() {
@@ -239,6 +263,7 @@ void setupRegisterers() {
   registerers.push_back(std::make_shared<myudf::MyUdf2Registerer>());
   registerers.push_back(std::make_shared<myudf::MyUdf3Registerer>());
   registerers.push_back(std::make_shared<mydate::MyDateRegisterer>());
+  registerers.push_back(std::make_shared<mydate::MyDate2Registerer>());
   inited = true;
 }
 } // namespace

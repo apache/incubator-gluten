@@ -307,8 +307,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
           }
 
           wExpression.windowFunction match {
-            case _: RowNumber | _: AggregateExpression | _: Rank | _: DenseRank | _: PercentRank |
-                _: NTile =>
+            case _: RowNumber | _: AggregateExpression | _: Rank | _: DenseRank | _: NTile =>
               allSupported = allSupported
             case l: Lag =>
               checkLagOrLead(l.third)

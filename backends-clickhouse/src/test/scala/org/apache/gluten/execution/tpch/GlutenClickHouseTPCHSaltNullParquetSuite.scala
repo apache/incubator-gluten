@@ -978,7 +978,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
-  test("window percent_rank") {
+  ignore("window percent_rank") {
     val sql =
       """
         |select n_regionkey, n_nationkey,
@@ -2431,6 +2431,16 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         "select log10(n_regionkey), log10(-1.0), log10(0), log10(n_regionkey - 100000), " +
           "log2(n_regionkey), log2(-1.0), log2(0), log2(n_regionkey - 100000), " +
           "ln(n_regionkey), ln(-1.0), ln(0), ln(n_regionkey - 100000) from nation"
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("GLUTEN-6669: test cast string to boolean") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select cast('1' as boolean), cast('t' as boolean), cast('all' as boolean), cast('f' as boolean)",
+        noFallBack = false
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }

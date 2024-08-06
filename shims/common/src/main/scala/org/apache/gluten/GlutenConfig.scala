@@ -187,8 +187,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleCompressionThreshold: Int =
     conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
 
-  // FIXME: Not clear: MIN or MAX ?
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
+
+  def columnarToRowMemThreshold: Long =
+    conf.getConf(GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD)
 
   def shuffleWriterBufferSize: Int = conf
     .getConf(SHUFFLE_WRITER_BUFFER_SIZE)
@@ -326,12 +328,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxResizeBatchesShuffleInputRange: ResizeRange = {
     val standardSize = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
-    val defaultRange: ResizeRange =
-      ResizeRange((0.25 * standardSize).toInt.max(1), 4 * standardSize)
-    conf
-      .getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_RANGE)
-      .map(ResizeRange.parse)
-      .getOrElse(defaultRange)
+    val defaultMinSize: Int = (0.25 * standardSize).toInt.max(1)
+    val minSize = conf
+      .getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_MIN_SIZE)
+      .getOrElse(defaultMinSize)
+    ResizeRange(minSize, Int.MaxValue)
   }
 
   def chColumnarShuffleSpillThreshold: Long = {
@@ -578,10 +579,13 @@ object GlutenConfig {
   val GLUTEN_SORT_SHUFFLE_WRITER = "sort"
   val GLUTEN_RSS_SORT_SHUFFLE_WRITER = "rss_sort"
 
-  // Shuffle writer buffer size.
+  // Shuffle Writer buffer size.
   val GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE = "spark.gluten.shuffleWriter.bufferSize"
 
   val GLUTEN_SHUFFLE_WRITER_MERGE_THRESHOLD = "spark.gluten.sql.columnar.shuffle.merge.threshold"
+
+  // Columnar to row memory threshold.
+  val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY = "spark.gluten.sql.columnarToRowMemoryThreshold"
 
   // Controls whether to load DLL from jars. User can get dependent native libs packed into a jar
   // by executing dev/package.sh. Then, with that jar configured, Gluten can load the native libs
@@ -647,6 +651,7 @@ object GlutenConfig {
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_MAX_BATCH_SIZE_KEY,
+      GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY,
       GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
@@ -1114,6 +1119,12 @@ object GlutenConfig {
       .checkValue(_ > 0, s"$GLUTEN_MAX_BATCH_SIZE_KEY must be positive.")
       .createWithDefault(4096)
 
+  val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD =
+    buildConf(GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY)
+      .internal()
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("64MB")
+
   // if not set, use COLUMNAR_MAX_BATCH_SIZE instead
   val SHUFFLE_WRITER_BUFFER_SIZE =
     buildConf(GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE)
@@ -1479,17 +1490,16 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_RANGE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.range")
+  val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_MIN_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.minSize")
       .internal()
       .doc(
-        s"The minimum and maximum batch sizes for shuffle. If the batch size is " +
-          s"smaller / bigger than minimum / maximum value, it will be combined with other " +
-          s"batches / split before sending to shuffle. Only functions when " +
+        s"The minimum batch size for shuffle. If size of an input batch is " +
+          s"smaller than the value, it will be combined with other " +
+          s"batches before sending to shuffle. Only functions when " +
           s"${COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT.key} is set to true. " +
-          s"A valid value for the option is min~max. " +
-          s"E.g., s.g.s.c.b.v.resizeBatches.shuffleInput.range=100~10000")
-      .stringConf
+          s"Default value: 0.25 * <max batch size>")
+      .intConf
       .createOptional
 
   val COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD =

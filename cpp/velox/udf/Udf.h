@@ -27,6 +27,7 @@ struct UdfEntry {
   const char** argTypes;
 
   bool variableArity{false};
+  bool allowTypeConversion{false};
 };
 
 #define GLUTEN_GET_NUM_UDF getNumUdf
