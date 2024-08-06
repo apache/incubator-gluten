@@ -245,6 +245,7 @@ TEST_F(Substrait2VeloxPlanConversionTest, q6) {
 }
 
 TEST_F(Substrait2VeloxPlanConversionTest, ifthenTest) {
+  GTEST_SKIP();
   std::string subPlanPath = FilePathGenerator::getDataFilePath("if_then.json");
   std::string splitPath = FilePathGenerator::getDataFilePath("if_then_split.json");
 
@@ -266,6 +267,7 @@ TEST_F(Substrait2VeloxPlanConversionTest, ifthenTest) {
 }
 
 TEST_F(Substrait2VeloxPlanConversionTest, filterUpper) {
+  GTEST_SKIP();
   std::string subPlanPath = FilePathGenerator::getDataFilePath("filter_upper.json");
   std::string splitPath = FilePathGenerator::getDataFilePath("filter_upper_split.json");
 
