@@ -85,6 +85,9 @@ struct WriterMetrics {
   int64_t evictTime{0};
   int64_t writeTime{0};
   int64_t compressTime{0};
+
+  int64_t bytesSpilled{0};
+  int64_t bytesWritten{0};
 };
 
 struct ReaderMetrics {
@@ -181,6 +184,8 @@ void populateWriterMetrics(
   if (splitTime > 0) {
     metrics.splitTime += splitTime;
   }
+  metrics.bytesWritten += shuffleWriter->totalBytesWritten();
+  metrics.bytesSpilled += shuffleWriter->totalBytesEvicted();
 }
 
 void setCpu(::benchmark::State& state) {
@@ -262,23 +267,30 @@ void updateBenchmarkMetrics(
   state.counters["elapsed_time"] =
       benchmark::Counter(elapsedTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
 
-  state.counters["shuffle_write_time"] = benchmark::Counter(
-      writerMetrics.writeTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
-  state.counters["shuffle_spill_time"] = benchmark::Counter(
-      writerMetrics.evictTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
-  state.counters["shuffle_compress_time"] = benchmark::Counter(
-      writerMetrics.compressTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
-  state.counters["shuffle_decompress_time"] = benchmark::Counter(
-      readerMetrics.decompressTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
-  state.counters["shuffle_deserialize_time"] = benchmark::Counter(
-      readerMetrics.deserializeTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+  if (FLAGS_run_shuffle || FLAGS_with_shuffle) {
+    state.counters["shuffle_write_time"] = benchmark::Counter(
+        writerMetrics.writeTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+    state.counters["shuffle_spill_time"] = benchmark::Counter(
+        writerMetrics.evictTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+    state.counters["shuffle_compress_time"] = benchmark::Counter(
+        writerMetrics.compressTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+    state.counters["shuffle_decompress_time"] = benchmark::Counter(
+        readerMetrics.decompressTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+    state.counters["shuffle_deserialize_time"] = benchmark::Counter(
+        readerMetrics.deserializeTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
 
-  auto splitTime = writerMetrics.splitTime;
-  if (FLAGS_scan_mode == "stream") {
-    splitTime -= readInputTime;
+    auto splitTime = writerMetrics.splitTime;
+    if (FLAGS_scan_mode == "stream") {
+      splitTime -= readInputTime;
+    }
+    state.counters["shuffle_split_time"] =
+        benchmark::Counter(splitTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
+
+    state.counters["shuffle_spilled_bytes"] = benchmark::Counter(
+        writerMetrics.bytesSpilled, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1024);
+    state.counters["shuffle_write_bytes"] = benchmark::Counter(
+        writerMetrics.bytesWritten, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1024);
   }
-  state.counters["shuffle_split_time"] =
-      benchmark::Counter(splitTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
 }
 
 } // namespace
