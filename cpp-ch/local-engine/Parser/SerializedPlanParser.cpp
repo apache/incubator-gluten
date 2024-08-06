@@ -83,6 +83,8 @@
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
+#include <Processors/Executors/PipelineExecutor.h>
+#include <Processors/Executors/PullingAsyncPipelineExecutor.h>
 
 namespace DB
 {
@@ -1308,16 +1310,14 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     if (root_rel.root().input().has_write())
         addSinkTransform(context, root_rel.root().input().write(), builder);
     ///
-    QueryPipeline pipeline = QueryPipelineBuilder::getPipeline(std::move(*builder));
-
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
     LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
     LOG_DEBUG(
         logger, "clickhouse plan [optimization={}]:\n{}", settings.query_plan_enable_optimizations, PlanUtil::explainPlan(*query_plan));
-    LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(pipeline));
+    // LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(pipeline));
 
     auto config = ExecutorConfig::loadFromContext(context);
-    return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(pipeline), config.dump_pipeline);
+    return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(builder), config.dump_pipeline);
 }
 
 SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_) : context(context_)
@@ -1578,8 +1578,19 @@ std::unique_ptr<SparkRowInfo> LocalExecutor::writeBlockToSparkRow(const Block & 
     return ch_column_to_spark_row->convertCHColumnToSparkRow(block);
 }
 
+void LocalExecutor::initPullingPipelineExecutor()
+{
+    if (!executor)
+    {
+        query_pipeline = QueryPipelineBuilder::getPipeline(std::move(*query_pipeline_builder));
+        query_pipeline.setNumThreads(1);
+        executor = std::make_unique<PullingAsyncPipelineExecutor>(query_pipeline);
+    }
+}
+
 bool LocalExecutor::hasNext()
 {
+    initPullingPipelineExecutor();
     size_t columns = currentBlock().columns();
     if (columns == 0 || isConsumed())
     {
@@ -1632,21 +1643,29 @@ void LocalExecutor::cancel()
         executor->cancel();
 }
 
+void LocalExecutor::execute()
+{
+    chassert(query_pipeline_builder);
+    push_executor = query_pipeline_builder->execute();
+    push_executor->execute(1, false);
+}
+
 Block & LocalExecutor::getHeader()
 {
     return header;
 }
 
-LocalExecutor::LocalExecutor(QueryPlanPtr query_plan, QueryPipeline && pipeline, bool dump_pipeline_)
-    : query_pipeline(std::move(pipeline))
-    , executor(std::make_unique<PullingPipelineExecutor>(query_pipeline))
+LocalExecutor::LocalExecutor(QueryPlanPtr query_plan, QueryPipelineBuilderPtr pipeline_builder, bool dump_pipeline_)
+    : query_pipeline_builder(std::move(pipeline_builder))
     , header(query_plan->getCurrentDataStream().header.cloneEmpty())
     , dump_pipeline(dump_pipeline_)
     , ch_column_to_spark_row(std::make_unique<CHColumnToSparkRow>())
     , current_query_plan(std::move(query_plan))
 {
+    chassert(!current_executor);
+    current_executor = this;
 }
-
+thread_local LocalExecutor * LocalExecutor::current_executor = nullptr;
 std::string LocalExecutor::dumpPipeline() const
 {
     const auto & processors = query_pipeline.getProcessors();
@@ -1655,7 +1674,7 @@ std::string LocalExecutor::dumpPipeline() const
         WriteBufferFromOwnString buffer;
         auto data_stats = processor->getProcessorDataStats();
         buffer << "(";
-        buffer << "\nexcution time: " << processor->getElapsedNs() / 1000U << " us.";
+        buffer << "\nexecution time: " << processor->getElapsedNs() / 1000U << " us.";
         buffer << "\ninput wait time: " << processor->getInputWaitElapsedNs() / 1000U << " us.";
         buffer << "\noutput wait time: " << processor->getOutputWaitElapsedNs() / 1000U << " us.";
         buffer << "\ninput rows: " << data_stats.input_rows;

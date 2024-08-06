@@ -24,7 +24,6 @@ import org.apache.gluten.vectorized._
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, Utils}
 
 import java.io.IOException
@@ -85,17 +84,7 @@ class CHColumnarShuffleWriter[K, V](
 
   private def internalCHWrite(records: Iterator[Product2[K, V]]): Unit = {
     val splitterJniWrapper: CHShuffleSplitterJniWrapper = jniWrapper
-    if (!records.hasNext) {
-      partitionLengths = new Array[Long](dep.partitioner.numPartitions)
-      shuffleBlockResolver.writeMetadataFileAndCommit(
-        dep.shuffleId,
-        mapId,
-        partitionLengths,
-        Array[Long](),
-        null)
-      mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
-      return
-    }
+
     val dataTmp = Utils.tempFileWith(shuffleBlockResolver.getDataFile(dep.shuffleId, mapId))
     if (nativeSplitter == 0) {
       nativeSplitter = splitterJniWrapper.make(
@@ -114,50 +103,51 @@ class CHColumnarShuffleWriter[K, V](
         forceMemorySortShuffle
       )
     }
-    while (records.hasNext) {
-      val cb = records.next()._2.asInstanceOf[ColumnarBatch]
-      if (cb.numRows == 0 || cb.numCols == 0) {
-        logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
-      } else {
-        firstRecordBatch = false
-        val col = cb.column(0).asInstanceOf[CHColumnVector]
-        val block = col.getBlockAddress
-        splitterJniWrapper
-          .split(nativeSplitter, block)
-        dep.metrics("numInputRows").add(cb.numRows)
-        dep.metrics("inputBatches").add(1)
-        writeMetrics.incRecordsWritten(cb.numRows)
-      }
-    }
+
     splitResult = splitterJniWrapper.stop(nativeSplitter)
+    if (splitResult.getTotalRows > 0) {
+      dep.metrics("numInputRows").add(splitResult.getTotalRows)
+      dep.metrics("inputBatches").add(splitResult.getTotalBatches)
+      writeMetrics.incRecordsWritten(splitResult.getTotalRows)
+      dep.metrics("splitTime").add(splitResult.getSplitTime)
+      dep.metrics("IOTime").add(splitResult.getDiskWriteTime)
+      dep.metrics("serializeTime").add(splitResult.getSerializationTime)
+      dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
+      dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
+      dep.metrics("computePidTime").add(splitResult.getTotalComputePidTime)
+      dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
+      dep.metrics("dataSize").add(splitResult.getTotalBytesWritten)
+      dep.metrics("shuffleWallTime").add(splitResult.getWallTime)
+      writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
+      writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
-    dep.metrics("splitTime").add(splitResult.getSplitTime)
-    dep.metrics("IOTime").add(splitResult.getDiskWriteTime)
-    dep.metrics("serializeTime").add(splitResult.getSerializationTime)
-    dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
-    dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
-    dep.metrics("computePidTime").add(splitResult.getTotalComputePidTime)
-    dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
-    dep.metrics("dataSize").add(splitResult.getTotalBytesWritten)
-    writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
-    writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
+      partitionLengths = splitResult.getPartitionLengths
+      rawPartitionLengths = splitResult.getRawPartitionLengths
 
-    partitionLengths = splitResult.getPartitionLengths
-    rawPartitionLengths = splitResult.getRawPartitionLengths
-    try {
+      try {
+        shuffleBlockResolver.writeMetadataFileAndCommit(
+          dep.shuffleId,
+          mapId,
+          partitionLengths,
+          Array[Long](),
+          dataTmp)
+      } finally {
+        if (dataTmp.exists() && !dataTmp.delete()) {
+          logError(s"Error while deleting temp file ${dataTmp.getAbsolutePath}")
+        }
+      }
+      mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+    } else {
+      partitionLengths = new Array[Long](dep.partitioner.numPartitions)
       shuffleBlockResolver.writeMetadataFileAndCommit(
         dep.shuffleId,
         mapId,
         partitionLengths,
         Array[Long](),
-        dataTmp)
-    } finally {
-      if (dataTmp.exists() && !dataTmp.delete()) {
-        logError(s"Error while deleting temp file ${dataTmp.getAbsolutePath}")
-      }
+        null)
+      mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
     }
-
-    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+    closeCHSplitter()
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {
@@ -172,15 +162,15 @@ class CHColumnarShuffleWriter[K, V](
         None
       }
     } finally {
-      if (nativeSplitter != 0) {
-        closeCHSplitter()
-        nativeSplitter = 0
-      }
+      closeCHSplitter()
     }
   }
 
   private def closeCHSplitter(): Unit = {
-    jniWrapper.close(nativeSplitter)
+    if (nativeSplitter != 0) {
+      jniWrapper.close(nativeSplitter)
+      nativeSplitter = 0
+    }
   }
 
   // VisibleForTesting

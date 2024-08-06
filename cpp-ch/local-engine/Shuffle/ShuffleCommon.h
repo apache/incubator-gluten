@@ -19,15 +19,15 @@
 #include <Columns/IColumn.h>
 #include <Core/Block.h>
 #include <Storages/IO/NativeWriter.h>
-#include <Functions/IFunction.h>
-#include <IO/WriteBufferFromFile.h>
 #include <Shuffle/SelectorBuilder.h>
-#include <Common/PODArray.h>
-#include <Common/PODArray_fwd.h>
 #include <base/types.h>
-#include <Shuffle/ShuffleWriterBase.h>
 #include <Storages/IO/CompressedWriteBuffer.h>
 
+
+namespace local_engine
+{
+    class SparkExechangeManager;
+}
 
 namespace local_engine
 {
@@ -94,6 +94,9 @@ struct SplitResult
     UInt64 total_split_time = 0;                 // Total nanoseconds to execute CachedShuffleWriter::split, excluding total_compute_pid_time
     UInt64 total_io_time = 0;                    // Total nanoseconds to write data to local/celeborn, excluding the time writing to buffer
     UInt64 total_serialize_time = 0;             // Total nanoseconds to execute spill_to_file/spill_to_celeborn. Bad naming, it works not as the name suggests.
+    UInt64 total_rows = 0;
+    UInt64 total_blocks = 0;
+    UInt64 wall_time = 0;                        // Wall nanoseconds time of shuffle.
 
     String toString() const
     {
@@ -114,7 +117,7 @@ struct SplitResult
 
 struct SplitterHolder
 {
-    std::unique_ptr<ShuffleWriterBase> splitter;
+    std::unique_ptr<SparkExechangeManager> exechange_manager;
 };
 
 

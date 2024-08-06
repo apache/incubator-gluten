@@ -18,12 +18,12 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized._
 
 import org.apache.spark._
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
@@ -56,50 +56,7 @@ class CHCelebornColumnarShuffleWriter[K, V](
 
   @throws[IOException]
   override def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
-    while (records.hasNext) {
-      val cb = records.next()._2.asInstanceOf[ColumnarBatch]
-      if (cb.numRows == 0 || cb.numCols == 0) {
-        logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
-      } else {
-        initShuffleWriter(cb)
-        val col = cb.column(0).asInstanceOf[CHColumnVector]
-        val startTime = System.nanoTime()
-        jniWrapper.split(nativeShuffleWriter, col.getBlockAddress)
-        dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
-        dep.metrics("numInputRows").add(cb.numRows)
-        dep.metrics("inputBatches").add(1)
-        // This metric is important, AQE use it to decide if EliminateLimit
-        writeMetrics.incRecordsWritten(cb.numRows())
-      }
-    }
-
-    // If all of the ColumnarBatch have empty rows, the nativeShuffleWriter still equals -1
-    if (nativeShuffleWriter == -1L) {
-      handleEmptyIterator()
-      return
-    }
-
-    val startTime = System.nanoTime()
-    splitResult = jniWrapper.stop(nativeShuffleWriter)
-
-    dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
-    dep.metrics("splitTime").add(splitResult.getSplitTime)
-    dep.metrics("IOTime").add(splitResult.getDiskWriteTime)
-    dep.metrics("serializeTime").add(splitResult.getSerializationTime)
-    dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
-    dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
-    dep.metrics("computePidTime").add(splitResult.getTotalComputePidTime)
-    dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
-    dep.metrics("dataSize").add(splitResult.getTotalBytesWritten)
-    writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
-    writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
-
-    partitionLengths = splitResult.getPartitionLengths
-    pushMergedDataToCeleborn()
-    mapStatus = MapStatus(blockManager.shuffleServerId, splitResult.getRawPartitionLengths, mapId)
-  }
-
-  override def createShuffleWriter(columnarBatch: ColumnarBatch): Unit = {
+    CHThreadGroup.registerNewThreadGroup()
     nativeShuffleWriter = jniWrapper.makeForRSS(
       dep.nativePartitioning,
       shuffleId,
@@ -113,9 +70,39 @@ class CHCelebornColumnarShuffleWriter[K, V](
       GlutenConfig.getConf.chColumnarForceMemorySortShuffle
         || ShuffleMode.SORT.name.equalsIgnoreCase(shuffleWriterType)
     )
+
+    val startTime = System.nanoTime()
+    splitResult = jniWrapper.stop(nativeShuffleWriter)
+    // If all of the ColumnarBatch have empty rows, the nativeShuffleWriter still equals -1
+    if (splitResult.getTotalRows == 0) {
+      handleEmptyIterator()
+    } else {
+      dep.metrics("numInputRows").add(splitResult.getTotalRows)
+      dep.metrics("inputBatches").add(splitResult.getTotalBatches)
+      writeMetrics.incRecordsWritten(splitResult.getTotalRows)
+      dep.metrics("splitTime").add(splitResult.getSplitTime)
+      dep.metrics("IOTime").add(splitResult.getDiskWriteTime)
+      dep.metrics("serializeTime").add(splitResult.getSerializationTime)
+      dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
+      dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
+      dep.metrics("computePidTime").add(splitResult.getTotalComputePidTime)
+      dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
+      dep.metrics("dataSize").add(splitResult.getTotalBytesWritten)
+      dep.metrics("shuffleWallTime").add(splitResult.getWallTime)
+      writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
+      writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
+
+      partitionLengths = splitResult.getPartitionLengths
+      pushMergedDataToCeleborn()
+      mapStatus = MapStatus(blockManager.shuffleServerId, splitResult.getRawPartitionLengths, mapId)
+    }
+    closeShuffleWriter()
   }
 
   override def closeShuffleWriter(): Unit = {
-    jniWrapper.close(nativeShuffleWriter)
+    if (nativeShuffleWriter != 0) {
+      jniWrapper.close(nativeShuffleWriter)
+      nativeShuffleWriter = 0
+    }
   }
 }

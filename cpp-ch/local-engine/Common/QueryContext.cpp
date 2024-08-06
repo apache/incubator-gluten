@@ -157,10 +157,7 @@ void QueryContext::finalizeQuery(int64_t id)
 {
     if (!CurrentThread::getGroup())
         throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found.");
-    std::shared_ptr<Data> context;
-    {
-        context = query_map_.get(id);
-    }
+    std::shared_ptr<Data> context = query_map_.get(id);
     auto query_context = context->thread_status->getQueryContext();
     if (!query_context)
         throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "query context not found");
@@ -168,7 +165,7 @@ void QueryContext::finalizeQuery(int64_t id)
     context->thread_status->finalizePerformanceCounters();
     LOG_INFO(logger_, "Task finished, peak memory usage: {} bytes", currentPeakMemory(id));
 
-    if (currentThreadGroupMemoryUsage() > 1_MiB)
+    if (currentThreadGroupMemoryUsage() > 2_MiB)
         LOG_WARNING(logger_, "{} bytes memory didn't release, There may be a memory leak!", currentThreadGroupMemoryUsage());
     logCurrentPerformanceCounters(context->thread_group->performance_counters);
     context->thread_status->detachFromGroup();

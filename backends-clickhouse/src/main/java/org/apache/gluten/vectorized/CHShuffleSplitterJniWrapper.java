@@ -114,8 +114,6 @@ public class CHShuffleSplitterJniWrapper {
       Object pusher,
       boolean forceMemorySort);
 
-  public native void split(long splitterId, long block);
-
   public native CHSplitResult stop(long splitterId) throws IOException;
 
   public native void close(long splitterId);

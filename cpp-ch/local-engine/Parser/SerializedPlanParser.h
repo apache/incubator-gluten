@@ -23,7 +23,7 @@
 #include <Interpreters/Aggregator.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/RelMetric.h>
-#include <Processors/Executors/PullingPipelineExecutor.h>
+#include <Processors/Executors/PullingAsyncPipelineExecutor.h>
 #include <Processors/QueryPlan/ISourceStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
@@ -31,6 +31,7 @@
 #include <base/types.h>
 #include <substrait/plan.pb.h>
 #include <Common/BlockIterator.h>
+#include <QueryPipeline/QueryPipelineBuilder.h>
 
 namespace local_engine
 {
@@ -204,7 +205,10 @@ struct SparkBuffer
 class LocalExecutor : public BlockIterator
 {
 public:
-    LocalExecutor(QueryPlanPtr query_plan, QueryPipeline && pipeline, bool dump_pipeline_ = false);
+    static thread_local LocalExecutor * current_executor;
+    static LocalExecutor * getCurrentExecutor() { return current_executor; }
+    static void resetCurrentExecutor() { current_executor = nullptr; }
+    LocalExecutor(QueryPlanPtr query_plan, QueryPipelineBuilderPtr pipeline, bool dump_pipeline_ = false);
     ~LocalExecutor();
 
     SparkRowInfoPtr next();
@@ -213,7 +217,11 @@ public:
 
     /// Stop execution, used when task receives shutdown command or executor receives SIGTERM signal
     void cancel();
-
+    void setSinks(std::function<void(QueryPipelineBuilder &)> setter)
+    {
+        setter(*query_pipeline_builder);
+    }
+    void execute();
     Block & getHeader();
     RelMetricPtr getMetric() const { return metric; }
     void setMetric(const RelMetricPtr & metric_) { metric = metric_; }
@@ -221,12 +229,14 @@ public:
 
 private:
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(const DB::Block & block) const;
-
+    void initPullingPipelineExecutor();
     /// Dump processor runtime information to log
     std::string dumpPipeline() const;
 
+    QueryPipelineBuilderPtr query_pipeline_builder;
     QueryPipeline query_pipeline;
-    std::unique_ptr<PullingPipelineExecutor> executor;
+    std::unique_ptr<DB::PullingAsyncPipelineExecutor> executor = nullptr;
+    PipelineExecutorPtr push_executor = nullptr;
     Block header;
     bool dump_pipeline;
     std::unique_ptr<CHColumnToSparkRow> ch_column_to_spark_row;

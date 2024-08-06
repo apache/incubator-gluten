@@ -29,14 +29,13 @@
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/WriteRelParser.h>
-#include <Shuffle/CachedShuffleWriter.h>
 #include <Shuffle/NativeSplitter.h>
 #include <Shuffle/NativeWriterInMemory.h>
 #include <Shuffle/PartitionWriter.h>
 #include <Shuffle/ShuffleCommon.h>
 #include <Shuffle/ShuffleReader.h>
 #include <Shuffle/ShuffleWriter.h>
-#include <Shuffle/ShuffleWriterBase.h>
+#include <Shuffle/SparkExchangeSink.h>
 #include <Shuffle/WriteBufferFromJavaOutputStream.h>
 #include <Storages/Cache/CacheManager.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
@@ -125,7 +124,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     block_stripes_constructor = local_engine::GetMethodID(env, block_stripes_class, "<init>", "(J[J[II)V");
 
     split_result_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/CHSplitResult;");
-    split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[JJJJ)V");
+    split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[JJJJJJJ)V");
 
     local_engine::ShuffleReader::input_stream_class
         = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/ShuffleInputStream;");
@@ -303,6 +302,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_BatchIterator_nativeClose(JNIEn
     LOCAL_ENGINE_JNI_METHOD_START
     auto * executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
     LOG_INFO(&Poco::Logger::get("jni"), "Finalize LocalExecutor {}", reinterpret_cast<intptr_t>(executor));
+    local_engine::LocalExecutor::resetCurrentExecutor();
     delete executor;
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
@@ -595,8 +595,14 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .max_sort_buffer_size = static_cast<size_t>(max_sort_buffer_size),
         .force_memory_sort = static_cast<bool>(force_memory_sort)};
     auto name = jstring2string(env, short_name);
+    auto * current_executor = local_engine::LocalExecutor::getCurrentExecutor();
+    chassert(current_executor);
     local_engine::SplitterHolder * splitter
-        = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options)};
+        = new local_engine::SplitterHolder{.exechange_manager = std::make_unique<local_engine::SparkExechangeManager>(current_executor->getHeader(), name, options)};
+    splitter->exechange_manager->initSinks(local_engine::QueryContextManager::instance().currentQueryContext()->getSettingsRef().max_threads);
+    current_executor->setSinks([&](auto & pipeline_builder) { splitter->exechange_manager->setSinksToPipeline(pipeline_builder);});
+    // execute pipeline
+    current_executor->execute();
     return reinterpret_cast<jlong>(splitter);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
@@ -649,27 +655,22 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .hash_algorithm = jstring2string(env, hash_algorithm),
         .force_memory_sort = static_cast<bool>(force_memory_sort)};
     auto name = jstring2string(env, short_name);
-    local_engine::SplitterHolder * splitter;
-    splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options, pusher)};
+    auto * current_executor = local_engine::LocalExecutor::getCurrentExecutor();
+    chassert(current_executor);
+    local_engine::SplitterHolder * splitter = new local_engine::SplitterHolder{.exechange_manager = std::make_unique<local_engine::SparkExechangeManager>(current_executor->getHeader(), name, options, pusher)};
+    splitter->exechange_manager->initSinks(local_engine::QueryContextManager::instance().currentQueryContext()->getSettingsRef().max_threads);
+    current_executor->setSinks([&](auto & pipeline_builder) { splitter->exechange_manager->setSinksToPipeline(pipeline_builder);});
+    current_executor->execute();
     return reinterpret_cast<jlong>(splitter);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
-}
-
-JNIEXPORT void Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_split(JNIEnv * env, jobject, jlong splitterId, jlong block)
-{
-    LOCAL_ENGINE_JNI_METHOD_START
-    local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
-    DB::Block * data = reinterpret_cast<DB::Block *>(block);
-    splitter->splitter->split(*data);
-    LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
 JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_stop(JNIEnv * env, jobject, jlong splitterId)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-
     local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
-    auto result = splitter->splitter->stop();
+    splitter->exechange_manager->finish();
+    auto result = splitter->exechange_manager->getSplitResult();
 
     const auto & partition_lengths = result.partition_lengths;
     auto * partition_length_arr = env->NewLongArray(partition_lengths.size());
@@ -699,7 +700,11 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_
         raw_partition_length_arr,
         result.total_split_time,
         result.total_io_time,
-        result.total_serialize_time);
+        result.total_serialize_time,
+        result.total_rows,
+        result.total_blocks,
+        result.wall_time
+        );
 
     return split_result;
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
