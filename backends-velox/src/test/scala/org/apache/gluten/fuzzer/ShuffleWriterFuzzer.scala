@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.fuzzer
 
-import org.apache.gluten.fuzzer.FuzzerTestResult.Successful
+import org.apache.gluten.fuzzer.FuzzerResult.Successful
 import org.apache.gluten.tags.{FuzzerTest, SkipTestTags}
 
 import org.apache.spark.sql.DataFrame
@@ -24,7 +24,7 @@ import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
 
 @FuzzerTest
 @SkipTestTags
-class ShuffleWriterFuzzerTest extends FuzzerTestBase {
+class ShuffleWriterFuzzer extends FuzzerBase {
   private val REPARTITION_SQL = (numPartitions: Int) =>
     s"select /*+ REPARTITION($numPartitions) */ * from tbl"
   private val AGG_REPARTITION_SQL =

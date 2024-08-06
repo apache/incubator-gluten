@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.fuzzer
 
-object FuzzerTestResult {
+object FuzzerResult {
   trait TestResult {
     val seed: Long
 
