@@ -28,7 +28,7 @@ import org.apache.spark.sql.delta.{DeltaColumnMapping, DeltaParquetFileFormat, N
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FileFormat
 
-import scala.collection._
+import scala.collection.mutable.ListBuffer
 
 class DeltaRewriteTransformerRules extends RewriteTransformerRules {
   override def rules: Seq[Rule[SparkPlan]] = columnMappingRule :: Nil
@@ -87,12 +87,12 @@ object DeltaRewriteTransformerRules {
       )(SparkSession.active)
       // transform output's name into physical name so Reader can read data correctly
       // should keep the columns order the same as the origin output
-      val originColumnNames = mutable.ListBuffer.empty[String]
-      val transformedAttrs = mutable.ListBuffer.empty[Attribute]
+      val originColumnNames = ListBuffer.empty[String]
+      val transformedAttrs = ListBuffer.empty[Attribute]
       def mapAttribute(attr: Attribute) = {
         val newAttr = if (!plan.isMetadataColumn(attr)) {
           DeltaColumnMapping
-            .createPhysicalAttributes(attr.toSeq, fmt.referenceSchema, fmt.columnMappingMode)
+            .createPhysicalAttributes(Seq(attr), fmt.referenceSchema, fmt.columnMappingMode)
             .head
         } else {
           attr
