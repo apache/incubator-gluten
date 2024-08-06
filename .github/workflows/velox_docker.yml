@@ -51,7 +51,7 @@ concurrency:
 jobs:
   build-native-lib-centos-7:
     runs-on: ubuntu-20.04
-    container: apache/gluten:gluten-vcpkg-builder_2024_07_11 # centos7 with dependencies installed
+    container: apache/gluten:gluten-vcpkg-builder_2024_08_05 # centos7 with dependencies installed
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key

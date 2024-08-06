@@ -2435,6 +2435,16 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     }
   }
 
+  test("GLUTEN-6669: test cast string to boolean") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select cast('1' as boolean), cast('t' as boolean), cast('all' as boolean), cast('f' as boolean)",
+        noFallBack = false
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("GLUTEN-4032: fix shuffle read coredump after union") {
     val sql =
       """
