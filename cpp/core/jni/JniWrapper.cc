@@ -16,6 +16,8 @@
  */
 
 #include <jni.h>
+#include <algorithm>
+#include <cstdint>
 #include <filesystem>
 
 #include "compute/Runtime.h"
@@ -27,6 +29,7 @@
 
 #include <arrow/c/bridge.h>
 #include <optional>
+#include <string>
 #include "memory/AllocationListener.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
 #include "shuffle/LocalPartitionWriter.h"
@@ -528,8 +531,24 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
 
+  auto& conf = ctx->getConfMap();
+  int64_t column2RowMemThreshold;
+  auto it = conf.find(kColumnarToRowMemoryThreshold);
+  bool confIsLegal =
+      ((it == conf.end()) ? false : std::all_of(it->second.begin(), it->second.end(), [](unsigned char c) {
+        return std::isdigit(c);
+      }));
+  if (confIsLegal) {
+    column2RowMemThreshold = std::stoll(it->second);
+  } else {
+    LOG(INFO)
+        << "Because the spark.gluten.sql.columnarToRowMemoryThreshold configuration item is invalid, the kColumnarToRowMemoryDefaultThreshold default value is used, which is "
+        << kColumnarToRowMemoryDefaultThreshold << " byte";
+    column2RowMemThreshold = std::stoll(kColumnarToRowMemoryDefaultThreshold);
+  }
+
   // Convert the native batch to Spark unsafe row.
-  return ctx->saveObject(ctx->createColumnar2RowConverter());
+  return ctx->saveObject(ctx->createColumnar2RowConverter(column2RowMemThreshold));
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
@@ -538,16 +557,18 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
     JNIEnv* env,
     jobject wrapper,
     jlong c2rHandle,
-    jlong batchHandle) {
+    jlong batchHandle,
+    jlong startRow) {
   JNI_METHOD_START
   auto columnarToRowConverter = ObjectStore::retrieve<ColumnarToRowConverter>(c2rHandle);
   auto cb = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
-  columnarToRowConverter->convert(cb);
+
+  columnarToRowConverter->convert(cb, startRow);
 
   const auto& offsets = columnarToRowConverter->getOffsets();
   const auto& lengths = columnarToRowConverter->getLengths();
 
-  auto numRows = cb->numRows();
+  auto numRows = columnarToRowConverter->numRows();
 
   auto offsetsArr = env->NewIntArray(numRows);
   auto offsetsSrc = reinterpret_cast<const jint*>(offsets.data());

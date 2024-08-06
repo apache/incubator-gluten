@@ -49,7 +49,7 @@ class VeloxRuntime final : public Runtime {
       const std::vector<std::shared_ptr<ResultIterator>>& inputs = {},
       const std::unordered_map<std::string, std::string>& sessionConf = {}) override;
 
-  std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter() override;
+  std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter(int64_t column2RowMemThreshold) override;
 
   std::shared_ptr<ColumnarBatch> createOrGetEmptySchemaBatch(int32_t numRows) override;
 

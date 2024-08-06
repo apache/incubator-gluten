@@ -46,11 +46,12 @@ object ExecUtil {
     var info: NativeColumnarToRowInfo = null
     val batchHandle = ColumnarBatches.getNativeHandle(batch)
     val c2rHandle = jniWrapper.nativeColumnarToRowInit()
-    info = jniWrapper.nativeColumnarToRowConvert(c2rHandle, batchHandle)
+    info = jniWrapper.nativeColumnarToRowConvert(c2rHandle, batchHandle, 0)
 
     Iterators
       .wrap(new Iterator[InternalRow] {
         var rowId = 0
+        var baseLength = 0
         val row = new UnsafeRow(batch.numCols())
 
         override def hasNext: Boolean = {
@@ -59,7 +60,12 @@ object ExecUtil {
 
         override def next: UnsafeRow = {
           if (rowId >= batch.numRows()) throw new NoSuchElementException
-          val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
+          if (rowId == baseLength + info.lengths.length) {
+            baseLength += info.lengths.length
+            info = jniWrapper.nativeColumnarToRowConvert(c2rHandle, batchHandle, rowId)
+          }
+          val (offset, length) =
+            (info.offsets(rowId - baseLength), info.lengths(rowId - baseLength))
           row.pointTo(null, info.memoryAddress + offset, length.toInt)
           rowId += 1
           row
