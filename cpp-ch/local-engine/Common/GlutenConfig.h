@@ -38,7 +38,7 @@ struct MemoryConfig
         MemoryConfig config;
         config.extra_memory_hard_limit = context->getConfigRef().getUInt64(EXTRA_MEMORY_HARD_LIMIT, 0);
         config.off_heap_per_task = context->getConfigRef().getUInt64(CH_TASK_MEMORY, 0);
-        config.spill_mem_ratio = context->getConfigRef().getUInt64(SPILL_MEM_RATIO, 0.9);
+        config.spill_mem_ratio = context->getConfigRef().getDouble(SPILL_MEM_RATIO, 0.9);
         return config;
     }
 };
