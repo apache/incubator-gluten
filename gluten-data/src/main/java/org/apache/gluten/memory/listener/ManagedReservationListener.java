@@ -56,7 +56,6 @@ public class ManagedReservationListener implements ReservationListener {
       try {
         long freed = target.repay(size);
         sharedUsage.inc(-freed);
-        Preconditions.checkState(freed == size);
         return freed;
       } catch (Exception e) {
         LOG.error("Error unreserving memory from target", e);
