@@ -55,14 +55,15 @@ public class OverAcquire implements MemoryTarget {
     if (size == 0) {
       return 0;
     }
+    Preconditions.checkState(overTarget.usedBytes() == 0);
     long granted = target.borrow(size);
     long majorSize = target.usedBytes();
-    long expectedOverAcquired = (long) (ratio * majorSize);
-    long overAcquired = overTarget.usedBytes();
-    long diff = expectedOverAcquired - overAcquired;
-    if (diff >= 0) { // otherwise, there might be a spill happened during the last borrow() call
-      overTarget.borrow(diff); // we don't have to check the returned value
-    }
+    long overSize = (long) (ratio * majorSize);
+    long overAcquired = overTarget.borrow(overSize);
+    Preconditions.checkState(overAcquired == overTarget.usedBytes());
+    long releasedOverSize = overTarget.repay(overSize);
+    Preconditions.checkState(releasedOverSize == overSize);
+    Preconditions.checkState(overTarget.usedBytes() == 0);
     return granted;
   }
 
@@ -71,16 +72,8 @@ public class OverAcquire implements MemoryTarget {
     if (size == 0) {
       return 0;
     }
-    long freed = target.repay(size);
-    // clean up the over-acquired target
-    long overAcquired = overTarget.usedBytes();
-    long freedOverAcquired = overTarget.repay(overAcquired);
-    Preconditions.checkArgument(
-        freedOverAcquired == overAcquired,
-        "Freed over-acquired size is not equal to requested size");
-    Preconditions.checkArgument(
-        overTarget.usedBytes() == 0, "Over-acquired target was not cleaned up");
-    return freed;
+    Preconditions.checkState(overTarget.usedBytes() == 0);
+    return target.repay(size);
   }
 
   @Override
