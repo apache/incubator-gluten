@@ -91,14 +91,17 @@ endif()
 
 set(VELOX_COMPONENTS_PATH "${VELOX_BUILD_PATH}/velox")
 
-function(ADD_VELOX_DEPENDENCY VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
-  if(NOT EXISTS ${VELOX_DEP_LIB_PATH})
-    message(FATAL_ERROR "Velox library not exists: ${VELOX_DEP_LIB_PATH}")
+function(import_library TARGET_NAME LIB_PATH)
+  if(NOT EXISTS ${LIB_PATH})
+    message(FATAL_ERROR "Library does not exist: ${LIB_PATH}")
   endif()
+  add_library(${TARGET_NAME} STATIC IMPORTED)
+  set_target_properties(${TARGET_NAME} PROPERTIES IMPORTED_LOCATION ${LIB_PATH})
+endfunction()
+
+function(add_velox_dependency VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
   set(VELOX_DEP_LIB facebook::velox::${VELOX_DEP_LIB_NAME})
-  add_library(${VELOX_DEP_LIB} STATIC IMPORTED)
-  set_target_properties(${VELOX_DEP_LIB} PROPERTIES IMPORTED_LOCATION
-                                                    ${VELOX_DEP_LIB_PATH})
+  import_library(${VELOX_DEP_LIB} ${VELOX_DEP_LIB_PATH})
   target_link_libraries(velox PUBLIC ${VELOX_DEP_LIB})
 endfunction()
 
@@ -273,54 +276,37 @@ set_target_properties(
                              ${VELOX_BUILD_PATH}/lib/libvelox.a)
 
 if(BUILD_TESTS)
-  add_library(facebook::velox::dbgen STATIC IMPORTED)
-  set_target_properties(
-    facebook::velox::dbgen
-    PROPERTIES IMPORTED_LOCATION
-               "${VELOX_BUILD_PATH}/velox/tpch/gen/dbgen/libdbgen.a")
+  import_library(facebook::velox::dbgen
+                 ${VELOX_BUILD_PATH}/velox/tpch/gen/dbgen/libdbgen.a)
   target_link_libraries(facebook::velox INTERFACE facebook::velox::dbgen)
 
-  add_library(facebook::velox::vector_test STATIC IMPORTED)
-  set_target_properties(
-    facebook::velox::vector_test
-    PROPERTIES
-      IMPORTED_LOCATION
-      "${VELOX_BUILD_PATH}/velox/vector/tests/utils/libvelox_vector_test_lib.a")
+  import_library(
+    facebook::velox::vector_test_lib
+    ${VELOX_BUILD_PATH}/velox/vector/tests/utils/libvelox_vector_test_lib.a)
 
-  add_library(facebook::velox::dwio_common_test STATIC IMPORTED)
-  set_target_properties(
+  import_library(
     facebook::velox::dwio_common_test
-    PROPERTIES
-      IMPORTED_LOCATION
-      "${VELOX_BUILD_PATH}/velox/dwio/common/tests/utils/libvelox_dwio_common_test_utils.a"
+    ${VELOX_BUILD_PATH}/velox/dwio/common/tests/utils/libvelox_dwio_common_test_utils.a
   )
 
-  add_library(facebook::velox::file_test STATIC IMPORTED)
-  set_target_properties(
-    facebook::velox::file_test
-    PROPERTIES
-      IMPORTED_LOCATION
-      "${VELOX_BUILD_PATH}/velox/common/file/tests/libvelox_file_test_utils.a")
+  import_library(
+    facebook::velox::file_test_utils
+    ${VELOX_BUILD_PATH}/velox/common/file/tests/libvelox_file_test_utils.a)
 
-  add_library(facebook::velox::temp_path STATIC IMPORTED)
-  set_target_properties(
+  import_library(
     facebook::velox::temp_path
-    PROPERTIES IMPORTED_LOCATION
-               "${VELOX_BUILD_PATH}/velox/exec/tests/utils/libvelox_temp_path.a"
-  )
+    ${VELOX_BUILD_PATH}/velox/exec/tests/utils/libvelox_temp_path.a)
 
-  add_library(facebook::velox::test STATIC IMPORTED)
-  set_target_properties(
-    facebook::velox::test
-    PROPERTIES
-      IMPORTED_LOCATION
-      "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a")
+  import_library(
+    facebook::velox::exec_test_lib
+    ${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a)
   target_link_libraries(
-    facebook::velox::test
-    INTERFACE facebook::velox::vector_test facebook::velox::dwio_common_test
-              facebook::velox::file_test facebook::velox::temp_path)
+    facebook::velox::exec_test_lib
+    INTERFACE facebook::velox::vector_test_lib
+              facebook::velox::dwio_common_test
+              facebook::velox::file_test_utils facebook::velox::temp_path)
 
-  target_link_libraries(velox PUBLIC facebook::velox::test)
+  target_link_libraries(velox PUBLIC facebook::velox::exec_test_lib)
 endif()
 
 target_link_libraries(velox PUBLIC facebook::velox)
@@ -334,14 +320,9 @@ target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
 
-# since
-# https://github.com/facebookincubator/velox/commit/47970417ac92135e862c0fde350d4d60fa2f1423
-if(Stemmer_FOUND)
-  target_link_libraries(velox PUBLIC stemmer::stemmer)
-else()
-  add_velox_dependency(
-    velox "${VELOX_BUILD_PATH}/_deps/libstemmer/src/libstemmer/libstemmer.a")
-endif()
+add_velox_dependency(
+  external::stemmer
+  "${VELOX_BUILD_PATH}/_deps/libstemmer/src/libstemmer/libstemmer.a")
 
 set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
