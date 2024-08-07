@@ -17,6 +17,8 @@
 package org.apache.gluten.memory.memtarget.spark;
 
 import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.memory.memtarget.MemoryTarget;
+import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
 
@@ -28,6 +30,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import scala.Function0;
 
@@ -98,6 +102,82 @@ public class TreeMemoryConsumerTest {
                       Collections.emptyMap());
           Assert.assertEquals(100, isolated.borrow(110));
         });
+  }
+
+  @Test
+  public void testSpill() {
+    test(
+        () -> {
+          final Spillers.AppendableSpillerList spillers = Spillers.appendable();
+          final TreeMemoryTarget shared =
+              TreeMemoryConsumers.shared()
+                  .newConsumer(
+                      TaskContext.get().taskMemoryManager(),
+                      "FOO",
+                      spillers,
+                      Collections.emptyMap());
+          final AtomicInteger numSpills = new AtomicInteger(0);
+          final AtomicLong numSpilledBytes = new AtomicLong(0L);
+          spillers.append(new Spiller() {
+            @Override
+            public long spill(MemoryTarget self, Phase phase, long size) {
+              long repaid = shared.repay(size);
+              numSpills.getAndIncrement();
+              numSpilledBytes.getAndAdd(repaid);
+              return repaid;
+            }
+          });
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(1, numSpills.get());
+          Assert.assertEquals(200, numSpilledBytes.get());
+          Assert.assertEquals(400, shared.usedBytes());
+
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(3, numSpills.get());
+          Assert.assertEquals(800, numSpilledBytes.get());
+          Assert.assertEquals(400, shared.usedBytes());
+        }
+    );
+  }
+
+  @Test
+  public void testOverSpill() {
+    test(
+        () -> {
+          final Spillers.AppendableSpillerList spillers = Spillers.appendable();
+          final TreeMemoryTarget shared =
+              TreeMemoryConsumers.shared()
+                  .newConsumer(
+                      TaskContext.get().taskMemoryManager(),
+                      "FOO",
+                      spillers,
+                      Collections.emptyMap());
+          final AtomicInteger numSpills = new AtomicInteger(0);
+          final AtomicLong numSpilledBytes = new AtomicLong(0L);
+          spillers.append(new Spiller() {
+            @Override
+            public long spill(MemoryTarget self, Phase phase, long size) {
+              long repaid = shared.repay(Long.MAX_VALUE);
+              numSpills.getAndIncrement();
+              numSpilledBytes.getAndAdd(repaid);
+              return repaid;
+            }
+          });
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(1, numSpills.get());
+          Assert.assertEquals(300, numSpilledBytes.get());
+          Assert.assertEquals(300, shared.usedBytes());
+
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(3, numSpills.get());
+          Assert.assertEquals(900, numSpilledBytes.get());
+          Assert.assertEquals(300, shared.usedBytes());
+        }
+    );
   }
 
   private void test(Runnable r) {

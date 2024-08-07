@@ -52,7 +52,9 @@ public class OverAcquire implements MemoryTarget {
 
   @Override
   public long borrow(long size) {
-    Preconditions.checkArgument(size != 0, "Size to borrow is zero");
+    if (size == 0) {
+      return 0;
+    }
     long granted = target.borrow(size);
     long majorSize = target.usedBytes();
     long expectedOverAcquired = (long) (ratio * majorSize);
@@ -66,7 +68,9 @@ public class OverAcquire implements MemoryTarget {
 
   @Override
   public long repay(long size) {
-    Preconditions.checkArgument(size != 0, "Size to repay is zero");
+    if (size == 0) {
+      return 0;
+    }
     long freed = target.repay(size);
     // clean up the over-acquired target
     long overAcquired = overTarget.usedBytes();

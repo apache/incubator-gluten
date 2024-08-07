@@ -29,7 +29,8 @@ import java.util.Map;
 
 public final class ReservationListeners {
   public static final ReservationListener NOOP =
-      new ManagedReservationListener(new NoopMemoryTarget(), new SimpleMemoryUsageRecorder());
+      new ManagedReservationListener(new NoopMemoryTarget(), new SimpleMemoryUsageRecorder(),
+          new Object());
 
   public static ReservationListener create(
       String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> mutableStats) {
@@ -72,6 +73,6 @@ public final class ReservationListeners {
                 overAcquiredRatio));
 
     // Listener.
-    return new ManagedReservationListener(target, TaskResources.getSharedUsage());
+    return new ManagedReservationListener(target, TaskResources.getSharedUsage(), tmm);
   }
 }

@@ -23,22 +23,30 @@ import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Reserve Spark managed memory. */
+/**
+ * Reserve Spark managed memory.
+ */
 public class ManagedReservationListener implements ReservationListener {
 
   private static final Logger LOG = LoggerFactory.getLogger(ManagedReservationListener.class);
 
   private final MemoryTarget target;
-  private final SimpleMemoryUsageRecorder sharedUsage; // shared task metrics
+  // Metrics shared by task.
+  private final SimpleMemoryUsageRecorder sharedUsage;
+  // Lock shared by task. Using a common lock avoids ABBA deadlock
+  // when multiple listeners created under the same TMM.
+  // See: https://github.com/apache/incubator-gluten/issues/6622
+  private final Object sharedLock;
 
-  public ManagedReservationListener(MemoryTarget target, SimpleMemoryUsageRecorder sharedUsage) {
+  public ManagedReservationListener(MemoryTarget target, SimpleMemoryUsageRecorder sharedUsage, Object sharedLock) {
     this.target = target;
     this.sharedUsage = sharedUsage;
+    this.sharedLock = sharedLock;
   }
 
   @Override
   public long reserve(long size) {
-    synchronized (this) {
+    synchronized (sharedLock) {
       try {
         long granted = target.borrow(size);
         sharedUsage.inc(granted);
@@ -52,7 +60,7 @@ public class ManagedReservationListener implements ReservationListener {
 
   @Override
   public long unreserve(long size) {
-    synchronized (this) {
+    synchronized (sharedLock) {
       try {
         long freed = target.repay(size);
         sharedUsage.inc(-freed);
