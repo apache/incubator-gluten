@@ -82,6 +82,7 @@
 #include <Common/GlutenConfig.h>
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
+#include <Common/QueryContext.h>
 #include <Common/typeid_cast.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/Executors/PullingAsyncPipelineExecutor.h>
@@ -1641,13 +1642,15 @@ void LocalExecutor::cancel()
 {
     if (executor)
         executor->cancel();
+    if (push_executor)
+        push_executor->cancel();
 }
 
 void LocalExecutor::execute()
 {
     chassert(query_pipeline_builder);
     push_executor = query_pipeline_builder->execute();
-    push_executor->execute(1, false);
+    push_executor->execute(local_engine::QueryContextManager::instance().currentQueryContext()->getSettingsRef().max_threads, false);
 }
 
 Block & LocalExecutor::getHeader()

@@ -24,6 +24,7 @@
 #include <Processors/Sinks/NullSink.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <boost/algorithm/string/case_conv.hpp>
+#include <Storages/IO/AggregateSerializationUtils.h>
 
 
 namespace DB
@@ -48,6 +49,8 @@ void SparkExchangeSink::consume(Chunk chunk)
     auto aggregate_info = chunk.getChunkInfos().get<AggregatedChunkInfo>();
     auto intput = inputs.front().getHeader().cloneWithColumns(chunk.getColumns());
     Stopwatch split_time_watch;
+    if (sort_writer)
+        intput = convertAggregateStateInBlock(intput);
     split_result.total_split_time += split_time_watch.elapsedNanoseconds();
 
     Stopwatch compute_pid_time_watch;
@@ -151,7 +154,7 @@ void SparkExechangeManager::initSinks(size_t num)
     for (size_t i = 0; i < num; ++i)
     {
         partition_writers[i] = createPartitionWriter(options, use_sort_shuffle, std::move(celeborn_client));
-        sinks[i] = std::make_shared<SparkExchangeSink>(input_header, partitioner_creator(options), partition_writers[i], output_columns_indicies);
+        sinks[i] = std::make_shared<SparkExchangeSink>(input_header, partitioner_creator(options), partition_writers[i], output_columns_indicies, use_sort_shuffle);
     }
 }
 
@@ -166,6 +169,7 @@ void SparkExechangeManager::setSinksToPipeline(DB::QueryPipelineBuilder & pipeli
         }
         return std::make_shared<NullSink>(header);
     };
+    chassert(pipeline.getNumStreams() == sinks.size());
     pipeline.setSinks(getter);
 }
 
@@ -210,6 +214,7 @@ void SparkExechangeManager::finish()
         {
             extra_datas.emplace_back(local_partition_writer->getExtraData());
         }
+
     }
     if (!extra_datas.empty())
         chassert(extra_datas.size() == partition_writers.size());
@@ -291,7 +296,7 @@ std::vector<UInt64> SparkExechangeManager::mergeSpills(DB::WriteBuffer & data_fi
             {
                 continue;
             }
-            buffer.reserve(size);
+            buffer.resize(size);
             auto count = spill_inputs[i]->readBigAt(buffer.data(), size, offset, nullptr);
 
             chassert(count == size);
@@ -307,7 +312,8 @@ std::vector<UInt64> SparkExechangeManager::mergeSpills(DB::WriteBuffer & data_fi
                 if (!extra_data.partition_block_buffer.empty() && !extra_data.partition_block_buffer[partition_id]->empty())
                 {
                     Block block = extra_data.partition_block_buffer[partition_id]->releaseColumns();
-                    extra_data.partition_buffer[partition_id]->addBlock(std::move(block));
+                    if (block.rows() > 0)
+                        extra_data.partition_buffer[partition_id]->addBlock(std::move(block));
                 }
                 if (!extra_data.partition_buffer.empty())
                 {

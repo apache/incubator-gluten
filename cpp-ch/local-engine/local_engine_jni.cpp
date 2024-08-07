@@ -599,7 +599,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
     chassert(current_executor);
     local_engine::SplitterHolder * splitter
         = new local_engine::SplitterHolder{.exechange_manager = std::make_unique<local_engine::SparkExechangeManager>(current_executor->getHeader(), name, options)};
-    splitter->exechange_manager->initSinks(local_engine::QueryContextManager::instance().currentQueryContext()->getSettingsRef().max_threads);
+    splitter->exechange_manager->initSinks(1);
     current_executor->setSinks([&](auto & pipeline_builder) { splitter->exechange_manager->setSinksToPipeline(pipeline_builder);});
     // execute pipeline
     current_executor->execute();

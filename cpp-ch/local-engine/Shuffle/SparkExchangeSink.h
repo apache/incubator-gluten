@@ -35,12 +35,14 @@ class PartitionWriter;
 class SparkExchangeSink : public DB::ISink
 {
 public:
-    SparkExchangeSink(const DB::Block& header, std::unique_ptr<SelectorBuilder> partitioner_, std::shared_ptr<PartitionWriter> partition_writer_,
-                      const std::vector<size_t> & output_columns_indicies_)
+    SparkExchangeSink(const DB::Block& header, std::unique_ptr<SelectorBuilder> partitioner_,
+                      std::shared_ptr<PartitionWriter> partition_writer_,
+                      const std::vector<size_t>& output_columns_indicies_, bool sort_writer_)
         : DB::ISink(header)
           , partitioner(std::move(partitioner_))
           , partition_writer(partition_writer_)
           , output_columns_indicies(output_columns_indicies_)
+          , sort_writer(sort_writer_)
     {
         initOutputHeader(header);
         partition_writer->initialize(&split_result, output_header);
@@ -72,6 +74,7 @@ private:
     std::unique_ptr<SelectorBuilder> partitioner;
     std::shared_ptr<PartitionWriter> partition_writer;
     std::vector<size_t> output_columns_indicies;
+    bool sort_writer = false;
     SplitResult split_result;
 };
 

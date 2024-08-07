@@ -74,8 +74,6 @@ class CHColumnarShuffleWriter[K, V](
 
   private var rawPartitionLengths: Array[Long] = _
 
-  private var firstRecordBatch: Boolean = true
-
   @throws[IOException]
   override def write(records: Iterator[Product2[K, V]]): Unit = {
     CHThreadGroup.registerNewThreadGroup()
@@ -108,7 +106,6 @@ class CHColumnarShuffleWriter[K, V](
     if (splitResult.getTotalRows > 0) {
       dep.metrics("numInputRows").add(splitResult.getTotalRows)
       dep.metrics("inputBatches").add(splitResult.getTotalBatches)
-      writeMetrics.incRecordsWritten(splitResult.getTotalRows)
       dep.metrics("splitTime").add(splitResult.getSplitTime)
       dep.metrics("IOTime").add(splitResult.getDiskWriteTime)
       dep.metrics("serializeTime").add(splitResult.getSerializationTime)
@@ -118,9 +115,9 @@ class CHColumnarShuffleWriter[K, V](
       dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
       dep.metrics("dataSize").add(splitResult.getTotalBytesWritten)
       dep.metrics("shuffleWallTime").add(splitResult.getWallTime)
+      writeMetrics.incRecordsWritten(splitResult.getTotalRows)
       writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
       writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
-
       partitionLengths = splitResult.getPartitionLengths
       rawPartitionLengths = splitResult.getRawPartitionLengths
 
