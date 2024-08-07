@@ -22,6 +22,7 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.metrics.{IMetrics, NativeMetrics}
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel._
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -164,6 +165,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         val paths = new JArrayList[String]()
         val starts = new JArrayList[JLong]()
         val lengths = new JArrayList[JLong]()
+        val fileSizes = new JArrayList[JLong]()
+        val modificationTimes = new JArrayList[JLong]()
         val partitionColumns = new JArrayList[JMap[String, String]]
         f.files.foreach {
           file =>
@@ -173,6 +176,16 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             // TODO: Support custom partition location
             val partitionColumn = new JHashMap[String, String]()
             partitionColumns.add(partitionColumn)
+            val (fileSize, modificationTime) =
+              SparkShimLoader.getSparkShims.getFileSizeAndModificationTime(file)
+            (fileSize, modificationTime) match {
+              case (Some(size), Some(time)) =>
+                fileSizes.add(JLong.valueOf(size))
+                modificationTimes.add(JLong.valueOf(time))
+              case _ =>
+                fileSizes.add(0)
+                modificationTimes.add(0)
+            }
         }
         val preferredLocations =
           CHAffinity.getFilePartitionLocations(paths.asScala.toArray, f.preferredLocations())
@@ -181,8 +194,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           paths,
           starts,
           lengths,
-          new JArrayList[JLong](),
-          new JArrayList[JLong](),
+          fileSizes,
+          modificationTimes,
           partitionColumns,
           new JArrayList[JMap[String, String]](),
           fileFormat,

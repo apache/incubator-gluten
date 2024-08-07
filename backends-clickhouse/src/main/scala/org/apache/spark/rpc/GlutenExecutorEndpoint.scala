@@ -79,9 +79,20 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
           context.reply(
             CacheJobInfo(status = false, "", s"executor: $executorId cache data failed."))
       }
-    case GlutenMergeTreeCacheLoadStatus(jobId) =>
+    case GlutenCacheLoadStatus(jobId) =>
       val status = CHNativeCacheManager.getCacheStatus(jobId)
       context.reply(status)
+    case GlutenFilesCacheLoad(files) =>
+      try {
+        val jobId = CHNativeCacheManager.nativeCacheFiles(files)
+        context.reply(CacheJobInfo(status = true, jobId))
+      } catch {
+        case e: Exception =>
+          context.reply(
+            CacheJobInfo(
+              status = false,
+              s"executor: $executorId cache data failed. ${e.getMessage}"))
+      }
     case e =>
       logError(s"Received unexpected message. $e")
   }

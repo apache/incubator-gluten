@@ -16,7 +16,9 @@
  */
 package org.apache.gluten.execution;
 
-public class CacheResult {
+import java.io.Serializable;
+
+public class CacheResult implements Serializable {
   public enum Status {
     RUNNING(0),
     SUCCESS(1),

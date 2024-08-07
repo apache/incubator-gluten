@@ -39,8 +39,12 @@ object GlutenRpcMessages {
   case class GlutenMergeTreeCacheLoad(mergeTreeTable: String, columns: util.Set[String])
     extends GlutenRpcMessage
 
-  case class GlutenMergeTreeCacheLoadStatus(jobId: String)
+  case class GlutenCacheLoadStatus(jobId: String)
 
   case class CacheJobInfo(status: Boolean, jobId: String, reason: String = "")
     extends GlutenRpcMessage
+
+  case class GlutenFilesCacheLoad(files: Array[Byte]) extends GlutenRpcMessage
+
+  case class GlutenFilesCacheLoadStatus(jobId: String)
 }

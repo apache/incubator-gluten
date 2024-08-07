@@ -41,6 +41,9 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
     version(0) + "." + version(1)
   }
 
+  val CH_CONFIG_PREFIX: String = "spark.gluten.sql.columnar.backend.ch.runtime_config"
+  val CH_SETTING_PREFIX: String = "spark.gluten.sql.columnar.backend.ch.runtime_settings"
+
   val S3_METADATA_PATH = s"/tmp/metadata/s3/$sparkVersion/"
   val S3_CACHE_PATH = s"/tmp/s3_cache/$sparkVersion/"
   val S3_ENDPOINT = "s3://127.0.0.1:9000/"

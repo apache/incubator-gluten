@@ -16,15 +16,13 @@
  */
 package org.apache.gluten.parser
 
-import org.apache.gluten.sql.parser.{GlutenClickhouseSqlBaseBaseListener, GlutenClickhouseSqlBaseBaseVisitor, GlutenClickhouseSqlBaseLexer, GlutenClickhouseSqlBaseParser}
-import org.apache.gluten.sql.parser.GlutenClickhouseSqlBaseParser._
+import org.apache.gluten.sql.parser.{GlutenCacheFileSqlBaseBaseListener, GlutenCacheFileSqlBaseBaseVisitor, GlutenCacheFileSqlBaseLexer, GlutenCacheFileSqlBaseParser}
 
 import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.parser.{ParseErrorListener, ParseException, ParserInterface}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.trees.Origin
-import org.apache.spark.sql.execution.commands.GlutenCHCacheDataCommand
+import org.apache.spark.sql.execution.commands.GlutenCacheFilesCommand
 import org.apache.spark.sql.internal.VariableSubstitution
 
 import org.antlr.v4.runtime._
@@ -36,20 +34,20 @@ import java.util.Locale
 
 import scala.collection.JavaConverters._
 
-trait GlutenClickhouseSqlParserBase extends ParserInterface {
-
-  protected val astBuilder = new GlutenClickhouseSqlAstBuilder
+trait GlutenCacheFileSqlParserBase extends ParserInterface {
+  protected val astBuilder = new GlutenCacheFileSqlAstBuilder
   protected val substitution = new VariableSubstitution
 
-  protected def parse[T](command: String)(toResult: GlutenClickhouseSqlBaseParser => T): T = {
-    val lexer = new GlutenClickhouseSqlBaseLexer(
+  protected def parse[T](command: String)(toResult: GlutenCacheFileSqlBaseParser => T): T = {
+    val lexer = new GlutenCacheFileSqlBaseLexer(
       new UpperCaseCharStream(CharStreams.fromString(substitution.substitute(command))))
     lexer.removeErrorListeners()
     lexer.addErrorListener(ParseErrorListener)
 
     val tokenStream = new CommonTokenStream(lexer)
-    val parser = new GlutenClickhouseSqlBaseParser(tokenStream)
-    parser.addParseListener(PostProcessor)
+    val parser = new GlutenCacheFileSqlBaseParser(tokenStream)
+
+    parser.addParseListener(GlutenCacheFileSqlPostProcessor)
     parser.removeErrorListeners()
     parser.addErrorListener(ParseErrorListener)
 
@@ -80,33 +78,34 @@ trait GlutenClickhouseSqlParserBase extends ParserInterface {
           message = e.message,
           start = position,
           stop = position,
-          errorClass = Some("GLUTEN_CH_PARSING_ANALYSIS_ERROR"))
+          errorClass = Some("GLUTEN_CACHE_FILE_PARSING_ANALYSIS_ERROR"))
     }
   }
 }
 
-class GlutenClickhouseSqlAstBuilder extends GlutenClickhouseSqlBaseBaseVisitor[AnyRef] {
-
+class GlutenCacheFileSqlAstBuilder extends GlutenCacheFileSqlBaseBaseVisitor[AnyRef] {
   import org.apache.spark.sql.catalyst.parser.ParserUtils._
 
   /** Convert a property list into a key-value map. */
-  override def visitPropertyList(ctx: PropertyListContext): Map[String, String] = withOrigin(ctx) {
-    val properties = ctx.property.asScala.map {
-      property =>
-        val key = visitPropertyKey(property.key)
-        val value = visitPropertyValue(property.value)
-        key -> value
+  override def visitPropertyList(
+      ctx: GlutenCacheFileSqlBaseParser.PropertyListContext): Map[String, String] =
+    withOrigin(ctx) {
+      val properties = ctx.property.asScala.map {
+        property =>
+          val key = visitPropertyKey(property.key)
+          val value = visitPropertyValue(property.value)
+          key -> value
+      }
+      // Check for duplicate property names.
+      checkDuplicateKeys(properties.toSeq, ctx)
+      properties.toMap
     }
-    // Check for duplicate property names.
-    checkDuplicateKeys(properties.toSeq, ctx)
-    properties.toMap
-  }
 
   /**
    * A property key can either be String or a collection of dot separated elements. This function
    * extracts the property key based on whether its a string literal or a property identifier.
    */
-  override def visitPropertyKey(key: PropertyKeyContext): String = {
+  override def visitPropertyKey(key: GlutenCacheFileSqlBaseParser.PropertyKeyContext): String = {
     if (key.stringLit() != null) {
       string(visitStringLit(key.stringLit()))
     } else {
@@ -118,7 +117,8 @@ class GlutenClickhouseSqlAstBuilder extends GlutenClickhouseSqlBaseBaseVisitor[A
    * A property value can be String, Integer, Boolean or Decimal. This function extracts the
    * property value based on whether its a string, integer, boolean or decimal literal.
    */
-  override def visitPropertyValue(value: PropertyValueContext): String = {
+  override def visitPropertyValue(
+      value: GlutenCacheFileSqlBaseParser.PropertyValueContext): String = {
     if (value == null) {
       null
     } else if (value.identifier != null) {
@@ -132,7 +132,8 @@ class GlutenClickhouseSqlAstBuilder extends GlutenClickhouseSqlBaseBaseVisitor[A
     }
   }
 
-  def visitPropertyKeyValues(ctx: PropertyListContext): Map[String, String] = {
+  def visitPropertyKeyValues(
+      ctx: GlutenCacheFileSqlBaseParser.PropertyListContext): Map[String, String] = {
     val props = visitPropertyList(ctx)
     val badKeys = props.collect { case (key, null) => key }
     if (badKeys.nonEmpty) {
@@ -143,7 +144,7 @@ class GlutenClickhouseSqlAstBuilder extends GlutenClickhouseSqlBaseBaseVisitor[A
     props
   }
 
-  override def visitStringLit(ctx: StringLitContext): Token = {
+  override def visitStringLit(ctx: GlutenCacheFileSqlBaseParser.StringLitContext): Token = {
     if (ctx != null) {
       if (ctx.STRING != null) {
         ctx.STRING.getSymbol
@@ -156,58 +157,32 @@ class GlutenClickhouseSqlAstBuilder extends GlutenClickhouseSqlBaseBaseVisitor[A
   }
 
   override def visitSingleStatement(
-      ctx: GlutenClickhouseSqlBaseParser.SingleStatementContext): AnyRef = withOrigin(ctx) {
+      ctx: GlutenCacheFileSqlBaseParser.SingleStatementContext): AnyRef = withOrigin(ctx) {
     visit(ctx.statement).asInstanceOf[LogicalPlan]
   }
 
-  override def visitCacheData(ctx: GlutenClickhouseSqlBaseParser.CacheDataContext): AnyRef =
+  override def visitCacheFiles(ctx: GlutenCacheFileSqlBaseParser.CacheFilesContext): AnyRef =
     withOrigin(ctx) {
-      val onlyMetaCache = ctx.META != null
       val asynExecute = ctx.ASYNC != null
-      val (tsfilter, partitionColumn, partitionValue) = if (ctx.AFTER != null) {
-        if (ctx.filter.TIMESTAMP != null) {
-          (Some(string(ctx.filter.timestamp)), None, None)
-        } else if (ctx.filter.datepartition != null && ctx.filter.datetime != null) {
-          (None, Some(ctx.filter.datepartition.getText), Some(string(ctx.filter.datetime)))
-        } else {
-          throw new ParseException(s"Illegal filter value ${ctx.getText}", ctx)
-        }
-      } else {
-        (None, None, None)
-      }
       val selectedColuman = visitSelectedColumnNames(ctx.selectedColumns)
-      val tablePropertyOverrides = Option(ctx.cacheProps)
+      val propertyOverrides = Option(ctx.cacheProps)
         .map(visitPropertyKeyValues)
         .getOrElse(Map.empty[String, String])
+      val path = ctx.path.getText
 
-      GlutenCHCacheDataCommand(
-        onlyMetaCache,
+      GlutenCacheFilesCommand(
         asynExecute,
         selectedColuman,
-        Option(ctx.path).map(string),
-        Option(ctx.table).map(visitTableIdentifier),
-        tsfilter,
-        partitionColumn,
-        partitionValue,
-        tablePropertyOverrides
+        path.substring(1, path.length - 1),
+        propertyOverrides
       )
     }
 
-  override def visitPassThrough(ctx: GlutenClickhouseSqlBaseParser.PassThroughContext): AnyRef =
+  override def visitPassThrough(ctx: GlutenCacheFileSqlBaseParser.PassThroughContext): AnyRef =
     null
 
-  protected def visitTableIdentifier(ctx: QualifiedNameContext): TableIdentifier = withOrigin(ctx) {
-    ctx.identifier.asScala.toSeq match {
-      case Seq(tbl) => TableIdentifier(tbl.getText)
-      case Seq(db, tbl) => TableIdentifier(tbl.getText, Some(db.getText))
-      // TODO: Spark 3.5 supports catalog parameter
-      // case Seq(catalog, db, tbl) =>
-      //   TableIdentifier(tbl.getText, Some(db.getText), Some(catalog.getText))
-      case _ => throw new ParseException(s"Illegal table name ${ctx.getText}", ctx)
-    }
-  }
-
-  override def visitSelectedColumnNames(ctx: SelectedColumnNamesContext): Option[Seq[String]] =
+  override def visitSelectedColumnNames(
+      ctx: GlutenCacheFileSqlBaseParser.SelectedColumnNamesContext): Option[Seq[String]] =
     withOrigin(ctx) {
       if (ctx != null) {
         if (ctx.ASTERISK != null) {
@@ -224,10 +199,11 @@ class GlutenClickhouseSqlAstBuilder extends GlutenClickhouseSqlBaseBaseVisitor[A
     }
 }
 
-case object PostProcessor extends GlutenClickhouseSqlBaseBaseListener {
+case object GlutenCacheFileSqlPostProcessor extends GlutenCacheFileSqlBaseBaseListener {
 
   /** Remove the back ticks from an Identifier. */
-  override def exitQuotedIdentifier(ctx: QuotedIdentifierContext): Unit = {
+  override def exitQuotedIdentifier(
+      ctx: GlutenCacheFileSqlBaseParser.QuotedIdentifierContext): Unit = {
     replaceTokenByIdentifier(ctx, 1) {
       token =>
         // Remove the double back ticks in the string.
@@ -237,7 +213,7 @@ case object PostProcessor extends GlutenClickhouseSqlBaseBaseListener {
   }
 
   /** Treat non-reserved keywords as Identifiers. */
-  override def exitNonReserved(ctx: NonReservedContext): Unit = {
+  override def exitNonReserved(ctx: GlutenCacheFileSqlBaseParser.NonReservedContext): Unit = {
     replaceTokenByIdentifier(ctx, 0)(identity)
   }
 
@@ -248,7 +224,7 @@ case object PostProcessor extends GlutenClickhouseSqlBaseBaseListener {
     val token = ctx.getChild(0).getPayload.asInstanceOf[Token]
     val newToken = new CommonToken(
       new org.antlr.v4.runtime.misc.Pair(token.getTokenSource, token.getInputStream),
-      GlutenClickhouseSqlBaseParser.IDENTIFIER,
+      GlutenCacheFileSqlBaseParser.IDENTIFIER,
       token.getChannel,
       token.getStartIndex + stripMargins,
       token.getStopIndex - stripMargins

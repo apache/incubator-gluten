@@ -1292,6 +1292,30 @@ JNIEXPORT jobject Java_org_apache_gluten_execution_CHNativeCacheManager_nativeGe
     return local_engine::CacheManager::instance().getCacheStatus(env, jstring2string(env, id));
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr);
 }
+
+JNIEXPORT jstring Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheFiles(JNIEnv * env, jobject, jbyteArray files)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    const auto files_bytes = local_engine::getByteArrayElementsSafe(env, files);
+    const std::string::size_type files_bytes_size = files_bytes.length();
+    std::string_view files_view = {reinterpret_cast<const char *>(files_bytes.elems()), files_bytes_size};
+    substrait::ReadRel::LocalFiles local_files = local_engine::BinaryToMessage<substrait::ReadRel::LocalFiles>(files_view);
+
+    auto jobId = local_engine::CacheManager::instance().cacheFiles(local_files);
+    return local_engine::charTojstring(env, jobId.c_str());
+    LOCAL_ENGINE_JNI_METHOD_END(env, nullptr);
+}
+
+JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_removeFiles(JNIEnv * env, jobject, jstring file_, jstring cache_name_)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto file = jstring2string(env, file_);
+    auto cache_name = jstring2string(env, cache_name_);
+
+    local_engine::CacheManager::removeFiles(file, cache_name);
+    LOCAL_ENGINE_JNI_METHOD_END(env, );
+}
+
 #ifdef __cplusplus
 }
 
