@@ -61,8 +61,8 @@ public class OverAcquire implements MemoryTarget {
     long overSize = (long) (ratio * majorSize);
     long overAcquired = overTarget.borrow(overSize);
     Preconditions.checkState(overAcquired == overTarget.usedBytes());
-    long releasedOverSize = overTarget.repay(overSize);
-    Preconditions.checkState(releasedOverSize == overSize);
+    long releasedOverSize = overTarget.repay(overAcquired);
+    Preconditions.checkState(releasedOverSize == overAcquired);
     Preconditions.checkState(overTarget.usedBytes() == 0);
     return granted;
   }
