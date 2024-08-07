@@ -226,9 +226,29 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     spark.sql("drop table t2")
   }
 
-  test("array decimal32") {
+  test("array decimal32 CH column to row") {
     compareResultsAgainstVanillaSpark("SELECT array(1.0, 2.0)", true, { _ => }, false)
     compareResultsAgainstVanillaSpark("SELECT map(1.0, '2', 3.0, '4')", true, { _ => }, false)
+  }
+
+  test("array decimal32 spark row to CH column") {
+    withTable("test_array_decimal") {
+      sql(
+        """
+          |create table test_array_decimal(val array<decimal(5,1)>)
+          |using parquet
+          |""".stripMargin)
+      sql(
+        """
+          |insert into test_array_decimal
+          |values array(1.0, 2.0), array(3.0, 4.0),
+          |array(5.0, 6.0), array(7.0, 8.0)
+          |""".stripMargin)
+      // disable native scan so will get a spark row to CH column
+      withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
+        compareResultsAgainstVanillaSpark("SELECT max(val) from test_array_decimal", true, { _ => }, false)
+      }
+    }
   }
 
 }
