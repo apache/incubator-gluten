@@ -24,6 +24,7 @@ import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.SortMergeJoinExec
+import org.apache.spark.sql.internal.SQLConf
 
 class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -261,6 +262,28 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
           val plan = df.queryExecution.executedPlan
           assert(collect(plan) { case smj: SortMergeJoinExec => smj }.size == 1)
       }
+    }
+  }
+
+  test("fallback cheap project if child is fallbacked") {
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
+      GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false",
+      GlutenConfig.COLUMNAR_SHUFFLE_ENABLED.key -> "false",
+      GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_list"
+    ) {
+
+      // fallback cheap project
+      val df1 = sql("select collect_list(c3) from (select c1 as c3 from tmp1)")
+      val executePlan1 = getExecutedPlan(df1)
+      assert(executePlan1.collect { case p: ProjectExecTransformer => p }.size == 0)
+      assert(executePlan1.collect { case p: RowToColumnarExecBase => p }.size == 0)
+
+      // offload non-cheap project
+      val df2 = sql("select collect_list(c3) from (select c1 + 1 as c3 from tmp1)")
+      val executePlan2 = getExecutedPlan(df2)
+      assert(executePlan2.collect { case p: ProjectExecTransformer => p }.size == 1)
+      assert(executePlan2.collect { case p: RowToColumnarExecBase => p }.size == 1)
     }
   }
 }

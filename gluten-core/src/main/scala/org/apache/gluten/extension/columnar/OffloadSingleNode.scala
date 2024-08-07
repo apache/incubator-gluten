@@ -26,7 +26,7 @@ import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.execution._
@@ -341,12 +341,21 @@ case class OffloadProject() extends OffloadSingleNode with LogLevelUtil {
       projectExec.projectList.exists(containsInputFileRelatedExpr)
     ) {
       tryOffloadProjectExecWithInputFileRelatedExprs(projectExec)
-    } else if (FallbackTags.nonEmpty(projectExec)) {
+    } else if (
+      FallbackTags.nonEmpty(projectExec) || (FallbackTags.nonEmpty(projectExec.child) &&
+        projectExec.projectList.forall(cheapExpression))
+    ) {
       projectExec
     } else {
       logDebug(s"Columnar Processing for ${projectExec.getClass} is currently supported.")
       ProjectExecTransformer(projectExec.projectList, projectExec.child)
     }
+  }
+
+  private def cheapExpression(ne: NamedExpression): Boolean = ne match {
+    case Alias(_: Attribute, _) => true
+    case _: Attribute => true
+    case _ => false
   }
 
   override def offload(plan: SparkPlan): SparkPlan = plan match {
