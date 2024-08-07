@@ -46,29 +46,29 @@ public final class ReservationListeners {
     final double overAcquiredRatio = GlutenConfig.getConf().memoryOverAcquiredRatio();
     final long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
     final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
+    final TreeMemoryTarget consumer = MemoryTargets.newConsumer(
+        tmm,
+        name,
+        Spillers.withMinSpillSize(spiller, reservationBlockSize),
+        mutableStats);
+    final MemoryTarget overConsumer = MemoryTargets.newConsumer(
+        tmm,
+        consumer.name() + ".OverAcquire",
+        new Spiller() {
+          @Override
+          public long spill(MemoryTarget self, Phase phase, long size) {
+            if (!Spillers.PHASE_SET_ALL.contains(phase)) {
+              return 0L;
+            }
+            return self.repay(size);
+          }
+        },
+        Collections.emptyMap());
     final MemoryTarget target =
         MemoryTargets.throwOnOom(
             MemoryTargets.overAcquire(
-                MemoryTargets.dynamicOffHeapSizingIfEnabled(
-                    MemoryTargets.newConsumer(
-                        tmm,
-                        name,
-                        Spillers.withMinSpillSize(spiller, reservationBlockSize),
-                        mutableStats)),
-                MemoryTargets.dynamicOffHeapSizingIfEnabled(
-                    MemoryTargets.newConsumer(
-                        tmm,
-                        "OverAcquire.DummyTarget",
-                        new Spiller() {
-                          @Override
-                          public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
-                            if (!Spillers.PHASE_SET_ALL.contains(phase)) {
-                              return 0L;
-                            }
-                            return self.repay(size);
-                          }
-                        },
-                        Collections.emptyMap())),
+                MemoryTargets.dynamicOffHeapSizingIfEnabled(consumer),
+                MemoryTargets.dynamicOffHeapSizingIfEnabled(overConsumer),
                 overAcquiredRatio));
 
     // Listener.
