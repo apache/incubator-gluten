@@ -314,8 +314,7 @@ First of all, compile gluten-delta module by a `delta` profile, as follows:
 mvn clean package -Pbackends-velox -Pspark-3.3 -Pdelta -DskipTests
 ```
 
-Then, put the additional `gluten-delta-XX-SNAPSHOT.jar` to the class path (usually it's `$SPARK_HOME/jars`).
-The gluten-delta jar is in `gluten-delta/target` directory.
+Once built successfully, delta features will be included in gluten-velox-bundle-X jar.
 
 After the two steps, you can query delta table by gluten/velox without scan's fallback.
 
