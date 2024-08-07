@@ -17,6 +17,7 @@
 package org.apache.gluten.vectorized;
 
 public class GlutenSplitResult extends SplitResult {
+  private final long bytesToEvict;
   private final long peakBytes;
   private final long sortTime;
   private final long c2rTime;
@@ -30,6 +31,7 @@ public class GlutenSplitResult extends SplitResult {
       long totalC2RTime,
       long totalBytesWritten,
       long totalBytesEvicted,
+      long totalBytesToEvict, // In-memory bytes(uncompressed) before spill.
       long peakBytes,
       long[] partitionLengths,
       long[] rawPartitionLengths) {
@@ -42,9 +44,14 @@ public class GlutenSplitResult extends SplitResult {
         totalBytesEvicted,
         partitionLengths,
         rawPartitionLengths);
+    this.bytesToEvict = totalBytesEvicted;
     this.peakBytes = peakBytes;
     this.sortTime = totalSortTime;
     this.c2rTime = totalC2RTime;
+  }
+
+  public long getBytesToEvict() {
+    return bytesToEvict;
   }
 
   public long getPeakBytes() {

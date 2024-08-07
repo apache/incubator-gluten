@@ -110,6 +110,7 @@ class LocalPartitionWriter : public PartitionWriter {
   std::vector<int32_t> subDirSelection_;
   std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
 
+  int64_t totalBytesToEvict_{0};
   int64_t totalBytesEvicted_{0};
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_;

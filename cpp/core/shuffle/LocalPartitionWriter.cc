@@ -564,6 +564,7 @@ arrow::Status LocalPartitionWriter::evict(
         auto payload,
         inMemoryPayload->toBlockPayload(payloadType, payloadPool_.get(), codec_ ? codec_.get() : nullptr));
     if (!isFinal) {
+      totalBytesToEvict_ += payload->rawSize();
       RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
     } else {
       if (spills_.size() > 0) {
@@ -573,6 +574,7 @@ arrow::Status LocalPartitionWriter::evict(
           partitionLengths_[pid] = totalBytesEvicted_ - bytesEvicted;
         }
       }
+      totalBytesToEvict_ += payload->rawSize();
       RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
     }
     lastEvictPid_ = partitionId;
@@ -583,6 +585,7 @@ arrow::Status LocalPartitionWriter::evict(
     RETURN_NOT_OK(requestSpill(false));
     ARROW_ASSIGN_OR_RAISE(
         auto payload, inMemoryPayload->toBlockPayload(Payload::kUncompressed, payloadPool_.get(), nullptr));
+    totalBytesToEvict_ += payload->rawSize();
     RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
     return arrow::Status::OK();
   }
@@ -614,6 +617,7 @@ arrow::Status LocalPartitionWriter::evict(uint32_t partitionId, std::unique_ptr<
   RETURN_NOT_OK(requestSpill(stop));
 
   if (!stop) {
+    totalBytesToEvict_ += blockPayload->rawSize();
     RETURN_NOT_OK(spiller_->spill(partitionId, std::move(blockPayload)));
   } else {
     if (spills_.size() > 0) {
@@ -623,6 +627,7 @@ arrow::Status LocalPartitionWriter::evict(uint32_t partitionId, std::unique_ptr<
         partitionLengths_[pid] = totalBytesEvicted_ - bytesEvicted;
       }
     }
+    totalBytesToEvict_ += blockPayload->rawSize();
     RETURN_NOT_OK(spiller_->spill(partitionId, std::move(blockPayload)));
   }
   lastEvictPid_ = partitionId;
@@ -656,6 +661,7 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
       ARROW_ASSIGN_OR_RAISE(auto merged, merger_->finishForSpill(pid));
       if (merged.has_value()) {
         RETURN_NOT_OK(requestSpill(false));
+        totalBytesToEvict_ += (*merged)->rawSize();
         RETURN_NOT_OK(spiller_->spill(pid, std::move(*merged)));
       }
     }
@@ -678,6 +684,7 @@ arrow::Status LocalPartitionWriter::populateMetrics(ShuffleWriterMetrics* metric
   metrics->totalCompressTime += compressTime_;
   metrics->totalEvictTime += spillTime_;
   metrics->totalWriteTime += writeTime_;
+  metrics->totalBytesToEvict += totalBytesToEvict_;
   metrics->totalBytesEvicted += totalBytesEvicted_;
   metrics->totalBytesWritten += std::filesystem::file_size(dataFile_);
   metrics->partitionLengths = std::move(partitionLengths_);
