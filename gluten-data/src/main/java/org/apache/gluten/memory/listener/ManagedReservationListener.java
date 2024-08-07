@@ -19,13 +19,10 @@ package org.apache.gluten.memory.listener;
 import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 
-import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Reserve Spark managed memory.
- */
+/** Reserve Spark managed memory. */
 public class ManagedReservationListener implements ReservationListener {
 
   private static final Logger LOG = LoggerFactory.getLogger(ManagedReservationListener.class);
@@ -38,7 +35,8 @@ public class ManagedReservationListener implements ReservationListener {
   // See: https://github.com/apache/incubator-gluten/issues/6622
   private final Object sharedLock;
 
-  public ManagedReservationListener(MemoryTarget target, SimpleMemoryUsageRecorder sharedUsage, Object sharedLock) {
+  public ManagedReservationListener(
+      MemoryTarget target, SimpleMemoryUsageRecorder sharedUsage, Object sharedLock) {
     this.target = target;
     this.sharedUsage = sharedUsage;
     this.sharedLock = sharedLock;

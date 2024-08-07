@@ -29,8 +29,8 @@ import java.util.Map;
 
 public final class ReservationListeners {
   public static final ReservationListener NOOP =
-      new ManagedReservationListener(new NoopMemoryTarget(), new SimpleMemoryUsageRecorder(),
-          new Object());
+      new ManagedReservationListener(
+          new NoopMemoryTarget(), new SimpleMemoryUsageRecorder(), new Object());
 
   public static ReservationListener create(
       String name, Spiller spiller, Map<String, MemoryUsageStatsBuilder> mutableStats) {
@@ -47,24 +47,23 @@ public final class ReservationListeners {
     final double overAcquiredRatio = GlutenConfig.getConf().memoryOverAcquiredRatio();
     final long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
     final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
-    final TreeMemoryTarget consumer = MemoryTargets.newConsumer(
-        tmm,
-        name,
-        Spillers.withMinSpillSize(spiller, reservationBlockSize),
-        mutableStats);
-    final MemoryTarget overConsumer = MemoryTargets.newConsumer(
-        tmm,
-        consumer.name() + ".OverAcquire",
-        new Spiller() {
-          @Override
-          public long spill(MemoryTarget self, Phase phase, long size) {
-            if (!Spillers.PHASE_SET_ALL.contains(phase)) {
-              return 0L;
-            }
-            return self.repay(size);
-          }
-        },
-        Collections.emptyMap());
+    final TreeMemoryTarget consumer =
+        MemoryTargets.newConsumer(
+            tmm, name, Spillers.withMinSpillSize(spiller, reservationBlockSize), mutableStats);
+    final MemoryTarget overConsumer =
+        MemoryTargets.newConsumer(
+            tmm,
+            consumer.name() + ".OverAcquire",
+            new Spiller() {
+              @Override
+              public long spill(MemoryTarget self, Phase phase, long size) {
+                if (!Spillers.PHASE_SET_ALL.contains(phase)) {
+                  return 0L;
+                }
+                return self.repay(size);
+              }
+            },
+            Collections.emptyMap());
     final MemoryTarget target =
         MemoryTargets.throwOnOom(
             MemoryTargets.overAcquire(
