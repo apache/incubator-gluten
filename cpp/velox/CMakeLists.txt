@@ -90,6 +90,7 @@ if(NOT DEFINED VELOX_BUILD_PATH)
 endif()
 
 set(VELOX_COMPONENTS_PATH "${VELOX_BUILD_PATH}/velox")
+
 function(ADD_VELOX_DEPENDENCY VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
   if(NOT EXISTS ${VELOX_DEP_LIB_PATH})
     message(FATAL_ERROR "Velox library not exists: ${VELOX_DEP_LIB_PATH}")
@@ -316,9 +317,8 @@ if(BUILD_TESTS)
       "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a")
   target_link_libraries(
     facebook::velox::test
-    INTERFACE facebook::velox::vector_test
-              facebook::velox::dwio_common_test facebook::velox::file_test
-              facebook::velox::temp_path)
+    INTERFACE facebook::velox::vector_test facebook::velox::dwio_common_test
+              facebook::velox::file_test facebook::velox::temp_path)
 
   target_link_libraries(velox PUBLIC facebook::velox::test)
 endif()
@@ -360,6 +360,22 @@ endif()
 
 if(BUILD_BENCHMARKS)
   add_subdirectory(benchmarks)
+endif()
+
+if(ENABLE_HDFS)
+  add_definitions(-DENABLE_HDFS)
+endif()
+
+if(ENABLE_S3)
+  add_definitions(-DENABLE_S3)
+endif()
+
+if(ENABLE_GCS)
+  add_definitions(-DENABLE_GCS)
+endif()
+
+if(ENABLE_ABFS)
+  add_definitions(-DENABLE_ABFS)
 endif()
 
 if(BUILD_EXAMPLES)
