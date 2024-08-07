@@ -180,3 +180,14 @@ index 97266c253..11d88dcc4 100644
  
  add_library(
    velox_dwio_arrow_parquet_writer_test_lib
+diff --git a/CMake/resolve_dependency_modules/simdjson.cmake b/CMake/resolve_dependency_modules/simdjson.cmake
+index 69e7f2044..777eb5ec1 100644
+--- a/CMake/resolve_dependency_modules/simdjson.cmake
++++ b/CMake/resolve_dependency_modules/simdjson.cmake
+@@ -29,4 +29,6 @@ FetchContent_Declare(
+   URL ${VELOX_SIMDJSON_SOURCE_URL}
+   URL_HASH ${VELOX_SIMDJSON_BUILD_SHA256_CHECKSUM})
+
++set(SIMDJSON_SKIPUTF8VALIDATION ON)
++
+ FetchContent_MakeAvailable(simdjson)
