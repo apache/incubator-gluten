@@ -316,9 +316,17 @@ uint32_t VeloxSortShuffleWriter::maxRowsToInsert(uint32_t offset, uint32_t rows)
 }
 
 void VeloxSortShuffleWriter::acquireNewBuffer(uint64_t memLimit, uint64_t minSizeRequired) {
-  auto size = std::max(std::min<uint64_t>(memLimit >> 2, 64UL * 1024 * 1024), minSizeRequired);
+  DLOG_IF(INFO, !pages_.empty()) << "Acquire new buffer. current capacity: " << pages_.back()->capacity()
+                                 << ", size: " << pages_.back()->size() << ", pageCursor: " << pageCursor_
+                                 << ", unused: " << pages_.back()->capacity() - pageCursor_;
+  auto size = std::max(
+      std::min<uint64_t>(
+          std::max<uint64_t>(memLimit >> 2, facebook::velox::AlignedBuffer::kPaddedSize), 64UL * 1024 * 1024) -
+          facebook::velox::AlignedBuffer::kPaddedSize,
+      minSizeRequired);
   // Allocating new buffer can trigger spill.
   auto newBuffer = facebook::velox::AlignedBuffer::allocate<char>(size, veloxPool_.get());
+  DLOG(INFO) << "Allocated new buffer. capacity: " << newBuffer->capacity() << ", size: " << newBuffer->size();
   auto newBufferSize = newBuffer->capacity();
   newBuffer->setSize(newBufferSize);
 
@@ -344,7 +352,7 @@ void VeloxSortShuffleWriter::growArrayIfNecessary(uint32_t rows) {
     // May trigger spill.
     auto newSizeBytes = newSize * sizeof(uint64_t);
     auto newArray = facebook::velox::AlignedBuffer::allocate<char>(newSizeBytes, veloxPool_.get());
-    // Check if already satisfies.
+    // Check if already satisfies (spill has been triggered).
     if (newArraySize(rows) > arraySize_) {
       if (offset_ > 0) {
         gluten::fastCopy(newArray->asMutable<void>(), arrayPtr_, offset_ * sizeof(uint64_t));
