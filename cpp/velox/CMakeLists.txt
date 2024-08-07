@@ -99,19 +99,13 @@ function(import_library TARGET_NAME LIB_PATH)
   set_target_properties(${TARGET_NAME} PROPERTIES IMPORTED_LOCATION ${LIB_PATH})
 endfunction()
 
-function(add_velox_dependency VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
-  set(VELOX_DEP_LIB facebook::velox::${VELOX_DEP_LIB_NAME})
-  import_library(${VELOX_DEP_LIB} ${VELOX_DEP_LIB_PATH})
-  target_link_libraries(velox PUBLIC ${VELOX_DEP_LIB})
-endfunction()
-
 macro(add_duckdb)
   find_package(DuckDB)
   if(NOT DuckDB_FOUND)
     message(FATAL_ERROR "Cannot find DuckDB.")
   else()
     message(STATUS "Found DuckDB library from ${DuckDB_DIR}")
-    target_link_libraries(velox PUBLIC duckdb_static)
+    target_link_libraries(facebook::velox INTERFACE duckdb_static)
   endif()
 endmacro()
 
@@ -270,12 +264,12 @@ endif()
 
 target_link_libraries(velox PUBLIC gluten)
 
-add_library(facebook::velox STATIC IMPORTED)
-set_target_properties(
-  facebook::velox PROPERTIES IMPORTED_LOCATION
-                             ${VELOX_BUILD_PATH}/lib/libvelox.a)
+# Requires VELOX_MONO_LIBRARY=ON when building Velox.
+import_library(facebook::velox ${VELOX_BUILD_PATH}/lib/libvelox.a)
 
 if(BUILD_TESTS)
+  add_duckdb()
+
   import_library(facebook::velox::dbgen
                  ${VELOX_BUILD_PATH}/velox/tpch/gen/dbgen/libdbgen.a)
   target_link_libraries(facebook::velox INTERFACE facebook::velox::dbgen)
@@ -283,20 +277,16 @@ if(BUILD_TESTS)
   import_library(
     facebook::velox::vector_test_lib
     ${VELOX_BUILD_PATH}/velox/vector/tests/utils/libvelox_vector_test_lib.a)
-
   import_library(
     facebook::velox::dwio_common_test
     ${VELOX_BUILD_PATH}/velox/dwio/common/tests/utils/libvelox_dwio_common_test_utils.a
   )
-
   import_library(
     facebook::velox::file_test_utils
     ${VELOX_BUILD_PATH}/velox/common/file/tests/libvelox_file_test_utils.a)
-
   import_library(
     facebook::velox::temp_path
     ${VELOX_BUILD_PATH}/velox/exec/tests/utils/libvelox_temp_path.a)
-
   import_library(
     facebook::velox::exec_test_lib
     ${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_exec_test_lib.a)
@@ -305,24 +295,19 @@ if(BUILD_TESTS)
     INTERFACE facebook::velox::vector_test_lib
               facebook::velox::dwio_common_test
               facebook::velox::file_test_utils facebook::velox::temp_path)
-
   target_link_libraries(velox PUBLIC facebook::velox::exec_test_lib)
 endif()
 
 target_link_libraries(velox PUBLIC facebook::velox)
-
-if(BUILD_TESTS)
-  add_duckdb()
-endif()
 
 target_link_libraries(velox PUBLIC Folly::folly)
 
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
 
-add_velox_dependency(
-  external::stemmer
-  "${VELOX_BUILD_PATH}/_deps/libstemmer/src/libstemmer/libstemmer.a")
+import_library(external::stemmer
+               ${VELOX_BUILD_PATH}/_deps/libstemmer/src/libstemmer/libstemmer.a)
+target_link_libraries(velox PUBLIC external::stemmer)
 
 set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
@@ -330,8 +315,9 @@ find_package(simdjson CONFIG)
 if(simdjson_FOUND AND TARGET simdjson::simdjson)
   target_link_libraries(velox PUBLIC simdjson::simdjson)
 else()
-  add_velox_dependency(external::simdjson
-                       "${VELOX_BUILD_PATH}/_deps/simdjson-build/libsimdjson.a")
+  import_library(external::simdjson
+                 ${VELOX_BUILD_PATH}/_deps/simdjson-build/libsimdjson.a)
+  target_link_libraries(velox PUBLIC external::simdjson)
 endif()
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 
