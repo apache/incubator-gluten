@@ -24,6 +24,7 @@
 #include <arrow/type.h>
 #include <arrow/type_fwd.h>
 #include <benchmark/benchmark.h>
+#include <thread>
 #include <execinfo.h>
 #include <glog/logging.h>
 #include <parquet/arrow/reader.h>
