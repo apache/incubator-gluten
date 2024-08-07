@@ -345,18 +345,27 @@ endif()
 
 if(ENABLE_HDFS)
   add_definitions(-DENABLE_HDFS)
+  find_libhdfs3()
+  target_link_libraries(velox PUBLIC HDFS::hdfs3)
 endif()
 
 if(ENABLE_S3)
   add_definitions(-DENABLE_S3)
+  find_awssdk()
+  target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
 endif()
 
 if(ENABLE_GCS)
   add_definitions(-DENABLE_GCS)
+  find_gcssdk()
+  target_link_libraries(velox PUBLIC google-cloud-cpp::storage)
 endif()
 
 if(ENABLE_ABFS)
   add_definitions(-DENABLE_ABFS)
+  find_azure()
+  target_link_libraries(velox PUBLIC Azure::azure-storage-blobs)
+  target_link_libraries(velox PUBLIC Azure::azure-storage-files-datalake)
 endif()
 
 if(BUILD_EXAMPLES)
