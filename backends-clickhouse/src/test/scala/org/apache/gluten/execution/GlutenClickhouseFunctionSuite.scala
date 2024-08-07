@@ -246,7 +246,8 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
           |""".stripMargin)
       // disable native scan so will get a spark row to CH column
       withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
-        compareResultsAgainstVanillaSpark("SELECT max(val) from test_array_decimal", true, { _ => }, false)
+        val q = "SELECT max(val) from test_array_decimal"
+        compareResultsAgainstVanillaSpark(q, true, { _ => }, false)
       }
     }
   }
