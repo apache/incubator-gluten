@@ -30,13 +30,6 @@ function prepare_arrow_build() {
   popd
 }
 
-function install_arrow_deps {
-  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl
-  pushd openssl
-  ./config no-shared && make depend && make && sudo make install
-  popd
-}
-
 function build_arrow_cpp() {
  pushd $ARROW_PREFIX/cpp
 
