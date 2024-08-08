@@ -119,6 +119,10 @@ public class TaskMemoryManager {
     this.consumers = new HashSet<>();
   }
 
+  public long getTaskAttemptId() {
+    return taskAttemptId;
+  }
+
   public long acquireExecutionMemory(long required, MemoryConsumer consumer) {
     long got = acquireExecutionMemory(required, consumer, false);
     if (got < required) {

@@ -295,12 +295,6 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
     } else if (iterator instanceof UnsafeInMemorySorter.SortedIterator) {
       logger.warn("inMemSorter SortedIterator length " + iterator.getNumRecords());
     }
-    else {
-      Exception e = new RuntimeException();
-      logger.warn("Unexpected SortedIterator class " + iterator.getClass().getName() + " stack is ");
-      e.printStackTrace();
-    }
-
     spillIterator(iterator, spillWriter);
 
     final long spillSize = freeMemory();

@@ -43,6 +43,10 @@ public abstract class MemoryConsumer {
     this(taskMemoryManager, taskMemoryManager.pageSizeBytes(), mode);
   }
 
+  public long getTaskAttemptId() {
+    return this.taskMemoryManager.getTaskAttemptId();
+  }
+
   /** Returns the memory mode, {@link MemoryMode#ON_HEAP} or {@link MemoryMode#OFF_HEAP}. */
   public MemoryMode getMode() {
     return mode;
