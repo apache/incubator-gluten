@@ -17,8 +17,8 @@
 package org.apache.gluten.vectorized
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
+import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
 
 import org.apache.spark.SparkEnv

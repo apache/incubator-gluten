@@ -19,9 +19,9 @@ package org.apache.spark.sql.execution.datasources.velox
 import org.apache.gluten.columnarbatch.{ColumnarBatches, ColumnarBatchJniWrapper}
 import org.apache.gluten.datasource.DatasourceJniWrapper
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.execution.datasource.GlutenRowSplitter
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
+import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.{ArrowAbiUtil, DatasourceUtil}
 
 import org.apache.spark.sql.SparkSession

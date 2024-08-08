@@ -17,11 +17,11 @@
 package org.apache.gluten.vectorized;
 
 import org.apache.gluten.backendsapi.BackendsApiManager;
-import org.apache.gluten.runtime.Runtime;
-import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
+import org.apache.gluten.runtime.Runtime;
+import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.utils.DebugUtil;
 import org.apache.gluten.validate.NativePlanValidationInfo;
 

@@ -18,8 +18,8 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.NativeColumnarToRowJniWrapper
 

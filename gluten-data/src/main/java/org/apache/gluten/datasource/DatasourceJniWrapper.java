@@ -16,9 +16,9 @@
  */
 package org.apache.gluten.datasource;
 
+import org.apache.gluten.init.JniUtils;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
-import org.apache.gluten.init.JniUtils;
 
 import org.apache.spark.sql.execution.datasources.BlockStripes;
 

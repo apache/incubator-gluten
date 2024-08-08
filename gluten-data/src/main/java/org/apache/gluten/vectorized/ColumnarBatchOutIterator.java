@@ -17,9 +17,9 @@
 package org.apache.gluten.vectorized;
 
 import org.apache.gluten.columnarbatch.ColumnarBatches;
+import org.apache.gluten.metrics.IMetrics;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
-import org.apache.gluten.metrics.IMetrics;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 

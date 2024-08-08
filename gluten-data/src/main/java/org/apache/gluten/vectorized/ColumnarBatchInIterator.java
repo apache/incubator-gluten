@@ -18,8 +18,8 @@ package org.apache.gluten.vectorized;
 
 import org.apache.gluten.columnarbatch.ColumnarBatchJniWrapper;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
-import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
+import org.apache.gluten.runtime.Runtimes;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
