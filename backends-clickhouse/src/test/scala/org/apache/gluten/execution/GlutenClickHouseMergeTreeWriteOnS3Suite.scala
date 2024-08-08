@@ -764,5 +764,48 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
       }
     }
   }
+
+  test("GLUTEN-6750: Optimize error if file metadata not exist") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_bucket_s3;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_bucket_s3
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |PARTITIONED BY (l_returnflag)
+                 |CLUSTERED BY (l_orderkey)
+                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey)"} INTO 4 BUCKETS
+                 |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_bucket_s3'
+                 |TBLPROPERTIES (storage_policy='__s3_main')
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_bucket_s3
+                 | select /*+ REPARTITION(3) */ * from lineitem
+                 |""".stripMargin)
+
+    FileUtils.deleteDirectory(new File(S3_METADATA_PATH))
+    spark.sql("optimize lineitem_mergetree_bucket_s3")
+    spark.sql("drop table lineitem_mergetree_bucket_s3")
+  }
 }
 // scalastyle:off line.size.limit
