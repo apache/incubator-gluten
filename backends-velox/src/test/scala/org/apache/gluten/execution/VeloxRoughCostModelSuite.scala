@@ -20,6 +20,7 @@ import org.apache.gluten.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.ProjectExec
+import org.apache.spark.sql.internal.SQLConf
 
 class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
@@ -38,12 +39,11 @@ class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
   override protected def sparkConf: SparkConf = super.sparkConf
     .set(GlutenConfig.RAS_ENABLED.key, "true")
     .set(GlutenConfig.RAS_COST_MODEL.key, "rough")
+    .set(SQLConf.USE_V1_SOURCE_LIST.key, "parquet")
 
   test("fallback trivial project if its neighbor nodes fell back") {
-    withSQLConf(
-      GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false",
-      GlutenConfig.EXPRESSION_BLACK_LIST.key -> "max") {
-      runQueryAndCompare("select max(c3) from (select c1 as c3 from tmp1) ") {
+    withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
+      runQueryAndCompare("select c1 as c3 from tmp1") {
         checkSparkOperatorMatch[ProjectExec]
       }
     }
