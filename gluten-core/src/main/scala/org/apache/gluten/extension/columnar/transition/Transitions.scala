@@ -77,22 +77,15 @@ object RemoveTransitions extends Rule[SparkPlan] {
 
 object Transitions {
   def insertTransitions(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    val out = InsertTransitions(outputsColumnar).apply(plan)
-    out
+    InsertTransitions(outputsColumnar).apply(plan)
   }
 
   def toRowPlan(plan: SparkPlan): SparkPlan = {
-    val convFunc = ConventionFunc.create()
-    val req = ConventionReq.of(
-      ConventionReq.RowType.Is(Convention.RowType.VanillaRow),
-      ConventionReq.BatchType.Any)
-    val removed = RemoveTransitions.removeForNode(plan)
-    val transition = Transition.factory.findTransition(
-      convFunc.conventionOf(removed),
-      req,
-      Transition.notFound(removed, req))
-    val out = transition.apply(removed)
-    out
+    enforceReq(
+      plan,
+      ConventionReq.of(
+        ConventionReq.RowType.Is(Convention.RowType.VanillaRow),
+        ConventionReq.BatchType.Any))
   }
 
   def toBackendBatchPlan(plan: SparkPlan): SparkPlan = {
@@ -107,8 +100,13 @@ object Transitions {
   }
 
   private def toBatchPlan(plan: SparkPlan, toBatchType: Convention.BatchType): SparkPlan = {
+    enforceReq(
+      plan,
+      ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(toBatchType)))
+  }
+
+  private def enforceReq(plan: SparkPlan, req: ConventionReq): SparkPlan = {
     val convFunc = ConventionFunc.create()
-    val req = ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(toBatchType))
     val removed = RemoveTransitions.removeForNode(plan)
     val transition = Transition.factory.findTransition(
       convFunc.conventionOf(removed),

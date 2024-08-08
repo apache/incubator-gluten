@@ -19,6 +19,9 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.transition.Convention.{KnownRowType, RowType}
+import org.apache.gluten.extension.columnar.transition.ConventionReq
+import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildrenConventions
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.{Partition, SparkException, TaskContext, TaskOutputFileAlreadyExistException}
@@ -269,12 +272,24 @@ object ColumnarWriteFilesExec {
     override def output: Seq[Attribute] = Seq.empty
   }
 
-  sealed trait ExecuteWriteCompatible {
+  /**
+   * ColumnarWriteFilesExec neither output Row nor columnar data. We output both row and columnar to
+   * avoid c2r and r2c transitions. Please note, [[GlutenPlan]] already implement batchType()
+   */
+  sealed trait ExecuteWriteCompatible extends KnownChildrenConventions with KnownRowType {
     // To be compatible with Spark (version < 3.4)
     protected def doExecuteWrite(writeFilesSpec: WriteFilesSpec): RDD[WriterCommitMessage] = {
       throw new GlutenException(
         s"Internal Error ${this.getClass} has write support" +
           s" mismatch:\n${this}")
+    }
+
+    override def requiredChildrenConventions(): Seq[ConventionReq] = {
+      List(ConventionReq.backendBatch)
+    }
+
+    override def rowType(): RowType = {
+      RowType.VanillaRow
     }
   }
 }
