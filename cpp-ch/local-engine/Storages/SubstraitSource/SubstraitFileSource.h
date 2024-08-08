@@ -131,7 +131,7 @@ protected:
 
 private:
     bool tryPrepareReader();
-    void onCancel() override;
+    void onCancel() noexcept override;
 
     DB::ContextPtr context;
     DB::Block output_header; /// Sample header may contains partitions keys
