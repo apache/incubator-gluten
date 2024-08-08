@@ -1320,7 +1320,7 @@ object GlutenConfig {
         "Experimental: The class name of user-defined cost model that will be used by RAS. " +
           "If not specified, a rough built-in cost model will be used.")
       .stringConf
-      .createWithDefaultString("rough")
+      .createWithDefaultString("legacy")
 
   // velox caching options.
   val COLUMNAR_VELOX_CACHE_ENABLED =
