@@ -314,9 +314,7 @@ First of all, compile gluten-delta module by a `delta` profile, as follows:
 mvn clean package -Pbackends-velox -Pspark-3.3 -Pdelta -DskipTests
 ```
 
-Once built successfully, delta features will be included in gluten-velox-bundle-X jar.
-
-After the two steps, you can query delta table by gluten/velox without scan's fallback.
+Once built successfully, delta features will be included in gluten-velox-bundle-X jar. Then you can query delta table by gluten/velox without scan's fallback.
 
 Gluten with velox backends also support the column mapping of delta tables.
 About column mapping, see more [here](https://docs.delta.io/latest/delta-column-mapping.html).
@@ -334,8 +332,6 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -Piceberg -DskipTests
 ```
 
 Once built successfully, iceberg features will be included in gluten-velox-bundle-X jar. Then you can query iceberg table by gluten/velox without scan's fallback.
-
-After the two steps, you can query iceberg table by gluten/velox without scan's fallback.
 
 # Coverage
 
