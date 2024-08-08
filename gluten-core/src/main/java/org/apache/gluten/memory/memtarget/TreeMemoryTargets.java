@@ -114,6 +114,9 @@ public class TreeMemoryTargets {
 
     @Override
     public long borrow(long size) {
+      if (size == 0) {
+        return 0;
+      }
       ensureFreeCapacity(size);
       return borrow0(Math.min(freeBytes(), size));
     }
@@ -154,6 +157,9 @@ public class TreeMemoryTargets {
 
     @Override
     public long repay(long size) {
+      if (size == 0) {
+        return 0;
+      }
       long toFree = Math.min(usedBytes(), size);
       long freed = parent.repay(toFree);
       selfRecorder.inc(-freed);
