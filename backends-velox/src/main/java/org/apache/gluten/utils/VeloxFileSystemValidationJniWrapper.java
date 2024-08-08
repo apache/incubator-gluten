@@ -18,5 +18,5 @@ package org.apache.gluten.utils;
 
 public class VeloxFileSystemValidationJniWrapper {
 
-  public static native boolean isSupportedByRegisteredFileSystems(String path);
+  public static native boolean allSupportedByRegisteredFileSystems(String[] paths);
 }

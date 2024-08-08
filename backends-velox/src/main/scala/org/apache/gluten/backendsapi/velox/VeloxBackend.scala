@@ -25,7 +25,7 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
-import org.apache.gluten.utils.VeloxFileSystemValidationJniWrapper
+import org.apache.gluten.utils._
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, EulerNumber, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Pi, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SparkVersion, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
@@ -76,12 +76,13 @@ object VeloxBackendSettings extends BackendSettingsApi {
       partTable: Boolean,
       rootPaths: Seq[String],
       paths: Seq[String]): ValidationResult = {
-    // Skip native validation for local path, as local file system is always registered.
-    if (!rootPaths.isEmpty && !rootPaths.head.startsWith("file://")) {
-      if (!VeloxFileSystemValidationJniWrapper.isSupportedByRegisteredFileSystems(rootPaths.head)) {
-        return ValidationResult.failed(
-          s"Schema of [${rootPaths.head}] is not supported by registered file systems.")
-      }
+    val filteredRootPaths = FileIndexUtil.distinctRootPaths(rootPaths)
+    if (
+      !filteredRootPaths.isEmpty && !VeloxFileSystemValidationJniWrapper
+        .allSupportedByRegisteredFileSystems(filteredRootPaths.toArray)
+    ) {
+      return ValidationResult.failed(
+        s"Schema of [$filteredRootPaths] is not supported by registered file systems.")
     }
     // Validate if all types are supported.
     def validateTypes(validatorFunc: PartialFunction[StructField, String]): ValidationResult = {

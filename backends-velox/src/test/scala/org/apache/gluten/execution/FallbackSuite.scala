@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.utils.VeloxFileSystemValidationJniWrapper
+import org.apache.gluten.utils._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
@@ -284,16 +284,23 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
               assert(rootPaths.length == 1)
               assert(rootPaths(0).startsWith("file:/"))
               assert(
-                VeloxFileSystemValidationJniWrapper.isSupportedByRegisteredFileSystems(
-                  rootPaths.head))
+                VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
+                  rootPaths.toArray))
           }
         }
     }
-
+    val filteredRootPath =
+      FileIndexUtil.distinctRootPaths(Seq("file:/test_path/", "test://test/s", "test://test1/s"))
+    assert(filteredRootPath.length == 1)
+    assert(filteredRootPath(0).startsWith("test://"))
     assert(
-      VeloxFileSystemValidationJniWrapper.isSupportedByRegisteredFileSystems("file:/test_path/"))
+      VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
+        Array("file:/test_path/")))
     assert(
-      !VeloxFileSystemValidationJniWrapper.isSupportedByRegisteredFileSystems(
-        "unsupported://test_path"))
+      !VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
+        Array("unsupported://test_path")))
+    assert(
+      !VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
+        Array("file:/test_path/", "unsupported://test_path")))
   }
 }
