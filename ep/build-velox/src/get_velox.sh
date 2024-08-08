@@ -141,7 +141,7 @@ function process_setup_tencentos32 {
 echo "Preparing Velox source code..."
 
 CURRENT_DIR=$(
-  cd "$(dirname "$BASH_SOURCE")"
+  cd "$(dirname $0)"
   pwd
 )
 

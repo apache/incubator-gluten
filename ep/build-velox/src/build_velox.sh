@@ -201,7 +201,7 @@ function check_commit {
 }
 
 CURRENT_DIR=$(
-  cd "$(dirname "$BASH_SOURCE")"
+  cd "$(dirname $0)"
   pwd
 )
 

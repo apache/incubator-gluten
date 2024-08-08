@@ -6,7 +6,7 @@
 ####################################################################################################
 set -exu
 
-CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+CURRENT_DIR=$(cd "$(dirname $0)"; pwd)
 GLUTEN_DIR="$CURRENT_DIR/.."
 BUILD_TYPE=Release
 BUILD_TESTS=OFF
