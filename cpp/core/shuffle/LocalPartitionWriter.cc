@@ -183,12 +183,15 @@ class LocalPartitionWriter::PayloadMerger {
     return merged;
   }
 
-  arrow::Result<std::optional<std::unique_ptr<BlockPayload>>> finishForSpill(uint32_t partitionId) {
+  arrow::Result<std::optional<std::unique_ptr<BlockPayload>>> finishForSpill(
+      uint32_t partitionId,
+      int64_t& totalBytesToEvict) {
     // We need to check whether the spill source is from compressing/copying the merged buffers.
     if ((partitionInMerge_.has_value() && *partitionInMerge_ == partitionId) || !hasMerged(partitionId)) {
       return std::nullopt;
     }
     auto payload = std::move(partitionMergePayload_[partitionId]);
+    totalBytesToEvict += payload->rawSize();
     return payload->toBlockPayload(Payload::kUncompressed, pool_, codec_);
   }
 
@@ -559,12 +562,12 @@ arrow::Status LocalPartitionWriter::evict(
     }
     RETURN_NOT_OK(requestSpill(isFinal));
 
+    totalBytesToEvict_ += inMemoryPayload->rawSize();
     auto payloadType = codec_ ? Payload::Type::kCompressed : Payload::Type::kUncompressed;
     ARROW_ASSIGN_OR_RAISE(
         auto payload,
         inMemoryPayload->toBlockPayload(payloadType, payloadPool_.get(), codec_ ? codec_.get() : nullptr));
     if (!isFinal) {
-      totalBytesToEvict_ += payload->rawSize();
       RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
     } else {
       if (spills_.size() > 0) {
@@ -574,7 +577,6 @@ arrow::Status LocalPartitionWriter::evict(
           partitionLengths_[pid] = totalBytesEvicted_ - bytesEvicted;
         }
       }
-      totalBytesToEvict_ += payload->rawSize();
       RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
     }
     lastEvictPid_ = partitionId;
@@ -583,9 +585,9 @@ arrow::Status LocalPartitionWriter::evict(
 
   if (evictType == Evict::kSpill) {
     RETURN_NOT_OK(requestSpill(false));
+    totalBytesToEvict_ += inMemoryPayload->rawSize();
     ARROW_ASSIGN_OR_RAISE(
         auto payload, inMemoryPayload->toBlockPayload(Payload::kUncompressed, payloadPool_.get(), nullptr));
-    totalBytesToEvict_ += payload->rawSize();
     RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
     return arrow::Status::OK();
   }
@@ -607,6 +609,7 @@ arrow::Status LocalPartitionWriter::evict(
   return arrow::Status::OK();
 }
 
+// FIXME: Remove this code path for local partition writer.
 arrow::Status LocalPartitionWriter::evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) {
   rawPartitionLengths_[partitionId] += blockPayload->rawSize();
 
@@ -658,10 +661,9 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
   if (merger_) {
     auto beforeSpill = payloadPool_->bytes_allocated();
     for (auto pid = 0; pid < numPartitions_; ++pid) {
-      ARROW_ASSIGN_OR_RAISE(auto merged, merger_->finishForSpill(pid));
+      ARROW_ASSIGN_OR_RAISE(auto merged, merger_->finishForSpill(pid, totalBytesToEvict_));
       if (merged.has_value()) {
         RETURN_NOT_OK(requestSpill(false));
-        totalBytesToEvict_ += (*merged)->rawSize();
         RETURN_NOT_OK(spiller_->spill(pid, std::move(*merged)));
       }
     }

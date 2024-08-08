@@ -440,8 +440,9 @@ arrow::Status InMemoryPayload::copyBuffers(arrow::MemoryPool* pool) {
 }
 
 uint64_t InMemoryPayload::rawSize() {
-  return std::accumulate(
-      buffers_.begin(), buffers_.end(), 0UL, [](auto sum, const auto& buffer) { return sum + buffer->size(); });
+  return std::accumulate(buffers_.begin(), buffers_.end(), 0UL, [](auto sum, const auto& buffer) {
+    return buffer ? sum + buffer->size() : sum;
+  });
 }
 
 UncompressedDiskBlockPayload::UncompressedDiskBlockPayload(
