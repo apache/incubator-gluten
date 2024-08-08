@@ -56,7 +56,7 @@ arrow::Status RssPartitionWriter::evict(
     bool reuseBuffers,
     bool hasComplexType,
     bool isFinal) {
-  rawPartitionLengths_[partitionId] += inMemoryPayload->getBufferSize();
+  rawPartitionLengths_[partitionId] += inMemoryPayload->rawSize();
   auto payloadType = codec_ ? Payload::Type::kCompressed : Payload::Type::kUncompressed;
   ARROW_ASSIGN_OR_RAISE(
       auto payload, inMemoryPayload->toBlockPayload(payloadType, payloadPool_.get(), codec_ ? codec_.get() : nullptr));

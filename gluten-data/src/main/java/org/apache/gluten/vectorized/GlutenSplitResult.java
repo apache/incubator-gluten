@@ -44,7 +44,7 @@ public class GlutenSplitResult extends SplitResult {
         totalBytesEvicted,
         partitionLengths,
         rawPartitionLengths);
-    this.bytesToEvict = totalBytesEvicted;
+    this.bytesToEvict = totalBytesToEvict;
     this.peakBytes = peakBytes;
     this.sortTime = totalSortTime;
     this.c2rTime = totalC2RTime;

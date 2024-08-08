@@ -89,6 +89,8 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
 
   void allocateMinimalArray();
 
+  void updateSpillMetrics(const std::unique_ptr<InMemoryPayload>& payload);
+
   // Stores compact row id -> row
   facebook::velox::BufferPtr array_;
   uint64_t* arrayPtr_;
