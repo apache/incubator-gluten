@@ -43,6 +43,7 @@ class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
 
   test("fallback trivial project if its neighbor nodes fell back") {
     withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
+      // scalastyle:off println
       println(spark.conf.getAll)
       runQueryAndCompare("select c1 as c3 from tmp1") {
         df =>
