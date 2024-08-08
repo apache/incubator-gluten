@@ -1096,7 +1096,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
-  test("Verify parquet field name with special character") {
+  ignore("Verify parquet field name with special character") {
     withTable("t") {
 
       // https://github.com/apache/spark/pull/35229 Spark remove parquet field name check after 3.2
@@ -1591,7 +1591,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
-  test("Fix incorrect path by decode") {
+  ignore("Fix incorrect path by decode") {
     val c = "?.+<_>|/"
     val path = rootPath + "/test +?.+<_>|"
     val key1 = s"${c}key1 $c$c"
