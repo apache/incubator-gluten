@@ -1180,7 +1180,7 @@ class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {
       .set(GlutenConfig.VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED.key, "false")
   }
 
-  test("group sets with keys") {
+  test("flushable aggregate rule") {
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
       runQueryAndCompare(VeloxAggregateFunctionsSuite.GROUP_SETS_TEST_SQL) {
         df =>
@@ -1208,6 +1208,24 @@ class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
       SQLConf.FILES_MAX_PARTITION_BYTES.key -> "1k") {
       runQueryAndCompare("select distinct l_partkey from lineitem") {
+        df =>
+          val executedPlan = getExecutedPlan(df)
+          assert(
+            executedPlan.exists(plan => plan.isInstanceOf[RegularHashAggregateExecTransformer]))
+          assert(
+            executedPlan.exists(plan => plan.isInstanceOf[FlushableHashAggregateExecTransformer]))
+      }
+    }
+  }
+
+  test("flushable aggregate rule - agg input already distributed by keys") {
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
+      SQLConf.FILES_MAX_PARTITION_BYTES.key -> "1k") {
+      runQueryAndCompare(
+        "select * from (select distinct l_orderkey,l_partkey from lineitem) a" +
+          " inner join (select l_orderkey from lineitem limit 10) b" +
+          " on a.l_orderkey = b.l_orderkey limit 10") {
         df =>
           val executedPlan = getExecutedPlan(df)
           assert(
