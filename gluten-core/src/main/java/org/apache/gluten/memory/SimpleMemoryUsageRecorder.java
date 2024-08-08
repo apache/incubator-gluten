@@ -30,13 +30,13 @@ public class SimpleMemoryUsageRecorder implements MemoryUsageRecorder {
   @Override
   public void inc(long bytes) {
     final long total = this.current.addAndGet(bytes);
-    long prev_peak;
+    long prevPeak;
     do {
-      prev_peak = this.peak.get();
-      if (total <= prev_peak) {
+      prevPeak = this.peak.get();
+      if (total <= prevPeak) {
         break;
       }
-    } while (!this.peak.compareAndSet(prev_peak, total));
+    } while (!this.peak.compareAndSet(prevPeak, total));
   }
 
   // peak used bytes
