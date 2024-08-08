@@ -71,7 +71,6 @@ FormatFile::InputFormatPtr ORCFormatFile::createInputFormat(const DB::Block & he
     if (context->getConfigRef().has("timezone"))
     {
         const String config_timezone = context->getConfigRef().getString("timezone");
-        std::cout << "config timezone:" << config_timezone << std::endl;
         const String mapped_timezone = DateTimeUtil::convertTimeZone(config_timezone);
         format_settings.orc.reader_time_zone_name = mapped_timezone;
     }
