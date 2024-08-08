@@ -326,8 +326,9 @@ void BlockPayload::setCompressionTime(int64_t compressionTime) {
 }
 
 uint64_t BlockPayload::rawSize() {
-  return std::accumulate(
-      buffers_.begin(), buffers_.end(), 0UL, [](auto sum, const auto& buffer) { return sum + buffer->size(); });
+  return std::accumulate(buffers_.begin(), buffers_.end(), 0UL, [](auto sum, const auto& buffer) {
+    return buffer ? sum + buffer->size() : sum;
+  });
 }
 
 arrow::Result<std::unique_ptr<InMemoryPayload>> InMemoryPayload::merge(
