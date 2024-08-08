@@ -18,39 +18,16 @@ package org.apache.gluten.planner.cost
 
 import org.apache.gluten.extension.columnar.enumerated.RemoveFilter
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
-import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
-import org.apache.gluten.ras.{Cost, CostModel}
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}
 
-class LegacyCostModel extends CostModel[SparkPlan] {
-  private val infLongCost = Long.MaxValue
-
-  override def costOf(node: SparkPlan): GlutenCost = node match {
-    case _: GroupLeafExec => throw new IllegalStateException()
-    case _ => GlutenCost(longCostOf(node))
-  }
-
-  private def longCostOf(node: SparkPlan): Long = node match {
-    case n =>
-      val selfCost = selfLongCostOf(n)
-
-      // Sum with ceil to avoid overflow.
-      def safeSum(a: Long, b: Long): Long = {
-        assert(a >= 0)
-        assert(b >= 0)
-        val sum = a + b
-        if (sum < a || sum < b) Long.MaxValue else sum
-      }
-
-      (n.children.map(longCostOf).toList :+ selfCost).reduce(safeSum)
-  }
+class LegacyCostModel extends LongCostModel {
 
   // A very rough estimation as of now. The cost model basically considers any
   // fallen back ops as having extreme high cost so offloads computations as
   // much as possible.
-  def selfLongCostOf(node: SparkPlan): Long = {
+  override def selfLongCostOf(node: SparkPlan): Long = {
     node match {
       case _: RemoveFilter.NoopFilter =>
         // To make planner choose the tree that has applied rule PushFilterToScan.
@@ -65,11 +42,4 @@ class LegacyCostModel extends CostModel[SparkPlan] {
       case _ => 1000L
     }
   }
-
-  override def costComparator(): Ordering[Cost] = Ordering.Long.on {
-    case GlutenCost(value) => value
-    case _ => throw new IllegalStateException("Unexpected cost type")
-  }
-
-  override def makeInfCost(): Cost = GlutenCost(infLongCost)
 }
