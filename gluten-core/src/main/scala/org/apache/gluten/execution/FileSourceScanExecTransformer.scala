@@ -28,7 +28,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference,
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.FileSourceScanExecShim
-import org.apache.spark.sql.execution.datasources.{CatalogFileIndex, HadoopFsRelation}
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
@@ -128,12 +128,7 @@ abstract class FileSourceScanExecTransformerBase(
   }
 
   override def getRootPathsInternal: Seq[String] = {
-    relation.location match {
-      case c: CatalogFileIndex =>
-        val index = c.filterPartitions(Nil)
-        FileIndexUtil.getRootPath(index)
-      case _ => FileIndexUtil.getRootPath(relation.location)
-    }
+    FileIndexUtil.getRootPath(relation.location)
   }
 
   override protected def doValidateInternal(): ValidationResult = {

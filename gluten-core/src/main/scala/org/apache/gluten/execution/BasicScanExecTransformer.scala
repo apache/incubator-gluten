@@ -61,7 +61,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   }
 
   def getRootFilePaths: Seq[String] = {
-    if (GlutenConfig.getConf.scanRootPathSchemaValidationEnabled) {
+    if (GlutenConfig.getConf.scanFileSchemeValidationEnabled) {
       getRootPathsInternal
     } else {
       Seq.empty
@@ -101,7 +101,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
 
     val validationResult = BackendsApiManager.getSettings
-      .supportFileFormatRead(
+      .validateScan(
         fileFormat,
         fields,
         getPartitionSchema.nonEmpty,

@@ -140,7 +140,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       .toLowerCase(Locale.getDefault)
   }
 
-  override def supportFileFormatRead(
+  override def validateScan(
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,

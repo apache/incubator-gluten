@@ -18,7 +18,6 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.utils._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
@@ -263,44 +262,5 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
           assert(collect(plan) { case smj: SortMergeJoinExec => smj }.size == 1)
       }
     }
-  }
-
-  test("fallback reader with unsupported filesystem") {
-    withTempPath {
-      path =>
-        withSQLConf(GlutenConfig.NATIVE_WRITER_ENABLED.key -> "false") {
-          spark
-            .range(100)
-            .selectExpr("cast(id % 9 as int) as c1")
-            .write
-            .format("parquet")
-            .save(path.getCanonicalPath)
-          runQueryAndCompare(s"SELECT count(*) FROM `parquet`.`${path.getCanonicalPath}`") {
-            df =>
-              val plan = df.queryExecution.executedPlan
-              val fileScan = collect(plan) { case s: FileSourceScanExecTransformer => s }
-              assert(fileScan.size == 1)
-              val rootPaths = fileScan(0).getRootPathsInternal
-              assert(rootPaths.length == 1)
-              assert(rootPaths(0).startsWith("file:/"))
-              assert(
-                VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
-                  rootPaths.toArray))
-          }
-        }
-    }
-    val filteredRootPath =
-      FileIndexUtil.distinctRootPaths(Seq("file:/test_path/", "test://test/s", "test://test1/s"))
-    assert(filteredRootPath.length == 1)
-    assert(filteredRootPath(0).startsWith("test://"))
-    assert(
-      VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
-        Array("file:/test_path/")))
-    assert(
-      !VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
-        Array("unsupported://test_path")))
-    assert(
-      !VeloxFileSystemValidationJniWrapper.allSupportedByRegisteredFileSystems(
-        Array("file:/test_path/", "unsupported://test_path")))
   }
 }

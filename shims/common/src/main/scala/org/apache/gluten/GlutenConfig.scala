@@ -116,8 +116,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def forceParquetTimestampTypeScanFallbackEnabled: Boolean =
     conf.getConf(VELOX_FORCE_PARQUET_TIMESTAMP_TYPE_SCAN_FALLBACK)
 
-  def scanRootPathSchemaValidationEnabled: Boolean =
-    conf.getConf(VELOX_SCAN_ROOT_PATH_SCHEMA_VALIDATION_ENABLED)
+  def scanFileSchemeValidationEnabled: Boolean =
+    conf.getConf(VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED)
 
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
@@ -1971,10 +1971,13 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
-  val VELOX_SCAN_ROOT_PATH_SCHEMA_VALIDATION_ENABLED =
-    buildConf("spark.gluten.sql.scan.root.path.schema.validation.enabled")
+  val VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED =
+    buildConf("spark.gluten.sql.scan.fileSchemeValidation.enabled")
       .internal()
-      .doc("Enable root path schema validation for scan.")
+      .doc(
+        "When true, enable file path scheme validation for scan. Validation will fail if" +
+          " file scheme is not supported by registered file systems, which will cause scan " +
+          " operator fall back.")
       .booleanConf
       .createWithDefault(true)
 
