@@ -217,8 +217,8 @@ object ColumnarShuffleExchangeExec extends Logging {
       conf.celebornShuffleWriterType == GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER
     partitioning != SinglePartition &&
     (partitioning.numPartitions >= GlutenConfig.getConf.columnarShuffleSortPartitionsThreshold ||
-      output.size >= GlutenConfig.getConf.columnarShuffleSortColumnsThreshold) ||
-    isCelebornSortBasedShuffle
+      output.size >= GlutenConfig.getConf.columnarShuffleSortColumnsThreshold ||
+      isCelebornSortBasedShuffle)
   }
 
   class DummyPairRDDWithPartitions(@transient private val sc: SparkContext, numPartitions: Int)
