@@ -195,7 +195,7 @@ object VeloxRasSuite {
   }
 
   class UserCostModel1 extends CostModel[SparkPlan] {
-    private val base = GlutenCostModel.rough()
+    private val base = GlutenCostModel.legacy()
     override def costOf(node: SparkPlan): Cost = node match {
       case _: RowUnary => base.makeInfCost()
       case other => base.costOf(other)
@@ -205,7 +205,7 @@ object VeloxRasSuite {
   }
 
   class UserCostModel2 extends CostModel[SparkPlan] {
-    private val base = GlutenCostModel.rough()
+    private val base = GlutenCostModel.legacy()
     override def costOf(node: SparkPlan): Cost = node match {
       case _: ColumnarUnary => base.makeInfCost()
       case other => base.costOf(other)
