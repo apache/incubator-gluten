@@ -260,19 +260,15 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBatchAppenderJniWrappe
   JNI_METHOD_END(gluten::kInvalidObjectHandle)
 }
 
-JNIEXPORT bool JNICALL Java_org_apache_gluten_utils_VeloxFileSystemValidationJniWrapper_supportedPaths( // NOLINT
+JNIEXPORT jboolean JNICALL
+Java_org_apache_gluten_utils_VeloxFileSystemValidationJniWrapper_isSupportedByRegisteredFileSystems( // NOLINT
     JNIEnv* env,
     jclass,
-    jobjectArray stringArray) {
-  int size = env->GetArrayLength(stringArray);
-  for (int i = 0; i < size; i++) {
-    jstring string = (jstring)(env->GetObjectArrayElement(stringArray, i));
-    std::string path = jStringToCString(env, string);
-    if (!velox::filesystems::isPathSupportedByRegisteredFileSystems(path)) {
-      return false;
-    }
-  }
-  return true;
+    jstring path) {
+  JNI_METHOD_START
+  std::string filPath = jStringToCString(env, path);
+  return velox::filesystems::isPathSupportedByRegisteredFileSystems(filPath);
+  JNI_METHOD_END(false)
 }
 
 #ifdef __cplusplus

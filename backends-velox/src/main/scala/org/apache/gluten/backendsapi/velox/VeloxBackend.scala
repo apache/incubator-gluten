@@ -76,11 +76,12 @@ object VeloxBackendSettings extends BackendSettingsApi {
       partTable: Boolean,
       rootPaths: Seq[String],
       paths: Seq[String]): ValidationResult = {
-    if (
-      !rootPaths.isEmpty && !VeloxFileSystemValidationJniWrapper.supportedPaths(rootPaths.toArray)
-    ) {
-      return ValidationResult.failed(
-        s"Schema of [$rootPaths] is not supported by registered file systems.")
+    // Skip native validation for local path, as local file system is always registered.
+    if (!rootPaths.isEmpty && !rootPaths.head.startsWith("file://")) {
+      if (!VeloxFileSystemValidationJniWrapper.isSupportedByRegisteredFileSystems(rootPaths.head)) {
+        return ValidationResult.failed(
+          s"Schema of [${rootPaths.head}] is not supported by registered file systems.")
+      }
     }
     // Validate if all types are supported.
     def validateTypes(validatorFunc: PartialFunction[StructField, String]): ValidationResult = {

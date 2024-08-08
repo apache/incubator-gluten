@@ -283,12 +283,17 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
               val rootPaths = fileScan(0).getRootPathsInternal
               assert(rootPaths.length == 1)
               assert(rootPaths(0).startsWith("file:/"))
-              assert(VeloxFileSystemValidationJniWrapper.supportedPaths(rootPaths.toArray))
+              assert(
+                VeloxFileSystemValidationJniWrapper.isSupportedByRegisteredFileSystems(
+                  rootPaths.head))
           }
         }
     }
 
-    assert(VeloxFileSystemValidationJniWrapper.supportedPaths(Array("file://test_path/")))
-    assert(!VeloxFileSystemValidationJniWrapper.supportedPaths(Array("unsupported://test_path")))
+    assert(
+      VeloxFileSystemValidationJniWrapper.isSupportedByRegisteredFileSystems("file:/test_path/"))
+    assert(
+      !VeloxFileSystemValidationJniWrapper.isSupportedByRegisteredFileSystems(
+        "unsupported://test_path"))
   }
 }
