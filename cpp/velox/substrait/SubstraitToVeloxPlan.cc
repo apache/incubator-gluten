@@ -1600,17 +1600,26 @@ bool SubstraitToVeloxPlanConverter::childrenFunctionsOnSameField(
 bool SubstraitToVeloxPlanConverter::canPushdownFunction(
     const ::substrait::Expression_ScalarFunction& scalarFunction,
     const std::string& filterName,
-    uint32_t& fieldIdx) {
-  // Condtions can be pushed down.
+    uint32_t& fieldIdx,
+    const std::vector<TypePtr>& veloxTypeList) {
+  // Conditions can be pushed down.
   static const std::unordered_set<std::string> supportedFunctions = {sIsNotNull, sIsNull, sGte, sGt, sLte, sLt, sEqual};
 
-  bool canPushdown = false;
-  if (supportedFunctions.find(filterName) != supportedFunctions.end() &&
-      fieldOrWithLiteral(scalarFunction.arguments(), fieldIdx)) {
-    // The arg should be field or field with literal.
-    canPushdown = true;
+  if (supportedFunctions.find(filterName) == supportedFunctions.end()) {
+    return false;
   }
-  return canPushdown;
+
+  // The arg should be field or field with literal.
+  if (!fieldOrWithLiteral(scalarFunction.arguments(), fieldIdx)) {
+    return false;
+  }
+
+  // check whether data type is supported or not
+  if (!veloxTypeList.empty() && fieldIdx < veloxTypeList.size() && !isPushdownSupported(veloxTypeList.at(fieldIdx))) {
+    return false;
+  }
+
+  return true;
 }
 
 bool SubstraitToVeloxPlanConverter::canPushdownNot(
@@ -1686,6 +1695,18 @@ bool SubstraitToVeloxPlanConverter::canPushdownOr(
   return true;
 }
 
+bool SubstraitToVeloxPlanConverter::isPushdownSupported(TypePtr inputType) {
+  // keep the same with mapToFilters
+  switch (inputType->kind()) {
+    case TypeKind::TIMESTAMP:
+    case TypeKind::VARBINARY:
+    case TypeKind::HUGEINT:
+      return false;
+    default:
+      return true;
+  }
+}
+
 void SubstraitToVeloxPlanConverter::separateFilters(
     std::vector<RangeRecorder>& rangeRecorders,
     const std::vector<::substrait::Expression_ScalarFunction>& scalarFunctions,
@@ -1712,19 +1733,6 @@ void SubstraitToVeloxPlanConverter::separateFilters(
   for (const auto& scalarFunction : scalarFunctions) {
     auto filterNameSpec = SubstraitParser::findFunctionSpec(functionMap_, scalarFunction.function_reference());
     auto filterName = SubstraitParser::getNameBeforeDelimiter(filterNameSpec);
-    // Add all decimal filters to remaining functions because their pushdown are not supported.
-    if (format == dwio::common::FileFormat::ORC && scalarFunction.arguments().size() > 0) {
-      auto value = scalarFunction.arguments().at(0).value();
-      if (value.has_selection()) {
-        uint32_t fieldIndex;
-        bool parsed = SubstraitParser::parseReferenceSegment(value.selection().direct_reference(), fieldIndex);
-        if (!parsed || (!veloxTypeList.empty() && veloxTypeList.at(fieldIndex)->isDecimal())) {
-          remainingFunctions.emplace_back(scalarFunction);
-          continue;
-        }
-      }
-    }
-
     // Check whether NOT and OR functions can be pushed down.
     // If yes, the scalar function will be added into the subfield functions.
     if (filterName == sNot) {
@@ -1742,7 +1750,7 @@ void SubstraitToVeloxPlanConverter::separateFilters(
     } else {
       // Check if the condition is supported to be pushed down.
       uint32_t fieldIdx;
-      if (canPushdownFunction(scalarFunction, filterName, fieldIdx) &&
+      if (canPushdownFunction(scalarFunction, filterName, fieldIdx, veloxTypeList) &&
           rangeRecorders.at(fieldIdx).setCertainRangeForFunction(filterName)) {
         subfieldFunctions.emplace_back(scalarFunction);
       } else {
