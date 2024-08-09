@@ -457,7 +457,8 @@ object OffloadOthers {
             plan.bucketSpec,
             plan.options,
             plan.staticPartitions)
-          BackendsApiManager.getSparkPlanExecApiInstance.createColumnarWriteFilesExec(
+
+          ColumnarWriteFilesExec(
             writeTransformer,
             plan.fileFormat,
             plan.partitionColumns,
