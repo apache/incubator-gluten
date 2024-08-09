@@ -66,7 +66,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       GlutenConfig.getConf().columnarShuffleCompressionThreshold();
   private final double reallocThreshold = GlutenConfig.getConf().columnarShuffleReallocThreshold();
   private String compressionCodec;
-  private final int compressionLevel;
+  private int compressionLevel;
   private final int partitionId;
 
   private final Runtime runtime = Runtimes.contextInstance("UniffleShuffleWriter");
@@ -120,8 +120,12 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                 RssSparkConfig.RSS_WRITER_BUFFER_SIZE.defaultValue().get());
     if ((boolean) sparkConf.get(package$.MODULE$.SHUFFLE_COMPRESS())) {
       compressionCodec = GlutenShuffleUtils.getCompressionCodec(sparkConf);
+      compressionLevel =
+          GlutenShuffleUtils.getCompressionLevel(
+              sparkConf,
+              compressionCodec,
+              GlutenConfig.getConf().columnarShuffleCodecBackend().getOrElse(() -> null));
     }
-    compressionLevel = GlutenShuffleUtils.getCompressionLevel(sparkConf, compressionCodec, null);
   }
 
   @Override

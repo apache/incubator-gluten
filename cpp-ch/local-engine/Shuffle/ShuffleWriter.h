@@ -24,7 +24,7 @@ class ShuffleWriter
 {
 public:
     ShuffleWriter(
-        jobject output_stream, jbyteArray buffer, const std::string & codecStr, bool enable_compression, size_t customize_buffer_size);
+        jobject output_stream, jbyteArray buffer, const std::string & codecStr, jint level, bool enable_compression, size_t customize_buffer_size);
     virtual ~ShuffleWriter();
     void write(const DB::Block & block);
     void flush();

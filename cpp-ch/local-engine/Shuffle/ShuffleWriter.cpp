@@ -25,13 +25,13 @@ using namespace DB;
 namespace local_engine
 {
 ShuffleWriter::ShuffleWriter(
-    jobject output_stream, jbyteArray buffer, const std::string & codecStr, bool enable_compression, size_t customize_buffer_size)
+    jobject output_stream, jbyteArray buffer, const std::string & codecStr, jint level, bool enable_compression, size_t customize_buffer_size)
 {
     compression_enable = enable_compression;
     write_buffer = std::make_unique<WriteBufferFromJavaOutputStream>(output_stream, buffer, customize_buffer_size);
     if (compression_enable)
     {
-        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(codecStr), {});
+        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(codecStr), level < 0 ? std::nullopt : std::optional<int>(level));
         compressed_out = std::make_unique<CompressedWriteBuffer>(*write_buffer, codec);
     }
 }
