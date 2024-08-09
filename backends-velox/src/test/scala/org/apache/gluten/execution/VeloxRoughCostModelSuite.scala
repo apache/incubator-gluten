@@ -20,7 +20,6 @@ import org.apache.gluten.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.ProjectExec
-import org.apache.spark.sql.internal.SQLConf
 
 class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
@@ -36,10 +35,14 @@ class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
       .saveAsTable("tmp1")
   }
 
+  override protected def afterAll(): Unit = {
+    spark.sql("drop table tmp1")
+    super.afterAll()
+  }
+
   override protected def sparkConf: SparkConf = super.sparkConf
     .set(GlutenConfig.RAS_ENABLED.key, "true")
     .set(GlutenConfig.RAS_COST_MODEL.key, "rough")
-    .set(SQLConf.USE_V1_SOURCE_LIST.key, "parquet")
 
   test("fallback trivial project if its neighbor nodes fell back") {
     withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
