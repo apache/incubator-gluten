@@ -166,6 +166,13 @@ case class ArrayJoinValidator() extends FunctionValidator {
   }
 }
 
+case class FormatStringValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val formatString = expr.asInstanceOf[FormatString]
+    formatString.children.head.isInstanceOf[Literal]
+  }
+}
+
 object CHExpressionUtil {
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
