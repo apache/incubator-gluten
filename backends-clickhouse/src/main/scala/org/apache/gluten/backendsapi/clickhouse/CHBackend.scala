@@ -355,6 +355,23 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       .getLong(GLUTEN_MAX_SHUFFLE_READ_BYTES, GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT)
   }
 
+  // Reorder hash join tables, make sure to use the smaller table to build the hash table.
+  // Need to enable AQE
+  def enableReorderHashJoinTables(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      "spark.gluten.sql.columnar.backend.ch.enable.reorder_hash_join_tables",
+      true
+    )
+  }
+  // The threshold to reorder hash join tables, if The result of dividing two tables' size is
+  // large then this threshold, reorder the tables. e.g. a/b > threshold or b/a > threshold
+  def reorderHashJoinTablesThreadhold(): Int = {
+    SparkEnv.get.conf.getInt(
+      "spark.gluten.sql.columnar.backend.ch.reorder_hash_join_tables_threadhold",
+      10
+    )
+  }
+
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
   }

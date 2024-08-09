@@ -23,7 +23,7 @@ import org.apache.spark.{broadcast, SparkContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.optimizer.BuildSide
+import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -41,14 +41,20 @@ object JoinTypeTransform {
     }
   }
 
-  def toSubstraitType(joinType: JoinType): JoinRel.JoinType = {
+  def toSubstraitType(joinType: JoinType, buildSide: BuildSide): JoinRel.JoinType = {
     joinType match {
       case _: InnerLike =>
         JoinRel.JoinType.JOIN_TYPE_INNER
       case FullOuter =>
         JoinRel.JoinType.JOIN_TYPE_OUTER
-      case LeftOuter | RightOuter =>
+      case LeftOuter =>
         JoinRel.JoinType.JOIN_TYPE_LEFT
+      case RightOuter if (buildSide == BuildLeft) =>
+        // The tables order will be reversed in HashJoinLikeExecTransformer
+        JoinRel.JoinType.JOIN_TYPE_LEFT
+      case RightOuter if (buildSide == BuildRight) =>
+        // This the case rewritten in ReorderJoinLeftRightRule
+        JoinRel.JoinType.JOIN_TYPE_RIGHT
       case LeftSemi | ExistenceJoin(_) =>
         JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
       case LeftAnti =>
@@ -97,7 +103,7 @@ case class CHShuffledHashJoinExecTransformer(
   }
   private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
   override protected lazy val substraitJoinType: JoinRel.JoinType =
-    JoinTypeTransform.toSubstraitType(joinType)
+    JoinTypeTransform.toSubstraitType(joinType, buildSide)
 }
 
 case class CHBroadcastBuildSideRDD(
@@ -205,5 +211,5 @@ case class CHBroadcastHashJoinExecTransformer(
   // and isExistenceJoin is set to true to indicate that it is an existence join.
   private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
   override protected lazy val substraitJoinType: JoinRel.JoinType =
-    JoinTypeTransform.toSubstraitType(joinType)
+    JoinTypeTransform.toSubstraitType(joinType, buildSide)
 }

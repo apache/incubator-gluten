@@ -531,5 +531,33 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     spark.sql("drop table t1")
     spark.sql("drop table t2")
   }
+
+  test("GLUTEN-6768 rerorder hash join") {
+    withSQLConf(("spark.gluten.sql.columnar.backend.ch.enable.reorder_hash_join_tables", "true")) {
+      spark.sql("create table t1(a int, b int) using parquet")
+      spark.sql("create table t2(a int, b int) using parquet")
+
+      spark.sql("insert into t1 select id as a, id as b from range(10000)")
+      spark.sql("insert into t1 select id as a, id as b from range(100)")
+
+      var sql = """
+                  |select * from t2 left join t1 on t1.a = t2.a
+                  |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+      sql = """
+              |select * from t2 right join t1 on t1.a = t2.a
+              |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+      sql = """
+              |select * from t1 right join t2 on t1.a = t2.a
+              |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+      spark.sql("drop table t1")
+      spark.sql("drop table t2")
+    }
+  }
 }
 // scalastyle:off line.size.limit
