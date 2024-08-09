@@ -16,8 +16,11 @@
  */
 
 #include "VeloxColumnarToRowConverter.h"
+#include <velox/common/base/SuccinctPrinter.h>
+#include <cstdint>
 
 #include "memory/VeloxColumnarBatch.h"
+#include "utils/exception.h"
 #include "velox/row/UnsafeRowDeserializers.h"
 #include "velox/row/UnsafeRowFast.h"
 
@@ -25,27 +28,39 @@ using namespace facebook;
 
 namespace gluten {
 
-void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr rowVector) {
-  numRows_ = rowVector->size();
+void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr rowVector, int64_t startRow) {
+  auto vectorLength = rowVector->size();
   numCols_ = rowVector->childrenSize();
 
   fast_ = std::make_unique<velox::row::UnsafeRowFast>(rowVector);
 
-  size_t totalMemorySize = 0;
+  int64_t totalMemorySize;
+
   if (auto fixedRowSize = velox::row::UnsafeRowFast::fixedRowSize(velox::asRowType(rowVector->type()))) {
-    totalMemorySize += fixedRowSize.value() * numRows_;
+    auto rowSize = fixedRowSize.value();
+    // make sure it has at least one row
+    numRows_ = std::max<int32_t>(1, std::min<int64_t>(memThreshold_ / rowSize, vectorLength - startRow));
+    totalMemorySize = numRows_ * rowSize;
   } else {
-    for (auto i = 0; i < numRows_; ++i) {
-      totalMemorySize += fast_->rowSize(i);
+    // Calculate the first row size
+    totalMemorySize = fast_->rowSize(startRow);
+
+    auto endRow = startRow + 1;
+    for (; endRow < vectorLength; ++endRow) {
+      auto rowSize = fast_->rowSize(endRow);
+      if (UNLIKELY(totalMemorySize + rowSize > memThreshold_)) {
+        break;
+      } else {
+        totalMemorySize += rowSize;
+      }
     }
+    // Make sure the threshold is larger than the first row size
+    numRows_ = endRow - startRow;
   }
 
-  if (veloxBuffers_ == nullptr) {
-    // First allocate memory
+  if (nullptr == veloxBuffers_) {
     veloxBuffers_ = velox::AlignedBuffer::allocate<uint8_t>(totalMemorySize, veloxPool_.get());
-  }
-
-  if (veloxBuffers_->capacity() < totalMemorySize) {
+  } else if (veloxBuffers_->capacity() < totalMemorySize) {
     velox::AlignedBuffer::reallocate<uint8_t>(&veloxBuffers_, totalMemorySize);
   }
 
@@ -53,9 +68,9 @@ void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr ro
   memset(bufferAddress_, 0, sizeof(int8_t) * totalMemorySize);
 }
 
-void VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb) {
+void VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb, int64_t startRow) {
   auto veloxBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
-  refreshStates(veloxBatch->getRowVector());
+  refreshStates(veloxBatch->getRowVector(), startRow);
 
   // Initialize the offsets_ , lengths_
   lengths_.clear();
@@ -64,11 +79,11 @@ void VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb) {
   offsets_.resize(numRows_, 0);
 
   size_t offset = 0;
-  for (auto rowIdx = 0; rowIdx < numRows_; ++rowIdx) {
-    auto rowSize = fast_->serialize(rowIdx, (char*)(bufferAddress_ + offset));
-    lengths_[rowIdx] = rowSize;
-    if (rowIdx > 0) {
-      offsets_[rowIdx] = offsets_[rowIdx - 1] + lengths_[rowIdx - 1];
+  for (auto i = 0; i < numRows_; ++i) {
+    auto rowSize = fast_->serialize(startRow + i, (char*)(bufferAddress_ + offset));
+    lengths_[i] = rowSize;
+    if (i > 0) {
+      offsets_[i] = offsets_[i - 1] + lengths_[i - 1];
     }
     offset += rowSize;
   }

@@ -17,7 +17,7 @@
 #include "MetaDataHelper.h"
 
 #include <filesystem>
-
+#include <Core/Settings.h>
 #include <Disks/ObjectStorages/MetadataStorageFromDisk.h>
 #include <Parser/MergeTreeRelParser.h>
 #include <Storages/Mergetree/MergeSparkMergeTreeTask.h>
@@ -80,7 +80,7 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
             return;
 
         // Increase the speed of metadata recovery
-        auto max_concurrency = std::max(10UL, SerializedPlanParser::global_context->getSettings().max_threads.value);
+        auto max_concurrency = std::max(10UL, SerializedPlanParser::global_context->getSettingsRef().max_threads.value);
         auto max_threads = std::min(max_concurrency, not_exists_part.size());
         FreeThreadPool thread_pool(
             CurrentMetrics::LocalThread,
@@ -105,7 +105,7 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
                     return;
                 else
                     metadata_disk->createDirectories(part_path);
-                auto key = s3->generateObjectKeyForPath(metadata_file_path.generic_string());
+                auto key = s3->generateObjectKeyForPath(metadata_file_path.generic_string(), std::nullopt);
                 StoredObject metadata_object(key.serialize());
                 auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object));
                 for (const auto & item : part_metadata)
@@ -113,8 +113,6 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
                     auto item_path = part_path / item.first;
                     auto out = metadata_disk->writeFile(item_path);
                     out->write(item.second.data(), item.second.size());
-                    out->finalize();
-                    out->sync();
                 }
             };
             thread_pool.scheduleOrThrow(job);

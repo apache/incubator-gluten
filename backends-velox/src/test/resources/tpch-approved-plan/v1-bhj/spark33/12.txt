@@ -6,12 +6,12 @@ AdaptiveSparkPlan (44)
       +- ^ InputIteratorTransformer (27)
          +- ShuffleQueryStage (25), Statistics(X)
             +- ColumnarExchange (24)
-               +- VeloxAppendBatches (23)
+               +- VeloxResizeBatches (23)
                   +- ^ RegularHashAggregateExecTransformer (21)
                      +- ^ InputIteratorTransformer (20)
                         +- ShuffleQueryStage (18), Statistics(X)
                            +- ColumnarExchange (17)
-                              +- VeloxAppendBatches (16)
+                              +- VeloxResizeBatches (16)
                                  +- ^ ProjectExecTransformer (14)
                                     +- ^ FlushableHashAggregateExecTransformer (13)
                                        +- ^ ProjectExecTransformer (12)
@@ -108,9 +108,9 @@ Input [3]: [l_shipmode#X, sum#X, sum#X]
 Input [4]: [hash_partition_key#X, l_shipmode#X, sum#X, sum#X]
 Arguments: false
 
-(16) VeloxAppendBatches
+(16) VeloxResizeBatches
 Input [4]: [hash_partition_key#X, l_shipmode#X, sum#X, sum#X]
-Arguments: X
+Arguments: X, X
 
 (17) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_shipmode#X, sum#X, sum#X]
@@ -137,9 +137,9 @@ Results [3]: [l_shipmode#X, sum(CASE WHEN ((o_orderpriority#X = 1-URGENT) OR (o_
 Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
 Arguments: false
 
-(23) VeloxAppendBatches
+(23) VeloxResizeBatches
 Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
-Arguments: X
+Arguments: X, X
 
 (24) ColumnarExchange
 Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]

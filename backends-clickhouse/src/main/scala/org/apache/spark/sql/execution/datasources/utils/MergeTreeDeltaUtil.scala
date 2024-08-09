@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution.datasources.utils
 
+import org.apache.gluten.expression.ConverterUtils.normalizeColName
+
 object MergeTreeDeltaUtil {
 
   val DEFAULT_ORDER_BY_KEY = "tuple()"
@@ -25,7 +27,7 @@ object MergeTreeDeltaUtil {
       primaryKeyOption: Option[Seq[String]]): (String, String) = {
     val orderByKey =
       if (orderByKeyOption.isDefined && orderByKeyOption.get.nonEmpty) {
-        orderByKeyOption.get.mkString(",")
+        columnsToStr(orderByKeyOption)
       } else DEFAULT_ORDER_BY_KEY
 
     val primaryKey =
@@ -33,9 +35,14 @@ object MergeTreeDeltaUtil {
         !orderByKey.equals(DEFAULT_ORDER_BY_KEY) && primaryKeyOption.isDefined &&
         primaryKeyOption.get.nonEmpty
       ) {
-        primaryKeyOption.get.mkString(",")
+        columnsToStr(primaryKeyOption)
       } else ""
 
     (orderByKey, primaryKey)
+  }
+
+  def columnsToStr(option: Option[Seq[String]]): String = option match {
+    case Some(keys) => keys.map(normalizeColName).mkString(",")
+    case None => ""
   }
 }

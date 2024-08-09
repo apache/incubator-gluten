@@ -29,8 +29,8 @@ function(add_velox_test TEST_EXEC)
   target_include_directories(
     ${TEST_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src
                          ${VELOX_BUILD_PATH}/_deps/duckdb-src/src/include)
-  target_link_libraries(${TEST_EXEC} velox_benchmark_common GTest::gtest
-                        GTest::gtest_main)
+  target_link_libraries(${TEST_EXEC} velox GTest::gtest GTest::gtest_main
+                        google::glog)
   gtest_discover_tests(${TEST_EXEC} DISCOVERY_MODE PRE_TEST)
 endfunction()
 
@@ -39,9 +39,13 @@ set(VELOX_TEST_COMMON_SRCS JsonToProtoConverter.cc FilePathGenerator.cc)
 add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
 # TODO: ORC is not well supported. add_velox_test(orc_test SOURCES OrcTest.cc)
 add_velox_test(
-  velox_operators_test SOURCES VeloxColumnarToRowTest.cc
-  VeloxRowToColumnarTest.cc VeloxColumnarBatchSerializerTest.cc
-  VeloxColumnarBatchTest.cc)
+  velox_operators_test
+  SOURCES
+  VeloxColumnarToRowTest.cc
+  VeloxRowToColumnarTest.cc
+  VeloxColumnarBatchSerializerTest.cc
+  VeloxColumnarBatchTest.cc
+  VeloxBatchResizerTest.cc)
 add_velox_test(
   velox_plan_conversion_test
   SOURCES
@@ -57,3 +61,6 @@ add_velox_test(spark_functions_test SOURCES SparkFunctionTest.cc
 add_velox_test(execution_ctx_test SOURCES RuntimeTest.cc)
 add_velox_test(velox_memory_test SOURCES MemoryManagerTest.cc)
 add_velox_test(buffer_outputstream_test SOURCES BufferOutputStreamTest.cc)
+if(BUILD_EXAMPLES)
+  add_velox_test(MyUdfTest SOURCES MyUdfTest.cc)
+endif()

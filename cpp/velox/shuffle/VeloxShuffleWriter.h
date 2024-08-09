@@ -108,6 +108,14 @@ class VeloxShuffleWriter : public ShuffleWriter {
     return maxBatchSize_;
   }
 
+  int64_t partitionBufferSize() const {
+    return partitionBufferPool_->bytes_allocated();
+  }
+
+  int64_t peakBytesAllocated() const override {
+    return partitionBufferPool_->max_memory() + veloxPool_->peakBytes();
+  }
+
  protected:
   VeloxShuffleWriter(
       uint32_t numPartitions,
@@ -115,21 +123,32 @@ class VeloxShuffleWriter : public ShuffleWriter {
       ShuffleWriterOptions options,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       arrow::MemoryPool* pool)
-      : ShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), pool),
-        veloxPool_(std::move(veloxPool)) {
+      : ShuffleWriter(numPartitions, std::move(options), pool),
+        partitionBufferPool_(std::make_unique<ShuffleMemoryPool>(pool)),
+        veloxPool_(std::move(veloxPool)),
+        partitionWriter_(std::move(partitionWriter)) {
+    partitioner_ = Partitioner::make(options_.partitioning, numPartitions_, options_.startPartitionId);
     arenas_.resize(numPartitions);
     serdeOptions_.useLosslessTimestamp = true;
   }
 
   virtual ~VeloxShuffleWriter() = default;
 
-  std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
-
-  facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
+  // Memory Pool used to track memory usage of partition buffers.
+  // The actual allocation is delegated to options_.memoryPool.
+  std::unique_ptr<ShuffleMemoryPool> partitionBufferPool_;
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
 
-  bool supportAvx512_ = false;
+  // PartitionWriter must destruct before partitionBufferPool_, as it may hold buffers allocated by
+  // partitionBufferPool_.
+  std::unique_ptr<PartitionWriter> partitionWriter_;
+
+  std::shared_ptr<Partitioner> partitioner_;
+
+  std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
+
+  facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
 
   int32_t maxBatchSize_{0};
 

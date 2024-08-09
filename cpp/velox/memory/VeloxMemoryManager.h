@@ -25,6 +25,7 @@
 
 namespace gluten {
 
+// Make sure the class is thread safe
 class VeloxMemoryManager final : public MemoryManager {
  public:
   VeloxMemoryManager(std::unique_ptr<AllocationListener> listener);

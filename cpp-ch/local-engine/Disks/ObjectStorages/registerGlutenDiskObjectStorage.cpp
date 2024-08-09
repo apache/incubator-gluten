@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 #include "config.h"
+#include <Core/Settings.h>
 #include <Disks/ObjectStorages/ObjectStorageFactory.h>
 #if USE_AWS_S3
+#include <Disks/ObjectStorages/S3/DiskS3Utils.h>
 #include <Disks/ObjectStorages/S3/S3ObjectStorage.h>
 #include <Disks/ObjectStorages/S3/diskSettings.h>
-#include <Disks/ObjectStorages/S3/DiskS3Utils.h>
 #endif
 
 #if USE_HDFS

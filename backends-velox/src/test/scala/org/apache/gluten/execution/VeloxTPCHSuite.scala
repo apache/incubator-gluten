@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row, TestUtils}
 import org.apache.spark.sql.execution.FormattedMode
@@ -70,6 +72,7 @@ abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
       // for unexpected blank
       .replaceAll("Scan parquet ", "Scan parquet")
       // Spark QueryStageExec will take it's id as argument, replace it with X
+      .replaceAll("Arguments: [0-9]+, [0-9]+", "Arguments: X, X")
       .replaceAll("Arguments: [0-9]+", "Arguments: X")
       // mask PullOutPostProject and PullOutPreProject id
       .replaceAll("_pre_[0-9]*", "_pre_X")
@@ -252,6 +255,7 @@ class VeloxTPCHDistinctSpillSuite extends VeloxTPCHTableSupport {
     super.sparkConf
       .set("spark.memory.offHeap.size", "50m")
       .set("spark.gluten.memory.overAcquiredMemoryRatio", "0.9") // to trigger distinct spill early
+      .set(GlutenConfig.GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY, "8k")
   }
 
   test("distinct spill") {

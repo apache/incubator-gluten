@@ -18,11 +18,12 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
+import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
 
 import org.apache.spark._
+import org.apache.spark.internal.config.{SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
@@ -48,6 +49,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
     celebornConf,
     client,
     writeMetrics) {
+  private val isSort = !GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER.equals(shuffleWriterType)
 
   private val runtime = Runtimes.contextInstance("CelebornShuffleWriter")
 
@@ -72,7 +74,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
         val handle = ColumnarBatches.getNativeHandle(cb)
         val startTime = System.nanoTime()
         jniWrapper.write(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
-        dep.metrics("splitTime").add(System.nanoTime() - startTime)
+        dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
@@ -80,14 +82,24 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
       }
     }
 
-    assert(nativeShuffleWriter != -1L)
+    // If all of the ColumnarBatch have empty rows, the nativeShuffleWriter still equals -1
+    if (nativeShuffleWriter == -1L) {
+      handleEmptyIterator()
+      return
+    }
+
     val startTime = System.nanoTime()
     splitResult = jniWrapper.stop(nativeShuffleWriter)
 
-    dep
-      .metrics("splitTime")
+    dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
+    val nativeMetrics = if (isSort) {
+      dep.metrics("sortTime")
+    } else {
+      dep.metrics("splitTime")
+    }
+    nativeMetrics
       .add(
-        System.nanoTime() - startTime - splitResult.getTotalPushTime -
+        dep.metrics("shuffleWallTime").value - splitResult.getTotalPushTime -
           splitResult.getTotalWriteTime -
           splitResult.getTotalCompressTime)
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
@@ -108,6 +120,8 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
       compressionLevel,
       bufferCompressThreshold,
       GlutenConfig.getConf.columnarShuffleCompressionMode,
+      conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
+      conf.get(SHUFFLE_SORT_USE_RADIXSORT),
       clientPushBufferMaxSize,
       clientPushSortMemoryThreshold,
       celebornPartitionPusher,

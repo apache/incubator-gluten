@@ -53,13 +53,6 @@ void VeloxParquetDatasource::initSink(const std::unordered_map<std::string, std:
 
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   initSink(sparkConfs);
-  ArrowSchema cSchema{};
-  arrow::Status status = arrow::ExportSchema(*(schema_.get()), &cSchema);
-  if (!status.ok()) {
-    throw std::runtime_error("Failed to export arrow cSchema.");
-  }
-
-  type_ = velox::importFromArrow(cSchema);
 
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
     maxRowGroupBytes_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
@@ -68,7 +61,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     maxRowGroupRows_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
   }
   velox::parquet::WriterOptions writeOption;
-  writeOption.parquetWriteTimestampUnit = 6 /*micro*/;
+  writeOption.parquetWriteTimestampUnit = TimestampUnit::kMicro /*micro*/;
   auto compressionCodec = CompressionKind::CompressionKind_SNAPPY;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
     auto compressionCodecStr = sparkConfs.find(kParquetCompressionCodec)->second;
@@ -100,7 +93,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
       compressionCodec = CompressionKind::CompressionKind_NONE;
     }
   }
-  writeOption.compression = compressionCodec;
+  writeOption.compressionKind = compressionCodec;
   writeOption.flushPolicyFactory = [&]() {
     return std::make_unique<velox::parquet::LambdaFlushPolicy>(
         maxRowGroupRows_, maxRowGroupBytes_, [&]() { return false; });

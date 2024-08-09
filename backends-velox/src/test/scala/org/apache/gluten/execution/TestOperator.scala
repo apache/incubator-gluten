@@ -29,7 +29,7 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DecimalType, IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{ArrayType, DecimalType, IntegerType, StringType, StructField, StructType}
 
 import java.util.concurrent.TimeUnit
 
@@ -102,6 +102,33 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
         "where l_comment is null") { _ => }
     assert(df.isEmpty)
     checkLengthAndPlan(df, 0)
+
+    // Struct of array.
+    val data =
+      Row(Row(Array("a", "b", "c"), null)) ::
+        Row(Row(Array("d", "e", "f"), Array(1, 2, 3))) ::
+        Row(Row(null, null)) :: Nil
+
+    val schema = new StructType()
+      .add(
+        "struct",
+        new StructType()
+          .add("a0", ArrayType(StringType))
+          .add("a1", ArrayType(IntegerType)))
+
+    val dataFrame = spark.createDataFrame(JavaConverters.seqAsJavaList(data), schema)
+
+    withTempPath {
+      path =>
+        dataFrame.write.parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("select * from view where struct is null") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+        runQueryAndCompare("select * from view where struct.a0 is null") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+    }
   }
 
   test("is_null_has_null") {
@@ -119,6 +146,33 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       "select l_orderkey from lineitem where l_comment is not null " +
         "and l_orderkey = 1") { _ => }
     checkLengthAndPlan(df, 6)
+
+    // Struct of array.
+    val data =
+      Row(Row(Array("a", "b", "c"), null)) ::
+        Row(Row(Array("d", "e", "f"), Array(1, 2, 3))) ::
+        Row(Row(null, null)) :: Nil
+
+    val schema = new StructType()
+      .add(
+        "struct",
+        new StructType()
+          .add("a0", ArrayType(StringType))
+          .add("a1", ArrayType(IntegerType)))
+
+    val dataFrame = spark.createDataFrame(JavaConverters.seqAsJavaList(data), schema)
+
+    withTempPath {
+      path =>
+        dataFrame.write.parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("select * from view where struct is not null") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+        runQueryAndCompare("select * from view where struct.a0 is not null") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+    }
   }
 
   test("is_null and is_not_null coexist") {
@@ -297,9 +351,22 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
   }
 
   test("window expression") {
-    Seq("sort", "streaming").foreach {
-      windowType =>
+    Seq(("sort", 0), ("streaming", 1)).foreach {
+      case (windowType, localSortSize) =>
         withSQLConf("spark.gluten.sql.columnar.backend.velox.window.type" -> windowType) {
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_commitdate" +
+              " RANGE BETWEEN 1 PRECEDING AND CURRENT ROW) from lineitem ") {
+            df =>
+              checkSparkOperatorMatch[WindowExecTransformer](df)
+              assert(
+                getExecutedPlan(df).collect {
+                  case s: SortExecTransformer if !s.global => s
+                }.size == localSortSize
+              )
+          }
+
           runQueryAndCompare(
             "select max(l_partkey) over" +
               " (partition by l_suppkey order by l_orderkey" +
@@ -834,15 +901,16 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
   test("combine small batches before shuffle") {
     val minBatchSize = 15
     withSQLConf(
-      "spark.gluten.sql.columnar.backend.velox.coalesceBatchesBeforeShuffle" -> "true",
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
       "spark.gluten.sql.columnar.maxBatchSize" -> "2",
-      "spark.gluten.sql.columnar.backend.velox.minBatchSizeForShuffle" -> s"$minBatchSize"
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.minSize" ->
+        s"$minBatchSize"
     ) {
       val df = runQueryAndCompare(
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +
           "where l_orderkey < 100 group by l_orderkey") { _ => }
       checkLengthAndPlan(df, 27)
-      val ops = collect(df.queryExecution.executedPlan) { case p: VeloxAppendBatchesExec => p }
+      val ops = collect(df.queryExecution.executedPlan) { case p: VeloxResizeBatchesExec => p }
       assert(ops.size == 1)
       val op = ops.head
       assert(op.minOutputBatchSize == minBatchSize)
@@ -851,6 +919,25 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       assert(metrics("numInputBatches").value == 14)
       assert(metrics("numOutputRows").value == 27)
       assert(metrics("numOutputBatches").value == 2)
+    }
+
+    withSQLConf(
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
+      "spark.gluten.sql.columnar.maxBatchSize" -> "2"
+    ) {
+      val df = runQueryAndCompare(
+        "select l_orderkey, sum(l_partkey) as sum from lineitem " +
+          "where l_orderkey < 100 group by l_orderkey") { _ => }
+      checkLengthAndPlan(df, 27)
+      val ops = collect(df.queryExecution.executedPlan) { case p: VeloxResizeBatchesExec => p }
+      assert(ops.size == 1)
+      val op = ops.head
+      assert(op.minOutputBatchSize == 1)
+      val metrics = op.metrics
+      assert(metrics("numInputRows").value == 27)
+      assert(metrics("numInputBatches").value == 14)
+      assert(metrics("numOutputRows").value == 27)
+      assert(metrics("numOutputBatches").value == 14)
     }
   }
 

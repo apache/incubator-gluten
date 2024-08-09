@@ -30,6 +30,7 @@
 
 #include <chrono>
 
+#include "benchmarks/common/BenchmarkUtils.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
@@ -43,7 +44,7 @@ using namespace facebook;
 using namespace arrow;
 namespace gluten {
 
-const int kBatchBufferSize = 32768;
+const int kBatchBufferSize = 4096;
 
 class GoogleBenchmarkColumnarToRow {
  public:
@@ -149,14 +150,14 @@ class GoogleBenchmarkColumnarToRowCacheScanBenchmark : public GoogleBenchmarkCol
       }
     } while (recordBatch);
 
-    LOG(INFO) << " parquet parse done elapsed time = " << elapseRead / 1000000 << " rows = " << numRows;
+    LOG(WARNING) << " parquet parse done elapsed time = " << elapseRead / 1000000 << " rows = " << numRows;
 
     // reuse the columnarToRowConverter for batches caused system % increase a lot
     auto ctxPool = defaultLeafVeloxMemoryPool();
     for (auto _ : state) {
       for (const auto& vector : vectors) {
         auto row = std::dynamic_pointer_cast<velox::RowVector>(vector);
-        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(ctxPool);
+        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(ctxPool, 64 << 20);
         auto cb = std::make_shared<VeloxColumnarBatch>(row);
         TIME_NANO_START(writeTime);
         columnarToRowConverter->convert(cb);
@@ -211,7 +212,7 @@ class GoogleBenchmarkColumnarToRowIterateScanBenchmark : public GoogleBenchmarkC
         numBatches += 1;
         numRows += recordBatch->num_rows();
         auto vector = recordBatch2RowVector(*recordBatch);
-        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(ctxPool);
+        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(ctxPool, 64 << 20);
         auto row = std::dynamic_pointer_cast<velox::RowVector>(vector);
         auto cb = std::make_shared<VeloxColumnarBatch>(row);
         TIME_NANO_START(writeTime);
@@ -266,6 +267,10 @@ int main(int argc, char** argv) {
   LOG(INFO) << "threads = " << threads;
   LOG(INFO) << "datafile = " << datafile;
   LOG(INFO) << "cpu = " << cpu;
+
+  auto backendConf = gluten::defaultConf();
+  gluten::initVeloxBackend(backendConf);
+  memory::MemoryManager::testingSetInstance({});
 
   gluten::GoogleBenchmarkColumnarToRowCacheScanBenchmark bck(datafile);
 

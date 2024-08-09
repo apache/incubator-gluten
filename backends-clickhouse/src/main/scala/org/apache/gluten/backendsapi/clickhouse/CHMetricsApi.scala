@@ -222,6 +222,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to spill"),
       "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to compress"),
       "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to prepare"),
+      "shuffleWallTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "shuffle wall time"),
       "avgReadBatchNumRows" -> SQLMetrics
         .createAverageMetric(sparkContext, "avg read batch num rows"),
       "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
@@ -383,13 +384,13 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       s"SampleTransformer metrics update is not supported in CH backend")
   }
 
-  def genWriteFilesTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
-    throw new UnsupportedOperationException(
-      s"WriteFilesTransformer metrics update is not supported in CH backend")
-  }
+  def genWriteFilesTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "physicalWrittenBytes" -> SQLMetrics.createMetric(sparkContext, "number of written bytes"),
+      "numWrittenFiles" -> SQLMetrics.createMetric(sparkContext, "number of written files")
+    )
 
   def genWriteFilesTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater = {
-    throw new UnsupportedOperationException(
-      s"WriteFilesTransformer metrics update is not supported in CH backend")
+    new WriteFilesMetricsUpdater(metrics)
   }
 }

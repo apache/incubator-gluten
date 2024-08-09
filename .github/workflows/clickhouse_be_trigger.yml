@@ -29,7 +29,6 @@ on:
       - 'gluten-ut/**'
       - 'shims/**'
       - 'tools/gluten-it/**'
-      - 'tools/gluten-te/**'
       - 'cpp-ch/**'
 
 jobs:

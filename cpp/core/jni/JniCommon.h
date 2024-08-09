@@ -362,6 +362,10 @@ static inline gluten::CompressionMode getCompressionMode(JNIEnv* env, jstring co
   }
 }
 
+/*
+NOTE: the class must be thread safe
+ */
+
 class SparkAllocationListener final : public gluten::AllocationListener {
  public:
   SparkAllocationListener(JavaVM* vm, jobject jListenerLocalRef, jmethodID jReserveMethod, jmethodID jUnreserveMethod)
@@ -399,25 +403,34 @@ class SparkAllocationListener final : public gluten::AllocationListener {
       env->CallLongMethod(jListenerGlobalRef_, jReserveMethod_, size);
       checkException(env);
     }
-    bytesReserved_ += size;
-    maxBytesReserved_ = std::max(bytesReserved_, maxBytesReserved_);
+    usedBytes_ += size;
+    while (true) {
+      int64_t savedPeakBytes = peakBytes_;
+      if (usedBytes_ <= savedPeakBytes) {
+        break;
+      }
+      // usedBytes_ > savedPeakBytes, update peak
+      if (peakBytes_.compare_exchange_weak(savedPeakBytes, usedBytes_)) {
+        break;
+      }
+    }
   }
 
   int64_t currentBytes() override {
-    return bytesReserved_;
+    return usedBytes_;
   }
 
   int64_t peakBytes() override {
-    return maxBytesReserved_;
+    return peakBytes_;
   }
 
  private:
   JavaVM* vm_;
   jobject jListenerGlobalRef_;
-  jmethodID jReserveMethod_;
-  jmethodID jUnreserveMethod_;
-  int64_t bytesReserved_ = 0L;
-  int64_t maxBytesReserved_ = 0L;
+  const jmethodID jReserveMethod_;
+  const jmethodID jUnreserveMethod_;
+  std::atomic_int64_t usedBytes_{0L};
+  std::atomic_int64_t peakBytes_{0L};
 };
 
 class BacktraceAllocationListener final : public gluten::AllocationListener {

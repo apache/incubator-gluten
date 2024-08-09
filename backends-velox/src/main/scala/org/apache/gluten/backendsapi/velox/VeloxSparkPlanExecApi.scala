@@ -351,24 +351,31 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     }
 
     def maybeAddAppendBatchesExec(plan: SparkPlan): SparkPlan = {
-      if (GlutenConfig.getConf.veloxCoalesceBatchesBeforeShuffle) {
-        VeloxAppendBatchesExec(plan, GlutenConfig.getConf.veloxMinBatchSizeForShuffle)
-      } else {
-        plan
+      plan match {
+        case shuffle: ColumnarShuffleExchangeExec
+            if !shuffle.useSortBasedShuffle &&
+              GlutenConfig.getConf.veloxResizeBatchesShuffleInput =>
+          val range = GlutenConfig.getConf.veloxResizeBatchesShuffleInputRange
+          val appendBatches =
+            VeloxResizeBatchesExec(shuffle.child, range.min, range.max)
+          shuffle.withNewChildren(Seq(appendBatches))
+        case _ => plan
       }
     }
 
     val child = shuffle.child
 
-    shuffle.outputPartitioning match {
+    val newShuffle = shuffle.outputPartitioning match {
       case HashPartitioning(exprs, _) =>
         val hashExpr = new Murmur3Hash(exprs)
         val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ child.output
         val projectTransformer = ProjectExecTransformer(projectList, child)
         val validationResult = projectTransformer.doValidate()
         if (validationResult.ok()) {
-          val newChild = maybeAddAppendBatchesExec(projectTransformer)
-          ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output.drop(1))
+          ColumnarShuffleExchangeExec(
+            shuffle,
+            projectTransformer,
+            projectTransformer.output.drop(1))
         } else {
           FallbackTags.add(shuffle, validationResult)
           shuffle.withNewChildren(child :: Nil)
@@ -384,8 +391,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
           // null type since the value always be null.
           val columnsForHash = child.output.filterNot(_.dataType == NullType)
           if (columnsForHash.isEmpty) {
-            val newChild = maybeAddAppendBatchesExec(child)
-            ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output)
+            ColumnarShuffleExchangeExec(shuffle, child, child.output)
           } else {
             val hashExpr = new Murmur3Hash(columnsForHash)
             val projectList = Seq(Alias(hashExpr, "hash_partition_key")()) ++ child.output
@@ -406,8 +412,10 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
               ProjectExecTransformer(projectList.drop(1), sortByHashCode)
             val validationResult = dropSortColumnTransformer.doValidate()
             if (validationResult.ok()) {
-              val newChild = maybeAddAppendBatchesExec(dropSortColumnTransformer)
-              ColumnarShuffleExchangeExec(shuffle, newChild, newChild.output)
+              ColumnarShuffleExchangeExec(
+                shuffle,
+                dropSortColumnTransformer,
+                dropSortColumnTransformer.output)
             } else {
               FallbackTags.add(shuffle, validationResult)
               shuffle.withNewChildren(child :: Nil)
@@ -415,9 +423,9 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
           }
         }
       case _ =>
-        val newChild = maybeAddAppendBatchesExec(child)
-        ColumnarShuffleExchangeExec(shuffle, newChild, null)
+        ColumnarShuffleExchangeExec(shuffle, child, null)
     }
+    maybeAddAppendBatchesExec(newShuffle)
   }
 
   /** Generate ShuffledHashJoinExecTransformer. */
@@ -549,16 +557,17 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       parameters: GenShuffleWriterParameters[K, V]): GlutenShuffleWriterWrapper[K, V] = {
     ShuffleUtil.genColumnarShuffleWriter(parameters)
   }
-
   override def createColumnarWriteFilesExec(
       child: SparkPlan,
+      noop: SparkPlan,
       fileFormat: FileFormat,
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
-      staticPartitions: TablePartitionSpec): SparkPlan = {
+      staticPartitions: TablePartitionSpec): ColumnarWriteFilesExec = {
     VeloxColumnarWriteFilesExec(
       child,
+      noop,
       fileFormat,
       partitionColumns,
       bucketSpec,
@@ -586,11 +595,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val numOutputRows = metrics("numOutputRows")
     val deserializeTime = metrics("deserializeTime")
     val readBatchNumRows = metrics("avgReadBatchNumRows")
-    val decompressTime: Option[SQLMetric] = if (!isSort) {
-      Some(metrics("decompressTime"))
-    } else {
-      None
-    }
+    val decompressTime = metrics("decompressTime")
     if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
       val constructor =

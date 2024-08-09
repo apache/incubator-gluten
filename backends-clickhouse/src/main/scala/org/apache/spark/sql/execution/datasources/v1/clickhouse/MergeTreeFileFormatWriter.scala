@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution.datasources.v1.clickhouse
 
+import org.apache.gluten.memory.CHThreadGroup
+
 import org.apache.spark.{SparkException, TaskContext, TaskOutputFileAlreadyExistException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
@@ -263,7 +265,7 @@ object MergeTreeFileFormatWriter extends Logging {
       iterator: Iterator[InternalRow],
       concurrentOutputWriterSpec: Option[ConcurrentOutputWriterSpec]
   ): MergeTreeWriteTaskResult = {
-
+    CHThreadGroup.registerNewThreadGroup();
     val jobId = SparkHadoopWriterUtils.createJobID(new Date(jobIdInstant), sparkStageId)
     val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
     val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)

@@ -320,22 +320,43 @@ cd /path/to/gluten/cpp/build/velox/benchmarks
 --threads 1
 ```
 
-### Run shuffle write task only
+### Run shuffle write/read task only
 
 Developers can only run shuffle write task via specifying `--run-shuffle` and `--data` options.
 The parquet format input will be read from arrow-parquet reader and sent to shuffle writer.
-This option is similar to the `--with-shuffle` option, but it doesn't require the plan and split files.
+The `--run-shuffle` option is similar to the `--with-shuffle` option, but it doesn't require the plan and split files.
 The round-robin partitioner is used by default. Besides, random partitioning can be used for testing purpose.
 By specifying option `--partitioning random`, the partitioner will generate a random partition id for each row.
+To evaluate the shuffle reader performance, developers can set `--run-shuffle-read` option to add read process after the write task finishes.
+
+The below command will run shuffle write/read in single thread, using sort shuffle writer with 40000 partitions and random partition id.
 
 ```shell
 cd /path/to/gluten/cpp/build/velox/benchmarks
 ./generic_benchmark \
 --run-shuffle \
+--run-shuffle-read \
 --data /path/to/input_for_shuffle_write.parquet
 --shuffle-writer sort \
+--partitioning random \
+--shuffle-partitions 40000 \
 --threads 1
 ```
+
+The output should be like:
+
+```
+-------------------------------------------------------------------------------------------------------------------------
+Benchmark                                                               Time             CPU   Iterations UserCounters...
+-------------------------------------------------------------------------------------------------------------------------
+ShuffleWriteRead/iterations:1/process_time/real_time/threads:1 121637629714 ns   121309450910 ns            1 elapsed_time=121.638G read_input_time=25.2637G shuffle_compress_time=10.8311G shuffle_decompress_time=4.04055G shuffle_deserialize_time=7.24289G shuffle_spill_time=0 shuffle_split_time=69.9098G shuffle_write_time=2.03274G
+```
+
+## Enable debug mode
+
+`spark.gluten.sql.debug`(debug mode) is set to false by default thereby the google glog levels are limited to only print `WARNING` or higher severity logs.
+Unless `spark.gluten.sql.debug` is set in the INI file via `--conf`, the logging behavior is same as debug mode off.
+Developers can use `--debug-mode` command line flag to turn on debug mode when needed, and set verbosity/severity level via command line flags `--v` and `--minloglevel`. Note that constructing and deconstructing log strings can be very time-consuming, which may cause benchmark times to be inaccurate.
 
 ## Simulate write tasks
 

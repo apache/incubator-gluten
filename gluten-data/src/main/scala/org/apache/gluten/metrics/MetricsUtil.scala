@@ -28,7 +28,7 @@ import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 object MetricsUtil extends Logging {
 
   /**
-   * Update metrics fetched from certain iterator to transformers.
+   * Generate the function which updates metrics fetched from certain iterator to transformers.
    *
    * @param child
    *   the child spark plan
@@ -39,7 +39,7 @@ object MetricsUtil extends Logging {
    * @param aggParamsMap
    *   the map between operator index and aggregation parameters
    */
-  def updateNativeMetrics(
+  def genMetricsUpdatingFunction(
       child: SparkPlan,
       relMap: JMap[JLong, JList[JLong]],
       joinParamsMap: JMap[JLong, JoinParams],
@@ -66,7 +66,7 @@ object MetricsUtil extends Logging {
 
     val mut: MetricsUpdaterTree = treeifyMetricsUpdaters(child)
 
-    updateTransformerMetrics(
+    genMetricsUpdatingFunction(
       mut,
       relMap,
       JLong.valueOf(relMap.size() - 1),
@@ -269,24 +269,25 @@ object MetricsUtil extends Logging {
   }
 
   /**
-   * A recursive function updating the metrics of one transformer and its child.
+   * Get a function which would update the metrics of transformers.
    *
-   * @param mut
+   * @param mutNode
    *   the metrics updater tree built from the original plan
    * @param relMap
    *   the map between operator index and its rels
    * @param operatorIdx
    *   the index of operator
-   * @param metrics
-   *   the metrics fetched from native
    * @param metricsIdx
    *   the index of metrics
    * @param joinParamsMap
    *   the map between operator index and join parameters
    * @param aggParamsMap
    *   the map between operator index and aggregation parameters
+   *
+   * @return
+   *   A recursive function updating the metrics of operator(transformer) and its children.
    */
-  def updateTransformerMetrics(
+  def genMetricsUpdatingFunction(
       mutNode: MetricsUpdaterTree,
       relMap: JMap[JLong, JList[JLong]],
       operatorIdx: JLong,

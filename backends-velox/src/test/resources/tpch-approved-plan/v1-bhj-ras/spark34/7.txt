@@ -6,12 +6,12 @@ AdaptiveSparkPlan (95)
       +- ^ InputIteratorTransformer (59)
          +- ShuffleQueryStage (57), Statistics(X)
             +- ColumnarExchange (56)
-               +- VeloxAppendBatches (55)
+               +- VeloxResizeBatches (55)
                   +- ^ RegularHashAggregateExecTransformer (53)
                      +- ^ InputIteratorTransformer (52)
                         +- ShuffleQueryStage (50), Statistics(X)
                            +- ColumnarExchange (49)
-                              +- VeloxAppendBatches (48)
+                              +- VeloxResizeBatches (48)
                                  +- ^ ProjectExecTransformer (46)
                                     +- ^ FlushableHashAggregateExecTransformer (45)
                                        +- ^ ProjectExecTransformer (44)
@@ -289,9 +289,9 @@ Input [5]: [supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
 Input [6]: [hash_partition_key#X, supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
 Arguments: false
 
-(48) VeloxAppendBatches
+(48) VeloxResizeBatches
 Input [6]: [hash_partition_key#X, supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
-Arguments: X
+Arguments: X, X
 
 (49) ColumnarExchange
 Input [6]: [hash_partition_key#X, supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
@@ -318,9 +318,9 @@ Results [4]: [supp_nation#X, cust_nation#X, l_year#X, sum(volume#X)#X AS revenue
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]
 Arguments: false
 
-(55) VeloxAppendBatches
+(55) VeloxResizeBatches
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]
-Arguments: X
+Arguments: X, X
 
 (56) ColumnarExchange
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]

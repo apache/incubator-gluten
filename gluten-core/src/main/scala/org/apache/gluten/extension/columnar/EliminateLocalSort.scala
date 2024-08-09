@@ -30,6 +30,7 @@ import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, UnaryEx
  *   - Offload SortAggregate to native hash aggregate
  *   - Offload WindowGroupLimit to native TopNRowNumber
  *   - The columnar window type is `sort`
+ *   - Offload Window which has date type range frame
  */
 object EliminateLocalSort extends Rule[SparkPlan] {
   private def canEliminateLocalSort(p: SparkPlan): Boolean = p match {
@@ -37,6 +38,8 @@ object EliminateLocalSort extends Rule[SparkPlan] {
     case _: ShuffledHashJoinExecTransformerBase => true
     case _: WindowGroupLimitExecTransformer => true
     case _: WindowExecTransformer => true
+    case s: SortExec if s.global == false => true
+    case s: SortExecTransformer if s.global == false => true
     case _ => false
   }
 

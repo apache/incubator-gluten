@@ -86,7 +86,8 @@ std::unordered_set<std::shared_ptr<UdfLoader::UdfSignature>> UdfLoader::getRegis
         const auto& entry = udfEntries[i];
         auto dataType = toSubstraitTypeStr(entry.dataType);
         auto argTypes = toSubstraitTypeStr(entry.numArgs, entry.argTypes);
-        signatures_.insert(std::make_shared<UdfSignature>(entry.name, dataType, argTypes, entry.variableArity));
+        signatures_.insert(std::make_shared<UdfSignature>(
+            entry.name, dataType, argTypes, entry.variableArity, entry.allowTypeConversion));
       }
       free(udfEntries);
     } else {
@@ -110,8 +111,8 @@ std::unordered_set<std::shared_ptr<UdfLoader::UdfSignature>> UdfLoader::getRegis
         auto dataType = toSubstraitTypeStr(entry.dataType);
         auto argTypes = toSubstraitTypeStr(entry.numArgs, entry.argTypes);
         auto intermediateType = toSubstraitTypeStr(entry.intermediateType);
-        signatures_.insert(
-            std::make_shared<UdfSignature>(entry.name, dataType, argTypes, intermediateType, entry.variableArity));
+        signatures_.insert(std::make_shared<UdfSignature>(
+            entry.name, dataType, argTypes, intermediateType, entry.variableArity, entry.allowTypeConversion));
       }
       free(udafEntries);
     } else {

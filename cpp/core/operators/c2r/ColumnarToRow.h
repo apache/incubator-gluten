@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include "memory/ColumnarBatch.h"
 
 namespace gluten {
@@ -27,7 +28,14 @@ class ColumnarToRowConverter {
 
   virtual ~ColumnarToRowConverter() = default;
 
-  virtual void convert(std::shared_ptr<ColumnarBatch> cb = nullptr) = 0;
+  // We will start conversion from the 'rowId' row of 'cb'. The maximum memory consumption during the grabbing and
+  // swapping process is 'memoryThreshold' bytes. The number of rows successfully converted is stored in the 'numRows_'
+  // variable.
+  virtual void convert(std::shared_ptr<ColumnarBatch> cb = nullptr, int64_t startRow = 0) = 0;
+
+  virtual int32_t numRows() {
+    return numRows_;
+  }
 
   uint8_t* getBufferAddress() const {
     return bufferAddress_;

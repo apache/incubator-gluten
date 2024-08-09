@@ -27,13 +27,13 @@ class ConcurrentMap
 public:
     void insert(const K & key, const V & value)
     {
-        std::lock_guard lock{mutex};
+        std::unique_lock lock{mutex};
         map.insert({key, value});
     }
 
     V get(const K & key)
     {
-        std::lock_guard lock{mutex};
+        std::shared_lock lock{mutex};
         auto it = map.find(key);
         if (it == map.end())
         {
@@ -44,24 +44,30 @@ public:
 
     void erase(const K & key)
     {
-        std::lock_guard lock{mutex};
+        std::unique_lock lock{mutex};
         map.erase(key);
     }
 
     void clear()
     {
-        std::lock_guard lock{mutex};
+        std::unique_lock lock{mutex};
         map.clear();
+    }
+
+    bool contains(const K & key)
+    {
+        std::shared_lock lock{mutex};
+        return map.contains(key);
     }
 
     size_t size() const
     {
-        std::lock_guard lock{mutex};
+        std::shared_lock lock{mutex};
         return map.size();
     }
 
 private:
     std::unordered_map<K, V> map;
-    mutable std::mutex mutex;
+    mutable std::shared_mutex mutex;
 };
 }

@@ -159,7 +159,11 @@ setLocalDirsAndDataFileFromEnv(std::string& dataFile, std::vector<std::string>& 
     // Set local dirs.
     auto joinedDirs = std::string(joinedDirsC);
     // Split local dirs and use thread id to choose one directory for data file.
-    localDirs = gluten::splitPaths(joinedDirs);
+    auto dirs = gluten::splitPaths(joinedDirs);
+    for (const auto& dir : dirs) {
+      localDirs.push_back(arrow::fs::internal::ConcatAbstractPath(dir, "temp_shuffle_" + generateUuid()));
+      std::filesystem::create_directory(localDirs.back());
+    }
     size_t id = std::hash<std::thread::id>{}(std::this_thread::get_id()) % localDirs.size();
     ARROW_ASSIGN_OR_RAISE(dataFile, gluten::createTempShuffleFile(localDirs[id]));
   } else {

@@ -35,11 +35,12 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
+import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{FileSourceScanExec, GenerateExec, LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, FileSourceScanExec, GenerateExec, LeafExecNode, SparkPlan}
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
@@ -322,6 +323,18 @@ trait SparkPlanExecApi {
     throw new GlutenNotSupportException("PreciseTimestampConversion is not supported")
   }
 
+  // For date_add(cast('2001-01-01' as Date), interval 1 day), backends may handle it in different
+  // ways
+  def genDateAddTransformer(
+      attributeSeq: Seq[Attribute],
+      substraitExprName: String,
+      children: Seq[Expression],
+      expr: Expression): ExpressionTransformer = {
+    val childrenTransformers =
+      children.map(ExpressionConverter.replaceWithExpressionTransformer(_, attributeSeq))
+    GenericExpressionTransformer(substraitExprName, childrenTransformers, expr)
+  }
+
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
@@ -372,11 +385,12 @@ trait SparkPlanExecApi {
   /** Create ColumnarWriteFilesExec */
   def createColumnarWriteFilesExec(
       child: SparkPlan,
+      noop: SparkPlan,
       fileFormat: FileFormat,
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
-      staticPartitions: TablePartitionSpec): SparkPlan
+      staticPartitions: TablePartitionSpec): ColumnarWriteFilesExec
 
   /** Create ColumnarArrowEvalPythonExec, for velox backend */
   def createColumnarArrowEvalPythonExec(
@@ -444,6 +458,9 @@ trait SparkPlanExecApi {
   }
 
   def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]]
+
+  def genInjectExtendedParser(): List[(SparkSession, ParserInterface) => ParserInterface] =
+    List.empty
 
   def genGetStructFieldTransformer(
       substraitExprName: String,

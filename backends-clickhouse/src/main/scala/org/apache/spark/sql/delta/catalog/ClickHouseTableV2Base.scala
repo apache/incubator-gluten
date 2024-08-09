@@ -16,8 +16,12 @@
  */
 package org.apache.spark.sql.delta.catalog
 
+import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtils.normalizeColName
+
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable}
 import org.apache.spark.sql.delta.Snapshot
+import org.apache.spark.sql.execution.datasources.utils.MergeTreeDeltaUtil
 
 import org.apache.hadoop.fs.Path
 
@@ -46,10 +50,9 @@ trait ClickHouseTableV2Base {
     if (tableProperties.containsKey("numBuckets")) {
       val numBuckets = tableProperties.get("numBuckets").trim.toInt
       val bucketColumnNames: Seq[String] =
-        tableProperties.get("bucketColumnNames").split(",").map(_.trim).toSeq
-      val sortColumnNames: Seq[String] = if (tableProperties.containsKey("orderByKey")) {
-        tableProperties.get("orderByKey").split(",").map(_.trim).toSeq
-      } else Seq.empty[String]
+        getCommaSeparatedColumns("bucketColumnNames").getOrElse(Seq.empty[String])
+      val sortColumnNames: Seq[String] =
+        getCommaSeparatedColumns("orderByKey").getOrElse(Seq.empty[String])
       Some(BucketSpec(numBuckets, bucketColumnNames, sortColumnNames))
     } else {
       None
@@ -76,7 +79,11 @@ trait ClickHouseTableV2Base {
     val tableProperties = deltaProperties
     if (tableProperties.containsKey(keyName)) {
       if (tableProperties.get(keyName).nonEmpty) {
-        val keys = tableProperties.get(keyName).split(",").map(_.trim).toSeq
+        val keys = tableProperties
+          .get(keyName)
+          .split(",")
+          .map(n => ConverterUtils.normalizeColName(n.trim))
+          .toSeq
         keys.foreach(
           s => {
             if (s.contains(".")) {
@@ -153,33 +160,15 @@ trait ClickHouseTableV2Base {
     configs.toMap
   }
 
-  def primaryKey(): String = primaryKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
+  def primaryKey(): String = MergeTreeDeltaUtil.columnsToStr(primaryKeyOption)
 
   def orderByKey(): String = orderByKeyOption match {
-    case Some(keys) => keys.mkString(",")
+    case Some(keys) => keys.map(normalizeColName).mkString(",")
     case None => "tuple()"
   }
 
-  def lowCardKey(): String = lowCardKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
-
-  def minmaxIndexKey(): String = minmaxIndexKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
-
-  def bfIndexKey(): String = bfIndexKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
-
-  def setIndexKey(): String = setIndexKeyOption match {
-    case Some(keys) => keys.mkString(",")
-    case None => ""
-  }
+  def lowCardKey(): String = MergeTreeDeltaUtil.columnsToStr(lowCardKeyOption)
+  def minmaxIndexKey(): String = MergeTreeDeltaUtil.columnsToStr(minmaxIndexKeyOption)
+  def bfIndexKey(): String = MergeTreeDeltaUtil.columnsToStr(bfIndexKeyOption)
+  def setIndexKey(): String = MergeTreeDeltaUtil.columnsToStr(setIndexKeyOption)
 }

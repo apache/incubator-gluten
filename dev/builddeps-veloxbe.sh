@@ -187,15 +187,8 @@ fi
 concat_velox_param
 
 function build_arrow {
-  echo "Start to build Arrow"
-  export SUDO=sudo
   cd $GLUTEN_DIR/dev
-  source build_arrow.sh
-  prepare_arrow_build
-  build_arrow_cpp
-  echo "Finished building arrow CPP"
-  build_arrow_java
-  echo "Finished building arrow Java"
+  ./build_arrow.sh
 }
 
 function build_velox {
@@ -230,7 +223,7 @@ function build_velox_backend {
 
 (
   cd $GLUTEN_DIR/ep/build-velox/src
-  ./get_velox.sh --enable_hdfs=$ENABLE_HDFS --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --enable_abfs=$ENABLE_ABFS $VELOX_PARAMETER
+  ./get_velox.sh $VELOX_PARAMETER
 )
 
 if [ "$VELOX_HOME" == "" ]; then
@@ -238,20 +231,46 @@ if [ "$VELOX_HOME" == "" ]; then
 fi
 
 OS=`uname -s`
+ARCH=`uname -m`
+DEPENDENCY_DIR=${DEPENDENCY_DIR:-$CURRENT_DIR/../ep/_ep}
+mkdir -p ${DEPENDENCY_DIR}
+
 source $GLUTEN_DIR/dev/build_helper_functions.sh
 if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
-  (
-    echo "Start to install dependencies"
-    cd $VELOX_HOME
-    if [ $OS == 'Linux' ]; then
-      setup_linux
-    elif [ $OS == 'Darwin' ]; then
-      setup_macos
-    else
-      echo "Unsupported kernel: $OS"
+  echo "Start to install dependencies"
+  pushd $VELOX_HOME
+  if [ $OS == 'Linux' ]; then
+    setup_linux
+  elif [ $OS == 'Darwin' ]; then
+    setup_macos
+  else
+    echo "Unsupported kernel: $OS"
+    exit 1
+  fi
+  if [ $ENABLE_S3 == "ON" ]; then
+    if [ $OS == 'Darwin' ]; then
+      echo "S3 is not supported on MacOS."
       exit 1
     fi
-  )
+    ${VELOX_HOME}/scripts/setup-adapters.sh aws
+  fi
+  if [ $ENABLE_HDFS == "ON" ]; then
+    if [ $OS == 'Darwin' ]; then
+      echo "HDFS is not supported on MacOS."
+      exit 1
+    fi
+    pushd $VELOX_HOME
+    install_libhdfs3
+    popd
+  fi
+  if [ $ENABLE_GCS == "ON" ]; then
+    ${VELOX_HOME}/scripts/setup-adapters.sh gcs
+  fi
+  if [ $ENABLE_ABFS == "ON" ]; then
+    export AZURE_SDK_DISABLE_AUTO_VCPKG=ON
+    ${VELOX_HOME}/scripts/setup-adapters.sh abfs
+  fi
+  popd
 fi
 
 commands_to_run=${OTHER_ARGUMENTS:-}

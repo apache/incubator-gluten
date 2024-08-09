@@ -133,10 +133,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
       .getConfString("spark.shuffle.manager", "sort")
       .contains("UniffleShuffleManager")
 
-  def isSortBasedCelebornShuffle: Boolean =
+  def celebornShuffleWriterType: String =
     conf
-      .getConfString("spark.celeborn.client.spark.shuffle.writer", "hash")
-      .equals("sort")
+      .getConfString("spark.celeborn.client.spark.shuffle.writer", GLUTEN_HASH_SHUFFLE_WRITER)
+      .toLowerCase(Locale.ROOT)
 
   def enableColumnarShuffle: Boolean = conf.getConf(COLUMNAR_SHUFFLE_ENABLED)
 
@@ -159,7 +159,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   @deprecated def broadcastCacheTimeout: Int = conf.getConf(COLUMNAR_BROADCAST_CACHE_TIMEOUT)
 
-  def columnarShuffleSortThreshold: Int = conf.getConf(COLUMNAR_SHUFFLE_SORT_THRESHOLD)
+  def columnarShuffleSortPartitionsThreshold: Int =
+    conf.getConf(COLUMNAR_SHUFFLE_SORT_PARTITIONS_THRESHOLD)
+
+  def columnarShuffleSortColumnsThreshold: Int =
+    conf.getConf(COLUMNAR_SHUFFLE_SORT_COLUMNS_THRESHOLD)
 
   def columnarShuffleReallocThreshold: Double = conf.getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
 
@@ -183,8 +187,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleCompressionThreshold: Int =
     conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
 
-  // FIXME: Not clear: MIN or MAX ?
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
+
+  def columnarToRowMemThreshold: Long =
+    conf.getConf(GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD)
 
   def shuffleWriterBufferSize: Int = conf
     .getConf(SHUFFLE_WRITER_BUFFER_SIZE)
@@ -236,6 +242,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   }
 
   def memoryIsolation: Boolean = conf.getConf(COLUMNAR_MEMORY_ISOLATION)
+
+  def memoryBacktraceAllocation: Boolean = conf.getConf(COLUMNAR_MEMORY_BACKTRACE_ALLOCATION)
 
   def numTaskSlotsPerExecutor: Int = {
     val numSlots = conf.getConf(NUM_TASK_SLOTS_PER_EXECUTOR)
@@ -300,17 +308,32 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxBloomFilterMaxNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS)
 
-  def veloxCoalesceBatchesBeforeShuffle: Boolean =
-    conf.getConf(COLUMNAR_VELOX_COALESCE_BATCHES_BEFORE_SHUFFLE)
-
-  def veloxMinBatchSizeForShuffle: Int = {
-    val defaultSize: Int = (0.8 * conf.getConf(COLUMNAR_MAX_BATCH_SIZE)).toInt.max(1)
-    conf
-      .getConf(COLUMNAR_VELOX_MIN_BATCH_SIZE_FOR_SHUFFLE)
-      .getOrElse(defaultSize)
+  case class ResizeRange(min: Int, max: Int) {
+    assert(max >= min)
+    assert(min > 0, "Min batch size should be larger than 0")
+    assert(max > 0, "Max batch size should be larger than 0")
   }
 
-  def chColumnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED)
+  private object ResizeRange {
+    def parse(pattern: String): ResizeRange = {
+      assert(pattern.count(_ == '~') == 1, s"Invalid range pattern for batch resizing: $pattern")
+      val splits = pattern.split('~')
+      assert(splits.length == 2)
+      ResizeRange(splits(0).toInt, splits(1).toInt)
+    }
+  }
+
+  def veloxResizeBatchesShuffleInput: Boolean =
+    conf.getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT)
+
+  def veloxResizeBatchesShuffleInputRange: ResizeRange = {
+    val standardSize = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
+    val defaultMinSize: Int = (0.25 * standardSize).toInt.max(1)
+    val minSize = conf
+      .getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_MIN_SIZE)
+      .getOrElse(defaultMinSize)
+    ResizeRange(minSize, Int.MaxValue)
+  }
 
   def chColumnarShuffleSpillThreshold: Long = {
     val threshold = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
@@ -321,18 +344,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
-  def chColumnarThrowIfMemoryExceed: Boolean = conf.getConf(COLUMNAR_CH_THROW_IF_MEMORY_EXCEED)
-
-  def chColumnarFlushBlockBufferBeforeEvict: Boolean =
-    conf.getConf(COLUMNAR_CH_FLUSH_BLOCK_BUFFER_BEFORE_EVICT)
-
   def chColumnarMaxSortBufferSize: Long = conf.getConf(COLUMNAR_CH_MAX_SORT_BUFFER_SIZE)
-
-  def chColumnarSpillFirstlyBeforeStop: Boolean =
-    conf.getConf(COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP)
-
-  def chColumnarForceExternalSortShuffle: Boolean =
-    conf.getConf(COLUMNAR_CH_FORCE_EXTERNAL_SORT_SHUFFLE)
 
   def chColumnarForceMemorySortShuffle: Boolean =
     conf.getConf(COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE)
@@ -562,10 +574,18 @@ object GlutenConfig {
   // Batch size.
   val GLUTEN_MAX_BATCH_SIZE_KEY = "spark.gluten.sql.columnar.maxBatchSize"
 
+  // Shuffle writer type.
+  val GLUTEN_HASH_SHUFFLE_WRITER = "hash"
+  val GLUTEN_SORT_SHUFFLE_WRITER = "sort"
+  val GLUTEN_RSS_SORT_SHUFFLE_WRITER = "rss_sort"
+
   // Shuffle Writer buffer size.
   val GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE = "spark.gluten.shuffleWriter.bufferSize"
 
   val GLUTEN_SHUFFLE_WRITER_MERGE_THRESHOLD = "spark.gluten.sql.columnar.shuffle.merge.threshold"
+
+  // Columnar to row memory threshold.
+  val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY = "spark.gluten.sql.columnarToRowMemoryThreshold"
 
   // Controls whether to load DLL from jars. User can get dependent native libs packed into a jar
   // by executing dev/package.sh. Then, with that jar configured, Gluten can load the native libs
@@ -631,6 +651,7 @@ object GlutenConfig {
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_MAX_BATCH_SIZE_KEY,
+      GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY,
       GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
@@ -663,7 +684,10 @@ object GlutenConfig {
 
     val keyWithDefault = ImmutableList.of(
       (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
-      (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString)
+      (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
+      (
+        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
+        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -710,7 +734,9 @@ object GlutenConfig {
       (AWS_S3_RETRY_MODE.key, AWS_S3_RETRY_MODE.defaultValueString),
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
-        conf.getOrElse(GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, "-1")),
+        conf.getOrElse(
+          NUM_TASK_SLOTS_PER_EXECUTOR.key,
+          NUM_TASK_SLOTS_PER_EXECUTOR.defaultValueString)),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
@@ -956,11 +982,19 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_SHUFFLE_SORT_THRESHOLD =
-    buildConf("spark.gluten.sql.columnar.shuffle.sort.threshold")
+  val COLUMNAR_SHUFFLE_SORT_PARTITIONS_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.shuffle.sort.partitions.threshold")
       .internal()
       .doc("The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
         "shuffle will be used if the number of partitions is greater than this threshold.")
+      .intConf
+      .createWithDefault(100000)
+
+  val COLUMNAR_SHUFFLE_SORT_COLUMNS_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.shuffle.sort.columns.threshold")
+      .internal()
+      .doc("The threshold to determine whether to use sort-based columnar shuffle. Sort-based " +
+        "shuffle will be used if the number of columns is greater than this threshold.")
       .intConf
       .createWithDefault(100000)
 
@@ -1084,6 +1118,12 @@ object GlutenConfig {
       .intConf
       .checkValue(_ > 0, s"$GLUTEN_MAX_BATCH_SIZE_KEY must be positive.")
       .createWithDefault(4096)
+
+  val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD =
+    buildConf(GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY)
+      .internal()
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("64MB")
 
   // if not set, use COLUMNAR_MAX_BATCH_SIZE instead
   val SHUFFLE_WRITER_BUFFER_SIZE =
@@ -1237,6 +1277,14 @@ object GlutenConfig {
         "to set true if Gluten serves concurrent queries within a single session, since not all " +
         "memory Gluten allocated is guaranteed to be spillable. In the case, the feature should " +
         "be enabled to avoid OOM.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_MEMORY_BACKTRACE_ALLOCATION =
+    buildConf("spark.gluten.memory.backtrace.allocation")
+      .internal()
+      .doc("Print backtrace information for large memory allocations. This helps debugging when " +
+        "Spark OOM happens due to large acquire requests.")
       .booleanConf
       .createWithDefault(false)
 
@@ -1434,32 +1482,25 @@ object GlutenConfig {
       .checkValue(_ > 0, "must be a positive number")
       .createWithDefault(10000)
 
-  val COLUMNAR_VELOX_COALESCE_BATCHES_BEFORE_SHUFFLE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.coalesceBatchesBeforeShuffle")
+  val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT =
+    buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput")
       .internal()
       .doc(s"If true, combine small columnar batches together before sending to shuffle. " +
         s"The default minimum output batch size is equal to 0.8 * $GLUTEN_MAX_BATCH_SIZE_KEY")
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_VELOX_MIN_BATCH_SIZE_FOR_SHUFFLE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.minBatchSizeForShuffle")
-      .internal()
-      .doc(s"The minimum batch size for shuffle. If the batch size is smaller than this value, " +
-        s"it will be combined with other batches before sending to shuffle. Only functions when " +
-        s"${COLUMNAR_VELOX_COALESCE_BATCHES_BEFORE_SHUFFLE.key} is set to true.")
-      .intConf
-      .createOptional
-
-  val COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED =
-    buildConf("spark.gluten.sql.columnar.backend.ch.shuffle.preferSpill")
+  val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_MIN_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.minSize")
       .internal()
       .doc(
-        "Whether to spill the partition buffers when buffers are full. " +
-          "If false, the partition buffers will be cached in memory first, " +
-          "and the cached buffers will be spilled when reach maximum memory.")
-      .booleanConf
-      .createWithDefault(false)
+        s"The minimum batch size for shuffle. If size of an input batch is " +
+          s"smaller than the value, it will be combined with other " +
+          s"batches before sending to shuffle. Only functions when " +
+          s"${COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT.key} is set to true. " +
+          s"Default value: 0.25 * <max batch size>")
+      .intConf
+      .createOptional
 
   val COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.backend.ch.spillThreshold")
@@ -1468,40 +1509,12 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0MB")
 
-  val COLUMNAR_CH_THROW_IF_MEMORY_EXCEED =
-    buildConf("spark.gluten.sql.columnar.backend.ch.throwIfMemoryExceed")
-      .internal()
-      .doc("Throw exception if memory exceeds threshold on ch backend.")
-      .booleanConf
-      .createWithDefault(true)
-
-  val COLUMNAR_CH_FLUSH_BLOCK_BUFFER_BEFORE_EVICT =
-    buildConf("spark.gluten.sql.columnar.backend.ch.flushBlockBufferBeforeEvict")
-      .internal()
-      .doc("Whether to flush partition_block_buffer before execute evict in CH PartitionWriter.")
-      .booleanConf
-      .createWithDefault(false)
-
   val COLUMNAR_CH_MAX_SORT_BUFFER_SIZE =
     buildConf("spark.gluten.sql.columnar.backend.ch.maxSortBufferSize")
       .internal()
       .doc("The maximum size of sort shuffle buffer in CH backend.")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0")
-
-  val COLUMNAR_CH_SPILL_FIRSTLY_BEFORE_STOP =
-    buildConf("spark.gluten.sql.columnar.backend.ch.spillFirstlyBeforeStop")
-      .internal()
-      .doc("Whether to spill the sort buffers before stopping the shuffle writer.")
-      .booleanConf
-      .createWithDefault(true)
-
-  val COLUMNAR_CH_FORCE_EXTERNAL_SORT_SHUFFLE =
-    buildConf("spark.gluten.sql.columnar.backend.ch.forceExternalSortShuffle")
-      .internal()
-      .doc("Whether to force to use external sort shuffle in CH backend. ")
-      .booleanConf
-      .createWithDefault(false)
 
   val COLUMNAR_CH_FORCE_MEMORY_SORT_SHUFFLE =
     buildConf("spark.gluten.sql.columnar.backend.ch.forceMemorySortShuffle")
@@ -1538,7 +1551,7 @@ object GlutenConfig {
       .checkValue(
         logLevel => Set("TRACE", "DEBUG", "INFO", "WARN", "ERROR").contains(logLevel),
         "Valid values are 'trace', 'debug', 'info', 'warn' and 'error'.")
-      .createWithDefault("INFO")
+      .createWithDefault("WARN")
 
   val VALIDATION_PRINT_FAILURE_STACK_ =
     buildConf("spark.gluten.sql.validation.printStackOnFailure")
@@ -1598,13 +1611,6 @@ object GlutenConfig {
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
       .createOptional
-
-  val VELOX_WRITER_QUEUE_SIZE =
-    buildConf("spark.gluten.sql.velox.writer.queue.size")
-      .internal()
-      .doc("This is config to specify the velox writer queue size")
-      .intConf
-      .createWithDefault(64)
 
   val NATIVE_HIVEFILEFORMAT_WRITER_ENABLED =
     buildConf("spark.gluten.sql.native.hive.writer.enabled")
@@ -1691,6 +1697,13 @@ object GlutenConfig {
       .doc("Enable the stacktrace for user type of VeloxException")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_VELOX_SHOW_TASK_METRICS_WHEN_FINISHED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.showTaskMetricsWhenFinished")
+      .internal()
+      .doc("Show velox full task metrics when finished.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES =
     buildConf("spark.gluten.sql.columnar.backend.velox.memoryUseHugePages")

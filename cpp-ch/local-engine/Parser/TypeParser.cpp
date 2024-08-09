@@ -193,9 +193,9 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
                 struct_field_types[i] = parseType(types[i]);
 
             const auto & names = substrait_type.struct_().names();
-            for (int i = 0; i < names.size(); ++i)
-                if (!names[i].empty())
-                    struct_field_names.push_back(names[i]);
+            for (const auto & name : names)
+                if (!name.empty())
+                    struct_field_names.push_back(name);
         }
 
         if (!struct_field_names.empty())
@@ -240,9 +240,7 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
 }
 
 
-DB::Block TypeParser::buildBlockFromNamedStruct(
-    const substrait::NamedStruct & struct_,
-    const std::string & low_card_cols)
+DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & struct_, const std::string & low_card_cols)
 {
     std::unordered_set<std::string> low_card_columns;
     Poco::StringTokenizer tokenizer(low_card_cols, ",");
@@ -262,9 +260,7 @@ DB::Block TypeParser::buildBlockFromNamedStruct(
         auto ch_type = parseType(substrait_type, &field_names);
 
         if (low_card_columns.contains(name))
-        {
             ch_type = std::make_shared<DB::DataTypeLowCardinality>(ch_type);
-        }
 
         // This is a partial aggregate data column.
         // It's type is special, must be a struct type contains all arguments types.

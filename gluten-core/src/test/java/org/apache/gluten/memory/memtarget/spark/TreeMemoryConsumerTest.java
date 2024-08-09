@@ -17,6 +17,8 @@
 package org.apache.gluten.memory.memtarget.spark;
 
 import org.apache.gluten.GlutenConfig;
+import org.apache.gluten.memory.memtarget.MemoryTarget;
+import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
 
@@ -24,20 +26,28 @@ import org.apache.spark.TaskContext;
 import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.util.TaskResources$;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import scala.Function0;
 
 public class TreeMemoryConsumerTest {
-  @Test
-  public void testIsolated() {
-    final SQLConf conf = new SQLConf();
+  @Before
+  public void setUp() throws Exception {
+    final SQLConf conf = SQLConf.get();
+    conf.setConfString("spark.memory.offHeap.enabled", "true");
+    conf.setConfString("spark.memory.offHeap.size", "400");
     conf.setConfString(
         GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
+  }
+
+  @Test
+  public void testIsolated() {
     test(
-        conf,
         () -> {
           final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.isolated();
           final TreeMemoryTarget consumer =
@@ -55,11 +65,7 @@ public class TreeMemoryConsumerTest {
 
   @Test
   public void testShared() {
-    final SQLConf conf = new SQLConf();
-    conf.setConfString(
-        GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
     test(
-        conf,
         () -> {
           final TreeMemoryConsumers.Factory factory = TreeMemoryConsumers.shared();
           final TreeMemoryTarget consumer =
@@ -77,11 +83,7 @@ public class TreeMemoryConsumerTest {
 
   @Test
   public void testIsolatedAndShared() {
-    final SQLConf conf = new SQLConf();
-    conf.setConfString(
-        GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
     test(
-        conf,
         () -> {
           final TreeMemoryTarget shared =
               TreeMemoryConsumers.shared()
@@ -102,20 +104,88 @@ public class TreeMemoryConsumerTest {
         });
   }
 
-  private void test(SQLConf conf, Runnable r) {
+  @Test
+  public void testSpill() {
+    test(
+        () -> {
+          final Spillers.AppendableSpillerList spillers = Spillers.appendable();
+          final TreeMemoryTarget shared =
+              TreeMemoryConsumers.shared()
+                  .newConsumer(
+                      TaskContext.get().taskMemoryManager(),
+                      "FOO",
+                      spillers,
+                      Collections.emptyMap());
+          final AtomicInteger numSpills = new AtomicInteger(0);
+          final AtomicLong numSpilledBytes = new AtomicLong(0L);
+          spillers.append(
+              new Spiller() {
+                @Override
+                public long spill(MemoryTarget self, Phase phase, long size) {
+                  long repaid = shared.repay(size);
+                  numSpills.getAndIncrement();
+                  numSpilledBytes.getAndAdd(repaid);
+                  return repaid;
+                }
+              });
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(1, numSpills.get());
+          Assert.assertEquals(200, numSpilledBytes.get());
+          Assert.assertEquals(400, shared.usedBytes());
+
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(3, numSpills.get());
+          Assert.assertEquals(800, numSpilledBytes.get());
+          Assert.assertEquals(400, shared.usedBytes());
+        });
+  }
+
+  @Test
+  public void testOverSpill() {
+    test(
+        () -> {
+          final Spillers.AppendableSpillerList spillers = Spillers.appendable();
+          final TreeMemoryTarget shared =
+              TreeMemoryConsumers.shared()
+                  .newConsumer(
+                      TaskContext.get().taskMemoryManager(),
+                      "FOO",
+                      spillers,
+                      Collections.emptyMap());
+          final AtomicInteger numSpills = new AtomicInteger(0);
+          final AtomicLong numSpilledBytes = new AtomicLong(0L);
+          spillers.append(
+              new Spiller() {
+                @Override
+                public long spill(MemoryTarget self, Phase phase, long size) {
+                  long repaid = shared.repay(Long.MAX_VALUE);
+                  numSpills.getAndIncrement();
+                  numSpilledBytes.getAndAdd(repaid);
+                  return repaid;
+                }
+              });
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(1, numSpills.get());
+          Assert.assertEquals(300, numSpilledBytes.get());
+          Assert.assertEquals(300, shared.usedBytes());
+
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(300, shared.borrow(300));
+          Assert.assertEquals(3, numSpills.get());
+          Assert.assertEquals(900, numSpilledBytes.get());
+          Assert.assertEquals(300, shared.usedBytes());
+        });
+  }
+
+  private void test(Runnable r) {
     TaskResources$.MODULE$.runUnsafe(
         new Function0<Object>() {
           @Override
           public Object apply() {
-            SQLConf.withExistingConf(
-                conf,
-                new Function0<Object>() {
-                  @Override
-                  public Object apply() {
-                    r.run();
-                    return null;
-                  }
-                });
+            r.run();
             return null;
           }
         });

@@ -75,7 +75,7 @@ class ParquetFileFormat extends FileFormat with DataSourceRegister with Logging 
       job: Job,
       options: Map[String, String],
       dataSchema: StructType): OutputWriterFactory = {
-    if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))) {
+    if ("true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")) {
 
       // pass compression to job conf so that the file extension can be aware of it.
       val conf = ContextUtil.getConfiguration(job)
@@ -196,23 +196,14 @@ class ParquetFileFormat extends FileFormat with DataSourceRegister with Logging 
       sparkSession: SparkSession,
       parameters: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
-    // Why if (false)? Such code requires comments when being written.
-    if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable")) && false) {
-      GlutenParquetWriterInjects.getInstance().inferSchema(sparkSession, parameters, files)
-    } else { // the vanilla spark case
-      ParquetUtils.inferSchema(sparkSession, parameters, files)
-    }
+    ParquetUtils.inferSchema(sparkSession, parameters, files)
   }
 
   /** Returns whether the reader will return the rows as batch or not. */
   override def supportBatch(sparkSession: SparkSession, schema: StructType): Boolean = {
-    if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))) {
-      true
-    } else {
-      val conf = sparkSession.sessionState.conf
-      ParquetUtils.isBatchReadSupportedForSchema(conf, schema) && conf.wholeStageEnabled &&
-      !WholeStageCodegenExec.isTooManyFields(conf, schema)
-    }
+    val conf = sparkSession.sessionState.conf
+    ParquetUtils.isBatchReadSupportedForSchema(conf, schema) && conf.wholeStageEnabled &&
+    !WholeStageCodegenExec.isTooManyFields(conf, schema)
   }
 
   override def vectorTypes(

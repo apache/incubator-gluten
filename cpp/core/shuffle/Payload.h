@@ -38,6 +38,8 @@ class Payload {
 
   virtual arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index) = 0;
 
+  virtual int64_t rawSize() = 0;
+
   int64_t getCompressTime() const {
     return compressTime_;
   }
@@ -55,7 +57,7 @@ class Payload {
   }
 
   uint32_t numBuffers() {
-    return isValidityBuffer_->size();
+    return isValidityBuffer_ ? isValidityBuffer_->size() : 1;
   }
 
   const std::vector<bool>* isValidityBuffer() const {
@@ -74,7 +76,7 @@ class Payload {
 
 // A block represents data to be cached in-memory.
 // Can be compressed or uncompressed.
-class BlockPayload : public Payload {
+class BlockPayload final : public Payload {
  public:
   static arrow::Result<std::unique_ptr<BlockPayload>> fromBuffers(
       Payload::Type payloadType,
@@ -86,7 +88,6 @@ class BlockPayload : public Payload {
 
   static arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> deserialize(
       arrow::io::InputStream* inputStream,
-      const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
       arrow::MemoryPool* pool,
       uint32_t& numRows,
@@ -95,6 +96,8 @@ class BlockPayload : public Payload {
   arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t pos) override;
+
+  int64_t rawSize() override;
 
  protected:
   BlockPayload(
@@ -131,15 +134,15 @@ class InMemoryPayload final : public Payload {
   arrow::Result<std::unique_ptr<BlockPayload>>
   toBlockPayload(Payload::Type payloadType, arrow::MemoryPool* pool, arrow::util::Codec* codec);
 
-  int64_t getBufferSize() const;
-
   arrow::Status copyBuffers(arrow::MemoryPool* pool);
+
+  int64_t rawSize() override;
 
  private:
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
 };
 
-class UncompressedDiskBlockPayload : public Payload {
+class UncompressedDiskBlockPayload final : public Payload {
  public:
   UncompressedDiskBlockPayload(
       Type type,
@@ -154,9 +157,11 @@ class UncompressedDiskBlockPayload : public Payload {
 
   arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
 
+  int64_t rawSize() override;
+
  private:
   arrow::io::InputStream*& inputStream_;
-  uint64_t rawSize_;
+  int64_t rawSize_;
   arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
   uint32_t readPos_{0};
@@ -164,21 +169,23 @@ class UncompressedDiskBlockPayload : public Payload {
   arrow::Result<std::shared_ptr<arrow::Buffer>> readUncompressedBuffer();
 };
 
-class CompressedDiskBlockPayload : public Payload {
+class CompressedDiskBlockPayload final : public Payload {
  public:
   CompressedDiskBlockPayload(
       uint32_t numRows,
       const std::vector<bool>* isValidityBuffer,
       arrow::io::InputStream*& inputStream,
-      uint64_t rawSize,
+      int64_t rawSize,
       arrow::MemoryPool* pool);
 
   arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index) override;
 
+  int64_t rawSize() override;
+
  private:
   arrow::io::InputStream*& inputStream_;
-  uint64_t rawSize_;
+  int64_t rawSize_;
 };
 } // namespace gluten

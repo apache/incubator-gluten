@@ -25,6 +25,7 @@
 #include <Join/BroadCastJoinBuilder.h>
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/AdvancedParametersParseUtil.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
@@ -51,23 +52,11 @@ using namespace DB;
 
 namespace local_engine
 {
-String parseCrossJoinOptimizationInfos(const substrait::CrossRel & join)
-{
-    google::protobuf::StringValue optimization;
-    optimization.ParseFromString(join.advanced_extension().optimization().value());
-    String storage_join_key;
-    ReadBufferFromString in(optimization.value());
-    assertString("JoinParameters:", in);
-    assertString("buildHashTableId=", in);
-    readString(storage_join_key, in);
-    return storage_join_key;
-}
-
 std::shared_ptr<DB::TableJoin> createCrossTableJoin(substrait::CrossRel_JoinType join_type)
 {
     auto & global_context = SerializedPlanParser::global_context;
     auto table_join = std::make_shared<TableJoin>(
-        global_context->getSettings(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
+        global_context->getSettingsRef(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
 
     std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = JoinUtil::getCrossJoinKindAndStrictness(join_type);
     table_join->setKind(kind_and_strictness.first);
@@ -112,21 +101,17 @@ DB::QueryPlanPtr CrossRelParser::parseOp(const substrait::Rel & rel, std::list<c
 
 void CrossRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & right, const StorageJoinFromReadBuffer & storage_join)
 {
-    ActionsDAGPtr project = nullptr;
     /// To support mixed join conditions, we must make sure that the column names in the right be the same as
     /// storage_join's right sample block.
     auto right_ori_header = right.getCurrentDataStream().header.getColumnsWithTypeAndName();
     if (right_ori_header.size() > 0 && right_ori_header[0].name != BlockUtil::VIRTUAL_ROW_COUNT_COLUMN)
     {
-        project = ActionsDAG::makeConvertingActions(
+        ActionsDAG right_project = ActionsDAG::makeConvertingActions(
             right_ori_header, storage_join.getRightSampleBlock().getColumnsWithTypeAndName(), ActionsDAG::MatchColumnsMode::Position);
-        if (project)
-        {
-            QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), project);
-            project_step->setStepDescription("Rename Broadcast Table Name");
-            steps.emplace_back(project_step.get());
-            right.addStep(std::move(project_step));
-        }
+        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), std::move(right_project));
+        project_step->setStepDescription("Rename Broadcast Table Name");
+        steps.emplace_back(project_step.get());
+        right.addStep(std::move(project_step));
     }
 
     /// If the columns name in right table is duplicated with left table, we need to rename the left table's columns,
@@ -141,30 +126,33 @@ void CrossRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & rig
         else
             new_left_cols.emplace_back(col.column, col.type, col.name);
     auto left_header = left.getCurrentDataStream().header.getColumnsWithTypeAndName();
-    project = ActionsDAG::makeConvertingActions(left_header, new_left_cols, ActionsDAG::MatchColumnsMode::Position);
+    ActionsDAG left_project = ActionsDAG::makeConvertingActions(left_header, new_left_cols, ActionsDAG::MatchColumnsMode::Position);
 
-    if (project)
-    {
-        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), project);
-        project_step->setStepDescription("Rename Left Table Name for broadcast join");
-        steps.emplace_back(project_step.get());
-        left.addStep(std::move(project_step));
-    }
+    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), std::move(left_project));
+    project_step->setStepDescription("Rename Left Table Name for broadcast join");
+    steps.emplace_back(project_step.get());
+    left.addStep(std::move(project_step));
 }
 
 DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right)
 {
-    auto storage_join_key = parseCrossJoinOptimizationInfos(join);
-    auto storage_join = BroadCastJoinBuilder::getJoin(storage_join_key) ;
-    renamePlanColumns(*left, *right, *storage_join);
+    google::protobuf::StringValue optimization_info;
+    optimization_info.ParseFromString(join.advanced_extension().optimization().value());
+    auto join_opt_info = JoinOptimizationInfo::parse(optimization_info.value());
+    const auto & storage_join_key = join_opt_info.storage_join_key;
+    auto storage_join = join_opt_info.is_broadcast ? BroadCastJoinBuilder::getJoin(storage_join_key) : nullptr;
+    if (storage_join)
+        renamePlanColumns(*left, *right, *storage_join);
     auto table_join = createCrossTableJoin(join.type());
     DB::Block right_header_before_convert_step = right->getCurrentDataStream().header;
     addConvertStep(*table_join, *left, *right);
 
     // Add a check to find error easily.
-    if(!blocksHaveEqualStructure(right_header_before_convert_step, right->getCurrentDataStream().header))
+    if (!blocksHaveEqualStructure(right_header_before_convert_step, right->getCurrentDataStream().header))
     {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "For broadcast join, we must not change the columns name in the right table.\nleft header:{},\nright header: {} -> {}",
+        throw DB::Exception(
+            DB::ErrorCodes::LOGICAL_ERROR,
+            "For broadcast join, we must not change the columns name in the right table.\nleft header:{},\nright header: {} -> {}",
             left->getCurrentDataStream().header.dumpNames(),
             right_header_before_convert_step.dumpNames(),
             right->getCurrentDataStream().header.dumpNames());
@@ -180,28 +168,48 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
     auto right_header = right->getCurrentDataStream().header;
 
     QueryPlanPtr query_plan;
-    table_join->addDisjunct();
-    auto broadcast_hash_join = storage_join->getJoinLocked(table_join, context);
-    // table_join->resetKeys();
-    QueryPlanStepPtr join_step = std::make_unique<FilledJoinStep>(left->getCurrentDataStream(), broadcast_hash_join, 8192);
-
-    join_step->setStepDescription("STORAGE_JOIN");
-    steps.emplace_back(join_step.get());
-    left->addStep(std::move(join_step));
-    query_plan = std::move(left);
-    /// hold right plan for profile
-    extra_plan_holder.emplace_back(std::move(right));
-
-    addPostFilter(*query_plan, join);
-    Names cols;
-    for (auto after_join_name : after_join_names)
+    if (storage_join)
     {
-        if (BlockUtil::VIRTUAL_ROW_COUNT_COLUMN == after_join_name)
-            continue;
+        /// FIXME: There is mistake in HashJoin::needUsedFlagsForPerRightTableRow which returns true when
+        /// join clauses is empty. But in fact there should not be any join clause in cross join.
+        table_join->addDisjunct();
 
-        cols.emplace_back(after_join_name);
+        auto broadcast_hash_join = storage_join->getJoinLocked(table_join, context);
+        // table_join->resetKeys();
+        QueryPlanStepPtr join_step = std::make_unique<FilledJoinStep>(left->getCurrentDataStream(), broadcast_hash_join, 8192);
+
+        join_step->setStepDescription("STORAGE_JOIN");
+        steps.emplace_back(join_step.get());
+        left->addStep(std::move(join_step));
+        query_plan = std::move(left);
+        /// hold right plan for profile
+        extra_plan_holder.emplace_back(std::move(right));
+
+        addPostFilter(*query_plan, join);
+        Names cols;
+        for (auto after_join_name : after_join_names)
+        {
+            if (BlockUtil::VIRTUAL_ROW_COUNT_COLUMN == after_join_name)
+                continue;
+
+            cols.emplace_back(after_join_name);
+        }
+        JoinUtil::reorderJoinOutput(*query_plan, cols);
     }
-    JoinUtil::reorderJoinOutput(*query_plan, cols);
+    else
+    {
+        JoinPtr hash_join = std::make_shared<HashJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty());
+        QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), hash_join, 8192, 1, false);
+        join_step->setStepDescription("CROSS_JOIN");
+        steps.emplace_back(join_step.get());
+        std::vector<QueryPlanPtr> plans;
+        plans.emplace_back(std::move(left));
+        plans.emplace_back(std::move(right));
+
+        query_plan = std::make_unique<QueryPlan>();
+        query_plan->unitePlans(std::move(join_step), {std::move(plans)});
+        JoinUtil::reorderJoinOutput(*query_plan, after_join_names);
+    }
 
     return query_plan;
 }
@@ -214,7 +222,7 @@ void CrossRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::
 
     auto expression = join_rel.expression();
     std::string filter_name;
-    auto actions_dag = std::make_shared<ActionsDAG>(query_plan.getCurrentDataStream().header.getColumnsWithTypeAndName());
+    ActionsDAG actions_dag(query_plan.getCurrentDataStream().header.getColumnsWithTypeAndName());
     if (!expression.has_scalar_function())
     {
         // It may be singular_or_list
@@ -223,9 +231,9 @@ void CrossRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::
     }
     else
     {
-        getPlanParser()->parseFunction(query_plan.getCurrentDataStream().header, expression, filter_name, actions_dag, true);
+        getPlanParser()->parseFunctionWithDAG(expression, filter_name, actions_dag, true);
     }
-    auto filter_step = std::make_unique<FilterStep>(query_plan.getCurrentDataStream(), actions_dag, filter_name, true);
+    auto filter_step = std::make_unique<FilterStep>(query_plan.getCurrentDataStream(), std::move(actions_dag), filter_name, true);
     filter_step->setStepDescription("Post Join Filter");
     steps.emplace_back(filter_step.get());
     query_plan.addStep(std::move(filter_step));
@@ -253,19 +261,19 @@ void CrossRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left
     }
     if (!right_table_alias.empty())
     {
-        ActionsDAGPtr rename_dag = std::make_shared<ActionsDAG>(right.getCurrentDataStream().header.getNamesAndTypesList());
+        ActionsDAG rename_dag(right.getCurrentDataStream().header.getNamesAndTypesList());
         auto original_right_columns = right.getCurrentDataStream().header;
         for (const auto & column_alias : right_table_alias)
         {
             if (original_right_columns.has(column_alias.first))
             {
                 auto pos = original_right_columns.getPositionByName(column_alias.first);
-                const auto & alias = rename_dag->addAlias(*rename_dag->getInputs()[pos], column_alias.second);
-                rename_dag->getOutputs()[pos] = &alias;
+                const auto & alias = rename_dag.addAlias(*rename_dag.getInputs()[pos], column_alias.second);
+                rename_dag.getOutputs()[pos] = &alias;
             }
         }
 
-        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), rename_dag);
+        QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), std::move(rename_dag));
         project_step->setStepDescription("Right Table Rename");
         steps.emplace_back(project_step.get());
         right.addStep(std::move(project_step));
@@ -275,14 +283,14 @@ void CrossRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left
     {
         table_join.addJoinedColumn(column);
     }
-    ActionsDAGPtr left_convert_actions = nullptr;
-    ActionsDAGPtr right_convert_actions = nullptr;
+    std::optional<ActionsDAG> left_convert_actions;
+    std::optional<ActionsDAG> right_convert_actions;
     std::tie(left_convert_actions, right_convert_actions) = table_join.createConvertingActions(
         left.getCurrentDataStream().header.getColumnsWithTypeAndName(), right.getCurrentDataStream().header.getColumnsWithTypeAndName());
 
     if (right_convert_actions)
     {
-        auto converting_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), right_convert_actions);
+        auto converting_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), std::move(*right_convert_actions));
         converting_step->setStepDescription("Convert joined columns");
         steps.emplace_back(converting_step.get());
         right.addStep(std::move(converting_step));
@@ -290,7 +298,7 @@ void CrossRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left
 
     if (left_convert_actions)
     {
-        auto converting_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), left_convert_actions);
+        auto converting_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), std::move(*left_convert_actions));
         converting_step->setStepDescription("Convert joined columns");
         steps.emplace_back(converting_step.get());
         left.addStep(std::move(converting_step));

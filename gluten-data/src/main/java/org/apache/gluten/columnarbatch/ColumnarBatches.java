@@ -17,8 +17,8 @@
 package org.apache.gluten.columnarbatch;
 
 import org.apache.gluten.exception.GlutenException;
-import org.apache.gluten.exec.Runtime;
-import org.apache.gluten.exec.Runtimes;
+import org.apache.gluten.runtime.Runtime;
+import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;
 import org.apache.gluten.utils.ImplicitClass;
@@ -100,7 +100,6 @@ public class ColumnarBatches {
         newVectors[i] = from.column(i);
       }
       FIELD_COLUMNS.set(target, newVectors);
-      System.out.println();
     } catch (IllegalAccessException e) {
       throw new GlutenException(e);
     }

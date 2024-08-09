@@ -18,13 +18,13 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
+import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.config.SHUFFLE_COMPRESS
+import org.apache.spark.internal.config.{SHUFFLE_COMPRESS, SHUFFLE_SORT_INIT_BUFFER_SIZE, SHUFFLE_SORT_USE_RADIXSORT}
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -108,7 +108,8 @@ class ColumnarShuffleWriter[K, V](
 
   private val taskContext: TaskContext = TaskContext.get()
 
-  private val shuffleWriterType: String = if (isSort) "sort" else "hash"
+  private val shuffleWriterType: String =
+    if (isSort) GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER else GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER
 
   private def availableOffHeapPerTask(): Long = {
     val perTask =
@@ -150,6 +151,8 @@ class ColumnarShuffleWriter[K, V](
             compressionLevel,
             bufferCompressThreshold,
             GlutenConfig.getConf.columnarShuffleCompressionMode,
+            conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,
+            conf.get(SHUFFLE_SORT_USE_RADIXSORT),
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,
@@ -175,7 +178,7 @@ class ColumnarShuffleWriter[K, V](
         }
         val startTime = System.nanoTime()
         jniWrapper.write(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
-        dep.metrics("splitTime").add(System.nanoTime() - startTime)
+        dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
@@ -188,22 +191,27 @@ class ColumnarShuffleWriter[K, V](
     assert(nativeShuffleWriter != -1L)
     splitResult = jniWrapper.stop(nativeShuffleWriter)
     closeShuffleWriter()
-
-    dep
-      .metrics("splitTime")
-      .add(
-        System.nanoTime() - startTime - splitResult.getTotalSpillTime -
-          splitResult.getTotalWriteTime -
-          splitResult.getTotalCompressTime)
+    dep.metrics("shuffleWallTime").add(System.nanoTime() - startTime)
+    if (!isSort) {
+      dep
+        .metrics("splitTime")
+        .add(
+          dep.metrics("shuffleWallTime").value - splitResult.getTotalSpillTime -
+            splitResult.getTotalWriteTime -
+            splitResult.getTotalCompressTime)
+    } else {
+      dep.metrics("sortTime").add(splitResult.getSortTime)
+      dep.metrics("c2rTime").add(splitResult.getC2RTime)
+    }
     dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
-    dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
     dep.metrics("dataSize").add(splitResult.getRawPartitionLengths.sum)
-    if (!isSort) {
-      dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
-    }
+    dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
+    dep.metrics("peakBytes").add(splitResult.getPeakBytes)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
+    taskContext.taskMetrics().incMemoryBytesSpilled(splitResult.getBytesToEvict)
+    taskContext.taskMetrics().incDiskBytesSpilled(splitResult.getTotalBytesSpilled)
 
     partitionLengths = splitResult.getPartitionLengths
     try {

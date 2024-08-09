@@ -38,49 +38,48 @@ OutputFormatFile::OutputFormatFile(
     DB::ContextPtr context_,
     const std::string & file_uri_,
     WriteBufferBuilderPtr write_buffer_builder_,
-    const std::vector<std::string> & preferred_column_names_)
-    : context(context_), file_uri(file_uri_), write_buffer_builder(write_buffer_builder_), preferred_column_names(preferred_column_names_)
+    const DB::Block & preferred_schema_)
+    : context(context_), file_uri(file_uri_), write_buffer_builder(write_buffer_builder_), preferred_schema(preferred_schema_)
 {
 }
 
-Block OutputFormatFile::creatHeaderWithPreferredColumnNames(const Block & header)
+Block OutputFormatFile::createHeaderWithPreferredSchema(const Block & header)
 {
-    if (!preferred_column_names.empty())
-    {
-        /// Create a new header with the preferred column name
-        DB::NamesAndTypesList names_types_list = header.getNamesAndTypesList();
-        DB::ColumnsWithTypeAndName cols;
-        size_t index = 0;
-        for (const auto & name_type : header.getNamesAndTypesList())
-        {
-            if (name_type.name.starts_with("__bucket_value__"))
-                continue;
+    if (!preferred_schema)
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "preferred_schema is empty");
 
-            DB::ColumnWithTypeAndName col(name_type.type->createColumn(), name_type.type, preferred_column_names.at(index++));
-            cols.emplace_back(std::move(col));
-        }
-        assert(preferred_column_names.size() == index);
-        return {std::move(cols)};
+    /// Create a new header with the preferred column name and type
+    DB::ColumnsWithTypeAndName columns;
+    columns.reserve(preferred_schema.columns());
+    size_t index = 0;
+    for (const auto & name_type : header.getNamesAndTypesList())
+    {
+        if (name_type.name.starts_with("__bucket_value__"))
+            continue;
+
+        const auto & preferred_column = preferred_schema.getByPosition(index++);
+        ColumnWithTypeAndName column(preferred_column.type->createColumn(), preferred_column.type, preferred_column.name);
+        columns.emplace_back(std::move(column));
     }
-    else
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "preferred_column_names is empty");
+    assert(preferred_schema.columns() == index);
+    return {std::move(columns)};
 }
 
 OutputFormatFilePtr OutputFormatFileUtil::createFile(
     DB::ContextPtr context,
     local_engine::WriteBufferBuilderPtr write_buffer_builder,
     const std::string & file_uri,
-    const std::vector<std::string> & preferred_column_names,
+    const DB::Block & preferred_schema,
     const std::string & format_hint)
 {
 #if USE_PARQUET
     if (boost::to_lower_copy(file_uri).ends_with(".parquet") || "parquet" == boost::to_lower_copy(format_hint))
-        return std::make_shared<ParquetOutputFormatFile>(context, file_uri, write_buffer_builder, preferred_column_names);
+        return std::make_shared<ParquetOutputFormatFile>(context, file_uri, write_buffer_builder, preferred_schema);
 #endif
 
 #if USE_ORC
     if (boost::to_lower_copy(file_uri).ends_with(".orc") || "orc" == boost::to_lower_copy(format_hint))
-        return std::make_shared<ORCOutputFormatFile>(context, file_uri, write_buffer_builder, preferred_column_names);
+        return std::make_shared<ORCOutputFormatFile>(context, file_uri, write_buffer_builder, preferred_schema);
 #endif
 
 

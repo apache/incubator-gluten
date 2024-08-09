@@ -44,7 +44,21 @@ function(FIND_ARROW_LIB LIB_NAME)
       message(FATAL_ERROR "Arrow library Not Found: ${ARROW_LIB_FULL_NAME}")
     endif()
     message(STATUS "Found Arrow library: ${ARROW_LIB_${LIB_NAME}}")
-    set_target_properties(Arrow::${LIB_NAME}
-                          PROPERTIES IMPORTED_LOCATION ${ARROW_LIB_${LIB_NAME}})
+
+    # Get the parent-parent directory of the lib file. For example:
+    #
+    # * ${ARROW_LIB_${LIB_NAME}}: /usr/local/lib/libarrow.a
+    # * ${ARROW_LIB_INCLUDE_DIR}: /usr/local
+    #
+    # Then we can get our include directory: /usr/local/include
+    get_filename_component(ARROW_LIB_INCLUDE_DIR "${ARROW_LIB_${LIB_NAME}}"
+                           PATH)
+    get_filename_component(ARROW_LIB_INCLUDE_DIR "${ARROW_LIB_INCLUDE_DIR}"
+                           PATH)
+
+    set_target_properties(
+      Arrow::${LIB_NAME}
+      PROPERTIES IMPORTED_LOCATION ${ARROW_LIB_${LIB_NAME}}
+                 INTERFACE_INCLUDE_DIRECTORIES ${ARROW_LIB_INCLUDE_DIR}/include)
   endif()
 endfunction()

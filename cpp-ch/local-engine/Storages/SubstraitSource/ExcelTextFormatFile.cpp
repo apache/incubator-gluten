@@ -15,8 +15,6 @@
  * limitations under the License.
  */
 #include "ExcelTextFormatFile.h"
-#include <Common/CHUtil.h>
-
 #include <memory>
 #include <string>
 
@@ -31,6 +29,7 @@
 #include <Storages/Serializations/ExcelDecimalSerialization.h>
 #include <Storages/Serializations/ExcelSerialization.h>
 #include <Storages/Serializations/ExcelStringReader.h>
+#include <Common/CHUtil.h>
 
 namespace DB
 {
@@ -100,14 +99,14 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
         format_settings.csv.null_representation = file_info.text().null_value();
 
     bool empty_as_null = true;
-    if (context->getSettings().has(BackendInitializerUtil::EXCEL_EMPTY_AS_NULL))
-        empty_as_null = context->getSettings().getString(BackendInitializerUtil::EXCEL_EMPTY_AS_NULL) == "'true'";
+    if (context->getSettingsRef().has(BackendInitializerUtil::EXCEL_EMPTY_AS_NULL))
+        empty_as_null = context->getSettingsRef().getString(BackendInitializerUtil::EXCEL_EMPTY_AS_NULL) == "'true'";
 
     format_settings.try_infer_integers = 0;
-    if (!context->getSettings().has(BackendInitializerUtil::EXCEL_NUMBER_FORCE))
+    if (!context->getSettingsRef().has(BackendInitializerUtil::EXCEL_NUMBER_FORCE))
         format_settings.try_infer_integers = 1;
-    if (context->getSettings().has(BackendInitializerUtil::EXCEL_NUMBER_FORCE)
-        && context->getSettings().getString(BackendInitializerUtil::EXCEL_NUMBER_FORCE) == "'true'")
+    if (context->getSettingsRef().has(BackendInitializerUtil::EXCEL_NUMBER_FORCE)
+        && context->getSettingsRef().getString(BackendInitializerUtil::EXCEL_NUMBER_FORCE) == "'true'")
         format_settings.try_infer_integers = 1;
 
     if (format_settings.csv.null_representation.empty() || empty_as_null)
@@ -132,8 +131,8 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     {
         format_settings.csv.allow_single_quotes = false;
 
-        if (context->getSettings().has(BackendInitializerUtil::EXCEL_QUOTE_STRICT)
-            && context->getSettings().getString(BackendInitializerUtil::EXCEL_QUOTE_STRICT) == "'true'")
+        if (context->getSettingsRef().has(BackendInitializerUtil::EXCEL_QUOTE_STRICT)
+            && context->getSettingsRef().getString(BackendInitializerUtil::EXCEL_QUOTE_STRICT) == "'true'")
             format_settings.csv.allow_double_quotes = false;
         else
             format_settings.csv.allow_double_quotes = true;

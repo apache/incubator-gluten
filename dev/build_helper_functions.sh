@@ -81,6 +81,28 @@ function get_cxx_flags {
 
 }
 
+function github_checkout {
+  local REPO=$1
+  shift
+  local VERSION=$1
+  shift
+  local GIT_CLONE_PARAMS=$@
+  local DIRNAME=$(basename $REPO)
+  SUDO="${SUDO:-""}"
+  cd "${DEPENDENCY_DIR}"
+  if [ -z "${DIRNAME}" ]; then
+    echo "Failed to get repo name from ${REPO}"
+    exit 1
+  fi
+  if [ -d "${DIRNAME}" ] && prompt "${DIRNAME} already exists. Delete?"; then
+    ${SUDO} rm -rf "${DIRNAME}"
+  fi
+  if [ ! -d "${DIRNAME}" ]; then
+    git clone -q -b $VERSION $GIT_CLONE_PARAMS "https://github.com/${REPO}.git"
+  fi
+  cd "${DIRNAME}"
+}
+
 function wget_and_untar {
   local URL=$1
   local DIR=$2
@@ -130,14 +152,17 @@ function setup_macos {
 function setup_linux {
   local LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
   local LINUX_VERSION_ID=$(. /etc/os-release && echo ${VERSION_ID})
+  CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
+  GLUTEN_VELOX_SCRIPT_HOME=$CURRENT_DIR/../ep/build-velox/src
 
   if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" || "$LINUX_DISTRIBUTION" == "pop" ]]; then
     scripts/setup-ubuntu.sh
   elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
     case "$LINUX_VERSION_ID" in
-    8) scripts/setup-centos8.sh ;;
+    9) scripts/setup-centos9.sh ;;
+    8) $GLUTEN_VELOX_SCRIPT_HOME/setup-centos8.sh ;;
     7)
-      scripts/setup-centos7.sh
+      $GLUTEN_VELOX_SCRIPT_HOME/setup-centos7.sh
       set +u
       export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
       source /opt/rh/devtoolset-9/enable
@@ -151,13 +176,13 @@ function setup_linux {
   elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
     case "${LINUX_VERSION_ID:0:1}" in
     2)
-      scripts/setup-centos7.sh
+      $GLUTEN_VELOX_SCRIPT_HOME/setup-centos7.sh
       set +u
       export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
       source /opt/rh/devtoolset-9/enable
       set -u
       ;;
-    3) scripts/setup-centos8.sh ;;
+    3) $GLUTEN_VELOX_SCRIPT_HOME/setup-centos8.sh ;;
     *)
       echo "Unsupported alinux version: $LINUX_VERSION_ID"
       exit 1
@@ -166,13 +191,13 @@ function setup_linux {
   elif [[ "$LINUX_DISTRIBUTION" == "tencentos" ]]; then
     case "$LINUX_VERSION_ID" in
     2.4)
-        scripts/setup-centos7.sh
+        $GLUTEN_VELOX_SCRIPT_HOME/setup-centos7.sh
         set +u
         export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
         source /opt/rh/devtoolset-9/enable
         set -u
         ;;
-    3.2) scripts/setup-centos8.sh ;;
+    3.2) $GLUTEN_VELOX_SCRIPT_HOME/setup-centos8.sh ;;
     *)
       echo "Unsupported tencentos version: $LINUX_VERSION_ID"
       exit 1
@@ -183,3 +208,9 @@ function setup_linux {
     exit 1
   fi
 }
+
+function install_libhdfs3 {
+  github_checkout oap-project/libhdfs3 master
+  cmake_install
+}
+

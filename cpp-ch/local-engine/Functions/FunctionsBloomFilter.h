@@ -20,6 +20,7 @@
 #include <memory>
 #include <type_traits>
 #include <AggregateFunctions/AggregateFunctionFactory.h>
+#include <AggregateFunctions/AggregateFunctionGroupBloomFilter.h>
 #include <AggregateFunctions/IAggregateFunction_fwd.h>
 #include <Columns/ColumnAggregateFunction.h>
 #include <Columns/ColumnConst.h>
@@ -40,15 +41,11 @@
 #include <Common/typeid_cast.h>
 
 
-#include <AggregateFunctions/AggregateFunctionGroupBloomFilter.h>
-
-
 namespace DB
 {
 namespace ErrorCodes
 {
 extern const int ILLEGAL_TYPE_OF_ARGUMENT;
-extern const int BAD_ARGUMENTS;
 }
 }
 

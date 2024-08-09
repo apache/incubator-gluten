@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.vectorized;
 
-import org.apache.gluten.exec.Runtime;
-import org.apache.gluten.exec.RuntimeAware;
+import org.apache.gluten.runtime.Runtime;
+import org.apache.gluten.runtime.RuntimeAware;
 
 public class NativeColumnarToRowJniWrapper implements RuntimeAware {
   private final Runtime runtime;
@@ -37,8 +37,8 @@ public class NativeColumnarToRowJniWrapper implements RuntimeAware {
 
   public native long nativeColumnarToRowInit() throws RuntimeException;
 
-  public native NativeColumnarToRowInfo nativeColumnarToRowConvert(long c2rHandle, long batchHandle)
-      throws RuntimeException;
+  public native NativeColumnarToRowInfo nativeColumnarToRowConvert(
+      long c2rHandle, long batchHandle, long rowId) throws RuntimeException;
 
   public native void nativeClose(long c2rHandle);
 }

@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include <arrow/ipc/writer.h>
 #include <numeric>
 #include <utility>
 
@@ -37,69 +36,42 @@ class ShuffleWriter : public Reclaimable {
  public:
   static constexpr int64_t kMinMemLimit = 128LL * 1024 * 1024;
 
+  static constexpr int64_t kMaxMemLimit = 1LL * 1024 * 1024 * 1024;
+
+  static ShuffleWriterType stringToType(const std::string& type);
+
   virtual arrow::Status write(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
 
   virtual arrow::Status stop() = 0;
 
-  int32_t numPartitions() const {
-    return numPartitions_;
-  }
+  int32_t numPartitions() const;
 
-  ShuffleWriterOptions& options() {
-    return options_;
-  }
+  ShuffleWriterOptions& options();
 
-  int64_t partitionBufferSize() const {
-    return partitionBufferPool_->bytes_allocated();
-  }
+  int64_t totalBytesWritten() const;
 
-  int64_t maxPartitionBufferSize() const {
-    return partitionBufferPool_->max_memory();
-  }
+  int64_t totalBytesEvicted() const;
 
-  int64_t totalBytesWritten() const {
-    return metrics_.totalBytesWritten;
-  }
+  int64_t totalBytesToEvict() const;
 
-  int64_t totalBytesEvicted() const {
-    return metrics_.totalBytesEvicted;
-  }
+  int64_t totalWriteTime() const;
 
-  int64_t totalWriteTime() const {
-    return metrics_.totalWriteTime;
-  }
+  int64_t totalEvictTime() const;
 
-  int64_t totalEvictTime() const {
-    return metrics_.totalEvictTime;
-  }
+  int64_t totalCompressTime() const;
 
-  int64_t totalCompressTime() const {
-    return metrics_.totalCompressTime;
-  }
+  virtual int64_t peakBytesAllocated() const;
 
-  const std::vector<int64_t>& partitionLengths() const {
-    return metrics_.partitionLengths;
-  }
+  virtual int64_t totalSortTime() const;
 
-  const std::vector<int64_t>& rawPartitionLengths() const {
-    return metrics_.rawPartitionLengths;
-  }
+  virtual int64_t totalC2RTime() const;
 
-  const int64_t rawPartitionBytes() {
-    return std::accumulate(metrics_.rawPartitionLengths.begin(), metrics_.rawPartitionLengths.end(), 0LL);
-  }
+  const std::vector<int64_t>& partitionLengths() const;
+
+  const std::vector<int64_t>& rawPartitionLengths() const;
 
  protected:
-  ShuffleWriter(
-      int32_t numPartitions,
-      std::unique_ptr<PartitionWriter> partitionWriter,
-      ShuffleWriterOptions options,
-      arrow::MemoryPool* pool)
-      : numPartitions_(numPartitions),
-        options_(std::move(options)),
-        pool_(pool),
-        partitionBufferPool_(std::make_unique<ShuffleMemoryPool>(pool)),
-        partitionWriter_(std::move(partitionWriter)) {}
+  ShuffleWriter(int32_t numPartitions, ShuffleWriterOptions options, arrow::MemoryPool* pool);
 
   virtual ~ShuffleWriter() = default;
 
@@ -108,20 +80,6 @@ class ShuffleWriter : public Reclaimable {
   ShuffleWriterOptions options_;
 
   arrow::MemoryPool* pool_;
-  // Memory Pool used to track memory usage of partition buffers.
-  // The actual allocation is delegated to options_.memoryPool.
-  std::unique_ptr<ShuffleMemoryPool> partitionBufferPool_;
-
-  std::unique_ptr<PartitionWriter> partitionWriter_;
-
-  std::vector<int64_t> rowVectorLengths_;
-
-  std::shared_ptr<arrow::Schema> schema_;
-
-  // Column index, partition id, buffers.
-  std::vector<std::vector<std::vector<std::shared_ptr<arrow::ResizableBuffer>>>> partitionBuffers_;
-
-  std::shared_ptr<Partitioner> partitioner_;
 
   ShuffleWriterMetrics metrics_{};
 };
