@@ -25,6 +25,7 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
+import org.apache.gluten.utils._
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, EulerNumber, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Pi, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SparkVersion, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
@@ -39,6 +40,8 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+
+import org.apache.hadoop.fs.Path
 
 import scala.util.control.Breaks.breakable
 
@@ -70,11 +73,20 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   val MAXIMUM_BATCH_SIZE: Int = 32768
 
-  override def supportFileFormatRead(
+  override def validateScan(
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
+      rootPaths: Seq[String],
       paths: Seq[String]): ValidationResult = {
+    val filteredRootPaths = distinctRootPaths(rootPaths)
+    if (
+      !filteredRootPaths.isEmpty && !VeloxFileSystemValidationJniWrapper
+        .allSupportedByRegisteredFileSystems(filteredRootPaths.toArray)
+    ) {
+      return ValidationResult.failed(
+        s"Scheme of [$filteredRootPaths] is not supported by registered file systems.")
+    }
     // Validate if all types are supported.
     def validateTypes(validatorFunc: PartialFunction[StructField, String]): ValidationResult = {
       // Collect unsupported types.
@@ -177,6 +189,17 @@ object VeloxBackendSettings extends BackendSettingsApi {
           .getRawTypeString(metadata)
           .getOrElse(stringType.catalogString))
       .isDefined
+  }
+
+  def distinctRootPaths(paths: Seq[String]): Seq[String] = {
+    // Skip native validation for local path, as local file system is always registered.
+    // For evey file scheme, only one path is kept.
+    paths
+      .map(p => (new Path(p).toUri.getScheme, p))
+      .groupBy(_._1)
+      .filter(_._1 != "file")
+      .map(_._2.head._2)
+      .toSeq
   }
 
   override def supportWriteFilesExec(

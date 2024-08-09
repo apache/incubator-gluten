@@ -31,10 +31,11 @@ import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopF
 import org.apache.spark.sql.types.StructField
 
 trait BackendSettingsApi {
-  def supportFileFormatRead(
+  def validateScan(
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
+      rootPaths: Seq[String],
       paths: Seq[String]): ValidationResult = ValidationResult.succeeded
   def supportWriteFilesExec(
       format: FileFormat,

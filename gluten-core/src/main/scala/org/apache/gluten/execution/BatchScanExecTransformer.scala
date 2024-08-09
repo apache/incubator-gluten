@@ -22,6 +22,7 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
+import org.apache.gluten.utils.FileIndexUtil
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -127,6 +128,14 @@ abstract class BatchScanExecTransformerBase(
   override def getInputFilePathsInternal: Seq[String] = {
     scan match {
       case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
+      case _ => Seq.empty
+    }
+  }
+
+  override def getRootPathsInternal: Seq[String] = {
+    scan match {
+      case fileScan: FileScan =>
+        FileIndexUtil.getRootPath(fileScan.fileIndex)
       case _ => Seq.empty
     }
   }
