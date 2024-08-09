@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -exu
+
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 export SUDO=sudo
 source ${CURRENT_DIR}/build_helper_functions.sh

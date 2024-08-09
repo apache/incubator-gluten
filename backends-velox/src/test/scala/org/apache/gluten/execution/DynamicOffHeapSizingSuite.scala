@@ -22,7 +22,7 @@ import org.apache.gluten.tags.SkipTestTags
 import org.apache.spark.SparkConf
 
 @SkipTestTags
-class DynamicOffHeapSizingTest extends VeloxWholeStageTransformerSuite {
+class DynamicOffHeapSizingSuite extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
 

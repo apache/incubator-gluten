@@ -67,7 +67,7 @@ class ScalarFunctionsValidateSuiteRasOn extends ScalarFunctionsValidateSuite {
   }
 }
 
-abstract class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
+abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   disableFallbackCheck
   import testImplicits._
 

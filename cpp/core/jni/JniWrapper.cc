@@ -222,7 +222,7 @@ namespace {
 const std::string kBacktraceAllocation = "spark.gluten.memory.backtrace.allocation";
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_createRuntime( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_runtime_RuntimeJniWrapper_createRuntime( // NOLINT
     JNIEnv* env,
     jclass,
     jstring jbackendType,
@@ -249,7 +249,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_createRunt
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_collectMemoryUsage( // NOLINT
+JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_runtime_RuntimeJniWrapper_collectMemoryUsage( // NOLINT
     JNIEnv* env,
     jclass,
     jlong ctxHandle) {
@@ -268,7 +268,7 @@ JNIEXPORT jbyteArray JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_colle
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_shrinkMemory( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_runtime_RuntimeJniWrapper_shrinkMemory( // NOLINT
     JNIEnv* env,
     jclass,
     jlong ctxHandle,
@@ -279,7 +279,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_shrinkMemo
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-JNIEXPORT void JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_holdMemory( // NOLINT
+JNIEXPORT void JNICALL Java_org_apache_gluten_runtime_RuntimeJniWrapper_holdMemory( // NOLINT
     JNIEnv* env,
     jclass,
     jlong ctxHandle) {
@@ -289,7 +289,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_holdMemory(
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_org_apache_gluten_exec_RuntimeJniWrapper_releaseRuntime( // NOLINT
+JNIEXPORT void JNICALL Java_org_apache_gluten_runtime_RuntimeJniWrapper_releaseRuntime( // NOLINT
     JNIEnv* env,
     jclass,
     jlong ctxHandle) {

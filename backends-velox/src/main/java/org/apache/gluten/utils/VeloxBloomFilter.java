@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.utils;
 
-import org.apache.gluten.exec.Runtimes;
+import org.apache.gluten.runtime.Runtimes;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.spark.util.sketch.BloomFilter;
