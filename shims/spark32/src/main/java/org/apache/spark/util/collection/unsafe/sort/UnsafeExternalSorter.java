@@ -208,8 +208,13 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
 
   @Override
   public long forceSpill(long size, MemoryConsumer trigger) throws IOException {
+    logger.warn("this taskId " + getTaskAttemptId() + " trigger task id: " + trigger.getTaskAttemptId());
     if (trigger != this && readingIterator != null) {
       return readingIterator.spill();
+    }
+    if (getTaskAttemptId() != trigger.getTaskAttemptId()) {
+      logger.warn("Trigger task id is not same with this");
+      return 0; // fail
     }
 
     if (inMemSorter == null || inMemSorter.numRecords() <= 0) {
