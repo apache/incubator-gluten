@@ -20,35 +20,21 @@ import org.apache.gluten.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.ProjectExec
-import org.apache.spark.sql.internal.SQLConf
 
 class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    spark
-      .range(100)
-      .selectExpr("cast(id % 3 as int) as c1", "id as c2")
-      .write
-      .format("parquet")
-      .saveAsTable("tmp1")
-  }
-
   override protected def sparkConf: SparkConf = super.sparkConf
     .set(GlutenConfig.RAS_ENABLED.key, "true")
     .set(GlutenConfig.RAS_COST_MODEL.key, "rough")
-    .set(SQLConf.USE_V1_SOURCE_LIST.key, "parquet")
 
+  import testImplicits._
   test("fallback trivial project if its neighbor nodes fell back") {
-    withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
-      // scalastyle:off println
-      println(spark.conf.getAll)
-      runQueryAndCompare("select c1 as c3 from tmp1") {
-        df =>
-          println(getExecutedPlan(df))
-          checkSparkOperatorMatch[ProjectExec](df)
+    withTempView("t1") {
+      Seq(1, 1).toDF("c1").createOrReplaceTempView("t1")
+      runQueryAndCompare("select c1 as c3 from t1") {
+        checkSparkOperatorMatch[ProjectExec]
       }
     }
   }
