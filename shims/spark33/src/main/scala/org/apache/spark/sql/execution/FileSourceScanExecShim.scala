@@ -20,7 +20,7 @@ import org.apache.gluten.metrics.GlutenTimeMetric
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, FileSourceMetadataAttribute, PlanExpression, Predicate}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BloomFilterMightContain, BoundReference, DynamicPruningExpression, Expression, FileSourceMetadataAttribute, PlanExpression, Predicate}
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
@@ -132,12 +132,21 @@ abstract class FileSourceScanExecShim(
   private def isDynamicPruningFilter(e: Expression): Boolean =
     e.exists(_.isInstanceOf[PlanExpression[_]])
 
+  private def isBloomFilterMightContain(e: Expression): Boolean =
+    e.find(
+      expr =>
+        expr.isInstanceOf[BloomFilterMightContain] ||
+          expr.prettyName == "velox_might_contain")
+      .isDefined
+
   // We can only determine the actual partitions at runtime when a dynamic partition filter is
   // present. This is because such a filter relies on information that is only available at run
   // time (for instance the keys used in the other side of a join).
   @transient lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
     val dynamicPartitionFilters =
-      partitionFilters.filter(isDynamicPruningFilter)
+      partitionFilters
+        .filter(isDynamicPruningFilter)
+        .filterNot(isBloomFilterMightContain)
     val selected = if (dynamicPartitionFilters.nonEmpty) {
       GlutenTimeMetric.withMillisTime {
         // call the file index for the files matching all filters except dynamic partition filters
