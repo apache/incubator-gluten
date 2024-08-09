@@ -24,6 +24,7 @@
 #include <arrow/type.h>
 #include <arrow/type_fwd.h>
 #include <benchmark/benchmark.h>
+#include <thread>
 #include <execinfo.h>
 #include <glog/logging.h>
 #include <parquet/arrow/reader.h>
@@ -213,11 +214,21 @@ class BenchmarkCompression {
   }
 
  protected:
-  long setCpu(uint32_t cpuindex) {
+  void setCpu(uint32_t cpuindex) {
+#ifndef __APPLE__
+    static const auto kTotalCores = std::thread::hardware_concurrency();
+    cpuindex = cpuindex % kTotalCores;
     cpu_set_t cs;
     CPU_ZERO(&cs);
     CPU_SET(cpuindex, &cs);
-    return sched_setaffinity(0, sizeof(cs), &cs);
+    if (sched_setaffinity(0, sizeof(cs), &cs) == -1) {
+      LOG(WARNING) << "Error binding CPU " << std::to_string(cpuindex);
+      exit(EXIT_FAILURE);
+    }
+#else
+    LOG(WARNING) << "Binding CPU is currently not supported on macOS." << std::endl;
+    exit(EXIT_FAILURE);
+#endif
   }
 
   virtual void doCompress(
