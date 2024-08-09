@@ -47,7 +47,7 @@ class CHCelebornColumnarShuffleWriter[K, V](
     client,
     writeMetrics) {
 
-  private val customizedCompressCodec =
+  private val capitalizedCompressionCodec =
     customizedCompressionCodec.toUpperCase(Locale.ROOT)
 
   private val jniWrapper = new CHShuffleSplitterJniWrapper
@@ -105,7 +105,7 @@ class CHCelebornColumnarShuffleWriter[K, V](
       shuffleId,
       mapId,
       nativeBufferSize,
-      customizedCompressCodec,
+      capitalizedCompressionCodec,
       compressionLevel,
       GlutenConfig.getConf.chColumnarShuffleSpillThreshold,
       CHBackendSettings.shuffleHashAlgorithm,

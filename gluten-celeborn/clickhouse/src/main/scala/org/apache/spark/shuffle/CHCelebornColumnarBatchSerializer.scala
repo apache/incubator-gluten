@@ -60,7 +60,7 @@ private class CHCelebornColumnarBatchSerializerInstance(
 
   private lazy val conf = SparkEnv.get.conf
   private lazy val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
-  private lazy val customizedCompressCodec = compressionCodec.toUpperCase(Locale.ROOT)
+  private lazy val capitalizedCompressionCodec = compressionCodec.toUpperCase(Locale.ROOT)
   private lazy val compressionLevel =
     GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec,
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)
@@ -203,7 +203,7 @@ private class CHCelebornColumnarBatchSerializerInstance(
         writeBuffer,
         dataSize,
         CHBackendSettings.useCustomizedShuffleCodec,
-        customizedCompressCodec,
+        capitalizedCompressionCodec,
         compressionLevel,
         CHBackendSettings.customizeBufferSize
       )

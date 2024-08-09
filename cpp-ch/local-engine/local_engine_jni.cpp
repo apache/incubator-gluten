@@ -586,7 +586,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
-        .compress_level = compress_level,
+        .compress_level = compress_level < 0 ? std::nullopt : std::optional<int>(compress_level),
         .spill_threshold = static_cast<size_t>(spill_threshold),
         .hash_algorithm = jstring2string(env, hash_algorithm),
         .max_sort_buffer_size = static_cast<size_t>(max_sort_buffer_size),
@@ -640,7 +640,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
-        .compress_level = compress_level,
+        .compress_level = compress_level < 0 ? std::nullopt : std::optional<int>(compress_level),
         .spill_threshold = static_cast<size_t>(spill_threshold),
         .hash_algorithm = jstring2string(env, hash_algorithm),
         .force_memory_sort = static_cast<bool>(force_memory_sort)};

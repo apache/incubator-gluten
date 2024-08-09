@@ -59,7 +59,7 @@ object CHExecUtil extends Logging {
       dataSize: SQLMetric,
       iter: Iterator[ColumnarBatch],
       compressionCodec: Option[String] = Some("lz4"),
-      compressionLevel: Option[Int] = Some(Int.MinValue),
+      compressionLevel: Option[Int] = None,
       bufferSize: Int = 4 << 10): Iterator[(Int, Array[Byte])] = {
     var count = 0
     val bos = new ByteArrayOutputStream()
