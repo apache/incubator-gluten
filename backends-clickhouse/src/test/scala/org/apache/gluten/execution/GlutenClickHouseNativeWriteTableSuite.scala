@@ -42,6 +42,10 @@ class GlutenClickHouseNativeWriteTableSuite
   private var _hiveSpark: SparkSession = _
 
   override protected def sparkConf: SparkConf = {
+    var sessionTimeZone = "GMT"
+    if (isSparkVersionGE("3.5")) {
+      sessionTimeZone = java.util.TimeZone.getDefault.getID
+    }
     new SparkConf()
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.memory.offHeap.enabled", "true")
@@ -65,8 +69,8 @@ class GlutenClickHouseNativeWriteTableSuite
       // TODO: support default ANSI policy
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.sql.warehouse.dir", getWarehouseDir)
+      .set("spark.sql.session.timeZone", sessionTimeZone)
       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
-      .set("spark.sql.session.timeZone", "GMT")
       .setMaster("local[1]")
   }
 
