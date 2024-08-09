@@ -91,33 +91,33 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
 
   bool growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
     velox::memory::ScopedMemoryArbitrationContext ctx(pool);
-    VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool")
-    auto candidate = candidates_.begin()->first;
+    velox::memory::MemoryPool* candidate;
+    {
+      std::unique_lock guard{mutex_};
+      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool")
+      candidate = candidates_.begin()->first;
+    }
     VELOX_CHECK(pool->root() == candidate, "Illegal state in ListenableArbitrator");
 
-    std::lock_guard<std::recursive_mutex> l(mutex_);
-    growCapacityLocked(pool->root(), targetBytes);
+    growCapacity0(pool->root(), targetBytes);
     return true;
   }
 
   uint64_t shrinkCapacity(uint64_t targetBytes, bool allowSpill, bool allowAbort) override {
     velox::memory::ScopedMemoryArbitrationContext ctx((const velox::memory::MemoryPool*)nullptr);
     facebook::velox::exec::MemoryReclaimer::Stats status;
-    VELOX_CHECK_EQ(candidates_.size(), 1, "Gluten only has one root pool");
-    std::lock_guard<std::recursive_mutex> l(mutex_); // FIXME: Do we have recursive locking for this mutex?
-    auto pool = candidates_.begin()->first;
-    const uint64_t oldCapacity = pool->capacity();
+    velox::memory::MemoryPool* pool;
+    {
+      std::unique_lock guard{mutex_};
+      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool")
+      pool = candidates_.begin()->first;
+    }
     pool->reclaim(targetBytes, 0, status); // ignore the output
-    shrinkPool(pool, 0);
-    const uint64_t newCapacity = pool->capacity();
-    uint64_t total = oldCapacity - newCapacity;
-    listener_->allocationChanged(-total);
-    return total;
+    return shrinkCapacity0(pool, 0);
   }
 
   uint64_t shrinkCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
-    std::lock_guard<std::recursive_mutex> l(mutex_);
-    return shrinkCapacityLocked(pool, targetBytes);
+    return shrinkCapacity0(pool, targetBytes);
   }
 
   Stats stats() const override {
@@ -130,7 +130,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
  private:
-  void growCapacityLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
+  void growCapacity0(velox::memory::MemoryPool* pool, uint64_t bytes) {
     // Since
     // https://github.com/facebookincubator/velox/pull/9557/files#diff-436e44b7374032f8f5d7eb45869602add6f955162daa2798d01cc82f8725724dL812-L820,
     // We should pass bytes as parameter "reservationBytes" when calling ::grow.
@@ -152,7 +152,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
         pool->toString())
   }
 
-  uint64_t shrinkCapacityLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
+  uint64_t shrinkCapacity0(velox::memory::MemoryPool* pool, uint64_t bytes) {
     uint64_t freeBytes = shrinkPool(pool, bytes);
     listener_->allocationChanged(-freeBytes);
     return freeBytes;
@@ -162,7 +162,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   const uint64_t memoryPoolInitialCapacity_; // FIXME: Unused.
   const uint64_t memoryPoolTransferCapacity_;
 
-  mutable std::recursive_mutex mutex_;
+  mutable std::mutex mutex_;
   inline static std::string kind_ = "GLUTEN";
   std::unordered_map<velox::memory::MemoryPool*, std::weak_ptr<velox::memory::MemoryPool>> candidates_;
 };
