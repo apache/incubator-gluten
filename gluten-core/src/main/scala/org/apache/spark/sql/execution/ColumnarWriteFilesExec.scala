@@ -49,7 +49,7 @@ abstract class ColumnarWriteFilesExec protected (
 
   override lazy val references: AttributeSet = AttributeSet.empty
 
-  override def supportsColumnar(): Boolean = true
+  override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = Seq.empty
 

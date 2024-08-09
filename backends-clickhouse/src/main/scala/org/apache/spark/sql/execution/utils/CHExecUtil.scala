@@ -127,7 +127,7 @@ object CHExecUtil extends Logging {
         result
       }
 
-      override def next: UnsafeRow = {
+      override def next(): UnsafeRow = {
         if (rowId >= rows) throw new NoSuchElementException
 
         val (offset, length) = (rowInfo.offsets(rowId), rowInfo.lengths(rowId))

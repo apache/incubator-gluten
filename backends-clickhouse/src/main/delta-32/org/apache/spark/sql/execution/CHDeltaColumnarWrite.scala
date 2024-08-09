@@ -102,7 +102,7 @@ case class CHDelayedCommitProtocolWrite(
       val updatedPartitions = partitions.toSet
       Some(
         (
-          addedFiles,
+          addedFiles.toSeq,
           ExecutedWriteSummary(
             updatedPartitions = updatedPartitions,
             stats = Seq(CreateBasicWriteTaskStats(numFiles, updatedPartitions, numWrittenRows)))))
