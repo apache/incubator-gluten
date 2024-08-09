@@ -103,6 +103,9 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
       altConventions.map(altConv => PropertySet(List(altConv)))
     val planner = optimization.newPlanner(plan, constraintSet, altConstraintSets)
     val out = planner.plan()
+    // scalastyle:off println
+    println(planner.newState().formatGraphviz())
+    // scalastyle:on println
     out
   }
 }
