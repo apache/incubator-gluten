@@ -208,12 +208,10 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
 
   @Override
   public long forceSpill(long size, MemoryConsumer trigger) throws IOException {
-    logger.warn("this taskId " + getTaskAttemptId() + " trigger task id: " + trigger.getTaskAttemptId());
     if (trigger != this && readingIterator != null) {
       return readingIterator.spill();
     }
     if (trigger != this && getTaskAttemptId() != trigger.getTaskAttemptId()) {
-      logger.warn("Trigger is not itself and task id is not same with this");
       return 0; // fail
     }
 
@@ -285,22 +283,8 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
     final UnsafeSorterSpillWriter spillWriter =
         new UnsafeSorterSpillWriter(
             blockManager, fileBufferSizeBytes, writeMetrics, inMemSorter.numRecords());
-    logger.warn("inMemSorter numRecords: " + inMemSorter.numRecords());
     spillWriters.add(spillWriter);
-    UnsafeSorterIterator iterator = inMemSorter.getSortedIterator();
-
-    if (iterator instanceof ChainedIterator) {
-      ChainedIterator it = (ChainedIterator) iterator;
-      int[] recordsForEach = it.numRecordForEach();
-      String str =
-          Arrays.stream(recordsForEach)
-              .mapToObj(Integer::toString)
-              .collect(Collectors.joining(", "));
-      logger.warn("Each length of the inMemSorter ChainedIterator is " + str);
-    } else if (iterator instanceof UnsafeInMemorySorter.SortedIterator) {
-      logger.warn("inMemSorter SortedIterator length " + iterator.getNumRecords());
-    }
-    spillIterator(iterator, spillWriter);
+    spillIterator(inMemSorter.getSortedIterator(), spillWriter);
 
     final long spillSize = freeMemory();
     // Note that this is more-or-less going to be a multiple of the page size, so wasted space in
@@ -636,7 +620,6 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
 
   private static void spillIterator(
       UnsafeSorterIterator inMemIterator, UnsafeSorterSpillWriter spillWriter) throws IOException {
-    logger.warn("inMemIterator size: " + inMemIterator.getNumRecords());
     while (inMemIterator.hasNext()) {
       inMemIterator.loadNext();
       final Object baseObject = inMemIterator.getBaseObject();
