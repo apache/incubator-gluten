@@ -206,6 +206,7 @@ object CHExpressionUtil {
     SPARK_PARTITION_ID -> DefaultValidator(),
     URL_DECODE -> DefaultValidator(),
     URL_ENCODE -> DefaultValidator(),
+    FORMAT_STRING -> FormatStringValidator(),
     SKEWNESS -> DefaultValidator(),
     SOUNDEX -> DefaultValidator(),
     MAKE_YM_INTERVAL -> DefaultValidator(),
