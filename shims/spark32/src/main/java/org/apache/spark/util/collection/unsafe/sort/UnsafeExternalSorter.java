@@ -212,8 +212,8 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
     if (trigger != this && readingIterator != null) {
       return readingIterator.spill();
     }
-    if (getTaskAttemptId() != trigger.getTaskAttemptId()) {
-      logger.warn("Trigger task id is not same with this");
+    if (trigger != this && getTaskAttemptId() != trigger.getTaskAttemptId()) {
+      logger.warn("Trigger is not itself and task id is not same with this");
       return 0; // fail
     }
 
