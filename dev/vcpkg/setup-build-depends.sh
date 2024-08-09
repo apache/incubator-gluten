@@ -184,7 +184,7 @@ install_ubuntu_18.04() {
 }
 
 install_ubuntu_20.04() {
-    apt-get -y install \
+    apt-get update && apt-get -y install \
         wget curl tar zip unzip git \
         build-essential ccache cmake ninja-build pkg-config autoconf autoconf-archive libtool \
         flex bison \
