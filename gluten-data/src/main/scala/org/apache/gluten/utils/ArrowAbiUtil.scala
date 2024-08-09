@@ -119,7 +119,7 @@ object ArrowAbiUtil {
     }
   }
 
-  def exportField(allocator: BufferAllocator, field: Field, out: ArrowSchema) {
+  def exportField(allocator: BufferAllocator, field: Field, out: ArrowSchema): Unit = {
     val dictProvider = new CDataDictionaryProvider
     try {
       Data.exportField(allocator, field, dictProvider, out)
@@ -128,7 +128,7 @@ object ArrowAbiUtil {
     }
   }
 
-  def exportSchema(allocator: BufferAllocator, schema: Schema, out: ArrowSchema) {
+  def exportSchema(allocator: BufferAllocator, schema: Schema, out: ArrowSchema): Unit = {
     val dictProvider = new CDataDictionaryProvider
     try {
       Data.exportSchema(allocator, schema, dictProvider, out)

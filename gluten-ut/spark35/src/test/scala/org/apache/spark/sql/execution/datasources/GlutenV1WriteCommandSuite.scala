@@ -152,7 +152,8 @@ class GlutenV1WriteCommandSuite
                         ),
                         false,
                         _,
-                        _) =>
+                        _
+                      ) =>
                     true
                   case SortExecTransformer(
                         Seq(
@@ -169,7 +170,8 @@ class GlutenV1WriteCommandSuite
                         ),
                         false,
                         _,
-                        _) =>
+                        _
+                      ) =>
                     true
                   case _ => false
                 },
@@ -233,7 +235,8 @@ class GlutenV1WriteCommandSuite
                       ),
                       false,
                       _,
-                      _) =>
+                      _
+                    ) =>
                   true
                 case SortExecTransformer(
                       Seq(
@@ -250,7 +253,8 @@ class GlutenV1WriteCommandSuite
                       ),
                       false,
                       _,
-                      _) =>
+                      _
+                    ) =>
                   true
                 case _ => false
               },

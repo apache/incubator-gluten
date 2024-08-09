@@ -97,7 +97,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
             _numRows += batch.numRows
           }
           Iterator((_numRows, blockNativeWriter.collectAsByteArray()))
-        // Iterator((_numRows, new Array[Byte](0)))
+          // Iterator((_numRows, new Array[Byte](0)))
       }
       .collect
     val count0 = countsAndBytes.map(_._1).sum

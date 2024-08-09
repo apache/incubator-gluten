@@ -391,13 +391,13 @@ class GlutenParquetFilterSuite
         'p_size.int >= 1,
         'p_partkey.long.isNotNull,
         ('p_brand.string === "Brand#12" &&
-          ('p_container.string in ("SM CASE", "SM BOX", "SM PACK", "SM PKG")) &&
+          ('p_container.string.in("SM CASE", "SM BOX", "SM PACK", "SM PKG")) &&
           'p_size.int <= 5) ||
           ('p_brand.string === "Brand#23" &&
-            ('p_container.string in ("MED BAG", "MED BOX", "MED PKG", "MED PACK")) &&
+            ('p_container.string.in("MED BAG", "MED BOX", "MED PKG", "MED PACK")) &&
             'p_size.int <= 10) ||
           ('p_brand.string === "Brand#34" &&
-            ('p_container.string in ("LG CASE", "LG BOX", "LG PACK", "LG PKG")) &&
+            ('p_container.string.in("LG CASE", "LG BOX", "LG PACK", "LG PKG")) &&
             'p_size.int <= 15)
       )
     ),

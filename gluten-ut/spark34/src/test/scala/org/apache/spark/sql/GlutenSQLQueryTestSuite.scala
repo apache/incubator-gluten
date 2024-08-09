@@ -74,20 +74,19 @@ import scala.util.control.NonFatal
  * The format for input files is simple:
  *   1. A list of SQL queries separated by semicolons by default. If the semicolon cannot
  *      effectively separate the SQL queries in the test file(e.g. bracketed comments), please use
- * --QUERY-DELIMITER-START and --QUERY-DELIMITER-END. Lines starting with
- * --QUERY-DELIMITER-START and --QUERY-DELIMITER-END represent the beginning and end of a query,
- * respectively. Code that is not surrounded by lines that begin with --QUERY-DELIMITER-START and
- * --QUERY-DELIMITER-END is still separated by semicolons. 2. Lines starting with -- are treated as
- * comments and ignored. 3. Lines starting with --SET are used to specify the configs when running
- * this testing file. You can set multiple configs in one --SET, using comma to separate them. Or
- * you can use multiple
- * --SET statements. 4. Lines starting with --IMPORT are used to load queries from another test
- * file. 5. Lines starting with --CONFIG_DIM are used to specify config dimensions of this testing
- * file. The dimension name is decided by the string after --CONFIG_DIM. For example, --CONFIG_DIM1
- * belongs to dimension 1. One dimension can have multiple lines, each line representing one config
- * set (one or more configs, separated by comma). Spark will run this testing file many times, each
- * time picks one config set from each dimension, until all the combinations are tried. For example,
- * if dimension 1 has 2 lines, dimension 2 has 3 lines, this testing file will be run 6 times
+ * --QUERY-DELIMITER-START and --QUERY-DELIMITER-END. Lines starting with --QUERY-DELIMITER-START
+ * and --QUERY-DELIMITER-END represent the beginning and end of a query, respectively. Code that is
+ * not surrounded by lines that begin with --QUERY-DELIMITER-START and --QUERY-DELIMITER-END is
+ * still separated by semicolons. 2. Lines starting with -- are treated as comments and ignored. 3.
+ * Lines starting with --SET are used to specify the configs when running this testing file. You can
+ * set multiple configs in one --SET, using comma to separate them. Or you can use multiple --SET
+ * statements. 4. Lines starting with --IMPORT are used to load queries from another test file. 5.
+ * Lines starting with --CONFIG_DIM are used to specify config dimensions of this testing file. The
+ * dimension name is decided by the string after --CONFIG_DIM. For example, --CONFIG_DIM1 belongs to
+ * dimension 1. One dimension can have multiple lines, each line representing one config set (one or
+ * more configs, separated by comma). Spark will run this testing file many times, each time picks
+ * one config set from each dimension, until all the combinations are tried. For example, if
+ * dimension 1 has 2 lines, dimension 2 has 3 lines, this testing file will be run 6 times
  * (cartesian product).
  *
  * For example:

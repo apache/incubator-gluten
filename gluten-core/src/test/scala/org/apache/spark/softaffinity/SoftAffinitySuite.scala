@@ -39,6 +39,8 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
     .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM, "2")
     .set(GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS, "2")
 
+  val scalaVersion = scala.util.Properties.versionNumberString
+
   def generateNativePartition1(): Unit = {
     val partition = FilePartition(
       0,
@@ -97,7 +99,13 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
 
     val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations = locations)
 
-    assertResult(Set("host-1", "host-4", "host-5")) {
+    val affinityResultSet = if (scalaVersion.startsWith("2.12")) {
+      Set("host-1", "host-4", "host-5")
+    } else if (scalaVersion.startsWith("2.13")) {
+      Set("host-5", "host-4", "host-2")
+    }
+
+    assertResult(affinityResultSet) {
       nativePartition.preferredLocations().toSet
     }
   }
@@ -184,7 +192,13 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
 
     val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations = locations)
 
-    assertResult(Set("host-1", "host-5", "host-6")) {
+    val affinityResultSet = if (scalaVersion.startsWith("2.12")) {
+      Set("host-1", "host-5", "host-6")
+    } else if (scalaVersion.startsWith("2.13")) {
+      Set("host-6", "host-5", "host-2")
+    }
+
+    assertResult(affinityResultSet) {
       nativePartition.preferredLocations().toSet
     }
   }

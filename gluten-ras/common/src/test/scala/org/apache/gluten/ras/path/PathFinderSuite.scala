@@ -262,18 +262,18 @@ class PathFinderSuite extends AnyFunSuite {
 
     assert(path.plan() == Binary(n1, Group(1), Group(2)))
     assert(
-      path.dive(state, 1).map(_.plan()) == List(
+      path.dive(state, 1).map(_.plan()).toList == List(
         Binary(n1, Unary(n2, Group(3)), Unary(n3, Group(4)))))
     assert(
-      path.dive(state, 2).map(_.plan()) == List(
+      path.dive(state, 2).map(_.plan()).toList == List(
         Binary(n1, Unary(n2, Leaf(n4, 1)), Unary(n3, Leaf(n5, 1))),
         Binary(n1, Unary(n2, Leaf(n4, 1)), Unary(n3, Leaf(n6, 1)))))
     assert(
-      path.dive(state, 3).map(_.plan()) == List(
+      path.dive(state, 3).map(_.plan()).toList == List(
         Binary(n1, Unary(n2, Leaf(n4, 1)), Unary(n3, Leaf(n5, 1))),
         Binary(n1, Unary(n2, Leaf(n4, 1)), Unary(n3, Leaf(n6, 1)))))
     assert(
-      path.dive(state, RasPath.INF_DEPTH).map(_.plan()) == List(
+      path.dive(state, RasPath.INF_DEPTH).map(_.plan()).toList == List(
         Binary(n1, Unary(n2, Leaf(n4, 1)), Unary(n3, Leaf(n5, 1))),
         Binary(n1, Unary(n2, Leaf(n4, 1)), Unary(n3, Leaf(n6, 1)))))
   }
@@ -338,13 +338,13 @@ class PathFinderSuite extends AnyFunSuite {
       path.dive(state, 1).map(_.plan()).toSeq == List(
         Binary(n1, Binary(n2, Group(3), Group(4)), Leaf(n3, 1))))
     assert(
-      path.dive(state, 2).map(_.plan()) == List(
+      path.dive(state, 2).map(_.plan()).toList == List(
         Binary(n1, Binary(n2, Leaf(n4, 1), Leaf(n5, 1)), Leaf(n3, 1))))
     assert(
-      path.dive(state, 3).map(_.plan()) == List(
+      path.dive(state, 3).map(_.plan()).toList == List(
         Binary(n1, Binary(n2, Leaf(n4, 1), Leaf(n5, 1)), Leaf(n3, 1))))
     assert(
-      path.dive(state, RasPath.INF_DEPTH).map(_.plan()) == List(
+      path.dive(state, RasPath.INF_DEPTH).map(_.plan()).toList == List(
         Binary(n1, Binary(n2, Leaf(n4, 1), Leaf(n5, 1)), Leaf(n3, 1))))
   }
 }
