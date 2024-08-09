@@ -235,7 +235,7 @@ class VectorizedParquetBlockInputFormat final : public DB::IInputFormat
     ColumnIndexFilterPtr column_index_filter_;
 
 protected:
-    void onCancel() override { is_stopped = 1; }
+    void onCancel() noexcept override { is_stopped = 1; }
 
 public:
     VectorizedParquetBlockInputFormat(DB::ReadBuffer & in_, const DB::Block & header_, const DB::FormatSettings & format_settings);

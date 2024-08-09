@@ -101,14 +101,14 @@ object ConventionFunc {
       val out = plan match {
         case k: Convention.KnownRowType =>
           k.rowType()
-        case _ if !SparkShimLoader.getSparkShims.supportsRowBased(plan) =>
-          Convention.RowType.None
-        case _ =>
+        case _ if SparkShimLoader.getSparkShims.supportsRowBased(plan) =>
           Convention.RowType.VanillaRow
+        case _ =>
+          Convention.RowType.None
       }
-      if (out != Convention.RowType.None) {
-        assert(SparkShimLoader.getSparkShims.supportsRowBased(plan))
-      }
+      assert(
+        out == Convention.RowType.None || plan.isInstanceOf[Convention.KnownRowType] ||
+          SparkShimLoader.getSparkShims.supportsRowBased(plan))
       out
     }
 
@@ -119,15 +119,13 @@ object ConventionFunc {
           p match {
             case k: Convention.KnownBatchType =>
               k.batchType()
-            case _ if !plan.supportsColumnar =>
-              Convention.BatchType.None
-            case _ =>
+            case _ if plan.supportsColumnar =>
               Convention.BatchType.VanillaBatch
+            case _ =>
+              Convention.BatchType.None
           }
       )
-      if (out != Convention.BatchType.None) {
-        assert(plan.supportsColumnar)
-      }
+      assert(out == Convention.BatchType.None || plan.supportsColumnar)
       out
     }
 

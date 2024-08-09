@@ -995,6 +995,8 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     // each task using its own CustomStorageMergeTree, don't reuse
     auto temp_storage
         = local_engine::MergeTreeRelParser::copyToVirtualStorage(merge_tree_table, context);
+    // prefetch all needed parts metadata before merge
+    local_engine::restoreMetaData(temp_storage, merge_tree_table, *context);
 
     local_engine::TempStorageFreer freer{temp_storage->getStorageID()}; // to release temp CustomStorageMergeTree with RAII
     std::vector<DB::DataPartPtr> selected_parts = local_engine::StorageMergeTreeFactory::instance().getDataPartsByNames(

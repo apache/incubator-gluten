@@ -245,7 +245,7 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     SuspendedSection suspender;
     velox::exec::MemoryReclaimer::Stats status;
     auto* mm = memoryManager_->getMemoryManager();
-    uint64_t spilledOut = mm->arbitrator()->shrinkCapacity({pool}, remaining); // this conducts spilling
+    uint64_t spilledOut = mm->arbitrator()->shrinkCapacity(remaining); // this conducts spilling
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
     uint64_t total = shrunken + spilledOut;
     VLOG(2) << logPrefix << "Successfully reclaimed total " << total << " bytes.";

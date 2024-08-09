@@ -14,15 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.fuzzer
+package org.apache.gluten.runtime
 
-object FuzzerTestResult {
-  trait TestResult {
-    val seed: Long
+import org.apache.spark.util.{TaskResource, TaskResources}
 
-    def getSeed: Long = seed
+object Runtimes {
+
+  /** Get or create the runtime which bound with Spark TaskContext. */
+  def contextInstance(name: String): Runtime = {
+    if (!TaskResources.inSparkTask()) {
+      throw new IllegalStateException("This method must be called in a Spark task.")
+    }
+
+    TaskResources.addResourceIfNotRegistered(name, () => create(name))
   }
-  case class Successful(seed: Long) extends TestResult
-  case class Failed(seed: Long) extends TestResult
-  case class OOM(seed: Long) extends TestResult
+
+  private def create(name: String): Runtime with TaskResource = {
+    Runtime(name)
+  }
 }

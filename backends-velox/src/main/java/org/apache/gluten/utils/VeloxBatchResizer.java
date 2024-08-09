@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.utils;
 
-import org.apache.gluten.exec.Runtime;
-import org.apache.gluten.exec.Runtimes;
+import org.apache.gluten.runtime.Runtime;
+import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.vectorized.ColumnarBatchInIterator;
 import org.apache.gluten.vectorized.ColumnarBatchOutIterator;
 

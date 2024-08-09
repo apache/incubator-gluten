@@ -19,7 +19,7 @@ package org.apache.gluten.extension.columnar.enumerated
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.OffloadSingleNode
 import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
-import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
+import org.apache.gluten.extension.columnar.validator.Validator
 import org.apache.gluten.ras.path.Pattern
 import org.apache.gluten.ras.path.Pattern.node
 import org.apache.gluten.ras.rule.{RasRule, Shape}
@@ -49,16 +49,6 @@ object RasOffload {
     }
   }
 
-  val validator: Validator = Validators
-    .builder()
-    .fallbackByHint()
-    .fallbackIfScanOnly()
-    .fallbackComplexExpressions()
-    .fallbackByBackendSettings()
-    .fallbackByUserOptions()
-    .fallbackByTestInjects()
-    .build()
-
   private val rewrites = RewriteSingleNode.allRules()
 
   def from[T <: SparkPlan: ClassTag](base: OffloadSingleNode): RasOffload = {
@@ -75,70 +65,70 @@ object RasOffload {
     }
   }
 
-  implicit class RasOffloadOps(base: RasOffload) {
-    def toRule: RasRule[SparkPlan] = {
-      new RuleImpl(base)
-    }
-  }
-
-  private class RuleImpl(base: RasOffload) extends RasRule[SparkPlan] {
-    private val typeIdentifier: TypeIdentifier = base.typeIdentifier()
-
-    final override def shift(node: SparkPlan): Iterable[SparkPlan] = {
-      // 0. If the node is already offloaded, fail fast.
-      assert(typeIdentifier.isInstance(node))
-
-      // 1. Rewrite the node to form that native library supports.
-      val rewritten = rewrites.foldLeft(node) {
-        case (node, rewrite) =>
-          node.transformUp {
-            case p =>
-              val out = rewrite.rewrite(p)
-              out
-          }
-      }
-
-      // 2. Walk the rewritten tree.
-      val offloaded = rewritten.transformUp {
-        case from if typeIdentifier.isInstance(from) =>
-          // 3. Validate current node. If passed, offload it.
-          validator.validate(from) match {
-            case Validator.Passed =>
-              val offloaded = base.offload(from)
-              val offloadedNodes = offloaded.collect[GlutenPlan] { case t: GlutenPlan => t }
-              if (offloadedNodes.exists(!_.doValidate().ok())) {
-                // 4. If native validation fails on the offloaded node, return the
-                // original one.
-                from
-              } else {
-                offloaded
-              }
-            case Validator.Failed(reason) =>
-              from
-          }
-      }
-
-      // 5. If rewritten plan is not offload-able, discard it.
-      if (offloaded.fastEquals(rewritten)) {
-        return List.empty
-      }
-
-      // 6. Otherwise, return the final tree.
-      List(offloaded)
+  object Rule {
+    def apply(base: RasOffload, validator: Validator): RasRule[SparkPlan] = {
+      new RuleImpl(base, validator)
     }
 
-    override def shape(): Shape[SparkPlan] = {
-      pattern(node[SparkPlan](new Pattern.Matcher[SparkPlan] {
-        override def apply(plan: SparkPlan): Boolean = {
-          if (plan.isInstanceOf[GlutenPlan]) {
-            return false
-          }
-          if (typeIdentifier.isInstance(plan)) {
-            return true
-          }
-          false
+    private class RuleImpl(base: RasOffload, validator: Validator) extends RasRule[SparkPlan] {
+      private val typeIdentifier: TypeIdentifier = base.typeIdentifier()
+
+      final override def shift(node: SparkPlan): Iterable[SparkPlan] = {
+        // 0. If the node is already offloaded, fail fast.
+        assert(typeIdentifier.isInstance(node))
+
+        // 1. Rewrite the node to form that native library supports.
+        val rewritten = rewrites.foldLeft(node) {
+          case (node, rewrite) =>
+            node.transformUp {
+              case p =>
+                val out = rewrite.rewrite(p)
+                out
+            }
         }
-      }).build())
+
+        // 2. Walk the rewritten tree.
+        val offloaded = rewritten.transformUp {
+          case from if typeIdentifier.isInstance(from) =>
+            // 3. Validate current node. If passed, offload it.
+            validator.validate(from) match {
+              case Validator.Passed =>
+                val offloaded = base.offload(from)
+                val offloadedNodes = offloaded.collect[GlutenPlan] { case t: GlutenPlan => t }
+                if (offloadedNodes.exists(!_.doValidate().ok())) {
+                  // 4. If native validation fails on the offloaded node, return the
+                  // original one.
+                  from
+                } else {
+                  offloaded
+                }
+              case Validator.Failed(reason) =>
+                from
+            }
+        }
+
+        // 5. If rewritten plan is not offload-able, discard it.
+        if (offloaded.fastEquals(rewritten)) {
+          return List.empty
+        }
+
+        // 6. Otherwise, return the final tree.
+        List(offloaded)
+      }
+
+      override def shape(): Shape[SparkPlan] = {
+        pattern(node[SparkPlan](new Pattern.Matcher[SparkPlan] {
+          override def apply(plan: SparkPlan): Boolean = {
+            if (plan.isInstanceOf[GlutenPlan]) {
+              return false
+            }
+            if (typeIdentifier.isInstance(plan)) {
+              return true
+            }
+            false
+          }
+        }).build())
+      }
     }
   }
 }

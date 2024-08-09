@@ -87,6 +87,7 @@ struct PartitionWriterOptions {
 struct ShuffleWriterMetrics {
   int64_t totalBytesWritten{0};
   int64_t totalBytesEvicted{0};
+  int64_t totalBytesToEvict{0};
   int64_t totalWriteTime{0};
   int64_t totalEvictTime{0};
   int64_t totalCompressTime{0};

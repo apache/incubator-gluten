@@ -283,6 +283,7 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
           index - begin,
           nullptr,
           std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(rawBuffer_, offset)});
+      updateSpillMetrics(payload);
       RETURN_NOT_OK(
           partitionWriter_->evict(partitionId, std::move(payload), Evict::type::kSortSpill, false, false, stopped_));
       begin = index;
@@ -296,6 +297,7 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
       end - begin,
       nullptr,
       std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(rawBuffer_, offset)});
+  updateSpillMetrics(payload);
   RETURN_NOT_OK(
       partitionWriter_->evict(partitionId, std::move(payload), Evict::type::kSortSpill, false, false, stopped_));
   return arrow::Status::OK();
@@ -398,5 +400,11 @@ void VeloxSortShuffleWriter::allocateMinimalArray() {
   auto array = facebook::velox::AlignedBuffer::allocate<char>(
       options_.sortBufferInitialSize * sizeof(uint64_t), veloxPool_.get());
   setUpArray(std::move(array));
+}
+
+void VeloxSortShuffleWriter::updateSpillMetrics(const std::unique_ptr<InMemoryPayload>& payload) {
+  if (!stopped_) {
+    metrics_.totalBytesToEvict += payload->rawSize();
+  }
 }
 } // namespace gluten

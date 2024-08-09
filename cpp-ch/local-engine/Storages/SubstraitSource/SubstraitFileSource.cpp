@@ -144,7 +144,7 @@ bool SubstraitFileSource::tryPrepareReader()
 }
 
 
-void SubstraitFileSource::onCancel()
+void SubstraitFileSource::onCancel() noexcept
 {
     if (file_reader)
         file_reader->cancel();

@@ -14,23 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.exec;
+package org.apache.gluten.fuzzer
 
-import org.apache.gluten.memory.listener.ReservationListener;
+object FuzzerResult {
+  trait TestResult {
+    val seed: Long
 
-public class RuntimeJniWrapper {
-
-  private RuntimeJniWrapper() {}
-
-  public static native long createRuntime(
-      String backendType, ReservationListener listener, byte[] sessionConf);
-
-  // Memory management.
-  public static native byte[] collectMemoryUsage(long handle);
-
-  public static native long shrinkMemory(long handle, long size);
-
-  public static native void holdMemory(long handle);
-
-  public static native void releaseRuntime(long handle);
+    def getSeed: Long = seed
+  }
+  case class Successful(seed: Long) extends TestResult
+  case class Failed(seed: Long) extends TestResult
+  case class OOM(seed: Long) extends TestResult
 }

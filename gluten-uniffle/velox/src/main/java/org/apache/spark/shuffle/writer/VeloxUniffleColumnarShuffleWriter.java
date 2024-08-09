@@ -18,11 +18,11 @@ package org.apache.spark.shuffle.writer;
 
 import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
-import org.apache.gluten.exec.Runtime;
-import org.apache.gluten.exec.Runtimes;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
+import org.apache.gluten.runtime.Runtime;
+import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.vectorized.ShuffleWriterJniWrapper;
 import org.apache.gluten.vectorized.SplitResult;
 
