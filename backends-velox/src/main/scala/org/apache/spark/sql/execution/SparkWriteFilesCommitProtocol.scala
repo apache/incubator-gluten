@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, HadoopMapReduceCommitProtocol}
+import org.apache.spark.internal.io.{FileCommitProtocol, HadoopMapReduceCommitProtocol}
 import org.apache.spark.sql.execution.datasources.WriteJobDescription
 import org.apache.spark.util.Utils
 
@@ -41,9 +41,9 @@ class SparkWriteFilesCommitProtocol(
   extends Logging {
   assert(committer.isInstanceOf[HadoopMapReduceCommitProtocol])
 
-  val sparkStageId: Int = TaskContext.get().stageId()
-  val sparkPartitionId: Int = TaskContext.get().partitionId()
-  private val sparkAttemptNumber = TaskContext.get().taskAttemptId().toInt & Int.MaxValue
+  val sparkStageId = TaskContext.get().stageId()
+  val sparkPartitionId = TaskContext.get().partitionId()
+  val sparkAttemptNumber = TaskContext.get().taskAttemptId().toInt & Int.MaxValue
   private val jobId = createJobID(jobTrackerID, sparkStageId)
 
   private val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
@@ -66,21 +66,6 @@ class SparkWriteFilesCommitProtocol(
     val field: Field = classOf[HadoopMapReduceCommitProtocol].getDeclaredField("committer")
     field.setAccessible(true)
     field.get(committer).asInstanceOf[OutputCommitter]
-  }
-
-  private lazy val internalGetFilename = {
-    val m = classOf[HadoopMapReduceCommitProtocol]
-      .getDeclaredMethod("getFilename", classOf[TaskAttemptContext], classOf[FileNameSpec])
-    m.setAccessible(true)
-    m
-  }
-
-  def getFilename: String = {
-    val fileCounter = 0
-    val suffix = f".c$fileCounter%03d" +
-      description.outputWriterFactory.getFileExtension(taskAttemptContext)
-    val fileNameSpec = FileNameSpec("", suffix)
-    internalGetFilename.invoke(committer, taskAttemptContext, fileNameSpec).asInstanceOf[String]
   }
 
   def setupTask(): Unit = {
