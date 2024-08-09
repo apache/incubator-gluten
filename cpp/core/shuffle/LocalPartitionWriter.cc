@@ -183,12 +183,15 @@ class LocalPartitionWriter::PayloadMerger {
     return merged;
   }
 
-  arrow::Result<std::optional<std::unique_ptr<BlockPayload>>> finishForSpill(uint32_t partitionId) {
+  arrow::Result<std::optional<std::unique_ptr<BlockPayload>>> finishForSpill(
+      uint32_t partitionId,
+      int64_t& totalBytesToEvict) {
     // We need to check whether the spill source is from compressing/copying the merged buffers.
     if ((partitionInMerge_.has_value() && *partitionInMerge_ == partitionId) || !hasMerged(partitionId)) {
       return std::nullopt;
     }
     auto payload = std::move(partitionMergePayload_[partitionId]);
+    totalBytesToEvict += payload->rawSize();
     return payload->toBlockPayload(Payload::kUncompressed, pool_, codec_);
   }
 
@@ -312,7 +315,8 @@ class LocalPartitionWriter::PayloadCache {
       std::shared_ptr<arrow::io::OutputStream> os,
       const std::string& spillFile,
       arrow::MemoryPool* pool,
-      arrow::util::Codec* codec) {
+      arrow::util::Codec* codec,
+      int64_t& totalBytesToEvict) {
     std::shared_ptr<Spill> diskSpill = nullptr;
     ARROW_ASSIGN_OR_RAISE(auto start, os->Tell());
     for (uint32_t pid = 0; pid < numPartitions_; ++pid) {
@@ -321,6 +325,7 @@ class LocalPartitionWriter::PayloadCache {
         while (!payloads.empty()) {
           auto payload = std::move(payloads.front());
           payloads.pop_front();
+          totalBytesToEvict += payload->rawSize();
           // Spill the cached payload to disk.
           RETURN_NOT_OK(payload->serialize(os.get()));
           compressTime_ += payload->getCompressTime();
@@ -550,7 +555,7 @@ arrow::Status LocalPartitionWriter::evict(
     bool reuseBuffers,
     bool hasComplexType,
     bool isFinal) {
-  rawPartitionLengths_[partitionId] += inMemoryPayload->getBufferSize();
+  rawPartitionLengths_[partitionId] += inMemoryPayload->rawSize();
 
   if (evictType == Evict::kSortSpill) {
     if (lastEvictPid_ != -1 && (partitionId < lastEvictPid_ || (isFinal && !dataFileOs_))) {
@@ -604,6 +609,7 @@ arrow::Status LocalPartitionWriter::evict(
   return arrow::Status::OK();
 }
 
+// FIXME: Remove this code path for local partition writer.
 arrow::Status LocalPartitionWriter::evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) {
   rawPartitionLengths_[partitionId] += blockPayload->rawSize();
 
@@ -642,7 +648,8 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
     ARROW_ASSIGN_OR_RAISE(auto os, arrow::io::BufferedOutputStream::Create(16384, pool_, raw));
     spills_.emplace_back();
     ARROW_ASSIGN_OR_RAISE(
-        spills_.back(), payloadCache_->spillAndClose(os, spillFile, payloadPool_.get(), codec_.get()));
+        spills_.back(),
+        payloadCache_->spillAndClose(os, spillFile, payloadPool_.get(), codec_.get(), totalBytesToEvict_));
     reclaimed += beforeSpill - payloadPool_->bytes_allocated();
     if (reclaimed >= size) {
       *actual = reclaimed;
@@ -653,7 +660,7 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
   if (merger_) {
     auto beforeSpill = payloadPool_->bytes_allocated();
     for (auto pid = 0; pid < numPartitions_; ++pid) {
-      ARROW_ASSIGN_OR_RAISE(auto merged, merger_->finishForSpill(pid));
+      ARROW_ASSIGN_OR_RAISE(auto merged, merger_->finishForSpill(pid, totalBytesToEvict_));
       if (merged.has_value()) {
         RETURN_NOT_OK(requestSpill(false));
         RETURN_NOT_OK(spiller_->spill(pid, std::move(*merged)));
@@ -678,6 +685,7 @@ arrow::Status LocalPartitionWriter::populateMetrics(ShuffleWriterMetrics* metric
   metrics->totalCompressTime += compressTime_;
   metrics->totalEvictTime += spillTime_;
   metrics->totalWriteTime += writeTime_;
+  metrics->totalBytesToEvict += totalBytesToEvict_;
   metrics->totalBytesEvicted += totalBytesEvicted_;
   metrics->totalBytesWritten += std::filesystem::file_size(dataFile_);
   metrics->partitionLengths = std::move(partitionLengths_);

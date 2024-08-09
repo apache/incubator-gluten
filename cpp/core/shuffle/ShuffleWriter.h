@@ -52,6 +52,8 @@ class ShuffleWriter : public Reclaimable {
 
   int64_t totalBytesEvicted() const;
 
+  int64_t totalBytesToEvict() const;
+
   int64_t totalWriteTime() const;
 
   int64_t totalEvictTime() const;

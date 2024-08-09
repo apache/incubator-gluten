@@ -46,7 +46,7 @@ class Spill final {
       Payload::Type payloadType,
       uint32_t numRows,
       const std::vector<bool>* isValidityBuffer,
-      uint64_t rawSize,
+      int64_t rawSize,
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec);
 

@@ -210,6 +210,8 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("peakBytes").add(splitResult.getPeakBytes)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
+    taskContext.taskMetrics().incMemoryBytesSpilled(splitResult.getBytesToEvict)
+    taskContext.taskMetrics().incDiskBytesSpilled(splitResult.getTotalBytesSpilled)
 
     partitionLengths = splitResult.getPartitionLengths
     try {
