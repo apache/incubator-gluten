@@ -25,6 +25,7 @@ import org.apache.gluten.planner.property.Conv
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.LogLevelUtil
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
@@ -40,7 +41,7 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
   extends Rule[SparkPlan]
   with LogLevelUtil {
-  
+
   private val validator: Validator = Validators
     .builder()
     .fallbackByHint()
@@ -50,7 +51,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     .fallbackByUserOptions()
     .fallbackByTestInjects()
     .build()
-  
+
   private val rules = List(
     new PushFilterToScan(validator),
     RemoveSort,
@@ -71,8 +72,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
       RasOffload
         .from(
           (node: SparkPlan) => HiveTableScanExecTransformer.isHiveTableScan(node),
-          OffloadOthers())
-        ,
+          OffloadOthers()),
       RasOffload.from[CoalesceExec](OffloadOthers()),
       RasOffload.from[SortAggregateExec](OffloadOthers()),
       RasOffload.from[ObjectHashAggregateExec](OffloadOthers()),
@@ -85,8 +85,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
       RasOffload
         .from(
           (node: SparkPlan) => SparkShimLoader.getSparkShims.isWindowGroupLimitExec(node),
-          OffloadOthers())
-        ,
+          OffloadOthers()),
       RasOffload.from[LimitExec](OffloadOthers()),
       RasOffload.from[GenerateExec](OffloadOthers()),
       RasOffload.from[EvalPythonExec](OffloadOthers())
