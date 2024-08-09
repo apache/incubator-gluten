@@ -230,9 +230,22 @@ class GlutenClickHouseNativeWriteTableSuite
           (s"test_insert_into_${format}_supplier", null, sql)
         },
         (table_name, format) => {
+          // spark 3.2 without orc or parquet suffix
           val files = recursiveListFiles(new File(s"$basePath/$table_name"))
-            .filter(_.getName.endsWith(s".$format"))
-          assertResult(partitionNumber)(files.length)
+            .map(_.getName)
+            .filterNot(s => s.endsWith(s".crc") || s.equals("_SUCCESS"))
+
+          lazy val fileNames = {
+            val dir = s"$basePath/$table_name"
+            recursiveListFiles(new File(dir))
+              .map(f => f.getAbsolutePath.stripPrefix(dir))
+              .sorted
+              .mkString("\n")
+          }
+
+          lazy val errorMessage =
+            s"Search $basePath/$table_name with suffix .$format, all files: \n $fileNames"
+          assert(files.length === partitionNumber, errorMessage)
         }
       )
     }
