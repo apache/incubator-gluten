@@ -1097,6 +1097,74 @@ jobs:
           name: golden-files-spark35
           path: /tmp/tpch-approved-plan/**
 
+  run-spark-test-spark35-scala213:
+    needs: build-native-lib-centos-8
+    runs-on: ubuntu-20.04
+    container: ghcr.io/facebookincubator/velox-dev:centos8
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: velox-native-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download UDF Example Lib
+        uses: actions/download-artifact@v2
+        with:
+          name: udf-example-lib-centos-8-${{github.sha}}
+          path: ./cpp/build/velox/udf/examples/
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v2
+        with:
+          name: arrow-jars-centos-8-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup build dependency
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
+          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz
+          mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
+      - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
+        run: |
+          cd $GITHUB_WORKSPACE/ && \
+          wget https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz && \
+          tar --strip-components=1 -xf spark-3.5.1-bin-hadoop3.tgz spark-3.5.1-bin-hadoop3/jars/ && \
+          rm -rf spark-3.5.1-bin-hadoop3.tgz && \
+          mkdir -p $GITHUB_WORKSPACE//shims/spark35/spark_home/assembly/target/scala-2.13 && \
+          mv jars $GITHUB_WORKSPACE//shims/spark35/spark_home/assembly/target/scala-2.13 && \
+          cd $GITHUB_WORKSPACE// && \
+          wget https://github.com/apache/spark/archive/refs/tags/v3.5.1.tar.gz && \
+          tar --strip-components=1 -xf v3.5.1.tar.gz spark-3.5.1/sql/core/src/test/resources/  && \
+          mkdir -p shims/spark35/spark_home/ && \
+          mv sql shims/spark35/spark_home/ && \
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
+          pip3 install pyspark==3.5.1 cython && \
+          pip3 install pandas pyarrow
+      - name: Build and Run unit test for Spark 3.5.1 with scala-2.13 (other tests)
+        run: |
+          cd $GITHUB_WORKSPACE/
+          export SPARK_SCALA_VERSION=2.13
+          $MVN_CMD clean install -Pspark-3.5 -Pscala-2.13 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags && \
+          $MVN_CMD test -Pspark-3.5 -Pscala-2.13 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None -DtagsToInclude=org.apache.gluten.tags.UDFTest
+
   run-spark-test-spark35-slow:
     needs: build-native-lib-centos-8
     runs-on: ubuntu-20.04
