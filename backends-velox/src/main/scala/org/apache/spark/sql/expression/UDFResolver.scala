@@ -120,12 +120,12 @@ case class UDFExpression(
 object UDFResolver extends Logging {
   private val UDFNames = mutable.HashSet[String]()
   // (udf_name, arg1, arg2, ...) => return type
-  private val UDFMap = mutable.HashMap[String, mutable.MutableList[UDFSignature]]()
+  private val UDFMap = mutable.HashMap[String, mutable.ListBuffer[UDFSignature]]()
 
   private val UDAFNames = mutable.HashSet[String]()
   // (udaf_name, arg1, arg2, ...) => return type, intermediate attributes
   private val UDAFMap =
-    mutable.HashMap[String, mutable.MutableList[UDAFSignature]]()
+    mutable.HashMap[String, mutable.ListBuffer[UDAFSignature]]()
 
   private val LIB_EXTENSION = ".so"
 
@@ -152,7 +152,7 @@ object UDFResolver extends Logging {
       allowTypeConversion: Boolean): Unit = {
     assert(argTypes.dataType.isInstanceOf[StructType])
     val v =
-      UDFMap.getOrElseUpdate(name, mutable.MutableList[UDFSignature]())
+      UDFMap.getOrElseUpdate(name, mutable.ListBuffer[UDFSignature]())
     v += UDFSignature(
       returnType,
       argTypes.dataType.asInstanceOf[StructType].fields.map(_.dataType),
@@ -200,7 +200,7 @@ object UDFResolver extends Logging {
       }
 
     val v =
-      UDAFMap.getOrElseUpdate(name, mutable.MutableList[UDAFSignature]())
+      UDAFMap.getOrElseUpdate(name, mutable.ListBuffer[UDAFSignature]())
     v += UDAFSignature(
       returnType,
       argTypes.dataType.asInstanceOf[StructType].fields.map(_.dataType),

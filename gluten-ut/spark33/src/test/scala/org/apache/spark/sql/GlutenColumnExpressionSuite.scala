@@ -34,7 +34,7 @@ class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTe
       strDf.select(raise_error($"a")).collect()
     }
     assert(e2.getCause.isInstanceOf[RuntimeException])
-    assert(e2.getCause.getMessage contains "hello")
+    assert(e2.getCause.getMessage.contains("hello"))
   }
 
   testGluten("assert_true") {
@@ -58,7 +58,7 @@ class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTe
       nullDf.select(assert_true($"cond", $"n")).collect()
     }
     assert(e2.getCause.isInstanceOf[RuntimeException])
-    assert(e2.getCause.getMessage contains "first row")
+    assert(e2.getCause.getMessage.contains("first row"))
 
     // assert_true(condition)
     val intDf = Seq((0, 1)).toDF("a", "b")
@@ -67,7 +67,7 @@ class GlutenColumnExpressionSuite extends ColumnExpressionSuite with GlutenSQLTe
       intDf.select(assert_true($"a" > $"b")).collect()
     }
     assert(e3.getCause.isInstanceOf[RuntimeException])
-    assert(e3.getCause.getMessage contains "'('a > 'b)' is not true!")
+    assert(e3.getCause.getMessage.contains("'('a > 'b)' is not true!"))
   }
 
   testGluten(
