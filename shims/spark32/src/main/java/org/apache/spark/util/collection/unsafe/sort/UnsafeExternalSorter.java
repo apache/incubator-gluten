@@ -37,12 +37,10 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 /** External sorter based on {@link UnsafeInMemorySorter}. */
 public final class UnsafeExternalSorter extends MemoryConsumer {
