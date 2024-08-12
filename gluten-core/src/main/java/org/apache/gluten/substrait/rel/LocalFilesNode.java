@@ -104,7 +104,7 @@ public class LocalFilesNode implements SplitInfo {
       for (StructField field : fileSchema.fields()) {
         structBuilder.addTypes(
             ConverterUtils.getTypeNode(field.dataType(), field.nullable()).toProtobuf());
-        namedStructBuilder.addNames(field.name());
+        namedStructBuilder.addNames(ConverterUtils.normalizeColName(field.name()));
       }
       namedStructBuilder.setStruct(structBuilder.build());
     }

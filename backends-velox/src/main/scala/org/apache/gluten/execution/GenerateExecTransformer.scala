@@ -228,7 +228,7 @@ object PullOutGenerateProjectHelper extends PullOutProjectHelper {
               }
             }
 
-            newProjections += Alias(CreateArray(fieldArray), generatePreAliasName)()
+            newProjections += Alias(CreateArray(fieldArray.toSeq), generatePreAliasName)()
           }
 
           // Plug in a Project between Generate and its child.
