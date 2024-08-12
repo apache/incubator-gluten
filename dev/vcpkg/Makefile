@@ -1,4 +1,4 @@
-DOCKER_IMAGE=apache/gluten:gluten-vcpkg-builder_2024_05_22
+DOCKER_IMAGE=apache/gluten:gluten-vcpkg-builder
 GLUTEN_REPO=$(shell realpath -L ../..)
 
 CCACHE_DIR=$(HOME)/.ccache
@@ -33,6 +33,8 @@ docker-image-gha:
 	docker build \
 		--file docker/Dockerfile.gha \
 		--tag "$(DOCKER_IMAGE)" \
+		--build-arg HTTPS_PROXY="" \
+		--build-arg HTTP_PROXY="" \
 		.
 
 
