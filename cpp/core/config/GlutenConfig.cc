@@ -20,26 +20,47 @@
 #include "compute/ProtobufUtils.h"
 #include "config.pb.h"
 #include "jni/JniError.h"
+#include <regex>
+#include <optional>
 
 namespace gluten {
-std::unordered_map<std::string, std::string>
-parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength) {
-  std::unordered_map<std::string, std::string> sparkConfs;
-  ConfigMap pConfigMap;
-  gluten::parseProtobuf(planData, planDataLength, &pConfigMap);
-  for (const auto& pair : pConfigMap.configs()) {
-    sparkConfs.emplace(pair.first, pair.second);
-  }
 
+const std::string REDACTED_VALUE = "*********(redacted)";
+const std::string REGEX_REDACT_KEY = "spark.gluten.redaction.regex";
+
+std::unordered_map<std::string, std::string>
+  parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength) {
+    std::unordered_map<std::string, std::string> sparkConfs;
+    ConfigMap pConfigMap;
+    gluten::parseProtobuf(planData, planDataLength, &pConfigMap);
+    for (const auto& pair : pConfigMap.configs()) {
+      sparkConfs.emplace(pair.first, pair.second);
+  }
   return sparkConfs;
+}
+
+std::optional<std::regex> getRedactionRegex(const std::unordered_map<std::string, std::string>& conf) {
+    auto it = conf.find(REGEX_REDACT_KEY);
+    if (it != conf.end()) {
+        return std::regex(it->second);
+    }
+    return std::nullopt;
 }
 
 std::string printConfig(const std::unordered_map<std::string, std::string>& conf) {
   std::ostringstream oss;
   oss << std::endl;
-  for (auto& [k, v] : conf) {
-    oss << " [" << k << ", " << v << "]\n";
+
+    auto redactionRegex = getRedactionRegex(conf);
+
+  for (const auto& [k, v] : conf) {
+    if (redactionRegex && std::regex_match(k, *redactionRegex)) {
+        oss << " [" << k << ", " << REDACTED_VALUE << "]\n";
+    } else {
+        oss << " [" << k << ", " << v << "]\n";
+    }
   }
   return oss.str();
 }
+
 } // namespace gluten
