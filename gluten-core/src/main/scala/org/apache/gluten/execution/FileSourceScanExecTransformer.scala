@@ -21,6 +21,7 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
+import org.apache.gluten.utils.FileIndexUtil
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, PlanExpression}
@@ -124,6 +125,10 @@ abstract class FileSourceScanExecTransformerBase(
 
   override def getInputFilePathsInternal: Seq[String] = {
     relation.location.inputFiles.toSeq
+  }
+
+  override def getRootPathsInternal: Seq[String] = {
+    FileIndexUtil.getRootPath(relation.location)
   }
 
   override protected def doValidateInternal(): ValidationResult = {
