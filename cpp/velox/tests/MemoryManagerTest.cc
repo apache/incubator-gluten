@@ -392,7 +392,7 @@ TEST_F(MultiMemoryManagerTest, spill) {
 
   for (auto& vmm : vmms) {
     assertCapacitiesMatch(tmm, vmms);
-    vmm->getMemoryManager()->arbitrator()->shrinkCapacity(allocateSize);
+    vmm->getMemoryManager()->arbitrator()->shrinkCapacity(allocateSize * numAllocations);
     assertCapacitiesMatch(tmm, vmms);
   }
 
