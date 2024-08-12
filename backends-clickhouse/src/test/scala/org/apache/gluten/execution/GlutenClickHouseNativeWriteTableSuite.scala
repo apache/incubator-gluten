@@ -42,6 +42,10 @@ class GlutenClickHouseNativeWriteTableSuite
   private var _hiveSpark: SparkSession = _
 
   override protected def sparkConf: SparkConf = {
+    var sessionTimeZone = "GMT"
+    if (isSparkVersionGE("3.5")) {
+      sessionTimeZone = java.util.TimeZone.getDefault.getID
+    }
     new SparkConf()
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.memory.offHeap.enabled", "true")
@@ -65,6 +69,7 @@ class GlutenClickHouseNativeWriteTableSuite
       // TODO: support default ANSI policy
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.sql.warehouse.dir", getWarehouseDir)
+      .set("spark.sql.session.timeZone", sessionTimeZone)
       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
       .setMaster("local[1]")
   }
@@ -623,20 +628,12 @@ class GlutenClickHouseNativeWriteTableSuite
       ("date_field", "date"),
       ("timestamp_field", "timestamp")
     )
-    def excludeTimeFieldForORC(format: String): Seq[String] = {
-      if (format.equals("orc") && isSparkVersionGE("3.5")) {
-        // FIXME:https://github.com/apache/incubator-gluten/pull/6507
-        fields.keys.filterNot(_.equals("timestamp_field")).toSeq
-      } else {
-        fields.keys.toSeq
-      }
-    }
     val origin_table = "origin_table"
     withSource(genTestData(), origin_table) {
       nativeWrite {
         format =>
           val table_name = table_name_template.format(format)
-          val testFields = excludeTimeFieldForORC(format)
+          val testFields = fields.keys.toSeq
           writeAndCheckRead(origin_table, table_name, testFields, isSparkVersionLE("3.3")) {
             fields =>
               spark
