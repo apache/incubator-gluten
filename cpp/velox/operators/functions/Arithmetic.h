@@ -17,6 +17,7 @@
 #include <folly/CPortability.h>
 #include <stdint.h>
 #include <cmath>
+#include <limits>
 #include <type_traits>
 
 namespace gluten {
@@ -38,14 +39,16 @@ struct RoundFunction {
       return number;
     }
 
-    double factor = std::pow(10, decimals);
+    // Using long double for high precision during intermediate calculations.
+    // TODO: Make this more efficient with Boost to support high arbitrary precision at runtime.
+    long double factor = std::pow(10.0L, static_cast<long double>(decimals));
     static const TNum kInf = std::numeric_limits<TNum>::infinity();
-    if (number < 0) {
-      return (std::round(std::nextafter(number, -kInf) * factor * -1) / factor) * -1;
-    }
-    return std::round(std::nextafter(number, kInf) * factor) / factor;
-  }
 
+    if (number < 0) {
+      return static_cast<TNum>((std::round(std::nextafter(number, -kInf) * factor * -1) / factor) * -1);
+    }
+    return static_cast<TNum>(std::round(std::nextafter(number, kInf) * factor) / factor);
+  }
   template <typename TInput>
   FOLLY_ALWAYS_INLINE void call(TInput& result, const TInput& a, const int32_t b = 0) {
     result = round(a, b);

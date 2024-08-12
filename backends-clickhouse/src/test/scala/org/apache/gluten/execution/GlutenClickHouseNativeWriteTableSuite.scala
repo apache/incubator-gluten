@@ -192,7 +192,7 @@ class GlutenClickHouseNativeWriteTableSuite
       checkNative: Boolean = true): Unit = nativeWrite {
     format =>
       val (table_name, table_create_sql, insert_sql) = f(format)
-      withDestinationTable(table_name, table_create_sql) {
+      withDestinationTable(table_name, Option(table_create_sql)) {
         checkInsertQuery(insert_sql, checkNative)
         Option(extraCheck).foreach(_(table_name, format))
       }
@@ -223,15 +223,36 @@ class GlutenClickHouseNativeWriteTableSuite
   }
 
   test("supplier: csv to parquet- insert overwrite local directory") {
+    val partitionNumber = 7
     withSource(supplierDF, "supplier") {
-      nativeWrite {
-        format =>
+      nativeWrite2(
+        format => {
           val sql =
             s"""insert overwrite local directory
                |'$basePath/test_insert_into_${format}_supplier'
-               |stored as $format select * from supplier""".stripMargin
-          checkInsertQuery(sql, checkNative = true)
-      }
+               |stored as $format
+               |select /*+ REPARTITION($partitionNumber) */ * from supplier""".stripMargin
+          (s"test_insert_into_${format}_supplier", null, sql)
+        },
+        (table_name, format) => {
+          // spark 3.2 without orc or parquet suffix
+          val files = recursiveListFiles(new File(s"$basePath/$table_name"))
+            .map(_.getName)
+            .filterNot(s => s.endsWith(s".crc") || s.equals("_SUCCESS"))
+
+          lazy val fileNames = {
+            val dir = s"$basePath/$table_name"
+            recursiveListFiles(new File(dir))
+              .map(f => f.getAbsolutePath.stripPrefix(dir))
+              .sorted
+              .mkString("\n")
+          }
+
+          lazy val errorMessage =
+            s"Search $basePath/$table_name with suffix .$format, all files: \n $fileNames"
+          assert(files.length === partitionNumber, errorMessage)
+        }
+      )
     }
   }
 
@@ -848,7 +869,7 @@ class GlutenClickHouseNativeWriteTableSuite
         val table_name = "t_" + format
         withDestinationTable(
           table_name,
-          s"create table $table_name (id int, str string) stored as $format") {
+          Some(s"create table $table_name (id int, str string) stored as $format")) {
           checkInsertQuery(
             s"insert overwrite table $table_name " +
               "select id, cast(id as string) from range(10) union all " +

@@ -49,7 +49,7 @@ object GlutenPlanModel {
     override protected def doExecute(): RDD[InternalRow] = throw new IllegalStateException()
     override def output: Seq[Attribute] = metadata.schema().output
 
-    override def supportsColumnar(): Boolean = {
+    override def supportsColumnar: Boolean = {
       batchType != Convention.BatchType.None
     }
 

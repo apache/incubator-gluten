@@ -62,9 +62,10 @@ trait NativeWriteChecker
       spark.sql(sqlStr)
     }
 
-  def withDestinationTable(table: String, createTableSql: String = "select 1")(f: => Unit): Unit = {
+  def withDestinationTable(table: String, createTableSql: Option[String] = None)(
+      f: => Unit): Unit = {
     spark.sql(s"drop table IF EXISTS $table")
-    spark.sql(s"$createTableSql")
+    createTableSql.foreach(spark.sql)
     f
   }
 

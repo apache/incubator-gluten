@@ -97,7 +97,7 @@
     <guava.version>32.0.1-jre</guava.version>
     <!--spotless-->
     <spotless.version>2.27.2</spotless.version>
-    <spotless.scalafmt.version>3.5.9</spotless.scalafmt.version>
+    <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
     <spotless.delimiter>package</spotless.delimiter>
     <spotless.license.header>
 /*
@@ -147,6 +147,7 @@
       <properties>
         <scala.version>2.13.8</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
+        <spotless.scalafmt.version>3.8.3</spotless.scalafmt.version>
       </properties>
       <build>
         <pluginManagement>
