@@ -20,14 +20,14 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized._
-
 import org.apache.spark._
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
-
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
+import org.apache.gluten.execution.ColumnarNativeIterator
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.io.IOException
 import java.util.Locale
@@ -57,7 +57,20 @@ class CHCelebornColumnarShuffleWriter[K, V](
   @throws[IOException]
   override def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     CHThreadGroup.registerNewThreadGroup()
+    // for fallback
+    val iter = new ColumnarNativeIterator(new java.util.Iterator[ColumnarBatch] {
+      override def hasNext: Boolean = {
+        val has_value = records.hasNext
+        has_value
+      }
+
+      override def next(): ColumnarBatch = {
+        val batch = records.next()._2.asInstanceOf[ColumnarBatch]
+        batch
+      }
+    })
     nativeShuffleWriter = jniWrapper.makeForRSS(
+      iter,
       dep.nativePartitioning,
       shuffleId,
       mapId,
@@ -71,7 +84,6 @@ class CHCelebornColumnarShuffleWriter[K, V](
         || ShuffleMode.SORT.name.equalsIgnoreCase(shuffleWriterType)
     )
 
-    val startTime = System.nanoTime()
     splitResult = jniWrapper.stop(nativeShuffleWriter)
     // If all of the ColumnarBatch have empty rows, the nativeShuffleWriter still equals -1
     if (splitResult.getTotalRows == 0) {

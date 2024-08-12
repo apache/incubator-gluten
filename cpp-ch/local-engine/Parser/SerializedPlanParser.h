@@ -205,7 +205,6 @@ struct SparkBuffer
 class LocalExecutor : public BlockIterator
 {
 public:
-    static thread_local LocalExecutor * current_executor;
     static LocalExecutor * getCurrentExecutor() { return current_executor; }
     static void resetCurrentExecutor() { current_executor = nullptr; }
     LocalExecutor(QueryPlanPtr query_plan, QueryPipelineBuilderPtr pipeline, bool dump_pipeline_ = false);
@@ -214,6 +213,11 @@ public:
     SparkRowInfoPtr next();
     Block * nextColumnar();
     bool hasNext();
+    // When a fallback occurs, hasNext will be called to trigger the initialization of the pulling executor
+    bool initByPulling()
+    {
+        return executor.get();
+    }
 
     /// Stop execution, used when task receives shutdown command or executor receives SIGTERM signal
     void cancel();
@@ -221,19 +225,27 @@ public:
     {
         setter(*query_pipeline_builder);
     }
+    // set shuffle write pipeline for fallback
+    void setExternalPipelineBuilder(QueryPipelineBuilderPtr builder)
+    {
+        external_pipeline_builder = std::move(builder);
+    }
     void execute();
-    Block & getHeader();
+    Block getHeader();
     RelMetricPtr getMetric() const { return metric; }
     void setMetric(const RelMetricPtr & metric_) { metric = metric_; }
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
 
 private:
+    static thread_local LocalExecutor * current_executor;
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(const DB::Block & block) const;
     void initPullingPipelineExecutor();
     /// Dump processor runtime information to log
     std::string dumpPipeline() const;
 
     QueryPipelineBuilderPtr query_pipeline_builder;
+    // final shuffle write pipeline for fallback
+    QueryPipelineBuilderPtr external_pipeline_builder = nullptr;
     QueryPipeline query_pipeline;
     std::unique_ptr<DB::PullingAsyncPipelineExecutor> executor = nullptr;
     PipelineExecutorPtr push_executor = nullptr;

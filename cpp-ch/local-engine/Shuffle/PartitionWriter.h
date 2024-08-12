@@ -70,12 +70,15 @@ public:
 
     void initialize(SplitResult * split_result_, const Block & output_header_)
     {
-        chassert(split_result);
-        split_result = split_result_;
-        split_result->partition_lengths.resize(options.partition_num);
-        split_result->raw_partition_lengths.resize(options.partition_num);
-        output_header = output_header_;
-        init = true;
+        if (!init)
+        {
+            split_result = split_result_;
+            chassert(split_result != nullptr);
+            split_result->partition_lengths.resize(options.partition_num);
+            split_result->raw_partition_lengths.resize(options.partition_num);
+            output_header = output_header_;
+            init = true;
+        }
     }
     virtual String getName() const = 0;
 

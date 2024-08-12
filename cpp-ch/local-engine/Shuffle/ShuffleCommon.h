@@ -26,7 +26,7 @@
 
 namespace local_engine
 {
-    class SparkExechangeManager;
+    class SparkExchangeManager;
 }
 
 namespace local_engine
@@ -117,7 +117,7 @@ struct SplitResult
 
 struct SplitterHolder
 {
-    std::unique_ptr<SparkExechangeManager> exechange_manager;
+    std::unique_ptr<SparkExchangeManager> exchange_manager;
 };
 
 

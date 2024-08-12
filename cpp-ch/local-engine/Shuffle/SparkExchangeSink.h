@@ -81,10 +81,10 @@ private:
 using SelectBuilderPtr = std::unique_ptr<SelectorBuilder>;
 using SelectBuilderCreator = std::function<SelectBuilderPtr(const SplitOptions &)>;
 
-class SparkExechangeManager
+class SparkExchangeManager
 {
 public:
-    SparkExechangeManager(const DB::Block& header, const String & short_name, const SplitOptions & options_,  jobject rss_pusher = nullptr);
+    SparkExchangeManager(const DB::Block& header, const String & short_name, const SplitOptions & options_,  jobject rss_pusher = nullptr);
     void initSinks(size_t num);
     void setSinksToPipeline(DB::QueryPipelineBuilder & pipeline) const;
     void finish();

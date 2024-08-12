@@ -1648,12 +1648,15 @@ void LocalExecutor::cancel()
 
 void LocalExecutor::execute()
 {
-    chassert(query_pipeline_builder);
-    push_executor = query_pipeline_builder->execute();
+    chassert(query_pipeline_builder || external_pipeline_builder);
+    if (external_pipeline_builder)
+        push_executor = external_pipeline_builder->execute();
+    else
+        push_executor = query_pipeline_builder->execute();
     push_executor->execute(local_engine::QueryContextManager::instance().currentQueryContext()->getSettingsRef().max_threads, false);
 }
 
-Block & LocalExecutor::getHeader()
+Block LocalExecutor::getHeader()
 {
     return header;
 }

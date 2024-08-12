@@ -139,7 +139,7 @@ size_t LocalPartitionWriter::evictPartitions()
     {
         auto file = getNextSpillFile();
         WriteBufferFromFile output(file, options.io_buffer_size);
-        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(options.compress_method), shuffle_writer->options.compress_level);
+        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(options.compress_method), options.compress_level);
         CompressedWriteBuffer compressed_output(output, codec, options.io_buffer_size);
         NativeWriter writer(compressed_output, output_header);
 
@@ -272,7 +272,7 @@ size_t MemorySortLocalPartitionWriter::evictPartitions()
             return;
         auto file = getNextSpillFile();
         WriteBufferFromFile output(file, options.io_buffer_size);
-        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(options.compress_method), shuffle_writer->options.compress_level);
+        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(options.compress_method), options.compress_level);
         CompressedWriteBuffer compressed_output(output, codec, options.io_buffer_size);
         NativeWriter writer(compressed_output, output_header);
 
@@ -367,7 +367,7 @@ size_t MemorySortCelebornPartitionWriter::evictPartitions()
             return;
 
         WriteBufferFromOwnString output;
-        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(options.compress_method), shuffle_writer->options.compress_level);
+        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(options.compress_method), options.compress_level);
         CompressedWriteBuffer compressed_output(output, codec, options.io_buffer_size);
         NativeWriter writer(compressed_output, output_header);
 
@@ -475,7 +475,7 @@ size_t CelebornPartitionWriter::evictSinglePartition(size_t partition_id)
             return;
 
         WriteBufferFromOwnString output;
-        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(options.compress_method), shuffle_writer->options.compress_level);
+        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(options.compress_method), options.compress_level);
         CompressedWriteBuffer compressed_output(output, codec, options.io_buffer_size);
         NativeWriter writer(compressed_output, output_header);
 

@@ -18,12 +18,14 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.execution.ColumnarNativeIterator
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized._
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, Utils}
 
 import java.io.IOException
@@ -84,8 +86,21 @@ class CHColumnarShuffleWriter[K, V](
     val splitterJniWrapper: CHShuffleSplitterJniWrapper = jniWrapper
 
     val dataTmp = Utils.tempFileWith(shuffleBlockResolver.getDataFile(dep.shuffleId, mapId))
+    // for fallback
+    val iter = new ColumnarNativeIterator(new java.util.Iterator[ColumnarBatch] {
+      override def hasNext: Boolean = {
+        val has_value = records.hasNext
+        has_value
+      }
+
+      override def next(): ColumnarBatch = {
+        val batch = records.next()._2.asInstanceOf[ColumnarBatch]
+        batch
+      }
+    })
     if (nativeSplitter == 0) {
       nativeSplitter = splitterJniWrapper.make(
+        iter,
         dep.nativePartitioning,
         dep.shuffleId,
         mapId,
@@ -101,7 +116,6 @@ class CHColumnarShuffleWriter[K, V](
         forceMemorySortShuffle
       )
     }
-
     splitResult = splitterJniWrapper.stop(nativeSplitter)
     if (splitResult.getTotalRows > 0) {
       dep.metrics("numInputRows").add(splitResult.getTotalRows)

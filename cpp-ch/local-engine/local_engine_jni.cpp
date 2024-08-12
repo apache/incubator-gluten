@@ -52,10 +52,12 @@
 #include <Poco/Logger.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
-#include <Common/ErrorCodes.h>
 #include <Common/ExceptionUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
+#include <Common/ErrorCodes.h>
+#include <Processors/Executors/PipelineExecutor.h>
+#include <Storages/Cache/CacheManager.h>
 
 
 #ifdef __cplusplus
@@ -535,10 +537,68 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_CHStreamReader_nativeClose(JNIE
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
+local_engine::SplitterHolder * buildAndExecuteShuffle(JNIEnv * env,
+        jobject iter,
+        const String & name,
+        const local_engine::SplitOptions& options,
+        jobject rss_pusher = nullptr
+        )
+{
+    auto * current_executor = local_engine::LocalExecutor::getCurrentExecutor();
+    chassert(current_executor);
+    local_engine::SplitterHolder * splitter = nullptr;
+    // handle fallback, whole stage fallback or partial fallback
+    if (!current_executor || current_executor->initByPulling())
+    {
+        auto * first_block = local_engine::SourceFromJavaIter::peekBlock(env, iter);
+        if (first_block)
+        {
+            /// Try to decide header from the first block read from Java iterator.
+            auto header = first_block->cloneEmpty();
+            auto context = local_engine::QueryContextManager::instance().currentQueryContext();
+            auto global_iter = env->NewGlobalRef(iter);
+            auto source = std::make_shared<local_engine::SourceFromJavaIter>(context, first_block->cloneEmpty(), global_iter, true, first_block);
+            splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(first_block->cloneEmpty(), name, options, rss_pusher)};
+
+            DB::QueryPipelineBuilderPtr builder = std::make_unique<DB::QueryPipelineBuilder>();
+            builder->init(DB::Pipe(source));
+            // fallback only support one sink
+            splitter->exchange_manager->initSinks(1);
+            splitter->exchange_manager->setSinksToPipeline(*builder);
+            if (current_executor)
+            {
+                // partial fallback, can't build whole stage pipeline
+                current_executor->setExternalPipelineBuilder(std::move(builder));
+                current_executor->execute();
+            }
+            else
+            {
+                // whole stage fallback which no LocalExecutor created but use columnar shuffle
+                auto executor = builder->execute();
+                executor->execute(1, false);
+            }
+        }
+        else
+            // empty iterator
+            splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(DB::Block(), name, options, rss_pusher)};
+    }
+    else
+    {
+        splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(current_executor->getHeader().cloneEmpty(), name, options, rss_pusher)};
+        // TODO support multiple sinks
+        splitter->exchange_manager->initSinks(1);
+        current_executor->setSinks([&](auto & pipeline_builder) { splitter->exchange_manager->setSinksToPipeline(pipeline_builder);});
+        // execute pipeline
+        current_executor->execute();
+    }
+    return splitter;
+}
+
 // Splitter Jni Wrapper
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_nativeMake(
     JNIEnv * env,
     jobject,
+    jobject iter,
     jstring short_name,
     jint num_partitions,
     jbyteArray expr_list,
@@ -595,21 +655,15 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .max_sort_buffer_size = static_cast<size_t>(max_sort_buffer_size),
         .force_memory_sort = static_cast<bool>(force_memory_sort)};
     auto name = jstring2string(env, short_name);
-    auto * current_executor = local_engine::LocalExecutor::getCurrentExecutor();
-    chassert(current_executor);
-    local_engine::SplitterHolder * splitter
-        = new local_engine::SplitterHolder{.exechange_manager = std::make_unique<local_engine::SparkExechangeManager>(current_executor->getHeader(), name, options)};
-    splitter->exechange_manager->initSinks(1);
-    current_executor->setSinks([&](auto & pipeline_builder) { splitter->exechange_manager->setSinksToPipeline(pipeline_builder);});
-    // execute pipeline
-    current_executor->execute();
-    return reinterpret_cast<jlong>(splitter);
+
+    return reinterpret_cast<jlong>(buildAndExecuteShuffle(env, iter, name, options));
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_nativeMakeForRSS(
     JNIEnv * env,
     jobject,
+    jobject iter,
     jstring short_name,
     jint num_partitions,
     jbyteArray expr_list,
@@ -655,13 +709,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .hash_algorithm = jstring2string(env, hash_algorithm),
         .force_memory_sort = static_cast<bool>(force_memory_sort)};
     auto name = jstring2string(env, short_name);
-    auto * current_executor = local_engine::LocalExecutor::getCurrentExecutor();
-    chassert(current_executor);
-    local_engine::SplitterHolder * splitter = new local_engine::SplitterHolder{.exechange_manager = std::make_unique<local_engine::SparkExechangeManager>(current_executor->getHeader(), name, options, pusher)};
-    splitter->exechange_manager->initSinks(local_engine::QueryContextManager::instance().currentQueryContext()->getSettingsRef().max_threads);
-    current_executor->setSinks([&](auto & pipeline_builder) { splitter->exechange_manager->setSinksToPipeline(pipeline_builder);});
-    current_executor->execute();
-    return reinterpret_cast<jlong>(splitter);
+    return reinterpret_cast<jlong>(buildAndExecuteShuffle(env, iter, name, options, pusher));
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
@@ -669,8 +717,8 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
-    splitter->exechange_manager->finish();
-    auto result = splitter->exechange_manager->getSplitResult();
+    splitter->exchange_manager->finish();
+    auto result = splitter->exchange_manager->getSplitResult();
 
     const auto & partition_lengths = result.partition_lengths;
     auto * partition_length_arr = env->NewLongArray(partition_lengths.size());

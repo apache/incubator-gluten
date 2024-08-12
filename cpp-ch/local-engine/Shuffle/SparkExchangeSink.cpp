@@ -102,7 +102,7 @@ void SparkExchangeSink::initOutputHeader(const Block & block)
     }
 }
 
-SparkExechangeManager::SparkExechangeManager(const Block& header, const String & short_name, const SplitOptions & options_, jobject rss_pusher): input_header(header), options(options_)
+SparkExchangeManager::SparkExchangeManager(const Block& header, const String & short_name, const SplitOptions & options_, jobject rss_pusher): input_header(header), options(options_)
 {
     if (rss_pusher)
     {
@@ -143,7 +143,7 @@ std::shared_ptr<PartitionWriter> createPartitionWriter(const SplitOptions& optio
     return std::make_shared<LocalPartitionWriter>(options);
 }
 
-void SparkExechangeManager::initSinks(size_t num)
+void SparkExchangeManager::initSinks(size_t num)
 {
     if (num > 1 && celeborn_client)
     {
@@ -158,7 +158,7 @@ void SparkExechangeManager::initSinks(size_t num)
     }
 }
 
-void SparkExechangeManager::setSinksToPipeline(DB::QueryPipelineBuilder & pipeline) const
+void SparkExchangeManager::setSinksToPipeline(DB::QueryPipelineBuilder & pipeline) const
 {
     size_t count = 0;
     Pipe::ProcessorGetterWithStreamKind getter = [&](const Block & header, Pipe::StreamType stream_type) -> ProcessorPtr
@@ -173,12 +173,12 @@ void SparkExechangeManager::setSinksToPipeline(DB::QueryPipelineBuilder & pipeli
     pipeline.setSinks(getter);
 }
 
-SelectBuilderPtr SparkExechangeManager::createRoundRobinSelectorBuilder(const SplitOptions & options_)
+SelectBuilderPtr SparkExchangeManager::createRoundRobinSelectorBuilder(const SplitOptions & options_)
 {
     return std::make_unique<RoundRobinSelectorBuilder>(options_.partition_num);
 }
 
-SelectBuilderPtr SparkExechangeManager::createHashSelectorBuilder(const SplitOptions & options_)
+SelectBuilderPtr SparkExchangeManager::createHashSelectorBuilder(const SplitOptions & options_)
 {
     Poco::StringTokenizer expr_list(options_.hash_exprs, ",");
     std::vector<size_t> hash_fields;
@@ -189,18 +189,18 @@ SelectBuilderPtr SparkExechangeManager::createHashSelectorBuilder(const SplitOpt
     return std::make_unique<HashSelectorBuilder>(options_.partition_num, hash_fields, options_.hash_algorithm);
 }
 
-SelectBuilderPtr SparkExechangeManager::createSingleSelectorBuilder(const SplitOptions & options_)
+SelectBuilderPtr SparkExchangeManager::createSingleSelectorBuilder(const SplitOptions & options_)
 {
     chassert(options_.partition_num == 1);
     return std::make_unique<RoundRobinSelectorBuilder>(options_.partition_num);
 }
 
-SelectBuilderPtr SparkExechangeManager::createRangeSelectorBuilder(const SplitOptions & options_)
+SelectBuilderPtr SparkExchangeManager::createRangeSelectorBuilder(const SplitOptions & options_)
 {
     return std::make_unique<RangeSelectorBuilder>(options_.hash_exprs, options_.partition_num);
 }
 
-void SparkExechangeManager::finish()
+void SparkExchangeManager::finish()
 {
     Stopwatch wall_time;
     mergeSplitResult();
@@ -222,7 +222,7 @@ void SparkExechangeManager::finish()
     split_result.wall_time += wall_time.elapsedNanoseconds();
 }
 
-void SparkExechangeManager::mergeSplitResult()
+void SparkExchangeManager::mergeSplitResult()
 {
     for (const auto & sink : sinks)
     {
@@ -242,7 +242,7 @@ void SparkExechangeManager::mergeSplitResult()
     }
 }
 
-std::vector<SpillInfo> SparkExechangeManager::gatherAllSpillInfo()
+std::vector<SpillInfo> SparkExchangeManager::gatherAllSpillInfo()
 {
     std::vector<SpillInfo> res;
     for (const auto& writer : partition_writers)
@@ -256,9 +256,10 @@ std::vector<SpillInfo> SparkExechangeManager::gatherAllSpillInfo()
     return res;
 }
 
-std::vector<UInt64> SparkExechangeManager::mergeSpills(DB::WriteBuffer & data_file, const std::vector<SpillInfo>& spill_infos, const std::vector<Spillable::ExtraData> & extra_datas)
+std::vector<UInt64> SparkExchangeManager::mergeSpills(DB::WriteBuffer & data_file, const std::vector<SpillInfo>& spill_infos, const std::vector<Spillable::ExtraData> & extra_datas)
 {
-    auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(options.compress_method), {});
+    if (sinks.empty()) return {};
+    auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(options.compress_method), options.compress_level);
 
     CompressedWriteBuffer compressed_output(data_file, codec, options.io_buffer_size);
     NativeWriter writer(compressed_output, sinks.front()->getOutputHeaderCopy());
@@ -340,7 +341,7 @@ std::vector<UInt64> SparkExechangeManager::mergeSpills(DB::WriteBuffer & data_fi
     return partition_length;
 }
 
-std::unordered_map<String, SelectBuilderCreator> SparkExechangeManager::partitioner_creators = {
+std::unordered_map<String, SelectBuilderCreator> SparkExchangeManager::partitioner_creators = {
     {"rr", createRoundRobinSelectorBuilder},
     {"hash", createHashSelectorBuilder},
     {"single", createSingleSelectorBuilder},
