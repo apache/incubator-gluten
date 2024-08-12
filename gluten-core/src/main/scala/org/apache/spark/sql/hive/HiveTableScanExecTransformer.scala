@@ -76,6 +76,7 @@ case class HiveTableScanExecTransformer(
     Seq.empty
   }
 
+  // TODO: get root paths from hive table.
   override def getRootPathsInternal: Seq[String] = Seq.empty
 
   override def metricsUpdater(): MetricsUpdater =
