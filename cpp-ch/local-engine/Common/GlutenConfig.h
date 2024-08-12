@@ -92,6 +92,27 @@ struct StreamingAggregateConfig
     }
 };
 
+struct JoinConfig
+{
+    /// If the join condition is like `t1.k = t2.k and (t1.id1 = t2.id2 or t1.id2 = t2.id2)`, try to join with multi
+    /// join on clauses `(t1.k = t2.k and t1.id1 = t2.id2) or (t1.k = t2.k or t1.id2 = t2.id2)`
+    inline static const String PREFER_INEQUAL_JOIN_TO_MULTI_JOIN_ON_CLAUSES = "prefer_inequal_join_to_multi_join_on_clauses";
+    /// Only hash join supports multi join on clauses, the right table cannot be too large. If the row number of right
+    /// table is larger then this limit, this transform will not work.
+    inline static const String INEQUAL_JOIN_TO_MULTI_JOIN_ON_CLAUSES_ROWS_LIMIT = "inequal_join_to_multi_join_on_clauses_row_limit";
+
+    bool prefer_inequal_join_to_multi_join_on_clauses = true;
+    size_t inequal_join_to_multi_join_on_clauses_rows_limit = 10000000;
+
+    static JoinConfig loadFromContext(DB::ContextPtr context)
+    {
+        JoinConfig config;
+        config.prefer_inequal_join_to_multi_join_on_clauses = context->getConfigRef().getBool(PREFER_INEQUAL_JOIN_TO_MULTI_JOIN_ON_CLAUSES, true);
+        config.inequal_join_to_multi_join_on_clauses_rows_limit = context->getConfigRef().getUInt64(INEQUAL_JOIN_TO_MULTI_JOIN_ON_CLAUSES_ROWS_LIMIT, 10000000);
+        return config;
+    }
+};
+
 struct ExecutorConfig
 {
     inline static const String DUMP_PIPELINE = "dump_pipeline";

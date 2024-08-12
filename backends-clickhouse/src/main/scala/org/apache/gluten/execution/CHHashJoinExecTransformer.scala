@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.utils.{BroadcastHashJoinStrategy, CHJoinValidateUtil, ShuffleHashJoinStrategy}
 
@@ -25,10 +26,13 @@ import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.JoinRel
 
 object JoinTypeTransform {
@@ -65,6 +69,8 @@ object JoinTypeTransform {
     }
   }
 }
+
+case class ShuffleStageStaticstics(numPartitions: Int, numMappers: Int, rowCount: Option[BigInt])
 
 case class CHShuffledHashJoinExecTransformer(
     leftKeys: Seq[Expression],
@@ -104,6 +110,75 @@ case class CHShuffledHashJoinExecTransformer(
   private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
   override protected lazy val substraitJoinType: JoinRel.JoinType =
     JoinTypeTransform.toSubstraitType(joinType, buildSide)
+
+  override def genJoinParameters(): Any = {
+    val (isBHJ, isNullAwareAntiJoin, buildHashTableId): (Int, Int, String) = (0, 0, "")
+
+    // Don't use lef/right directly, they may be reordered in `HashJoinLikeExecTransformer`
+    val leftStats = getShuffleStageStatistics(streamedPlan)
+    val rightStats = getShuffleStageStatistics(buildPlan)
+    // Start with "JoinParameters:"
+    val joinParametersStr = new StringBuffer("JoinParameters:")
+    // isBHJ: 0 for SHJ, 1 for BHJ
+    // isNullAwareAntiJoin: 0 for false, 1 for true
+    // buildHashTableId: the unique id for the hash table of build plan
+    joinParametersStr
+      .append("isBHJ=")
+      .append(isBHJ)
+      .append("\n")
+      .append("isNullAwareAntiJoin=")
+      .append(isNullAwareAntiJoin)
+      .append("\n")
+      .append("buildHashTableId=")
+      .append(buildHashTableId)
+      .append("\n")
+      .append("isExistenceJoin=")
+      .append(if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0)
+      .append("\n")
+      .append("leftRowCount=")
+      .append(leftStats.rowCount.getOrElse(-1))
+      .append("\n")
+      .append("leftNumPartitions=")
+      .append(leftStats.numPartitions)
+      .append("\n")
+      .append("leftNumMappers=")
+      .append(leftStats.numMappers)
+      .append("\n")
+      .append("rightRowCount=")
+      .append(rightStats.rowCount.getOrElse(-1))
+      .append("\n")
+      .append("rightNumPartitions=")
+      .append(rightStats.numPartitions)
+      .append("\n")
+      .append("rightNumMappers=")
+      .append(rightStats.numMappers)
+      .append("\n")
+    val message = StringValue
+      .newBuilder()
+      .setValue(joinParametersStr.toString)
+      .build()
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
+  }
+
+  private def getShuffleStageStatistics(plan: SparkPlan): ShuffleStageStaticstics = {
+    plan match {
+      case queryStage: ShuffleQueryStageExec =>
+        ShuffleStageStaticstics(
+          queryStage.shuffle.numPartitions,
+          queryStage.shuffle.numMappers,
+          queryStage.getRuntimeStatistics.rowCount)
+      case shuffle: ColumnarShuffleExchangeExec =>
+        // FIXEME: We cannot access shuffle.numPartitions and shuffle.numMappers here.
+        // Otherwise it will cause an exception `ProjectExecTransformer has column support mismatch`
+        ShuffleStageStaticstics(-1, -1, None)
+      case _ =>
+        if (plan.children.length == 1) {
+          getShuffleStageStatistics(plan.children.head)
+        } else {
+          ShuffleStageStaticstics(-1, -1, None)
+        }
+    }
+  }
 }
 
 case class CHBroadcastBuildSideRDD(
