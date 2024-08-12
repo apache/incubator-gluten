@@ -24,8 +24,10 @@ class SharedLibraryLoaderCentos7 extends SharedLibraryLoader {
     loader.loadAndCreateLink("libboost_thread.so.1.84.0", "libboost_thread.so", false)
     loader.loadAndCreateLink("libboost_system.so.1.84.0", "libboost_system.so", false)
     loader.loadAndCreateLink("libboost_regex.so.1.84.0", "libboost_regex.so", false)
-    loader.loadAndCreateLink
-      ("libboost_program_options.so.1.84.0", "libboost_program_options.so", false)
+    loader.loadAndCreateLink(
+      "libboost_program_options.so.1.84.0",
+      "libboost_program_options.so",
+      false)
     loader.loadAndCreateLink("libboost_filesystem.so.1.84.0", "libboost_filesystem.so", false)
     loader.loadAndCreateLink("libboost_context.so.1.84.0", "libboost_context.so", false)
     loader.loadAndCreateLink("libdouble-conversion.so.1", "libdouble-conversion.so", false)

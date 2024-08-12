@@ -169,7 +169,7 @@ public class JniLibLoader {
         LOG.debug("Library {} has already been loaded, skipping", libName);
         return;
       }
-      File file = moveToWorkDir(workDir, System.mapLibraryName(libName));
+      File file = moveToWorkDir(workDir, libName);
       loadWithLink(file.getAbsolutePath(), null, requireUnload);
       loadedLibraries.add(libName);
       LOG.info("Successfully loaded library {}", libName);

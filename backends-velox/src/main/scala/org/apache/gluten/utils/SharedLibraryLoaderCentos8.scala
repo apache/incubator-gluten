@@ -27,8 +27,10 @@ class SharedLibraryLoaderCentos8 extends SharedLibraryLoader {
     loader.loadAndCreateLink("libicuuc.so.60", "libicuuc.so", false)
     loader.loadAndCreateLink("libicui18n.so.60", "libicui18n.so", false)
     loader.loadAndCreateLink("libboost_regex.so.1.84.0", "libboost_regex.so", false)
-    loader.loadAndCreateLink
-      ("libboost_program_options.so.1.84.0", "libboost_program_options.so", false)
+    loader.loadAndCreateLink(
+      "libboost_program_options.so.1.84.0",
+      "libboost_program_options.so",
+      false)
     loader.loadAndCreateLink("libboost_filesystem.so.1.84.0", "libboost_filesystem.so", false)
     loader.loadAndCreateLink("libboost_context.so.1.84.0", "libboost_context.so", false)
     loader.loadAndCreateLink("libdouble-conversion.so.3", "libdouble-conversion.so", false)
