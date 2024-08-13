@@ -103,8 +103,8 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
           case scanExec: BasicScanExecTransformer => scanExec
         }
         assert(plans.size == 1)
-        // 1 block keep in SubstraitFileStep, and 4 blocks keep in other steps
-        assert(plans.head.metrics("numOutputRows").value === 5 * parquetMaxBlockSize)
+        // 1 block keep in SubstraitFileStep, and 5 blocks keep in other steps
+        assert(plans.head.metrics("numOutputRows").value === 6 * parquetMaxBlockSize)
         assert(plans.head.metrics("outputVectors").value === 1)
         assert(plans.head.metrics("outputBytes").value > 0)
     }

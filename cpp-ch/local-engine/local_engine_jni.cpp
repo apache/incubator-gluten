@@ -26,6 +26,7 @@
 #include <Parser/MergeTreeRelParser.h>
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/LocalExecutor.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/WriteRelParser.h>
@@ -548,17 +549,17 @@ local_engine::SplitterHolder * buildAndExecuteShuffle(JNIEnv * env,
     chassert(current_executor);
     local_engine::SplitterHolder * splitter = nullptr;
     // handle fallback, whole stage fallback or partial fallback
-    if (!current_executor || current_executor->initByPulling())
+    if (!current_executor || current_executor->fallbackMode())
     {
-        auto * first_block = local_engine::SourceFromJavaIter::peekBlock(env, iter);
-        if (first_block)
+        auto first_block = local_engine::SourceFromJavaIter::peekBlock(env, iter);
+        if (first_block.has_value())
         {
             /// Try to decide header from the first block read from Java iterator.
-            auto header = first_block->cloneEmpty();
+            auto header = first_block.value().cloneEmpty();
             auto context = local_engine::QueryContextManager::instance().currentQueryContext();
-            auto global_iter = env->NewGlobalRef(iter);
-            auto source = std::make_shared<local_engine::SourceFromJavaIter>(context, first_block->cloneEmpty(), global_iter, true, first_block);
-            splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(first_block->cloneEmpty(), name, options, rss_pusher)};
+            auto *global_iter = env->NewGlobalRef(iter);
+            auto source = std::make_shared<local_engine::SourceFromJavaIter>(context, header, global_iter, true, std::move(first_block));
+            splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(header, name, options, rss_pusher)};
 
             DB::QueryPipelineBuilderPtr builder = std::make_unique<DB::QueryPipelineBuilder>();
             builder->init(DB::Pipe(source));

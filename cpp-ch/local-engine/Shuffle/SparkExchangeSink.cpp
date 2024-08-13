@@ -47,20 +47,20 @@ void SparkExchangeSink::consume(Chunk chunk)
     split_result.total_blocks += 1;
     split_result.total_rows += chunk.getNumRows();
     auto aggregate_info = chunk.getChunkInfos().get<AggregatedChunkInfo>();
-    auto intput = inputs.front().getHeader().cloneWithColumns(chunk.getColumns());
+    auto input = inputs.front().getHeader().cloneWithColumns(chunk.detachColumns());
     Stopwatch split_time_watch;
-    if (sort_writer)
-        intput = convertAggregateStateInBlock(intput);
+    if (!sort_writer)
+        input = convertAggregateStateInBlock(input);
     split_result.total_split_time += split_time_watch.elapsedNanoseconds();
 
     Stopwatch compute_pid_time_watch;
-    PartitionInfo partition_info = partitioner->build(intput);
+    PartitionInfo partition_info = partitioner->build(input);
     split_result.total_compute_pid_time += compute_pid_time_watch.elapsedNanoseconds();
 
     Block out_block;
     for (size_t col_i = 0; col_i < output_header.columns(); ++col_i)
     {
-        out_block.insert(intput.getByPosition(output_columns_indicies[col_i]));
+        out_block.insert(input.getByPosition(output_columns_indicies[col_i]));
     }
     if (aggregate_info)
     {

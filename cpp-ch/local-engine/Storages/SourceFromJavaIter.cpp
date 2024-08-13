@@ -36,27 +36,27 @@ jclass SourceFromJavaIter::serialized_record_batch_iterator_class = nullptr;
 jmethodID SourceFromJavaIter::serialized_record_batch_iterator_hasNext = nullptr;
 jmethodID SourceFromJavaIter::serialized_record_batch_iterator_next = nullptr;
 
-static DB::Block getRealHeader(const DB::Block & header, const DB::Block * first_block)
+static DB::Block getRealHeader(const DB::Block & header, const std::optional<DB::Block> & first_block)
 {
     if (!header)
         return BlockUtil::buildRowCountHeader();
 
-    if (!first_block)
+    if (!first_block.has_value())
         return header;
 
-    if (header.columns() != first_block->columns())
+    if (header.columns() != first_block.value().columns())
         throw DB::Exception(
             DB::ErrorCodes::LOGICAL_ERROR,
             "Header first block have different number of columns, header:{} first_block:{}",
             header.dumpStructure(),
-            first_block->dumpStructure());
+            first_block.value().dumpStructure());
 
     DB::Block result;
     const size_t column_size = header.columns();
     for (size_t i = 0; i < column_size; ++i)
     {
         const auto & header_column = header.getByPosition(i);
-        const auto & input_column = first_block->getByPosition(i);
+        const auto & input_column = first_block.value().getByPosition(i);
         chassert(header_column.name == input_column.name);
 
         DB::WhichDataType input_which(input_column.type);
@@ -71,20 +71,23 @@ static DB::Block getRealHeader(const DB::Block & header, const DB::Block * first
 }
 
 
-DB::Block * SourceFromJavaIter::peekBlock(JNIEnv * env, jobject java_iter)
+std::optional<DB::Block> SourceFromJavaIter::peekBlock(JNIEnv * env, jobject java_iter)
 {
     jboolean has_next = safeCallBooleanMethod(env, java_iter, serialized_record_batch_iterator_hasNext);
     if (!has_next)
-        return nullptr;
+        return std::nullopt;
 
-    jbyteArray block = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, serialized_record_batch_iterator_next));
-    return reinterpret_cast<DB::Block *>(byteArrayToLong(env, block));
+    jbyteArray block_addr = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, serialized_record_batch_iterator_next));
+    auto * block = reinterpret_cast<DB::Block *>(byteArrayToLong(env, block_addr));
+    if (block)
+        return DB::Block(*block);
+    return std::nullopt;
 }
 
 
 SourceFromJavaIter::SourceFromJavaIter(
-    DB::ContextPtr context_, const DB::Block & header, jobject java_iter_, bool materialize_input_, const DB::Block * first_block_)
-    : DB::ISource(getRealHeader(header, first_block_))
+    DB::ContextPtr context_, const DB::Block& header, jobject java_iter_, bool materialize_input_, std::optional<DB::Block> && first_block_)
+    : DB::ISource(getRealHeader(header, first_block))
     , context(context_)
     , original_header(header)
     , java_iter(java_iter_)
@@ -102,10 +105,11 @@ DB::Chunk SourceFromJavaIter::generate()
     SCOPE_EXIT({CLEAN_JNIENV});
 
     DB::Block * input_block = nullptr;
-    if (first_block) [[unlikely]]
+    bool clean_first_block = false;
+    if (first_block.has_value()) [[unlikely]]
     {
-        input_block = const_cast<DB::Block *>(first_block);
-        first_block = nullptr;
+        input_block = &first_block.value();
+        clean_first_block = true;
     }
     else if (jboolean has_next = safeCallBooleanMethod(env, java_iter, serialized_record_batch_iterator_hasNext))
     {
@@ -146,6 +150,7 @@ DB::Chunk SourceFromJavaIter::generate()
         auto info = std::make_shared<DB::AggregatedChunkInfo>();
         result.getChunkInfos().add(std::move(info));
     }
+    if (clean_first_block) first_block = std::nullopt;
     return result;
 }
 

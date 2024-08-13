@@ -18,16 +18,18 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.execution.ColumnarNativeIterator
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized._
+
 import org.apache.spark._
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
+import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 import org.apache.celeborn.common.protocol.ShuffleMode
-import org.apache.gluten.execution.ColumnarNativeIterator
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.io.IOException
 import java.util.Locale
@@ -103,7 +105,7 @@ class CHCelebornColumnarShuffleWriter[K, V](
       dep.metrics("shuffleWallTime").add(splitResult.getWallTime)
       writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
       writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
-
+      CHColumnarShuffleWriter.setOutputMetrics(splitResult)
       partitionLengths = splitResult.getPartitionLengths
       pushMergedDataToCeleborn()
       mapStatus = MapStatus(blockManager.shuffleServerId, splitResult.getRawPartitionLengths, mapId)

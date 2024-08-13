@@ -523,6 +523,7 @@ size_t Partition::spill(NativeWriter & writer)
     size_t written_bytes = 0;
     for (auto & block : blocks)
     {
+        if (!block.rows()) continue;
         written_bytes += writer.write(block);
 
         /// Clear each block once it is serialized to reduce peak memory

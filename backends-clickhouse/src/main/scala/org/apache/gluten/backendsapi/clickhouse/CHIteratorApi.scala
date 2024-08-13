@@ -33,6 +33,7 @@ import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.executor.InputMetrics
 import org.apache.spark.internal.Logging
+import org.apache.spark.shuffle.CHColumnarShuffleWriter
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -322,8 +323,10 @@ class CollectMetricIterator(
   private var outputRowCount = 0L
   private var outputVectorCount = 0L
   private var metricsUpdated = false
+  private var wholeStagePipeline = true
 
   override def hasNext: Boolean = {
+    wholeStagePipeline = false
     nativeIterator.hasNext
   }
 
@@ -347,6 +350,11 @@ class CollectMetricIterator(
   private def collectStageMetrics(): Unit = {
     if (!metricsUpdated) {
       val nativeMetrics = nativeIterator.getMetrics.asInstanceOf[NativeMetrics]
+      if (wholeStagePipeline) {
+        outputRowCount = Math.max(outputRowCount, CHColumnarShuffleWriter.getTotalOutputRows())
+        outputVectorCount =
+          Math.max(outputVectorCount, CHColumnarShuffleWriter.getTotalOutputBatches())
+      }
       nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
       updateNativeMetrics(nativeMetrics)
       updateInputMetrics.foreach(_(inputMetrics))

@@ -22,7 +22,7 @@ import org.apache.gluten.execution.ColumnarNativeIterator
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized._
 
-import org.apache.spark.SparkEnv
+import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -134,7 +134,7 @@ class CHColumnarShuffleWriter[K, V](
       writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
       partitionLengths = splitResult.getPartitionLengths
       rawPartitionLengths = splitResult.getRawPartitionLengths
-
+      CHColumnarShuffleWriter.setOutputMetrics(splitResult)
       try {
         shuffleBlockResolver.writeMetadataFileAndCommit(
           dep.shuffleId,
@@ -187,4 +187,31 @@ class CHColumnarShuffleWriter[K, V](
   // VisibleForTesting
   def getPartitionLengths(): Array[Long] = partitionLengths
 
+}
+
+object CHColumnarShuffleWriter {
+  def setOutputMetrics(splitResult: CHSplitResult): Unit = {
+    TaskContext
+      .get()
+      .getLocalProperties
+      .setProperty("total_output_rows", splitResult.getTotalRows.toString)
+    TaskContext
+      .get()
+      .getLocalProperties
+      .setProperty("total_output_batches", splitResult.getTotalBatches.toString)
+  }
+
+  def getTotalOutputRows(): Long = {
+    val output_rows = TaskContext.get().getLocalProperty("total_output_rows")
+    var output_rows_value = 0L
+    if (output_rows != null && output_rows.nonEmpty) output_rows_value = output_rows.toLong
+    output_rows_value
+  }
+
+  def getTotalOutputBatches(): Long = {
+    val output_batches = TaskContext.get().getLocalProperty("total_output_batches")
+    var output_batches_value = 0L
+    if (output_batches != null) output_batches_value = output_batches.toLong
+    output_batches_value
+  }
 }
