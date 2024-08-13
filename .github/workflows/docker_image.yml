@@ -30,4 +30,4 @@ jobs:
           context: .
           file: dev/vcpkg/docker/Dockerfile.gha
           push: true
-          tags: apache/gluten-vcpkg-centos-7:latest
+          tags: apache/gluten:vcpkg-centos-7

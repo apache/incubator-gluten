@@ -11,7 +11,7 @@ RUN sed -i \
        -e 's/mirror\.centos\.org/vault.centos.org/' \
        /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
 
-RUN yum install -y git patch wget sudo
+RUN yum install -y git patch wget sudo java-1.8.0-openjdk-devel
 
 # build
 RUN git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
@@ -22,4 +22,6 @@ RUN cd /opt/gluten && bash ./dev/vcpkg/setup-build-depends.sh
 
 # vcpkg env
 ENV VCPKG_BINARY_SOURCES=clear;files,/var/cache/vcpkg,readwrite
-RUN source /opt/rh/devtoolset-9/enable && cd /opt/gluten && source dev/vcpkg/env.sh
+
+RUN cd /opt/gluten && source ./dev/vcpkg/env.sh && \
+    bash ./dev/builddeps-veloxbe.sh --build_arrow=ON
