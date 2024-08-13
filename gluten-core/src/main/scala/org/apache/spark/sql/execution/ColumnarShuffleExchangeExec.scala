@@ -146,7 +146,7 @@ case class ColumnarShuffleExchangeExec(
       if (useSortBasedShuffle) GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER
       else GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER
     }
-    super.stringArgs ++ Iterator(s"$shuffleWriterType")
+    super.stringArgs ++ Iterator(s"[shuffle_writer_type=$shuffleWriterType]")
   }
 
   override def doExecute(): RDD[InternalRow] = {
