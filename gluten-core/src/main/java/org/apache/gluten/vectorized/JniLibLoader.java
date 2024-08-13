@@ -47,8 +47,8 @@ import scala.runtime.BoxedUnit;
 public class JniLibLoader {
   private static final Logger LOG = LoggerFactory.getLogger(JniLibLoader.class);
 
-  private static final Set<String> LOADED_LIBRARY_PATHS = new HashSet<>();
-  private static final Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = new LinkedHashSet<>();
+  private static final Set<String> LOADED_LIBRARY_PATHS = Collections.synchronizedSet(new HashSet<>());
+  private static final Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = Collections.synchronizedSet(new LinkedHashSet<>());
 
   static {
     GlutenShutdownManager.addHookForLibUnloading(
@@ -59,15 +59,17 @@ public class JniLibLoader {
   }
 
   private final String workDir;
-  private final Set<String> loadedLibraries = new HashSet<>();
-  private final Lock sync = new ReentrantLock();
+  private final Set<String> loadedLibraries = Collections.synchronizedSet(new HashSet<>());
 
-  public JniLibLoader(String workDir) {
+  JniLibLoader(String workDir) {
     this.workDir = workDir;
   }
 
-  public static synchronized void forceUnloadAll() {
-    List<String> loaded = new ArrayList<>(REQUIRE_UNLOAD_LIBRARY_PATHS);
+  public static void forceUnloadAll() {
+    List<String> loaded;
+    synchronized (REQUIRE_UNLOAD_LIBRARY_PATHS) {
+      loaded = new ArrayList<>(REQUIRE_UNLOAD_LIBRARY_PATHS);
+    }
     Collections.reverse(loaded); // use reversed order to unload
     loaded.forEach(JniLibLoader::unloadFromPath);
   }
@@ -85,21 +87,25 @@ public class JniLibLoader {
     }
   }
 
-  private static synchronized void loadFromPath0(String libPath, boolean requireUnload) {
+  private static void loadFromPath0(String libPath, boolean requireUnload) {
     libPath = toRealPath(libPath);
-    if (LOADED_LIBRARY_PATHS.contains(libPath)) {
-      LOG.debug("Library in path {} has already been loaded, skipping", libPath);
-    } else {
-      System.load(libPath);
-      LOADED_LIBRARY_PATHS.add(libPath);
-      LOG.info("Library {} has been loaded using path-loading method", libPath);
+    synchronized (LOADED_LIBRARY_PATHS) {
+      if (LOADED_LIBRARY_PATHS.contains(libPath)) {
+        LOG.debug("Library in path {} has already been loaded, skipping", libPath);
+      } else {
+        System.load(libPath);
+        LOADED_LIBRARY_PATHS.add(libPath);
+        LOG.info("Library {} has been loaded using path-loading method", libPath);
+      }
     }
     if (requireUnload) {
-      REQUIRE_UNLOAD_LIBRARY_PATHS.add(libPath);
+      synchronized (REQUIRE_UNLOAD_LIBRARY_PATHS) {
+        REQUIRE_UNLOAD_LIBRARY_PATHS.add(libPath);
+      }
     }
   }
 
-  public static void loadFromPath(String libPath, boolean requireUnload) {
+  public static synchronized void loadFromPath(String libPath, boolean requireUnload) {
     final File file = new File(libPath);
     if (!file.isFile() || !file.exists()) {
       throw new GlutenException("library at path: " + libPath + " is not a file or does not exist");
@@ -107,15 +113,17 @@ public class JniLibLoader {
     loadFromPath0(file.getAbsolutePath(), requireUnload);
   }
 
-  public static synchronized void unloadFromPath(String libPath) {
-    if (!LOADED_LIBRARY_PATHS.remove(libPath)) {
-      LOG.warn("Library {} was not loaded or already unloaded:", libPath);
-      return;
+  public static void unloadFromPath(String libPath) {
+    synchronized (LOADED_LIBRARY_PATHS) {
+      if (!LOADED_LIBRARY_PATHS.remove(libPath)) {
+        LOG.warn("Library {} was not loaded or already unloaded:", libPath);
+        return;
+      }
     }
-
     LOG.info("Starting unload library path: {} ", libPath);
-    REQUIRE_UNLOAD_LIBRARY_PATHS.remove(libPath);
-
+    synchronized (REQUIRE_UNLOAD_LIBRARY_PATHS) {
+      REQUIRE_UNLOAD_LIBRARY_PATHS.remove(libPath);
+    }
     try {
       ClassLoader classLoader = JniLibLoader.class.getClassLoader();
       Field field = ClassLoader.class.getDeclaredField("nativeLibraries");
@@ -151,49 +159,46 @@ public class JniLibLoader {
   }
 
   public void mapAndLoad(String unmappedLibName, boolean requireUnload) {
-    sync.lock();
-    try {
-      final String mappedLibName = System.mapLibraryName(unmappedLibName);
-      load(mappedLibName, requireUnload);
-    } catch (Exception e) {
-      throw new GlutenException(e);
-    } finally {
-      sync.unlock();
+    synchronized (loadedLibraries) {
+      try {
+        final String mappedLibName = System.mapLibraryName(unmappedLibName);
+        load(mappedLibName, requireUnload);
+      } catch (Exception e) {
+        throw new GlutenException(e);
+      }
     }
   }
 
   public void load(String libName, boolean requireUnload) {
-    sync.lock();
-    try {
-      if (loadedLibraries.contains(libName)) {
-        LOG.debug("Library {} has already been loaded, skipping", libName);
-        return;
+    synchronized (loadedLibraries) {
+      try {
+        if (loadedLibraries.contains(libName)) {
+          LOG.debug("Library {} has already been loaded, skipping", libName);
+          return;
+        }
+        File file = moveToWorkDir(workDir, libName);
+        loadWithLink(file.getAbsolutePath(), null, requireUnload);
+        loadedLibraries.add(libName);
+        LOG.info("Successfully loaded library {}", libName);
+      } catch (IOException e) {
+        throw new GlutenException(e);
       }
-      File file = moveToWorkDir(workDir, libName);
-      loadWithLink(file.getAbsolutePath(), null, requireUnload);
-      loadedLibraries.add(libName);
-      LOG.info("Successfully loaded library {}", libName);
-    } catch (IOException e) {
-      throw new GlutenException(e);
-    } finally {
-      sync.unlock();
     }
   }
 
   public void loadAndCreateLink(String libName, String linkName, boolean requireUnload) {
-    sync.lock();
-    try {
-      if (loadedLibraries.contains(libName)) {
-        LOG.debug("Library {} has already been loaded, skipping", libName);
+    synchronized (loadedLibraries) {
+      try {
+        if (loadedLibraries.contains(libName)) {
+          LOG.debug("Library {} has already been loaded, skipping", libName);
+        }
+        File file = moveToWorkDir(workDir, System.mapLibraryName(libName));
+        loadWithLink(file.getAbsolutePath(), linkName, requireUnload);
+        loadedLibraries.add(libName);
+        LOG.info("Successfully loaded library {}", libName);
+      } catch (IOException e) {
+        throw new GlutenException(e);
       }
-      File file = moveToWorkDir(workDir, System.mapLibraryName(libName));
-      loadWithLink(file.getAbsolutePath(), linkName, requireUnload);
-      loadedLibraries.add(libName);
-      LOG.info("Successfully loaded library {}", libName);
-    } catch (IOException e) {
-      throw new GlutenException(e);
-    } finally {
-      sync.unlock();
     }
   }
 
