@@ -86,7 +86,7 @@ Arguments: X, X
 
 (6) ColumnarExchange
 Input [2]: [hash_partition_key#X, c_custkey#X]
-Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X], [plan_id=X], hash
 
 (7) ShuffleQueryStage
 Output [1]: [c_custkey#X]
@@ -123,7 +123,7 @@ Arguments: X, X
 
 (15) ColumnarExchange
 Input [5]: [hash_partition_key#X, o_orderkey#X, o_custkey#X, o_orderdate#X, o_shippriority#X]
-Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X, o_custkey#X, o_orderdate#X, o_shippriority#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X, o_custkey#X, o_orderdate#X, o_shippriority#X], [plan_id=X], hash
 
 (16) ShuffleQueryStage
 Output [4]: [o_orderkey#X, o_custkey#X, o_orderdate#X, o_shippriority#X]
@@ -155,7 +155,7 @@ Arguments: X, X
 
 (23) ColumnarExchange
 Input [4]: [hash_partition_key#X, o_orderkey#X, o_orderdate#X, o_shippriority#X]
-Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X, o_orderdate#X, o_shippriority#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X, o_orderdate#X, o_shippriority#X], [plan_id=X], hash
 
 (24) ShuffleQueryStage
 Output [3]: [o_orderkey#X, o_orderdate#X, o_shippriority#X]
@@ -192,7 +192,7 @@ Arguments: X, X
 
 (32) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_orderkey#X, l_extendedprice#X, l_discount#X]
-Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_extendedprice#X, l_discount#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_extendedprice#X, l_discount#X], [plan_id=X], hash
 
 (33) ShuffleQueryStage
 Output [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]

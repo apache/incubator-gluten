@@ -61,7 +61,7 @@ Arguments: X, X
 
 (6) ColumnarExchange
 Input [5]: [hash_partition_key#X, l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
-Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X], [plan_id=X], hash
 
 (7) ShuffleQueryStage
 Output [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
@@ -98,7 +98,7 @@ Arguments: X, X
 
 (15) ColumnarExchange
 Input [5]: [hash_partition_key#X, p_partkey#X, p_brand#X, p_size#X, p_container#X]
-Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [p_partkey#X, p_brand#X, p_size#X, p_container#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [p_partkey#X, p_brand#X, p_size#X, p_container#X], [plan_id=X], hash
 
 (16) ShuffleQueryStage
 Output [4]: [p_partkey#X, p_brand#X, p_size#X, p_container#X]

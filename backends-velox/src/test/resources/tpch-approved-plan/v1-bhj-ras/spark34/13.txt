@@ -119,7 +119,7 @@ Arguments: X, X
 
 (16) ColumnarExchange
 Input [3]: [hash_partition_key#X, c_custkey#X, count#X]
-Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, count#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, count#X], [plan_id=X], hash
 
 (17) ShuffleQueryStage
 Output [2]: [c_custkey#X, count#X]
@@ -163,7 +163,7 @@ Arguments: X, X
 
 (26) ColumnarExchange
 Input [3]: [hash_partition_key#X, c_count#X, count#X]
-Arguments: hashpartitioning(c_count#X, 1), ENSURE_REQUIREMENTS, [c_count#X, count#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(c_count#X, 1), ENSURE_REQUIREMENTS, [c_count#X, count#X], [plan_id=X], hash
 
 (27) ShuffleQueryStage
 Output [2]: [c_count#X, count#X]
@@ -192,7 +192,7 @@ Arguments: X, X
 
 (33) ColumnarExchange
 Input [2]: [c_count#X, custdist#X]
-Arguments: rangepartitioning(custdist#X DESC NULLS LAST, c_count#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+Arguments: rangepartitioning(custdist#X DESC NULLS LAST, c_count#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X], hash
 
 (34) ShuffleQueryStage
 Output [2]: [c_count#X, custdist#X]

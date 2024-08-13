@@ -314,7 +314,7 @@ Arguments: X, X
 
 (53) ColumnarExchange
 Input [5]: [hash_partition_key#X, nation#X, o_year#X, sum#X, isEmpty#X]
-Arguments: hashpartitioning(nation#X, o_year#X, 1), ENSURE_REQUIREMENTS, [nation#X, o_year#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(nation#X, o_year#X, 1), ENSURE_REQUIREMENTS, [nation#X, o_year#X, sum#X, isEmpty#X], [plan_id=X], hash
 
 (54) ShuffleQueryStage
 Output [4]: [nation#X, o_year#X, sum#X, isEmpty#X]
@@ -343,7 +343,7 @@ Arguments: X, X
 
 (60) ColumnarExchange
 Input [3]: [nation#X, o_year#X, sum_profit#X]
-Arguments: rangepartitioning(nation#X ASC NULLS FIRST, o_year#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+Arguments: rangepartitioning(nation#X ASC NULLS FIRST, o_year#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X], hash
 
 (61) ShuffleQueryStage
 Output [3]: [nation#X, o_year#X, sum_profit#X]

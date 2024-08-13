@@ -107,7 +107,7 @@ Arguments: X, X
 
 (15) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_suppkey#X, sum#X, isEmpty#X]
-Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_suppkey#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_suppkey#X, sum#X, isEmpty#X], [plan_id=X], hash
 
 (16) ShuffleQueryStage
 Output [3]: [l_suppkey#X, sum#X, isEmpty#X]
@@ -149,7 +149,7 @@ Arguments: X, X
 
 (25) ColumnarExchange
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
-Arguments: rangepartitioning(s_suppkey#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+Arguments: rangepartitioning(s_suppkey#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], hash
 
 (26) ShuffleQueryStage
 Output [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
