@@ -57,6 +57,7 @@
           <version>${project.version}</version>
           <scope>test</scope>
         </dependency>
+     </dependencies>
       <properties>
         <clickhouse.lib.path></clickhouse.lib.path>
       </properties>
