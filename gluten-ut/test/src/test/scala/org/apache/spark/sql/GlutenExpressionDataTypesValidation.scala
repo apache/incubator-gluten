@@ -24,10 +24,12 @@ import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.{BinaryArrayExpressionWithImplicitCast, _}
 import org.apache.spark.sql.execution.LeafExecNode
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
+
+import scala.collection.mutable.Buffer
 
 class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
   protected val resourcePath: String = null
@@ -99,6 +101,19 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
     ProjectExecTransformer(namedExpr, DummyPlan())
   }
 
+  def validateExpr(targetExpr: Expression): Unit = {
+    val glutenProject = generateGlutenProjectPlan(targetExpr)
+    if (targetExpr.resolved && glutenProject.doValidate().ok()) {
+      logInfo(
+        "## validation passes: " + targetExpr.getClass.getSimpleName + "(" +
+          targetExpr.children.map(_.dataType.toString).mkString(", ") + ")")
+    } else {
+      logInfo(
+        "!! validation fails: " + targetExpr.getClass.getSimpleName + "(" +
+          targetExpr.children.map(_.dataType.toString).mkString(", ") + ")")
+    }
+  }
+
   test("cast") {
     for (from <- allPrimitiveDataTypes ++ allComplexDataTypes) {
       for (to <- allPrimitiveDataTypes ++ allComplexDataTypes) {
@@ -122,14 +137,15 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
     val sparkBuiltInFunctions = functionRegistry.listFunction()
     for (func <- sparkBuiltInFunctions) {
       val builder = functionRegistry.lookupFunctionBuilder(func).get
-      var expr: Expression = null
-      try {
-        // Instantiate an expression with null input. Just for obtaining the instance for checking
-        // its allowed input types.
-        expr = builder(Seq(null))
-      } catch {
-        // Ignore the exception as some expression builders require more than one input.
-        case _: Throwable =>
+      val expr: Expression = {
+        try {
+          // Instantiate an expression with null input. Just for obtaining the instance for checking
+          // its allowed input types.
+          builder(Seq(null))
+        } catch {
+          // Ignore the exception as some expression builders require more than one input.
+          case _: Throwable => null
+        }
       }
       if (
         expr != null && expr.isInstanceOf[ExpectsInputTypes] && expr.isInstanceOf[UnaryExpression]
@@ -144,52 +160,95 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
             val child = generateChildExpression(t)
             // Builds an expression whose child's type is really accepted in Spark.
             val targetExpr = builder(Seq(child))
-            val glutenProject = generateGlutenProjectPlan(targetExpr)
-            if (targetExpr.resolved && glutenProject.doValidate().ok()) {
-              logInfo("## validation passes: " + targetExpr.getClass.getSimpleName + "(" + t + ")")
-            } else {
-              logInfo("!! validation fails: " + targetExpr.getClass.getSimpleName + "(" + t + ")")
-            }
+            validateExpr(targetExpr)
           })
       }
     }
   }
 
+  def hasImplicitCast(expr: Expression): Boolean = expr match {
+    case _: ImplicitCastInputTypes => true
+    case _: BinaryOperator => true
+    case _ => false
+  }
+
   test("binary expressions with expected input types") {
     val functionRegistry = spark.sessionState.functionRegistry
+    val exceptionalList: Buffer[Expression] = Buffer()
+
     val sparkBuiltInFunctions = functionRegistry.listFunction()
-    for (func <- sparkBuiltInFunctions) {
-      val builder = functionRegistry.lookupFunctionBuilder(func).get
-      var expr: Expression = null
-      try {
-        // Instantiate an expression with null input. Just for obtaining the instance for checking
-        // its allowed input types.
-        expr = builder(Seq(null, null))
-      } catch {
-        // Ignore the exception as some expression builders that don't require exact two input.
-        case _: Throwable =>
-      }
-      if (
-        expr != null && expr.isInstanceOf[ExpectsInputTypes] && expr.isInstanceOf[BinaryExpression]
-      ) {
-        val acceptedTypes = allPrimitiveDataTypes.filter(
-          expr.asInstanceOf[ExpectsInputTypes].inputTypes.head.acceptsType(_))
-        if (acceptedTypes.isEmpty) {
-          logWarning("Any given type is not accepted for " + expr.getClass.getSimpleName)
+    sparkBuiltInFunctions.foreach(
+      func => {
+        val builder = functionRegistry.lookupFunctionBuilder(func).get
+        val expr: Expression = {
+          try {
+            // Instantiate an expression with null input. Just for obtaining the instance for
+            // checking its allowed input types.
+            builder(Seq(null, null))
+          } catch {
+            // Ignore the exception as some expression builders that don't require exact two input.
+            case _: Throwable => null
+          }
         }
-        acceptedTypes.foreach(
-          t => {
-            val child = generateChildExpression(t)
-            // Builds an expression whose child's type is really accepted in Spark.
-            val targetExpr = builder(Seq(child))
-            val glutenProject = generateGlutenProjectPlan(targetExpr)
-            if (targetExpr.resolved && glutenProject.doValidate().ok()) {
-              logInfo("## validation passes: " + targetExpr.getClass.getSimpleName + "(" + t + ")")
-            } else {
-              logInfo("!! validation fails: " + targetExpr.getClass.getSimpleName + "(" + t + ")")
-            }
-          })
-      }
-    }
+        val needsValidation = if (expr == null) {
+          false
+        } else {
+          expr match {
+            // Requires left/right child's DataType to determine inputTypes.
+            case _: BinaryArrayExpressionWithImplicitCast =>
+              exceptionalList += expr
+              false
+            case _: ExpectsInputTypes if expr.isInstanceOf[BinaryExpression] => true
+            case _ =>
+              exceptionalList += expr
+              false
+          }
+        }
+
+        if (needsValidation) {
+          var acceptedLeftTypes: Seq[DataType] = Seq.empty
+          var acceptedRightTypes: Seq[DataType] = Seq.empty
+          try {
+            acceptedLeftTypes = allPrimitiveDataTypes.filter(
+              expr.asInstanceOf[ExpectsInputTypes].inputTypes(0).acceptsType(_))
+            acceptedRightTypes = allPrimitiveDataTypes.filter(
+              expr.asInstanceOf[ExpectsInputTypes].inputTypes(1).acceptsType(_))
+          } catch {
+            case _: java.lang.NullPointerException =>
+          }
+
+          if (acceptedLeftTypes.isEmpty || acceptedRightTypes.isEmpty) {
+            logWarning("Any given type is not accepted for " + expr.getClass.getSimpleName)
+          }
+          val leftChildList = acceptedLeftTypes.map(
+            t => {
+              generateChildExpression(t)
+            })
+          if (hasImplicitCast(expr)) {
+            leftChildList.foreach(
+              left => {
+                // Spark's implicit cast makes same input types.
+                val targetExpr = builder(Seq(left, left))
+                validateExpr(targetExpr)
+              })
+          } else {
+            val rightChildList = acceptedRightTypes.map(
+              t => {
+                generateChildExpression(t)
+              })
+            leftChildList.foreach(
+              left => {
+                rightChildList.foreach(
+                  right => {
+                    // Builds an expression whose child's type is really accepted in Spark.
+                    val targetExpr = builder(Seq(left, right))
+                    validateExpr(targetExpr)
+                  })
+              })
+          }
+        }
+      })
+
+    logWarning("Exceptional list:\n" + exceptionalList.mkString(", "))
   }
 }
