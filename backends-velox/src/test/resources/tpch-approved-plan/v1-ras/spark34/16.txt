@@ -88,7 +88,7 @@ Arguments: X, X
 
 (6) ColumnarExchange
 Input [3]: [hash_partition_key#X, ps_partkey#X, ps_suppkey#X]
-Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X, ps_suppkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X, ps_suppkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (7) ShuffleQueryStage
 Output [2]: [ps_partkey#X, ps_suppkey#X]
@@ -125,7 +125,7 @@ Arguments: X, X
 
 (15) ColumnarExchange
 Input [5]: [hash_partition_key#X, p_partkey#X, p_brand#X, p_type#X, p_size#X]
-Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [p_partkey#X, p_brand#X, p_type#X, p_size#X], [plan_id=X], hash
+Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [p_partkey#X, p_brand#X, p_type#X, p_size#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (16) ShuffleQueryStage
 Output [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
@@ -168,7 +168,7 @@ Arguments: X, X
 
 (25) ColumnarExchange
 Input [5]: [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
-Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, ps_suppkey#X, 1), ENSURE_REQUIREMENTS, [p_brand#X, p_type#X, p_size#X, ps_suppkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, ps_suppkey#X, 1), ENSURE_REQUIREMENTS, [p_brand#X, p_type#X, p_size#X, ps_suppkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (26) ShuffleQueryStage
 Output [4]: [p_brand#X, p_type#X, p_size#X, ps_suppkey#X]
@@ -208,7 +208,7 @@ Arguments: X, X
 
 (34) ColumnarExchange
 Input [5]: [hash_partition_key#X, p_brand#X, p_type#X, p_size#X, count#X]
-Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, 1), ENSURE_REQUIREMENTS, [p_brand#X, p_type#X, p_size#X, count#X], [plan_id=X], hash
+Arguments: hashpartitioning(p_brand#X, p_type#X, p_size#X, 1), ENSURE_REQUIREMENTS, [p_brand#X, p_type#X, p_size#X, count#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (35) ShuffleQueryStage
 Output [4]: [p_brand#X, p_type#X, p_size#X, count#X]
@@ -237,7 +237,7 @@ Arguments: X, X
 
 (41) ColumnarExchange
 Input [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]
-Arguments: rangepartitioning(supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS FIRST, p_type#X ASC NULLS FIRST, p_size#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], hash
+Arguments: rangepartitioning(supplier_cnt#X DESC NULLS LAST, p_brand#X ASC NULLS FIRST, p_type#X ASC NULLS FIRST, p_size#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (42) ShuffleQueryStage
 Output [4]: [p_brand#X, p_type#X, p_size#X, supplier_cnt#X]

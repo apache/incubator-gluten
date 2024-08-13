@@ -202,7 +202,7 @@ Arguments: X, X
 
 (6) ColumnarExchange
 Input [2]: [hash_partition_key#X, p_partkey#X]
-Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [p_partkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(p_partkey#X, 1), ENSURE_REQUIREMENTS, [p_partkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (7) ShuffleQueryStage
 Output [1]: [p_partkey#X]
@@ -239,7 +239,7 @@ Arguments: X, X
 
 (15) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
-Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X], [plan_id=X], hash
+Arguments: hashpartitioning(l_partkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (16) ShuffleQueryStage
 Output [5]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
@@ -271,7 +271,7 @@ Arguments: X, X
 
 (23) ColumnarExchange
 Input [5]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
-Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X], [plan_id=X], hash
+Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (24) ShuffleQueryStage
 Output [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
@@ -308,7 +308,7 @@ Arguments: X, X
 
 (32) ColumnarExchange
 Input [3]: [hash_partition_key#X, s_suppkey#X, s_nationkey#X]
-Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, s_nationkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, s_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (33) ShuffleQueryStage
 Output [2]: [s_suppkey#X, s_nationkey#X]
@@ -340,7 +340,7 @@ Arguments: X, X
 
 (40) ColumnarExchange
 Input [5]: [hash_partition_key#X, l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
-Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (41) ShuffleQueryStage
 Output [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, s_nationkey#X]
@@ -377,7 +377,7 @@ Arguments: X, X
 
 (49) ColumnarExchange
 Input [4]: [hash_partition_key#X, o_orderkey#X, o_custkey#X, o_orderdate#X]
-Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X, o_custkey#X, o_orderdate#X], [plan_id=X], hash
+Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X, o_custkey#X, o_orderdate#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (50) ShuffleQueryStage
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
@@ -409,7 +409,7 @@ Arguments: X, X
 
 (57) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
-Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X], [plan_id=X], hash
+Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (58) ShuffleQueryStage
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_custkey#X, o_orderdate#X]
@@ -446,7 +446,7 @@ Arguments: X, X
 
 (66) ColumnarExchange
 Input [3]: [hash_partition_key#X, c_custkey#X, c_nationkey#X]
-Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, c_nationkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, c_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (67) ShuffleQueryStage
 Output [2]: [c_custkey#X, c_nationkey#X]
@@ -478,7 +478,7 @@ Arguments: X, X
 
 (74) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
-Arguments: hashpartitioning(c_nationkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(c_nationkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (75) ShuffleQueryStage
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, c_nationkey#X]
@@ -515,7 +515,7 @@ Arguments: X, X
 
 (83) ColumnarExchange
 Input [3]: [hash_partition_key#X, n_nationkey#X, n_regionkey#X]
-Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey#X, n_regionkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey#X, n_regionkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (84) ShuffleQueryStage
 Output [2]: [n_nationkey#X, n_regionkey#X]
@@ -547,7 +547,7 @@ Arguments: X, X
 
 (91) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
-Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (92) ShuffleQueryStage
 Output [5]: [l_extendedprice#X, l_discount#X, s_nationkey#X, o_orderdate#X, n_regionkey#X]
@@ -584,7 +584,7 @@ Arguments: X, X
 
 (100) ColumnarExchange
 Input [3]: [hash_partition_key#X, n_nationkey#X, n_name#X]
-Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey#X, n_name#X], [plan_id=X], hash
+Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey#X, n_name#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (101) ShuffleQueryStage
 Output [2]: [n_nationkey#X, n_name#X]
@@ -616,7 +616,7 @@ Arguments: X, X
 
 (108) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
-Arguments: hashpartitioning(n_regionkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X], [plan_id=X], hash
+Arguments: hashpartitioning(n_regionkey#X, 1), ENSURE_REQUIREMENTS, [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (109) ShuffleQueryStage
 Output [5]: [l_extendedprice#X, l_discount#X, o_orderdate#X, n_regionkey#X, n_name#X]
@@ -653,7 +653,7 @@ Arguments: X, X
 
 (117) ColumnarExchange
 Input [2]: [hash_partition_key#X, r_regionkey#X]
-Arguments: hashpartitioning(r_regionkey#X, 1), ENSURE_REQUIREMENTS, [r_regionkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(r_regionkey#X, 1), ENSURE_REQUIREMENTS, [r_regionkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (118) ShuffleQueryStage
 Output [1]: [r_regionkey#X]
@@ -696,7 +696,7 @@ Arguments: X, X
 
 (127) ColumnarExchange
 Input [6]: [hash_partition_key#X, o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
-Arguments: hashpartitioning(o_year#X, 1), ENSURE_REQUIREMENTS, [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X], [plan_id=X], hash
+Arguments: hashpartitioning(o_year#X, 1), ENSURE_REQUIREMENTS, [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (128) ShuffleQueryStage
 Output [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
@@ -729,7 +729,7 @@ Arguments: X, X
 
 (135) ColumnarExchange
 Input [2]: [o_year#X, mkt_share#X]
-Arguments: rangepartitioning(o_year#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], hash
+Arguments: rangepartitioning(o_year#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (136) ShuffleQueryStage
 Output [2]: [o_year#X, mkt_share#X]

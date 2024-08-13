@@ -101,7 +101,7 @@ Arguments: X, X
 
 (15) ColumnarExchange
 Input [5]: [hash_partition_key#X, cntrycode#X, count#X, sum#X, isEmpty#X]
-Arguments: hashpartitioning(cntrycode#X, 1), ENSURE_REQUIREMENTS, [cntrycode#X, count#X, sum#X, isEmpty#X], [plan_id=X], hash
+Arguments: hashpartitioning(cntrycode#X, 1), ENSURE_REQUIREMENTS, [cntrycode#X, count#X, sum#X, isEmpty#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (16) ShuffleQueryStage
 Output [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
@@ -130,7 +130,7 @@ Arguments: X, X
 
 (22) ColumnarExchange
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
-Arguments: rangepartitioning(cntrycode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], hash
+Arguments: rangepartitioning(cntrycode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (23) ShuffleQueryStage
 Output [3]: [cntrycode#X, numcust#X, totacctbal#X]

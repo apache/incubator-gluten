@@ -74,7 +74,7 @@ Arguments: X, X
 
 (6) ColumnarExchange
 Input [3]: [hash_partition_key#X, o_orderkey#X, o_orderpriority#X]
-Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X, o_orderpriority#X], [plan_id=X], hash
+Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X, o_orderpriority#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (7) ShuffleQueryStage
 Output [2]: [o_orderkey#X, o_orderpriority#X]
@@ -111,7 +111,7 @@ Arguments: X, X
 
 (15) ColumnarExchange
 Input [3]: [hash_partition_key#X, l_orderkey#X, l_shipmode#X]
-Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_shipmode#X], [plan_id=X], hash
+Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_shipmode#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (16) ShuffleQueryStage
 Output [2]: [l_orderkey#X, l_shipmode#X]
@@ -154,7 +154,7 @@ Arguments: X, X
 
 (25) ColumnarExchange
 Input [4]: [hash_partition_key#X, l_shipmode#X, sum#X, sum#X]
-Arguments: hashpartitioning(l_shipmode#X, 1), ENSURE_REQUIREMENTS, [l_shipmode#X, sum#X, sum#X], [plan_id=X], hash
+Arguments: hashpartitioning(l_shipmode#X, 1), ENSURE_REQUIREMENTS, [l_shipmode#X, sum#X, sum#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (26) ShuffleQueryStage
 Output [3]: [l_shipmode#X, sum#X, sum#X]
@@ -183,7 +183,7 @@ Arguments: X, X
 
 (32) ColumnarExchange
 Input [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]
-Arguments: rangepartitioning(l_shipmode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], hash
+Arguments: rangepartitioning(l_shipmode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (33) ShuffleQueryStage
 Output [3]: [l_shipmode#X, high_line_count#X, low_line_count#X]

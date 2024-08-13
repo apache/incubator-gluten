@@ -97,7 +97,7 @@ Arguments: X, X
 
 (6) ColumnarExchange
 Input [5]: [hash_partition_key#X, ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
-Arguments: hashpartitioning(ps_suppkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X], [plan_id=X], hash
+Arguments: hashpartitioning(ps_suppkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (7) ShuffleQueryStage
 Output [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
@@ -134,7 +134,7 @@ Arguments: X, X
 
 (15) ColumnarExchange
 Input [3]: [hash_partition_key#X, s_suppkey#X, s_nationkey#X]
-Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, s_nationkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, s_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (16) ShuffleQueryStage
 Output [2]: [s_suppkey#X, s_nationkey#X]
@@ -165,7 +165,7 @@ Arguments: X, X
 
 (23) ColumnarExchange
 Input [5]: [hash_partition_key#X, ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
-Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (24) ShuffleQueryStage
 Output [4]: [ps_partkey#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
@@ -202,7 +202,7 @@ Arguments: X, X
 
 (32) ColumnarExchange
 Input [2]: [hash_partition_key#X, n_nationkey#X]
-Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (33) ShuffleQueryStage
 Output [1]: [n_nationkey#X]
@@ -244,7 +244,7 @@ Arguments: X, X
 
 (42) ColumnarExchange
 Input [4]: [hash_partition_key#X, ps_partkey#X, sum#X, isEmpty#X]
-Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X, sum#X, isEmpty#X], [plan_id=X], hash
+Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X, sum#X, isEmpty#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (43) ShuffleQueryStage
 Output [3]: [ps_partkey#X, sum#X, isEmpty#X]
@@ -277,7 +277,7 @@ Arguments: X, X
 
 (50) ColumnarExchange
 Input [2]: [ps_partkey#X, value#X]
-Arguments: rangepartitioning(value#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X], hash
+Arguments: rangepartitioning(value#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (51) ShuffleQueryStage
 Output [2]: [ps_partkey#X, value#X]
@@ -500,7 +500,7 @@ Arguments: X, X
 
 (88) ColumnarExchange
 Input [4]: [hash_partition_key#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
-Arguments: hashpartitioning(ps_suppkey#X, 1), ENSURE_REQUIREMENTS, [ps_suppkey#X, ps_availqty#X, ps_supplycost#X], [plan_id=X], hash
+Arguments: hashpartitioning(ps_suppkey#X, 1), ENSURE_REQUIREMENTS, [ps_suppkey#X, ps_availqty#X, ps_supplycost#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (89) ShuffleQueryStage
 Output [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
@@ -544,7 +544,7 @@ Arguments: X, X
 
 (100) ColumnarExchange
 Input [4]: [hash_partition_key#X, ps_availqty#X, ps_supplycost#X, s_nationkey#X]
-Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [ps_availqty#X, ps_supplycost#X, s_nationkey#X], [plan_id=X], hash
+Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [ps_availqty#X, ps_supplycost#X, s_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (101) ShuffleQueryStage
 Output [3]: [ps_availqty#X, ps_supplycost#X, s_nationkey#X]

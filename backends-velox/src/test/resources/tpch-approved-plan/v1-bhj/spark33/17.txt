@@ -65,7 +65,7 @@ Arguments: X, X
 
 (8) ColumnarExchange
 Input [2]: [sum#X, isEmpty#X]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], hash
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (9) ShuffleQueryStage
 Output [2]: [sum#X, isEmpty#X]
