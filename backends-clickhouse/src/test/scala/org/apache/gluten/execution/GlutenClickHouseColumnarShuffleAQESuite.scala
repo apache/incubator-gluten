@@ -17,14 +17,17 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.CoalescedPartitionSpec
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, AQEShuffleReadExec}
 
 class GlutenClickHouseColumnarShuffleAQESuite
   extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
+  with AdaptiveSparkPlanHelper
+  with Logging {
 
   override protected val tablesPath: String = basePath + "/tpch-data-ch"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
@@ -184,6 +187,25 @@ class GlutenClickHouseColumnarShuffleAQESuite
       spark.sql("insert into t1 select id as a, id as b from range(100000)")
       spark.sql("insert into t1 select id as a, id as b from range(100)")
 
+      def isExpectedJoinNode(plan: SparkPlan, joinType: JoinType, buildSide: BuildSide): Boolean = {
+        plan match {
+          case join: CHShuffledHashJoinExecTransformer =>
+            join.joinType == joinType && join.buildSide == buildSide
+          case _ => false
+        }
+      }
+
+      def collectExpectedJoinNode(
+          plan: SparkPlan,
+          joinType: JoinType,
+          buildSide: BuildSide): Seq[SparkPlan] = {
+        if (isExpectedJoinNode(plan, joinType, buildSide)) {
+          Seq(plan) ++ plan.children.flatMap(collectExpectedJoinNode(_, joinType, buildSide))
+        } else {
+          plan.children.flatMap(collectExpectedJoinNode(_, joinType, buildSide))
+        }
+      }
+
       var sql = """
                   |select * from t2 left join t1 on t1.a = t2.a
                   |""".stripMargin
@@ -192,14 +214,10 @@ class GlutenClickHouseColumnarShuffleAQESuite
         true,
         {
           df =>
-            val nodes = df.queryExecution.executedPlan.collect {
-              case node => node.getClass.getSimpleName
-            }
-            assert(nodes == Seq())
             val joins = df.queryExecution.executedPlan.collect {
-              case joinExec: CHShuffledHashJoinExecTransformer
-                  if (joinExec.joinType == RightOuter) && (joinExec.buildSide == BuildRight) =>
-                joinExec
+              case adpativeNode: AdaptiveSparkPlanExec =>
+                collectExpectedJoinNode(adpativeNode.executedPlan, RightOuter, BuildRight)
+              case _ => Seq()
             }
             assert(joins.size == 1)
         }
@@ -214,9 +232,9 @@ class GlutenClickHouseColumnarShuffleAQESuite
         {
           df =>
             val joins = df.queryExecution.executedPlan.collect {
-              case joinExec: CHShuffledHashJoinExecTransformer
-                  if (joinExec.joinType == LeftOuter) && (joinExec.buildSide == BuildRight) =>
-                joinExec
+              case adpativeNode: AdaptiveSparkPlanExec =>
+                collectExpectedJoinNode(adpativeNode.executedPlan, LeftOuter, BuildRight)
+              case _ => Seq()
             }
             assert(joins.size == 1)
         }
@@ -231,9 +249,9 @@ class GlutenClickHouseColumnarShuffleAQESuite
         {
           df =>
             val joins = df.queryExecution.executedPlan.collect {
-              case joinExec: CHShuffledHashJoinExecTransformer
-                  if (joinExec.joinType == RightOuter) && (joinExec.buildSide == BuildRight) =>
-                joinExec
+              case adpativeNode: AdaptiveSparkPlanExec =>
+                collectExpectedJoinNode(adpativeNode.executedPlan, RightOuter, BuildRight)
+              case _ => Seq()
             }
             assert(joins.size == 1)
         }

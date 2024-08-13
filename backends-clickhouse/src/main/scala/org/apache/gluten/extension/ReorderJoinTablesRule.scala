@@ -28,7 +28,6 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 
 case class ReorderJoinTablesRule(session: SparkSession) extends Rule[SparkPlan] with Logging {
-  logError(s"ReorderJoinTablesRule is enabled: ${CHBackendSettings.enableReorderHashJoinTables}")
   override def apply(plan: SparkPlan): SparkPlan = {
     if (CHBackendSettings.enableReorderHashJoinTables) {
       visitPlan(plan)
@@ -59,9 +58,6 @@ case class ReorderJoinTablesRule(session: SparkSession) extends Rule[SparkPlan] 
       val threshold = CHBackendSettings.reorderHashJoinTablesThreshold
       val isLeftLarger = leftQueryStageRow.get > rightQueryStageRow.get * threshold
       val isRightLarger = leftQueryStageRow.get * threshold < rightQueryStageRow.get
-      logError(
-        s"xxx isLeftLarger:$isLeftLarger, isRightLarger:$isRightLarger, " +
-          s"buildside:${hashJoin.buildSide}, join type: ${hashJoin.joinType}")
       hashJoin.joinType match {
         case Inner =>
           if (isRightLarger && hashJoin.buildSide == BuildRight) {
