@@ -39,16 +39,16 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Vector;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import scala.runtime.BoxedUnit;
 
 public class JniLibLoader {
   private static final Logger LOG = LoggerFactory.getLogger(JniLibLoader.class);
 
-  private static final Set<String> LOADED_LIBRARY_PATHS = Collections.synchronizedSet(new HashSet<>());
-  private static final Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = Collections.synchronizedSet(new LinkedHashSet<>());
+  private static final Set<String> LOADED_LIBRARY_PATHS =
+      Collections.synchronizedSet(new HashSet<>());
+  private static final Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS =
+      Collections.synchronizedSet(new LinkedHashSet<>());
 
   static {
     GlutenShutdownManager.addHookForLibUnloading(
