@@ -87,13 +87,13 @@
     <dependency>
       <groupId>org.apache.arrow</groupId>
       <artifactId>${arrow-memory.artifact}</artifactId>
-      <version>${arrow.version}</version>
+      <version>${arrow-gluten.version}</version>
       <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.arrow</groupId>
       <artifactId>arrow-memory-core</artifactId>
-      <version>${arrow.version}</version>
+      <version>${arrow-gluten.version}</version>
       <scope>compile</scope>
       <exclusions>
         <exclusion>
@@ -109,7 +109,7 @@
     <dependency>
       <groupId>org.apache.arrow</groupId>
       <artifactId>arrow-vector</artifactId>
-      <version>${arrow.version}</version>
+      <version>${arrow-gluten.version}</version>
       <exclusions>
         <exclusion>
           <groupId>io.netty</groupId>

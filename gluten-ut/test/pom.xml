@@ -70,45 +70,7 @@
           <artifactId>backends-velox</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.arrow</groupId>
-          <artifactId>arrow-vector</artifactId>
-          <version>${arrow.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-common</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-buffer</artifactId>
-            </exclusion>
-          </exclusions>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.arrow</groupId>
-          <artifactId>arrow-memory-netty</artifactId>
-          <version>${arrow.version}</version>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.arrow</groupId>
-          <artifactId>arrow-memory-core</artifactId>
-          <version>${arrow.version}</version>
-          <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-common</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-buffer</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
+        </dependency>       
       </dependencies>
       <properties>
         <clickhouse.lib.path></clickhouse.lib.path>
