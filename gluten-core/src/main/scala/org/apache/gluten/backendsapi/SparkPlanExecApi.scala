@@ -353,6 +353,9 @@ trait SparkPlanExecApi {
       metrics: Map[String, SQLMetric],
       isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
 
+  /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
+  def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean
+
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
    *

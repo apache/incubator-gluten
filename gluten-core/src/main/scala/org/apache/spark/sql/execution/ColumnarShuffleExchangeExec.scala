@@ -32,7 +32,7 @@ import org.apache.spark.sql.catalyst.plans.logical.Statistics
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.CoalesceExec.EmptyPartition
 import org.apache.spark.sql.execution.exchange._
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleWriteMetricsReporter}
+import org.apache.spark.sql.execution.metric.SQLShuffleWriteMetricsReporter
 import org.apache.spark.sql.metric.SQLColumnarShuffleReadMetricsReporter
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -53,7 +53,7 @@ case class ColumnarShuffleExchangeExec(
     SQLColumnarShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
 
   val useSortBasedShuffle: Boolean =
-    ColumnarShuffleExchangeExec.useSortBasedShuffle(outputPartitioning, output)
+    BackendsApiManager.getSparkPlanExecApiInstance.useSortBasedShuffle(outputPartitioning, output)
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -80,7 +80,7 @@ case class ColumnarShuffleExchangeExec(
    */
   @transient
   lazy val columnarShuffleDependency: ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
-    ColumnarShuffleExchangeExec.prepareShuffleDependency(
+    BackendsApiManager.getSparkPlanExecApiInstance.genShuffleDependency(
       inputColumnarRDD,
       child.output,
       projectOutputAttributes,
@@ -141,8 +141,13 @@ case class ColumnarShuffleExchangeExec(
     new ShuffledColumnarBatchRDD(columnarShuffleDependency, readMetrics, partitionSpecs)
   }
 
-  override def stringArgs: Iterator[Any] =
-    super.stringArgs ++ Iterator(s"[id=#$id]")
+  override def stringArgs: Iterator[Any] = {
+    val shuffleWriterType = {
+      if (useSortBasedShuffle) GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER
+      else GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER
+    }
+    super.stringArgs ++ Iterator(s"$shuffleWriterType")
+  }
 
   override def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException()
@@ -186,39 +191,6 @@ object ColumnarShuffleExchangeExec extends Logging {
       shuffleOutputAttributes,
       advisoryPartitionSize = SparkShimLoader.getSparkShims.getShuffleAdvisoryPartitionSize(plan)
     )
-  }
-
-  // scalastyle:off argcount
-  def prepareShuffleDependency(
-      rdd: RDD[ColumnarBatch],
-      childOutputAttributes: Seq[Attribute],
-      projectOutputAttributes: Seq[Attribute],
-      newPartitioning: Partitioning,
-      serializer: Serializer,
-      writeMetrics: Map[String, SQLMetric],
-      metrics: Map[String, SQLMetric],
-      isSortBasedShuffle: Boolean)
-  // scalastyle:on argcount
-      : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
-    BackendsApiManager.getSparkPlanExecApiInstance.genShuffleDependency(
-      rdd,
-      childOutputAttributes,
-      projectOutputAttributes,
-      newPartitioning: Partitioning,
-      serializer: Serializer,
-      writeMetrics,
-      metrics,
-      isSortBasedShuffle)
-  }
-
-  def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean = {
-    val conf = GlutenConfig.getConf
-    lazy val isCelebornSortBasedShuffle = conf.isUseCelebornShuffleManager &&
-      conf.celebornShuffleWriterType == GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER
-    partitioning != SinglePartition &&
-    (partitioning.numPartitions >= GlutenConfig.getConf.columnarShuffleSortPartitionsThreshold ||
-      output.size >= GlutenConfig.getConf.columnarShuffleSortColumnsThreshold) ||
-    isCelebornSortBasedShuffle
   }
 
   class DummyPairRDDWithPartitions(@transient private val sc: SparkContext, numPartitions: Int)
