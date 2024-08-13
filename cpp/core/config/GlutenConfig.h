@@ -64,8 +64,6 @@ const std::string kShuffleCompressionCodecBackend = "spark.gluten.sql.columnar.s
 const std::string kQatBackendName = "qat";
 const std::string kIaaBackendName = "iaa";
 
-const std::string kRedactionRegex = "spark.gluten.redaction.regex";
-
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);
 

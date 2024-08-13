@@ -22,10 +22,21 @@
 #include "config.pb.h"
 #include "jni/JniError.h"
 
+namespace {
+
+const std::string REGEX_REDACT_KEY = "spark.gluten.redaction.regex";
+std::optional<std::regex> getRedactionRegex(const std::unordered_map<std::string, std::string>& conf) {
+  auto it = conf.find(REGEX_REDACT_KEY);
+  if (it != conf.end()) {
+    return std::regex(it->second);
+  }
+  return std::nullopt;
+}
+} // namespace anonymous
+
 namespace gluten {
 
 const std::string REDACTED_VALUE = "*********(redacted)";
-const std::string REGEX_REDACT_KEY = "spark.gluten.redaction.regex";
 
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength) {
@@ -37,14 +48,6 @@ parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength)
   }
 
   return sparkConfs;
-}
-
-std::optional<std::regex> getRedactionRegex(const std::unordered_map<std::string, std::string>& conf) {
-  auto it = conf.find(REGEX_REDACT_KEY);
-  if (it != conf.end()) {
-    return std::regex(it->second);
-  }
-  return std::nullopt;
 }
 
 std::string printConfig(const std::unordered_map<std::string, std::string>& conf) {
