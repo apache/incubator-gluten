@@ -54,11 +54,6 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     return targetBytes;
   }
 
-  uint64_t shrinkCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
-    std::lock_guard<std::recursive_mutex> l(mutex_);
-    return shrinkCapacityLocked(pool, targetBytes);
-  }
-
   bool growCapacity(
       velox::memory::MemoryPool* pool,
       const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& candidatePools,
@@ -141,6 +136,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
 
   mutable std::mutex mutex_;
   inline static std::string kind_ = "GLUTEN";
+  std::unordered_map<velox::memory::MemoryPool*, std::weak_ptr<velox::memory::MemoryPool>> candidates_;
 };
 
 class ArbitratorFactoryRegister {
