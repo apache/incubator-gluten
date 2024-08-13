@@ -32,7 +32,7 @@ std::optional<std::regex> getRedactionRegex(const std::unordered_map<std::string
   }
   return std::nullopt;
 }
-} // namespace anonymous
+} // namespace
 
 namespace gluten {
 
