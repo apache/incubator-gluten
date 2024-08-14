@@ -15,26 +15,12 @@
  * limitations under the License.
  */
 #include "SourceFromJavaIter.h"
-#include <Columns/ColumnConst.h>
-#include <Columns/ColumnNullable.h>
-#include <Columns/ColumnMap.h>
-#include <Columns/ColumnTuple.h>
-#include <Columns/IColumn.h>
-#include <Core/ColumnsWithTypeAndName.h>
-#include <DataTypes/DataTypesNumber.h>
+#include <Interpreters/castColumn.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <jni/jni_common.h>
-#include <Common/assert_cast.h>
 #include <Common/CHUtil.h>
-#include <Common/DebugUtils.h>
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
-#include "Interpreters/castColumn.h"
-#include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeTuple.h>
-#include <DataTypes/DataTypeMap.h>
-#include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/IDataType.h>
 
 namespace DB
 {

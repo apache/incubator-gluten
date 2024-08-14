@@ -16,10 +16,9 @@
  */
 #pragma once
 #include <jni.h>
-#include <Processors/ISource.h>
-#include <Interpreters/Context.h>
 #include <Columns/IColumn.h>
-
+#include <Interpreters/Context.h>
+#include <Processors/ISource.h>
 namespace local_engine
 {
 class SourceFromJavaIter : public DB::ISource
@@ -30,7 +29,6 @@ public:
     static jmethodID serialized_record_batch_iterator_next;
 
     static Int64 byteArrayToLong(JNIEnv * env, jbyteArray arr);
-
     static DB::Block * peekBlock(JNIEnv * env, jobject java_iter);
 
     SourceFromJavaIter(
