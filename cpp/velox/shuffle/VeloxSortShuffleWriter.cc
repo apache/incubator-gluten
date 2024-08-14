@@ -266,7 +266,6 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
 }
 
 arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_t begin, size_t end) {
-  ScopedTimer timer(&sortTime_);
   // Serialize [begin, end)
   uint64_t offset = 0;
   char* addr;
@@ -289,6 +288,8 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
       begin = index;
       offset = 0;
     }
+    // Count copy row time into sortTime_.
+    ScopedTimer timer(&sortTime_);
     gluten::fastCopy(rawBuffer_ + offset, addr, size);
     offset += size;
     index++;
@@ -303,17 +304,18 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
   return arrow::Status::OK();
 }
 
-uint32_t VeloxSortShuffleWriter::maxRowsToInsert(uint32_t offset, uint32_t rows) {
+uint32_t VeloxSortShuffleWriter::maxRowsToInsert(uint32_t offset, uint32_t remainingRows) {
   // Check how many rows can be handled.
   if (pages_.empty()) {
     return 0;
   }
   auto remainingBytes = pages_.back()->size() - pageCursor_;
   if (fixedRowSize_) {
-    return std::min((uint32_t)(remainingBytes / (fixedRowSize_.value())), rows);
+    return std::min((uint32_t)(remainingBytes / (fixedRowSize_.value())), remainingRows);
   }
   auto beginIter = rowSizePrefixSum_.begin() + 1 + offset;
-  auto iter = std::upper_bound(beginIter, rowSizePrefixSum_.end(), remainingBytes);
+  auto bytesWritten = rowSizePrefixSum_[offset];
+  auto iter = std::upper_bound(beginIter, rowSizePrefixSum_.end(), remainingBytes + bytesWritten);
   return iter - beginIter;
 }
 
