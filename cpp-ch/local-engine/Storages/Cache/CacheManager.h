@@ -16,29 +16,32 @@
  */
 #pragma once
 #include <Disks/IDisk.h>
-#include <latch>
-
+#include <Storages/Cache/JobScheduler.h>
+#include <jni.h>
 
 namespace local_engine
 {
 struct MergeTreePart;
 struct MergeTreeTable;
+
+
+
 /***
  * Manage the cache of the MergeTree, mainly including meta.bin, data.bin, metadata.gluten
  */
 class CacheManager {
 public:
+    static jclass cache_result_class;
+    static jmethodID cache_result_constructor;
+    static void initJNI(JNIEnv* env);
+
     static CacheManager & instance();
     static void initialize(DB::ContextMutablePtr context);
-    void cachePart(const MergeTreeTable& table, const MergeTreePart& part, const std::unordered_set<String>& columns, std::shared_ptr<std::latch> latch = nullptr);
-    void cacheParts(const String& table_def, const std::unordered_set<String>& columns, bool async = true);
+    Task cachePart(const MergeTreeTable& table, const MergeTreePart& part, const std::unordered_set<String>& columns);
+    JobId cacheParts(const String& table_def, const std::unordered_set<String>& columns, bool async = true);
+    static jobject getCacheStatus(JNIEnv * env, const String& jobId);
 private:
     CacheManager() = default;
-
-    std::unique_ptr<ThreadPool> thread_pool;
     DB::ContextMutablePtr context;
-    std::unordered_map<String, DB::DiskPtr> policy_to_disk;
-    std::unordered_map<DB::DiskPtr, DB::DiskPtr> disk_to_metadisk;
-    std::unordered_map<String, DB::FileCachePtr> policy_to_cache;
 };
 }

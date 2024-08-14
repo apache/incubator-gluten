@@ -16,18 +16,45 @@
  */
 package org.apache.gluten.execution;
 
-import java.util.Set;
+public class CacheResult {
+  public enum Status {
+    RUNNING(0),
+    SUCCESS(1),
+    ERROR(2);
 
-public class CHNativeCacheManager {
-  public static String cacheParts(String table, Set<String> columns, boolean async) {
-    return nativeCacheParts(table, String.join(",", columns), async);
+    private final int value;
+
+    Status(int value) {
+      this.value = value;
+    }
+
+    public int getValue() {
+      return value;
+    }
+
+    public static Status fromInt(int value) {
+      for (Status myEnum : Status.values()) {
+        if (myEnum.getValue() == value) {
+          return myEnum;
+        }
+      }
+      throw new IllegalArgumentException("No enum constant for value: " + value);
+    }
   }
 
-  private static native String nativeCacheParts(String table, String columns, boolean async);
+  private final Status status;
+  private final String message;
 
-  public static CacheResult getCacheStatus(String jobId) {
-    return nativeGetCacheStatus(jobId);
+  public CacheResult(int status, String message) {
+    this.status = Status.fromInt(status);
+    this.message = message;
   }
 
-  private static native CacheResult nativeGetCacheStatus(String jobId);
+  public Status getStatus() {
+    return status;
+  }
+
+  public String getMessage() {
+    return message;
+  }
 }

@@ -26,11 +26,12 @@
 #include <Parser/MergeTreeRelParser.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
-#include <Processors/Sinks/NullSink.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Common/Logger.h>
 #include <Common/logger_useful.h>
 #include <ranges>
+
+#include <jni/jni_common.h>
 
 namespace DB
 {
@@ -49,6 +50,16 @@ extern const Metric LocalThreadScheduled;
 
 namespace local_engine
 {
+
+jclass CacheManager::cache_result_class = nullptr;
+jmethodID CacheManager::cache_result_constructor = nullptr;
+
+void CacheManager::initJNI(JNIEnv * env)
+{
+    cache_result_class = CreateGlobalClassReference(env, "Lorg/apache/gluten/execution/CacheResult;");
+    cache_result_constructor = GetMethodID(env, cache_result_class, "<init>", "(ILjava/lang/String;)V");
+}
+
 CacheManager & CacheManager::instance()
 {
     static CacheManager cache_manager;
@@ -59,13 +70,6 @@ void CacheManager::initialize(DB::ContextMutablePtr context_)
 {
     auto & manager = instance();
     manager.context = context_;
-    manager.thread_pool = std::make_unique<ThreadPool>(
-        CurrentMetrics::LocalThread,
-        CurrentMetrics::LocalThreadActive,
-        CurrentMetrics::LocalThreadScheduled,
-        manager.context->getConfigRef().getInt("cache_sync_max_threads", 10),
-        0,
-        0);
 }
 
 struct CacheJobContext
@@ -73,17 +77,16 @@ struct CacheJobContext
     MergeTreeTable table;
 };
 
-void CacheManager::cachePart(const MergeTreeTable& table, const MergeTreePart& part, const std::unordered_set<String> & columns, std::shared_ptr<std::latch> latch)
+Task CacheManager::cachePart(const MergeTreeTable& table, const MergeTreePart& part, const std::unordered_set<String> & columns)
 {
     CacheJobContext job_context{table};
     job_context.table.parts.clear();
     job_context.table.parts.push_back(part);
     job_context.table.snapshot_id = "";
-    auto job = [job_detail = job_context, context = this->context, read_columns = columns, latch = latch]()
+    Task task = [job_detail = job_context, context = this->context, read_columns = columns]()
     {
         try
         {
-            SCOPE_EXIT({ if (latch) latch->count_down();});
             auto storage = MergeTreeRelParser::parseStorage(job_detail.table, context, true);
             auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, storage->getInMemoryMetadataPtr());
             NamesAndTypesList names_and_types_list;
@@ -113,8 +116,7 @@ void CacheManager::cachePart(const MergeTreeTable& table, const MergeTreePart& p
             PullingPipelineExecutor executor(pipeline);
             while (true)
             {
-                Chunk chunk;
-                if (!executor.pull(chunk))
+                if (Chunk chunk; !executor.pull(chunk))
                     break;
             }
             LOG_INFO(getLogger("CacheManager"), "Load cache of table {}.{} part {} success.", job_detail.table.database, job_detail.table.table, job_detail.table.parts.front().name);
@@ -122,22 +124,58 @@ void CacheManager::cachePart(const MergeTreeTable& table, const MergeTreePart& p
         catch (std::exception& e)
         {
             LOG_ERROR(getLogger("CacheManager"), "Load cache of table {}.{} part {} failed.\n {}", job_detail.table.database, job_detail.table.table, job_detail.table.parts.front().name, e.what());
+            std::rethrow_exception(std::current_exception());
         }
     };
     LOG_INFO(getLogger("CacheManager"), "Loading cache of table {}.{} part {}", job_context.table.database, job_context.table.table, job_context.table.parts.front().name);
-    thread_pool->scheduleOrThrowOnError(std::move(job));
+    return std::move(task);
 }
 
-void CacheManager::cacheParts(const String& table_def, const std::unordered_set<String>& columns, bool async)
+JobId CacheManager::cacheParts(const String& table_def, const std::unordered_set<String>& columns, const bool async)
 {
     auto table = parseMergeTreeTableString(table_def);
-    std::shared_ptr<std::latch> latch = nullptr;
-    if (!async) latch = std::make_shared<std::latch>(table.parts.size());
+    JobId id = toString(UUIDHelpers::generateV4());
+    Job job(id);
     for (const auto & part : table.parts)
     {
-        cachePart(table, part, columns, latch);
+        job.addTask(cachePart(table, part, columns));
     }
-    if (latch)
-        latch->wait();
+    auto& scheduler = JobScheduler::instance();
+    scheduler.scheduleJob(std::move(job), async);
+    return id;
+}
+
+jobject CacheManager::getCacheStatus(JNIEnv * env, const String & jobId)
+{
+    auto& scheduler = JobScheduler::instance();
+    auto job_status = scheduler.getJobSatus(jobId);
+    int status = 0;
+    String message;
+    if (job_status.has_value())
+    {
+        switch (job_status.value().status)
+        {
+            case JobSatus::RUNNING:
+                status = 0;
+                break;
+            case JobSatus::FINISHED:
+                status = 1;
+                break;
+            case JobSatus::FAILED:
+                status = 2;
+                for (const auto & msg : job_status->messages)
+                {
+                    message.append(msg);
+                    message.append(";");
+                }
+                break;
+        }
+    }
+    else
+    {
+        status = 2;
+        message = fmt::format("job {} not found", jobId);
+    }
+    return env->NewObject(cache_result_class, cache_result_constructor, status, charTojstring(env, message.c_str()));
 }
 }

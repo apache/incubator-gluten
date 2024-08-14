@@ -183,5 +183,19 @@ struct MergeTreeConfig
         return config;
     }
 };
+
+struct GlutenJobSchedulerConfig
+{
+    inline static const String JOB_SCHEDULER_MAX_THREADS = "job_scheduler_max_threads";
+
+    size_t job_scheduler_max_threads = 10;
+
+    static GlutenJobSchedulerConfig loadFromContext(DB::ContextPtr context)
+    {
+        GlutenJobSchedulerConfig config;
+        config.job_scheduler_max_threads = context->getConfigRef().getUInt64(JOB_SCHEDULER_MAX_THREADS, 10);
+        return config;
+    }
+};
 }
 
