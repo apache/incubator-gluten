@@ -92,12 +92,10 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
 
   test("test udf allow type conversion") {
     withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "true") {
-      val df =
-        spark.sql("""select myudf1("100"), myudf1(1), mydate('2024-03-25', 5)""")
+      val df = spark.sql("""select myudf1("100"), myudf1(1), mydate('2024-03-25', 5)""")
       assert(
         df.collect()
-          .sameElements(
-            Array(Row("c4ca4238a0b923820dcc509a6f75849b", 105L, 6L, Date.valueOf("2024-03-30")))))
+          .sameElements(Array(Row(105L, 6L, Date.valueOf("2024-03-30")))))
     }
 
     withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "false") {
