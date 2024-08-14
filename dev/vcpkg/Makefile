@@ -31,7 +31,7 @@ docker-image:
 
 docker-image-gha:
 	docker build \
-		--file docker/Dockerfile.gha \
+		--file docker/gha-centos-7.dockerfile \
 		--tag "$(DOCKER_IMAGE)" \
 		--build-arg HTTPS_PROXY="" \
 		--build-arg HTTP_PROXY="" \
