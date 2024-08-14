@@ -501,7 +501,7 @@ int64_t BackingDataLengthCalculator::calculate(const Field & field) const
 
     if (which.isStringOrFixedString())
     {
-        const auto & str = field.get<String>();
+        const auto & str = field.safeGet<String>();
         return roundNumberOfBytesToNearestWord(str.size());
     }
 
@@ -511,7 +511,7 @@ int64_t BackingDataLengthCalculator::calculate(const Field & field) const
     if (which.isArray())
     {
         /// 内存布局：numElements(8B) | null_bitmap(与numElements成正比) | values(每个值长度与类型有关) | backing buffer
-        const auto & array = field.get<Array>(); /// Array can not be wrapped with Nullable
+        const auto & array = field.safeGet<Array>(); /// Array can not be wrapped with Nullable
         const auto num_elems = array.size();
         int64_t res = 8 + calculateBitSetWidthInBytes(num_elems);
 
@@ -531,7 +531,7 @@ int64_t BackingDataLengthCalculator::calculate(const Field & field) const
         int64_t res = 8;
 
         /// Construct Array of keys and values from Map
-        const auto & map = field.get<Map>(); /// Map can not be wrapped with Nullable
+        const auto & map = field.safeGet<Map>(); /// Map can not be wrapped with Nullable
         const auto num_keys = map.size();
         auto array_key = Array();
         auto array_val = Array();
@@ -539,7 +539,7 @@ int64_t BackingDataLengthCalculator::calculate(const Field & field) const
         array_val.reserve(num_keys);
         for (size_t i = 0; i < num_keys; ++i)
         {
-            const auto & pair = map[i].get<DB::Tuple>();
+            const auto & pair = map[i].safeGet<DB::Tuple>();
             array_key.push_back(pair[0]);
             array_val.push_back(pair[1]);
         }
@@ -561,7 +561,7 @@ int64_t BackingDataLengthCalculator::calculate(const Field & field) const
     if (which.isTuple())
     {
         /// 内存布局：null_bitmap(字节数与字段数成正比) | field1 value(8B) | field2 value(8B) | ... | fieldn value(8B) | backing buffer
-        const auto & tuple = field.get<Tuple>(); /// Tuple can not be wrapped with Nullable
+        const auto & tuple = field.safeGet<Tuple>(); /// Tuple can not be wrapped with Nullable
         const auto * type_tuple = typeid_cast<const DataTypeTuple *>(type_without_nullable.get());
         const auto & type_fields = type_tuple->getElements();
         const auto num_fields = type_fields.size();
@@ -689,27 +689,27 @@ int64_t VariableLengthDataWriter::writeArray(size_t row_idx, const DB::Array & a
             {
                 if (writer.getWhichDataType().isFloat32())
                 {
-                    // We can not use get<char>() directly here to process Float32 field,
+                    // We can not use safeGet<char>() directly here to process Float32 field,
                     // because it will get 8 byte data, but Float32 is 4 byte, which will cause error conversion.
-                    auto v = static_cast<Float32>(elem.get<Float32>());
+                    auto v = static_cast<Float32>(elem.safeGet<Float32>());
                     writer.unsafeWrite(
                         reinterpret_cast<const char *>(&v), buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
                 }
                 else if (writer.getWhichDataType().isFloat64())
                 {
                     // Fix 'Invalid Field get from type Float64 to type Int64' in debug build.
-                    auto v = elem.get<Float64>();
+                    auto v = elem.safeGet<Float64>();
                     writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
                 }
                 else if (writer.getWhichDataType().isDecimal32())
                 {
-                  // We can not use get<char>() directly here to process Decimal32 field,
+                  // We can not use safeGet<char>() directly here to process Decimal32 field,
                   // because it will get 4 byte data, but Decimal32 is 8 byte in Spark, which will cause error conversion.
                   writer.write(elem, buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
                 }
                 else
                     writer.unsafeWrite(
-                        reinterpret_cast<const char *>(&elem.get<char>()),
+                        reinterpret_cast<const char *>(&elem.safeGet<char>()),
                         buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
             }
         }
@@ -754,7 +754,7 @@ int64_t VariableLengthDataWriter::writeMap(size_t row_idx, const DB::Map & map, 
     val_array.reserve(num_pairs);
     for (size_t i = 0; i < num_pairs; ++i)
     {
-        const auto & pair = map[i].get<DB::Tuple>();
+        const auto & pair = map[i].safeGet<DB::Tuple>();
         key_array.push_back(pair[0]);
         val_array.push_back(pair[1]);
     }
@@ -814,25 +814,25 @@ int64_t VariableLengthDataWriter::writeStruct(size_t row_idx, const DB::Tuple & 
             FixedLengthDataWriter writer(field_type);
             if (writer.getWhichDataType().isFloat32())
             {
-                // We can not use get<char>() directly here to process Float32 field,
+                // We can not use safeGet<char>() directly here to process Float32 field,
                 // because it will get 8 byte data, but Float32 is 4 byte, which will cause error conversion.
-                auto v = static_cast<Float32>(field_value.get<Float32>());
+                auto v = static_cast<Float32>(field_value.safeGet<Float32>());
                 writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
             }
             else if (writer.getWhichDataType().isFloat64())
             {
                 // Fix 'Invalid Field get from type Float64 to type Int64' in debug build.
-                auto v = field_value.get<Float64>();
+                auto v = field_value.safeGet<Float64>();
                 writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
             }
             else if (writer.getWhichDataType().isDecimal64() || writer.getWhichDataType().isDateTime64())
             {
-                auto v = field_value.get<Decimal64>();
+                auto v = field_value.safeGet<Decimal64>();
                 writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
             }
             else
                 writer.unsafeWrite(
-                    reinterpret_cast<const char *>(&field_value.get<char>()), buffer_address + offset + start + len_null_bitmap + i * 8);
+                    reinterpret_cast<const char *>(&field_value.safeGet<char>()), buffer_address + offset + start + len_null_bitmap + i * 8);
         }
         else
         {
@@ -853,7 +853,7 @@ int64_t VariableLengthDataWriter::write(size_t row_idx, const DB::Field & field,
 
     if (which.isStringOrFixedString())
     {
-        const auto & str = field.get<String>();
+        const auto & str = field.safeGet<String>();
         return writeUnalignedBytes(row_idx, str.data(), str.size(), parent_offset);
     }
 
@@ -868,19 +868,19 @@ int64_t VariableLengthDataWriter::write(size_t row_idx, const DB::Field & field,
 
     if (which.isArray())
     {
-        const auto & array = field.get<Array>();
+        const auto & array = field.safeGet<Array>();
         return writeArray(row_idx, array, parent_offset);
     }
 
     if (which.isMap())
     {
-        const auto & map = field.get<Map>();
+        const auto & map = field.safeGet<Map>();
         return writeMap(row_idx, map, parent_offset);
     }
 
     if (which.isTuple())
     {
-        const auto & tuple = field.get<Tuple>();
+        const auto & tuple = field.safeGet<Tuple>();
         return writeStruct(row_idx, tuple, parent_offset);
     }
 
@@ -926,63 +926,63 @@ void FixedLengthDataWriter::write(const DB::Field & field, char * buffer)
 
     if (which.isUInt8())
     {
-        const auto value = UInt8(field.get<UInt8>());
+        const auto value = UInt8(field.safeGet<UInt8>());
         memcpy(buffer, &value, 1);
     }
     else if (which.isUInt16() || which.isDate())
     {
-        const auto value = UInt16(field.get<UInt16>());
+        const auto value = UInt16(field.safeGet<UInt16>());
         memcpy(buffer, &value, 2);
     }
     else if (which.isUInt32() || which.isDate32())
     {
-        const auto value = UInt32(field.get<UInt32>());
+        const auto value = UInt32(field.safeGet<UInt32>());
         memcpy(buffer, &value, 4);
     }
     else if (which.isUInt64())
     {
-        const auto & value = field.get<UInt64>();
+        const auto & value = field.safeGet<UInt64>();
         memcpy(buffer, &value, 8);
     }
     else if (which.isInt8())
     {
-        const auto value = Int8(field.get<Int8>());
+        const auto value = Int8(field.safeGet<Int8>());
         memcpy(buffer, &value, 1);
     }
     else if (which.isInt16())
     {
-        const auto value = Int16(field.get<Int16>());
+        const auto value = Int16(field.safeGet<Int16>());
         memcpy(buffer, &value, 2);
     }
     else if (which.isInt32())
     {
-        const auto value = Int32(field.get<Int32>());
+        const auto value = Int32(field.safeGet<Int32>());
         memcpy(buffer, &value, 4);
     }
     else if (which.isInt64())
     {
-        const auto & value = field.get<Int64>();
+        const auto & value = field.safeGet<Int64>();
         memcpy(buffer, &value, 8);
     }
     else if (which.isFloat32())
     {
-        const auto value = Float32(field.get<Float32>());
+        const auto value = Float32(field.safeGet<Float32>());
         memcpy(buffer, &value, 4);
     }
     else if (which.isFloat64())
     {
-        const auto & value = field.get<Float64>();
+        const auto & value = field.safeGet<Float64>();
         memcpy(buffer, &value, 8);
     }
     else if (which.isDecimal32())
     {
-        const auto & value = field.get<Decimal32>();
+        const auto & value = field.safeGet<Decimal32>();
         const Int64 decimal = static_cast<Int64>(value.getValue());
         memcpy(buffer, &decimal, 8);
     }
     else if (which.isDecimal64() || which.isDateTime64())
     {
-        const auto & value = field.get<Decimal64>();
+        const auto & value = field.safeGet<Decimal64>();
         auto decimal = value.getValue();
         memcpy(buffer, &decimal, 8);
     }

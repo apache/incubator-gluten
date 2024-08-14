@@ -60,7 +60,7 @@ struct LambdaLess
         auto compare_res_col = lambda_->reduce();
         DB::Field field;
         compare_res_col.column->get(0, field);
-        return field.get<Int32>() < 0;
+        return field.safeGet<Int32>() < 0;
     }
 private:
     ALWAYS_INLINE DB::ColumnPtr oneRowColumn(size_t i) const

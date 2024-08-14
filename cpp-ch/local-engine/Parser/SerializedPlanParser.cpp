@@ -772,7 +772,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::convertStructFieldType(const
 #define UINT_CONVERT(type_ptr, field, type_name) \
     if ((type_ptr)->getTypeId() == TypeIndex::type_name) \
     { \
-        return {std::make_shared<DataTypeU##type_name>(), static_cast<U##type_name>((field).get<type_name>()) + 1}; \
+        return {std::make_shared<DataTypeU##type_name>(), static_cast<U##type_name>((field).safeGet<type_name>()) + 1}; \
     }
 
     auto type_id = type->getTypeId();

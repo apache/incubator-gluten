@@ -216,14 +216,14 @@ private:
             if (!var_expr.has_literal())
                 return false;
             auto [_, name] = plan_parser->parseLiteral(var_expr.literal());
-            return var == name.get<String>();
+            return var == name.safeGet<String>();
         };
 
         auto is_int_value = [&](const substrait::Expression & expr, Int32 val) {
             if (!expr.has_literal())
                 return false;
             auto [_, x] = plan_parser->parseLiteral(expr.literal());
-            return val == x.get<Int32>();
+            return val == x.safeGet<Int32>();
         };
 
         auto is_variable_null = [&](const substrait::Expression & expr, const String & var) {

@@ -43,7 +43,7 @@ DB::NamesAndTypesList collectLambdaArguments(const SerializedPlanParser & plan_p
             && plan_parser_.getFunctionSignatureName(arg.value().scalar_function().function_reference()) == "namedlambdavariable")
         {
             auto [_, col_name_field] = plan_parser_.parseLiteral(arg.value().scalar_function().arguments()[0].value().literal());
-            String col_name = col_name_field.get<String>();
+            String col_name = col_name_field.safeGet<String>();
             if (collected_names.contains(col_name))
             {
                 continue;
@@ -187,7 +187,7 @@ public:
     const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         auto [_, col_name_field] = parseLiteral(substrait_func.arguments()[0].value().literal());
-        String col_name = col_name_field.get<String>();
+        String col_name = col_name_field.safeGet<String>();
 
         auto type = TypeParser::parseType(substrait_func.output_type());
         const auto & inputs = actions_dag.getInputs();

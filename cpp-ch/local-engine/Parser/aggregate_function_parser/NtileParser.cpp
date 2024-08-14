@@ -32,7 +32,7 @@ NtileParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::Ac
     auto [data_type, field] = parseLiteral(arg0.literal());
     if (!(DB::WhichDataType(data_type).isInt32()))
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "ntile's argument must be i32");
-    Int32 field_index = static_cast<Int32>(field.get<Int32>());
+    Int32 field_index = static_cast<Int32>(field.safeGet<Int32>());
     // For CH, the data type of the args[0] must be the UInt32
     const auto * index_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt32>(), field_index);
     args.emplace_back(index_node);
