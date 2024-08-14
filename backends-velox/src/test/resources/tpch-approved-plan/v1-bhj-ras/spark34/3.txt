@@ -168,7 +168,7 @@ Arguments: X, X
 
 (27) ColumnarExchange
 Input [6]: [hash_partition_key#X, l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]
-Arguments: hashpartitioning(l_orderkey#X, o_orderdate#X, o_shippriority#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(l_orderkey#X, o_orderdate#X, o_shippriority#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (28) ShuffleQueryStage
 Output [5]: [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum#X, isEmpty#X]

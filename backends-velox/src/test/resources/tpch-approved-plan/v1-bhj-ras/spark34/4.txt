@@ -121,7 +121,7 @@ Arguments: X, X
 
 (18) ColumnarExchange
 Input [3]: [hash_partition_key#X, o_orderpriority#X, count#X]
-Arguments: hashpartitioning(o_orderpriority#X, 1), ENSURE_REQUIREMENTS, [o_orderpriority#X, count#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(o_orderpriority#X, 1), ENSURE_REQUIREMENTS, [o_orderpriority#X, count#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (19) ShuffleQueryStage
 Output [2]: [o_orderpriority#X, count#X]
@@ -150,7 +150,7 @@ Arguments: X, X
 
 (25) ColumnarExchange
 Input [2]: [o_orderpriority#X, order_count#X]
-Arguments: rangepartitioning(o_orderpriority#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+Arguments: rangepartitioning(o_orderpriority#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (26) ShuffleQueryStage
 Output [2]: [o_orderpriority#X, order_count#X]

@@ -71,7 +71,7 @@ Arguments: X, X
 
 (6) ColumnarExchange
 Input [4]: [hash_partition_key#X, c_custkey#X, c_phone#X, c_acctbal#X]
-Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, c_phone#X, c_acctbal#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(c_custkey#X, 1), ENSURE_REQUIREMENTS, [c_custkey#X, c_phone#X, c_acctbal#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (7) ShuffleQueryStage
 Output [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
@@ -103,7 +103,7 @@ Arguments: X, X
 
 (14) ColumnarExchange
 Input [2]: [hash_partition_key#X, o_custkey#X]
-Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [o_custkey#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(o_custkey#X, 1), ENSURE_REQUIREMENTS, [o_custkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (15) ShuffleQueryStage
 Output [1]: [o_custkey#X]
@@ -145,7 +145,7 @@ Arguments: X, X
 
 (24) ColumnarExchange
 Input [5]: [hash_partition_key#X, cntrycode#X, count#X, sum#X, isEmpty#X]
-Arguments: hashpartitioning(cntrycode#X, 1), ENSURE_REQUIREMENTS, [cntrycode#X, count#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(cntrycode#X, 1), ENSURE_REQUIREMENTS, [cntrycode#X, count#X, sum#X, isEmpty#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (25) ShuffleQueryStage
 Output [4]: [cntrycode#X, count#X, sum#X, isEmpty#X]
@@ -174,7 +174,7 @@ Arguments: X, X
 
 (31) ColumnarExchange
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
-Arguments: rangepartitioning(cntrycode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+Arguments: rangepartitioning(cntrycode#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (32) ShuffleQueryStage
 Output [3]: [cntrycode#X, numcust#X, totacctbal#X]

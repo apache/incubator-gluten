@@ -433,6 +433,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
   // scalastyle:on argcount
 
+  /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
+  override def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean =
+    false
+
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
    *

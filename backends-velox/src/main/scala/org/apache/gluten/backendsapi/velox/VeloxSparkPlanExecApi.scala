@@ -548,6 +548,17 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   }
   // scalastyle:on argcount
 
+  /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
+  override def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean = {
+    val conf = GlutenConfig.getConf
+    lazy val isCelebornSortBasedShuffle = conf.isUseCelebornShuffleManager &&
+      conf.celebornShuffleWriterType == GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER
+    partitioning != SinglePartition &&
+    (partitioning.numPartitions >= GlutenConfig.getConf.columnarShuffleSortPartitionsThreshold ||
+      output.size >= GlutenConfig.getConf.columnarShuffleSortColumnsThreshold) ||
+    isCelebornSortBasedShuffle
+  }
+
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
    *

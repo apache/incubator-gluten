@@ -145,7 +145,7 @@ Arguments: X, X
 
 (6) ColumnarExchange
 Input [4]: [hash_partition_key#X, s_suppkey#X, s_name#X, s_nationkey#X]
-Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, s_name#X, s_nationkey#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(s_suppkey#X, 1), ENSURE_REQUIREMENTS, [s_suppkey#X, s_name#X, s_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (7) ShuffleQueryStage
 Output [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
@@ -182,7 +182,7 @@ Arguments: X, X
 
 (15) ColumnarExchange
 Input [3]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X]
-Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (16) ShuffleQueryStage
 Output [2]: [l_orderkey#X, l_suppkey#X]
@@ -214,7 +214,7 @@ Arguments: X, X
 
 (23) ColumnarExchange
 Input [3]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X]
-Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (24) ShuffleQueryStage
 Output [2]: [l_orderkey#X, l_suppkey#X]
@@ -256,7 +256,7 @@ Arguments: X, X
 
 (33) ColumnarExchange
 Input [3]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X]
-Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (34) ShuffleQueryStage
 Output [2]: [l_orderkey#X, l_suppkey#X]
@@ -287,7 +287,7 @@ Arguments: X, X
 
 (41) ColumnarExchange
 Input [3]: [hash_partition_key#X, l_orderkey#X, l_suppkey#X]
-Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(l_suppkey#X, 1), ENSURE_REQUIREMENTS, [l_orderkey#X, l_suppkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (42) ShuffleQueryStage
 Output [2]: [l_orderkey#X, l_suppkey#X]
@@ -318,7 +318,7 @@ Arguments: X, X
 
 (49) ColumnarExchange
 Input [4]: [hash_partition_key#X, s_name#X, s_nationkey#X, l_orderkey#X]
-Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [s_name#X, s_nationkey#X, l_orderkey#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(l_orderkey#X, 1), ENSURE_REQUIREMENTS, [s_name#X, s_nationkey#X, l_orderkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (50) ShuffleQueryStage
 Output [3]: [s_name#X, s_nationkey#X, l_orderkey#X]
@@ -355,7 +355,7 @@ Arguments: X, X
 
 (58) ColumnarExchange
 Input [2]: [hash_partition_key#X, o_orderkey#X]
-Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(o_orderkey#X, 1), ENSURE_REQUIREMENTS, [o_orderkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (59) ShuffleQueryStage
 Output [1]: [o_orderkey#X]
@@ -386,7 +386,7 @@ Arguments: X, X
 
 (66) ColumnarExchange
 Input [3]: [hash_partition_key#X, s_name#X, s_nationkey#X]
-Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [s_name#X, s_nationkey#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(s_nationkey#X, 1), ENSURE_REQUIREMENTS, [s_name#X, s_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (67) ShuffleQueryStage
 Output [2]: [s_name#X, s_nationkey#X]
@@ -423,7 +423,7 @@ Arguments: X, X
 
 (75) ColumnarExchange
 Input [2]: [hash_partition_key#X, n_nationkey#X]
-Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(n_nationkey#X, 1), ENSURE_REQUIREMENTS, [n_nationkey#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (76) ShuffleQueryStage
 Output [1]: [n_nationkey#X]
@@ -465,7 +465,7 @@ Arguments: X, X
 
 (85) ColumnarExchange
 Input [3]: [hash_partition_key#X, s_name#X, count#X]
-Arguments: hashpartitioning(s_name#X, 1), ENSURE_REQUIREMENTS, [s_name#X, count#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(s_name#X, 1), ENSURE_REQUIREMENTS, [s_name#X, count#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (86) ShuffleQueryStage
 Output [2]: [s_name#X, count#X]
