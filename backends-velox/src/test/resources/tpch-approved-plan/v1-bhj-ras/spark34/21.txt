@@ -312,7 +312,7 @@ Arguments: X, X
 
 (53) ColumnarExchange
 Input [3]: [hash_partition_key#X, s_name#X, count#X]
-Arguments: hashpartitioning(s_name#X, 1), ENSURE_REQUIREMENTS, [s_name#X, count#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(s_name#X, 1), ENSURE_REQUIREMENTS, [s_name#X, count#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (54) ShuffleQueryStage
 Output [2]: [s_name#X, count#X]
