@@ -33,15 +33,14 @@ public:
 
     static DB::Block * peekBlock(JNIEnv * env, jobject java_iter);
 
-    SourceFromJavaIter(DB::ContextPtr context_, DB::Block header, jobject java_iter_, bool materialize_input_, DB::Block * peek_block_);
+    SourceFromJavaIter(
+        DB::ContextPtr context_, const DB::Block & header, jobject java_iter_, bool materialize_input_, const DB::Block * peek_block_);
     ~SourceFromJavaIter() override;
 
     String getName() const override { return "SourceFromJavaIter"; }
 
 private:
     DB::Chunk generate() override;
-    void convertNullable(DB::Chunk & chunk);
-    DB::ColumnPtr convertNestedNullable(const DB::ColumnPtr & column, const DB::DataTypePtr & target_type);
 
     DB::ContextPtr context;
     DB::Block original_header;
@@ -49,7 +48,7 @@ private:
     bool materialize_input;
 
     /// The first block read from java iteration to decide exact types of columns, especially for AggregateFunctions with parameters.
-    DB::Block * first_block = nullptr;
+    const DB::Block * first_block = nullptr;
 };
 
 }
