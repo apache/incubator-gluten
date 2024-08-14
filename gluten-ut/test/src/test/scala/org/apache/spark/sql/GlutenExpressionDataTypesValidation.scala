@@ -135,6 +135,8 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
   test("unary expressions with expected input types") {
     val functionRegistry = spark.sessionState.functionRegistry
     val sparkBuiltInFunctions = functionRegistry.listFunction()
+    val exceptionalList: Buffer[Expression] = Buffer()
+
     for (func <- sparkBuiltInFunctions) {
       val builder = functionRegistry.lookupFunctionBuilder(func).get
       val expr: Expression = {
@@ -147,10 +149,20 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
           case _: Throwable => null
         }
       }
-      if (
-        expr != null && expr.isInstanceOf[ExpectsInputTypes] && expr.isInstanceOf[UnaryExpression]
-      ) {
-        val acceptedTypes = allPrimitiveDataTypes.filter(
+      val needsValidation = if (expr == null) {
+        false
+      } else {
+        expr match {
+          // Validated separately.
+          case _: Cast => false
+          case _: ExpectsInputTypes if expr.isInstanceOf[UnaryExpression] => true
+          case _ =>
+            exceptionalList += expr
+            false
+        }
+      }
+      if (needsValidation) {
+        val acceptedTypes = allPrimitiveDataTypes ++ allComplexDataTypes.filter(
           expr.asInstanceOf[ExpectsInputTypes].inputTypes.head.acceptsType(_))
         if (acceptedTypes.isEmpty) {
           logWarning("Any given type is not accepted for " + expr.getClass.getSimpleName)
@@ -164,6 +176,8 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
           })
       }
     }
+
+    logWarning("Exceptional list:\n" + exceptionalList.mkString(", "))
   }
 
   def hasImplicitCast(expr: Expression): Boolean = expr match {
@@ -209,9 +223,9 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
           var acceptedLeftTypes: Seq[DataType] = Seq.empty
           var acceptedRightTypes: Seq[DataType] = Seq.empty
           try {
-            acceptedLeftTypes = allPrimitiveDataTypes.filter(
+            acceptedLeftTypes = allPrimitiveDataTypes ++ allComplexDataTypes.filter(
               expr.asInstanceOf[ExpectsInputTypes].inputTypes(0).acceptsType(_))
-            acceptedRightTypes = allPrimitiveDataTypes.filter(
+            acceptedRightTypes = allPrimitiveDataTypes ++ allComplexDataTypes.filter(
               expr.asInstanceOf[ExpectsInputTypes].inputTypes(1).acceptsType(_))
           } catch {
             case _: java.lang.NullPointerException =>
