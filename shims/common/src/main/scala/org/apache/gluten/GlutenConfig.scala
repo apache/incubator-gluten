@@ -1613,7 +1613,7 @@ object GlutenConfig {
       .internal()
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
-      .createOptional
+      .createWithDefault(true)
 
   val NATIVE_HIVEFILEFORMAT_WRITER_ENABLED =
     buildConf("spark.gluten.sql.native.hive.writer.enabled")
