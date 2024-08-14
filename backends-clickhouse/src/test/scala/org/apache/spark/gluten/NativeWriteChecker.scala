@@ -75,6 +75,12 @@ trait NativeWriteChecker
     }
   }
 
+  def vanillaWrite(block: => Unit): Unit = {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "false")) {
+      block
+    }
+  }
+
   def withSource(df: Dataset[Row], viewName: String, pairs: (String, String)*)(
       block: => Unit): Unit = {
     withSQLConf(pairs: _*) {
