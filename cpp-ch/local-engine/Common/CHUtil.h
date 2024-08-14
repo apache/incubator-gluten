@@ -128,8 +128,8 @@ class ActionsDAGUtil
 public:
     static const DB::ActionsDAG::Node * convertNodeType(
         DB::ActionsDAG & actions_dag,
-        const DB::ActionsDAG::Node * node,
-        const std::string & type_name,
+        const DB::ActionsDAG::Node * node_to_cast,
+        const DB::DataTypePtr & cast_to_type,
         const std::string & result_name = "",
         DB::CastType cast_type = DB::CastType::nonAccurate);
 
