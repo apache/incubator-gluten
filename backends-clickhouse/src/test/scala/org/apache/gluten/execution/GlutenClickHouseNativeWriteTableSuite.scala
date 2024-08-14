@@ -22,12 +22,12 @@ import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.gluten.NativeWriteChecker
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.{DecimalType, LongType, StringType, StructField, StructType}
-import org.apache.spark.sql.Row
 
 import org.scalatest.BeforeAndAfterAll
 
@@ -922,39 +922,40 @@ class GlutenClickHouseNativeWriteTableSuite
   }
 
   test("GLUTEN-2584: fix native write and read mismatch about complex types") {
-    Seq("orc", "parquet").foreach { format =>
-      val table_name = "t_" + format
-      val create_sql =
-        s"""CREATE TABLE $table_name(
-           |  id INT,
-           |  info STRUCT<name:STRING, age:INT>,
-           |  data MAP<STRING, INT>,
-           |  values ARRAY<INT>
-           |) stored as $format;
+    Seq("orc", "parquet").foreach {
+      format =>
+        val table_name = "t_" + format
+        val create_sql =
+          s"""CREATE TABLE $table_name(
+             |  id INT,
+             |  info STRUCT<name:STRING, age:INT>,
+             |  data MAP<STRING, INT>,
+             |  values ARRAY<INT>
+             |) stored as $format;
             """.stripMargin
-      val insert_sql =
-        s"""INSERT overwrite $table_name VALUES
-           |  (6, null, null, null);
+        val insert_sql =
+          s"""INSERT overwrite $table_name VALUES
+             |  (6, null, null, null);
             """.stripMargin
-      val select_sql = s"select * from $table_name"
-      val drop_sql = s"drop table $table_name"
+        val select_sql = s"select * from $table_name"
+        val drop_sql = s"drop table $table_name"
 
-      var expected: Seq[Row] = null
-      withSQLConf(vanillaSparkConfs(): _*) {
+        var expected: Seq[Row] = null
+        withSQLConf(vanillaSparkConfs(): _*) {
+          spark.sql(create_sql)
+          spark.sql(insert_sql)
+
+          val edf = spark.sql(select_sql)
+          expected = edf.collect()
+
+          spark.sql(drop_sql)
+        }
+
         spark.sql(create_sql)
         spark.sql(insert_sql)
-
-        val edf = spark.sql(select_sql)
-        expected = edf.collect()
-
+        val df = spark.sql(select_sql)
+        checkAnswer(df, expected)
         spark.sql(drop_sql)
-      }
-
-      spark.sql(create_sql)
-      spark.sql(insert_sql)
-      val df = spark.sql(select_sql)
-      checkAnswer(df, expected)
-      spark.sql(drop_sql)
     }
   }
 }
