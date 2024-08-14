@@ -266,8 +266,10 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
 }
 
 arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_t begin, size_t end) {
+  // Count copy row time into sortTime_.
+  Timer sortTime{};
   // Serialize [begin, end)
-  uint64_t offset = 0;
+  int64_t offset = 0;
   char* addr;
   uint32_t size;
 
@@ -277,27 +279,29 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
     addr = pageAddresses_[pageIndex.first] + pageIndex.second;
     size = *(RowSizeType*)addr;
     if (offset + size > kSortedBufferSize) {
-      VELOX_CHECK(offset > 0);
-      auto payload = std::make_unique<InMemoryPayload>(
-          index - begin,
-          nullptr,
-          std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(rawBuffer_, offset)});
-      updateSpillMetrics(payload);
-      RETURN_NOT_OK(
-          partitionWriter_->evict(partitionId, std::move(payload), Evict::type::kSortSpill, false, false, stopped_));
+      sortTime.stop();
+      RETURN_NOT_OK(evictPartition0(partitionId, index - begin, offset));
+      sortTime.start();
       begin = index;
       offset = 0;
     }
-    // Count copy row time into sortTime_.
-    ScopedTimer timer(&sortTime_);
     gluten::fastCopy(rawBuffer_ + offset, addr, size);
     offset += size;
     index++;
   }
+  sortTime.stop();
+  RETURN_NOT_OK(evictPartition0(partitionId, index - begin, offset));
+
+  sortTime_ += sortTime.realTimeUsed();
+  return arrow::Status::OK();
+}
+
+arrow::Status VeloxSortShuffleWriter::evictPartition0(uint32_t partitionId, uint32_t numRows, int64_t rawLength) {
+  VELOX_CHECK(rawLength > 0);
   auto payload = std::make_unique<InMemoryPayload>(
-      end - begin,
+      numRows,
       nullptr,
-      std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(rawBuffer_, offset)});
+      std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(rawBuffer_, rawLength)});
   updateSpillMetrics(payload);
   RETURN_NOT_OK(
       partitionWriter_->evict(partitionId, std::move(payload), Evict::type::kSortSpill, false, false, stopped_));
