@@ -1615,9 +1615,7 @@ bool SubstraitToVeloxPlanConverter::canPushdownFunction(
   }
 
   // Check whether data type is supported or not
-  if (!veloxTypeList.empty() &&
-      fieldIdx < veloxTypeList.size() &&
-      !isPushdownSupported(veloxTypeList.at(fieldIdx))) {
+  if (!veloxTypeList.empty() && fieldIdx < veloxTypeList.size() && !isPushdownSupported(veloxTypeList.at(fieldIdx))) {
     return false;
   }
 
