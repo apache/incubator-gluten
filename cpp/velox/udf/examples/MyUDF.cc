@@ -30,6 +30,7 @@ namespace {
 static const char* kInteger = "int";
 static const char* kBigInt = "bigint";
 static const char* kDate = "date";
+static const char* kDouble = "double";
 
 namespace myudf {
 
@@ -248,6 +249,43 @@ class MyDate2Registerer final : public gluten::UdfRegisterer {
 };
 } // namespace mydate
 
+namespace mylog10 {
+template <typename T>
+struct HiveLog10Function {
+  FOLLY_ALWAYS_INLINE bool call(double& result, double a) {
+    if (a <= 0.0) {
+      return false;
+    }
+    result = std::log10(a);
+    return true;
+  }
+};
+
+// name: org.apache.hadoop.hive.ql.udf.UDFLog10
+// signatures:
+//    double -> double
+// type: SimpleFunction
+class HiveLog10Registerer final : public gluten::UdfRegisterer {
+ public:
+  int getNumUdf() override {
+    return 1;
+  }
+
+  void populateUdfEntries(int& index, gluten::UdfEntry* udfEntries) override {
+    // Set `allowTypeConversion` for hive udf.
+    udfEntries[index++] = {name_.c_str(), kDouble, 1, arg_, false, true};
+  }
+
+  void registerSignatures() override {
+    facebook::velox::registerFunction<HiveLog10Function, double, double>({name_});
+  }
+
+ private:
+  const std::string name_ = "org.apache.hadoop.hive.ql.udf.UDFLog10";
+  const char* arg_[1] = {kDouble};
+};
+} // namespace mylog10
+
 std::vector<std::shared_ptr<gluten::UdfRegisterer>>& globalRegisters() {
   static std::vector<std::shared_ptr<gluten::UdfRegisterer>> registerers;
   return registerers;
@@ -264,6 +302,7 @@ void setupRegisterers() {
   registerers.push_back(std::make_shared<myudf::MyUdf3Registerer>());
   registerers.push_back(std::make_shared<mydate::MyDateRegisterer>());
   registerers.push_back(std::make_shared<mydate::MyDate2Registerer>());
+  registerers.push_back(std::make_shared<mylog10::HiveLog10Registerer>());
   inited = true;
 }
 } // namespace

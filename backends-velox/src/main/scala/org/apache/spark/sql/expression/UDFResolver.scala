@@ -18,7 +18,7 @@ package org.apache.spark.sql.expression
 
 import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, GenericExpressionTransformer, Transformable}
+import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, GenericExpressionTransformer, Transformable, UDFMappings}
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.vectorized.JniWorkspace
 
@@ -331,7 +331,7 @@ object UDFResolver extends Logging {
       .mkString(",")
   }
 
-  def getFunctionSignatures: Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
+  def getFunctionSignatures(): Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
     val sparkContext = SparkContext.getActive.get
     val sparkConf = sparkContext.conf
     val udfLibPaths = sparkConf.getOption(VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
@@ -341,6 +341,7 @@ object UDFResolver extends Logging {
         Seq.empty
       case Some(_) =>
         UdfJniWrapper.getFunctionSignatures()
+        UDFNames.foreach(UDFMappings.nativeHiveUDF.add)
 
         UDFNames.map {
           name =>

@@ -56,6 +56,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
         .builder()
         .master(master)
         .config(sparkConf)
+        .enableHiveSupport()
         .getOrCreate()
     }
 
@@ -91,10 +92,12 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
 
   test("test udf allow type conversion") {
     withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "true") {
-      val df = spark.sql("""select myudf1("100"), myudf1(1), mydate('2024-03-25', 5)""")
+      val df =
+        spark.sql("""select myudf1("100"), myudf1(1), mydate('2024-03-25', 5)""")
       assert(
         df.collect()
-          .sameElements(Array(Row(105L, 6L, Date.valueOf("2024-03-30")))))
+          .sameElements(
+            Array(Row("c4ca4238a0b923820dcc509a6f75849b", 105L, 6L, Date.valueOf("2024-03-30")))))
     }
 
     withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "false") {
@@ -126,6 +129,44 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
       assert(
         df.collect()
           .sameElements(Array(Row(1.0, 1.0, 1L))))
+    }
+  }
+
+  test("test hive udf replacement") {
+    val tbl = "test_hive_udf_replacement"
+    withTempPath {
+      dir =>
+        try {
+          spark.sql(s"""
+                       |CREATE EXTERNAL TABLE $tbl
+                       |LOCATION 'file://$dir'
+                       |AS select * from values ('1'), ('2'), ('3')
+                       |""".stripMargin)
+
+          // Check native hive udf has been registered.
+          assert(UDFMappings.nativeHiveUDF.contains("org.apache.hadoop.hive.ql.udf.UDFLog10"))
+
+          spark.sql(
+            """CREATE TEMPORARY FUNCTION hive_log10 AS 'org.apache.hadoop.hive.ql.udf.UDFLog10'""")
+
+          val nativeResult =
+            spark.sql(s"""SELECT hive_log10(col1) FROM $tbl""").collect()
+          // Unregister native hive udf to fallback.
+          UDFMappings.nativeHiveUDF.remove("org.apache.hadoop.hive.ql.udf.UDFLog10")
+          val fallbackResult =
+            spark.sql(s"""SELECT hive_log10(col1) FROM $tbl""").collect()
+          assert(nativeResult.sameElements(fallbackResult))
+
+          // Add an unimplemented udf to the map to test fallback of registered native hive udf.
+          UDFMappings.nativeHiveUDF.add("org.apache.hadoop.hive.ql.udf.UDFMd5")
+          spark.sql("CREATE TEMPORARY FUNCTION hive_md5 AS 'org.apache.hadoop.hive.ql.udf.UDFMd5'")
+          val df =
+            spark.sql(s"""select hive_md5(col1) from $tbl""")
+          val expected = spark.sql(s"""SELECT md5(col1) FROM $tbl""")
+          assert(df.collect().sameElements(expected.collect()))
+        } finally {
+          spark.sql(s"DROP TABLE IF EXISTS $tbl")
+        }
     }
   }
 }

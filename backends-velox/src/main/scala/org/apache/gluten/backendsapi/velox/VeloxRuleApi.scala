@@ -48,7 +48,7 @@ private object VeloxRuleApi {
     // Regular Spark rules.
     injector.injectOptimizerRule(CollectRewriteRule.apply)
     injector.injectOptimizerRule(HLLRewriteRule.apply)
-    UDFResolver.getFunctionSignatures.foreach(injector.injectFunction)
+    UDFResolver.getFunctionSignatures().foreach(injector.injectFunction)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
   }
 
