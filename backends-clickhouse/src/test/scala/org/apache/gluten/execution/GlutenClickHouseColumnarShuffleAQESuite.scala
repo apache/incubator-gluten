@@ -17,12 +17,17 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.optimizer._
+import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.CoalescedPartitionSpec
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, AQEShuffleReadExec}
 
 class GlutenClickHouseColumnarShuffleAQESuite
   extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
+  with AdaptiveSparkPlanHelper
+  with Logging {
 
   override protected val tablesPath: String = basePath + "/tpch-data-ch"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
@@ -169,6 +174,91 @@ class GlutenClickHouseColumnarShuffleAQESuite
         }
         assert(adaptiveSparkPlanExec.size == 3)
         assert(adaptiveSparkPlanExec(1) == adaptiveSparkPlanExec(2))
+    }
+  }
+
+  test("GLUTEN-6768 rerorder hash join") {
+    withSQLConf(
+      ("spark.gluten.sql.columnar.backend.ch.enable_reorder_hash_join_tables", "true"),
+      ("spark.sql.adaptive.enabled", "true")) {
+      spark.sql("create table t1(a int, b int) using parquet")
+      spark.sql("create table t2(a int, b int) using parquet")
+
+      spark.sql("insert into t1 select id as a, id as b from range(100000)")
+      spark.sql("insert into t1 select id as a, id as b from range(100)")
+
+      def isExpectedJoinNode(plan: SparkPlan, joinType: JoinType, buildSide: BuildSide): Boolean = {
+        plan match {
+          case join: CHShuffledHashJoinExecTransformer =>
+            join.joinType == joinType && join.buildSide == buildSide
+          case _ => false
+        }
+      }
+
+      def collectExpectedJoinNode(
+          plan: SparkPlan,
+          joinType: JoinType,
+          buildSide: BuildSide): Seq[SparkPlan] = {
+        if (isExpectedJoinNode(plan, joinType, buildSide)) {
+          Seq(plan) ++ plan.children.flatMap(collectExpectedJoinNode(_, joinType, buildSide))
+        } else {
+          plan.children.flatMap(collectExpectedJoinNode(_, joinType, buildSide))
+        }
+      }
+
+      var sql = """
+                  |select * from t2 left join t1 on t1.a = t2.a
+                  |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql,
+        true,
+        {
+          df =>
+            val joins = df.queryExecution.executedPlan.collect {
+              case adpativeNode: AdaptiveSparkPlanExec =>
+                collectExpectedJoinNode(adpativeNode.executedPlan, RightOuter, BuildRight)
+              case _ => Seq()
+            }
+            assert(joins.size == 1)
+        }
+      )
+
+      sql = """
+              |select * from t2 right join t1 on t1.a = t2.a
+              |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql,
+        true,
+        {
+          df =>
+            val joins = df.queryExecution.executedPlan.collect {
+              case adpativeNode: AdaptiveSparkPlanExec =>
+                collectExpectedJoinNode(adpativeNode.executedPlan, LeftOuter, BuildRight)
+              case _ => Seq()
+            }
+            assert(joins.size == 1)
+        }
+      )
+
+      sql = """
+              |select * from t1 right join t2 on t1.a = t2.a
+              |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql,
+        true,
+        {
+          df =>
+            val joins = df.queryExecution.executedPlan.collect {
+              case adpativeNode: AdaptiveSparkPlanExec =>
+                collectExpectedJoinNode(adpativeNode.executedPlan, RightOuter, BuildRight)
+              case _ => Seq()
+            }
+            assert(joins.size == 1)
+        }
+      )
+
+      spark.sql("drop table t1")
+      spark.sql("drop table t2")
     }
   }
 }
