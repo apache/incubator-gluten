@@ -899,7 +899,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
       case ::substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT:
       case ::substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_SEMI:
       case ::substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT_SEMI:
-      case ::substrait::JoinRel_JoinType_JOIN_TYPE_ANTI:
+      case ::substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_ANTI:
         break;
       default:
         LOG_VALIDATION_MSG("Sort merge join type is not supported: " + std::to_string(joinRel.type()));
@@ -913,7 +913,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
     case ::substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT:
     case ::substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_SEMI:
     case ::substrait::JoinRel_JoinType_JOIN_TYPE_RIGHT_SEMI:
-    case ::substrait::JoinRel_JoinType_JOIN_TYPE_ANTI:
+    case ::substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_ANTI:
       break;
     default:
       LOG_VALIDATION_MSG("Join type is not supported: " + std::to_string(joinRel.type()));
