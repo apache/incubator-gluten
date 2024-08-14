@@ -51,7 +51,7 @@ concurrency:
 jobs:
   build-native-lib-centos-7:
     runs-on: ubuntu-20.04
-    container: apache/gluten:gluten-vcpkg-builder_2024_08_05 # centos7 with dependencies installed
+    container: apache/gluten:vcpkg-centos-7
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
@@ -63,7 +63,6 @@ jobs:
         with:
           path: |
             ./cpp/build/releases/
-            /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
       - name: Build Gluten native libraries
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
