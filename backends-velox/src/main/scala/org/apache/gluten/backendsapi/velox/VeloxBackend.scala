@@ -99,7 +99,15 @@ object VeloxBackendSettings extends BackendSettingsApi {
     }
 
     format match {
-      case ParquetReadFormat | DwrfReadFormat => ValidationResult.succeeded
+      case ParquetReadFormat =>
+        val typeValidator: PartialFunction[StructField, String] = {
+          // Parquet timestamp is not fully supported yet
+          case StructField(_, TimestampType, _, _)
+              if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
+            "TimestampType"
+        }
+        validateTypes(typeValidator)
+      case DwrfReadFormat => ValidationResult.succeeded
       case OrcReadFormat =>
         if (!GlutenConfig.getConf.veloxOrcScanEnabled) {
           ValidationResult.failed(s"Velox ORC scan is turned off.")

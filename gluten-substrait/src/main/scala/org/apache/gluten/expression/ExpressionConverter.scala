@@ -353,10 +353,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           // Different backends may have different result.
           BackendsApiManager.getSparkPlanExecApiInstance.genGetStructFieldTransformer(
             substraitExprName,
-            replaceWithExpressionTransformerInternal(
-              getStructField.child,
-              attributeSeq,
-              expressionsMap),
+            replaceWithExpressionTransformer0(getStructField.child, attributeSeq, expressionsMap),
             bindRef.ordinal,
             getStructField)
         } catch {
