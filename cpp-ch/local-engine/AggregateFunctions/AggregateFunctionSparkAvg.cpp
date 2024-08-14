@@ -140,7 +140,7 @@ createAggregateFunctionSparkAvg(const std::string & name, const DataTypes & argu
         throw Exception(
             ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal type {} of argument for aggregate function {}", data_type->getName(), name);
 
-    bool allowPrecisionLoss = settings->get(DECIMAL_OPERATIONS_ALLOW_PREC_LOSS).get<bool>();
+    bool allowPrecisionLoss = settings->get(DECIMAL_OPERATIONS_ALLOW_PREC_LOSS).safeGet<bool>();
     const UInt32 p1 = DB::getDecimalPrecision(*data_type);
     const UInt32 s1 = DB::getDecimalScale(*data_type);
     auto [p2, s2] = GlutenDecimalUtils::LONG_DECIMAL;

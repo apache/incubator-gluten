@@ -98,7 +98,7 @@ DB::Array ApproxPercentileParser::parseFunctionParameters(
         if (isArray(type2))
         {
             /// Multiple percentages for quantilesGK
-            const Array & percentags = field2.get<Array>();
+            const Array & percentags = field2.safeGet<Array>();
             for (const auto & percentage : percentags)
                 params.emplace_back(percentage);
         }
