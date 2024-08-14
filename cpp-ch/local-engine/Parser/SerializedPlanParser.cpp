@@ -689,7 +689,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
 
         /// pos = cast(arrayJoin(arg_not_null).1, "Int32")
         const auto * pos_node = add_tuple_element(array_join_node, 1);
-        pos_node = ActionsDAGUtil::convertNodeType(actions_dag, pos_node, "Int32");
+        pos_node = ActionsDAGUtil::convertNodeType(actions_dag, pos_node, INT());
 
         /// if is_map is false, output col = arrayJoin(arg_not_null).2
         /// if is_map is true,  output (key, value) = arrayJoin(arg_not_null).2
