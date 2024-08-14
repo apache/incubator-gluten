@@ -23,5 +23,5 @@ RUN cd /opt/gluten && bash ./dev/vcpkg/setup-build-depends.sh
 # vcpkg env
 ENV VCPKG_BINARY_SOURCES=clear;files,/var/cache/vcpkg,readwrite
 
-RUN cd /opt/gluten && source ./dev/vcpkg/env.sh && \
-    bash ./dev/builddeps-veloxbe.sh --build_arrow=ON
+# Build arrow, then install the native libs to system paths and jar package to .m2/ directory.
+RUN cd /opt/gluten && source ./dev/vcpkg/env.sh && bash ./dev/builddeps-veloxbe.sh build_arrow
