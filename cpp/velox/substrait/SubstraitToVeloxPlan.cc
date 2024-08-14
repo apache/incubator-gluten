@@ -1614,8 +1614,10 @@ bool SubstraitToVeloxPlanConverter::canPushdownFunction(
     return false;
   }
 
-  // check whether data type is supported or not
-  if (!veloxTypeList.empty() && fieldIdx < veloxTypeList.size() && !isPushdownSupported(veloxTypeList.at(fieldIdx))) {
+  // Check whether data type is supported or not
+  if (!veloxTypeList.empty() &&
+      fieldIdx < veloxTypeList.size() &&
+      !isPushdownSupported(veloxTypeList.at(fieldIdx))) {
     return false;
   }
 
@@ -1696,7 +1698,7 @@ bool SubstraitToVeloxPlanConverter::canPushdownOr(
 }
 
 bool SubstraitToVeloxPlanConverter::isPushdownSupported(TypePtr inputType) {
-  // keep the same with mapToFilters
+  // Keep the same with mapToFilters
   switch (inputType->kind()) {
     case TypeKind::TIMESTAMP:
     case TypeKind::VARBINARY:
