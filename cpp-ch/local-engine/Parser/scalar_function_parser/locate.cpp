@@ -17,6 +17,7 @@
 
 #include <DataTypes/IDataType.h>
 #include <Parser/FunctionParser.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 
 namespace DB
@@ -50,7 +51,7 @@ public:
 
         const auto * substr_arg = parsed_args[0];
         const auto * str_arg = parsed_args[1];
-        const auto * start_pos_arg = ActionsDAGUtil::convertNodeType(actions_dag, parsed_args[2], "Nullable(UInt32)");
+        const auto * start_pos_arg = ActionsDAGUtil::convertNodeType(actions_dag, parsed_args[2], makeNullable(UINT()));
         const auto * is_start_pos_null_node = toFunctionNode(actions_dag, "isNull", {start_pos_arg});
         const auto * const_1_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt64>(), 0);
         const auto * position_node = toFunctionNode(actions_dag, "positionUTF8Spark", {str_arg, substr_arg, start_pos_arg});
