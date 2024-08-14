@@ -26,5 +26,5 @@ RUN mkdir -p /var/cache/vcpkg
 ENV VCPKG_BINARY_SOURCES=clear;files,/var/cache/vcpkg,readwrite
 
 # Build arrow, then install the native libs to system paths and jar package to .m2/ directory.
-RUN cd /opt/gluten && source ./dev/vcpkg/env.sh && bash ./dev/builddeps-veloxbe.sh build_arrow && \
-    rm -rf ep/_ep/ && rm -rf /tmp/velox-deps/
+RUN cd /opt/gluten && source /opt/rh/devtoolset-9/enable && source ./dev/vcpkg/env.sh && \
+    bash ./dev/builddeps-veloxbe.sh build_arrow && rm -rf /opt/gluten

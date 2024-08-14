@@ -1,4 +1,5 @@
 #! /bin/bash
+set -e
 
 if [ -z "${BASH_SOURCE[0]}" ] || [ "$0" == "${BASH_SOURCE[0]}" ]; then
     echo "env.sh should only be sourced in bash" >&2
