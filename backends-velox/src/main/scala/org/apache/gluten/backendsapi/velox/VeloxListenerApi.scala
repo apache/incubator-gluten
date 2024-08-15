@@ -105,12 +105,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
     val loader = JniWorkspace.getDefault.libLoader
 
     // Load shared native libraries the backend libraries depend on.
-    val osName = System.getProperty("os.name")
-    if (osName.startsWith("Mac OS X") || osName.startsWith("macOS")) {
-      loadLibWithMacOS(loader)
-    } else {
-      loadLibWithLinux(conf, loader)
-    }
+    SharedLibraryLoader.load(conf, loader)
 
     // Load backend libraries.
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
@@ -145,24 +140,5 @@ object VeloxListenerApi {
 
   private def inLocalMode(conf: SparkConf): Boolean = {
     SparkResourceUtil.isLocalMaster(conf)
-  }
-
-  private def loadLibFromJar(load: JniLibLoader, conf: SparkConf): Unit = {
-    val loader = SharedLibraryLoader.find(conf)
-    loader.loadLib(load)
-  }
-
-  private def loadLibWithLinux(conf: SparkConf, loader: JniLibLoader): Unit = {
-    if (
-      conf.getBoolean(
-        GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR,
-        GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT)
-    ) {
-      loadLibFromJar(loader, conf)
-    }
-  }
-
-  private def loadLibWithMacOS(loader: JniLibLoader): Unit = {
-    // Placeholder for loading shared libs on MacOS if user needs.
   }
 }

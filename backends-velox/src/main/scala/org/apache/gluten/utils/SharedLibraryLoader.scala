@@ -29,7 +29,31 @@ trait SharedLibraryLoader {
 }
 
 object SharedLibraryLoader {
-  def find(conf: SparkConf): SharedLibraryLoader = {
+  def load(conf: SparkConf, jni: JniLibLoader): Unit = {
+    val shouldLoad = conf.getBoolean(
+      GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR,
+      GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT)
+    if (!shouldLoad) {
+      return
+    }
+    val osName = System.getProperty("os.name")
+    if (osName.startsWith("Mac OS X") || osName.startsWith("macOS")) {
+      loadLibWithMacOS(jni)
+    } else {
+      loadLibWithLinux(conf, jni)
+    }
+  }
+
+  private def loadLibWithLinux(conf: SparkConf, jni: JniLibLoader): Unit = {
+    val loader = find(conf)
+    loader.loadLib(jni)
+  }
+
+  private def loadLibWithMacOS(jni: JniLibLoader): Unit = {
+    // Placeholder for loading shared libs on MacOS if user needs.
+  }
+
+  private def find(conf: SparkConf): SharedLibraryLoader = {
     val systemName = conf.getOption(GlutenConfig.GLUTEN_LOAD_LIB_OS)
     val loader = if (systemName.isDefined) {
       val systemVersion = conf.getOption(GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION)
