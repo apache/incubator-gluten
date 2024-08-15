@@ -588,8 +588,10 @@ TEST_F(VeloxHashShuffleWriterMemoryTest, kSplitSingle) {
 TEST_F(VeloxHashShuffleWriterMemoryTest, kStop) {
   for (const auto partitioning : {Partitioning::kSingle, Partitioning::kRoundRobin}) {
     ASSERT_NOT_OK(initShuffleWriterOptions());
-    shuffleWriterOptions_.partitioning = partitioning;
-    shuffleWriterOptions_.bufferSize = 4;
+    shuffleWriterOptions_.bufferSize = 4096;
+    // Force compression.
+    partitionWriterOptions_.compressionThreshold = 0;
+    partitionWriterOptions_.mergeThreshold = 0;
     auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get(), false);
     auto shuffleWriter = createShuffleWriter(&pool);
 
@@ -597,19 +599,23 @@ TEST_F(VeloxHashShuffleWriterMemoryTest, kStop) {
 
     for (int i = 0; i < 10; ++i) {
       ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
-      ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector2_));
-      ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
     }
+    // Reclaim bytes to shrink partition buffer.
+    int64_t reclaimed = 0;
+    ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(2000, &reclaimed));
+    ASSERT(reclaimed >= 2000);
 
     // Trigger spill during stop.
-    // For single partitioning, spill is triggered by allocating buffered output stream.
     ASSERT_TRUE(pool.checkEvict(pool.bytes_allocated(), [&] { ASSERT_NOT_OK(shuffleWriter->stop()); }));
   }
 }
 
 TEST_F(VeloxHashShuffleWriterMemoryTest, kStopComplex) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
-  shuffleWriterOptions_.bufferSize = 4;
+  shuffleWriterOptions_.bufferSize = 4096;
+  // Force compression.
+  partitionWriterOptions_.compressionThreshold = 0;
+  partitionWriterOptions_.mergeThreshold = 0;
   auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get(), false);
   auto shuffleWriter = createShuffleWriter(&pool);
 
@@ -617,6 +623,10 @@ TEST_F(VeloxHashShuffleWriterMemoryTest, kStopComplex) {
   for (int i = 0; i < 3; ++i) {
     ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVectorComplex_));
   }
+  // Reclaim bytes to shrink partition buffer.
+  int64_t reclaimed = 0;
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(2000, &reclaimed));
+  ASSERT(reclaimed >= 2000);
 
   // Reclaim from PartitionWriter to free cached bytes.
   auto payloadSize = shuffleWriter->cachedPayloadSize();

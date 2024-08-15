@@ -106,8 +106,11 @@ arrow::Status VeloxSortShuffleWriter::init() {
       options_.partitioning == Partitioning::kSingle,
       arrow::Status::Invalid("VeloxSortShuffleWriter doesn't support single partition."));
   allocateMinimalArray();
-  sortedBuffer_ = facebook::velox::AlignedBuffer::allocate<char>(kSortedBufferSize, veloxPool_.get());
-  rawBuffer_ = sortedBuffer_->asMutable<uint8_t>();
+  ARROW_ASSIGN_OR_RAISE(sortedBuffer_, arrow::AllocateBuffer(kSortedBufferSize, pool_));
+  rawBuffer_ = sortedBuffer_->mutable_data();
+  ARROW_ASSIGN_OR_RAISE(
+      compressedBuffer_,
+      partitionWriter_->getCompressedBuffer({std::make_shared<arrow::Buffer>(rawBuffer_, kSortedBufferSize)}, pool_));
   return arrow::Status::OK();
 }
 
@@ -303,8 +306,7 @@ arrow::Status VeloxSortShuffleWriter::evictPartition0(uint32_t partitionId, uint
       nullptr,
       std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(rawBuffer_, rawLength)});
   updateSpillMetrics(payload);
-  RETURN_NOT_OK(
-      partitionWriter_->evict(partitionId, std::move(payload), Evict::type::kSortSpill, false, false, stopped_));
+  RETURN_NOT_OK(partitionWriter_->sortEvict(partitionId, std::move(payload), compressedBuffer_, stopped_));
   return arrow::Status::OK();
 }
 

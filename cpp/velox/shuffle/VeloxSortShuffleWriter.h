@@ -107,8 +107,9 @@ class VeloxSortShuffleWriter final : public VeloxShuffleWriter {
   // For debug.
   uint32_t currenPageSize_;
 
-  facebook::velox::BufferPtr sortedBuffer_;
+  std::unique_ptr<arrow::Buffer> sortedBuffer_;
   uint8_t* rawBuffer_;
+  std::shared_ptr<arrow::Buffer> compressedBuffer_;
 
   // Row ID -> Partition ID
   // subscript: The index of row in the current input RowVector

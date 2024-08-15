@@ -35,12 +35,17 @@ class LocalPartitionWriter : public PartitionWriter {
       const std::string& dataFile,
       const std::vector<std::string>& localDirs);
 
-  arrow::Status evict(
+  arrow::Status hashEvict(
       uint32_t partitionId,
       std::unique_ptr<InMemoryPayload> inMemoryPayload,
       Evict::type evictType,
       bool reuseBuffers,
-      bool hasComplexType,
+      bool hasComplexType) override;
+
+  arrow::Status sortEvict(
+      uint32_t partitionId,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      std::shared_ptr<arrow::Buffer> compressed,
       bool isFinal) override;
 
   arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) override;
@@ -87,7 +92,7 @@ class LocalPartitionWriter : public PartitionWriter {
 
   std::string nextSpilledFileDir();
 
-  arrow::Status openDataFile();
+  arrow::Result<std::shared_ptr<arrow::io::OutputStream>> openFile(const std::string& file);
 
   arrow::Status mergeSpills(uint32_t partitionId);
 

@@ -385,17 +385,15 @@ std::string LocalPartitionWriter::nextSpilledFileDir() {
   return spilledFileDir;
 }
 
-arrow::Status LocalPartitionWriter::openDataFile() {
-  // open data file output stream
+arrow::Result<std::shared_ptr<arrow::io::OutputStream>> LocalPartitionWriter::openFile(const std::string& file) {
   std::shared_ptr<arrow::io::FileOutputStream> fout;
-  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(dataFile_));
+  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(file));
   if (options_.bufferedWrite) {
-    // Output stream buffer is neither partition buffer memory nor ipc memory.
-    ARROW_ASSIGN_OR_RAISE(dataFileOs_, arrow::io::BufferedOutputStream::Create(16384, pool_, fout));
-  } else {
-    dataFileOs_ = fout;
+    // The 16k bytes is a temporary allocation and will be freed with file close.
+    // Use default memory pool and count treat the memory as executor memory overhead to avoid unnecessary spill.
+    return arrow::io::BufferedOutputStream::Create(16384, arrow::default_memory_pool(), fout);
   }
-  return arrow::Status::OK();
+  return fout;
 }
 
 arrow::Status LocalPartitionWriter::clearResource() {
@@ -467,9 +465,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
     compressTime_ += spill->compressTime();
   } else {
     RETURN_NOT_OK(finishSpill(true));
-    // Open final data file.
-    // If options_.bufferedWrite is set, it will acquire 16KB memory that can trigger spill.
-    RETURN_NOT_OK(openDataFile());
+    ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_));
 
     int64_t endInFinalFile = 0;
     DLOG(INFO) << "LocalPartitionWriter stopped. Total spills: " << spills_.size();
@@ -523,14 +519,13 @@ arrow::Status LocalPartitionWriter::requestSpill(bool isFinal) {
     std::string spillFile;
     std::shared_ptr<arrow::io::OutputStream> os;
     if (isFinal) {
-      RETURN_NOT_OK(openDataFile());
+      ARROW_ASSIGN_OR_RAISE(dataFileOs_, openFile(dataFile_));
       spillFile = dataFile_;
       os = dataFileOs_;
       useSpillFileAsDataFile_ = true;
     } else {
       ARROW_ASSIGN_OR_RAISE(spillFile, createTempShuffleFile(nextSpilledFileDir()));
-      ARROW_ASSIGN_OR_RAISE(auto raw, arrow::io::FileOutputStream::Open(spillFile, true));
-      ARROW_ASSIGN_OR_RAISE(os, arrow::io::BufferedOutputStream::Create(16384, pool_, raw));
+      ARROW_ASSIGN_OR_RAISE(os, openFile(spillFile));
     }
     spiller_ = std::make_unique<LocalSpiller>(
         os, std::move(spillFile), options_.compressionThreshold, payloadPool_.get(), codec_.get());
@@ -548,41 +543,13 @@ arrow::Status LocalPartitionWriter::finishSpill(bool close) {
   return arrow::Status::OK();
 }
 
-arrow::Status LocalPartitionWriter::evict(
+arrow::Status LocalPartitionWriter::hashEvict(
     uint32_t partitionId,
     std::unique_ptr<InMemoryPayload> inMemoryPayload,
     Evict::type evictType,
     bool reuseBuffers,
-    bool hasComplexType,
-    bool isFinal) {
+    bool hasComplexType) {
   rawPartitionLengths_[partitionId] += inMemoryPayload->rawSize();
-
-  if (evictType == Evict::kSortSpill) {
-    if (lastEvictPid_ != -1 && (partitionId < lastEvictPid_ || (isFinal && !dataFileOs_))) {
-      lastEvictPid_ = -1;
-      RETURN_NOT_OK(finishSpill(true));
-    }
-    RETURN_NOT_OK(requestSpill(isFinal));
-
-    auto payloadType = codec_ ? Payload::Type::kCompressed : Payload::Type::kUncompressed;
-    ARROW_ASSIGN_OR_RAISE(
-        auto payload,
-        inMemoryPayload->toBlockPayload(payloadType, payloadPool_.get(), codec_ ? codec_.get() : nullptr));
-    if (!isFinal) {
-      RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
-    } else {
-      if (spills_.size() > 0) {
-        for (auto pid = lastEvictPid_ + 1; pid <= partitionId; ++pid) {
-          auto bytesEvicted = totalBytesEvicted_;
-          RETURN_NOT_OK(mergeSpills(pid));
-          partitionLengths_[pid] = totalBytesEvicted_ - bytesEvicted;
-        }
-      }
-      RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
-    }
-    lastEvictPid_ = partitionId;
-    return arrow::Status::OK();
-  }
 
   if (evictType == Evict::kSpill) {
     RETURN_NOT_OK(requestSpill(false));
@@ -606,6 +573,38 @@ arrow::Status LocalPartitionWriter::evict(
     }
     merged.clear();
   }
+  return arrow::Status::OK();
+}
+
+arrow::Status LocalPartitionWriter::sortEvict(
+    uint32_t partitionId,
+    std::unique_ptr<InMemoryPayload> inMemoryPayload,
+    std::shared_ptr<arrow::Buffer> compressed,
+    bool isFinal) {
+  if (lastEvictPid_ != -1 && (partitionId < lastEvictPid_ || (isFinal && !dataFileOs_))) {
+    lastEvictPid_ = -1;
+    RETURN_NOT_OK(finishSpill(true));
+  }
+  RETURN_NOT_OK(requestSpill(isFinal));
+
+  auto payloadType = codec_ ? Payload::Type::kCompressed : Payload::Type::kUncompressed;
+  ARROW_ASSIGN_OR_RAISE(
+      auto payload,
+      inMemoryPayload->toBlockPayload(
+          payloadType, payloadPool_.get(), codec_ ? codec_.get() : nullptr, std::move(compressed)));
+  if (!isFinal) {
+    RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
+  } else {
+    if (spills_.size() > 0) {
+      for (auto pid = lastEvictPid_ + 1; pid <= partitionId; ++pid) {
+        auto bytesEvicted = totalBytesEvicted_;
+        RETURN_NOT_OK(mergeSpills(pid));
+        partitionLengths_[pid] = totalBytesEvicted_ - bytesEvicted;
+      }
+    }
+    RETURN_NOT_OK(spiller_->spill(partitionId, std::move(payload)));
+  }
+  lastEvictPid_ = partitionId;
   return arrow::Status::OK();
 }
 
@@ -644,8 +643,7 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
   if (payloadCache_ && payloadCache_->canSpill()) {
     auto beforeSpill = payloadPool_->bytes_allocated();
     ARROW_ASSIGN_OR_RAISE(auto spillFile, createTempShuffleFile(nextSpilledFileDir()));
-    ARROW_ASSIGN_OR_RAISE(auto raw, arrow::io::FileOutputStream::Open(spillFile, true));
-    ARROW_ASSIGN_OR_RAISE(auto os, arrow::io::BufferedOutputStream::Create(16384, pool_, raw));
+    ARROW_ASSIGN_OR_RAISE(auto os, openFile(spillFile));
     spills_.emplace_back();
     ARROW_ASSIGN_OR_RAISE(
         spills_.back(),

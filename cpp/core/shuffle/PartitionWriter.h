@@ -26,7 +26,7 @@
 namespace gluten {
 
 struct Evict {
-  enum type { kCache, kSpill, kSortSpill };
+  enum type { kCache, kSpill };
 };
 
 class PartitionWriter : public Reclaimable {
@@ -42,13 +42,28 @@ class PartitionWriter : public Reclaimable {
   virtual arrow::Status stop(ShuffleWriterMetrics* metrics) = 0;
 
   /// Evict buffers for `partitionId` partition.
-  virtual arrow::Status evict(
+  virtual arrow::Status hashEvict(
       uint32_t partitionId,
       std::unique_ptr<InMemoryPayload> inMemoryPayload,
       Evict::type evictType,
       bool reuseBuffers,
-      bool hasComplexType,
+      bool hasComplexType) = 0;
+
+  virtual arrow::Status sortEvict(
+      uint32_t partitionId,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      std::shared_ptr<arrow::Buffer> compressed,
       bool isFinal) = 0;
+
+  arrow::Result<std::shared_ptr<arrow::Buffer>> getCompressedBuffer(
+      const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+      arrow::MemoryPool* pool) {
+    if (!codec_) {
+      return nullptr;
+    }
+    auto compressedLength = BlockPayload::maxCompressedLength(buffers, codec_.get());
+    return arrow::AllocateBuffer(compressedLength, pool);
+  }
 
   virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) = 0;
 

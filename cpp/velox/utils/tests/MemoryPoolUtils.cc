@@ -128,6 +128,7 @@ int64_t SelfEvictedMemoryPool::num_allocations() const {
 
 arrow::Status SelfEvictedMemoryPool::ensureCapacity(int64_t size) {
   VELOX_CHECK_NOT_NULL(evictable_);
+  DLOG(INFO) << "Size: " << size << ", capacity_: " << capacity_ << ", bytes allocated: " << pool_->bytes_allocated();
   if (size > capacity_ - pool_->bytes_allocated()) {
     // Self evict.
     int64_t actual;
