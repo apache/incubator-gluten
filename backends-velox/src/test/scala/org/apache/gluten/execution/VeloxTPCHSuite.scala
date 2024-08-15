@@ -255,7 +255,7 @@ class VeloxTPCHDistinctSpillSuite extends VeloxTPCHTableSupport {
     super.sparkConf
       .set("spark.memory.offHeap.size", "50m")
       .set("spark.gluten.memory.overAcquiredMemoryRatio", "0.9") // to trigger distinct spill early
-      .set(GlutenConfig.GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY, "8k")
+      .set(GlutenConfig.GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key, "8k")
   }
 
   test("distinct spill") {
