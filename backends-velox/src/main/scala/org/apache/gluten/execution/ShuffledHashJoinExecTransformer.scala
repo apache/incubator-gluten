@@ -69,7 +69,7 @@ case class ShuffledHashJoinExecTransformer(
         JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
       }
     case LeftAnti =>
-      JoinRel.JoinType.JOIN_TYPE_ANTI
+      JoinRel.JoinType.JOIN_TYPE_LEFT_ANTI
     case _ =>
       JoinRel.JoinType.UNRECOGNIZED
   }
@@ -112,7 +112,7 @@ case class BroadcastHashJoinExecTransformer(
     case LeftSemi | ExistenceJoin(_) =>
       JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
     case LeftAnti =>
-      JoinRel.JoinType.JOIN_TYPE_ANTI
+      JoinRel.JoinType.JOIN_TYPE_LEFT_ANTI
     case _ =>
       // TODO: Support cross join with Cross Rel
       JoinRel.JoinType.UNRECOGNIZED
