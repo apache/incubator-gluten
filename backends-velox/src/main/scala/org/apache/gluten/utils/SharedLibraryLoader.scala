@@ -16,8 +16,88 @@
  */
 package org.apache.gluten.utils
 
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.vectorized.JniLibLoader
+
+import org.apache.spark.SparkConf
+
+import scala.sys.process._
 
 trait SharedLibraryLoader {
   def loadLib(loader: JniLibLoader): Unit
+}
+
+object SharedLibraryLoader {
+  def find(conf: SparkConf): SharedLibraryLoader = {
+    val systemName = conf.getOption(GlutenConfig.GLUTEN_LOAD_LIB_OS)
+    val loader = if (systemName.isDefined) {
+      val systemVersion = conf.getOption(GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION)
+      if (systemVersion.isEmpty) {
+        throw new GlutenException(
+          s"${GlutenConfig.GLUTEN_LOAD_LIB_OS_VERSION} must be specified when specifies the " +
+            s"${GlutenConfig.GLUTEN_LOAD_LIB_OS}")
+      }
+      getForOS(systemName.get, systemVersion.get, "")
+    } else {
+      val system = "cat /etc/os-release".!!
+      val systemNamePattern = "^NAME=\"?(.*)\"?".r
+      val systemVersionPattern = "^VERSION=\"?(.*)\"?".r
+      val systemInfoLines = system.stripMargin.split("\n")
+      val systemNamePattern(systemName) =
+        systemInfoLines.find(_.startsWith("NAME=")).getOrElse("")
+      val systemVersionPattern(systemVersion) =
+        systemInfoLines.find(_.startsWith("VERSION=")).getOrElse("")
+      if (systemName.isEmpty || systemVersion.isEmpty) {
+        throw new GlutenException("Failed to get OS name and version info.")
+      }
+      getForOS(systemName, systemVersion, system)
+    }
+    loader
+  }
+
+  private def getForOS(
+      systemName: String,
+      systemVersion: String,
+      system: String): SharedLibraryLoader = {
+    if (systemName.contains("Ubuntu") && systemVersion.startsWith("20.04")) {
+      new SharedLibraryLoaderUbuntu2004
+    } else if (systemName.contains("Ubuntu") && systemVersion.startsWith("22.04")) {
+      new SharedLibraryLoaderUbuntu2204
+    } else if (systemName.contains("CentOS") && systemVersion.startsWith("9")) {
+      new SharedLibraryLoaderCentos9
+    } else if (systemName.contains("CentOS") && systemVersion.startsWith("8")) {
+      new SharedLibraryLoaderCentos8
+    } else if (systemName.contains("CentOS") && systemVersion.startsWith("7")) {
+      new SharedLibraryLoaderCentos7
+    } else if (systemName.contains("Alibaba Cloud Linux") && systemVersion.startsWith("3")) {
+      new SharedLibraryLoaderCentos8
+    } else if (systemName.contains("Alibaba Cloud Linux") && systemVersion.startsWith("2")) {
+      new SharedLibraryLoaderCentos7
+    } else if (systemName.contains("Anolis") && systemVersion.startsWith("8")) {
+      new SharedLibraryLoaderCentos8
+    } else if (systemName.contains("Anolis") && systemVersion.startsWith("7")) {
+      new SharedLibraryLoaderCentos7
+    } else if (system.contains("tencentos") && system.contains("2.4")) {
+      new SharedLibraryLoaderCentos7
+    } else if (system.contains("tencentos") && system.contains("3.2")) {
+      new SharedLibraryLoaderCentos8
+    } else if (systemName.contains("Red Hat") && systemVersion.startsWith("9")) {
+      new SharedLibraryLoaderCentos9
+    } else if (systemName.contains("Red Hat") && systemVersion.startsWith("8")) {
+      new SharedLibraryLoaderCentos8
+    } else if (systemName.contains("Red Hat") && systemVersion.startsWith("7")) {
+      new SharedLibraryLoaderCentos7
+    } else if (systemName.contains("Debian") && systemVersion.startsWith("11")) {
+      new SharedLibraryLoaderDebian11
+    } else if (systemName.contains("Debian") && systemVersion.startsWith("12")) {
+      new SharedLibraryLoaderDebian12
+    } else {
+      throw new GlutenException(
+        s"Found unsupported OS($systemName, $systemVersion)! Currently, Gluten's Velox backend" +
+          " only supports Ubuntu 20.04/22.04, CentOS 7/8, " +
+          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 2.4/3.2, RedHat 7/8, " +
+          "Debian 11/12.")
+    }
+  }
 }
