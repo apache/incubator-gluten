@@ -39,11 +39,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 class VeloxListenerApi extends ListenerApi with Logging {
   import VeloxListenerApi._
 
-  // TODO: Implement graceful shutdown and remove these flags.
-  //  As spark conf may change when active Spark session is recreated.
-  private val driverInitialized: AtomicBoolean = new AtomicBoolean(false)
-  private val executorInitialized: AtomicBoolean = new AtomicBoolean(false)
-
   override def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {
     if (!driverInitialized.compareAndSet(false, true)) {
       // Make sure we call the static initializers only once.
@@ -146,6 +141,11 @@ object VeloxListenerApi {
   // See org.apache.spark.SparkMasterRegex
   private val LOCAL_N_REGEX = """local\[([0-9]+|\*)\]""".r
   private val LOCAL_N_FAILURES_REGEX = """local\[([0-9]+|\*)\s*,\s*([0-9]+)\]""".r
+
+  // TODO: Implement graceful shutdown and remove these flags.
+  //  As spark conf may change when active Spark session is recreated.
+  private val driverInitialized: AtomicBoolean = new AtomicBoolean(false)
+  private val executorInitialized: AtomicBoolean = new AtomicBoolean(false)
 
   private def inLocalMode(conf: SparkConf): Boolean = {
     val master = conf.get("spark.master")
