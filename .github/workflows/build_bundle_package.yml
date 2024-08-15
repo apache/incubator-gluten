@@ -52,7 +52,6 @@ jobs:
           source /opt/rh/devtoolset-9/enable && \
           source /opt/gluten//dev/vcpkg/env.sh && \
           cd $GITHUB_WORKSPACE/ && \
-          sed -i '/^headers/d' ep/build-velox/build/velox_ep/CMakeLists.txt && \
           export NUM_THREADS=4
           ./dev/builddeps-veloxbe.sh --build_tests=OFF  --build_benchmarks=OFF --enable_s3=OFF \
           --enable_gcs=OFF --enable_hdfs=ON --enable_abfs=OFF
