@@ -26,6 +26,7 @@ import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.adaptive._
@@ -135,24 +136,35 @@ case class CHShuffledHashJoinExecTransformer(
       .append("isExistenceJoin=")
       .append(if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0)
       .append("\n")
-      .append("leftRowCount=")
-      .append(leftStats.rowCount.getOrElse(-1))
-      .append("\n")
-      .append("leftNumPartitions=")
-      .append(leftStats.numPartitions)
-      .append("\n")
-      .append("leftNumMappers=")
-      .append(leftStats.numMappers)
-      .append("\n")
-      .append("rightRowCount=")
-      .append(rightStats.rowCount.getOrElse(-1))
-      .append("\n")
-      .append("rightNumPartitions=")
-      .append(rightStats.numPartitions)
-      .append("\n")
-      .append("rightNumMappers=")
-      .append(rightStats.numMappers)
-      .append("\n")
+    logicalLink match {
+      case Some(join: Join) =>
+        val leftRowCount =
+          if (needSwitchChildren) join.left.stats.rowCount else join.right.stats.rowCount
+        val rightRowCount =
+          if (needSwitchChildren) join.right.stats.rowCount else join.left.stats.rowCount
+        val leftSizeInBytes =
+          if (needSwitchChildren) join.left.stats.sizeInBytes else join.right.stats.sizeInBytes
+        val rightSizeInBytes =
+          if (needSwitchChildren) join.right.stats.sizeInBytes else join.left.stats.sizeInBytes
+        val numPartitions = outputPartitioning.numPartitions
+        joinParametersStr
+          .append("leftRowCount=")
+          .append(leftRowCount.getOrElse(-1))
+          .append("\n")
+          .append("leftSizeInBytes=")
+          .append(leftSizeInBytes)
+          .append("\n")
+          .append("rightRowCount=")
+          .append(rightRowCount.getOrElse(-1))
+          .append("\n")
+          .append("rightSizeInBytes=")
+          .append(rightSizeInBytes)
+          .append("\n")
+          .append("numPartitions=")
+          .append(numPartitions)
+          .append("\n")
+      case _ =>
+    }
     val message = StringValue
       .newBuilder()
       .setValue(joinParametersStr.toString)

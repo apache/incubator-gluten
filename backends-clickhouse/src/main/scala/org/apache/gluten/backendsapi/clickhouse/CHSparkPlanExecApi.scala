@@ -309,8 +309,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       condition: Option[Expression],
       left: SparkPlan,
       right: SparkPlan,
-      isSkewJoin: Boolean): ShuffledHashJoinExecTransformerBase =
-    CHShuffledHashJoinExecTransformer(
+      isSkewJoin: Boolean,
+      logicalLink: Option[LogicalPlan]): ShuffledHashJoinExecTransformerBase = {
+    val res = CHShuffledHashJoinExecTransformer(
       leftKeys,
       rightKeys,
       joinType,
@@ -319,6 +320,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left,
       right,
       isSkewJoin)
+    res.setLogicalLink(logicalLink.getOrElse(null))
+    res
+  }
 
   /** Generate BroadcastHashJoinExecTransformer. */
   def genBroadcastHashJoinExecTransformer(

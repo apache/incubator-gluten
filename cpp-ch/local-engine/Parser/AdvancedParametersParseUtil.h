@@ -30,11 +30,10 @@ struct JoinOptimizationInfo
     bool is_null_aware_anti_join = false;
     bool is_existence_join = false;
     Int64 left_table_rows = -1;
-    Int64 left_table_partitions_num = -1;
-    Int64 left_table_mappers_num = -1;
+    Int64 left_table_bytes = -1;
     Int64 right_table_rows = -1;
-    Int64 right_table_partitions_num = -1;
-    Int64 right_table_mappers_num = -1;
+    Int64 right_table_bytes = -1;
+    Int64 partitions_num = -1;
     String storage_join_key;
 
     static JoinOptimizationInfo parse(const String & advance);

@@ -114,7 +114,8 @@ trait SparkPlanExecApi {
       condition: Option[Expression],
       left: SparkPlan,
       right: SparkPlan,
-      isSkewJoin: Boolean): ShuffledHashJoinExecTransformerBase
+      isSkewJoin: Boolean,
+      logicalLink: Option[LogicalPlan]): ShuffledHashJoinExecTransformerBase
 
   /** Generate BroadcastHashJoinExecTransformer. */
   def genBroadcastHashJoinExecTransformer(

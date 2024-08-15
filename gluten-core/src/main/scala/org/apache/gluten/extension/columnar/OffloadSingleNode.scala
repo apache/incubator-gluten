@@ -142,7 +142,8 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
             plan.condition,
             left,
             right,
-            plan.isSkewJoin)
+            plan.isSkewJoin,
+            plan.logicalLink)
       case plan: SortMergeJoinExec =>
         val left = plan.left
         val right = plan.right

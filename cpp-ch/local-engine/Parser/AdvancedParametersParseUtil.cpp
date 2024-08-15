@@ -132,11 +132,10 @@ JoinOptimizationInfo JoinOptimizationInfo::parse(const String & advance)
     tryAssign(kvs, "isNullAwareAntiJoin", info.is_null_aware_anti_join);
     tryAssign(kvs, "isExistenceJoin", info.is_existence_join);
     tryAssign(kvs, "leftRowCount", info.left_table_rows);
-    tryAssign(kvs, "leftNumPartitions", info.left_table_partitions_num);
-    tryAssign(kvs, "leftNumMappers", info.left_table_mappers_num);
+    tryAssign(kvs, "leftSizeInBytes", info.left_table_bytes);
     tryAssign(kvs, "rightRowCount", info.right_table_rows);
-    tryAssign(kvs, "rightNumPartitions", info.right_table_partitions_num);
-    tryAssign(kvs, "rightNumMappers", info.right_table_mappers_num);
+    tryAssign(kvs, "rightSizeInBytes", info.right_table_bytes);
+    tryAssign(kvs, "numPartitions", info.partitions_num);
     return info;
 }
 }

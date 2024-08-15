@@ -316,10 +316,10 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
             table_join->addDisjunct();
         bool is_multi_join_on_clauses
             = isJoinWithMultiJoinOnClauses(table_join->getOnlyClause(), join_on_clauses, join, left_header, right_header);
-        if (is_multi_join_on_clauses && join_config.prefer_inequal_join_to_multi_join_on_clauses && join_opt_info.right_table_rows > 0
-            && join_opt_info.right_table_mappers_num > 0
-            && join_opt_info.right_table_rows / join_opt_info.right_table_mappers_num
-                < join_config.inequal_join_to_multi_join_on_clauses_rows_limit)
+        if (is_multi_join_on_clauses && join_config.prefer_multi_join_on_clauses && join_opt_info.right_table_rows > 0
+            && join_opt_info.partitions_num > 0
+            && join_opt_info.right_table_rows / join_opt_info.partitions_num
+                < join_config.multi_join_on_clauses_build_side_rows_limit)
         {
             query_plan = buildMultiOnClauseHashJoin(table_join, std::move(left), std::move(right), join_on_clauses);
         }
