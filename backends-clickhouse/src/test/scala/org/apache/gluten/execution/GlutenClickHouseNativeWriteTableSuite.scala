@@ -935,7 +935,7 @@ class GlutenClickHouseNativeWriteTableSuite
             """.stripMargin
         val insert_sql =
           s"""INSERT overwrite $table_name VALUES
-             |  (6, null, null, null);
+             |  (id, null, null, null) from range(10);
             """.stripMargin
         val select_sql = s"select * from $table_name"
         val drop_sql = s"drop table $table_name"
