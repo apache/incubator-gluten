@@ -20,7 +20,6 @@
 #include <Functions/FunctionFactory.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypesNumber.h>
-#include <iostream>
 
 using namespace DB;
 
@@ -136,6 +135,9 @@ public:
                     executeCompare(array_col_1->getData(), array_null_col_2->getNestedColumn());
                 }
             }
+            else
+                throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The arguments data type is not match.");
+
             if (!res_data[i] && has_null_equals)
                 null_map_data[i] = 1;
             current_offset_1 = array_offsets_1[i];
