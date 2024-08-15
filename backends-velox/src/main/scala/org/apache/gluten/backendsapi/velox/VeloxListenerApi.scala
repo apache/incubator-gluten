@@ -73,14 +73,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
       val debugDir = conf.get(GlutenConfig.GLUTEN_DEBUG_KEEP_JNI_WORKSPACE_DIR)
       JniWorkspace.enableDebug(debugDir)
     }
-    val loader = JniWorkspace.getDefault.libLoader
-
-    val osName = System.getProperty("os.name")
-    if (osName.startsWith("Mac OS X") || osName.startsWith("macOS")) {
-      loadLibWithMacOS(loader)
-    } else {
-      loadLibWithLinux(conf, loader)
-    }
 
     // Set the system properties.
     // Use appending policy for children with the same name in a arrow struct vector.
@@ -89,6 +81,18 @@ class VeloxListenerApi extends ListenerApi with Logging {
     // Load supported hive/python/scala udfs
     UDFMappings.loadFromSparkConf(conf)
 
+    // Initial library loader.
+    val loader = JniWorkspace.getDefault.libLoader
+
+    // Load shared native libraries the backend libraries depend on.
+    val osName = System.getProperty("os.name")
+    if (osName.startsWith("Mac OS X") || osName.startsWith("macOS")) {
+      loadLibWithMacOS(loader)
+    } else {
+      loadLibWithLinux(conf, loader)
+    }
+
+    // Load backend libraries.
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
       JniLibLoader.loadFromPath(libPath, false)
@@ -98,11 +102,11 @@ class VeloxListenerApi extends ListenerApi with Logging {
       loader.mapAndLoad(VeloxBackend.BACKEND_NAME, false)
     }
 
+    // Initial native backend with configurations.
     val parsed = GlutenConfigUtil.parseConfig(conf.getAll.toMap)
     NativeBackendInitializer.initializeBackend(parsed)
 
-    // inject backend-specific implementations to override spark classes
-    // FIXME: The following set instances twice in local mode?
+    // Inject backend-specific implementations to override spark classes.
     GlutenParquetWriterInjects.setInstance(new VeloxParquetWriterInjects())
     GlutenOrcWriterInjects.setInstance(new VeloxOrcWriterInjects())
     GlutenRowSplitter.setInstance(new VeloxRowSplitter())
