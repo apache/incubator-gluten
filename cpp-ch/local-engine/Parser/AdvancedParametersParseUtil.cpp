@@ -63,7 +63,14 @@ void tryAssign<Int64>(const std::unordered_map<String, String> & kvs, const Stri
     auto it = kvs.find(key);
     if (it != kvs.end())
     {
-        v = std::stol(it->second);
+        try
+        {
+            v = std::stol(it->second);
+        }
+        catch (...)
+        {
+            LOG_ERROR(getLogger("tryAssign"), "Invalid number: {}", it->second);
+        }
     }
 }
 

@@ -209,7 +209,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
     google::protobuf::StringValue optimization_info;
     optimization_info.ParseFromString(join.advanced_extension().optimization().value());
     auto join_opt_info = JoinOptimizationInfo::parse(optimization_info.value());
-    LOG_ERROR(getLogger("JoinRelParser"), "{}", optimization_info.value());
+    LOG_ERROR(getLogger("JoinRelParser"), "optimizaiton info:{}", optimization_info.value());
     auto storage_join = join_opt_info.is_broadcast ? BroadCastJoinBuilder::getJoin(join_opt_info.storage_join_key) : nullptr;
     if (storage_join)
     {
@@ -315,7 +315,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         if (table_join->getClauses().empty())
             table_join->addDisjunct();
         bool is_multi_join_on_clauses
-            = isJoinWithMultiJoinOnClauses(table_join->getOnlyClause(), join_on_clauses, join, left_header, right_header);
+            = couldRewriteToMultiJoinOnClauses(table_join->getOnlyClause(), join_on_clauses, join, left_header, right_header);
         if (is_multi_join_on_clauses && join_config.prefer_multi_join_on_clauses && join_opt_info.right_table_rows > 0
             && join_opt_info.partitions_num > 0
             && join_opt_info.right_table_rows / join_opt_info.partitions_num
@@ -611,14 +611,14 @@ void JoinRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::J
 }
 
 /// Only support following pattern: a1 = b1 or a2 = b2 or (a3 = b3 and a4 = b4)
-bool JoinRelParser::isJoinWithMultiJoinOnClauses(
+bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
     const DB::TableJoin::JoinOnClause & prefix_clause,
     std::vector<DB::TableJoin::JoinOnClause> & clauses,
     const substrait::JoinRel & join_rel,
     const DB::Block & left_header,
     const DB::Block & right_header)
 {
-    /// There is only on join clause
+    /// There is only one join clause
     if (!join_rel.has_post_join_filter())
         return false;
 

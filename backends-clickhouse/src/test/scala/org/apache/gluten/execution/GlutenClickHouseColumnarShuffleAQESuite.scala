@@ -265,10 +265,8 @@ class GlutenClickHouseColumnarShuffleAQESuite
 
   test("GLUTEN-6768 change mixed join condition into multi join on clauses") {
     withSQLConf(
-      (backendConfigPrefix + "runtime_config.prefer_inequal_join_to_multi_join_on_clauses", "true"),
-      (
-        backendConfigPrefix + "runtime_config.inequal_join_to_multi_join_on_clauses_row_limit",
-        "1000000")
+      (backendConfigPrefix + "runtime_config.prefer_multi_join_on_clauses", "true"),
+      (backendConfigPrefix + "runtime_config.multi_join_on_clauses_build_side_row_limit", "1000000")
     ) {
 
       spark.sql("create table t1(a int, b int, c int, d int) using parquet")

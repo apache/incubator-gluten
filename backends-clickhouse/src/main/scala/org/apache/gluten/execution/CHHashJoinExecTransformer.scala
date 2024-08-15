@@ -27,9 +27,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
-import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -115,9 +113,6 @@ case class CHShuffledHashJoinExecTransformer(
   override def genJoinParameters(): Any = {
     val (isBHJ, isNullAwareAntiJoin, buildHashTableId): (Int, Int, String) = (0, 0, "")
 
-    // Don't use lef/right directly, they may be reordered in `HashJoinLikeExecTransformer`
-    val leftStats = getShuffleStageStatistics(streamedPlan)
-    val rightStats = getShuffleStageStatistics(buildPlan)
     // Start with "JoinParameters:"
     val joinParametersStr = new StringBuffer("JoinParameters:")
     // isBHJ: 0 for SHJ, 1 for BHJ
@@ -138,14 +133,12 @@ case class CHShuffledHashJoinExecTransformer(
       .append("\n")
     logicalLink match {
       case Some(join: Join) =>
-        val leftRowCount =
-          if (needSwitchChildren) join.left.stats.rowCount else join.right.stats.rowCount
-        val rightRowCount =
-          if (needSwitchChildren) join.right.stats.rowCount else join.left.stats.rowCount
-        val leftSizeInBytes =
-          if (needSwitchChildren) join.left.stats.sizeInBytes else join.right.stats.sizeInBytes
-        val rightSizeInBytes =
-          if (needSwitchChildren) join.right.stats.sizeInBytes else join.left.stats.sizeInBytes
+        val left = if (!needSwitchChildren) join.left else join.right
+        val right = if (!needSwitchChildren) join.right else join.left
+        val leftRowCount = left.stats.rowCount
+        val rightRowCount = right.stats.rowCount
+        val leftSizeInBytes = left.stats.sizeInBytes
+        val rightSizeInBytes = right.stats.sizeInBytes
         val numPartitions = outputPartitioning.numPartitions
         joinParametersStr
           .append("leftRowCount=")
@@ -170,26 +163,6 @@ case class CHShuffledHashJoinExecTransformer(
       .setValue(joinParametersStr.toString)
       .build()
     BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
-  }
-
-  private def getShuffleStageStatistics(plan: SparkPlan): ShuffleStageStaticstics = {
-    plan match {
-      case queryStage: ShuffleQueryStageExec =>
-        ShuffleStageStaticstics(
-          queryStage.shuffle.numPartitions,
-          queryStage.shuffle.numMappers,
-          queryStage.getRuntimeStatistics.rowCount)
-      case shuffle: ColumnarShuffleExchangeExec =>
-        // FIXEME: We cannot access shuffle.numPartitions and shuffle.numMappers here.
-        // Otherwise it will cause an exception `ProjectExecTransformer has column support mismatch`
-        ShuffleStageStaticstics(-1, -1, None)
-      case _ =>
-        if (plan.children.length == 1) {
-          getShuffleStageStatistics(plan.children.head)
-        } else {
-          ShuffleStageStaticstics(-1, -1, None)
-        }
-    }
   }
 }
 

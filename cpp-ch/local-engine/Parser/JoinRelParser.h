@@ -72,7 +72,7 @@ private:
     static std::unordered_set<DB::JoinTableSide> extractTableSidesFromExpression(
         const substrait::Expression & expr, const DB::Block & left_header, const DB::Block & right_header);
 
-    bool isJoinWithMultiJoinOnClauses(
+    bool couldRewriteToMultiJoinOnClauses(
         const DB::TableJoin::JoinOnClause & prefix_clause,
         std::vector<DB::TableJoin::JoinOnClause> & clauses,
         const substrait::JoinRel & join_rel,
