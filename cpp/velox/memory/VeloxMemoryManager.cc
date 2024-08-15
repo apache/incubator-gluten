@@ -252,10 +252,7 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
   VLOG(2) << logPrefix << "Pool has reserved " << pool->usedBytes() << "/" << pool->root()->reservedBytes() << "/"
           << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
   VLOG(2) << logPrefix << "Shrinking...";
-  const uint64_t oldCapacity = pool->capacity();
-  mm->arbitrator()->shrinkCapacity(pool, 0);
-  const uint64_t newCapacity = pool->capacity();
-  int64_t shrunken = oldCapacity - newCapacity;
+  auto shrunken = mm->arbitrator()->shrinkCapacity(pool, 0);
   VLOG(2) << logPrefix << shrunken << " bytes released from shrinking.";
   return shrunken;
 }
