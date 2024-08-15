@@ -126,7 +126,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
 
 #ifdef ENABLE_GCS
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
-  auto gsStorageRootUrl = conf->get("spark.hadoop.fs.gs.storage.root.url");
+  auto gsStorageRootUrl = conf->get<std::string>("spark.hadoop.fs.gs.storage.root.url");
   if (gsStorageRootUrl.hasValue()) {
     std::string url = gsStorageRootUrl.value();
     std::string gcsScheme;
@@ -147,23 +147,24 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
 
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#http-transport-configuration
   // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedErrorCountRetryPolicy
-  auto gsMaxRetryCount = conf->get("spark.hadoop.fs.gs.http.max.retry");
+  auto gsMaxRetryCount = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry");
   if (gsMaxRetryCount.hasValue()) {
     hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSMaxRetryCount] = gsMaxRetryCount.value();
   }
 
   // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedTimeRetryPolicy
-  auto gsMaxRetryTime = conf->get("spark.hadoop.fs.gs.http.max.retry-time");
+  auto gsMaxRetryTime = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry-time");
   if (gsMaxRetryTime.hasValue()) {
     hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSMaxRetryTime] = gsMaxRetryTime.value();
   }
 
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
-  auto gsAuthType = conf->get("spark.hadoop.fs.gs.auth.type");
+  auto gsAuthType = conf->get<std::string>("spark.hadoop.fs.gs.auth.type");
   if (gsAuthType.hasValue()) {
     std::string type = gsAuthType.value();
     if (type == "SERVICE_ACCOUNT_JSON_KEYFILE") {
-      auto gsAuthServiceAccountJsonKeyfile = conf->get("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
+      auto gsAuthServiceAccountJsonKeyfile =
+          conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
       if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
         auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile.value());
         stream.exceptions(std::ios::badbit);
@@ -174,18 +175,6 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
                         "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
         throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
       }
-    }
-  }
-#endif
-
-#ifdef ENABLE_ABFS
-  const auto& confValue = conf->rawConfigsCopy();
-  for (auto& [k, v] : confValue) {
-    if (k.find("fs.azure.account.key") == 0) {
-      connectorConfMap[k] = v;
-    } else if (k.find("spark.hadoop.fs.azure.account.key") == 0) {
-      constexpr int32_t accountKeyPrefixLength = 13;
-      connectorConfMap[k.substr(accountKeyPrefixLength)] = std::string(v);
     }
   }
 #endif

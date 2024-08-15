@@ -188,12 +188,24 @@ void VeloxBackend::initCache() {
 
 void VeloxBackend::initConnector() {
   // The configs below are used at process level.
-  std::unordered_map<std::string, std::string> connectorConfMap = backendConf_->rawConfigsCopy();
+  std::unordered_map<std::string, std::string> connectorConfMap = backendConf_->rawConfigs();
 
   auto hiveConf = getHiveConfig(backendConf_);
   for (auto& [k, v] : hiveConf->rawConfigsCopy()) {
     connectorConfMap[k] = v;
   }
+
+#ifdef ENABLE_ABFS
+  const auto& confValue = backendConf_->rawConfigs();
+  for (auto& [k, v] : confValue) {
+    if (k.find("fs.azure.account.key") == 0) {
+      connectorConfMap[k] = v;
+    } else if (k.find("spark.hadoop.fs.azure.account.key") == 0) {
+      constexpr int32_t accountKeyPrefixLength = 13;
+      connectorConfMap[k.substr(accountKeyPrefixLength)] = v;
+    }
+  }
+#endif
 
   connectorConfMap[velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
       backendConf_->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
