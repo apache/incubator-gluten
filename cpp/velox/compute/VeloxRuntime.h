@@ -101,7 +101,7 @@ class VeloxRuntime final : public Runtime {
  private:
   VeloxMemoryManager* vmm_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
-  std::shared_ptr<facebook::velox::Config> veloxCfg_;
+  std::shared_ptr<facebook::velox::config::ConfigBase> veloxCfg_;
   bool debugModeEnabled_{false};
 
   std::unordered_map<int32_t, std::shared_ptr<ColumnarBatch>> emptySchemaBatchLoopUp_;

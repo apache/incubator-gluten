@@ -59,7 +59,8 @@ std::string getConfigValue(
   return got->second;
 }
 
-std::shared_ptr<facebook::velox::core::MemConfig> getHiveConfig(std::shared_ptr<facebook::velox::Config> conf) {
+std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
+    std::shared_ptr<facebook::velox::config::ConfigBase> conf) {
   std::unordered_map<std::string, std::string> hiveConfMap;
 
 #ifdef ENABLE_S3
@@ -177,10 +178,22 @@ std::shared_ptr<facebook::velox::core::MemConfig> getHiveConfig(std::shared_ptr<
   }
 #endif
 
+#ifdef ENABLE_ABFS
+  const auto& confValue = conf->rawConfigsCopy();
+  for (auto& [k, v] : confValue) {
+    if (k.find("fs.azure.account.key") == 0) {
+      connectorConfMap[k] = v;
+    } else if (k.find("spark.hadoop.fs.azure.account.key") == 0) {
+      constexpr int32_t accountKeyPrefixLength = 13;
+      connectorConfMap[k.substr(accountKeyPrefixLength)] = std::string(v);
+    }
+  }
+#endif
+
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
       conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
 
-  return std::make_shared<facebook::velox::core::MemConfig>(std::move(hiveConfMap));
+  return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap));
 }
 
 } // namespace gluten
