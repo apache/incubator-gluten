@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -exu
+
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
 export SUDO=sudo
 source ${CURRENT_DIR}/build_helper_functions.sh
@@ -27,13 +29,6 @@ function prepare_arrow_build() {
   cd arrow_ep
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow.patch
   patch -p1 < $CURRENT_DIR/../ep/build-velox/src/modify_arrow_dataset_scan_option.patch
-  popd
-}
-
-function install_arrow_deps {
-  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl
-  pushd openssl
-  ./config no-shared && make depend && make && sudo make install
   popd
 }
 

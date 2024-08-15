@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.extension.ValidationResult
@@ -59,6 +60,14 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
   }
 
+  def getRootFilePaths: Seq[String] = {
+    if (GlutenConfig.getConf.scanFileSchemeValidationEnabled) {
+      getRootPathsInternal
+    } else {
+      Seq.empty
+    }
+  }
+
   /** Returns the file format properties. */
   def getProperties: Map[String, String] = Map.empty
 
@@ -92,7 +101,12 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
 
     val validationResult = BackendsApiManager.getSettings
-      .supportFileFormatRead(fileFormat, fields, getPartitionSchema.nonEmpty, getInputFilePaths)
+      .validateScan(
+        fileFormat,
+        fields,
+        getPartitionSchema.nonEmpty,
+        getRootFilePaths,
+        getInputFilePaths)
     if (!validationResult.ok()) {
       return validationResult
     }

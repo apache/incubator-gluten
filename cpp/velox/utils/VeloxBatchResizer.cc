@@ -23,9 +23,7 @@ namespace {
 class SliceRowVector : public ColumnarBatchIterator {
  public:
   SliceRowVector(int32_t maxOutputBatchSize, facebook::velox::RowVectorPtr in)
-      : maxOutputBatchSize_(maxOutputBatchSize), in_(in) {
-    GLUTEN_CHECK(in->size() > maxOutputBatchSize, "Invalid state");
-  }
+      : maxOutputBatchSize_(maxOutputBatchSize), in_(in) {}
 
   std::shared_ptr<ColumnarBatch> next() override {
     int32_t remainingLength = in_->size() - cursor_;
@@ -55,7 +53,11 @@ gluten::VeloxBatchResizer::VeloxBatchResizer(
     : pool_(pool),
       minOutputBatchSize_(minOutputBatchSize),
       maxOutputBatchSize_(maxOutputBatchSize),
-      in_(std::move(in)) {}
+      in_(std::move(in)) {
+  GLUTEN_CHECK(
+      minOutputBatchSize_ > 0 && maxOutputBatchSize_ > 0,
+      "Either minOutputBatchSize or maxOutputBatchSize should be larger than 0");
+}
 
 std::shared_ptr<ColumnarBatch> VeloxBatchResizer::next() {
   if (next_) {
@@ -82,6 +84,11 @@ std::shared_ptr<ColumnarBatch> VeloxBatchResizer::next() {
     for (auto nextCb = in_->next(); nextCb != nullptr; nextCb = in_->next()) {
       auto nextVb = VeloxColumnarBatch::from(pool_, nextCb);
       auto nextRv = nextVb->getRowVector();
+      if (buffer->size() + nextRv->size() > maxOutputBatchSize_) {
+        GLUTEN_CHECK(next_ == nullptr, "Invalid state");
+        next_ = std::make_unique<SliceRowVector>(maxOutputBatchSize_, nextRv);
+        return std::make_shared<VeloxColumnarBatch>(buffer);
+      }
       buffer->append(nextRv.get());
       if (buffer->size() >= minOutputBatchSize_) {
         // Buffer is full.

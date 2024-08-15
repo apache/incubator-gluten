@@ -730,4 +730,29 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       runQueryAndCompare(aggregate_sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
+
+  test("test issue: https://github.com/apache/incubator-gluten/issues/6561") {
+    val sql = """
+                |select
+                | map_from_arrays(
+                |   transform(map_keys(map('t1',id,'t2',id+1)), v->v),
+                |   array('a','b')) as b from range(10)
+                |""".stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test function format_string") {
+    val sql = """
+                | SELECT
+                |  format_string(
+                |    'hello world %d %d %s %f',
+                |    id,
+                |    id,
+                |    CAST(id AS STRING),
+                |    CAST(id AS float)
+                |  )
+                |FROM range(10)
+                |""".stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
 }

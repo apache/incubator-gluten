@@ -19,7 +19,7 @@ package org.apache.gluten.expression
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ExpressionNames._
-import org.apache.gluten.extension.ExpressionExtensionTrait
+import org.apache.gluten.extension.{DefaultExpressionExtensionTransformer, ExpressionExtensionTrait}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -105,6 +105,7 @@ object ExpressionMappings {
     Sig[Levenshtein](LEVENSHTEIN),
     Sig[UnBase64](UNBASE64),
     Sig[Base64](BASE64),
+    Sig[FormatString](FORMAT_STRING),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
@@ -353,5 +354,6 @@ object ExpressionMappings {
       .toMap[Class[_], String]
   }
 
-  var expressionExtensionTransformer: ExpressionExtensionTrait = _
+  var expressionExtensionTransformer: ExpressionExtensionTrait =
+    DefaultExpressionExtensionTransformer()
 }

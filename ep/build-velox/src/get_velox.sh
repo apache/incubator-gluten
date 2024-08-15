@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_08_06
+VELOX_BRANCH=2024_08_14
 VELOX_HOME=""
 
 OS=`uname -s`
@@ -88,7 +88,7 @@ function process_setup_ubuntu {
   sed -i '/ccache /a\    yasm \\' scripts/setup-ubuntu.sh
   ensure_pattern_matched 'run_and_time install_conda' scripts/setup-ubuntu.sh
   sed -i '/run_and_time install_conda/d' scripts/setup-ubuntu.sh
-  # Just depends on Gluten to install arrow libs since Gluten will apply some patches to Arrow source and uses different build options.
+  # Just depends on Gluten to install arrow libs since Gluten requires some patches are applied and some different build options are used.
   ensure_pattern_matched 'run_and_time install_arrow' scripts/setup-ubuntu.sh
   sed -i '/run_and_time install_arrow/d' scripts/setup-ubuntu.sh
 }
@@ -116,6 +116,10 @@ function process_setup_centos9 {
   # Required by lib hdfs.
   ensure_pattern_matched 'dnf_install ninja-build' scripts/setup-centos9.sh
   sed -i '/^  dnf_install ninja-build/a\  dnf_install yasm\' scripts/setup-centos9.sh
+
+  # Just depends on Gluten to install arrow libs since Gluten requires some patches are applied and some different build options are used.
+  ensure_pattern_matched 'run_and_time install_arrow' scripts/setup-centos9.sh
+  sed -i '/run_and_time install_arrow/d' scripts/setup-centos9.sh
 }
 
 function process_setup_alinux3 {

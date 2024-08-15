@@ -900,12 +900,11 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
 
   test("combine small batches before shuffle") {
     val minBatchSize = 15
-    val maxBatchSize = 100
     withSQLConf(
       "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
       "spark.gluten.sql.columnar.maxBatchSize" -> "2",
-      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.range" ->
-        s"$minBatchSize~$maxBatchSize"
+      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.minSize" ->
+        s"$minBatchSize"
     ) {
       val df = runQueryAndCompare(
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +
@@ -921,16 +920,10 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       assert(metrics("numOutputRows").value == 27)
       assert(metrics("numOutputBatches").value == 2)
     }
-  }
 
-  test("split small batches before shuffle") {
-    val minBatchSize = 1
-    val maxBatchSize = 4
     withSQLConf(
       "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput" -> "true",
-      "spark.gluten.sql.columnar.maxBatchSize" -> "100",
-      "spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.range" ->
-        s"$minBatchSize~$maxBatchSize"
+      "spark.gluten.sql.columnar.maxBatchSize" -> "2"
     ) {
       val df = runQueryAndCompare(
         "select l_orderkey, sum(l_partkey) as sum from lineitem " +
@@ -939,12 +932,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       val ops = collect(df.queryExecution.executedPlan) { case p: VeloxResizeBatchesExec => p }
       assert(ops.size == 1)
       val op = ops.head
-      assert(op.minOutputBatchSize == minBatchSize)
+      assert(op.minOutputBatchSize == 1)
       val metrics = op.metrics
       assert(metrics("numInputRows").value == 27)
-      assert(metrics("numInputBatches").value == 1)
+      assert(metrics("numInputBatches").value == 14)
       assert(metrics("numOutputRows").value == 27)
-      assert(metrics("numOutputBatches").value == 7)
+      assert(metrics("numOutputBatches").value == 14)
     }
   }
 
@@ -1624,9 +1617,11 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       path =>
         (0 to 3).toDF("x").write.parquet(path.getCanonicalPath)
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
-        runQueryAndCompare(
-          "SELECT x FROM view WHERE cast(x as timestamp) " +
-            "IN ('1970-01-01 08:00:00.001','1970-01-01 08:00:00.2')")(_)
+        runQueryAndCompare(s"""
+                              |SELECT x FROM view
+                              |WHERE cast(x as timestamp)
+                              |IN ('1970-01-01 08:00:00.001','1970-01-01 08:00:00.2')
+                              |""".stripMargin)(_ => ())
     }
   }
 

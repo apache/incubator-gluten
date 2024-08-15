@@ -97,7 +97,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
             _numRows += batch.numRows
           }
           Iterator((_numRows, blockNativeWriter.collectAsByteArray()))
-        // Iterator((_numRows, new Array[Byte](0)))
+          // Iterator((_numRows, new Array[Byte](0)))
       }
       .collect
     val count0 = countsAndBytes.map(_._1).sum
@@ -191,7 +191,8 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
         batch =>
           val bos = new ByteArrayOutputStream()
           val buffer = new Array[Byte](4 << 10) // 4K
-          val dout = new BlockOutputStream(bos, buffer, dataSize, true, "lz4", buffer.length)
+          val dout =
+            new BlockOutputStream(bos, buffer, dataSize, true, "lz4", Int.MinValue, buffer.length)
           dout.write(batch)
           dout.flush()
           dout.close()

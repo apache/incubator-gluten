@@ -20,7 +20,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
@@ -112,6 +112,10 @@ class GlutenClickHouseHiveTableSuite
       .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
       .set("spark.gluten.supported.hive.udfs", "my_add")
       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
+      .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+      .set(
+        "spark.sql.catalog.spark_catalog",
+        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
       .setMaster("local[*]")
   }
 
@@ -1280,5 +1284,34 @@ class GlutenClickHouseHiveTableSuite
          |""".stripMargin
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
     sql(s"drop table if exists $tbl")
+  }
+
+  test("test mergetree write with column case sensitive on hive") {
+    val dataPath = s"$basePath/lineitem_mergetree_bucket"
+    val sourceDF = spark.sql(s"""
+                                |select
+                                |  string_field,
+                                |  int_field,
+                                |  long_field
+                                | from $txt_user_define_input
+                                |""".stripMargin)
+
+    sourceDF.write
+      .format("clickhouse")
+      .option("clickhouse.numBuckets", "1")
+      .option("clickhouse.bucketColumnNames", "STRING_FIELD")
+      .mode(SaveMode.Overwrite)
+      .save(dataPath)
+  }
+
+  test("GLUTEN-6506: Orc read time zone") {
+    val dataPath = s"$basePath/orc-data/test_reader_time_zone.snappy.orc"
+    val create_table_sql = ("create table test_tbl_6506(" +
+      "id bigint, t timestamp) stored as orc location '%s'")
+      .format(dataPath)
+    val select_sql = "select * from test_tbl_6506"
+    spark.sql(create_table_sql)
+    compareResultsAgainstVanillaSpark(select_sql, true, _ => {})
+    spark.sql("drop table test_tbl_6506")
   }
 }

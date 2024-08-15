@@ -168,7 +168,7 @@ Arguments: X, X
 
 (26) ColumnarExchange
 Input [4]: [hash_partition_key#X, ps_partkey#X, sum#X, isEmpty#X]
-Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(ps_partkey#X, 1), ENSURE_REQUIREMENTS, [ps_partkey#X, sum#X, isEmpty#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (27) ShuffleQueryStage
 Output [3]: [ps_partkey#X, sum#X, isEmpty#X]
@@ -201,7 +201,7 @@ Arguments: X, X
 
 (34) ColumnarExchange
 Input [2]: [ps_partkey#X, value#X]
-Arguments: rangepartitioning(value#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+Arguments: rangepartitioning(value#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (35) ShuffleQueryStage
 Output [2]: [ps_partkey#X, value#X]
@@ -441,7 +441,7 @@ Arguments: X, X
 
 (78) ColumnarExchange
 Input [2]: [sum#X, isEmpty#X]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (79) ShuffleQueryStage
 Output [2]: [sum#X, isEmpty#X]

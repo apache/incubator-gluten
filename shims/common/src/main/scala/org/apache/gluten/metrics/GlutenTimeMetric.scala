@@ -44,4 +44,10 @@ object GlutenTimeMetric {
   }
   def withMillisTime[U](block: => U)(millisTime: Long => Unit): U =
     withNanoTime(block)(t => millisTime(TimeUnit.NANOSECONDS.toMillis(t)))
+
+  def recordMillisTime[U](block: => U): (U, Long) = {
+    var time = 0L
+    val result = withMillisTime(block)(time = _)
+    (result, time)
+  }
 }

@@ -29,7 +29,7 @@
 set -efx -o pipefail
 # Some of the packages must be build with the same compiler flags
 # so that some low level types are the same size. Also, disable warnings.
-SCRIPTDIR=$(dirname "${BASH_SOURCE[0]}")/../build/velox_ep/scripts
+SCRIPTDIR=./scripts
 source $SCRIPTDIR/setup-helper-functions.sh
 CPU_TARGET="${CPU_TARGET:-avx}"
 NPROC=$(getconf _NPROCESSORS_ONLN)

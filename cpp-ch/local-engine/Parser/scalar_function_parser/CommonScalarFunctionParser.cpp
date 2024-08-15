@@ -61,6 +61,7 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(GetTimestamp, get_timestamp, parseDateTim
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Quarter, quarter, toQuarter);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ToUnixTimestamp, to_unix_timestamp, parseDateTimeInJodaSyntaxOrNull);
 
+// math functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Position, positive, identity);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Negative, negative, negate);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Pmod, pmod, pmod);
@@ -107,6 +108,7 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Rand, rand, randCanonical);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Bin, bin, sparkBin);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Rint, rint, sparkRint);
 
+// string functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Like, like, like);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(NotLike, not_like, notLike);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(StartsWith, starts_with, startsWithUTF8);
@@ -130,6 +132,7 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Initcap, initcap, initcapUTF8);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Conv, conv, sparkConv);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Uuid, uuid, generateUUIDv4);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Levenshtein, levenshtein, editDistanceUTF8);
+REGISTER_COMMON_SCALAR_FUNCTION_PARSER(FormatString, format_string, printf);
 
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Crc32, crc32, CRC32);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Murmur3Hash, murmur3hash, sparkMurmurHash3_32);
@@ -150,7 +153,6 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(FloorDatetime, floor_datetime, dateTrunc)
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Floor, floor, sparkFloor);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MothsBetween, months_between, sparkMonthsBetween);
 
-
 // array functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Array, array, array);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Shuffle, shuffle, arrayShuffle);
@@ -164,7 +166,6 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(GetMapValue, get_map_value, arrayElement)
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MapKeys, map_keys, mapKeys);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MapValues, map_values, mapValues);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MapFromArrays, map_from_arrays, mapFromArrays);
-
 
 // json functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(FlattenJsonStringOnRequired, flattenJSONStringOnRequired, flattenJSONStringOnRequired);

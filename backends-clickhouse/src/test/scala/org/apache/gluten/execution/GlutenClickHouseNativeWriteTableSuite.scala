@@ -42,6 +42,10 @@ class GlutenClickHouseNativeWriteTableSuite
   private var _hiveSpark: SparkSession = _
 
   override protected def sparkConf: SparkConf = {
+    var sessionTimeZone = "GMT"
+    if (isSparkVersionGE("3.5")) {
+      sessionTimeZone = java.util.TimeZone.getDefault.getID
+    }
     new SparkConf()
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.memory.offHeap.enabled", "true")
@@ -65,6 +69,7 @@ class GlutenClickHouseNativeWriteTableSuite
       // TODO: support default ANSI policy
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.sql.warehouse.dir", getWarehouseDir)
+      .set("spark.sql.session.timeZone", sessionTimeZone)
       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
       .setMaster("local[1]")
   }
@@ -187,7 +192,7 @@ class GlutenClickHouseNativeWriteTableSuite
       checkNative: Boolean = true): Unit = nativeWrite {
     format =>
       val (table_name, table_create_sql, insert_sql) = f(format)
-      withDestinationTable(table_name, table_create_sql) {
+      withDestinationTable(table_name, Option(table_create_sql)) {
         checkInsertQuery(insert_sql, checkNative)
         Option(extraCheck).foreach(_(table_name, format))
       }
@@ -218,15 +223,36 @@ class GlutenClickHouseNativeWriteTableSuite
   }
 
   test("supplier: csv to parquet- insert overwrite local directory") {
+    val partitionNumber = 7
     withSource(supplierDF, "supplier") {
-      nativeWrite {
-        format =>
+      nativeWrite2(
+        format => {
           val sql =
             s"""insert overwrite local directory
                |'$basePath/test_insert_into_${format}_supplier'
-               |stored as $format select * from supplier""".stripMargin
-          checkInsertQuery(sql, checkNative = true)
-      }
+               |stored as $format
+               |select /*+ REPARTITION($partitionNumber) */ * from supplier""".stripMargin
+          (s"test_insert_into_${format}_supplier", null, sql)
+        },
+        (table_name, format) => {
+          // spark 3.2 without orc or parquet suffix
+          val files = recursiveListFiles(new File(s"$basePath/$table_name"))
+            .map(_.getName)
+            .filterNot(s => s.endsWith(s".crc") || s.equals("_SUCCESS"))
+
+          lazy val fileNames = {
+            val dir = s"$basePath/$table_name"
+            recursiveListFiles(new File(dir))
+              .map(f => f.getAbsolutePath.stripPrefix(dir))
+              .sorted
+              .mkString("\n")
+          }
+
+          lazy val errorMessage =
+            s"Search $basePath/$table_name with suffix .$format, all files: \n $fileNames"
+          assert(files.length === partitionNumber, errorMessage)
+        }
+      )
     }
   }
 
@@ -602,20 +628,12 @@ class GlutenClickHouseNativeWriteTableSuite
       ("date_field", "date"),
       ("timestamp_field", "timestamp")
     )
-    def excludeTimeFieldForORC(format: String): Seq[String] = {
-      if (format.equals("orc") && isSparkVersionGE("3.5")) {
-        // FIXME:https://github.com/apache/incubator-gluten/pull/6507
-        fields.keys.filterNot(_.equals("timestamp_field")).toSeq
-      } else {
-        fields.keys.toSeq
-      }
-    }
     val origin_table = "origin_table"
     withSource(genTestData(), origin_table) {
       nativeWrite {
         format =>
           val table_name = table_name_template.format(format)
-          val testFields = excludeTimeFieldForORC(format)
+          val testFields = fields.keys.toSeq
           writeAndCheckRead(origin_table, table_name, testFields, isSparkVersionLE("3.3")) {
             fields =>
               spark
@@ -851,7 +869,7 @@ class GlutenClickHouseNativeWriteTableSuite
         val table_name = "t_" + format
         withDestinationTable(
           table_name,
-          s"create table $table_name (id int, str string) stored as $format") {
+          Some(s"create table $table_name (id int, str string) stored as $format")) {
           checkInsertQuery(
             s"insert overwrite table $table_name " +
               "select id, cast(id as string) from range(10) union all " +

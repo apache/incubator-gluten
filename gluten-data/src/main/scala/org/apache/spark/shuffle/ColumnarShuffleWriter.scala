@@ -18,8 +18,8 @@ package org.apache.spark.shuffle
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.exec.Runtimes
 import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
+import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.vectorized._
 
 import org.apache.spark._
@@ -210,6 +210,8 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("peakBytes").add(splitResult.getPeakBytes)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
+    taskContext.taskMetrics().incMemoryBytesSpilled(splitResult.getBytesToEvict)
+    taskContext.taskMetrics().incDiskBytesSpilled(splitResult.getTotalBytesSpilled)
 
     partitionLengths = splitResult.getPartitionLengths
     try {

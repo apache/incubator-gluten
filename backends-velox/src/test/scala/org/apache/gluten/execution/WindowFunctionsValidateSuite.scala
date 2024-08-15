@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution
 
-class WindowFunctionsValidateSuite extends FunctionsValidateTest {
+class WindowFunctionsValidateSuite extends FunctionsValidateSuite {
 
   test("lag/lead window function with negative input offset") {
     runQueryAndCompare(

@@ -67,7 +67,7 @@ class ScalarFunctionsValidateSuiteRasOn extends ScalarFunctionsValidateSuite {
   }
 }
 
-abstract class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
+abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   disableFallbackCheck
   import testImplicits._
 
@@ -263,19 +263,27 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateTest {
     }
   }
 
-  test("Test get_json_object datatab function") {
+  test("get_json_object") {
     runQueryAndCompare(
       "SELECT get_json_object(string_field1, '$.a') " +
         "from datatab limit 1;") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
-  }
 
-  test("Test get_json_object lineitem function") {
     runQueryAndCompare(
       "SELECT l_orderkey, get_json_object('{\"a\":\"b\"}', '$.a') " +
         "from lineitem limit 1;") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    // Invalid UTF-8 encoding.
+    spark.sql(
+      "CREATE TABLE t USING parquet SELECT concat('{\"a\": 2, \"'," +
+        " string(X'80'), '\": 3, \"c\": 100}') AS c1")
+    withTable("t") {
+      runQueryAndCompare("SELECT get_json_object(c1, '$.c') FROM t;") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
     }
   }
 

@@ -139,7 +139,7 @@ size_t LocalPartitionWriter::evictPartitions()
     {
         auto file = getNextSpillFile();
         WriteBufferFromFile output(file, shuffle_writer->options.io_buffer_size);
-        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
+        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), shuffle_writer->options.compress_level);
         CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
         NativeWriter writer(compressed_output, shuffle_writer->output_header);
 
@@ -200,7 +200,7 @@ String Spillable::getNextSpillFile()
 
 std::vector<UInt64> Spillable::mergeSpills(CachedShuffleWriter * shuffle_writer, WriteBuffer & data_file, ExtraData extra_data)
 {
-    auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
+    auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), shuffle_writer->options.compress_level);
 
     CompressedWriteBuffer compressed_output(data_file, codec, shuffle_writer->options.io_buffer_size);
     NativeWriter writer(compressed_output, shuffle_writer->output_header);
@@ -324,7 +324,7 @@ PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_, LoggerPt
         partition_block_buffer[partition_id] = std::make_shared<ColumnsBuffer>(options->split_size);
         partition_buffer[partition_id] = std::make_shared<Partition>();
     }
-    settings.loadFromContext(SerializedPlanParser::global_context);
+    settings = MemoryConfig::loadFromContext(SerializedPlanParser::global_context);
 }
 
 size_t PartitionWriter::bytes() const
@@ -352,7 +352,7 @@ size_t MemorySortLocalPartitionWriter::evictPartitions()
             return;
         auto file = getNextSpillFile();
         WriteBufferFromFile output(file, shuffle_writer->options.io_buffer_size);
-        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
+        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), shuffle_writer->options.compress_level);
         CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
         NativeWriter writer(compressed_output, output_header);
 
@@ -453,7 +453,7 @@ size_t MemorySortCelebornPartitionWriter::evictPartitions()
             return;
 
         WriteBufferFromOwnString output;
-        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
+        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), shuffle_writer->options.compress_level);
         CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
         NativeWriter writer(compressed_output, shuffle_writer->output_header);
 
@@ -564,7 +564,7 @@ size_t CelebornPartitionWriter::evictSinglePartition(size_t partition_id)
             return;
 
         WriteBufferFromOwnString output;
-        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
+        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), shuffle_writer->options.compress_level);
         CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
         NativeWriter writer(compressed_output, shuffle_writer->output_header);
 

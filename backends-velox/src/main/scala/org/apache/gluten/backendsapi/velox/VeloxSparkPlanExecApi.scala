@@ -39,6 +39,8 @@ import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
@@ -48,7 +50,7 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.WriteJobDescription
+import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -546,6 +548,17 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   }
   // scalastyle:on argcount
 
+  /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
+  override def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean = {
+    val conf = GlutenConfig.getConf
+    lazy val isCelebornSortBasedShuffle = conf.isUseCelebornShuffleManager &&
+      conf.celebornShuffleWriterType == GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER
+    partitioning != SinglePartition &&
+    (partitioning.numPartitions >= GlutenConfig.getConf.columnarShuffleSortPartitionsThreshold ||
+      output.size >= GlutenConfig.getConf.columnarShuffleSortColumnsThreshold) ||
+    isCelebornSortBasedShuffle
+  }
+
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
    *
@@ -555,9 +568,22 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       parameters: GenShuffleWriterParameters[K, V]): GlutenShuffleWriterWrapper[K, V] = {
     ShuffleUtil.genColumnarShuffleWriter(parameters)
   }
-
-  override def createBackendWrite(description: WriteJobDescription): BackendWrite = {
-    VeloxBackendWrite(description)
+  override def createColumnarWriteFilesExec(
+      child: SparkPlan,
+      noop: SparkPlan,
+      fileFormat: FileFormat,
+      partitionColumns: Seq[Attribute],
+      bucketSpec: Option[BucketSpec],
+      options: Map[String, String],
+      staticPartitions: TablePartitionSpec): ColumnarWriteFilesExec = {
+    VeloxColumnarWriteFilesExec(
+      child,
+      noop,
+      fileFormat,
+      partitionColumns,
+      bucketSpec,
+      options,
+      staticPartitions)
   }
 
   override def createColumnarArrowEvalPythonExec(
@@ -634,17 +660,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   /**
    * * Expressions.
    */
-
-  /** Generate StringSplit transformer. */
-  override def genStringSplitTransformer(
-      substraitExprName: String,
-      srcExpr: ExpressionTransformer,
-      regexExpr: ExpressionTransformer,
-      limitExpr: ExpressionTransformer,
-      original: StringSplit): ExpressionTransformer = {
-    // In velox, split function just support tow args, not support limit arg for now
-    VeloxStringSplitTransformer(substraitExprName, srcExpr, regexExpr, limitExpr, original)
-  }
 
   /**
    * Generate Alias transformer.

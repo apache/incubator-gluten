@@ -21,18 +21,18 @@ The following steps demonstrate how to set up a UDF library project:
 - **Implement the Interface Functions:**
   Implement the following interface functions that integrate UDF into Project Gluten:
 
-  - `getNumUdf()`:
-    This function should return the number of UDF in the library.
-    This is used to allocating udfEntries array as the argument for the next function `getUdfEntries`.
+    - `getNumUdf()`:
+      This function should return the number of UDF in the library.
+      This is used to allocating udfEntries array as the argument for the next function `getUdfEntries`.
 
-  - `getUdfEntries(gluten::UdfEntry* udfEntries)`:
-    This function should populate the provided udfEntries array with the details of the UDF, including function names and signatures.
+    - `getUdfEntries(gluten::UdfEntry* udfEntries)`:
+      This function should populate the provided udfEntries array with the details of the UDF, including function names and signatures.
 
-  - `registerUdf()`:
-    This function is called to register the UDF to Velox function registry.
-    This is where users should register functions by calling `facebook::velox::exec::registerVecotorFunction` or other Velox APIs.
+    - `registerUdf()`:
+      This function is called to register the UDF to Velox function registry.
+      This is where users should register functions by calling `facebook::velox::exec::registerVecotorFunction` or other Velox APIs.
 
-  - The interface functions are mapped to marcos in [Udf.h](../../cpp/velox/udf/Udf.h). Here's an example of how to implement these functions:
+    - The interface functions are mapped to marcos in [Udf.h](../../cpp/velox/udf/Udf.h). Here's an example of how to implement these functions:
 
   ```
   // Filename MyUDF.cc
@@ -175,6 +175,14 @@ The output from spark-shell will be like
 |               105|               6|
 +------------------+----------------+
 ```
+
+## Configurations
+
+| Parameters                                                     | Description                                                                                                 |
+|----------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| spark.gluten.sql.columnar.backend.velox.udfLibraryPaths        | Path to the udf/udaf libraries.                                                                             |
+| spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths | Path to the udf/udaf libraries on driver node. Only applicable on yarn-client mode.                         |
+| spark.gluten.sql.columnar.backend.velox.udfAllowTypeConversion | Whether to inject possible `cast` to convert mismatched data types from input to one registered signatures. |
 
 # Pandas UDFs (a.k.a. Vectorized UDFs)
 

@@ -16,8 +16,6 @@
  */
 #include "QueryContext.h"
 
-#include <format>
-
 #include <Interpreters/Context.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Common/CurrentThread.h>

@@ -25,17 +25,21 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.constraints.{Constraint, Constraints}
-import org.apache.spark.sql.delta.files.MergeTreeCommitProtocol
-import org.apache.spark.sql.delta.schema.InvariantViolationException
+import org.apache.spark.sql.delta.files.{DelayedCommitProtocol, DeltaFileFormatWriter, MergeTreeCommitProtocol, TransactionalWrite}
+import org.apache.spark.sql.delta.hooks.AutoCompact
+import org.apache.spark.sql.delta.schema.{InnerInvariantViolationException, InvariantViolationException}
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
+import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
+import org.apache.spark.sql.execution.{CHDelayedCommitProtocol, QueryExecution, SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FakeRowAdaptor, FileFormatWriter, WriteJobStatsTracker}
+import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FakeRowAdaptor, FileFormatWriter, WriteFiles, WriteJobStatsTracker}
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeFileFormatWriter
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SerializableConfiguration
 
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.hadoop.fs.Path
 
 import scala.collection.mutable.ListBuffer
 
@@ -189,5 +193,159 @@ class ClickhouseOptimisticTransaction(
       //    'nativeFormat' in the LocalProperty of the sparkcontext
       super.writeFiles(inputData, writeOptions, additionalConstraints)
     }
+  }
+
+  private def shouldOptimizeWrite(
+      writeOptions: Option[DeltaOptions],
+      sessionConf: SQLConf): Boolean = {
+    writeOptions
+      .flatMap(_.optimizeWrite)
+      .getOrElse(TransactionalWrite.shouldOptimizeWrite(metadata, sessionConf))
+  }
+
+  override protected def getCommitter(outputPath: Path): DelayedCommitProtocol =
+    new CHDelayedCommitProtocol("delta", outputPath.toString, None, deltaDataSubdir)
+
+  override def writeFiles(
+      inputData: Dataset[_],
+      writeOptions: Option[DeltaOptions],
+      isOptimize: Boolean,
+      additionalConstraints: Seq[Constraint]): Seq[FileAction] = {
+
+    if (isOptimize)
+      throw new UnsupportedOperationException("Optimize is not supported for ClickHouse")
+
+    hasWritten = true
+
+    val spark = inputData.sparkSession
+    val (data, partitionSchema) = performCDCPartition(inputData)
+    val outputPath = deltaLog.dataPath
+
+    val fileFormat = deltaLog.fileFormat(protocol, metadata) // TODO support changing formats.
+
+    // Iceberg spec requires partition columns in data files
+    val writePartitionColumns = IcebergCompat.isAnyEnabled(metadata)
+    // Retain only a minimal selection of Spark writer options to avoid any potential
+    // compatibility issues
+    val options = (writeOptions match {
+      case None => Map.empty[String, String]
+      case Some(writeOptions) =>
+        writeOptions.options.filterKeys {
+          key =>
+            key.equalsIgnoreCase(DeltaOptions.MAX_RECORDS_PER_FILE) ||
+            key.equalsIgnoreCase(DeltaOptions.COMPRESSION)
+        }.toMap
+    }) + (DeltaOptions.WRITE_PARTITION_COLUMNS -> writePartitionColumns.toString)
+
+    val (normalQueryExecution, output, generatedColumnConstraints, _) =
+      normalizeData(deltaLog, writeOptions, data)
+    val partitioningColumns = getPartitioningColumns(partitionSchema, output)
+
+    val logicalPlan = normalQueryExecution.optimizedPlan
+    val write =
+      WriteFiles(logicalPlan, fileFormat, partitioningColumns, None, options, Map.empty)
+
+    val queryExecution = new QueryExecution(spark, write)
+    val committer = getCommitter(outputPath)
+
+    // If Statistics Collection is enabled, then create a stats tracker that will be injected during
+    // the FileFormatWriter.write call below and will collect per-file stats using
+    // StatisticsCollection
+    //    val (optionalStatsTracker, _) =
+    //      getOptionalStatsTrackerAndStatsCollection(output, outputPath, partitionSchema, data)
+    val optionalStatsTracker: Option[DeltaJobStatisticsTracker] = None
+
+    val constraints =
+      Constraints.getAll(metadata, spark) ++ generatedColumnConstraints ++ additionalConstraints
+
+    SQLExecution.withNewExecutionId(queryExecution, Option("deltaTransactionalWrite")) {
+      val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, output)
+
+      val physicalPlan = materializeAdaptiveSparkPlan(queryExecution.executedPlan)
+      // convertEmptyToNullIfNeeded(queryExecution.executedPlan, partitioningColumns, constraints)
+      /*      val checkInvariants = DeltaInvariantCheckerExec(empty2NullPlan, constraints)
+      // No need to plan optimized write if the write command is OPTIMIZE, which aims to produce
+      // evenly-balanced data files already.
+      val physicalPlan =
+        if (
+          !isOptimize &&
+          shouldOptimizeWrite(writeOptions, spark.sessionState.conf)
+        ) {
+          DeltaOptimizedWriterExec(checkInvariants, metadata.partitionColumns, deltaLog)
+        } else {
+          checkInvariants
+        }*/
+      val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
+
+      if (spark.conf.get(DeltaSQLConf.DELTA_HISTORY_METRICS_ENABLED)) {
+        val basicWriteJobStatsTracker = new BasicWriteJobStatsTracker(
+          new SerializableConfiguration(deltaLog.newDeltaHadoopConf()),
+          BasicWriteJobStatsTracker.metrics)
+        registerSQLMetrics(spark, basicWriteJobStatsTracker.driverSideMetrics)
+        statsTrackers.append(basicWriteJobStatsTracker)
+      }
+
+      try {
+        DeltaFileFormatWriter.write(
+          sparkSession = spark,
+          plan = physicalPlan,
+          fileFormat = fileFormat,
+          committer = committer,
+          outputSpec = outputSpec,
+          // scalastyle:off deltahadoopconfiguration
+          hadoopConf =
+            spark.sessionState.newHadoopConfWithOptions(metadata.configuration ++ deltaLog.options),
+          // scalastyle:on deltahadoopconfiguration
+          partitionColumns = partitioningColumns,
+          bucketSpec = None,
+          statsTrackers = optionalStatsTracker.toSeq
+            ++ statsTrackers,
+          options = options
+        )
+      } catch {
+        case InnerInvariantViolationException(violationException) =>
+          // Pull an InvariantViolationException up to the top level if it was the root cause.
+          throw violationException
+      }
+    }
+
+    var resultFiles =
+      (if (optionalStatsTracker.isDefined) {
+         committer.addedStatuses.map {
+           a =>
+             a.copy(stats =
+               optionalStatsTracker.map(_.recordedStats(a.toPath.getName)).getOrElse(a.stats))
+         }
+       } else {
+         committer.addedStatuses
+       })
+        .filter {
+          // In some cases, we can write out an empty `inputData`. Some examples of this (though, they
+          // may be fixed in the future) are the MERGE command when you delete with empty source, or
+          // empty target, or on disjoint tables. This is hard to catch before the write without
+          // collecting the DF ahead of time. Instead, we can return only the AddFiles that
+          // a) actually add rows, or
+          // b) don't have any stats so we don't know the number of rows at all
+          case a: AddFile => a.numLogicalRecords.forall(_ > 0)
+          case _ => true
+        }
+
+    // add [[AddFile.Tags.ICEBERG_COMPAT_VERSION.name]] tags to addFiles
+    if (IcebergCompatV2.isEnabled(metadata)) {
+      resultFiles = resultFiles.map {
+        addFile =>
+          val tags = if (addFile.tags != null) addFile.tags else Map.empty[String, String]
+          addFile.copy(tags = tags + (AddFile.Tags.ICEBERG_COMPAT_VERSION.name -> "2"))
+      }
+    }
+
+    if (resultFiles.nonEmpty && !isOptimize) registerPostCommitHook(AutoCompact)
+
+    resultFiles.toSeq ++ committer.changeFiles
+  }
+
+  private def materializeAdaptiveSparkPlan(plan: SparkPlan): SparkPlan = plan match {
+    case a: AdaptiveSparkPlanExec => a.finalPhysicalPlan
+    case p: SparkPlan => p
   }
 }

@@ -103,7 +103,7 @@ Arguments: X, X
 
 (16) ColumnarExchange
 Input [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]
-Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+Arguments: SinglePartition, ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (17) ShuffleQueryStage
 Output [4]: [sum#X, isEmpty#X, sum#X, isEmpty#X]

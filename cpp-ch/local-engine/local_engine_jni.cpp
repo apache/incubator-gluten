@@ -544,6 +544,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
     jlong map_id,
     jint split_size,
     jstring codec,
+    jint compress_level,
     jstring data_file,
     jstring local_dirs,
     jint num_sub_dirs,
@@ -585,6 +586,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
+        .compress_level = compress_level < 0 ? std::nullopt : std::optional<int>(compress_level),
         .spill_threshold = static_cast<size_t>(spill_threshold),
         .hash_algorithm = jstring2string(env, hash_algorithm),
         .max_sort_buffer_size = static_cast<size_t>(max_sort_buffer_size),
@@ -606,6 +608,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
     jlong map_id,
     jint split_size,
     jstring codec,
+    jint compress_level,
     jlong spill_threshold,
     jstring hash_algorithm,
     jobject pusher,
@@ -637,6 +640,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
+        .compress_level = compress_level < 0 ? std::nullopt : std::optional<int>(compress_level),
         .spill_threshold = static_cast<size_t>(spill_threshold),
         .hash_algorithm = jstring2string(env, hash_algorithm),
         .force_memory_sort = static_cast<bool>(force_memory_sort)};
@@ -995,6 +999,8 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     // each task using its own CustomStorageMergeTree, don't reuse
     auto temp_storage
         = local_engine::MergeTreeRelParser::copyToVirtualStorage(merge_tree_table, context);
+    // prefetch all needed parts metadata before merge
+    local_engine::restoreMetaData(temp_storage, merge_tree_table, *context);
 
     local_engine::TempStorageFreer freer{temp_storage->getStorageID()}; // to release temp CustomStorageMergeTree with RAII
     std::vector<DB::DataPartPtr> selected_parts = local_engine::StorageMergeTreeFactory::instance().getDataPartsByNames(
@@ -1158,11 +1164,11 @@ JNIEXPORT jint Java_org_apache_gluten_vectorized_BlockSplitIterator_nativeNextPa
 }
 
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_BlockOutputStream_nativeCreate(
-    JNIEnv * env, jobject, jobject output_stream, jbyteArray buffer, jstring codec, jboolean compressed, jint customize_buffer_size)
+    JNIEnv * env, jobject, jobject output_stream, jbyteArray buffer, jstring codec, jint level, jboolean compressed, jint customize_buffer_size)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::ShuffleWriter * writer
-        = new local_engine::ShuffleWriter(output_stream, buffer, jstring2string(env, codec), compressed, customize_buffer_size);
+        = new local_engine::ShuffleWriter(output_stream, buffer, jstring2string(env, codec), level, compressed, customize_buffer_size);
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }

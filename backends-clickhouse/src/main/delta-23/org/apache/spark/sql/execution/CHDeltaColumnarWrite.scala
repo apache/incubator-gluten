@@ -14,22 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.exec
+package org.apache.spark.sql.execution
 
-import org.apache.spark.util.{TaskResource, TaskResources}
+import org.apache.gluten.exception.GlutenNotSupportException
 
-object Runtimes {
+import org.apache.spark.internal.io.FileCommitProtocol
+import org.apache.spark.sql.execution.datasources.WriteJobDescription
 
-  /** Get or create the runtime which bound with Spark TaskContext. */
-  def contextInstance(name: String): Runtime = {
-    if (!TaskResources.inSparkTask()) {
-      throw new IllegalStateException("This method must be called in a Spark task.")
-    }
-
-    TaskResources.addResourceIfNotRegistered(name, () => create(name))
-  }
-
-  private def create(name: String): Runtime with TaskResource = {
-    Runtime(name)
-  }
+object CHDeltaColumnarWrite {
+  def apply(
+      jobTrackerID: String,
+      description: WriteJobDescription,
+      committer: FileCommitProtocol): CHColumnarWrite[FileCommitProtocol] =
+    throw new GlutenNotSupportException("Delta Native is not supported in Spark 3.3")
 }

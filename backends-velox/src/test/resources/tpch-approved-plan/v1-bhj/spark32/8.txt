@@ -421,7 +421,7 @@ Arguments: X, X
 
 (72) ColumnarExchange
 Input [6]: [hash_partition_key#X, o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
-Arguments: hashpartitioning(o_year#X, 1), ENSURE_REQUIREMENTS, [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(o_year#X, 1), ENSURE_REQUIREMENTS, [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (73) ShuffleQueryStage
 Output [5]: [o_year#X, sum#X, isEmpty#X, sum#X, isEmpty#X]
@@ -454,7 +454,7 @@ Arguments: X, X
 
 (80) ColumnarExchange
 Input [2]: [o_year#X, mkt_share#X]
-Arguments: rangepartitioning(o_year#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+Arguments: rangepartitioning(o_year#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (81) ShuffleQueryStage
 Output [2]: [o_year#X, mkt_share#X]

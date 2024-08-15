@@ -40,8 +40,8 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{BackendWrite, ColumnarWriteFilesExec, FileSourceScanExec, GenerateExec, LeafExecNode, SparkPlan}
-import org.apache.spark.sql.execution.datasources.{FileFormat, WriteJobDescription}
+import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, FileSourceScanExec, GenerateExec, LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -163,16 +163,6 @@ trait SparkPlanExecApi {
       child: ExpressionTransformer,
       original: Expression): ExpressionTransformer =
     AliasTransformer(substraitExprName, child, original)
-
-  /** Generate SplitTransformer. */
-  def genStringSplitTransformer(
-      substraitExprName: String,
-      srcExpr: ExpressionTransformer,
-      regexExpr: ExpressionTransformer,
-      limitExpr: ExpressionTransformer,
-      original: StringSplit): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
-  }
 
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
   def genGetMapValueTransformer(
@@ -353,6 +343,9 @@ trait SparkPlanExecApi {
       metrics: Map[String, SQLMetric],
       isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
 
+  /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
+  def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean
+
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
    *
@@ -385,22 +378,12 @@ trait SparkPlanExecApi {
   /** Create ColumnarWriteFilesExec */
   def createColumnarWriteFilesExec(
       child: SparkPlan,
+      noop: SparkPlan,
       fileFormat: FileFormat,
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String],
-      staticPartitions: TablePartitionSpec): SparkPlan = {
-    ColumnarWriteFilesExec(
-      child,
-      fileFormat,
-      partitionColumns,
-      bucketSpec,
-      options,
-      staticPartitions)
-  }
-
-  /** Create BackendWrite */
-  def createBackendWrite(description: WriteJobDescription): BackendWrite
+      staticPartitions: TablePartitionSpec): ColumnarWriteFilesExec
 
   /** Create ColumnarArrowEvalPythonExec, for velox backend */
   def createColumnarArrowEvalPythonExec(

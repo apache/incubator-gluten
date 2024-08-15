@@ -21,7 +21,7 @@ import org.apache.gluten.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.{CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, RewriteSortMergeJoinToHashJoinRule, RewriteToDateExpresstionRule}
+import org.apache.gluten.extension.{CommonSubexpressionEliminateRule, CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, ReorderJoinTablesRule, RewriteDateTimestampComparisonRule, RewriteSortMergeJoinToHashJoinRule, RewriteToDateExpresstionRule}
 import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import org.apache.gluten.extension.columnar.transition.Convention
@@ -38,6 +38,8 @@ import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriter
 import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRewrite}
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
@@ -49,14 +51,13 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
-import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, WriteJobDescription}
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.{CHExecUtil, PushDownUtil}
-import org.apache.spark.sql.extension.{CommonSubexpressionEliminateRule, RewriteDateTimestampComparisonRule}
 import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -432,6 +433,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
   // scalastyle:on argcount
 
+  /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
+  override def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean =
+    false
+
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
    *
@@ -600,7 +605,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarTransformRules(): List[SparkSession => Rule[SparkPlan]] =
-    List(spark => RewriteSortMergeJoinToHashJoinRule(spark))
+    List(spark => RewriteSortMergeJoinToHashJoinRule(spark), spark => ReorderJoinTablesRule(spark))
 
   override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
     List()
@@ -682,8 +687,22 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHRegExpReplaceTransformer(substraitExprName, children, expr)
   }
 
-  def createBackendWrite(description: WriteJobDescription): BackendWrite = ClickhouseBackendWrite(
-    description)
+  override def createColumnarWriteFilesExec(
+      child: SparkPlan,
+      noop: SparkPlan,
+      fileFormat: FileFormat,
+      partitionColumns: Seq[Attribute],
+      bucketSpec: Option[BucketSpec],
+      options: Map[String, String],
+      staticPartitions: TablePartitionSpec): ColumnarWriteFilesExec =
+    CHColumnarWriteFilesExec(
+      child,
+      noop,
+      fileFormat,
+      partitionColumns,
+      bucketSpec,
+      options,
+      staticPartitions)
 
   override def createColumnarArrowEvalPythonExec(
       udfs: Seq[PythonUDF],

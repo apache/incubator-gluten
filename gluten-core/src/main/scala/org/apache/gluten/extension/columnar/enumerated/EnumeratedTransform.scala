@@ -18,6 +18,7 @@ package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.extension.columnar.{OffloadExchange, OffloadJoin, OffloadOthers}
 import org.apache.gluten.extension.columnar.transition.ConventionReq
+import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.cost.GlutenCostModel
 import org.apache.gluten.planner.property.Conv
@@ -41,45 +42,54 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
   extends Rule[SparkPlan]
   with LogLevelUtil {
 
+  private val validator: Validator = Validators
+    .builder()
+    .fallbackByHint()
+    .fallbackIfScanOnly()
+    .fallbackComplexExpressions()
+    .fallbackByBackendSettings()
+    .fallbackByUserOptions()
+    .fallbackByTestInjects()
+    .build()
+
   private val rules = List(
-    new PushFilterToScan(RasOffload.validator),
+    new PushFilterToScan(validator),
     RemoveSort,
     RemoveFilter
   )
 
   // TODO: Should obey ReplaceSingleNode#applyScanNotTransformable to select
   //  (vanilla) scan with cheaper sub-query plan through cost model.
-  private val offloadRules = List(
-    RasOffload.from[Exchange](OffloadExchange()).toRule,
-    RasOffload.from[BaseJoinExec](OffloadJoin()).toRule,
-    RasOffloadHashAggregate.toRule,
-    RasOffloadFilter.toRule,
-    RasOffloadProject.toRule,
-    RasOffload.from[DataSourceV2ScanExecBase](OffloadOthers()).toRule,
-    RasOffload.from[DataSourceScanExec](OffloadOthers()).toRule,
-    RasOffload
-      .from(
-        (node: SparkPlan) => HiveTableScanExecTransformer.isHiveTableScan(node),
-        OffloadOthers())
-      .toRule,
-    RasOffload.from[CoalesceExec](OffloadOthers()).toRule,
-    RasOffload.from[SortAggregateExec](OffloadOthers()).toRule,
-    RasOffload.from[ObjectHashAggregateExec](OffloadOthers()).toRule,
-    RasOffload.from[UnionExec](OffloadOthers()).toRule,
-    RasOffload.from[ExpandExec](OffloadOthers()).toRule,
-    RasOffload.from[WriteFilesExec](OffloadOthers()).toRule,
-    RasOffload.from[SortExec](OffloadOthers()).toRule,
-    RasOffload.from[TakeOrderedAndProjectExec](OffloadOthers()).toRule,
-    RasOffload.from[WindowExec](OffloadOthers()).toRule,
-    RasOffload
-      .from(
-        (node: SparkPlan) => SparkShimLoader.getSparkShims.isWindowGroupLimitExec(node),
-        OffloadOthers())
-      .toRule,
-    RasOffload.from[LimitExec](OffloadOthers()).toRule,
-    RasOffload.from[GenerateExec](OffloadOthers()).toRule,
-    RasOffload.from[EvalPythonExec](OffloadOthers()).toRule
-  )
+  private val offloadRules =
+    Seq(
+      RasOffload.from[Exchange](OffloadExchange()),
+      RasOffload.from[BaseJoinExec](OffloadJoin()),
+      RasOffloadHashAggregate,
+      RasOffloadFilter,
+      RasOffloadProject,
+      RasOffload.from[DataSourceV2ScanExecBase](OffloadOthers()),
+      RasOffload.from[DataSourceScanExec](OffloadOthers()),
+      RasOffload
+        .from(
+          (node: SparkPlan) => HiveTableScanExecTransformer.isHiveTableScan(node),
+          OffloadOthers()),
+      RasOffload.from[CoalesceExec](OffloadOthers()),
+      RasOffload.from[SortAggregateExec](OffloadOthers()),
+      RasOffload.from[ObjectHashAggregateExec](OffloadOthers()),
+      RasOffload.from[UnionExec](OffloadOthers()),
+      RasOffload.from[ExpandExec](OffloadOthers()),
+      RasOffload.from[WriteFilesExec](OffloadOthers()),
+      RasOffload.from[SortExec](OffloadOthers()),
+      RasOffload.from[TakeOrderedAndProjectExec](OffloadOthers()),
+      RasOffload.from[WindowExec](OffloadOthers()),
+      RasOffload
+        .from(
+          (node: SparkPlan) => SparkShimLoader.getSparkShims.isWindowGroupLimitExec(node),
+          OffloadOthers()),
+      RasOffload.from[LimitExec](OffloadOthers()),
+      RasOffload.from[GenerateExec](OffloadOthers()),
+      RasOffload.from[EvalPythonExec](OffloadOthers())
+    ).map(RasOffload.Rule(_, validator))
 
   private val optimization = {
     GlutenOptimization

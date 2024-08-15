@@ -14,15 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.fuzzer
+package org.apache.gluten.runtime;
 
-object FuzzerTestResult {
-  trait TestResult {
-    val seed: Long
-
-    def getSeed: Long = seed
+/**
+ * This defines the base abstraction for the contextual objects that can be transmitted to C++ side
+ * for further native processing.
+ */
+public interface RuntimeAware {
+  default boolean isCompatibleWith(RuntimeAware other) {
+    return handle() == other.handle();
   }
-  case class Successful(seed: Long) extends TestResult
-  case class Failed(seed: Long) extends TestResult
-  case class OOM(seed: Long) extends TestResult
+
+  long handle();
 }

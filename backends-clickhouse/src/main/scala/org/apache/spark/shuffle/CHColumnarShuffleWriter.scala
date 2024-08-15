@@ -51,8 +51,13 @@ class CHColumnarShuffleWriter[K, V](
     .mkString(",")
   private val subDirsPerLocalDir = blockManager.diskBlockManager.subDirsPerLocalDir
   private val splitSize = GlutenConfig.getConf.maxBatchSize
-  private val customizedCompressCodec =
-    GlutenShuffleUtils.getCompressionCodec(conf).toUpperCase(Locale.ROOT)
+  private val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
+  private val capitalizedCompressionCodec = compressionCodec.toUpperCase(Locale.ROOT)
+  private val compressionLevel =
+    GlutenShuffleUtils.getCompressionLevel(
+      conf,
+      compressionCodec,
+      GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)
   private val maxSortBufferSize = GlutenConfig.getConf.chColumnarMaxSortBufferSize
   private val forceMemorySortShuffle = GlutenConfig.getConf.chColumnarForceMemorySortShuffle
   private val spillThreshold = GlutenConfig.getConf.chColumnarShuffleSpillThreshold
@@ -98,7 +103,8 @@ class CHColumnarShuffleWriter[K, V](
         dep.shuffleId,
         mapId,
         splitSize,
-        customizedCompressCodec,
+        capitalizedCompressionCodec,
+        compressionLevel,
         dataTmp.getAbsolutePath,
         localDirs,
         subDirsPerLocalDir,
@@ -178,6 +184,6 @@ class CHColumnarShuffleWriter[K, V](
   }
 
   // VisibleForTesting
-  def getPartitionLengths: Array[Long] = partitionLengths
+  def getPartitionLengths(): Array[Long] = partitionLengths
 
 }

@@ -136,7 +136,7 @@ TEST(SparkRow, GetArrayElementSize)
         {std::make_shared<DataTypeUInt32>(), 4},
         {std::make_shared<DataTypeFloat32>(), 4},
         {std::make_shared<DataTypeDate32>(), 4},
-        {std::make_shared<DataTypeDecimal32>(9, 4), 4},
+        {std::make_shared<DataTypeDecimal32>(9, 4), 8},
         {std::make_shared<DataTypeInt64>(), 8},
         {std::make_shared<DataTypeUInt64>(), 8},
         {std::make_shared<DataTypeFloat64>(), 8},
@@ -152,11 +152,11 @@ TEST(SparkRow, GetArrayElementSize)
 
     for (const auto & [type, size] : type_to_size)
     {
-        EXPECT_TRUE(BackingDataLengthCalculator::getArrayElementSize(type) == size);
+        EXPECT_EQ(size, BackingDataLengthCalculator::getArrayElementSize(type));
         if (type->canBeInsideNullable())
         {
             const auto type_with_nullable = std::make_shared<DataTypeNullable>(type);
-            EXPECT_TRUE(BackingDataLengthCalculator::getArrayElementSize(type_with_nullable) == size);
+            EXPECT_EQ(size, BackingDataLengthCalculator::getArrayElementSize(type_with_nullable));
         }
     }
 }

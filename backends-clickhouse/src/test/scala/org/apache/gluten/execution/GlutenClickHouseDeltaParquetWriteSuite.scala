@@ -1251,7 +1251,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     runTPCHQueryBySQL(1, sqlStr) { _ => {} }
   }
 
-  test("test parquet optimize basic") {
+  testSparkVersionLE33("test parquet optimize basic") {
     withSQLConf("spark.databricks.delta.optimize.maxFileSize" -> "20000000") {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS lineitem_delta_parquet_optimize;
@@ -1286,7 +1286,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     }
   }
 
-  test("test parquet optimize partitioned by one low card column") {
+  testSparkVersionLE33("test parquet optimize partitioned by one low card column") {
     spark.sql(s"""
                  |DROP TABLE IF EXISTS lineitem_delta_parquet_optimize_p2;
                  |""".stripMargin)
@@ -1325,7 +1325,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     assert(ret2.apply(0).get(0) == 600572)
   }
 
-  test("test parquet optimize parallel delete") {
+  testSparkVersionLE33("test parquet optimize parallel delete") {
     withSQLConf("spark.databricks.delta.vacuum.parallelDelete.enabled" -> "true") {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS lineitem_delta_parquet_optimize_p4;
@@ -1356,7 +1356,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     }
   }
 
-  test("test parquet optimize with the path based table") {
+  testSparkVersionLE33("test parquet optimize with the path based table") {
     val dataPath = s"$basePath/lineitem_delta_parquet_optimize_path_based"
     clearDataPath(dataPath)
     withSQLConf(
@@ -1372,14 +1372,16 @@ class GlutenClickHouseDeltaParquetWriteSuite
         .mode(SaveMode.Append)
         .save(dataPath)
 
+      assert(countFiles(new File(dataPath)) === 51)
+
       val clickhouseTable = DeltaTable.forPath(spark, dataPath)
       clickhouseTable.optimize().executeCompaction()
 
       clickhouseTable.vacuum(0.0)
       if (sparkVersion.equals("3.2")) {
-        assert(countFiles(new File(dataPath)) == 27)
+        assert(countFiles(new File(dataPath)) === 27)
       } else {
-        assert(countFiles(new File(dataPath)) == 29)
+        assert(countFiles(new File(dataPath)) === 29)
       }
 
       val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()

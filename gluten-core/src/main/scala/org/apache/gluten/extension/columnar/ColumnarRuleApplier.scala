@@ -22,6 +22,7 @@ import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.{Rule, RuleExecutor}
+import org.apache.spark.sql.catalyst.util.sideBySide
 import org.apache.spark.sql.execution.SparkPlan
 
 trait ColumnarRuleApplier {
@@ -47,13 +48,19 @@ object ColumnarRuleApplier {
     private val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
     override val ruleName: String = delegate.ruleName
 
-    override def apply(plan: SparkPlan): SparkPlan = GlutenTimeMetric.withMillisTime {
-      logOnLevel(
-        transformPlanLogLevel,
-        s"Preparing to apply rule $ruleName on plan:\n${plan.toString}")
-      val out = delegate.apply(plan)
-      logOnLevel(transformPlanLogLevel, s"Plan after applied rule $ruleName:\n${plan.toString}")
+    private def message(oldPlan: SparkPlan, newPlan: SparkPlan, millisTime: Long): String =
+      if (!oldPlan.fastEquals(newPlan)) {
+        s"""
+           |=== Applying Rule $ruleName took $millisTime ms ===
+           |${sideBySide(oldPlan.treeString, newPlan.treeString).mkString("\n")}
+           """.stripMargin
+      } else { s"Rule $ruleName has no effect, took $millisTime ms." }
+
+    override def apply(plan: SparkPlan): SparkPlan = {
+      val (out, millisTime) = GlutenTimeMetric.recordMillisTime(delegate.apply(plan))
+      logOnLevel(transformPlanLogLevel, message(plan, out, millisTime))
       out
-    }(t => logOnLevel(transformPlanLogLevel, s"Applying rule $ruleName took $t ms."))
+    }
+
   }
 }

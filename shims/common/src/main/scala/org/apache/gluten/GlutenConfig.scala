@@ -116,6 +116,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def forceParquetTimestampTypeScanFallbackEnabled: Boolean =
     conf.getConf(VELOX_FORCE_PARQUET_TIMESTAMP_TYPE_SCAN_FALLBACK)
 
+  def scanFileSchemeValidationEnabled: Boolean =
+    conf.getConf(VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED)
+
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
     conf
@@ -187,7 +190,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleCompressionThreshold: Int =
     conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
 
-  // FIXME: Not clear: MIN or MAX ?
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
   def columnarToRowMemThreshold: Long =
@@ -329,12 +331,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxResizeBatchesShuffleInputRange: ResizeRange = {
     val standardSize = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
-    val defaultRange: ResizeRange =
-      ResizeRange((0.25 * standardSize).toInt.max(1), 4 * standardSize)
-    conf
-      .getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_RANGE)
-      .map(ResizeRange.parse)
-      .getOrElse(defaultRange)
+    val defaultMinSize: Int = (0.25 * standardSize).toInt.max(1)
+    val minSize = conf
+      .getConf(COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_MIN_SIZE)
+      .getOrElse(defaultMinSize)
+    ResizeRange(minSize, Int.MaxValue)
   }
 
   def chColumnarShuffleSpillThreshold: Long = {
@@ -1319,10 +1320,11 @@ object GlutenConfig {
   val RAS_COST_MODEL =
     buildConf("spark.gluten.ras.costModel")
       .doc(
-        "Experimental: The class name of user-defined cost model that will be used by RAS. " +
-          "If not specified, a rough built-in cost model will be used.")
+        "Experimental: The class name of user-defined cost model that will be used by RAS. If " +
+          "not specified, a legacy built-in cost model that exhaustively offloads computations " +
+          "will be used.")
       .stringConf
-      .createWithDefaultString("rough")
+      .createWithDefaultString("legacy")
 
   // velox caching options.
   val COLUMNAR_VELOX_CACHE_ENABLED =
@@ -1492,17 +1494,16 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_RANGE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.range")
+  val COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT_MIN_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.resizeBatches.shuffleInput.minSize")
       .internal()
       .doc(
-        s"The minimum and maximum batch sizes for shuffle. If the batch size is " +
-          s"smaller / bigger than minimum / maximum value, it will be combined with other " +
-          s"batches / split before sending to shuffle. Only functions when " +
+        s"The minimum batch size for shuffle. If size of an input batch is " +
+          s"smaller than the value, it will be combined with other " +
+          s"batches before sending to shuffle. Only functions when " +
           s"${COLUMNAR_VELOX_RESIZE_BATCHES_SHUFFLE_INPUT.key} is set to true. " +
-          s"A valid value for the option is min~max. " +
-          s"E.g., s.g.s.c.b.v.resizeBatches.shuffleInput.range=100~10000")
-      .stringConf
+          s"Default value: 0.25 * <max batch size>")
+      .intConf
       .createOptional
 
   val COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD =
@@ -2010,6 +2011,16 @@ object GlutenConfig {
       .doc("Force fallback for parquet timestamp type scan.")
       .booleanConf
       .createWithDefault(false)
+
+  val VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED =
+    buildConf("spark.gluten.sql.scan.fileSchemeValidation.enabled")
+      .internal()
+      .doc(
+        "When true, enable file path scheme validation for scan. Validation will fail if" +
+          " file scheme is not supported by registered file systems, which will cause scan " +
+          " operator fall back.")
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED =
     buildConf("spark.gluten.sql.columnar.cast.avg")

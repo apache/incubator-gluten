@@ -293,7 +293,6 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> BlockPayload::readBufferAt(uint32_
 
 arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> BlockPayload::deserialize(
     arrow::io::InputStream* inputStream,
-    const std::shared_ptr<arrow::Schema>& schema,
     const std::shared_ptr<arrow::util::Codec>& codec,
     arrow::MemoryPool* pool,
     uint32_t& numRows,
@@ -326,9 +325,8 @@ void BlockPayload::setCompressionTime(int64_t compressionTime) {
   compressTime_ = compressionTime;
 }
 
-uint64_t BlockPayload::rawSize() {
-  return std::accumulate(
-      buffers_.begin(), buffers_.end(), 0UL, [](auto sum, const auto& buffer) { return sum + buffer->size(); });
+int64_t BlockPayload::rawSize() {
+  return getBufferSize(buffers_);
 }
 
 arrow::Result<std::unique_ptr<InMemoryPayload>> InMemoryPayload::merge(
@@ -419,10 +417,6 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> InMemoryPayload::readBufferAt(uint
   return std::move(buffers_[index]);
 }
 
-int64_t InMemoryPayload::getBufferSize() const {
-  return gluten::getBufferSize(buffers_);
-}
-
 arrow::Status InMemoryPayload::copyBuffers(arrow::MemoryPool* pool) {
   for (auto& buffer : buffers_) {
     if (!buffer) {
@@ -439,9 +433,8 @@ arrow::Status InMemoryPayload::copyBuffers(arrow::MemoryPool* pool) {
   return arrow::Status::OK();
 }
 
-uint64_t InMemoryPayload::rawSize() {
-  return std::accumulate(
-      buffers_.begin(), buffers_.end(), 0UL, [](auto sum, const auto& buffer) { return sum + buffer->size(); });
+int64_t InMemoryPayload::rawSize() {
+  return getBufferSize(buffers_);
 }
 
 UncompressedDiskBlockPayload::UncompressedDiskBlockPayload(
@@ -514,7 +507,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> UncompressedDiskBlockPayload::read
   return buffer;
 }
 
-uint64_t UncompressedDiskBlockPayload::rawSize() {
+int64_t UncompressedDiskBlockPayload::rawSize() {
   return rawSize_;
 }
 
@@ -522,7 +515,7 @@ CompressedDiskBlockPayload::CompressedDiskBlockPayload(
     uint32_t numRows,
     const std::vector<bool>* isValidityBuffer,
     arrow::io::InputStream*& inputStream,
-    uint64_t rawSize,
+    int64_t rawSize,
     arrow::MemoryPool* /* pool */)
     : Payload(Type::kCompressed, numRows, isValidityBuffer), inputStream_(inputStream), rawSize_(rawSize) {}
 
@@ -537,7 +530,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> CompressedDiskBlockPayload::readBu
   return arrow::Status::Invalid("Cannot read buffer from CompressedDiskBlockPayload.");
 }
 
-uint64_t CompressedDiskBlockPayload::rawSize() {
+int64_t CompressedDiskBlockPayload::rawSize() {
   return rawSize_;
 }
 } // namespace gluten

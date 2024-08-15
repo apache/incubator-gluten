@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.delta.catalog
 
+import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.expression.ConverterUtils.normalizeColName
 
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable}
@@ -49,10 +50,9 @@ trait ClickHouseTableV2Base {
     if (tableProperties.containsKey("numBuckets")) {
       val numBuckets = tableProperties.get("numBuckets").trim.toInt
       val bucketColumnNames: Seq[String] =
-        tableProperties.get("bucketColumnNames").split(",").map(_.trim).toSeq
-      val sortColumnNames: Seq[String] = if (tableProperties.containsKey("orderByKey")) {
-        tableProperties.get("orderByKey").split(",").map(_.trim).toSeq
-      } else Seq.empty[String]
+        getCommaSeparatedColumns("bucketColumnNames").getOrElse(Seq.empty[String])
+      val sortColumnNames: Seq[String] =
+        getCommaSeparatedColumns("orderByKey").getOrElse(Seq.empty[String])
       Some(BucketSpec(numBuckets, bucketColumnNames, sortColumnNames))
     } else {
       None
@@ -79,7 +79,11 @@ trait ClickHouseTableV2Base {
     val tableProperties = deltaProperties
     if (tableProperties.containsKey(keyName)) {
       if (tableProperties.get(keyName).nonEmpty) {
-        val keys = tableProperties.get(keyName).split(",").map(_.trim).toSeq
+        val keys = tableProperties
+          .get(keyName)
+          .split(",")
+          .map(n => ConverterUtils.normalizeColName(n.trim))
+          .toSeq
         keys.foreach(
           s => {
             if (s.contains(".")) {

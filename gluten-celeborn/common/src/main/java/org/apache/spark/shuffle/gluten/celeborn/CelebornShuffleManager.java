@@ -291,12 +291,18 @@ public class CelebornShuffleManager implements ShuffleManager {
         }
         @SuppressWarnings("unchecked")
         CelebornShuffleHandle<K, V, V> h = ((CelebornShuffleHandle<K, V, V>) handle);
+
+        CelebornConf writerConf = celebornConf;
+        if (!(h.dependency() instanceof ColumnarShuffleDependency)) {
+          writerConf = rowBasedCelebornConf;
+        }
+
         shuffleClient =
             CelebornUtils.getShuffleClient(
                 h.appUniqueId(),
                 h.lifecycleManagerHost(),
                 h.lifecycleManagerPort(),
-                celebornConf,
+                writerConf,
                 h.userIdentifier(),
                 false,
                 extension);

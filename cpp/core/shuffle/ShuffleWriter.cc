@@ -55,6 +55,10 @@ int64_t ShuffleWriter::totalBytesEvicted() const {
   return metrics_.totalBytesEvicted;
 }
 
+int64_t ShuffleWriter::totalBytesToEvict() const {
+  return metrics_.totalBytesToEvict;
+}
+
 int64_t ShuffleWriter::totalWriteTime() const {
   return metrics_.totalWriteTime;
 }

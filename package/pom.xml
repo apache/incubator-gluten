@@ -93,6 +93,16 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>delta</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.gluten</groupId>
+          <artifactId>gluten-delta</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
 
   <build>
@@ -320,6 +330,12 @@
                     <ignoreClass>org.apache.spark.sql.execution.datasources.WriterBucketSpec$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand$</ignoreClass>
+                    <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter</ignoreClass>
+                    <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter$</ignoreClass>
+                    <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter$SpillableIterator</ignoreClass>
+                    <ignoreClass>org.apache.spark.util.collection.unsafe.sort.UnsafeExternalSorter$ChainedIterator</ignoreClass>
+                    <ignoreClass>org.apache.spark.memory.MemoryConsumer</ignoreClass>
+                    <ignoreClass>org.apache.spark.memory.TaskMemoryManager </ignoreClass>
                     <!-- protobuf -->
                     <ignoreClass>com.google.protobuf.*</ignoreClass>
                   </ignoreClasses>

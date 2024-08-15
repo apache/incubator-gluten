@@ -230,7 +230,7 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -Pceleborn -DskipTests
 Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
 
 - Celeborn: celeborn-client-spark-3-shaded_2.12-[celebornVersion].jar
-- Gluten: gluten-velox-bundle-spark3.x_2.12-xx_xx_xx-SNAPSHOT.jar, gluten-celeborn-package-xx-SNAPSHOT.jar
+- Gluten: gluten-velox-bundle-spark3.x_2.12-xx_xx_xx-SNAPSHOT.jar (The bundled Gluten Jar. Make sure -Pceleborn is specified when it is built.)
 
 Currently to use Gluten following configurations are required in `spark-defaults.conf`
 
@@ -279,7 +279,7 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -Puniffle -DskipTests
 Then add the Uniffle and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
 
 - Uniffle: rss-client-spark3-shaded-[uniffleVersion].jar
-- Gluten: gluten-uniffle-velox-xxx-SNAPSHOT-3.x.jar
+- Gluten: gluten-velox-bundle-spark3.x_2.12-xx_xx_xx-SNAPSHOT.jar (The bundled Gluten Jar. Make sure -Puniffle is specified when it is built.)
 
 Currently to use Gluten following configurations are required in `spark-defaults.conf`
 
@@ -298,7 +298,7 @@ spark.shuffle.service.enabled false
 spark.rss.storage.type LOCALFILE_HDFS
 
 # If you want to use dynamic resource allocation,
-# please refer to this URL (https://github.com/apache/incubator-uniffle/tree/master/patch/spark) to apply the patch into your own Spark.
+# please refer to this URL (https://uniffle.apache.org/docs/client-guide#support-spark-dynamic-allocation) for more details.
 spark.dynamicAllocation.enabled false
 ```
 
@@ -314,10 +314,7 @@ First of all, compile gluten-delta module by a `delta` profile, as follows:
 mvn clean package -Pbackends-velox -Pspark-3.3 -Pdelta -DskipTests
 ```
 
-Then, put the additional `gluten-delta-XX-SNAPSHOT.jar` to the class path (usually it's `$SPARK_HOME/jars`).
-The gluten-delta jar is in `gluten-delta/target` directory.
-
-After the two steps, you can query delta table by gluten/velox without scan's fallback.
+Once built successfully, delta features will be included in gluten-velox-bundle-X jar. Then you can query delta table by gluten/velox without scan's fallback.
 
 Gluten with velox backends also support the column mapping of delta tables.
 About column mapping, see more [here](https://docs.delta.io/latest/delta-column-mapping.html).
@@ -335,8 +332,6 @@ mvn clean package -Pbackends-velox -Pspark-3.3 -Piceberg -DskipTests
 ```
 
 Once built successfully, iceberg features will be included in gluten-velox-bundle-X jar. Then you can query iceberg table by gluten/velox without scan's fallback.
-
-After the two steps, you can query iceberg table by gluten/velox without scan's fallback.
 
 # Coverage
 

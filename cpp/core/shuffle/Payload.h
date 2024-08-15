@@ -38,7 +38,7 @@ class Payload {
 
   virtual arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index) = 0;
 
-  virtual uint64_t rawSize() = 0;
+  virtual int64_t rawSize() = 0;
 
   int64_t getCompressTime() const {
     return compressTime_;
@@ -88,7 +88,6 @@ class BlockPayload final : public Payload {
 
   static arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> deserialize(
       arrow::io::InputStream* inputStream,
-      const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
       arrow::MemoryPool* pool,
       uint32_t& numRows,
@@ -98,7 +97,7 @@ class BlockPayload final : public Payload {
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t pos) override;
 
-  uint64_t rawSize() override;
+  int64_t rawSize() override;
 
  protected:
   BlockPayload(
@@ -135,11 +134,9 @@ class InMemoryPayload final : public Payload {
   arrow::Result<std::unique_ptr<BlockPayload>>
   toBlockPayload(Payload::Type payloadType, arrow::MemoryPool* pool, arrow::util::Codec* codec);
 
-  int64_t getBufferSize() const;
-
   arrow::Status copyBuffers(arrow::MemoryPool* pool);
 
-  uint64_t rawSize() override;
+  int64_t rawSize() override;
 
  private:
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
@@ -160,11 +157,11 @@ class UncompressedDiskBlockPayload final : public Payload {
 
   arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
 
-  uint64_t rawSize() override;
+  int64_t rawSize() override;
 
  private:
   arrow::io::InputStream*& inputStream_;
-  uint64_t rawSize_;
+  int64_t rawSize_;
   arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
   uint32_t readPos_{0};
@@ -178,17 +175,17 @@ class CompressedDiskBlockPayload final : public Payload {
       uint32_t numRows,
       const std::vector<bool>* isValidityBuffer,
       arrow::io::InputStream*& inputStream,
-      uint64_t rawSize,
+      int64_t rawSize,
       arrow::MemoryPool* pool);
 
   arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index) override;
 
-  uint64_t rawSize() override;
+  int64_t rawSize() override;
 
  private:
   arrow::io::InputStream*& inputStream_;
-  uint64_t rawSize_;
+  int64_t rawSize_;
 };
 } // namespace gluten
