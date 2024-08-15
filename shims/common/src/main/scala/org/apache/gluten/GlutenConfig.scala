@@ -587,9 +587,6 @@ object GlutenConfig {
 
   val GLUTEN_SHUFFLE_WRITER_MERGE_THRESHOLD = "spark.gluten.sql.columnar.shuffle.merge.threshold"
 
-  // Columnar to row memory threshold.
-  val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY = "spark.gluten.sql.columnarToRowMemoryThreshold"
-
   // Controls whether to load DLL from jars. User can get dependent native libs packed into a jar
   // by executing dev/package.sh. Then, with that jar configured, Gluten can load the native libs
   // at runtime. This config is just for velox backend. And it is NOT applicable to the situation
@@ -654,7 +651,6 @@ object GlutenConfig {
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_MAX_BATCH_SIZE_KEY,
-      GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY,
       GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
@@ -690,7 +686,10 @@ object GlutenConfig {
       (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
       (
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
-        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString)
+        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
+      (
+        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
+        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -1123,7 +1122,7 @@ object GlutenConfig {
       .createWithDefault(4096)
 
   val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD =
-    buildConf(GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY)
+    buildConf("spark.gluten.sql.columnarToRowMemoryThreshold")
       .internal()
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64MB")
