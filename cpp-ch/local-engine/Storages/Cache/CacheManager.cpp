@@ -131,7 +131,7 @@ Task CacheManager::cachePart(const MergeTreeTable& table, const MergeTreePart& p
     return std::move(task);
 }
 
-JobId CacheManager::cacheParts(const String& table_def, const std::unordered_set<String>& columns, const bool async)
+JobId CacheManager::cacheParts(const String& table_def, const std::unordered_set<String>& columns)
 {
     auto table = parseMergeTreeTableString(table_def);
     JobId id = toString(UUIDHelpers::generateV4());
@@ -141,7 +141,7 @@ JobId CacheManager::cacheParts(const String& table_def, const std::unordered_set
         job.addTask(cachePart(table, part, columns));
     }
     auto& scheduler = JobScheduler::instance();
-    scheduler.scheduleJob(std::move(job), async);
+    scheduler.scheduleJob(std::move(job));
     return id;
 }
 

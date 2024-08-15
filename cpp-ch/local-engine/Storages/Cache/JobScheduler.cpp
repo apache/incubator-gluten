@@ -55,7 +55,7 @@ void JobScheduler::initialize(DB::ContextPtr context)
 
 }
 
-JobId JobScheduler::scheduleJob(Job && job, bool auto_remove)
+JobId JobScheduler::scheduleJob(Job&& job)
 {
     cleanFinishedJobs();
     if (job_details.contains(job.id))
@@ -80,7 +80,7 @@ JobId JobScheduler::scheduleJob(Job && job, bool auto_remove)
         job_detail.task_results.emplace_back(TaskResult());
         auto & task_result = job_detail.task_results.back();
         thread_pool->scheduleOrThrow(
-            [&, clean_job = auto_remove]()
+            [&]()
             {
                 SCOPE_EXIT({
                     job_detail.remain_tasks->fetch_sub(1, std::memory_order::acquire);

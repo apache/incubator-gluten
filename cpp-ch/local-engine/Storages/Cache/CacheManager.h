@@ -38,7 +38,7 @@ public:
     static CacheManager & instance();
     static void initialize(DB::ContextMutablePtr context);
     Task cachePart(const MergeTreeTable& table, const MergeTreePart& part, const std::unordered_set<String>& columns);
-    JobId cacheParts(const String& table_def, const std::unordered_set<String>& columns, bool async = true);
+    JobId cacheParts(const String& table_def, const std::unordered_set<String>& columns);
     static jobject getCacheStatus(JNIEnv * env, const String& jobId);
 private:
     CacheManager() = default;

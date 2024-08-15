@@ -1270,7 +1270,7 @@ JNIEXPORT void Java_org_apache_gluten_utils_TestExceptionUtils_generateNativeExc
 
 
 
-JNIEXPORT jstring Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * env, jobject, jstring table_, jstring columns_, jboolean async_)
+JNIEXPORT jstring Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * env, jobject, jstring table_, jstring columns_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto table_def = jstring2string(env, table_);
@@ -1281,7 +1281,7 @@ JNIEXPORT jstring Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCa
     {
         column_set.insert(col);
     }
-    auto id = local_engine::CacheManager::instance().cacheParts(table_def, column_set, async_);
+    auto id = local_engine::CacheManager::instance().cacheParts(table_def, column_set);
     return local_engine::charTojstring(env, id.c_str());
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr);
 }

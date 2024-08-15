@@ -110,7 +110,7 @@ public:
 
     static void initialize(DB::ContextPtr context);
 
-    JobId scheduleJob(Job && job, bool auto_remove);
+    JobId scheduleJob(Job&& job);
 
     std::optional<JobSatus> getJobSatus(const JobId& job_id);
 
