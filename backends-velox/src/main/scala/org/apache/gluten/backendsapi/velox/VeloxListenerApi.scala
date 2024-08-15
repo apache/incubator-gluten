@@ -30,7 +30,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
-import org.apache.spark.util.SparkDirectoryUtil
+import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
 
 import org.apache.commons.lang3.StringUtils
 
@@ -138,23 +138,13 @@ class VeloxListenerApi extends ListenerApi with Logging {
 }
 
 object VeloxListenerApi {
-  // See org.apache.spark.SparkMasterRegex
-  private val LOCAL_N_REGEX = """local\[([0-9]+|\*)\]""".r
-  private val LOCAL_N_FAILURES_REGEX = """local\[([0-9]+|\*)\s*,\s*([0-9]+)\]""".r
-
   // TODO: Implement graceful shutdown and remove these flags.
   //  As spark conf may change when active Spark session is recreated.
   private val driverInitialized: AtomicBoolean = new AtomicBoolean(false)
   private val executorInitialized: AtomicBoolean = new AtomicBoolean(false)
 
   private def inLocalMode(conf: SparkConf): Boolean = {
-    val master = conf.get("spark.master")
-    master match {
-      case "local" => true
-      case LOCAL_N_REGEX(_) => true
-      case LOCAL_N_FAILURES_REGEX(_, _) => true
-      case _ => false
-    }
+    SparkResourceUtil.isLocalMaster(conf)
   }
 
   private def loadLibFromJar(load: JniLibLoader, conf: SparkConf): Unit = {
