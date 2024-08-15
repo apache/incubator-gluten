@@ -48,8 +48,8 @@ class VeloxListenerApi extends ListenerApi with Logging {
     if (!driverInitialized.compareAndSet(false, true)) {
       // Make sure we call the static initializers only once.
       logInfo(
-        "Skip rerunning static initializers since they are already called." +
-          " It's probably because you are creating a new SparkSession.")
+        "Skip rerunning static initializers since they are only supposed to run once." +
+          " You see this message probably because are creating a new SparkSession.")
       return
     }
 
@@ -72,8 +72,8 @@ class VeloxListenerApi extends ListenerApi with Logging {
     if (!executorInitialized.compareAndSet(false, true)) {
       // Make sure we call the static initializers only once.
       logInfo(
-        "Skip rerunning static initializers since they are already called." +
-          " It's probably because you are creating a new SparkSession.")
+        "Skip rerunning static initializers since they are only supposed to run once." +
+          " You see this message probably because are creating a new SparkSession.")
       return
     }
     val conf = pc.conf
