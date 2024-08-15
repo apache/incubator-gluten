@@ -52,16 +52,18 @@ ExpandStep::ExpandStep(const DB::DataStream & input_stream_, const ExpandField &
     output_header = getOutputStream().header;
 }
 
-DB::Block ExpandStep::buildOutputHeader(const DB::Block & , const ExpandField & project_set_exprs_)
+DB::Block ExpandStep::buildOutputHeader(const DB::Block &, const ExpandField & project_set_exprs_)
 {
     DB::ColumnsWithTypeAndName cols;
     const auto & types = project_set_exprs_.getTypes();
     const auto & names = project_set_exprs_.getNames();
 
-    for (size_t i = 0; i < project_set_exprs_.getExpandCols(); ++i)
-        cols.push_back(DB::ColumnWithTypeAndName(types[i], names[i]));
+    chassert(names.size() == types.size());
 
-    return DB::Block(cols);
+    for (size_t i = 0; i < project_set_exprs_.getExpandCols(); ++i)
+        cols.emplace_back(DB::ColumnWithTypeAndName(types[i], names[i]));
+
+    return DB::Block(std::move(cols));
 }
 
 void ExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & /*settings*/)
