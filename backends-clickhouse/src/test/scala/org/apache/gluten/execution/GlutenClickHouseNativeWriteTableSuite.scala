@@ -924,7 +924,7 @@ class GlutenClickHouseNativeWriteTableSuite
   test("GLUTEN-2584: fix native write and read mismatch about complex types") {
     Seq("orc", "parquet").foreach {
       format =>
-        val table_name = "t_" + format
+        val table_name = "test_2584_" + format
         val create_sql =
           s"""CREATE TABLE $table_name(
              |  id INT,
