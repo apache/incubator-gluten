@@ -543,7 +543,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("MapEntries")
     .exclude("Map Concat")
     .exclude("MapFromEntries")
-    .exclude("ArraysOverlap")
     .exclude("ArraysZip")
     .exclude("Sequence of numbers")
     .exclude("Sequence of timestamps")

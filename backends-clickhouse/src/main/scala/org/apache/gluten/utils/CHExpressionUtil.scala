@@ -187,7 +187,6 @@ object CHExpressionUtil {
     UNIX_TIMESTAMP -> UnixTimeStampValidator(),
     SEQUENCE -> SequenceValidator(),
     GET_JSON_OBJECT -> GetJsonObjectValidator(),
-    ARRAYS_OVERLAP -> DefaultValidator(),
     SPLIT -> StringSplitValidator(),
     SUBSTRING_INDEX -> SubstringIndexValidator(),
     LPAD -> StringLPadValidator(),
