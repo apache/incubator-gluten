@@ -239,6 +239,15 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
   int64_t shrunken = memoryManager_->shrink(size);
   // todo return the actual spilled size?
   if (spillStrategy_ == "auto") {
+    exec::DriverThreadContext* driverThreadCtx = exec::driverThreadContext();
+    if (driverThreadCtx != nullptr) {
+      if (driverThreadCtx->driverCtx.task->taskId() != task_->taskId()) {
+        // Disallow one task from spilling another. This is by Velox's restriction. See
+        // https://github.com/facebookincubator/velox/blob/9523840ac329be4f7318338fb92cb92bcb0a8c07/velox/exec/Operator.cpp#L566-L575.
+        VLOG(2) << logPrefix << "One Velox task is trying to spill another, ignoring.";
+        return shrunken;
+      }
+    }
     int64_t remaining = size - shrunken;
     LOG(INFO) << logPrefix << "Trying to request spilling for " << remaining << " bytes...";
     // suspend the driver when we are on it
