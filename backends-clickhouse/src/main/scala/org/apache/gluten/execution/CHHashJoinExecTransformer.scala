@@ -43,29 +43,39 @@ object JoinTypeTransform {
     }
   }
 
-  def toSubstraitType(joinType: JoinType, buildSide: BuildSide): JoinRel.JoinType = {
-    joinType match {
+  def toSubstraitJoinType(sparkJoin: JoinType, buildRight: Boolean): JoinRel.JoinType =
+    sparkJoin match {
       case _: InnerLike =>
         JoinRel.JoinType.JOIN_TYPE_INNER
       case FullOuter =>
         JoinRel.JoinType.JOIN_TYPE_OUTER
       case LeftOuter =>
-        JoinRel.JoinType.JOIN_TYPE_LEFT
-      case RightOuter if (buildSide == BuildLeft) =>
-        // The tables order will be reversed in HashJoinLikeExecTransformer
-        JoinRel.JoinType.JOIN_TYPE_LEFT
-      case RightOuter if (buildSide == BuildRight) =>
-        // This the case rewritten in ReorderJoinLeftRightRule
-        JoinRel.JoinType.JOIN_TYPE_RIGHT
+        if (!buildRight) {
+          JoinRel.JoinType.JOIN_TYPE_RIGHT
+        } else {
+          JoinRel.JoinType.JOIN_TYPE_LEFT
+        }
+      case RightOuter =>
+        if (!buildRight) {
+          JoinRel.JoinType.JOIN_TYPE_LEFT
+        } else {
+          JoinRel.JoinType.JOIN_TYPE_RIGHT
+        }
       case LeftSemi | ExistenceJoin(_) =>
+        if (!buildRight) {
+          throw new IllegalArgumentException("LeftSemi join should not switch children")
+        }
         JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
       case LeftAnti =>
+        if (!buildRight) {
+          throw new IllegalArgumentException("LeftAnti join should not switch children")
+        }
         JoinRel.JoinType.JOIN_TYPE_ANTI
       case _ =>
         // TODO: Support cross join with Cross Rel
         JoinRel.JoinType.UNRECOGNIZED
     }
-  }
+
 }
 
 case class CHShuffledHashJoinExecTransformer(
@@ -104,8 +114,6 @@ case class CHShuffledHashJoinExecTransformer(
     super.doValidateInternal()
   }
   private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
-  override protected lazy val substraitJoinType: JoinRel.JoinType =
-    JoinTypeTransform.toSubstraitType(joinType, buildSide)
 
   override def genJoinParameters(): Any = {
     val (isBHJ, isNullAwareAntiJoin, buildHashTableId): (Int, Int, String) = (0, 0, "")
@@ -162,6 +170,12 @@ case class CHShuffledHashJoinExecTransformer(
       .build()
     BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
   }
+
+  override protected lazy val substraitJoinType: JoinRel.JoinType = {
+    val res = JoinTypeTransform.toSubstraitJoinType(joinType, buildSide == BuildRight)
+    logDebug(s"Convert join type from: $joinType:$buildSide to $res $needSwitchChildren")
+    res
+  }
 }
 
 case class CHBroadcastBuildSideRDD(
@@ -179,6 +193,7 @@ case class CHBroadcastBuildSideRDD(
 case class BroadCastHashJoinContext(
     buildSideJoinKeys: Seq[Expression],
     joinType: JoinType,
+    buildRight: Boolean,
     hasMixedFiltCondition: Boolean,
     isExistenceJoin: Boolean,
     buildSideStructure: Seq[Attribute],
@@ -241,6 +256,7 @@ case class CHBroadcastHashJoinExecTransformer(
       BroadCastHashJoinContext(
         buildKeyExprs,
         finalJoinType,
+        buildSide == BuildRight,
         isMixedCondition(condition),
         joinType.isInstanceOf[ExistenceJoin],
         buildPlan.output,
@@ -268,6 +284,7 @@ case class CHBroadcastHashJoinExecTransformer(
   // We don't have left any join in substrait, so use left semi join instead.
   // and isExistenceJoin is set to true to indicate that it is an existence join.
   private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
-  override protected lazy val substraitJoinType: JoinRel.JoinType =
-    JoinTypeTransform.toSubstraitType(joinType, buildSide)
+  override protected lazy val substraitJoinType: JoinRel.JoinType = {
+    JoinTypeTransform.toSubstraitJoinType(joinType, buildSide == BuildRight)
+  }
 }
