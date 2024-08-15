@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-#include <velox/core/Config.h>
+#include <velox/common/config/Config.h>
 #include <memory>
 namespace gluten {
-void updateHdfsTokens(const facebook::velox::Config* veloxCfg);
+void updateHdfsTokens(const facebook::velox::config::ConfigBase* veloxCfg);
 }

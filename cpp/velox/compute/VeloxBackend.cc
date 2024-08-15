@@ -63,13 +63,14 @@ gluten::Runtime* veloxRuntimeFactory(
 } // namespace
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
-  backendConf_ = std::make_shared<facebook::velox::core::MemConfig>(conf);
+  backendConf_ =
+      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
 
   // Register Velox runtime factory
   gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
 
   if (backendConf_->get<bool>(kDebugModeEnabled, false)) {
-    LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->values());
+    LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->rawConfigs());
   }
 
   // Init glog and log level.
@@ -77,7 +78,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
     FLAGS_v = backendConf_->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
     FLAGS_minloglevel = backendConf_->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
   } else {
-    if (backendConf_->isValueExists(kGlogVerboseLevel)) {
+    if (backendConf_->valueExists(kGlogVerboseLevel)) {
       FLAGS_v = backendConf_->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
     } else {
       FLAGS_v = kGlogVerboseLevelMaximum;
@@ -187,15 +188,15 @@ void VeloxBackend::initCache() {
 
 void VeloxBackend::initConnector() {
   // The configs below are used at process level.
-  std::unordered_map<std::string, std::string> connectorConfMap = backendConf_->values();
+  std::unordered_map<std::string, std::string> connectorConfMap = backendConf_->rawConfigs();
 
   auto hiveConf = getHiveConfig(backendConf_);
-  for (auto& [k, v] : hiveConf->valuesCopy()) {
+  for (auto& [k, v] : hiveConf->rawConfigsCopy()) {
     connectorConfMap[k] = v;
   }
 
 #ifdef ENABLE_ABFS
-  const auto& confValue = backendConf_->values();
+  const auto& confValue = backendConf_->rawConfigs();
   for (auto& [k, v] : confValue) {
     if (k.find("fs.azure.account.key") == 0) {
       connectorConfMap[k] = v;
@@ -205,6 +206,7 @@ void VeloxBackend::initConnector() {
     }
   }
 #endif
+
   connectorConfMap[velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
       backendConf_->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
 
@@ -233,7 +235,7 @@ void VeloxBackend::initConnector() {
   }
   velox::connector::registerConnector(std::make_shared<velox::connector::hive::HiveConnector>(
       kHiveConnectorId,
-      std::make_shared<facebook::velox::core::MemConfig>(std::move(connectorConfMap)),
+      std::make_shared<facebook::velox::config::ConfigBase>(std::move(connectorConfMap)),
       ioExecutor_.get()));
 }
 

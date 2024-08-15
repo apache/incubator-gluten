@@ -43,7 +43,8 @@ class VeloxParquetDatasourceS3 final : public VeloxParquetDatasource {
       : VeloxParquetDatasource(filePath, veloxPool, sinkPool, schema) {}
 
   void initSink(const std::unordered_map<std::string, std::string>& sparkConfs) override {
-    auto hiveConf = getHiveConfig(std::make_shared<facebook::velox::core::MemConfig>(sparkConfs));
+    auto hiveConf = getHiveConfig(std::make_shared<facebook::velox::config::ConfigBase>(
+        std::unordered_map<std::string, std::string>(sparkConfs)));
     sink_ = dwio::common::FileSink::create(filePath_, {.connectorProperties = hiveConf, .pool = sinkPool_.get()});
   }
 };

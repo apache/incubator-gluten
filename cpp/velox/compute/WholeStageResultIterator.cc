@@ -62,7 +62,8 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::unordered_map<std::string, std::string>& confMap,
     const SparkTaskInfo& taskInfo)
     : memoryManager_(memoryManager),
-      veloxCfg_(std::make_shared<facebook::velox::core::MemConfig>(confMap)),
+      veloxCfg_(
+          std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
       scanNodeIds_(scanNodeIds),
@@ -175,7 +176,7 @@ WholeStageResultIterator::WholeStageResultIterator(
 }
 
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
-  std::unordered_map<std::string, std::shared_ptr<velox::Config>> connectorConfigs;
+  std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
 
   std::shared_ptr<velox::core::QueryCtx> ctx = velox::core::QueryCtx::create(
@@ -437,10 +438,10 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
   // FIXME this uses process-wise off-heap memory which is not for task
   try {
-    if (veloxCfg_->isValueExists(kDefaultSessionTimezone)) {
+    if (veloxCfg_->valueExists(kDefaultSessionTimezone)) {
       configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kDefaultSessionTimezone, "");
     }
-    if (veloxCfg_->isValueExists(kSessionTimezone)) {
+    if (veloxCfg_->valueExists(kSessionTimezone)) {
       configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kSessionTimezone, "");
     }
     // Adjust timestamp according to the above configured session timezone.
@@ -519,7 +520,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   return configs;
 }
 
-std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig() {
+std::shared_ptr<velox::config::ConfigBase> WholeStageResultIterator::createConnectorConfig() {
   // The configs below are used at session level.
   std::unordered_map<std::string, std::string> configs = {};
   // The semantics of reading as lower case is opposite with case-sensitive.
@@ -532,7 +533,7 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
       std::to_string(veloxCfg_->get<int32_t>(kMaxPartitions, 10000));
   configs[velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
       std::to_string(veloxCfg_->get<bool>(kIgnoreMissingFiles, false));
-  return std::make_shared<velox::core::MemConfig>(configs);
+  return std::make_shared<velox::config::ConfigBase>(std::move(configs));
 }
 
 } // namespace gluten

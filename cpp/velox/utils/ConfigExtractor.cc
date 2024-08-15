@@ -59,7 +59,8 @@ std::string getConfigValue(
   return got->second;
 }
 
-std::shared_ptr<facebook::velox::core::MemConfig> getHiveConfig(std::shared_ptr<facebook::velox::Config> conf) {
+std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
+    std::shared_ptr<facebook::velox::config::ConfigBase> conf) {
   std::unordered_map<std::string, std::string> hiveConfMap;
 
 #ifdef ENABLE_S3
@@ -125,7 +126,7 @@ std::shared_ptr<facebook::velox::core::MemConfig> getHiveConfig(std::shared_ptr<
 
 #ifdef ENABLE_GCS
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
-  auto gsStorageRootUrl = conf->get("spark.hadoop.fs.gs.storage.root.url");
+  auto gsStorageRootUrl = conf->get<std::string>("spark.hadoop.fs.gs.storage.root.url");
   if (gsStorageRootUrl.hasValue()) {
     std::string url = gsStorageRootUrl.value();
     std::string gcsScheme;
@@ -146,23 +147,24 @@ std::shared_ptr<facebook::velox::core::MemConfig> getHiveConfig(std::shared_ptr<
 
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#http-transport-configuration
   // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedErrorCountRetryPolicy
-  auto gsMaxRetryCount = conf->get("spark.hadoop.fs.gs.http.max.retry");
+  auto gsMaxRetryCount = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry");
   if (gsMaxRetryCount.hasValue()) {
     hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSMaxRetryCount] = gsMaxRetryCount.value();
   }
 
   // https://cloud.google.com/cpp/docs/reference/storage/latest/classgoogle_1_1cloud_1_1storage_1_1LimitedTimeRetryPolicy
-  auto gsMaxRetryTime = conf->get("spark.hadoop.fs.gs.http.max.retry-time");
+  auto gsMaxRetryTime = conf->get<std::string>("spark.hadoop.fs.gs.http.max.retry-time");
   if (gsMaxRetryTime.hasValue()) {
     hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSMaxRetryTime] = gsMaxRetryTime.value();
   }
 
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
-  auto gsAuthType = conf->get("spark.hadoop.fs.gs.auth.type");
+  auto gsAuthType = conf->get<std::string>("spark.hadoop.fs.gs.auth.type");
   if (gsAuthType.hasValue()) {
     std::string type = gsAuthType.value();
     if (type == "SERVICE_ACCOUNT_JSON_KEYFILE") {
-      auto gsAuthServiceAccountJsonKeyfile = conf->get("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
+      auto gsAuthServiceAccountJsonKeyfile =
+          conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
       if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
         auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile.value());
         stream.exceptions(std::ios::badbit);
@@ -180,7 +182,7 @@ std::shared_ptr<facebook::velox::core::MemConfig> getHiveConfig(std::shared_ptr<
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
       conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
 
-  return std::make_shared<facebook::velox::core::MemConfig>(std::move(hiveConfMap));
+  return std::make_shared<facebook::velox::config::ConfigBase>(std::move(hiveConfMap));
 }
 
 } // namespace gluten
