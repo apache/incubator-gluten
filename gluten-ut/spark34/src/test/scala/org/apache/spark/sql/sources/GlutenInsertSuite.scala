@@ -18,18 +18,20 @@ package org.apache.spark.sql.sources
 
 import org.apache.gluten.execution.{ProjectExecTransformer, SortExecTransformer}
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
+
 import org.apache.spark.SparkConf
 import org.apache.spark.executor.OutputMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
+import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, CommandResultExec, QueryExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, CommandResultExec, QueryExecution}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.util.QueryExecutionListener
+
+import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
 
 import java.io.{File, IOException}
 
@@ -161,7 +163,10 @@ class GlutenInsertSuite
             .commandPhysicalPlan).children.head
         assert(!writeFiles.isInstanceOf[ColumnarWriteFilesExec])
         assert(writeFiles.exists(_.isInstanceOf[ProjectExecTransformer]))
-        val projectExecTransformer = writeFiles.find(_.isInstanceOf[ProjectExecTransformer]).get.asInstanceOf[ProjectExecTransformer]
+        val projectExecTransformer = writeFiles
+          .find(_.isInstanceOf[ProjectExecTransformer])
+          .get
+          .asInstanceOf[ProjectExecTransformer]
         projectExecTransformer.projectList.find(_.toString().contains("empty2null"))
 
         // The partition column should never be empty
