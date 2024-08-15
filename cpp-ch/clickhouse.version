@@ -1,4 +1,3 @@
 CH_ORG=Kyligence
-CH_BRANCH=rebase_ch/20240809
-CH_COMMIT=01e780d46d9
-
+CH_BRANCH=rebase_ch/20240815
+CH_COMMIT=d87dbba64fc

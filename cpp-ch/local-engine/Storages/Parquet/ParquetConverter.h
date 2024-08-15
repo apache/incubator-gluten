@@ -38,9 +38,9 @@ struct ToParquet
     T as(const DB::Field & value, const parquet::ColumnDescriptor &)
     {
         if constexpr (std::is_same_v<PhysicalType, parquet::Int32Type>)
-            return static_cast<T>(value.get<Int64>());
+            return static_cast<T>(value.safeGet<Int64>());
         // parquet::BooleanType, parquet::Int64Type, parquet::FloatType, parquet::DoubleType
-        return value.get<T>(); // FLOAT, DOUBLE, INT64
+        return value.safeGet<T>(); // FLOAT, DOUBLE, INT64
     }
 };
 
@@ -51,7 +51,7 @@ struct ToParquet<parquet::ByteArrayType>
     T as(const DB::Field & value, const parquet::ColumnDescriptor &)
     {
         assert(value.getType() == DB::Field::Types::String);
-        const std::string & s = value.get<std::string>();
+        const std::string & s = value.safeGet<std::string>();
         const auto * const ptr = reinterpret_cast<const uint8_t *>(s.data());
         return parquet::ByteArray(static_cast<uint32_t>(s.size()), ptr);
     }
@@ -74,7 +74,7 @@ struct ToParquet<parquet::FLBAType>
                 "descriptor.type_length() = {} , which is > {}, e.g. sizeof(Int128)",
                 descriptor.type_length(),
                 sizeof(Int128));
-        Int128 val = value.get<DB::DecimalField<DB::Decimal128>>().getValue();
+        Int128 val = value.safeGet<DB::DecimalField<DB::Decimal128>>().getValue();
         std::reverse(reinterpret_cast<char *>(&val), reinterpret_cast<char *>(&val) + sizeof(val));
         const int offset = sizeof(Int128) - descriptor.type_length();
         memcpy(buf, reinterpret_cast<char *>(&val) + offset, descriptor.type_length());

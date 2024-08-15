@@ -271,7 +271,7 @@ public:
             if (scale_field.getType() != Field::Types::UInt64 && scale_field.getType() != Field::Types::Int64)
                 throw Exception(ErrorCodes::ILLEGAL_COLUMN, "Scale argument for rounding functions must have integer type");
 
-            Int64 scale64 = scale_field.get<Int64>();
+            Int64 scale64 = scale_field.safeGet<Int64>();
             if (scale64 > std::numeric_limits<Scale>::max() || scale64 < std::numeric_limits<Scale>::min())
                 throw Exception(ErrorCodes::ARGUMENT_OUT_OF_BOUND, "Scale argument for rounding function is too large");
 

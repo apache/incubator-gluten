@@ -937,4 +937,37 @@ class GlutenClickHouseNativeWriteTableSuite
           _ => {})
     )
   }
+
+  test("GLUTEN-2584: fix native write and read mismatch about complex types") {
+    def table(format: String): String = s"t_$format"
+    def create(format: String, table_name: Option[String] = None): String =
+      s"""CREATE TABLE ${table_name.getOrElse(table(format))}(
+         |  id INT,
+         |  info STRUCT<name:STRING, age:INT>,
+         |  data MAP<STRING, INT>,
+         |  values ARRAY<INT>
+         |) stored as $format""".stripMargin
+    def insert(format: String, table_name: Option[String] = None): String =
+      s"""INSERT overwrite ${table_name.getOrElse(table(format))} VALUES
+         |  (6, null, null, null);
+            """.stripMargin
+
+    nativeWrite2(
+      format => (table(format), create(format), insert(format)),
+      (table_name, format) => {
+        val vanilla_table = s"${table_name}_v"
+        val vanilla_create = create(format, Some(vanilla_table))
+        vanillaWrite {
+          withDestinationTable(vanilla_table, Option(vanilla_create)) {
+            checkInsertQuery(insert(format, Some(vanilla_table)), checkNative = false)
+          }
+        }
+        val rowsFromOriginTable =
+          spark.sql(s"select * from $vanilla_table").collect()
+        val dfFromWriteTable =
+          spark.sql(s"select * from $table_name")
+        checkAnswer(dfFromWriteTable, rowsFromOriginTable)
+      }
+    )
+  }
 }

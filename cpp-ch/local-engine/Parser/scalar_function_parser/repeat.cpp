@@ -18,6 +18,7 @@
 #include <DataTypes/DataTypeNumberBase.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 
@@ -42,8 +43,7 @@ public:
         const auto & args = substrait_func.arguments();
         parsed_args.emplace_back(parseExpression(actions_dag, args[0].value()));
         const auto * repeat_times_node = parseExpression(actions_dag, args[1].value());
-        DB::DataTypeNullable target_type(std::make_shared<DB::DataTypeUInt32>());
-        repeat_times_node = ActionsDAGUtil::convertNodeType(actions_dag, repeat_times_node, target_type.getName());
+        repeat_times_node = ActionsDAGUtil::convertNodeType(actions_dag, repeat_times_node, makeNullable(UINT()));
         parsed_args.emplace_back(repeat_times_node);
         const auto * func_node = toFunctionNode(actions_dag, ch_function_name, parsed_args);
         return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);

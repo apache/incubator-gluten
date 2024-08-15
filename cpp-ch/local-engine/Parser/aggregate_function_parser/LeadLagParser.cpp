@@ -19,6 +19,7 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <Interpreters/ActionsDAG.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 
 namespace local_engine
@@ -41,7 +42,7 @@ LeadParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::Act
         node = ActionsDAGUtil::convertNodeType(
             actions_dag,
             &actions_dag.findInOutputs(arg0_col_name),
-            DB::makeNullable(arg0_col_type)->getName(),
+            DB::makeNullable(arg0_col_type),
             arg0_col_name);
         actions_dag.addOrReplaceInOutputs(*node);
         args.push_back(node);
@@ -52,7 +53,7 @@ LeadParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::Act
     }
 
     node = parseExpression(actions_dag, arg1);
-    node = ActionsDAGUtil::convertNodeType(actions_dag, node, DB::DataTypeInt64().getName());
+    node = ActionsDAGUtil::convertNodeType(actions_dag, node, BIGINT());
     actions_dag.addOrReplaceInOutputs(*node);
     args.push_back(node);
 
@@ -84,7 +85,7 @@ LagParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::Acti
         node = ActionsDAGUtil::convertNodeType(
             actions_dag,
             &actions_dag.findInOutputs(arg0_col_name),
-            DB::makeNullable(arg0_col_type)->getName(),
+            makeNullable(arg0_col_type),
             arg0_col_name);
         actions_dag.addOrReplaceInOutputs(*node);
         args.push_back(node);
@@ -100,7 +101,7 @@ LagParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::Acti
     auto real_field = 0 - literal_result.second.safeGet<Int32>();
     node = &actions_dag.addColumn(ColumnWithTypeAndName(
         literal_result.first->createColumnConst(1, real_field), literal_result.first, getUniqueName(toString(real_field))));
-    node = ActionsDAGUtil::convertNodeType(actions_dag, node, DB::DataTypeInt64().getName());
+    node = ActionsDAGUtil::convertNodeType(actions_dag, node, BIGINT());
     actions_dag.addOrReplaceInOutputs(*node);
     args.push_back(node);
 

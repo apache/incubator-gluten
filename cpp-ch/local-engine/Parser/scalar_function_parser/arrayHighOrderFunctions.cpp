@@ -23,6 +23,7 @@
 #include <Parser/TypeParser.h>
 #include <Parser/scalar_function_parser/lambdaFunction.h>
 #include <Poco/Logger.h>
+#include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
@@ -60,7 +61,7 @@ public:
         /// filter with index argument.
         const auto * range_end_node = toFunctionNode(actions_dag, "length", {toFunctionNode(actions_dag, "assumeNotNull", {parsed_args[0]})});
         range_end_node = ActionsDAGUtil::convertNodeType(
-            actions_dag, range_end_node, "Nullable(Int32)", range_end_node->result_name);
+            actions_dag, range_end_node, makeNullable(INT()), range_end_node->result_name);
         const auto * index_array_node = toFunctionNode(
             actions_dag,
             "range",
@@ -106,7 +107,7 @@ public:
         /// transform with index argument.
         const auto * range_end_node = toFunctionNode(actions_dag, "length", {toFunctionNode(actions_dag, "assumeNotNull", {parsed_args[0]})});
         range_end_node = ActionsDAGUtil::convertNodeType(
-            actions_dag, range_end_node, "Nullable(Int32)", range_end_node->result_name);
+            actions_dag, range_end_node, makeNullable(INT()), range_end_node->result_name);
         const auto * index_array_node = toFunctionNode(
             actions_dag,
             "range",
@@ -141,7 +142,7 @@ public:
             parsed_args[1] = ActionsDAGUtil::convertNodeType(
                 actions_dag,
                 parsed_args[1],
-                function_type->getReturnType()->getName(),
+                function_type->getReturnType(),
                 parsed_args[1]->result_name);
         }
 
@@ -215,14 +216,14 @@ private:
             if (!var_expr.has_literal())
                 return false;
             auto [_, name] = plan_parser->parseLiteral(var_expr.literal());
-            return var == name.get<String>();
+            return var == name.safeGet<String>();
         };
 
         auto is_int_value = [&](const substrait::Expression & expr, Int32 val) {
             if (!expr.has_literal())
                 return false;
             auto [_, x] = plan_parser->parseLiteral(expr.literal());
-            return val == x.get<Int32>();
+            return val == x.safeGet<Int32>();
         };
 
         auto is_variable_null = [&](const substrait::Expression & expr, const String & var) {

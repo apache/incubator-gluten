@@ -71,16 +71,16 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
     , thread_pool(CurrentMetrics::LocalThread, CurrentMetrics::LocalThreadActive, CurrentMetrics::LocalThreadScheduled, 1, 1, 100000)
 {
     const DB::Settings & settings = context->getSettingsRef();
-    merge_after_insert = settings.get(MERGETREE_MERGE_AFTER_INSERT).get<bool>();
-    insert_without_local_storage = settings.get(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE).get<bool>();
+    merge_after_insert = settings.get(MERGETREE_MERGE_AFTER_INSERT).safeGet<bool>();
+    insert_without_local_storage = settings.get(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE).safeGet<bool>();
 
     Field limit_size_field;
     if (settings.tryGet("optimize.minFileSize", limit_size_field))
-        merge_min_size = limit_size_field.get<Int64>() <= 0 ? merge_min_size : limit_size_field.get<Int64>();
+        merge_min_size = limit_size_field.safeGet<Int64>() <= 0 ? merge_min_size : limit_size_field.safeGet<Int64>();
 
     Field limit_cnt_field;
     if (settings.tryGet("mergetree.max_num_part_per_merge_task", limit_cnt_field))
-        merge_limit_parts = limit_cnt_field.get<Int64>() <= 0 ? merge_limit_parts : limit_cnt_field.get<Int64>();
+        merge_limit_parts = limit_cnt_field.safeGet<Int64>() <= 0 ? merge_limit_parts : limit_cnt_field.safeGet<Int64>();
 
     dest_storage = MergeTreeRelParser::parseStorage(merge_tree_table, SerializedPlanParser::global_context);
     isRemoteStorage = dest_storage->getStoragePolicy()->getAnyDisk()->isRemote();

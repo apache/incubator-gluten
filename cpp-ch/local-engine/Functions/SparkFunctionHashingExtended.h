@@ -101,42 +101,42 @@ private:
         if (which.isNothing())
             return seed;
         else if (which.isUInt8())
-            return applyNumber<UInt8>(field.get<UInt8>(), seed);
+            return applyNumber<UInt8>(field.safeGet<UInt8>(), seed);
         else if (which.isUInt16())
-            return applyNumber<UInt16>(field.get<UInt16>(), seed);
+            return applyNumber<UInt16>(field.safeGet<UInt16>(), seed);
         else if (which.isUInt32())
-            return applyNumber<UInt32>(field.get<UInt32>(), seed);
+            return applyNumber<UInt32>(field.safeGet<UInt32>(), seed);
         else if (which.isUInt64())
-            return applyNumber<UInt64>(field.get<UInt64>(), seed);
+            return applyNumber<UInt64>(field.safeGet<UInt64>(), seed);
         else if (which.isInt8())
-            return applyNumber<Int8>(field.get<Int8>(), seed);
+            return applyNumber<Int8>(field.safeGet<Int8>(), seed);
         else if (which.isInt16())
-            return applyNumber<Int16>(field.get<Int16>(), seed);
+            return applyNumber<Int16>(field.safeGet<Int16>(), seed);
         else if (which.isInt32())
-            return applyNumber<Int32>(field.get<Int32>(), seed);
+            return applyNumber<Int32>(field.safeGet<Int32>(), seed);
         else if (which.isInt64())
-            return applyNumber<Int64>(field.get<Int64>(), seed);
+            return applyNumber<Int64>(field.safeGet<Int64>(), seed);
         else if (which.isFloat32())
-            return applyNumber<Float32>(field.get<Float32>(), seed);
+            return applyNumber<Float32>(field.safeGet<Float32>(), seed);
         else if (which.isFloat64())
-            return applyNumber<Float64>(field.get<Float64>(), seed);
+            return applyNumber<Float64>(field.safeGet<Float64>(), seed);
         else if (which.isDate())
-            return applyNumber<UInt16>(field.get<UInt16>(), seed);
+            return applyNumber<UInt16>(field.safeGet<UInt16>(), seed);
         else if (which.isDate32())
-            return applyNumber<Int32>(field.get<Int32>(), seed);
+            return applyNumber<Int32>(field.safeGet<Int32>(), seed);
         else if (which.isDateTime())
-            return applyNumber<UInt32>(field.get<UInt32>(), seed);
+            return applyNumber<UInt32>(field.safeGet<UInt32>(), seed);
         else if (which.isDateTime64())
-            return applyDecimal<DateTime64>(field.get<DateTime64>(), seed);
+            return applyDecimal<DateTime64>(field.safeGet<DateTime64>(), seed);
         else if (which.isDecimal32())
-            return applyDecimal<Decimal32>(field.get<Decimal32>(), seed);
+            return applyDecimal<Decimal32>(field.safeGet<Decimal32>(), seed);
         else if (which.isDecimal64())
-            return applyDecimal<Decimal64>(field.get<Decimal64>(), seed);
+            return applyDecimal<Decimal64>(field.safeGet<Decimal64>(), seed);
         else if (which.isDecimal128())
-            return applyDecimal<Decimal128>(field.get<Decimal128>(), seed);
+            return applyDecimal<Decimal128>(field.safeGet<Decimal128>(), seed);
         else if (which.isStringOrFixedString())
         {
-            const String & str = field.get<String>();
+            const String & str = field.safeGet<String>();
             return applyUnsafeBytes(str.data(), str.size(), seed);
         }
         else if (which.isTuple())
@@ -145,7 +145,7 @@ private:
             assert(tuple_type);
 
             const auto & elements = tuple_type->getElements();
-            const Tuple & tuple = field.get<Tuple>();
+            const Tuple & tuple = field.safeGet<Tuple>();
             assert(tuple.size() == elements.size());
 
             for (size_t i = 0; i < elements.size(); ++i)
@@ -160,7 +160,7 @@ private:
             assert(array_type);
 
             const auto & nested_type = array_type->getNestedType();
-            const Array & array = field.get<Array>();
+            const Array & array = field.safeGet<Array>();
             for (size_t i=0; i < array.size(); ++i)
             {
                 seed = applyGeneric(array[i], seed, nested_type);

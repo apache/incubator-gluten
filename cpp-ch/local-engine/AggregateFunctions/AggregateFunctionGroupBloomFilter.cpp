@@ -62,10 +62,10 @@ createAggregateFunctionBloomFilter(const std::string & name, const DataTypes & a
             if (type != Field::Types::Int64 && type != Field::Types::UInt64)
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "Parameter for aggregate function {} should be Int64 or UInt64", name);
 
-            if ((type == Field::Types::Int64 && parameters[i].get<Int64>() < 0))
+            if ((type == Field::Types::Int64 && parameters[i].safeGet<Int64>() < 0))
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "Parameter for aggregate function {} should be non-negative number", name);
 
-            return parameters[i].get<UInt64>();
+            return parameters[i].safeGet<UInt64>();
         };
 
         filter_size = get_parameter(0);
