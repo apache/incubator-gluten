@@ -110,7 +110,7 @@ void ExpandTransform::work()
 
         if (kind == EXPAND_FIELD_KIND_SELECTION)
         {
-            auto index = field.get<Int32>();
+            auto index = field.safeGet<Int32>();
             const auto & input_column = input_columns[index];
 
             DB::ColumnWithTypeAndName input_arg;
