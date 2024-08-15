@@ -261,7 +261,8 @@ class FileSystemWrapper : public facebook::velox::filesystems::FileSystem {
 
 class JniFileSystem : public facebook::velox::filesystems::FileSystem {
  public:
-  explicit JniFileSystem(jobject obj, std::shared_ptr<const facebook::velox::Config> config) : FileSystem(config) {
+  explicit JniFileSystem(jobject obj, std::shared_ptr<const facebook::velox::config::ConfigBase> config)
+      : FileSystem(config) {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     obj_ = env->NewGlobalRef(obj);
@@ -374,9 +375,10 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
     return [](std::string_view filePath) { return filePath.find(kJniFsScheme) == 0; };
   }
 
-  static std::function<std::shared_ptr<FileSystem>(std::shared_ptr<const facebook::velox::Config>, std::string_view)>
+  static std::function<
+      std::shared_ptr<FileSystem>(std::shared_ptr<const facebook::velox::config::ConfigBase>, std::string_view)>
   fileSystemGenerator() {
-    return [](std::shared_ptr<const facebook::velox::Config> properties, std::string_view filePath) {
+    return [](std::shared_ptr<const facebook::velox::config::ConfigBase> properties, std::string_view filePath) {
       JNIEnv* env;
       attachCurrentThreadAsDaemonOrThrow(vm, &env);
       jobject obj = env->CallStaticObjectMethod(jniFileSystemClass, jniGetFileSystem);
@@ -455,7 +457,7 @@ void gluten::registerJolFileSystem(uint64_t maxFileSize) {
 
   auto fileSystemGenerator =
       [maxFileSize](
-          std::shared_ptr<const facebook::velox::Config> properties,
+          std::shared_ptr<const facebook::velox::config::ConfigBase> properties,
           std::string_view filePath) -> std::shared_ptr<facebook::velox::filesystems::FileSystem> {
     // select JNI file if there is enough space
     if (JniFileSystem::isCapableForNewFile(maxFileSize)) {

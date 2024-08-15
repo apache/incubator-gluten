@@ -62,7 +62,8 @@ VeloxRuntime::VeloxRuntime(
     : Runtime(std::make_shared<VeloxMemoryManager>(std::move(listener)), confMap) {
   // Refresh session config.
   vmm_ = dynamic_cast<VeloxMemoryManager*>(memoryManager_.get());
-  veloxCfg_ = std::make_shared<facebook::velox::core::MemConfig>(confMap_);
+  veloxCfg_ =
+      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap_));
   debugModeEnabled_ = veloxCfg_->get<bool>(kDebugModeEnabled, false);
   FLAGS_minloglevel = veloxCfg_->get<uint32_t>(kGlogSeverityLevel, FLAGS_minloglevel);
   FLAGS_v = veloxCfg_->get<uint32_t>(kGlogVerboseLevel, FLAGS_v);
@@ -270,7 +271,7 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createColumnarBatchSerial
 }
 
 void VeloxRuntime::dumpConf(const std::string& path) {
-  const auto& backendConfMap = VeloxBackend::get()->getBackendConf()->values();
+  const auto& backendConfMap = VeloxBackend::get()->getBackendConf()->rawConfigs();
   auto allConfMap = backendConfMap;
 
   for (const auto& pair : confMap_) {

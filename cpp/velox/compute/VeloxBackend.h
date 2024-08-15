@@ -25,9 +25,9 @@
 #include <filesystem>
 
 #include "velox/common/caching/AsyncDataCache.h"
+#include "velox/common/config/Config.h"
 #include "velox/common/memory/MemoryPool.h"
 #include "velox/common/memory/MmapAllocator.h"
-#include "velox/core/Config.h"
 
 namespace gluten {
 /// As a static instance in per executor, initialized at executor startup.
@@ -53,7 +53,7 @@ class VeloxBackend {
 
   facebook::velox::cache::AsyncDataCache* getAsyncDataCache() const;
 
-  std::shared_ptr<facebook::velox::Config> getBackendConf() const {
+  std::shared_ptr<facebook::velox::config::ConfigBase> getBackendConf() const {
     return backendConf_;
   }
 
@@ -92,7 +92,7 @@ class VeloxBackend {
   std::string cachePathPrefix_;
   std::string cacheFilePrefix_;
 
-  std::shared_ptr<facebook::velox::Config> backendConf_;
+  std::shared_ptr<facebook::velox::config::ConfigBase> backendConf_;
 };
 
 } // namespace gluten
