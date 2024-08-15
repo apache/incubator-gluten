@@ -286,10 +286,10 @@ case class CHHashAggregateExecTransformer(
       val aggregateFunc = aggExpr.aggregateFunction
       var aggFunctionName =
         if (
-          ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
+          ExpressionMappings.getExpressionExtensionTransformer.extensionExpressionsMapping.contains(
             aggregateFunc.getClass)
         ) {
-          ExpressionMappings.expressionExtensionTransformer
+          ExpressionMappings.getExpressionExtensionTransformer
             .buildCustomAggregateFunction(aggregateFunc)
             ._1
             .get
@@ -437,10 +437,10 @@ case class CHHashAggregateExecPullOutHelper(
     val aggregateFunc = exp.aggregateFunction
     // First handle the custom aggregate functions
     if (
-      ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
+      ExpressionMappings.getExpressionExtensionTransformer.extensionExpressionsMapping.contains(
         aggregateFunc.getClass)
     ) {
-      ExpressionMappings.expressionExtensionTransformer
+      ExpressionMappings.getExpressionExtensionTransformer
         .getAttrsIndexForExtensionAggregateExpr(
           aggregateFunc,
           exp.mode,
