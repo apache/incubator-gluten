@@ -687,7 +687,6 @@ int64_t VariableLengthDataWriter::writeArray(size_t row_idx, const DB::Array & a
                 bitSet(buffer_address + offset + start + 8, i);
             else
             {
-                // We can not use safeGet<char>() trick, since it will throw an exception if type mismatch
                 writer.write(elem, buffer_address + offset + start + 8 + len_null_bitmap + i * elem_size);
             }
         }
@@ -790,27 +789,7 @@ int64_t VariableLengthDataWriter::writeStruct(size_t row_idx, const DB::Tuple & 
         if (BackingDataLengthCalculator::isFixedLengthDataType(removeNullable(field_type)))
         {
             FixedLengthDataWriter writer(field_type);
-            if (writer.getWhichDataType().isFloat32())
-            {
-                // We can not use safeGet<char>() directly here to process Float32 field,
-                // because it will get 8 byte data, but Float32 is 4 byte, which will cause error conversion.
-                auto v = static_cast<Float32>(field_value.safeGet<Float32>());
-                writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
-            }
-            else if (writer.getWhichDataType().isFloat64())
-            {
-                // Fix 'Invalid Field get from type Float64 to type Int64' in debug build.
-                auto v = field_value.safeGet<Float64>();
-                writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
-            }
-            else if (writer.getWhichDataType().isDecimal64() || writer.getWhichDataType().isDateTime64())
-            {
-                auto v = field_value.safeGet<Decimal64>();
-                writer.unsafeWrite(reinterpret_cast<const char *>(&v), buffer_address + offset + start + len_null_bitmap + i * 8);
-            }
-            else
-                writer.unsafeWrite(
-                    reinterpret_cast<const char *>(&field_value.safeGet<char>()), buffer_address + offset + start + len_null_bitmap + i * 8);
+            writer.write(field_value, buffer_address + offset + start + len_null_bitmap + i * 8);
         }
         else
         {

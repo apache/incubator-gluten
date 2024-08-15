@@ -97,3 +97,23 @@ TEST(Clickhouse, PR65234)
         {reinterpret_cast<const char *>(gresource_embedded_pr_65234_jsonData), gresource_embedded_pr_65234_jsonSize});
     auto query_plan = parser.parse(plan);
 }
+
+INCBIN(resource_embedded_pr_68135_json, SOURCE_DIR "/utils/extern-local-engine/tests/json/clickhouse_pr_68135.json");
+TEST(Clickhouse, PR68135)
+{
+    const std::string split_template
+        = R"({"items":[{"uriFile":"{replace_local_files}","partitionIndex":"0","length":"461","parquet":{},"schema":{},"metadataColumns":[{}]}]})";
+    const std::string split
+        = replaceLocalFilesWildcards(split_template, GLUTEN_DATA_DIR("/utils/extern-local-engine/tests/data/68135.snappy.parquet"));
+
+    SerializedPlanParser parser(SerializedPlanParser::global_context);
+    parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
+
+    const auto plan = local_engine::JsonStringToMessage<substrait::Plan>(
+        {reinterpret_cast<const char *>(gresource_embedded_pr_68135_jsonData), gresource_embedded_pr_68135_jsonSize});
+
+    auto local_executor = parser.createExecutor(plan);
+    EXPECT_TRUE(local_executor->hasNext());
+    const Block & x = *local_executor->nextColumnar();
+    debug::headBlock(x);
+}

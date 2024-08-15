@@ -285,7 +285,10 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
     if (rel.has_local_files())
         local_files = rel.local_files();
     else
+    {
         local_files = BinaryToMessage<substrait::ReadRel::LocalFiles>(split_infos.at(nextSplitInfoIndex()));
+        logDebugMessage(local_files, "local_files");
+    }
     auto source = std::make_shared<SubstraitFileSource>(context, header, local_files);
     auto source_pipe = Pipe(source);
     auto source_step = std::make_unique<SubstraitFileSourceStep>(context, std::move(source_pipe), "substrait local files");
@@ -496,7 +499,10 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
                 if (read.has_extension_table())
                     extension_table = read.extension_table();
                 else
+                {
                     extension_table = BinaryToMessage<substrait::ReadRel::ExtensionTable>(split_infos.at(nextSplitInfoIndex()));
+                    logDebugMessage(extension_table, "extension_table");
+                }
 
                 MergeTreeRelParser mergeTreeParser(this, context);
                 query_plan = mergeTreeParser.parseReadRel(std::make_unique<QueryPlan>(), read, extension_table);

@@ -1,0 +1,160 @@
+{
+  "relations": [
+    {
+      "root": {
+        "input": {
+          "filter": {
+            "common": {
+              "direct": {}
+            },
+            "input": {
+              "read": {
+                "common": {
+                  "direct": {}
+                },
+                "baseSchema": {
+                  "names": [
+                    "a"
+                  ],
+                  "struct": {
+                    "types": [
+                      {
+                        "decimal": {
+                          "scale": 2,
+                          "precision": 9,
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }
+                    ]
+                  },
+                  "columnTypes": [
+                    "NORMAL_COL"
+                  ]
+                },
+                "filter": {
+                  "singularOrList": {
+                    "value": {
+                      "selection": {
+                        "directReference": {
+                          "structField": {}
+                        }
+                      }
+                    },
+                    "options": [
+                      {
+                        "literal": {
+                          "decimal": {
+                            "value": "yAAAAAAAAAAAAAAAAAAAAA==",
+                            "precision": 9,
+                            "scale": 2
+                          }
+                        }
+                      },
+                      {
+                        "literal": {
+                          "decimal": {
+                            "value": "LAEAAAAAAAAAAAAAAAAAAA==",
+                            "precision": 9,
+                            "scale": 2
+                          }
+                        }
+                      },
+                      {
+                        "literal": {
+                          "decimal": {
+                            "value": "kAEAAAAAAAAAAAAAAAAAAA==",
+                            "precision": 9,
+                            "scale": 2
+                          }
+                        }
+                      },
+                      {
+                        "literal": {
+                          "decimal": {
+                            "value": "9AEAAAAAAAAAAAAAAAAAAA==",
+                            "precision": 9,
+                            "scale": 2
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "advancedExtension": {
+                  "optimization": {
+                    "@type": "type.googleapis.com/google.protobuf.StringValue",
+                    "value": "isMergeTree=0\n"
+                  }
+                }
+              }
+            },
+            "condition": {
+              "singularOrList": {
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {}
+                    }
+                  }
+                },
+                "options": [
+                  {
+                    "literal": {
+                      "decimal": {
+                        "value": "yAAAAAAAAAAAAAAAAAAAAA==",
+                        "precision": 9,
+                        "scale": 2
+                      }
+                    }
+                  },
+                  {
+                    "literal": {
+                      "decimal": {
+                        "value": "LAEAAAAAAAAAAAAAAAAAAA==",
+                        "precision": 9,
+                        "scale": 2
+                      }
+                    }
+                  },
+                  {
+                    "literal": {
+                      "decimal": {
+                        "value": "kAEAAAAAAAAAAAAAAAAAAA==",
+                        "precision": 9,
+                        "scale": 2
+                      }
+                    }
+                  },
+                  {
+                    "literal": {
+                      "decimal": {
+                        "value": "9AEAAAAAAAAAAAAAAAAAAA==",
+                        "precision": 9,
+                        "scale": 2
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "names": [
+          "a#26"
+        ],
+        "outputSchema": {
+          "types": [
+            {
+              "decimal": {
+                "scale": 2,
+                "precision": 9,
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            }
+          ],
+          "nullability": "NULLABILITY_REQUIRED"
+        }
+      }
+    }
+  ]
+}
