@@ -263,6 +263,13 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       throw new IllegalArgumentException(s"${GlutenConfig.COLUMNAR_VELOX_CACHE_ENABLED.key} and " +
         s"${GlutenConfig.COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key} should be enabled together.")
     }
+
+    // Sql table cache serializer.
+    if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = false)) {
+      conf.set(
+        StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
+        "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
+    }
   }
 }
 
