@@ -34,7 +34,7 @@ namespace {
 std::unique_ptr<ByteInputStream> toByteStream(uint8_t* data, int32_t size) {
   std::vector<ByteRange> byteRanges;
   byteRanges.push_back(ByteRange{data, size, 0});
-  auto byteStream = std::make_unique<ByteInputStream>(byteRanges);
+  auto byteStream = std::make_unique<BufferInputStream>(byteRanges);
   return byteStream;
 }
 } // namespace
