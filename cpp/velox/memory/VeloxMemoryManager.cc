@@ -63,11 +63,18 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   ListenableArbitrator(const Config& config, AllocationListener* listener)
       : MemoryArbitrator(config),
         listener_(listener),
-        memoryPoolInitialCapacity_(
-            getConfig<uint64_t>(config.extraConfigs, kMemoryPoolInitialCapacity, kDefaultMemoryPoolInitialCapacity)),
-        memoryPoolTransferCapacity_(
-            getConfig<uint64_t>(config.extraConfigs, kMemoryPoolTransferCapacity, kDefaultMemoryPoolTransferCapacity)) {
-  }
+        memoryPoolInitialCapacity_(velox::config::toCapacity(
+            getConfig<std::string>(
+                config.extraConfigs,
+                kMemoryPoolInitialCapacity,
+                std::to_string(kDefaultMemoryPoolInitialCapacity)),
+            velox::config::CapacityUnit::BYTE)),
+        memoryPoolTransferCapacity_(velox::config::toCapacity(
+            getConfig<std::string>(
+                config.extraConfigs,
+                kMemoryPoolTransferCapacity,
+                std::to_string(kDefaultMemoryPoolTransferCapacity)),
+            velox::config::CapacityUnit::BYTE)) {}
   std::string kind() const override {
     return kind_;
   }
