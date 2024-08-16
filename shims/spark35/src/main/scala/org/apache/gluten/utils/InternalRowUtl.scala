@@ -30,5 +30,4 @@ object InternalRowUtl {
   def toString(struct: StructType, rows: Iterator[InternalRow], start: Int, length: Int): String = {
     toString(struct, rows.slice(start, start + length))
   }
-
 }
