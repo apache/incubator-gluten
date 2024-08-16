@@ -79,7 +79,7 @@ object SparkDirectoryUtil extends Logging {
       return
     }
     if (INSTANCE.roots.toSet != roots.toSet) {
-      throw new IllegalArgumentException()(
+      throw new IllegalArgumentException(
         s"Reinitialize SparkDirectoryUtil with different root dirs: old: ${INSTANCE.ROOTS
             .mkString("Array(", ", ", ")")}, new: ${roots.mkString("Array(", ", ", ")")}"
       )
