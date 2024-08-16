@@ -40,6 +40,16 @@ class VeloxListenerApi extends ListenerApi with Logging {
   import VeloxListenerApi._
 
   override def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {
+    val conf = pc.conf()
+
+    // Sql table cache serializer.
+    if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = false)) {
+      conf.set(
+        StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
+        "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
+    }
+
+    // Static initializers for driver.
     if (!driverInitialized.compareAndSet(false, true)) {
       // Make sure we call the static initializers only once.
       logInfo(
@@ -48,14 +58,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
       return
     }
 
-    // Static initializers for driver.
-    val conf = pc.conf()
-    // Sql table cache serializer.
-    if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = false)) {
-      conf.set(
-        StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
-        "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
-    }
     SparkDirectoryUtil.init(conf)
     UDFResolver.resolveUdfConf(conf, isDriver = true)
     initialize(conf)
@@ -64,6 +66,9 @@ class VeloxListenerApi extends ListenerApi with Logging {
   override def onDriverShutdown(): Unit = shutdown()
 
   override def onExecutorStart(pc: PluginContext): Unit = {
+    val conf = pc.conf()
+
+    // Static initializers for executor.
     if (!executorInitialized.compareAndSet(false, true)) {
       // Make sure we call the static initializers only once.
       logInfo(
@@ -71,7 +76,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
           " You see this message probably because you are creating a new SparkSession.")
       return
     }
-    val conf = pc.conf
     if (inLocalMode(conf)) {
       // Don't do static initializations from executor side in local mode.
       // Driver already did that.
@@ -80,7 +84,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
       return
     }
 
-    // Static initializers for executor.
     SparkDirectoryUtil.init(conf)
     UDFResolver.resolveUdfConf(conf, isDriver = false)
     initialize(conf)
