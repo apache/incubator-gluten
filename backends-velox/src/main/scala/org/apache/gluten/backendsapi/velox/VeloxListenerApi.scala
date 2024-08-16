@@ -29,7 +29,7 @@ import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
-import org.apache.spark.sql.internal.GlutenConfigUtil
+import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
 import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil}
 
 import org.apache.commons.lang3.StringUtils
@@ -50,6 +50,12 @@ class VeloxListenerApi extends ListenerApi with Logging {
 
     // Static initializers for driver.
     val conf = pc.conf()
+    // Sql table cache serializer.
+    if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = false)) {
+      conf.set(
+        StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
+        "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
+    }
     SparkDirectoryUtil.init(conf)
     UDFResolver.resolveUdfConf(conf, isDriver = true)
     initialize(conf)
