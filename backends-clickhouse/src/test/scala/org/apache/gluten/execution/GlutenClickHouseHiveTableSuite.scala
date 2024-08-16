@@ -1286,7 +1286,6 @@ class GlutenClickHouseHiveTableSuite
     sql(s"drop table if exists $tbl")
   }
 
-<<<<<<< HEAD
   test("test mergetree write with column case sensitive on hive") {
     val dataPath = s"$basePath/lineitem_mergetree_bucket"
     val sourceDF = spark.sql(s"""
