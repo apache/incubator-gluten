@@ -57,7 +57,6 @@ const std::string kGzipWindowSize4k = "4096";
 const std::string kParquetCompressionCodec = "spark.sql.parquet.compression.codec";
 
 const std::string kColumnarToRowMemoryThreshold = "spark.gluten.sql.columnarToRowMemoryThreshold";
-const std::string kColumnarToRowMemoryDefaultThreshold = "67108864"; // 64MB
 
 const std::string kUGIUserName = "spark.gluten.ugi.username";
 const std::string kUGITokens = "spark.gluten.ugi.tokens";
