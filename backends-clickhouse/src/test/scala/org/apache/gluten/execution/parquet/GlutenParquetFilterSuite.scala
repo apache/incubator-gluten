@@ -35,12 +35,6 @@ class GlutenParquetFilterSuite
   with GlutenTPCHBase
   with Logging {
 
-  override protected val rootPath = this.getClass.getResource("/").getPath
-  override protected val basePath = rootPath + "tests-working-home"
-  override protected val warehouse = basePath + "/spark-warehouse"
-  override protected val metaStorePathAbsolute = basePath + "/meta"
-  override protected val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
-
   private val tpchQueriesResourceFolder: String =
     rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
 
