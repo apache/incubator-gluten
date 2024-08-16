@@ -21,16 +21,15 @@ import org.apache.gluten.execution.FileSourceScanExecTransformer
 import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait}
 import org.apache.spark.sql.catalyst.parser.CatalystSqlParser
 import org.apache.spark.sql.execution.FileSourceScanExec
-//import org.apache.spark.sql.internal.SQLConf
-//import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.tags.ExtendedSQLTest
 
 @ExtendedSQLTest
 class GlutenOrcV1SchemaPruningSuite extends OrcV1SchemaPruningSuite with GlutenSQLTestsBaseTrait {
-//  // disable column reader for nested type
-//  override protected val vectorizedReaderNestedEnabledKey: String =
-//    SQLConf.PARQUET_VECTORIZED_READER_NESTED_COLUMN_ENABLED.key + "_DISABLED"
-//
+  // disable column reader for nested type
+  override protected val vectorizedReaderNestedEnabledKey: String =
+    SQLConf.PARQUET_VECTORIZED_READER_NESTED_COLUMN_ENABLED.key + "_DISABLED"
+
   override def checkScanSchemata(df: DataFrame, expectedSchemaCatalogStrings: String*): Unit = {
     val fileSourceScanSchemata =
       collect(df.queryExecution.executedPlan) {
