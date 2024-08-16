@@ -87,6 +87,10 @@ object SparkDirectoryUtil extends Logging {
     assert(INSTANCE != null, "Default instance of SparkDirectoryUtil was not set yet")
     INSTANCE
   }
+
+  def close(): Unit = synchronized {
+    INSTANCE = null
+  }
 }
 
 class Namespace(private val parents: Array[File], private val name: String) {
