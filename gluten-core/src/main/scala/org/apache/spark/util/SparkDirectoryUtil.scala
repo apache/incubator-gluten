@@ -78,9 +78,12 @@ object SparkDirectoryUtil extends Logging {
       INSTANCE = new SparkDirectoryUtil(roots)
       return
     }
-    throw new UnsupportedOperationException(
-      s"SparkDirectoryUtil was already initialized with root dirs: ${INSTANCE.ROOTS
-          .mkString("Array(", ", ", ")")}")
+    if (INSTANCE.roots.toSet != roots.toSet) {
+      throw new IllegalArgumentException()(
+        s"Reinitialize SparkDirectoryUtil with different root dirs: old: ${INSTANCE.ROOTS
+            .mkString("Array(", ", ", ")")}, new: ${roots.mkString("Array(", ", ", ")")}"
+      )
+    }
   }
 
   def get(): SparkDirectoryUtil = synchronized {
