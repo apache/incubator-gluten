@@ -2078,4 +2078,12 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       checkGlutenOperatorMatch[SortExecTransformer]
     }
   }
+
+  // Enable the test after fixing https://github.com/apache/incubator-gluten/issues/6827
+  ignore("Test round expression") {
+    val df1 = runQueryAndCompare("SELECT round(cast(0.5549999999999999 as double), 2)") { _ => }
+    checkLengthAndPlan(df1, 1)
+    val df2 = runQueryAndCompare("SELECT round(cast(0.19324999999999998 as double), 2)") { _ => }
+    checkLengthAndPlan(df2, 1)
+  }
 }
