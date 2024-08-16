@@ -25,7 +25,8 @@ class GlutenByteInputStream : public ByteInputStream {
   GlutenByteInputStream() {}
 
  public:
-  explicit GlutenByteInputStream(std::vector<ByteRange> ranges) : ranges_{std::move(ranges)} {
+  explicit GlutenByteInputStream(std::vector<ByteRange> ranges) {
+    ranges_ = std::move(ranges);
     VELOX_CHECK(!ranges_.empty());
     current_ = &ranges_[0];
   }
@@ -37,8 +38,7 @@ class GlutenByteInputStream : public ByteInputStream {
   GlutenByteInputStream& operator=(const GlutenByteInputStream& other) = delete;
 
   /// Enable move constructor.
-  GlutenByteInputStream(GlutenByteInputStream&& other) noexcept
-      : ranges_{std::move(other.ranges_)}, current_{other.current_} {}
+  GlutenByteInputStream(GlutenByteInputStream&& other) noexcept = delete;
 
   /// Enable move assignment operator.
   GlutenByteInputStream& operator=(GlutenByteInputStream&& other) noexcept {
@@ -249,12 +249,6 @@ class GlutenByteInputStream : public ByteInputStream {
     ranges_[0] = range;
     current_ = ranges_.data();
   }
-
- private:
-  std::vector<ByteRange> ranges_;
-
-  // Pointer to the current element of 'ranges_'.
-  ByteRange* current_{nullptr};
 };
 
 template <>
