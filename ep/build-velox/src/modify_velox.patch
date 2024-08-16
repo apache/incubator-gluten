@@ -102,30 +102,6 @@ index cc180b86c..7ca6fa727 100644
  if(NOT TARGET gflags::gflags)
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
-diff --git a/velox/common/process/tests/CMakeLists.txt b/velox/common/process/tests/CMakeLists.txt
-index 23ef279c2..7e4c2f2b2 100644
---- a/velox/common/process/tests/CMakeLists.txt
-+++ b/velox/common/process/tests/CMakeLists.txt
-@@ -24,4 +24,6 @@ target_link_libraries(
-     fmt::fmt
-     velox_time
-     GTest::gtest
--    GTest::gtest_main)
-+    GTest::gtest_main
-+    glog::glog
-+    gflags::gflags)
-diff --git a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
-index 5a566770f..8c2a48cc2 100644
---- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
-+++ b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
-@@ -38,7 +38,6 @@ std::shared_ptr<FileSystem> abfsFileSystemGenerator(
- 
- void registerAbfsFileSystem() {
- #ifdef VELOX_ENABLE_ABFS
--  LOG(INFO) << "Register ABFS";
-   registerFileSystem(isAbfsFile, std::function(abfsFileSystemGenerator));
- #endif
- }
 diff --git a/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp b/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp
 index 10ee508ba..027a58ecc 100644
 --- a/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp
@@ -139,18 +115,3 @@ index 10ee508ba..027a58ecc 100644
    setupEnvironment(hadoopHomeDirectory.string());
  }
  
-diff --git a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
-index 0cda25430..b15565796 100644
---- a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
-+++ b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
-@@ -38,7 +38,9 @@ target_link_libraries(
-   GTest::gtest
-   GTest::gtest_main
-   arrow
--  arrow_testing)
-+  arrow_testing
-+  glog::glog
-+  gflags::gflags)
- 
- add_library(
-   velox_dwio_arrow_parquet_writer_test_lib
