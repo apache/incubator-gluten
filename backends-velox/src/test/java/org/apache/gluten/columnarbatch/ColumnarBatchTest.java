@@ -91,6 +91,39 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
         });
   }
 
+  @Test
+  public void testOffloadAndLoadReadRow() {
+    TaskResources$.MODULE$.runUnsafe(
+        () -> {
+          final int numRows = 100;
+          final ColumnarBatch batch = newArrowBatch("a boolean, b int", numRows);
+          final ArrowWritableColumnVector col0 = (ArrowWritableColumnVector) batch.column(0);
+          final ArrowWritableColumnVector col1 = (ArrowWritableColumnVector) batch.column(1);
+          for (int j = 0; j < numRows; j++) {
+            col0.putBoolean(j, j % 2 == 0);
+            col1.putInt(j, 15 - j);
+          }
+          col1.putNull(numRows - 1);
+          Assert.assertTrue(ColumnarBatches.isHeavyBatch(batch));
+          final ColumnarBatch offloaded =
+              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch);
+          Assert.assertTrue(ColumnarBatches.isLightBatch(offloaded));
+          final ColumnarBatch loaded =
+              ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), offloaded);
+          Assert.assertTrue(ColumnarBatches.isHeavyBatch(loaded));
+          long cnt =
+              StreamSupport.stream(
+                      Spliterators.spliteratorUnknownSize(
+                          loaded.rowIterator(), Spliterator.ORDERED),
+                      false)
+                  .count();
+          Assert.assertEquals(numRows, cnt);
+          Assert.assertEquals(loaded.getRow(0).getInt(1), 15);
+          loaded.close();
+          return null;
+        });
+  }
+
   private static ColumnarBatch newArrowBatch(String schema, int numRows) {
     final ArrowWritableColumnVector[] columns =
         ArrowWritableColumnVector.allocateColumns(numRows, StructType.fromDDL(schema));
