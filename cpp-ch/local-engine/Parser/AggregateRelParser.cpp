@@ -195,7 +195,8 @@ void AggregateRelParser::addPreProjection()
 
 void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & descriptions)
 {
-    auto build_result_column_name = [](const String & function_name, const Array & params, const Strings & arg_names, substrait::AggregationPhase phase)
+    const auto & current_plan_header = plan->getCurrentDataStream().header;
+    auto build_result_column_name = [this, current_plan_header](const String & function_name, const Array & params, const Strings & arg_names, substrait::AggregationPhase phase)
     {
         if (phase == substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT)
         {
@@ -219,7 +220,12 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         result += "(";
         result += boost::algorithm::join(arg_names, ",");
         result += ")";
-        return result;
+        // Make the name unique to avoid name collision(issue #6878).
+        auto res = this->getUniqueName(result);
+        // Just a check for remining this issue.
+        if (current_plan_header.findByName(res))
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Name ({}) collision in header: {}", res, current_plan_header.dumpStructure());
+        return res;
     };
 
     for (auto & agg_info : aggregates)
@@ -228,6 +234,7 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         const auto & measure = agg_info.measure->measure();
         description.column_name
             = build_result_column_name(agg_info.function_name, agg_info.params, agg_info.arg_column_names, measure.phase());
+
         agg_info.measure_column_name = description.column_name;
         // std::cout << "description.column_name:" << description.column_name << std::endl;
         description.argument_names = agg_info.arg_column_names;
