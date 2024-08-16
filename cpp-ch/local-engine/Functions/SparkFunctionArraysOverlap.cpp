@@ -64,8 +64,8 @@ public:
         PaddedPODArray<UInt8> & null_map_data = null_map->getData();
         if (input_rows_count == 0)
             return ColumnNullable::create(std::move(res), std::move(null_map));
-
-        const ColumnArray * array_col_1 = nullptr, * array_col_2 = nullptr;
+        
+        const ColumnArray * array_col_1 = nullptr,  * array_col_2 = nullptr;
         const ColumnConst * const_col_1 = checkAndGetColumn<ColumnConst>(arguments[0].column.get());
         const ColumnConst * const_col_2 = checkAndGetColumn<ColumnConst>(arguments[1].column.get());
         if (const_col_1)
@@ -89,6 +89,7 @@ public:
         const ColumnArray::Offsets & array_offsets_2 = array_col_2->getOffsets();
 
         size_t current_offset_1 = 0, current_offset_2 = 0;
+        size_t array_pos_1 = 0, array_pos_2 = 0;
         for (size_t i = 0; i < array_col_1->size(); ++i)
         {
             if (arguments[0].column->isNullAt(i) || arguments[1].column->isNullAt(i))
@@ -98,50 +99,56 @@ public:
             }
             size_t array_size_1 = array_offsets_1[i] - current_offset_1;
             size_t array_size_2 = array_offsets_2[i] - current_offset_2;
-            bool has_null_equals = false;
-            auto executeCompare = [&](const IColumn & col1, const IColumn & col2) -> void
+            auto executeCompare = [&](const IColumn & col1, const IColumn & col2, const ColumnUInt8 * null_map1, const ColumnUInt8 * null_map2) -> void
             {
-                for (size_t j = 0; j < array_size_1 && !res_data[i]; ++j)
+                for (size_t j = 0; j < array_size_1 && !res_data[i] && !null_map_data[i]; ++j)
                 {
                     for (size_t k = 0; k < array_size_2; ++k)
                     {
-                        if (col1.compareAt(j, k, col2, -1) == 0)
+                        if ((null_map1 && null_map1->getElement(j + array_pos_1)) || (null_map2 && null_map2->getElement(k + array_pos_2)))
                         {
-                            if (!col1.isNullAt(j))
-                            {
-                                res_data[i] = 1;
-                                break;
-                            }
-                            else
-                                has_null_equals = true;              
+                            null_map_data[i] = 1;
+                            break;
+                        }
+                        else if (col1.compareAt(j + array_pos_1, k + array_pos_2, col2, -1) == 0)
+                        {
+                            res_data[i] = 1;
+                            break;  
                         }
                     }
                 }
             };
-            if (array_col_1->getData().getDataType() == array_col_2->getData().getDataType())
+            if (array_col_1->getData().isNullable() || array_col_2->getData().isNullable())
             {
-                executeCompare(array_col_1->getData(), array_col_2->getData());
-            }
-            else if (array_col_1->getData().isNullable() || array_col_2->getData().isNullable())
-            {
-                if (array_col_1->getData().isNullable())
+                if (array_col_1->getData().isNullable() && array_col_2->getData().isNullable())
                 {
                     const ColumnNullable * array_null_col_1 = assert_cast<const ColumnNullable *>(&array_col_1->getData());
-                    executeCompare(array_null_col_1->getNestedColumn(), array_col_2->getData());
+                    const ColumnNullable * array_null_col_2 = assert_cast<const ColumnNullable *>(&array_col_2->getData());
+                    executeCompare(array_null_col_1->getNestedColumn(), array_null_col_2->getNestedColumn(),
+                        &array_null_col_1->getNullMapColumn(), &array_null_col_2->getNullMapColumn());
                 }
-                if (array_col_2->getData().isNullable())
+                else if (array_col_1->getData().isNullable())
+                {
+                    const ColumnNullable * array_null_col_1 = assert_cast<const ColumnNullable *>(&array_col_1->getData());
+                    executeCompare(array_null_col_1->getNestedColumn(), array_col_2->getData(), &array_null_col_1->getNullMapColumn(), nullptr);
+                }
+                else if (array_col_2->getData().isNullable())
                 {
                     const ColumnNullable * array_null_col_2 = assert_cast<const ColumnNullable *>(&array_col_2->getData());
-                    executeCompare(array_col_1->getData(), array_null_col_2->getNestedColumn());
+                    executeCompare(array_col_1->getData(), array_null_col_2->getNestedColumn(), nullptr, &array_null_col_2->getNullMapColumn());
                 }
+            }
+            else if (array_col_1->getData().getDataType() == array_col_2->getData().getDataType())
+            {
+                executeCompare(array_col_1->getData(), array_col_2->getData(), nullptr, nullptr);
             }
             else
                 throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The arguments data type is not match.");
 
-            if (!res_data[i] && has_null_equals)
-                null_map_data[i] = 1;
             current_offset_1 = array_offsets_1[i];
             current_offset_2 = array_offsets_2[i];
+            array_pos_1 += array_size_1;
+            array_pos_2 += array_size_2;
         }
         return ColumnNullable::create(std::move(res), std::move(null_map));
      }
