@@ -142,7 +142,7 @@ DB::Chunk SourceFromJavaIter::generate()
     }
     else
     {
-        DB::Chunk result = BlockUtil::buildRowCountChunk(input_block->rows());
+        result = BlockUtil::buildRowCountChunk(input_block->rows());
         auto info = std::make_shared<DB::AggregatedChunkInfo>();
         result.getChunkInfos().add(std::move(info));
     }
