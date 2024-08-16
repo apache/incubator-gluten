@@ -1314,4 +1314,30 @@ class GlutenClickHouseHiveTableSuite
     compareResultsAgainstVanillaSpark(select_sql, true, _ => {})
     spark.sql("drop table test_tbl_6506")
   }
+
+  test("GLUTEN-6879: Fix partition value diff when it contains blanks") {
+    val tableName = "test_tbl_6879"
+    sql(s"drop table if exists $tableName")
+
+    val createSql =
+      s"""
+         |CREATE TABLE $tableName (
+         |  id INT,
+         |  name STRING
+         |) PARTITIONED BY (part STRING)
+         |STORED AS PARQUET;
+         |""".stripMargin
+    sql(createSql)
+
+    val insertSql =
+      s"""
+         |INSERT INTO $tableName PARTITION (part='part with spaces')
+         |VALUES (1, 'John Doe');
+         |""".stripMargin
+    sql(insertSql)
+
+    val selectSql = s"SELECT * FROM $tableName"
+    compareResultsAgainstVanillaSpark(selectSql, true, _ => {})
+    sql(s"drop table if exists $tableName")
+  }
 }
