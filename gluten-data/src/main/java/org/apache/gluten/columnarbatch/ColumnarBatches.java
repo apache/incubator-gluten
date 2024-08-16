@@ -34,6 +34,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
+import org.apache.spark.sql.vectorized.ColumnarBatchRowUtil;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -100,6 +101,10 @@ public class ColumnarBatches {
         newVectors[i] = from.column(i);
       }
       FIELD_COLUMNS.set(target, newVectors);
+      // Light batch does not need the row.
+      if (isHeavyBatch(target)) {
+        ColumnarBatchRowUtil.setColumnarBatchRow(newVectors, target);
+      }
     } catch (IllegalAccessException e) {
       throw new GlutenException(e);
     }
@@ -202,7 +207,8 @@ public class ColumnarBatches {
 
       // populate new vectors to input
       transferVectors(output, input);
-      return input;
+
+      return output;
     }
   }
 

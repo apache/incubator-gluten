@@ -179,6 +179,18 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   }
 #endif
 
+#ifdef ENABLE_ABFS
+  const auto& confValue = conf->rawConfigsCopy();
+  for (auto& [k, v] : confValue) {
+    if (k.find("fs.azure.account.key") == 0) {
+      connectorConfMap[k] = v;
+    } else if (k.find("spark.hadoop.fs.azure.account.key") == 0) {
+      constexpr int32_t accountKeyPrefixLength = 13;
+      connectorConfMap[k.substr(accountKeyPrefixLength)] = std::string(v);
+    }
+  }
+#endif
+
   hiveConfMap[facebook::velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
       conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
 
