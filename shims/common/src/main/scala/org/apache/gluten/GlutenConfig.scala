@@ -689,7 +689,7 @@ object GlutenConfig {
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
       (
         GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
-        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValueString)
+        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
