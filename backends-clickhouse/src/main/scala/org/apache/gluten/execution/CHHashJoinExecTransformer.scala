@@ -26,7 +26,6 @@ import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -68,8 +67,6 @@ object JoinTypeTransform {
     }
   }
 }
-
-case class ShuffleStageStaticstics(numPartitions: Int, numMappers: Int, rowCount: Option[BigInt])
 
 case class CHShuffledHashJoinExecTransformer(
     leftKeys: Seq[Expression],
@@ -131,33 +128,34 @@ case class CHShuffledHashJoinExecTransformer(
       .append("isExistenceJoin=")
       .append(if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0)
       .append("\n")
-    logicalLink match {
-      case Some(join: Join) =>
-        val left = if (!needSwitchChildren) join.left else join.right
-        val right = if (!needSwitchChildren) join.right else join.left
-        val leftRowCount = left.stats.rowCount
-        val rightRowCount = right.stats.rowCount
-        val leftSizeInBytes = left.stats.sizeInBytes
-        val rightSizeInBytes = right.stats.sizeInBytes
-        val numPartitions = outputPartitioning.numPartitions
+
+    CHAQEUtil.getShuffleQueryStageStats(streamedPlan) match {
+      case Some(stats) =>
         joinParametersStr
           .append("leftRowCount=")
-          .append(leftRowCount.getOrElse(-1))
+          .append(stats.rowCount.getOrElse(-1))
           .append("\n")
           .append("leftSizeInBytes=")
-          .append(leftSizeInBytes)
-          .append("\n")
-          .append("rightRowCount=")
-          .append(rightRowCount.getOrElse(-1))
-          .append("\n")
-          .append("rightSizeInBytes=")
-          .append(rightSizeInBytes)
-          .append("\n")
-          .append("numPartitions=")
-          .append(numPartitions)
+          .append(stats.sizeInBytes)
           .append("\n")
       case _ =>
     }
+    CHAQEUtil.getShuffleQueryStageStats(buildPlan) match {
+      case Some(stats) =>
+        joinParametersStr
+          .append("rightRowCount=")
+          .append(stats.rowCount.getOrElse(-1))
+          .append("\n")
+          .append("rightSizeInBytes=")
+          .append(stats.sizeInBytes)
+          .append("\n")
+      case _ =>
+    }
+    joinParametersStr
+      .append("numPartitions=")
+      .append(outputPartitioning.numPartitions)
+      .append("\n")
+
     val message = StringValue
       .newBuilder()
       .setValue(joinParametersStr.toString)

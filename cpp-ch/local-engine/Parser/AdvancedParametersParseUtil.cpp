@@ -70,6 +70,7 @@ void tryAssign<Int64>(const std::unordered_map<String, String> & kvs, const Stri
         catch (...)
         {
             LOG_ERROR(getLogger("tryAssign"), "Invalid number: {}", it->second);
+            throw;
         }
     }
 }

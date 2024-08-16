@@ -392,8 +392,7 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
               plan.condition,
               plan.left,
               plan.right,
-              plan.isSkewJoin,
-              plan.logicalLink)
+              plan.isSkewJoin)
           transformer.doValidate().tagOnFallback(plan)
         case plan: BroadcastExchangeExec =>
           val transformer = ColumnarBroadcastExchangeExec(plan.mode, plan.child)
