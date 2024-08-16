@@ -16,16 +16,21 @@
  */
 package org.apache.spark.sql.vectorized;
 
+import org.apache.gluten.columnarbatch.ColumnarBatches;
 import org.apache.gluten.exception.GlutenException;
 
 import java.lang.reflect.Field;
 
-public class ColumnarBatchRowUtil {
+public class ColumnarBatchUtil {
 
+  private static final Field FIELD_COLUMNS;
   private static final Field FIELD_COLUMNAR_BATCH_ROW;
 
   static {
     try {
+      Field f = ColumnarBatch.class.getDeclaredField("columns");
+      f.setAccessible(true);
+      FIELD_COLUMNS = f;
       Field row = ColumnarBatch.class.getDeclaredField("row");
       row.setAccessible(true);
       FIELD_COLUMNAR_BATCH_ROW = row;
@@ -34,10 +39,32 @@ public class ColumnarBatchRowUtil {
     }
   }
 
-  public static void setColumnarBatchRow(ColumnVector[] columns, ColumnarBatch target) {
-    ColumnarBatchRow row = new ColumnarBatchRow(columns);
+  private static void setColumnarBatchRow(
+      ColumnarBatch from, ColumnVector[] columns, ColumnarBatch target) {
+    ColumnarBatchRow newRow = new ColumnarBatchRow(columns);
     try {
-      FIELD_COLUMNAR_BATCH_ROW.set(target, row);
+      ColumnarBatchRow row = (ColumnarBatchRow) FIELD_COLUMNAR_BATCH_ROW.get(from);
+      newRow.rowId = row.rowId;
+      FIELD_COLUMNAR_BATCH_ROW.set(target, newRow);
+    } catch (IllegalAccessException e) {
+      throw new GlutenException(e);
+    }
+  }
+
+  public static void transferVectors(ColumnarBatch from, ColumnarBatch target) {
+    try {
+      if (target.numCols() != from.numCols()) {
+        throw new IllegalStateException();
+      }
+      final ColumnVector[] newVectors = new ColumnVector[from.numCols()];
+      for (int i = 0; i < target.numCols(); i++) {
+        newVectors[i] = from.column(i);
+      }
+      FIELD_COLUMNS.set(target, newVectors);
+      // Light batch does not need the row.
+      if (ColumnarBatches.isHeavyBatch(target)) {
+        setColumnarBatchRow(from, newVectors, target);
+      }
     } catch (IllegalAccessException e) {
       throw new GlutenException(e);
     }
