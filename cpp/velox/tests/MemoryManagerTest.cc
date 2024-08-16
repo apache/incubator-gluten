@@ -331,9 +331,7 @@ class MultiMemoryManagerTest : public ::testing::Test {
     std::unordered_map<std::string, std::string> conf = {
         {kMemoryReservationBlockSize, std::to_string(kMemoryReservationBlockSizeDefault)},
         {kVeloxMemInitCapacity, std::to_string(kVeloxMemInitCapacityDefault)}};
-    std::cout << "create the velox backend" << std::endl;
     gluten::VeloxBackend::create(conf);
-    std::cout << "created the velox backend" << std::endl;
   }
 
   std::unique_ptr<VeloxMemoryManager> newVeloxMemoryManager(std::unique_ptr<AllocationListener> listener) {
