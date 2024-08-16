@@ -68,6 +68,11 @@ public:
         const ColumnArray * array_col_1 = nullptr,  * array_col_2 = nullptr;
         const ColumnConst * const_col_1 = checkAndGetColumn<ColumnConst>(arguments[0].column.get());
         const ColumnConst * const_col_2 = checkAndGetColumn<ColumnConst>(arguments[1].column.get());
+        if ((const_col_1 && const_col_1->onlyNull()) || (const_col_2 && const_col_2->onlyNull()))
+        {
+            null_map_data[0] = 1;
+            return ColumnNullable::create(std::move(res), std::move(null_map));
+        }
         if (const_col_1)
             array_col_1 = checkAndGetColumn<ColumnArray>(const_col_1->getDataColumnPtr().get());
         else
@@ -101,18 +106,18 @@ public:
             size_t array_size_2 = array_offsets_2[i] - current_offset_2;
             auto executeCompare = [&](const IColumn & col1, const IColumn & col2, const ColumnUInt8 * null_map1, const ColumnUInt8 * null_map2) -> void
             {
-                for (size_t j = 0; j < array_size_1 && !res_data[i] && !null_map_data[i]; ++j)
+                for (size_t j = 0; j < array_size_1 && !res_data[i]; ++j)
                 {
                     for (size_t k = 0; k < array_size_2; ++k)
                     {
                         if ((null_map1 && null_map1->getElement(j + array_pos_1)) || (null_map2 && null_map2->getElement(k + array_pos_2)))
                         {
                             null_map_data[i] = 1;
-                            break;
                         }
                         else if (col1.compareAt(j + array_pos_1, k + array_pos_2, col2, -1) == 0)
                         {
                             res_data[i] = 1;
+                            null_map_data[i] = 0;
                             break;  
                         }
                     }
@@ -142,8 +147,6 @@ public:
             {
                 executeCompare(array_col_1->getData(), array_col_2->getData(), nullptr, nullptr);
             }
-            else
-                throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The arguments data type is not match.");
 
             current_offset_1 = array_offsets_1[i];
             current_offset_2 = array_offsets_2[i];
