@@ -20,11 +20,11 @@ import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, QueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, AQEShuffleReadExec, QueryStageExec}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 /**
- * attention: if AQE is enable,This method will only be executed correctly after the execution plan
+ * attention: if AQE is enabled,This method will only be executed correctly after the execution plan
  * is fully determined
  */
 
@@ -42,9 +42,13 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
         true
       case WholeStageCodegenExec(_) =>
         true
+      case ColumnarInputAdapter(_) =>
+        true
       case InputAdapter(_) =>
         true
       case AdaptiveSparkPlanExec(_, _, _, _, _) =>
+        true
+      case AQEShuffleReadExec(_, _) =>
         true
       case _: LimitExec =>
         true
@@ -57,30 +61,15 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
         true
       case _: ReusedExchangeExec =>
         true
-      case p: SparkPlan if p.supportsColumnar =>
-        true
       case _ =>
         false
     }
   }
 
   def hasFallback(plan: SparkPlan): Boolean = {
-    var fallbackOperator: Seq[SparkPlan] = null
-    if (plan.isInstanceOf[AdaptiveSparkPlanExec]) {
-      fallbackOperator = collectWithSubqueries(plan) {
-        case plan if !plan.isInstanceOf[GlutenPlan] && !skip(plan) =>
-          plan
-      }
-    } else {
-      fallbackOperator = plan.collectWithSubqueries {
-        case plan if !plan.isInstanceOf[GlutenPlan] && !skip(plan) =>
-          plan
-      }
-    }
-
-    if (fallbackOperator.nonEmpty) {
-      fallbackOperator.foreach(operator => log.info(s"gluten fallback operator:{$operator}"))
-    }
+    val fallbackOperator = collectWithSubqueries(plan) { case plan => plan }.filterNot(
+      plan => plan.isInstanceOf[GlutenPlan] || skip(plan))
+    fallbackOperator.foreach(operator => log.info(s"gluten fallback operator:{$operator}"))
     fallbackOperator.nonEmpty
   }
 }
