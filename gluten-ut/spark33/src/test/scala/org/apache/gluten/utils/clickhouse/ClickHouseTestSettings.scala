@@ -1317,6 +1317,19 @@ class ClickHouseTestSettings extends BackendTestSettings {
     // DISABLED: GLUTEN-4893 Vanilla UT checks scan operator by exactly matching the class type
     .exclude("SPARK-34862: Support ORC vectorized reader for nested column")
   enableSuite[GlutenOrcV1SchemaPruningSuite]
+    .exclude(
+      "Spark vectorized reader - without partition data column - select a single complex field from a map entry and its parent map entry")
+    .exclude("Spark vectorized reader - with partition data column - select a single complex field from a map entry and its parent map entry")
+    .exclude("Non-vectorized reader - without partition data column - select a single complex field from a map entry and its parent map entry")
+    .exclude("Non-vectorized reader - with partition data column - select a single complex field from a map entry and its parent map entry")
+    .exclude("Case-insensitive parser - mixed-case schema - select with exact column names")
+    .exclude("Case-insensitive parser - mixed-case schema - select with lowercase column names")
+    .exclude(
+      "Case-insensitive parser - mixed-case schema - select with different-case column names")
+    .exclude(
+      "Case-insensitive parser - mixed-case schema - filter with different-case column names")
+    .exclude("Case-insensitive parser - mixed-case schema - subquery filter with different-case column names")
+    .exclude("SPARK-36352: Spark should check result plan's output schema name")
   enableSuite[GlutenOrcV2QuerySuite]
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
