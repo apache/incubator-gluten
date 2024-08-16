@@ -14,29 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <unordered_map>
+package org.apache.gluten.execution
 
-namespace local_engine
-{
+import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive._
 
-std::unordered_map<String, std::unordered_map<String, String>> convertToKVs(const String & advance);
+object CHAQEUtil {
 
-
-struct JoinOptimizationInfo
-{
-    bool is_broadcast = false;
-    bool is_smj = false;
-    bool is_null_aware_anti_join = false;
-    bool is_existence_join = false;
-    Int64 left_table_rows = -1;
-    Int64 left_table_bytes = -1;
-    Int64 right_table_rows = -1;
-    Int64 right_table_bytes = -1;
-    Int64 partitions_num = -1;
-    String storage_join_key;
-
-    static JoinOptimizationInfo parse(const String & advance);
-};
+  // All TransformSupports have lost the logicalLink. So we need iterate the plan to find the
+  // first ShuffleQueryStageExec and get the runtime stats.
+  def getShuffleQueryStageStats(plan: SparkPlan): Option[Statistics] = {
+    plan match {
+      case stage: ShuffleQueryStageExec =>
+        Some(stage.getRuntimeStatistics)
+      case _ =>
+        if (plan.children.length == 1) {
+          getShuffleQueryStageStats(plan.children.head)
+        } else {
+          None
+        }
+    }
+  }
 }
-

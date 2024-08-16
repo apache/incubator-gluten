@@ -32,6 +32,7 @@ class GlutenClickHouseColumnarShuffleAQESuite
   override protected val tablesPath: String = basePath + "/tpch-data-ch"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
+  private val backendConfigPrefix = "spark.gluten.sql.columnar.backend.ch."
 
   /** Run Gluten + ClickHouse Backend with ColumnarShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -256,6 +257,50 @@ class GlutenClickHouseColumnarShuffleAQESuite
             assert(joins.size == 1)
         }
       )
+
+      spark.sql("drop table t1")
+      spark.sql("drop table t2")
+    }
+  }
+
+  test("GLUTEN-6768 change mixed join condition into multi join on clauses") {
+    withSQLConf(
+      (backendConfigPrefix + "runtime_config.prefer_multi_join_on_clauses", "true"),
+      (backendConfigPrefix + "runtime_config.multi_join_on_clauses_build_side_row_limit", "1000000")
+    ) {
+
+      spark.sql("create table t1(a int, b int, c int, d int) using parquet")
+      spark.sql("create table t2(a int, b int, c int, d int) using parquet")
+
+      spark.sql("""
+                  |insert into t1
+                  |select id % 2 as a, id as b, id + 1 as c, id + 2 as d from range(1000)
+                  |""".stripMargin)
+      spark.sql("""
+                  |insert into t2
+                  |select id % 2 as a, id as b, id + 1 as c, id + 2 as d from range(1000)
+                  |""".stripMargin)
+
+      var sql = """
+                  |select * from t1 join t2 on
+                  |t1.a = t2.a and (t1.b = t2.b or t1.c = t2.c or t1.d = t2.d)
+                  |order by t1.a, t1.b, t1.c, t1.d
+                  |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+      sql = """
+              |select * from t1 join t2 on
+              |t1.a = t2.a and (t1.b = t2.b or t1.c = t2.c or (t1.c = t2.c and t1.d = t2.d))
+              |order by t1.a, t1.b, t1.c, t1.d
+              |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+      sql = """
+              |select * from t1 join t2 on
+              |t1.a = t2.a and (t1.b = t2.b or t1.c = t2.c or (t1.d = t2.d and t1.c >= t2.c))
+              |order by t1.a, t1.b, t1.c, t1.d
+              |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
 
       spark.sql("drop table t1")
       spark.sql("drop table t2")

@@ -57,6 +57,24 @@ void tryAssign<bool>(const std::unordered_map<String, String> & kvs, const Strin
     }
 }
 
+template<>
+void tryAssign<Int64>(const std::unordered_map<String, String> & kvs, const String & key, Int64 & v)
+{
+    auto it = kvs.find(key);
+    if (it != kvs.end())
+    {
+        try
+        {
+            v = std::stol(it->second);
+        }
+        catch (...)
+        {
+            LOG_ERROR(getLogger("tryAssign"), "Invalid number: {}", it->second);
+            throw;
+        }
+    }
+}
+
 template <char... chars>
 void readStringUntilCharsInto(String & s, DB::ReadBuffer & buf)
 {
@@ -121,6 +139,11 @@ JoinOptimizationInfo JoinOptimizationInfo::parse(const String & advance)
     tryAssign(kvs, "buildHashTableId", info.storage_join_key);
     tryAssign(kvs, "isNullAwareAntiJoin", info.is_null_aware_anti_join);
     tryAssign(kvs, "isExistenceJoin", info.is_existence_join);
+    tryAssign(kvs, "leftRowCount", info.left_table_rows);
+    tryAssign(kvs, "leftSizeInBytes", info.left_table_bytes);
+    tryAssign(kvs, "rightRowCount", info.right_table_rows);
+    tryAssign(kvs, "rightSizeInBytes", info.right_table_bytes);
+    tryAssign(kvs, "numPartitions", info.partitions_num);
     return info;
 }
 }

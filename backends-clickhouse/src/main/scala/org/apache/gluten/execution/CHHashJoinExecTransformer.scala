@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.utils.{BroadcastHashJoinStrategy, CHJoinValidateUtil, ShuffleHashJoinStrategy}
 
@@ -29,6 +30,7 @@ import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.JoinRel
 
 object JoinTypeTransform {
@@ -104,6 +106,62 @@ case class CHShuffledHashJoinExecTransformer(
   private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
   override protected lazy val substraitJoinType: JoinRel.JoinType =
     JoinTypeTransform.toSubstraitType(joinType, buildSide)
+
+  override def genJoinParameters(): Any = {
+    val (isBHJ, isNullAwareAntiJoin, buildHashTableId): (Int, Int, String) = (0, 0, "")
+
+    // Start with "JoinParameters:"
+    val joinParametersStr = new StringBuffer("JoinParameters:")
+    // isBHJ: 0 for SHJ, 1 for BHJ
+    // isNullAwareAntiJoin: 0 for false, 1 for true
+    // buildHashTableId: the unique id for the hash table of build plan
+    joinParametersStr
+      .append("isBHJ=")
+      .append(isBHJ)
+      .append("\n")
+      .append("isNullAwareAntiJoin=")
+      .append(isNullAwareAntiJoin)
+      .append("\n")
+      .append("buildHashTableId=")
+      .append(buildHashTableId)
+      .append("\n")
+      .append("isExistenceJoin=")
+      .append(if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0)
+      .append("\n")
+
+    CHAQEUtil.getShuffleQueryStageStats(streamedPlan) match {
+      case Some(stats) =>
+        joinParametersStr
+          .append("leftRowCount=")
+          .append(stats.rowCount.getOrElse(-1))
+          .append("\n")
+          .append("leftSizeInBytes=")
+          .append(stats.sizeInBytes)
+          .append("\n")
+      case _ =>
+    }
+    CHAQEUtil.getShuffleQueryStageStats(buildPlan) match {
+      case Some(stats) =>
+        joinParametersStr
+          .append("rightRowCount=")
+          .append(stats.rowCount.getOrElse(-1))
+          .append("\n")
+          .append("rightSizeInBytes=")
+          .append(stats.sizeInBytes)
+          .append("\n")
+      case _ =>
+    }
+    joinParametersStr
+      .append("numPartitions=")
+      .append(outputPartitioning.numPartitions)
+      .append("\n")
+
+    val message = StringValue
+      .newBuilder()
+      .setValue(joinParametersStr.toString)
+      .build()
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
+  }
 }
 
 case class CHBroadcastBuildSideRDD(

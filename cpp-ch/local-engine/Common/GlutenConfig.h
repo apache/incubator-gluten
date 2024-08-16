@@ -92,6 +92,27 @@ struct StreamingAggregateConfig
     }
 };
 
+struct JoinConfig
+{
+    /// If the join condition is like `t1.k = t2.k and (t1.id1 = t2.id2 or t1.id2 = t2.id2)`, try to join with multi
+    /// join on clauses `(t1.k = t2.k and t1.id1 = t2.id2) or (t1.k = t2.k or t1.id2 = t2.id2)`
+    inline static const String PREFER_MULTI_JOIN_ON_CLAUSES = "prefer_multi_join_on_clauses";
+    /// Only hash join supports multi join on clauses, the right table cannot be too large. If the row number of right
+    /// table is larger then this limit, this transform will not work.
+    inline static const String MULTI_JOIN_ON_CLAUSES_BUILD_SIDE_ROWS_LIMIT = "multi_join_on_clauses_build_side_row_limit";
+
+    bool prefer_multi_join_on_clauses = true;
+    size_t multi_join_on_clauses_build_side_rows_limit = 10000000;
+
+    static JoinConfig loadFromContext(DB::ContextPtr context)
+    {
+        JoinConfig config;
+        config.prefer_multi_join_on_clauses = context->getConfigRef().getBool(PREFER_MULTI_JOIN_ON_CLAUSES, true);
+        config.multi_join_on_clauses_build_side_rows_limit = context->getConfigRef().getUInt64(MULTI_JOIN_ON_CLAUSES_BUILD_SIDE_ROWS_LIMIT, 10000000);
+        return config;
+    }
+};
+
 struct ExecutorConfig
 {
     inline static const String DUMP_PIPELINE = "dump_pipeline";
