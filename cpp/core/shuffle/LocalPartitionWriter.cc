@@ -581,6 +581,8 @@ arrow::Status LocalPartitionWriter::sortEvict(
     std::unique_ptr<InMemoryPayload> inMemoryPayload,
     std::shared_ptr<arrow::Buffer> compressed,
     bool isFinal) {
+  rawPartitionLengths_[partitionId] += inMemoryPayload->rawSize();
+
   if (lastEvictPid_ != -1 && (partitionId < lastEvictPid_ || (isFinal && !dataFileOs_))) {
     lastEvictPid_ = -1;
     RETURN_NOT_OK(finishSpill(true));
