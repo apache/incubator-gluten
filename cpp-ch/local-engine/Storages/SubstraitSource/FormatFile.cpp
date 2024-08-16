@@ -64,11 +64,12 @@ FormatFile::FormatFile(
 
     LOG_INFO(
         &Poco::Logger::get("FormatFile"),
-        "Reading File path: {}, format: {}, range: {}, partition_index: {}",
+        "Reading File path: {}, format: {}, range: {}, partition_index: {}, partition_values: {}",
         file_info.uri_file(),
         file_info.file_format_case(),
         std::to_string(file_info.start()) + "-" + std::to_string(file_info.start() + file_info.length()),
-        file_info.partition_index());
+        file_info.partition_index(),
+        GlutenStringUtils::dumpPartitionValues(part_vals));
 }
 
 FormatFilePtr FormatFileUtil::createFile(

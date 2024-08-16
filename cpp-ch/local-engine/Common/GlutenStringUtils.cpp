@@ -48,4 +48,26 @@ bool GlutenStringUtils::isNullPartitionValue(const std::string & value)
 {
     return value == "__HIVE_DEFAULT_PARTITION__";
 }
+
+std::string GlutenStringUtils::dumpPartitionValue(const PartitionValue & value)
+{
+    return value.first + "=" + value.second;
+}
+
+std::string GlutenStringUtils::dumpPartitionValues(const PartitionValues & values)
+{
+    std::string res;
+    res += "[";
+
+    for (size_t i = 0; i < values.size(); ++i)
+    {
+        if (i)
+            res += ", ";
+        res += dumpPartitionValue(values[i]);
+    }
+
+    res += "]";
+    return res;
+}
+
 }
