@@ -188,20 +188,33 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
     var metadataGlutenExist: Boolean = false
     var metadataBinExist: Boolean = false
     var dataBinExist: Boolean = false
+    var hasCommits = false
     client
       .listObjects(args)
       .forEach(
         obj => {
           objectCount += 1
-          if (obj.get().objectName().contains("metadata.gluten")) {
+          val objectName = obj.get().objectName()
+          if (objectName.contains("metadata.gluten")) {
             metadataGlutenExist = true
-          } else if (obj.get().objectName().contains("meta.bin")) {
+          } else if (objectName.contains("meta.bin")) {
             metadataBinExist = true
-          } else if (obj.get().objectName().contains("data.bin")) {
+          } else if (objectName.contains("data.bin")) {
             dataBinExist = true
+          } else if (objectName.contains("_commits")) {
+            // Spark 35 has _commits directory
+            // table/_delta_log/_commits/
+            hasCommits = true
           }
         })
-    assertResult(5)(objectCount)
+
+    if (isSparkVersionGE("3.5")) {
+      assertResult(6)(objectCount)
+      assert(hasCommits)
+    } else {
+      assertResult(5)(objectCount)
+    }
+
     assert(metadataGlutenExist)
     assert(metadataBinExist)
     assert(dataBinExist)

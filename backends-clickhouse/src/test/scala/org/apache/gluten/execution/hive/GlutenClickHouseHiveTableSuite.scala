@@ -14,13 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.hive
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.execution.{GlutenClickHouseWholeStageTransformerSuite, ProjectExecTransformer, TransformSupport}
+import org.apache.gluten.test.AllDataTypesWithComplexType
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
@@ -29,63 +31,13 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.hadoop.fs.Path
 
 import java.io.{File, PrintWriter}
-import java.sql.{Date, Timestamp}
 
 import scala.reflect.ClassTag
 
-case class AllDataTypesWithComplexType(
-    string_field: String = null,
-    int_field: java.lang.Integer = null,
-    long_field: java.lang.Long = null,
-    float_field: java.lang.Float = null,
-    double_field: java.lang.Double = null,
-    short_field: java.lang.Short = null,
-    byte_field: java.lang.Byte = null,
-    boolean_field: java.lang.Boolean = null,
-    decimal_field: java.math.BigDecimal = null,
-    date_field: java.sql.Date = null,
-    timestamp_field: java.sql.Timestamp = null,
-    array: Seq[Int] = null,
-    arrayContainsNull: Seq[Option[Int]] = null,
-    map: Map[Int, Long] = null,
-    mapValueContainsNull: Map[Int, Option[Long]] = null
-)
-
-object AllDataTypesWithComplexType {
-  def genTestData(): Seq[AllDataTypesWithComplexType] = {
-    (0 to 199).map {
-      i =>
-        if (i % 100 == 1) {
-          AllDataTypesWithComplexType()
-        } else {
-          AllDataTypesWithComplexType(
-            s"$i",
-            i,
-            i.toLong,
-            i.toFloat,
-            i.toDouble,
-            i.toShort,
-            i.toByte,
-            i % 2 == 0,
-            new java.math.BigDecimal(i + ".56"),
-            Date.valueOf(new Date(System.currentTimeMillis()).toLocalDate.plusDays(i % 10)),
-            Timestamp.valueOf(
-              new Timestamp(System.currentTimeMillis()).toLocalDateTime.plusDays(i % 10)),
-            Seq.apply(i + 1, i + 2, i + 3),
-            Seq.apply(Option.apply(i + 1), Option.empty, Option.apply(i + 3)),
-            Map.apply((i + 1, i + 2), (i + 3, i + 4)),
-            Map.empty
-          )
-        }
-    }
-  }
-}
-
 class GlutenClickHouseHiveTableSuite
   extends GlutenClickHouseWholeStageTransformerSuite
+  with ReCreateHiveSession
   with AdaptiveSparkPlanHelper {
-
-  private var _hiveSpark: SparkSession = _
 
   override protected def sparkConf: SparkConf = {
     new SparkConf()
@@ -117,22 +69,6 @@ class GlutenClickHouseHiveTableSuite
         "spark.sql.catalog.spark_catalog",
         "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
       .setMaster("local[*]")
-  }
-
-  override protected def spark: SparkSession = _hiveSpark
-
-  override protected def initializeSession(): Unit = {
-    if (_hiveSpark == null) {
-      val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
-      _hiveSpark = SparkSession
-        .builder()
-        .config(sparkConf)
-        .enableHiveSupport()
-        .config(
-          "javax.jdo.option.ConnectionURL",
-          s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
-        .getOrCreate()
-    }
   }
 
   private val txt_table_name = "hive_txt_test"
@@ -235,24 +171,7 @@ class GlutenClickHouseHiveTableSuite
 
   override protected def afterAll(): Unit = {
     DeltaLog.clearCache()
-
-    try {
-      super.afterAll()
-    } finally {
-      try {
-        if (_hiveSpark != null) {
-          try {
-            _hiveSpark.sessionState.catalog.reset()
-          } finally {
-            _hiveSpark.stop()
-            _hiveSpark = null
-          }
-        }
-      } finally {
-        SparkSession.clearActiveSession()
-        SparkSession.clearDefaultSession()
-      }
-    }
+    super.afterAll()
   }
 
   test("test hive text table") {
@@ -957,7 +876,7 @@ class GlutenClickHouseHiveTableSuite
     val select_sql_4 = "select id, get_json_object(data, '$.v111') from test_tbl_3337"
     val select_sql_5 = "select id, get_json_object(data, 'v112') from test_tbl_3337"
     val select_sql_6 =
-      "select id, get_json_object(data, '$.id') from test_tbl_3337 where id = 123";
+      "select id, get_json_object(data, '$.id') from test_tbl_3337 where id = 123"
     compareResultsAgainstVanillaSpark(select_sql_1, compareResult = true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_2, compareResult = true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_3, compareResult = true, _ => {})
@@ -1311,7 +1230,7 @@ class GlutenClickHouseHiveTableSuite
       .format(dataPath)
     val select_sql = "select * from test_tbl_6506"
     spark.sql(create_table_sql)
-    compareResultsAgainstVanillaSpark(select_sql, true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
     spark.sql("drop table test_tbl_6506")
   }
 
