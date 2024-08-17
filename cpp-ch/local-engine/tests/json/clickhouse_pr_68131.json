@@ -1,0 +1,95 @@
+{
+  "extensions": [
+    {
+      "extensionFunction": {
+        "name": "is_not_null:list<i32>"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "root": {
+        "input": {
+          "filter": {
+            "common": {
+              "direct": {}
+            },
+            "input": {
+              "read": {
+                "common": {
+                  "direct": {}
+                },
+                "baseSchema": {
+                  "names": [
+                    "f"
+                  ],
+                  "struct": {
+                    "types": [
+                      {
+                        "list": {
+                          "type": {
+                            "i32": {
+                              "nullability": "NULLABILITY_NULLABLE"
+                            }
+                          },
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }
+                    ]
+                  },
+                  "columnTypes": [
+                    "NORMAL_COL"
+                  ]
+                },
+                "advancedExtension": {
+                  "optimization": {
+                    "@type": "type.googleapis.com/google.protobuf.StringValue",
+                    "value": "isMergeTree=0\n"
+                  }
+                }
+              }
+            },
+            "condition": {
+              "scalarFunction": {
+                "outputType": {
+                  "bool": {
+                    "nullability": "NULLABILITY_REQUIRED"
+                  }
+                },
+                "arguments": [
+                  {
+                    "value": {
+                      "selection": {
+                        "directReference": {
+                          "structField": {}
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "names": [
+          "f#0"
+        ],
+        "outputSchema": {
+          "types": [
+            {
+              "list": {
+                "type": {
+                  "i32": {
+                    "nullability": "NULLABILITY_NULLABLE"
+                  }
+                },
+                "nullability": "NULLABILITY_REQUIRED"
+              }
+            }
+          ],
+          "nullability": "NULLABILITY_REQUIRED"
+        }
+      }
+    }
+  ]
+}
