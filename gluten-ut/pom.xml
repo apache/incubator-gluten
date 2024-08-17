@@ -31,7 +31,7 @@
 
   <artifactId>gluten-ut</artifactId>
   <packaging>pom</packaging>
-  <name>Gluten Unit Test</name>
+  <name>Gluten Unit Test Parent</name>
 
   <dependencies>
     <!-- put gluten-core at first so that overwritten spark classes (such as BatchScanExec,
