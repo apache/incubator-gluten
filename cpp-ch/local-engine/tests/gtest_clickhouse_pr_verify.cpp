@@ -34,8 +34,8 @@ TEST(Clickhouse, PR54881)
 {
     const auto context1 = DB::Context::createCopy(SerializedPlanParser::global_context);
     // context1->setSetting("enable_named_columns_in_function_tuple", DB::Field(true));
-    auto settingxs = context1->getSettingsRef();
-    EXPECT_FALSE(settingxs.enable_named_columns_in_function_tuple) << "GLUTEN NEED set enable_named_columns_in_function_tuple to false";
+    auto settings = context1->getSettingsRef();
+    EXPECT_FALSE(settings.enable_named_columns_in_function_tuple) << "GLUTEN NEED set enable_named_columns_in_function_tuple to false";
 
     const std::string split_template
         = R"({"items":[{"uriFile":"{replace_local_files}","partitionIndex":"0","length":"1529","parquet":{},"schema":{},"metadataColumns":[{}]}]})";
@@ -111,6 +111,26 @@ TEST(Clickhouse, PR68135)
 
     const auto plan = local_engine::JsonStringToMessage<substrait::Plan>(
         {reinterpret_cast<const char *>(gresource_embedded_pr_68135_jsonData), gresource_embedded_pr_68135_jsonSize});
+
+    auto local_executor = parser.createExecutor(plan);
+    EXPECT_TRUE(local_executor->hasNext());
+    const Block & x = *local_executor->nextColumnar();
+    debug::headBlock(x);
+}
+
+INCBIN(resource_embedded_pr_68131_json, SOURCE_DIR "/utils/extern-local-engine/tests/json/clickhouse_pr_68131.json");
+TEST(Clickhouse, PR68131)
+{
+    const std::string split_template
+        = R"({"items":[{"uriFile":"{replace_local_files}","partitionIndex":"0","length":"289","parquet":{},"schema":{},"metadataColumns":[{}]}]})";
+    const std::string split
+        = replaceLocalFilesWildcards(split_template, GLUTEN_DATA_DIR("/utils/extern-local-engine/tests/data/68131.parquet"));
+
+    SerializedPlanParser parser(SerializedPlanParser::global_context);
+    parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
+
+    const auto plan = local_engine::JsonStringToMessage<substrait::Plan>(
+        {reinterpret_cast<const char *>(gresource_embedded_pr_68131_jsonData), gresource_embedded_pr_68131_jsonSize});
 
     auto local_executor = parser.createExecutor(plan);
     EXPECT_TRUE(local_executor->hasNext());
