@@ -24,9 +24,8 @@
 
 namespace {
 
-const std::string REGEX_REDACT_KEY = "spark.gluten.redaction.regex";
 std::optional<std::regex> getRedactionRegex(const std::unordered_map<std::string, std::string>& conf) {
-  auto it = conf.find(REGEX_REDACT_KEY);
+  auto it = conf.find(gluten::kSparkRedactionRegex);
   if (it != conf.end()) {
     return std::regex(it->second);
   }
@@ -35,8 +34,6 @@ std::optional<std::regex> getRedactionRegex(const std::unordered_map<std::string
 } // namespace
 
 namespace gluten {
-
-const std::string REDACTED_VALUE = "*********(redacted)";
 
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength) {
@@ -58,7 +55,7 @@ std::string printConfig(const std::unordered_map<std::string, std::string>& conf
 
   for (const auto& [k, v] : conf) {
     if (redactionRegex && std::regex_match(k, *redactionRegex)) {
-      oss << " [" << k << ", " << REDACTED_VALUE << "]\n";
+      oss << " [" << k << ", " << kSparkRedactionString << "]\n";
     } else {
       oss << " [" << k << ", " << v << "]\n";
     }
