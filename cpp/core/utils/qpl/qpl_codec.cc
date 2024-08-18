@@ -30,7 +30,7 @@ class HardwareCodecDeflateQpl {
   /// RET_ERROR stands for hardware codec fail,need fallback to software codec.
   static constexpr int64_t RET_ERROR = -1;
 
-  explicit HardwareCodecDeflateQpl(qpl_compression_levels compressionLevel) : compressionLevel_(compressionLevel){};
+  explicit HardwareCodecDeflateQpl(qpl_compression_levels compressionLevel) : compressionLevel_(compressionLevel) {};
 
   int64_t doCompressData(const uint8_t* source, uint32_t source_size, uint8_t* dest, uint32_t dest_size) const {
     uint32_t job_id;
@@ -99,7 +99,7 @@ class HardwareCodecDeflateQpl {
 
 class SoftwareCodecDeflateQpl final {
  public:
-  explicit SoftwareCodecDeflateQpl(qpl_compression_levels compressionLevel) : compressionLevel_(compressionLevel){};
+  explicit SoftwareCodecDeflateQpl(qpl_compression_levels compressionLevel) : compressionLevel_(compressionLevel) {};
 
   ~SoftwareCodecDeflateQpl() {
     if (swJob) {

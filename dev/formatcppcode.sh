@@ -1,13 +1,25 @@
 cd `dirname $0`
 
-# Check if clang-format-15 is installed
-if ! command -v clang-format-15 &> /dev/null
-then
-    echo "clang-format-15 could not be found"
-    echo "Installing clang-format-15..."
-    sudo apt update
-    sudo apt install clang-format-15
+CLANG_FORMAT_CMD=""
+if [ "$(uname)" == "Darwin" ]; then
+    CLANG_FORMAT_CMD="clang-format"
+    if ! command -v $CLANG_FORMAT_CMD &> /dev/null
+    then
+        echo "$CLANG_FORMAT_CMD could not be found"
+        echo "Installing $CLANG_FORMAT_CMD..."
+        sudo brew install $CLANG_FORMAT_CMD
+    fi
+else
+    CLANG_FORMAT_CMD="clang-format-18"
+    if ! command -v $CLANG_FORMAT_CMD &> /dev/null
+    then
+        echo "$CLANG_FORMAT_CMD could not be found"
+        echo "Installing $CLANG_FORMAT_CMD..."
+        sudo apt update
+        sudo apt install $CLANG_FORMAT_CMD
+    fi
 fi
 
-find ../cpp/core -regex '.*\.\(cc\|hpp\|cu\|c\|h\)' -exec clang-format-15 -style=file -i {} \;
-find ../cpp/velox -regex '.*\.\(cc\|hpp\|cu\|c\|h\)' -exec clang-format-15 -style=file -i {} \;
+echo "OS: $(uname), CLANG_FORMAT_CMD: ${CLANG_FORMAT_CMD}"
+find ../cpp/core -type f \( -name "*.cc" -o  -name "*.hpp" -o  -name "*.cu" -o  -name "*.c" -o -name "*.h" \) | xargs ${CLANG_FORMAT_CMD} -style=file -i
+find ../cpp/velox -type f \( -name "*.cc" -o  -name "*.hpp" -o  -name "*.cu" -o  -name "*.c" -o -name "*.h" \) | xargs ${CLANG_FORMAT_CMD} -style=file -i

@@ -165,11 +165,7 @@ TEST_P(HashPartitioningShuffleWriter, hashPart1Vector) {
       makeFlatVector<int32_t>(
           4, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
       makeFlatVector<Timestamp>(
-          4,
-          [](vector_size_t row) {
-            return Timestamp{row % 2, 0};
-          },
-          nullEvery(5)),
+          4, [](vector_size_t row) { return Timestamp{row % 2, 0}; }, nullEvery(5)),
   });
 
   auto rowType = facebook::velox::asRowType(vector->type());

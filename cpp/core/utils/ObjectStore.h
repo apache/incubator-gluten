@@ -92,7 +92,7 @@ class ObjectStore {
 
   void release0(ResourceHandle handle);
 
-  ObjectStore(StoreHandle storeId) : storeId_(storeId){};
+  ObjectStore(StoreHandle storeId) : storeId_(storeId) {};
   StoreHandle storeId_;
   ResourceMap<std::shared_ptr<void>> store_;
   std::set<ResourceHandle> aliveObjects_;
