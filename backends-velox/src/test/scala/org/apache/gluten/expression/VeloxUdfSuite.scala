@@ -172,6 +172,40 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
         }
     }
   }
+
+  test("test udf fallback in partition filter") {
+    withTempPath {
+      dir =>
+        try {
+          spark.sql("""
+                      |CREATE TEMPORARY FUNCTION hive_int_to_string
+                      |AS 'org.apache.spark.sql.hive.execution.UDFIntegerToString'
+                      |""".stripMargin)
+
+          spark.sql(s"""
+                       |CREATE EXTERNAL TABLE t(i INT, p INT)
+                       |LOCATION 'file://$dir'
+                       |PARTITIONED BY (p)""".stripMargin)
+
+          spark
+            .range(0, 10, 1)
+            .selectExpr("id as col")
+            .createOrReplaceTempView("temp")
+
+          for (part <- Seq(1, 2, 3, 4)) {
+            spark.sql(s"""
+                         |INSERT OVERWRITE TABLE t PARTITION (p=$part)
+                         |SELECT col FROM temp""".stripMargin)
+          }
+
+          val df = spark.sql("SELECT i FROM t WHERE hive_int_to_string(p) = '4'")
+          checkAnswer(df, (0 until 10).map(Row(_)))
+        } finally {
+          spark.sql("DROP TABLE IF EXISTS t")
+          spark.sql("DROP VIEW IF EXISTS temp")
+        }
+    }
+  }
 }
 
 @UDFTest
