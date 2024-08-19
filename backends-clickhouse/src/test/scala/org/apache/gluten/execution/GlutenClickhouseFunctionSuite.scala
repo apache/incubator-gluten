@@ -254,4 +254,24 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("duplicate column name issue") {
+    withTable("left_table", "right_table") {
+      sql("create table left_table(id int, name string) using orc")
+      sql("create table right_table(id int, book string) using orc")
+      sql("insert into left_table values (1,'a'),(2,'b'),(3,'c'),(4,'d')")
+      sql("insert into right_table values (1,'a'),(1,'b'),(2,'c'),(2,'d')")
+      compareResultsAgainstVanillaSpark(
+        """
+          |select p1.id, p1.name, p2.book
+          | from left_table p1 left join
+          | (select id, id, book
+          |    from right_table where id <= 2) p2
+          | on p1.id=p2.id
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
 }
