@@ -23,7 +23,7 @@ Could you open an issue for this pull request on Github Issues?
 
 https://github.com/apache/incubator-gluten/issues
 
-Then could you also rename ***commit message*** and ***pull request title*** in the following format?
+Then could you also rename ***commit message*** and ***pull request title*** in the following format? 
 
     [GLUTEN-${ISSUES_ID}][COMPONENT]feat/fix: ${detailed message}
 
