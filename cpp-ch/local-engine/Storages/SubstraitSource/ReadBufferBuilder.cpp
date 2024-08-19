@@ -218,8 +218,6 @@ public:
         if (file_uri.getPort())
             uri_path += ":" + std::to_string(static_cast<unsigned>(file_uri.getPort()));
 
-        std::cout << "read_from_filesystem_cache_if_exists_otherwise_bypass_cache:" << read_settings.read_from_filesystem_cache_if_exists_otherwise_bypass_cache << std::endl;
-
         size_t read_util_position = 0;
         size_t read_begin = 0;
         if (set_read_util_position)
