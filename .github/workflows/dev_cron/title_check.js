@@ -28,14 +28,15 @@ async function commentOpenISSUESIssue(github, context, pullRequestNumber) {
   const {data: comments} = await github.rest.issues.listComments({
     owner: context.repo.owner,
     repo: context.repo.repo,
-    issue_number: pullRequestNumber
+    issue_number: pullRequestNumber,
+    per_page: 1
   });
   if (comments.length > 0) {
     return;
   }
   const commentPath = ".github/workflows/dev_cron/title_check.md";
   const comment = fs.readFileSync(commentPath).toString();
-  await github.issues.createComment({
+  await github.rest.issues.createComment({
     owner: context.repo.owner,
     repo: context.repo.repo,
     issue_number: pullRequestNumber,
