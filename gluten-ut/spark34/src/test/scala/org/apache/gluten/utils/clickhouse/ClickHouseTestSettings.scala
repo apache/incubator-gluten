@@ -1168,7 +1168,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude(
       "Case-insensitive parser - mixed-case schema - filter with different-case column names")
     .exclude("Case-insensitive parser - mixed-case schema - subquery filter with different-case column names")
-    .exclude("SPARK-36352: Spark should check result plan's output schema name")  enableSuite[GlutenOrcV2QuerySuite]
+    .exclude("SPARK-36352: Spark should check result plan's output schema name")
+  enableSuite[GlutenOrcV2QuerySuite]
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC")
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
