@@ -25,7 +25,7 @@ function haveISSUESID(title) {
 }
 
 async function commentOpenISSUESIssue(github, context, pullRequestNumber) {
-  const {data: comments} = await github.issues.listComments({
+  const {data: comments} = await github.rest.issues.listComments({
     owner: context.repo.owner,
     repo: context.repo.repo,
     issue_number: pullRequestNumber,
