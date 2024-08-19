@@ -178,11 +178,13 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
     super.beforeAll()
   }
 
-  protected val rootPath: String = this.getClass.getResource("/").getPath
-  protected val basePath: String = rootPath + "tests-working-home"
-  protected val warehouse: String = basePath + "/spark-warehouse"
-  protected val metaStorePathAbsolute: String = basePath + "/meta"
-  protected val hiveMetaStoreDB: String = metaStorePathAbsolute + "/metastore_db"
+  final protected val rootPath: String = this.getClass.getResource("/").getPath
+  final protected val basePath: String = rootPath + "tests-working-home"
+  final protected val warehouse: String = basePath + "/spark-warehouse"
+  final protected val metaStorePathAbsolute: String = basePath + "/meta"
+
+  protected val hiveMetaStoreDB: String =
+    s"$metaStorePathAbsolute/${getClass.getSimpleName}/metastore_db"
 
   final override protected val resourcePath: String = "" // ch not need this
   override protected val fileFormat: String = "parquet"

@@ -15,13 +15,26 @@
  * limitations under the License.
  */
 
+#include <boost/regex.hpp>
 #include <jni.h>
-
+#include <optional>
 #include "compute/ProtobufUtils.h"
 #include "config.pb.h"
 #include "jni/JniError.h"
 
+namespace {
+
+std::optional<boost::regex> getRedactionRegex(const std::unordered_map<std::string, std::string>& conf) {
+  auto it = conf.find(gluten::kSparkRedactionRegex);
+  if (it != conf.end()) {
+    return boost::regex(it->second);
+  }
+  return std::nullopt;
+}
+} // namespace
+
 namespace gluten {
+
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength) {
   std::unordered_map<std::string, std::string> sparkConfs;
@@ -37,9 +50,17 @@ parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength)
 std::string printConfig(const std::unordered_map<std::string, std::string>& conf) {
   std::ostringstream oss;
   oss << std::endl;
-  for (auto& [k, v] : conf) {
-    oss << " [" << k << ", " << v << "]\n";
+
+  auto redactionRegex = getRedactionRegex(conf);
+
+  for (const auto& [k, v] : conf) {
+    if (redactionRegex && boost::regex_match(k, *redactionRegex)) {
+      oss << " [" << k << ", " << kSparkRedactionString << "]\n";
+    } else {
+      oss << " [" << k << ", " << v << "]\n";
+    }
   }
   return oss.str();
 }
+
 } // namespace gluten

@@ -979,6 +979,7 @@ void BackendInitializerUtil::init(const std::string_view plan)
     // Init the table metadata cache map
     StorageMergeTreeFactory::init_cache_map();
 
+    JobScheduler::initialize(SerializedPlanParser::global_context);
     CacheManager::initialize(SerializedPlanParser::global_context);
 
     std::call_once(

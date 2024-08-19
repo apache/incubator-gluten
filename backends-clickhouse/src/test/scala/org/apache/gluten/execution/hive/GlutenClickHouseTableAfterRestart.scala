@@ -14,12 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.hive
+
+import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.SparkSession.{getActiveSession, getDefaultSession}
-import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
+import org.apache.spark.sql.delta.ClickhouseSnapshot
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
@@ -33,7 +35,8 @@ import java.io.File
 // This suite is to make sure clickhouse commands works well even after spark restart
 class GlutenClickHouseTableAfterRestart
   extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
+  with AdaptiveSparkPlanHelper
+  with ReCreateHiveSession {
 
   override protected val needCopyParquetToTablePath = true
 
@@ -64,55 +67,17 @@ class GlutenClickHouseTableAfterRestart
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
         "8192")
+      .setMaster("local[2]")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
     createNotNullTPCHTablesInParquet(tablesPath)
   }
 
-  private var _hiveSpark: SparkSession = _
-  override protected def spark: SparkSession = _hiveSpark
-
-  override protected def initializeSession(): Unit = {
-    if (_hiveSpark == null) {
-      val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db_" + current_db_num
-      current_db_num += 1
-
-      _hiveSpark = SparkSession
-        .builder()
-        .config(sparkConf)
-        .enableHiveSupport()
-        .config(
-          "javax.jdo.option.ConnectionURL",
-          s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
-        .master("local[2]")
-        .getOrCreate()
-    }
-  }
-
-  override protected def afterAll(): Unit = {
-    DeltaLog.clearCache()
-
-    try {
-      super.afterAll()
-    } finally {
-      try {
-        if (_hiveSpark != null) {
-          try {
-            _hiveSpark.sessionState.catalog.reset()
-          } finally {
-            _hiveSpark.stop()
-            _hiveSpark = null
-          }
-        }
-      } finally {
-        SparkSession.clearActiveSession()
-        SparkSession.clearDefaultSession()
-      }
-    }
-  }
-
   var current_db_num: Int = 0
+
+  override protected val hiveMetaStoreDB: String =
+    metaStorePathAbsolute + "/metastore_db_" + current_db_num
 
   test("test mergetree after restart") {
     spark.sql(s"""
@@ -347,22 +312,22 @@ class GlutenClickHouseTableAfterRestart
       SparkSession.clearDefaultSession()
     }
 
-    val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db_"
+    val metaStoreDB = metaStorePathAbsolute + "/metastore_db_"
     // use metastore_db2 to avoid issue: "Another instance of Derby may have already booted the database"
-    val destDir = new File(hiveMetaStoreDB + current_db_num)
-    destDir.mkdirs()
-    FileUtils.copyDirectory(new File(hiveMetaStoreDB + (current_db_num - 1)), destDir)
-    _hiveSpark = null
-    _hiveSpark = SparkSession
-      .builder()
-      .config(sparkConf)
-      .enableHiveSupport()
-      .config(
-        "javax.jdo.option.ConnectionURL",
-        s"jdbc:derby:;databaseName=$hiveMetaStoreDB$current_db_num")
-      .master("local[2]")
-      .getOrCreate()
     current_db_num += 1
+    val destDir = new File(metaStoreDB + current_db_num)
+    destDir.mkdirs()
+    FileUtils.copyDirectory(new File(metaStoreDB + (current_db_num - 1)), destDir)
+    updateHiveSession(
+      SparkSession
+        .builder()
+        .config(sparkConf)
+        .enableHiveSupport()
+        .config(
+          "javax.jdo.option.ConnectionURL",
+          s"jdbc:derby:;databaseName=$metaStoreDB$current_db_num")
+        .getOrCreate()
+    )
   }
 }
 // scalastyle:off line.size.limit

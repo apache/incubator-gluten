@@ -538,16 +538,17 @@ object GlutenConfig {
   val GLUTEN_ONHEAP_SIZE_KEY = "spark.executor.memory"
   val GLUTEN_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
   val GLUTEN_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
+  val SPARK_REDACTION_REGEX = "spark.redaction.regex"
 
   // For Soft Affinity Scheduling
-  // Enable Soft Affinity Scheduling, defalut value is false
+  // Enable Soft Affinity Scheduling, default value is false
   val GLUTEN_SOFT_AFFINITY_ENABLED = "spark.gluten.soft-affinity.enabled"
   val GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE = false
-  // Calculate the number of the replcations for scheduling to the target executors per file
+  // Calculate the number of the replications for scheduling to the target executors per file
   val GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM = "spark.gluten.soft-affinity.replications.num"
   val GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM_DEFAULT_VALUE = 2
   // For on HDFS, if there are already target hosts,
-  // and then prefer to use the orginal target hosts to schedule
+  // and then prefer to use the original target hosts to schedule
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS = "spark.gluten.soft-affinity.min.target-hosts"
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
 
@@ -677,7 +678,8 @@ object GlutenConfig {
       // gcs config
       SPARK_GCS_STORAGE_ROOT_URL,
       SPARK_GCS_AUTH_TYPE,
-      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
+      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
+      SPARK_REDACTION_REGEX
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -764,7 +766,8 @@ object GlutenConfig {
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_OFFHEAP_ENABLED,
       SESSION_LOCAL_TIMEZONE.key,
-      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key
+      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
+      SPARK_REDACTION_REGEX
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 

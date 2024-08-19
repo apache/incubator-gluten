@@ -14,32 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.hive
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.execution.AllDataTypesWithComplexType.genTestData
+import org.apache.gluten.execution.GlutenClickHouseWholeStageTransformerSuite
+import org.apache.gluten.test.AllDataTypesWithComplexType.genTestData
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.gluten.NativeWriteChecker
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.test.SharedSparkSession
-import org.apache.spark.sql.types.{DecimalType, LongType, StringType, StructField, StructType}
-
-import org.scalatest.BeforeAndAfterAll
+import org.apache.spark.sql.types._
 
 import scala.reflect.runtime.universe.TypeTag
 
 class GlutenClickHouseNativeWriteTableSuite
   extends GlutenClickHouseWholeStageTransformerSuite
   with AdaptiveSparkPlanHelper
-  with SharedSparkSession
-  with BeforeAndAfterAll
+  with ReCreateHiveSession
   with NativeWriteChecker {
-
-  private var _hiveSpark: SparkSession = _
 
   override protected def sparkConf: SparkConf = {
     var sessionTimeZone = "GMT"
@@ -80,45 +74,12 @@ class GlutenClickHouseNativeWriteTableSuite
     basePath + "/中文/spark-warehouse"
   }
 
-  override protected def spark: SparkSession = _hiveSpark
-
-  override protected def initializeSession(): Unit = {
-    if (_hiveSpark == null) {
-      val hiveMetaStoreDB = metaStorePathAbsolute + "/metastore_db"
-      _hiveSpark = SparkSession
-        .builder()
-        .config(sparkConf)
-        .enableHiveSupport()
-        .config(
-          "javax.jdo.option.ConnectionURL",
-          s"jdbc:derby:;databaseName=$hiveMetaStoreDB;create=true")
-        .getOrCreate()
-    }
-  }
-
   private val table_name_template = "hive_%s_test"
   private val table_name_vanilla_template = "hive_%s_test_written_by_vanilla"
 
   override protected def afterAll(): Unit = {
     DeltaLog.clearCache()
-
-    try {
-      super.afterAll()
-    } finally {
-      try {
-        if (_hiveSpark != null) {
-          try {
-            _hiveSpark.sessionState.catalog.reset()
-          } finally {
-            _hiveSpark.stop()
-            _hiveSpark = null
-          }
-        }
-      } finally {
-        SparkSession.clearActiveSession()
-        SparkSession.clearDefaultSession()
-      }
-    }
+    super.afterAll()
   }
 
   def getColumnName(s: String): String = {

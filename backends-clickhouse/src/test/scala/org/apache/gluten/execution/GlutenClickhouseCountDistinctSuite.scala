@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.execution.AllDataTypesWithComplexType.genTestData
+import org.apache.gluten.test.AllDataTypesWithComplexType
+import org.apache.gluten.test.AllDataTypesWithComplexType.genTestData
 
 import org.apache.spark.SparkConf
 class GlutenClickhouseCountDistinctSuite extends GlutenClickHouseWholeStageTransformerSuite {

@@ -163,6 +163,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
         env, local_engine::SparkRowToCHColumn::spark_row_interator_class, "nextBatch", "()Ljava/nio/ByteBuffer;");
 
     local_engine::BroadCastJoinBuilder::init(env);
+    local_engine::CacheManager::initJNI(env);
 
     local_engine::JNIUtils::vm = vm;
     return JNI_VERSION_1_8;
@@ -1269,7 +1270,7 @@ JNIEXPORT void Java_org_apache_gluten_utils_TestExceptionUtils_generateNativeExc
 
 
 
-JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * env, jobject, jstring table_, jstring columns_, jboolean async_)
+JNIEXPORT jstring Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * env, jobject, jstring table_, jstring columns_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto table_def = jstring2string(env, table_);
@@ -1280,10 +1281,17 @@ JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCache
     {
         column_set.insert(col);
     }
-    local_engine::CacheManager::instance().cacheParts(table_def, column_set, async_);
-    LOCAL_ENGINE_JNI_METHOD_END(env, );
+    auto id = local_engine::CacheManager::instance().cacheParts(table_def, column_set);
+    return local_engine::charTojstring(env, id.c_str());
+    LOCAL_ENGINE_JNI_METHOD_END(env, nullptr);
 }
 
+JNIEXPORT jobject Java_org_apache_gluten_execution_CHNativeCacheManager_nativeGetCacheStatus(JNIEnv * env, jobject, jstring id)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    return local_engine::CacheManager::instance().getCacheStatus(env, jstring2string(env, id));
+    LOCAL_ENGINE_JNI_METHOD_END(env, nullptr);
+}
 #ifdef __cplusplus
 }
 
