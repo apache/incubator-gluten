@@ -31,6 +31,7 @@ jobs:
       contents: write
       pull-requests: write
       repository-projects: write
+      issues: write
       statuses: write
     steps:
       - uses: actions/checkout@v2
