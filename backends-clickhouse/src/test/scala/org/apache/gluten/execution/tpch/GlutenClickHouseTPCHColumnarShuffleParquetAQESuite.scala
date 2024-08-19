@@ -275,7 +275,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   }
 
   test("TPCH Q21") {
-    runTPCHQuery(21, noFallBack = false) {
+    runTPCHQuery(21) {
       df =>
         val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec

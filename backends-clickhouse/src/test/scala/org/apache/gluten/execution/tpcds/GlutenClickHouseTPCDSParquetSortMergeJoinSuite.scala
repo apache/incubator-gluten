@@ -49,9 +49,10 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
       .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
-      .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.memory.offHeap.size", "8g")
+      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
+      .set("spark.memory.offHeap.size", "6g")
       .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "false")
+      .setMaster("local[2]")
   }
 
   executeTPCDSTest(false)
