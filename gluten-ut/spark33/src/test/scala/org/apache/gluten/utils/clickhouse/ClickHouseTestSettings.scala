@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.utils.clickhouse
 
-import org.apache.gluten.execution.parquet.GlutenParquetV1FilterSuite2
 import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.sql._
@@ -1601,7 +1600,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-38825: in and notIn filters")
     .exclude("SPARK-36866: filter pushdown - year-month interval")
     .excludeGlutenTest("SPARK-25207: exception when duplicate fields in case-insensitive mode")
-  enableSuite[GlutenParquetV1FilterSuite2]
+  enableSuite("org.apache.gluten.execution.parquet.GlutenParquetV1FilterSuite2")
     .exclude("filter pushdown - date")
     .exclude("filter pushdown - timestamp")
     .exclude("Filters should be pushed down for vectorized Parquet reader at row group level")
