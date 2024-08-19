@@ -17,17 +17,17 @@
 
 #include <jni.h>
 #include <optional>
-#include <regex>
+#include <boost/regex.hpp>
 #include "compute/ProtobufUtils.h"
 #include "config.pb.h"
 #include "jni/JniError.h"
 
 namespace {
 
-std::optional<std::regex> getRedactionRegex(const std::unordered_map<std::string, std::string>& conf) {
+std::optional<boost::regex> getRedactionRegex(const std::unordered_map<std::string, std::string>& conf) {
   auto it = conf.find(gluten::kSparkRedactionRegex);
   if (it != conf.end()) {
-    return std::regex(it->second);
+    return boost::regex(it->second);
   }
   return std::nullopt;
 }
@@ -54,7 +54,7 @@ std::string printConfig(const std::unordered_map<std::string, std::string>& conf
   auto redactionRegex = getRedactionRegex(conf);
 
   for (const auto& [k, v] : conf) {
-    if (redactionRegex && std::regex_match(k, *redactionRegex)) {
+    if (redactionRegex && boost::regex_match(k, *redactionRegex)) {
       oss << " [" << k << ", " << kSparkRedactionString << "]\n";
     } else {
       oss << " [" << k << ", " << v << "]\n";
