@@ -34,7 +34,7 @@ async function haveComment(github, context, pullRequestNumber, body) {
     issue_number: pullRequestNumber
   };
   while (true) {
-    const response = await github.issues.listComments(options);
+    const response = await github.rest.issues.listComments(options);
     if (response.data.some(comment => comment.body === body)) {
       return true;
     }
