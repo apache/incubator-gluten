@@ -16,7 +16,9 @@
 name: Build and Push Docker Image
 
 on:
-  pull_request:
+  push:
+    branches:
+      - main
     paths:
       - '.github/workflows/docker_image.yml'
   schedule:
