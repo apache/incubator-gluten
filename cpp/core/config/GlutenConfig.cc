@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
+#include <boost/regex.hpp>
 #include <jni.h>
 #include <optional>
-#include <boost/regex.hpp>
 #include "compute/ProtobufUtils.h"
 #include "config.pb.h"
 #include "jni/JniError.h"
