@@ -28,7 +28,7 @@ async function commentOpenISSUESIssue(github, context, pullRequestNumber) {
   const {data: comments} = await github.issues.listComments({
     owner: context.repo.owner,
     repo: context.repo.repo,
-    issue_number: pullRequestNumber,
+    issue_number: pullRequestNumber
   });
   if (comments.length > 0) {
     return;
