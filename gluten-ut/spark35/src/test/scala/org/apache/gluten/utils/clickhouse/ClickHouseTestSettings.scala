@@ -18,6 +18,7 @@ package org.apache.gluten.utils.clickhouse
 
 import org.apache.gluten.execution.parquet.GlutenParquetV1FilterSuite2
 import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
+
 import org.apache.spark.sql._
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions._
