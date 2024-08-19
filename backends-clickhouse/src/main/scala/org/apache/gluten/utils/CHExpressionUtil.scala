@@ -159,13 +159,6 @@ case class EncodeDecodeValidator() extends FunctionValidator {
   }
 }
 
-case class ArrayJoinValidator() extends FunctionValidator {
-  override def doValidate(expr: Expression): Boolean = expr match {
-    case t: ArrayJoin => !t.children.head.isInstanceOf[Literal]
-    case _ => true
-  }
-}
-
 case class FormatStringValidator() extends FunctionValidator {
   override def doValidate(expr: Expression): Boolean = {
     val formatString = expr.asInstanceOf[FormatString]
