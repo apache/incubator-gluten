@@ -23,12 +23,14 @@ on:
       - edited
       - synchronize
 
-permissions: write-all
-
 jobs:
   process:
     name: Process
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
     steps:
       - uses: actions/checkout@v2
 
