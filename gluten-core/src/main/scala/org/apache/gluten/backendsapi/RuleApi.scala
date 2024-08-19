@@ -16,30 +16,8 @@
  */
 package org.apache.gluten.backendsapi
 
-trait Backend {
-  def name(): String
+import org.apache.gluten.extension.RuleInjector
 
-  def buildInfo(): BackendBuildInfo
-
-  def iteratorApi(): IteratorApi
-
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def listenerApi(): ListenerApi
-
-  def ruleApi(): RuleApi
-
-  def settings(): BackendSettingsApi
+trait RuleApi {
+  def injectRules(injector: RuleInjector): Unit
 }
-
-case class BackendBuildInfo(
-    backend: String,
-    backendBranch: String,
-    backendRevision: String,
-    backendRevisionTime: String)

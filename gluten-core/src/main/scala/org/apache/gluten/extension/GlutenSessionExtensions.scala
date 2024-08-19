@@ -14,32 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi
+package org.apache.gluten.extension
 
-trait Backend {
-  def name(): String
+import org.apache.gluten.backendsapi.BackendsApiManager
 
-  def buildInfo(): BackendBuildInfo
+import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.spark.sql.internal.StaticSQLConf
 
-  def iteratorApi(): IteratorApi
+import java.util.Objects
 
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def listenerApi(): ListenerApi
-
-  def ruleApi(): RuleApi
-
-  def settings(): BackendSettingsApi
+private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions => Unit) {
+  override def apply(exts: SparkSessionExtensions): Unit = {
+    val injector = new RuleInjector()
+    BackendsApiManager.getRuleApiInstance.injectRules(injector)
+    injector.inject(exts)
+  }
 }
 
-case class BackendBuildInfo(
-    backend: String,
-    backendBranch: String,
-    backendRevision: String,
-    backendRevisionTime: String)
+private[gluten] object GlutenSessionExtensions {
+  val SPARK_SESSION_EXTS_KEY: String = StaticSQLConf.SPARK_SESSION_EXTENSIONS.key
+  val GLUTEN_SESSION_EXTENSION_NAME: String =
+    Objects.requireNonNull(classOf[GlutenSessionExtensions].getCanonicalName)
+}

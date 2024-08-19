@@ -16,17 +16,14 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.{GlutenConfig, GlutenSparkExtensionsInjector}
 import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.enumerated.EnumeratedApplier
-import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
 import org.apache.gluten.extension.columnar.transition.Transitions
 import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -95,7 +92,7 @@ object ColumnarOverrideRules {
   }
 }
 
-case class ColumnarOverrideRules(session: SparkSession)
+case class ColumnarOverrideRules(session: SparkSession, applier: ColumnarRuleApplier)
   extends ColumnarRule
   with Logging
   with LogLevelUtil {
@@ -117,19 +114,10 @@ case class ColumnarOverrideRules(session: SparkSession)
     val outputsColumnar = OutputsColumnarTester.inferOutputsColumnar(plan)
     val unwrapped = OutputsColumnarTester.unwrap(plan)
     val vanillaPlan = Transitions.insertTransitions(unwrapped, outputsColumnar)
-    val applier: ColumnarRuleApplier = if (GlutenConfig.getConf.enableRas) {
-      new EnumeratedApplier(session)
-    } else {
-      new HeuristicApplier(session)
-    }
     val out = applier.apply(vanillaPlan, outputsColumnar)
     out
   }
 
 }
 
-object ColumnarOverrides extends GlutenSparkExtensionsInjector {
-  override def inject(extensions: SparkSessionExtensions): Unit = {
-    extensions.injectColumnar(spark => ColumnarOverrideRules(spark))
-  }
-}
+object ColumnarOverrides {}
