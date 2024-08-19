@@ -50,12 +50,12 @@ object CHJoinValidateUtil extends Logging {
       rightOutputSet: AttributeSet,
       condition: Option[Expression]): Boolean = {
 
-    val hasMixedFiltCondition =
+    val hasMixedFilterCondition =
       condition.isDefined && hasTwoTableColumn(leftOutputSet, rightOutputSet, condition.get)
     val shouldFallback = joinStrategy match {
       case SortMergeJoinStrategy(joinType) =>
         joinType.sql.contains("SEMI") || joinType.sql.contains("ANTI") || joinType.toString
-          .contains("ExistenceJoin") || hasMixedFiltCondition
+          .contains("ExistenceJoin") || hasMixedFilterCondition
       case UnknownJoinStrategy(joinType) =>
         throw new IllegalArgumentException(s"Unknown join type $joinStrategy")
       case _ => false
