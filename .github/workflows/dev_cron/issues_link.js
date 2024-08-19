@@ -32,7 +32,7 @@ async function haveComment(github, context, pullRequestNumber, body) {
     owner: context.repo.owner,
     repo: context.repo.repo,
     issue_number: pullRequestNumber,
-    per_page: 1
+    page: 1
   };
   while (true) {
     const response = await github.rest.issues.listComments(options);
