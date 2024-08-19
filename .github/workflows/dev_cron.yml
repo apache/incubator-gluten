@@ -27,12 +27,7 @@ jobs:
   process:
     name: Process
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      repository-projects: write
-      issues: write
-      statuses: write
+    permissions: write-all
     steps:
       - uses: actions/checkout@v2
 
