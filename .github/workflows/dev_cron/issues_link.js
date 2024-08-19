@@ -35,7 +35,7 @@ async function haveComment(github, context, pullRequestNumber, body) {
     page: 1
   };
   while (true) {
-    const response = await github.issues.listComments(options);
+    const response = await github.rest.issues.listComments(options);
     if (response.data.some(comment => comment.body === body)) {
       return true;
     }
@@ -52,7 +52,7 @@ async function commentISSUESURL(github, context, pullRequestNumber, issuesID) {
   if (await haveComment(github, context, pullRequestNumber, issuesURL)) {
     return;
   }
-  await github.issues.createComment({
+  await github.rest.issues.createComment({
     owner: context.repo.owner,
     repo: context.repo.repo,
     issue_number: pullRequestNumber,
