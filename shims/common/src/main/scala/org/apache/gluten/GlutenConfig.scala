@@ -538,6 +538,7 @@ object GlutenConfig {
   val GLUTEN_ONHEAP_SIZE_KEY = "spark.executor.memory"
   val GLUTEN_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
   val GLUTEN_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
+  val SPARK_REDACTION_REGEX = "spark.redaction.regex"
 
   // For Soft Affinity Scheduling
   // Enable Soft Affinity Scheduling, default value is false
@@ -677,7 +678,8 @@ object GlutenConfig {
       // gcs config
       SPARK_GCS_STORAGE_ROOT_URL,
       SPARK_GCS_AUTH_TYPE,
-      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
+      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
+      SPARK_REDACTION_REGEX
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -764,7 +766,8 @@ object GlutenConfig {
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_OFFHEAP_ENABLED,
       SESSION_LOCAL_TIMEZONE.key,
-      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key
+      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
+      SPARK_REDACTION_REGEX
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
