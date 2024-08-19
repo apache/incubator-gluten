@@ -23,6 +23,11 @@ on:
       - edited
       - synchronize
 
+  permissions:
+    contents: read
+    pull-requests: write
+    issues: write
+  
 jobs:
   process:
     name: Process
