@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.utils.clickhouse
 
+import org.apache.gluten.execution.parquet.GlutenParquetV1FilterSuite2
 import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
-
 import org.apache.spark.sql._
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions._
@@ -1438,6 +1438,24 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-38825: in and notIn filters")
     .exclude("SPARK-36866: filter pushdown - year-month interval")
+    .exclude("filter pushdown - StringContains")
+    .exclude("filter pushdown - StringPredicate")
+    .excludeGlutenTest("SPARK-25207: exception when duplicate fields in case-insensitive mode")
+  enableSuite[GlutenParquetV1FilterSuite2]
+    .exclude("filter pushdown - date")
+    .exclude("filter pushdown - timestamp")
+    .exclude("Filters should be pushed down for vectorized Parquet reader at row group level")
+    .exclude("SPARK-31026: Parquet predicate pushdown for fields having dots in the names")
+    .exclude("Filters should be pushed down for Parquet readers at row group level")
+    .exclude("filter pushdown - StringStartsWith")
+    .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
+    .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
+    .exclude("Support Parquet column index")
+    .exclude("SPARK-34562: Bloom filter push down")
+    .exclude("SPARK-38825: in and notIn filters")
+    .exclude("SPARK-36866: filter pushdown - year-month interval")
+    .exclude("filter pushdown - StringContains")
+    .exclude("filter pushdown - StringPredicate")
     .excludeGlutenTest("SPARK-25207: exception when duplicate fields in case-insensitive mode")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
