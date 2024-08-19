@@ -29,7 +29,6 @@ async function commentOpenISSUESIssue(github, context, pullRequestNumber) {
     owner: context.repo.owner,
     repo: context.repo.repo,
     issue_number: pullRequestNumber,
-    per_page: 1
   });
   if (comments.length > 0) {
     return;
