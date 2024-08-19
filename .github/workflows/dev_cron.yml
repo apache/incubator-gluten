@@ -23,6 +23,8 @@ on:
       - edited
       - synchronize
 
+permissions: write-all
+
 jobs:
   process:
     name: Process
