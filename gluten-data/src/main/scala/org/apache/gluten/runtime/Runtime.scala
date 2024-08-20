@@ -97,16 +97,17 @@ object Runtime {
         throw new GlutenException(
           s"Runtime instance already released: $handle, ${resourceName()}, ${priority()}")
       }
+
+      def dump(): KnownNameAndStats = {
+        new KnownNameAndStats() {
+          override def name: String = resourceName()
+          override def stats: MemoryUsageStats = collectMemoryUsage()
+        }
+      }
+
       if (LOGGER.isDebugEnabled) {
         LOGGER.debug(
-          SparkMemoryUtil.prettyPrintStats(
-            "About to release memory manager, usage dump:",
-            new KnownNameAndStats() {
-              override def name: String = resourceName()
-
-              override def stats: MemoryUsageStats = collectMemoryUsage()
-            }
-          ))
+          SparkMemoryUtil.prettyPrintStats("About to release memory manager, usage dump:", dump()))
       }
 
       RuntimeJniWrapper.releaseRuntime(handle)
@@ -115,10 +116,11 @@ object Runtime {
         LOGGER.warn(
           String.format(
             "%s Reservation listener %s still reserved non-zero bytes, which may cause memory" +
-              " leak, size: %s. ",
+              " leak, size: %s, dump: %s ",
             name,
             rl.toString,
-            SparkMemoryUtil.bytesToString(rl.getUsedBytes)
+            SparkMemoryUtil.bytesToString(rl.getUsedBytes),
+            dump()
           ))
       }
     }
