@@ -406,12 +406,4 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         }
       }
   }
-
-  def getBroadcastThreshold: Long = {
-    val conf = SQLConf.get
-    conf
-      .getConf(SQLConf.ADAPTIVE_AUTO_BROADCASTJOIN_THRESHOLD)
-      .getOrElse(conf.autoBroadcastJoinThreshold)
-  }
-
 }

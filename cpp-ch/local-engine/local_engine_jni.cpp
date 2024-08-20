@@ -680,7 +680,7 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_
     // AQE has dependency on total_bytes_written, if the data is wrong, it will generate inappropriate plan
     // add a log here for remining this.
     if (!result.total_bytes_written)
-        LOG_WARNING(getLogger("_CHShuffleSplitterJniWrapper"), "total_bytes_written is 0, something may be wrong");
+        LOG_WARNING(getLogger("CHShuffleSplitterJniWrapper"), "total_bytes_written is 0, something may be wrong");
 
     jobject split_result = env->NewObject(
         split_result_class,

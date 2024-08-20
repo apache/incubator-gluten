@@ -33,6 +33,7 @@ import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
 import org.apache.gluten.vectorized.CHColumnarBatchSerializer
 
 import org.apache.spark.ShuffleDependency
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, HashPartitioningWrapper}
@@ -70,7 +71,7 @@ import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-class CHSparkPlanExecApi extends SparkPlanExecApi {
+class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
 
   /** The columnar-batch type this backend is using. */
   override def batchType: Convention.BatchType = CHBatch
@@ -540,22 +541,16 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       CHExecUtil.buildSideRDD(dataSize, newChild).collect
 
     val batches = countsAndBytes.map(_._2)
-    val totalBatchesBytes = batches.map(_.length).sum
-    // totalBatchesBytes could be larger than the shuffle written bytes, so we double the threshold
-    // here.
-    if (
-      totalBatchesBytes < 0 ||
-      totalBatchesBytes.toLong > CHBackendSettings.getBroadcastThreshold * 2
-    ) {
-      throw new GlutenException(
-        s"Cannot broadcast the table ($totalBatchesBytes) that is larger than threshold:" +
-          s" ${CHBackendSettings.getBroadcastThreshold}. Ensure the shuffle written" +
-          s"bytes is collected properly.")
-    }
+    val totalBatchesSize = batches.map(_.length).sum
     val rawSize = dataSize.value
     if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
       throw new GlutenException(
-        s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
+        s"Cannot broadcast the table that is larger than 8GB: $rawSize bytes")
+    }
+    if ((rawSize == 0 && totalBatchesSize != 0) || totalBatchesSize < 0) {
+      throw new GlutenException(
+        s"Invalid rawSize($rawSize) or totalBatchesSize ($totalBatchesSize). Ensure the shuffle" +
+          s" written bytes is correct.")
     }
     val rowCount = countsAndBytes.map(_._1).sum
     numOutputRows += rowCount
