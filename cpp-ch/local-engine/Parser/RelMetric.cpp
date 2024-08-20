@@ -15,10 +15,12 @@
  * limitations under the License.
  */
 #include "RelMetric.h"
+
 #include <Processors/IProcessor.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ReadFromMergeTree.h>
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
+#include <Common/QueryContext.h>
 
 using namespace rapidjson;
 
@@ -47,7 +49,8 @@ namespace local_engine
 
 static void writeCacheHits(Writer<StringBuffer> & writer)
 {
-    auto & counters = DB::CurrentThread::getProfileEvents();
+    const auto thread_group = QueryContextManager::currentThreadGroup();
+    auto & counters = thread_group->performance_counters;
     auto read_cache_hits = counters[ProfileEvents::CachedReadBufferReadFromCacheHits].load();
     auto miss_cache_hits = counters[ProfileEvents::CachedReadBufferReadFromCacheMisses].load();
     auto read_cache_bytes = counters[ProfileEvents::CachedReadBufferReadFromCacheBytes].load();

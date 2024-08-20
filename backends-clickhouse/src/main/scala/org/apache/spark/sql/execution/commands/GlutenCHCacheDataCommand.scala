@@ -27,6 +27,7 @@ import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, GreaterThanOrEqual, IsNotNull, Literal}
 import org.apache.spark.sql.delta._
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
+import org.apache.spark.sql.execution.commands.GlutenCacheBase._
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.types.{BooleanType, StringType}
 
@@ -49,8 +50,7 @@ case class GlutenCHCacheDataCommand(
     partitionColumn: Option[String],
     partitionValue: Option[String],
     tablePropertyOverrides: Map[String, String]
-) extends LeafRunnableCommand
-  with GlutenCacheBase {
+) extends LeafRunnableCommand {
 
   override def output: Seq[Attribute] = Seq(
     AttributeReference("result", BooleanType, nullable = false)(),

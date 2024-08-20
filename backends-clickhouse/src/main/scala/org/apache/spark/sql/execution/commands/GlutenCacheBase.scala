@@ -29,10 +29,10 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
-trait GlutenCacheBase {
+object GlutenCacheBase {
   def ALL_EXECUTORS: String = "allExecutors"
 
-  protected def toExecutorId(executorId: String): String =
+  def toExecutorId(executorId: String): String =
     executorId.split("_").last
 
   protected def waitRpcResults
@@ -46,7 +46,7 @@ trait GlutenCacheBase {
       resultList
     }
 
-  protected def checkExecutorId(executorId: String): Unit = {
+  def checkExecutorId(executorId: String): Unit = {
     if (!GlutenDriverEndpoint.executorDataMap.containsKey(toExecutorId(executorId))) {
       throw new GlutenException(
         s"executor $executorId not found," +
@@ -87,7 +87,7 @@ trait GlutenCacheBase {
     (status, messages.mkString(";"))
   }
 
-  protected def collectJobTriggerResult(
+  def collectJobTriggerResult(
       jobs: ArrayBuffer[(String, CacheJobInfo)]): (Boolean, ArrayBuffer[String]) = {
     var status = true
     val messages = ArrayBuffer[String]()
@@ -101,7 +101,7 @@ trait GlutenCacheBase {
     (status, messages)
   }
 
-  protected def getResult(
+  def getResult(
       futureList: ArrayBuffer[(String, Future[CacheJobInfo])],
       async: Boolean): Seq[Row] = {
     val resultList = waitRpcResults(futureList)

@@ -25,6 +25,7 @@ import org.apache.spark.rpc.GlutenRpcMessages.{CacheJobInfo, GlutenFilesCacheLoa
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
+import org.apache.spark.sql.execution.commands.GlutenCacheBase._
 import org.apache.spark.sql.types.{BooleanType, StringType}
 
 import org.apache.hadoop.conf.Configuration
@@ -42,8 +43,7 @@ case class GlutenCacheFilesCommand(
     selectedColumn: Option[Seq[String]],
     filePath: String,
     propertyOverrides: Map[String, String]
-) extends LeafRunnableCommand
-  with GlutenCacheBase {
+) extends LeafRunnableCommand {
 
   override def output: Seq[Attribute] = Seq(
     AttributeReference("result", BooleanType, nullable = false)(),
@@ -135,8 +135,7 @@ case class GlutenCacheFilesCommand(
       executorIdsToLocalFiles.foreach {
         case (executorId, fileNode) =>
           checkExecutorId(executorId)
-          val executor = GlutenDriverEndpoint.executorDataMap.get(
-            GlutenCacheFilesCommand.toExecutorId(executorId))
+          val executor = GlutenDriverEndpoint.executorDataMap.get(toExecutorId(executorId))
           futureList.append(
             (
               executorId,
@@ -186,11 +185,4 @@ case class GlutenCacheFilesCommand(
       !((name.startsWith("_") && !name.contains("=")) || name.startsWith("."))
     }
   }
-}
-
-object GlutenCacheFilesCommand {
-  val ALL_EXECUTORS = "allExecutors"
-
-  private def toExecutorId(executorId: String): String =
-    executorId.split("_").last
 }
