@@ -16,6 +16,7 @@ cmake_minimum_required(VERSION 3.20)
 
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/clickhouse.version CH_VERSION)
 
+
 set(CH_SOURCE_DIR
     ${CMAKE_CURRENT_SOURCE_DIR}/ClickHouse
     CACHE STRING "ClickHouse source dir")
