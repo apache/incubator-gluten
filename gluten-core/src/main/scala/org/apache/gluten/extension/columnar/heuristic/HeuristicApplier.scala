@@ -49,7 +49,7 @@ class HeuristicApplier(
   private val adaptiveContext = AdaptiveContext(session, aqeStackTraceIndex)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    val call = ColumnarRuleCall(session, adaptiveContext, outputsColumnar)
+    val call = new ColumnarRuleCall(session, adaptiveContext, outputsColumnar)
     makeRule(call).apply(plan)
   }
 

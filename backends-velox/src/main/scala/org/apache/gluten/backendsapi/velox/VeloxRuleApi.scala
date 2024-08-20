@@ -16,15 +16,16 @@
  */
 package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.datasource.ArrowConvertorRule
-import org.apache.gluten.extension.{ArrowScanReplaceRule, BloomFilterMightContainJointRewriteRule, CollectRewriteRule, FlushableHashAggregateRule, HLLRewriteRule, RuleInjector}
-import org.apache.gluten.extension.columnar.{AddFallbackTagRule, CollapseProjectExecTransformer, EliminateLocalSort, EnsureLocalSortRequirements, ExpandFallbackPolicy, FallbackEmptySchemaRelation, FallbackMultiCodegens, FallbackOnANSIMode, MergeTwoPhasesHashBaseAggregate, PlanOneRowRelation, RemoveFallbackTagRule, RemoveNativeWriteFilesSortAndProject, RewriteTransformer}
+import org.apache.gluten.extension._
+import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast, TransformPreOverrides}
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
 import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
+import org.apache.gluten.extension.injector.{RuleInjector, SparkInjector}
+import org.apache.gluten.extension.injector.ColumnarInjector.{LegacyInjector, RasInjector}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter}
@@ -36,13 +37,13 @@ class VeloxRuleApi extends RuleApi {
 
   override def injectRules(injector: RuleInjector): Unit = {
     injectSpark(injector.spark)
-    injectGluten(injector.gluten)
-    injectRas(injector.ras)
+    injectLegacy(injector.columnar.legacy)
+    injectRas(injector.columnar.ras)
   }
 }
 
 private object VeloxRuleApi {
-  def injectSpark(injector: RuleInjector.SparkInjector): Unit = {
+  def injectSpark(injector: SparkInjector): Unit = {
     // Regular Spark rules.
     injector.injectOptimizerRule(CollectRewriteRule.apply)
     injector.injectOptimizerRule(HLLRewriteRule.apply)
@@ -50,7 +51,7 @@ private object VeloxRuleApi {
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
   }
 
-  def injectGluten(injector: RuleInjector.GlutenInjector): Unit = {
+  def injectLegacy(injector: LegacyInjector): Unit = {
     // Gluten columnar: Transform rules.
     injector.injectTransform(_ => RemoveTransitions)
     injector.injectTransform(c => FallbackOnANSIMode.apply(c.session))
@@ -69,12 +70,9 @@ private object VeloxRuleApi {
     injector.injectTransform(_ => EnsureLocalSortRequirements)
     injector.injectTransform(_ => EliminateLocalSort)
     injector.injectTransform(_ => CollapseProjectExecTransformer)
-    if (GlutenConfig.getConf.enableVeloxFlushablePartialAggregation) {
-      injector.injectTransform(c => FlushableHashAggregateRule.apply(c.session))
-    }
-    SparkPlanRules
-      .extendedColumnarRules(GlutenConfig.getConf.extendedColumnarTransformRules)
-      .foreach(each => injector.injectTransform(c => each(c.session)))
+    injector.injectTransform(c => FlushableHashAggregateRule.apply(c.session))
+    injector.injectTransform(
+      c => SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarTransformRules)(c.session))
     injector.injectTransform(c => InsertTransitions(c.outputsColumnar))
 
     // Gluten columnar: Fallback policies.
@@ -86,18 +84,17 @@ private object VeloxRuleApi {
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => each(c.session)))
-    injector.injectPost(_ => ColumnarCollapseTransformStages(GlutenConfig.getConf))
-    SparkPlanRules
-      .extendedColumnarRules(GlutenConfig.getConf.extendedColumnarPostRules)
-      .foreach(each => injector.injectTransform(c => each(c.session)))
+    injector.injectPost(c => ColumnarCollapseTransformStages(c.conf))
+    injector.injectTransform(
+      c => SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarPostRules)(c.session))
 
     // Gluten columnar: Final rules.
     injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
-    injector.injectFinal(c => GlutenFallbackReporter(GlutenConfig.getConf, c.session))
+    injector.injectFinal(c => GlutenFallbackReporter(c.conf, c.session))
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 
-  def injectRas(injector: RuleInjector.RasInjector): Unit = {
+  def injectRas(injector: RasInjector): Unit = {
     // Gluten RAS: Pre rules.
     injector.inject(_ => RemoveTransitions)
     injector.inject(c => FallbackOnANSIMode.apply(c.session))
@@ -118,23 +115,19 @@ private object VeloxRuleApi {
     injector.inject(_ => EnsureLocalSortRequirements)
     injector.inject(_ => EliminateLocalSort)
     injector.inject(_ => CollapseProjectExecTransformer)
-    if (GlutenConfig.getConf.enableVeloxFlushablePartialAggregation) {
-      injector.inject(c => FlushableHashAggregateRule.apply(c.session))
-    }
-    SparkPlanRules
-      .extendedColumnarRules(GlutenConfig.getConf.extendedColumnarTransformRules)
-      .foreach(each => injector.inject(c => each(c.session)))
+    injector.inject(c => FlushableHashAggregateRule.apply(c.session))
+    injector.inject(
+      c => SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarTransformRules)(c.session))
     injector.inject(c => InsertTransitions(c.outputsColumnar))
     injector.inject(c => RemoveTopmostColumnarToRow(c.session, c.ac.isAdaptiveContext()))
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.inject(c => each(c.session)))
-    injector.inject(_ => ColumnarCollapseTransformStages(GlutenConfig.getConf))
-    SparkPlanRules
-      .extendedColumnarRules(GlutenConfig.getConf.extendedColumnarPostRules)
-      .foreach(each => injector.inject(c => each(c.session)))
+    injector.inject(c => ColumnarCollapseTransformStages(c.conf))
+    injector.inject(
+      c => SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarPostRules)(c.session))
     injector.inject(c => RemoveGlutenTableCacheColumnarToRow(c.session))
-    injector.inject(c => GlutenFallbackReporter(GlutenConfig.getConf, c.session))
+    injector.inject(c => GlutenFallbackReporter(c.conf, c.session))
     injector.inject(_ => RemoveFallbackTagRule())
   }
 }

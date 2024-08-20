@@ -92,7 +92,9 @@ object ColumnarOverrideRules {
   }
 }
 
-case class ColumnarOverrideRules(session: SparkSession, applier: ColumnarRuleApplier)
+case class ColumnarOverrideRules(
+    session: SparkSession,
+    applierBuilder: SparkSession => ColumnarRuleApplier)
   extends ColumnarRule
   with Logging
   with LogLevelUtil {
@@ -114,6 +116,7 @@ case class ColumnarOverrideRules(session: SparkSession, applier: ColumnarRuleApp
     val outputsColumnar = OutputsColumnarTester.inferOutputsColumnar(plan)
     val unwrapped = OutputsColumnarTester.unwrap(plan)
     val vanillaPlan = Transitions.insertTransitions(unwrapped, outputsColumnar)
+    val applier = applierBuilder.apply(session)
     val out = applier.apply(vanillaPlan, outputsColumnar)
     out
   }

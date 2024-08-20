@@ -34,7 +34,14 @@ trait ColumnarRuleApplier {
 object ColumnarRuleApplier {
   type ColumnarRuleBuilder = ColumnarRuleCall => Rule[SparkPlan]
 
-  case class ColumnarRuleCall(session: SparkSession, ac: AdaptiveContext, outputsColumnar: Boolean)
+  class ColumnarRuleCall(
+      val session: SparkSession,
+      val ac: AdaptiveContext,
+      val outputsColumnar: Boolean) {
+    val conf: GlutenConfig = {
+      new GlutenConfig(session.sessionState.conf)
+    }
+  }
 
   class Executor(phase: String, rules: Seq[Rule[SparkPlan]]) extends RuleExecutor[SparkPlan] {
     private val batch: Batch =

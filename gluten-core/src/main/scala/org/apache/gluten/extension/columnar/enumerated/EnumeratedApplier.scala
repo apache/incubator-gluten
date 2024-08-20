@@ -50,7 +50,7 @@ class EnumeratedApplier(session: SparkSession, ruleBuilders: Seq[ColumnarRuleBui
   private val adaptiveContext = AdaptiveContext(session, aqeStackTraceIndex)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    val call = ColumnarRuleCall(session, adaptiveContext, outputsColumnar)
+    val call = new ColumnarRuleCall(session, adaptiveContext, outputsColumnar)
     PhysicalPlanSelector.maybe(session, plan) {
       val finalPlan = maybeAqe {
         apply0(ruleBuilders.map(b => b(call)), plan)

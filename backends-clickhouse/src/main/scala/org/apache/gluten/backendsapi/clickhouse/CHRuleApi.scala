@@ -16,13 +16,14 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast, TransformPreOverrides}
 import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
+import org.apache.gluten.extension.injector.{RuleInjector, SparkInjector}
+import org.apache.gluten.extension.injector.ColumnarInjector.{LegacyInjector, RasInjector}
 import org.apache.gluten.parser.GlutenClickhouseSqlParser
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -34,13 +35,13 @@ class CHRuleApi extends RuleApi {
   import CHRuleApi._
   override def injectRules(injector: RuleInjector): Unit = {
     injectSpark(injector.spark)
-    injectGluten(injector.gluten)
-    injectRas(injector.ras)
+    injectLegacy(injector.columnar.legacy)
+    injectRas(injector.columnar.ras)
   }
 }
 
 private object CHRuleApi {
-  def injectSpark(injector: RuleInjector.SparkInjector): Unit = {
+  def injectSpark(injector: SparkInjector): Unit = {
     // Regular Spark rules.
     injector.injectQueryStagePrepRule(FallbackBroadcastHashJoinPrepQueryStage.apply)
     injector.injectParser(
@@ -56,7 +57,7 @@ private object CHRuleApi {
     injector.injectOptimizerRule(_ => EqualToRewrite)
   }
 
-  def injectGluten(injector: RuleInjector.GlutenInjector): Unit = {
+  def injectLegacy(injector: LegacyInjector): Unit = {
     // Gluten columnar: Transform rules.
     injector.injectTransform(_ => RemoveTransitions)
     injector.injectTransform(c => FallbackOnANSIMode.apply(c.session))
@@ -75,9 +76,8 @@ private object CHRuleApi {
     injector.injectTransform(_ => EliminateLocalSort)
     injector.injectTransform(_ => CollapseProjectExecTransformer)
     injector.injectTransform(c => RewriteSortMergeJoinToHashJoinRule.apply(c.session))
-    SparkPlanRules
-      .extendedColumnarRules(GlutenConfig.getConf.extendedColumnarTransformRules)
-      .foreach(each => injector.injectTransform(c => each(c.session)))
+    injector.injectTransform(
+      c => SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarTransformRules)(c.session))
     injector.injectTransform(c => InsertTransitions(c.outputsColumnar))
 
     // Gluten columnar: Fallback policies.
@@ -89,18 +89,17 @@ private object CHRuleApi {
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => each(c.session)))
-    injector.injectPost(_ => ColumnarCollapseTransformStages(GlutenConfig.getConf))
-    SparkPlanRules
-      .extendedColumnarRules(GlutenConfig.getConf.extendedColumnarPostRules)
-      .foreach(each => injector.injectTransform(c => each(c.session)))
+    injector.injectPost(c => ColumnarCollapseTransformStages(c.conf))
+    injector.injectTransform(
+      c => SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarPostRules)(c.session))
 
     // Gluten columnar: Final rules.
     injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
-    injector.injectFinal(c => GlutenFallbackReporter(GlutenConfig.getConf, c.session))
+    injector.injectFinal(c => GlutenFallbackReporter(c.conf, c.session))
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 
-  def injectRas(injector: RuleInjector.RasInjector): Unit = {
+  def injectRas(injector: RasInjector): Unit = {
     // CH backend doesn't work with RAS at the moment. Inject a rule that aborts any
     // execution calls.
     injector.inject(

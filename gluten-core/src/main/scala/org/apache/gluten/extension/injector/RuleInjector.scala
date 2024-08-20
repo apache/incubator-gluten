@@ -14,26 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension
-
-import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.extension.injector.RuleInjector
+package org.apache.gluten.extension.injector
 
 import org.apache.spark.sql.SparkSessionExtensions
-import org.apache.spark.sql.internal.StaticSQLConf
 
-import java.util.Objects
+class RuleInjector {
+  val spark: SparkInjector = new SparkInjector()
+  val columnar: ColumnarInjector = new ColumnarInjector()
 
-private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions => Unit) {
-  override def apply(exts: SparkSessionExtensions): Unit = {
-    val injector = new RuleInjector()
-    BackendsApiManager.getRuleApiInstance.injectRules(injector)
-    injector.inject(exts)
+  private[extension] def inject(extensions: SparkSessionExtensions): Unit = {
+    spark.inject(extensions)
+    columnar.inject(extensions)
   }
 }
 
-private[gluten] object GlutenSessionExtensions {
-  val SPARK_SESSION_EXTS_KEY: String = StaticSQLConf.SPARK_SESSION_EXTENSIONS.key
-  val GLUTEN_SESSION_EXTENSION_NAME: String =
-    Objects.requireNonNull(classOf[GlutenSessionExtensions].getCanonicalName)
-}
+object RuleInjector {}
