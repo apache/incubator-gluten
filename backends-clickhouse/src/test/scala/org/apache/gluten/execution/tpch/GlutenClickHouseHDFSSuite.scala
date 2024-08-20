@@ -49,6 +49,7 @@ class GlutenClickHouseHDFSSuite
       .set(s"$CH_CONFIG_PREFIX.gluten_cache.local.name", cache_name)
       .set(s"$CH_CONFIG_PREFIX.gluten_cache.local.path", hdfsCachePath)
       .set(s"$CH_CONFIG_PREFIX.gluten_cache.local.max_size", "10Gi")
+      .set(s"$CH_CONFIG_PREFIX.reuse_disk_cache", "false")
       .set("spark.sql.adaptive.enabled", "false")
   }
 
