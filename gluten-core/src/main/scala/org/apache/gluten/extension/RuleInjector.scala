@@ -130,10 +130,10 @@ object RuleInjector {
       val applierBuilder = (session: SparkSession) =>
         new HeuristicApplier(
           session,
-          transformBuilders,
-          fallbackPolicyBuilders,
-          postBuilders,
-          finalBuilders)
+          transformBuilders.toSeq,
+          fallbackPolicyBuilders.toSeq,
+          postBuilders.toSeq,
+          finalBuilders.toSeq)
       val ruleBuilder = (session: SparkSession) =>
         new ColumnarOverrideRules(session, applierBuilder(session))
       extensions.injectColumnar(session => ruleBuilder(session))
@@ -148,12 +148,12 @@ object RuleInjector {
     }
 
     private[extension] def inject(extensions: SparkSessionExtensions): Unit = {
-      val applierBuilder = (session: SparkSession) => new EnumeratedApplier(session, ruleBuilders)
+      val applierBuilder = (session: SparkSession) =>
+        new EnumeratedApplier(session, ruleBuilders.toSeq)
       val ruleBuilder = (session: SparkSession) =>
         new ColumnarOverrideRules(session, applierBuilder(session))
       extensions.injectColumnar(session => ruleBuilder(session))
     }
-
   }
 
   private object SparkInjector {
