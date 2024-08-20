@@ -86,7 +86,7 @@ jobs:
 #          path: ./cpp/build/velox/benchmarks/
       - uses: actions/upload-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
 
   run-tpc-test-ubuntu:
@@ -127,7 +127,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup tzdata
         run: |
@@ -198,7 +198,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
         run: |
@@ -283,7 +283,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /home/runner/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
@@ -395,7 +395,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /home/runner/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
@@ -488,7 +488,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
         run: |
@@ -555,7 +555,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: velox-arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jar-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup tzdata
         run: |
