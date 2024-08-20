@@ -200,7 +200,7 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
     auto future = velox::ContinueFuture::makeEmpty();
     auto out = task_->next(&future);
     if (!future.valid()) {
-      // Not need to wait. Return.
+      // Not need to wait. Break.
       vector = std::move(out);
       break;
     }
