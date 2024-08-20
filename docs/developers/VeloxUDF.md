@@ -1,3 +1,10 @@
+---
+layout: page
+title: Developer Overview
+nav_order: 13
+has_children: true
+permalink: /developer-overview/
+---
 # Velox User-Defined Functions (UDF) and User-Defined Aggregate Functions (UDAF)
 
 ## Introduction
