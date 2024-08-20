@@ -54,7 +54,6 @@ private object CHRuleApi {
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))
     injector.injectOptimizerRule(_ => CountDistinctWithoutExpand)
     injector.injectOptimizerRule(_ => EqualToRewrite)
-
   }
 
   def injectGluten(injector: RuleInjector.GlutenInjector): Unit = {
