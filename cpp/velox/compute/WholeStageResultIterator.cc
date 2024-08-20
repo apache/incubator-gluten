@@ -201,6 +201,7 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
     auto out = task_->next(&future);
     if (!future.valid()) {
       // Not need to wait. Return.
+      vector = std::move(out);
       break;
     }
     // Velox suggested to wait. This might be because another thread (e.g., bckground io thread) is spilling the task.
