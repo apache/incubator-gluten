@@ -204,7 +204,7 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
       vector = std::move(out);
       break;
     }
-    // Velox suggested to wait. This might be because another thread (e.g., bckground io thread) is spilling the task.
+    // Velox suggested to wait. This might be because another thread (e.g., background io thread) is spilling the task.
     GLUTEN_CHECK(out == nullptr, "Expected to wait but still got non-null output from Velox task");
     future.wait();
   }
