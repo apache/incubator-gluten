@@ -169,6 +169,8 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
           checkAnswer(df, Seq(Row("1"), Row("2"), Row("3")))
         } finally {
           spark.sql(s"DROP TABLE IF EXISTS $tbl")
+          spark.sql(s"DROP TEMPORARY FUNCTION IF EXISTS hive_string_string")
+          spark.sql(s"DROP TEMPORARY FUNCTION IF EXISTS hive_int_to_string")
         }
     }
   }
@@ -203,6 +205,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
         } finally {
           spark.sql("DROP TABLE IF EXISTS t")
           spark.sql("DROP VIEW IF EXISTS temp")
+          spark.sql(s"DROP TEMPORARY FUNCTION IF EXISTS hive_string_string")
         }
     }
   }
