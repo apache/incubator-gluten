@@ -677,6 +677,11 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_
     const auto * raw_src = reinterpret_cast<const jlong *>(raw_partition_lengths.data());
     env->SetLongArrayRegion(raw_partition_length_arr, 0, raw_partition_lengths.size(), raw_src);
 
+    // AQE has dependency on total_bytes_written, if the data is wrong, it will generate inappropriate plan
+    // add a log here for remining this.
+    if (!result.total_bytes_written)
+        LOG_WARNING(getLogger("_CHShuffleSplitterJniWrapper"), "total_bytes_written is 0, something may be wrong");
+
     jobject split_result = env->NewObject(
         split_result_class,
         split_result_constructor,
