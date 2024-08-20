@@ -26,9 +26,11 @@ import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 
 import scala.collection.mutable
-
-class ColumnarInjector private[injector] {
-  import ColumnarInjector._
+/**
+ * Injector used to inject query planner rules into Gluten.
+ */
+class GlutenInjector private[injector] {
+  import GlutenInjector._
   val legacy: LegacyInjector = new LegacyInjector()
   val ras: RasInjector = new RasInjector()
 
@@ -46,7 +48,7 @@ class ColumnarInjector private[injector] {
   }
 }
 
-object ColumnarInjector {
+object GlutenInjector {
   class LegacyInjector {
     private val transformBuilders = mutable.Buffer.empty[ColumnarRuleBuilder]
     private val fallbackPolicyBuilders = mutable.Buffer.empty[ColumnarRuleBuilder]

@@ -25,7 +25,7 @@ import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
 import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
 import org.apache.gluten.extension.injector.{RuleInjector, SparkInjector}
-import org.apache.gluten.extension.injector.ColumnarInjector.{LegacyInjector, RasInjector}
+import org.apache.gluten.extension.injector.GlutenInjector.{LegacyInjector, RasInjector}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter}
@@ -37,8 +37,8 @@ class VeloxRuleApi extends RuleApi {
 
   override def injectRules(injector: RuleInjector): Unit = {
     injectSpark(injector.spark)
-    injectLegacy(injector.columnar.legacy)
-    injectRas(injector.columnar.ras)
+    injectLegacy(injector.gluten.legacy)
+    injectRas(injector.gluten.ras)
   }
 }
 

@@ -26,7 +26,9 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.mutable
-
+/**
+ * Injector used to inject query planner rules into Spark.
+ */
 class SparkInjector private[injector] {
   private type RuleBuilder = SparkSession => Rule[LogicalPlan]
   private type StrategyBuilder = SparkSession => Strategy

@@ -23,7 +23,7 @@ import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTable
 import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
 import org.apache.gluten.extension.injector.{RuleInjector, SparkInjector}
-import org.apache.gluten.extension.injector.ColumnarInjector.{LegacyInjector, RasInjector}
+import org.apache.gluten.extension.injector.GlutenInjector.{LegacyInjector, RasInjector}
 import org.apache.gluten.parser.GlutenClickhouseSqlParser
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -35,8 +35,8 @@ class CHRuleApi extends RuleApi {
   import CHRuleApi._
   override def injectRules(injector: RuleInjector): Unit = {
     injectSpark(injector.spark)
-    injectLegacy(injector.columnar.legacy)
-    injectRas(injector.columnar.ras)
+    injectLegacy(injector.gluten.legacy)
+    injectRas(injector.gluten.ras)
   }
 }
 
