@@ -107,6 +107,6 @@ private object CHRuleApi {
       _ =>
         new SparkPlanRules.AbortRule(
           "Clickhouse backend doesn't yet have RAS support, please try disabling RAS and" +
-            " rerun the application"))
+            " rerunning the application"))
   }
 }
