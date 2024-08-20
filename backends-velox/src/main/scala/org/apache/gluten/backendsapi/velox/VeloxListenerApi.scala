@@ -136,8 +136,8 @@ class VeloxListenerApi extends ListenerApi with Logging {
       JniLibLoader.loadFromPath(libPath, false)
     } else {
       val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
-      loader.mapAndLoad(baseLibName, false)
-      loader.mapAndLoad(VeloxBackend.BACKEND_NAME, false)
+      loader.mapAndLoad(java.util.Optional.of(baseLibPackage), baseLibName, false)
+      loader.mapAndLoad(java.util.Optional.of(baseLibPackage), VeloxBackend.BACKEND_NAME, false)
     }
 
     // Initial native backend with configurations.
@@ -148,6 +148,18 @@ class VeloxListenerApi extends ListenerApi with Logging {
     GlutenParquetWriterInjects.setInstance(new VeloxParquetWriterInjects())
     GlutenOrcWriterInjects.setInstance(new VeloxOrcWriterInjects())
     GlutenRowSplitter.setInstance(new VeloxRowSplitter())
+  }
+
+  private lazy val baseLibPackage: String = {
+    val osName = System.getProperty("os.name") match {
+      case n if n.contains("Linux") => "linux"
+      case n if n.contains("Mac") => "darwin"
+      case _ =>
+        // Default to linux
+        "linux"
+    }
+    val arch = System.getProperty("os.arch")
+    s"org/apache/gluten/$osName/$arch"
   }
 
   private def shutdown(): Unit = {
