@@ -26,9 +26,8 @@ import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 
 import scala.collection.mutable
-/**
- * Injector used to inject query planner rules into Gluten.
- */
+
+/** Injector used to inject query planner rules into Gluten. */
 class GlutenInjector private[injector] {
   import GlutenInjector._
   val legacy: LegacyInjector = new LegacyInjector()
