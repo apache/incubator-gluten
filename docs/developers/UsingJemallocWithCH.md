@@ -1,9 +1,9 @@
 ---
 layout: page
-title: Developer Overview
+title: Use Jemalloc for CH Backend
 nav_order: 12
 has_children: true
-permalink: /developer-overview/
+parent: /developer-overview/
 ---
 We need using jemalloc to find the memory issue. That's what this document is about.
 

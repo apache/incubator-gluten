@@ -63,8 +63,8 @@ jobs:
         with:
           path: |
             ./cpp/build/releases/
-            ./cpp/build/velox/udf/examples/
-            ./cpp/build/velox/benchmarks/
+#            ./cpp/build/velox/udf/examples/
+#            ./cpp/build/velox/benchmarks/
           key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
       - name: Build Gluten native libraries
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
@@ -86,7 +86,7 @@ jobs:
 #          path: ./cpp/build/velox/benchmarks/
       - uses: actions/upload-artifact@v2
         with:
-          name: arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
 
   run-tpc-test-ubuntu:
@@ -127,7 +127,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup tzdata
         run: |
@@ -198,7 +198,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
         run: |
@@ -283,7 +283,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /home/runner/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
@@ -395,7 +395,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /home/runner/.m2/repository/org/apache/arrow/
       - name: Setup java and maven
         run: |
@@ -488,7 +488,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
         run: |
@@ -555,7 +555,7 @@ jobs:
       - name: Download All Arrow Jar Artifacts
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jar-centos-7-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Setup tzdata
         run: |
@@ -729,7 +729,7 @@ jobs:
       - name: Download Arrow Jars
         uses: actions/download-artifact@v2
         with:
-          name: arrow-jars-centos-8-${{github.sha}}
+          name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
       - name: Update mirror list
         run: |
