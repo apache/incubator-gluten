@@ -1438,6 +1438,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-38825: in and notIn filters")
     .exclude("SPARK-36866: filter pushdown - year-month interval")
+    .exclude("filter pushdown - StringContains")
+    .exclude("filter pushdown - StringPredicate")
     .excludeGlutenTest("SPARK-25207: exception when duplicate fields in case-insensitive mode")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")

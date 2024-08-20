@@ -14,14 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten
+package org.apache.gluten.execution.parquet
 
-import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, SparkPlan}
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.datasources.parquet.GlutenParquetV1FilterSuite
 
-trait GlutenColumnarWriteTestSupport {
 
-  def checkWriteFilesAndGetChild(sparkPlan: SparkPlan): SparkPlan = {
-    assert(sparkPlan.isInstanceOf[ColumnarWriteFilesExec])
-    sparkPlan.asInstanceOf[ColumnarWriteFilesExec].child
-  }
+/** testing use_local_format parquet reader.
+ * FIXME: Run this suite in Spark 35 CI Pipeline
+ * */
+class GlutenParquetV1FilterSuite2 extends GlutenParquetV1FilterSuite {
+  override def sparkConf: SparkConf =
+    super.sparkConf
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
 }
