@@ -582,7 +582,7 @@ jobs:
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=8 --iterations=1
 
-  run-CPP-test-UDF-test:
+  run-cpp-test-udf-test:
     runs-on: ubuntu-20.04
     container: ghcr.io/facebookincubator/velox-dev:centos8
     steps:
@@ -605,6 +605,9 @@ jobs:
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
+      - name: Export Maven path
+        run: |
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
       - name: Run CPP unit test
         run: |
           cd ./cpp/build && ctest -V
