@@ -27,8 +27,6 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.{TreeNode, TreeNodeTag}
 import org.apache.spark.sql.execution._
@@ -41,7 +39,6 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.{ArrowEvalPythonExec, BatchEvalPythonExec}
 import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecShim}
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-import org.apache.spark.sql.types.StringType
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -238,58 +235,6 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
     if (physicalJoinOptimize) {
       tagOnFallbackForMultiCodegens(plan)
     } else plan
-  }
-}
-
-/**
- * This rule plans [[RDDScanExec]] with a fake schema to make gluten work, because gluten does not
- * support empty output relation, see [[FallbackEmptySchemaRelation]].
- */
-case class PlanOneRowRelation(spark: SparkSession) extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = {
-    if (!GlutenConfig.getConf.enableOneRowRelationColumnar) {
-      return plan
-    }
-
-    plan.transform {
-      // We should make sure the output does not change, e.g.
-      // Window
-      //   OneRowRelation
-      case u: UnaryExecNode
-          if u.child.isInstanceOf[RDDScanExec] &&
-            u.child.asInstanceOf[RDDScanExec].name == "OneRowRelation" &&
-            u.outputSet != u.child.outputSet =>
-        val rdd = spark.sparkContext.parallelize(InternalRow(null) :: Nil, 1)
-        val attr = AttributeReference("fake_column", StringType)()
-        u.withNewChildren(RDDScanExec(attr :: Nil, rdd, "OneRowRelation") :: Nil)
-    }
-  }
-}
-
-/**
- * FIXME To be removed: Since Velox backend is the only one to use the strategy, and we already
- * support offloading zero-column batch in ColumnarBatchInIterator via PR #3309.
- *
- * We'd make sure all Velox operators be able to handle zero-column input correctly then remove the
- * rule together with [[PlanOneRowRelation]].
- */
-case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = plan.transformDown {
-    case p =>
-      if (BackendsApiManager.getSettings.fallbackOnEmptySchema(p)) {
-        if (p.children.exists(_.output.isEmpty)) {
-          // Some backends are not eligible to offload plan with zero-column input.
-          // If any child have empty output, mark the plan and that child as UNSUPPORTED.
-          FallbackTags.add(p, "at least one of its children has empty output")
-          p.children.foreach {
-            child =>
-              if (child.output.isEmpty && !child.isInstanceOf[WriteFilesExec]) {
-                FallbackTags.add(child, "at least one of its children has empty output")
-              }
-          }
-        }
-      }
-      p
   }
 }
 

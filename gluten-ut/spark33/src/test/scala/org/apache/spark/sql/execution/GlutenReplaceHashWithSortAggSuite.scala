@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.HashAggregateExecBaseTransformer
+import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait}
 import org.apache.spark.sql.execution.aggregate.{ObjectHashAggregateExec, SortAggregateExec}
@@ -99,7 +99,7 @@ class GlutenReplaceHashWithSortAggSuite
                |)
                |GROUP BY key
            """.stripMargin
-          if (BackendsApiManager.getSettings.mergeTwoPhasesHashBaseAggregateIfNeed()) {
+          if (BackendTestUtils.isCHBackendLoaded()) {
             checkAggs(query, 1, 0, 1, 0)
           } else {
             checkAggs(query, aggExprInfo._2, aggExprInfo._3, aggExprInfo._4, aggExprInfo._5)

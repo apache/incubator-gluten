@@ -27,8 +27,6 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
-import java.lang.IllegalArgumentException
-
 // For readable, people usually convert a unix timestamp into date, and compare it with another
 // date. For example
 //    select * from table where '2023-11-02' >= from_unixtime(unix_timestamp, 'yyyy-MM-dd')

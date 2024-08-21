@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar
+package org.apache.gluten.extension
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.BackendsApiManager
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Complete, Final, Partial}
@@ -39,7 +38,7 @@ case class MergeTwoPhasesHashBaseAggregate(session: SparkSession) extends Rule[S
   val columnarConf: GlutenConfig = GlutenConfig.getConf
   val scanOnly: Boolean = columnarConf.enableScanOnly
   val enableColumnarHashAgg: Boolean = !scanOnly && columnarConf.enableColumnarHashAgg
-  val replaceSortAggWithHashAgg = BackendsApiManager.getSettings.replaceSortAggWithHashAgg
+  val replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
 
   private def isPartialAgg(partialAgg: BaseAggregateExec, finalAgg: BaseAggregateExec): Boolean = {
     // TODO: now it can not support to merge agg which there are the filters in the aggregate exprs.
@@ -57,10 +56,7 @@ case class MergeTwoPhasesHashBaseAggregate(session: SparkSession) extends Rule[S
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (
-      !enableColumnarHashAgg || !BackendsApiManager.getSettings
-        .mergeTwoPhasesHashBaseAggregateIfNeed()
-    ) {
+    if (!enableColumnarHashAgg) {
       plan
     } else {
       plan.transformDown {

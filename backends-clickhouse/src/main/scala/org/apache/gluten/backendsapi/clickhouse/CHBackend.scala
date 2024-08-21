@@ -380,8 +380,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
   }
 
-  override def mergeTwoPhasesHashBaseAggregateIfNeed(): Boolean = true
-
   override def supportCartesianProductExec(): Boolean = true
 
   override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
