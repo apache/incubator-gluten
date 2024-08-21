@@ -33,6 +33,8 @@ trait Backend {
 
   def listenerApi(): ListenerApi
 
+  def ruleApi(): RuleApi
+
   def settings(): BackendSettingsApi
 }
 

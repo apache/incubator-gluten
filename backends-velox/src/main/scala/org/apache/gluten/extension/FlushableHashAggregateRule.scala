@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution._
 
 import org.apache.spark.sql.SparkSession
@@ -31,27 +32,32 @@ import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
  */
 case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkPlan] {
   import FlushableHashAggregateRule._
-  override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case s: ShuffleExchangeLike =>
-      // If an exchange follows a hash aggregate in which all functions are in partial mode,
-      // then it's safe to convert the hash aggregate to flushable hash aggregate.
-      val out = s.withNewChildren(
-        List(
-          replaceEligibleAggregates(s.child) {
-            agg =>
-              FlushableHashAggregateExecTransformer(
-                agg.requiredChildDistributionExpressions,
-                agg.groupingExpressions,
-                agg.aggregateExpressions,
-                agg.aggregateAttributes,
-                agg.initialInputBufferOffset,
-                agg.resultExpressions,
-                agg.child
-              )
-          }
+  override def apply(plan: SparkPlan): SparkPlan = {
+    if (!GlutenConfig.getConf.enableVeloxFlushablePartialAggregation) {
+      return plan
+    }
+    plan.transformUp {
+      case s: ShuffleExchangeLike =>
+        // If an exchange follows a hash aggregate in which all functions are in partial mode,
+        // then it's safe to convert the hash aggregate to flushable hash aggregate.
+        val out = s.withNewChildren(
+          List(
+            replaceEligibleAggregates(s.child) {
+              agg =>
+                FlushableHashAggregateExecTransformer(
+                  agg.requiredChildDistributionExpressions,
+                  agg.groupingExpressions,
+                  agg.aggregateExpressions,
+                  agg.aggregateAttributes,
+                  agg.initialInputBufferOffset,
+                  agg.resultExpressions,
+                  agg.child
+                )
+            }
+          )
         )
-      )
-      out
+        out
+    }
   }
 
   private def replaceEligibleAggregates(plan: SparkPlan)(

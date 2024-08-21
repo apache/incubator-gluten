@@ -209,7 +209,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
     google::protobuf::StringValue optimization_info;
     optimization_info.ParseFromString(join.advanced_extension().optimization().value());
     auto join_opt_info = JoinOptimizationInfo::parse(optimization_info.value());
-    LOG_ERROR(getLogger("JoinRelParser"), "optimizaiton info:{}", optimization_info.value());
+    LOG_DEBUG(getLogger("JoinRelParser"), "optimization info:{}", optimization_info.value());
     auto storage_join = join_opt_info.is_broadcast ? BroadCastJoinBuilder::getJoin(join_opt_info.storage_join_key) : nullptr;
     if (storage_join)
     {

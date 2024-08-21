@@ -22,6 +22,7 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 
 import scala.collection.mutable.ListBuffer
 
+// Since: https://github.com/apache/incubator-gluten/pull/3294.
 sealed trait AdaptiveContext {
   def enableAdaptiveContext(): Unit
   def isAdaptiveContext(): Boolean

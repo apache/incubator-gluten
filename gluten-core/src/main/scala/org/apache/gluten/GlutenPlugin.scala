@@ -17,12 +17,11 @@
 package org.apache.gluten
 
 import org.apache.gluten.GlutenConfig.GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
-import org.apache.gluten.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.events.GlutenBuildInfoEvent
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression.ExpressionMappings
-import org.apache.gluten.extension.{ColumnarOverrides, OthersExtensionOverrides, QueryStagePrepOverrides}
+import org.apache.gluten.extension.GlutenSessionExtensions.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.TaskListener
 
@@ -31,14 +30,13 @@ import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext,
 import org.apache.spark.internal.Logging
 import org.apache.spark.listener.GlutenListenerFactory
 import org.apache.spark.network.util.JavaUtils
-import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.execution.ui.GlutenEventUtils
-import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.utils.ExpressionUtil
 import org.apache.spark.util.{SparkResourceUtil, TaskResources}
 
 import java.util
-import java.util.{Collections, Objects}
+import java.util.Collections
 
 import scala.collection.mutable
 
@@ -298,25 +296,4 @@ private[gluten] class GlutenExecutorPlugin extends ExecutorPlugin {
   }
 }
 
-private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions => Unit) {
-  override def apply(exts: SparkSessionExtensions): Unit = {
-    GlutenPlugin.DEFAULT_INJECTORS.foreach(injector => injector.inject(exts))
-  }
-}
-
-private[gluten] trait GlutenSparkExtensionsInjector {
-  def inject(extensions: SparkSessionExtensions): Unit
-}
-
-private[gluten] object GlutenPlugin {
-  val SPARK_SESSION_EXTS_KEY: String = StaticSQLConf.SPARK_SESSION_EXTENSIONS.key
-  val GLUTEN_SESSION_EXTENSION_NAME: String =
-    Objects.requireNonNull(classOf[GlutenSessionExtensions].getCanonicalName)
-
-  /** Specify all injectors that Gluten is using in following list. */
-  val DEFAULT_INJECTORS: List[GlutenSparkExtensionsInjector] = List(
-    QueryStagePrepOverrides,
-    ColumnarOverrides,
-    OthersExtensionOverrides
-  )
-}
+private object GlutenPlugin {}

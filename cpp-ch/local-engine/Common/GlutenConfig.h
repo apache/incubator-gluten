@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include <base/unit.h>
-#include <base/types.h>
 #include <Interpreters/Context.h>
+#include <base/types.h>
+#include <base/unit.h>
 
 namespace local_engine
 {
@@ -104,7 +104,7 @@ struct JoinConfig
     bool prefer_multi_join_on_clauses = true;
     size_t multi_join_on_clauses_build_side_rows_limit = 10000000;
 
-    static JoinConfig loadFromContext(DB::ContextPtr context)
+    static JoinConfig loadFromContext(const DB::ContextPtr & context)
     {
         JoinConfig config;
         config.prefer_multi_join_on_clauses = context->getConfigRef().getBool(PREFER_MULTI_JOIN_ON_CLAUSES, true);
@@ -198,4 +198,3 @@ struct GlutenJobSchedulerConfig
     }
 };
 }
-
