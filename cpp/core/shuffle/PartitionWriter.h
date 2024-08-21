@@ -55,14 +55,11 @@ class PartitionWriter : public Reclaimable {
       std::shared_ptr<arrow::Buffer> compressed,
       bool isFinal) = 0;
 
-  arrow::Result<std::shared_ptr<arrow::Buffer>> getCompressedBuffer(
-      const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-      arrow::MemoryPool* pool) {
+  std::optional<int64_t> getCompressedBufferLength(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
     if (!codec_) {
-      return nullptr;
+      return std::nullopt;
     }
-    auto compressedLength = BlockPayload::maxCompressedLength(buffers, codec_.get());
-    return arrow::AllocateBuffer(compressedLength, pool);
+    return BlockPayload::maxCompressedLength(buffers, codec_.get());
   }
 
   virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) = 0;

@@ -91,6 +91,16 @@ object GlutenShuffleUtils {
     }
   }
 
+  def getCompressionBufferSize(conf: SparkConf, codec: String): Int = {
+    if ("lz4" == codec) {
+      conf.get(IO_COMPRESSION_LZ4_BLOCKSIZE).toInt
+    } else if ("zstd" == codec) {
+      conf.get(IO_COMPRESSION_ZSTD_BUFFERSIZE).toInt
+    } else {
+      32 * 1024
+    }
+  }
+
   def getReaderParam[K, C](
       handle: ShuffleHandle,
       startMapIndex: Int,

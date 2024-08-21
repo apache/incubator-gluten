@@ -70,12 +70,17 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
   std::vector<int32_t> mergeBufferSizes = {0, 3, 4, 10, 4096};
 
   for (const auto& compression : compressions) {
-    for (auto useRadixSort : {true, false}) {
-      params.push_back(ShuffleTestParams{
-          ShuffleWriterType::kSortShuffle, PartitionWriterType::kLocal, compression, 0, 0, useRadixSort});
+    for (const auto compressionBufferSize : {1, 56, 32 * 1024}) {
+      for (auto useRadixSort : {true, false}) {
+        params.push_back(ShuffleTestParams{
+            .shuffleWriterType = ShuffleWriterType::kSortShuffle,
+            .partitionWriterType = PartitionWriterType::kLocal,
+            .compressionType = compression,
+            .compressionBufferSize = compressionBufferSize,
+            .useRadixSort = useRadixSort});
+      }
     }
-    params.push_back(
-        ShuffleTestParams{ShuffleWriterType::kRssSortShuffle, PartitionWriterType::kRss, compression, 0, 0, false});
+    params.push_back(ShuffleTestParams{ShuffleWriterType::kRssSortShuffle, PartitionWriterType::kRss, compression});
     for (const auto compressionThreshold : compressionThresholds) {
       for (const auto mergeBufferSize : mergeBufferSizes) {
         params.push_back(ShuffleTestParams{
@@ -83,11 +88,10 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
             PartitionWriterType::kLocal,
             compression,
             compressionThreshold,
-            mergeBufferSize,
-            false /* unused */});
+            mergeBufferSize});
       }
       params.push_back(ShuffleTestParams{
-          ShuffleWriterType::kHashShuffle, PartitionWriterType::kRss, compression, compressionThreshold, 0});
+          ShuffleWriterType::kHashShuffle, PartitionWriterType::kRss, compression, compressionThreshold});
     }
   }
 
