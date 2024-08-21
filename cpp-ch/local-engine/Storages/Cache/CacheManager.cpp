@@ -16,20 +16,21 @@
  */
 #include "CacheManager.h"
 
+#include <ranges>
 #include <Core/Settings.h>
 #include <Disks/IStoragePolicy.h>
 #include <Disks/ObjectStorages/MetadataStorageFromDisk.h>
-#include <Interpreters/Context.h>
+#include <Interpreters/Cache/FileCache.h>
 #include <Interpreters/Cache/FileCacheFactory.h>
-#include <Storages/Mergetree/MetaDataHelper.h>
-#include <Common/ThreadPool.h>
+#include <Interpreters/Context.h>
 #include <Parser/MergeTreeRelParser.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Storages/Mergetree/MetaDataHelper.h>
 #include <Common/Logger.h>
+#include <Common/ThreadPool.h>
 #include <Common/logger_useful.h>
-#include <ranges>
 
 #include <jni/jni_common.h>
 
@@ -178,4 +179,62 @@ jobject CacheManager::getCacheStatus(JNIEnv * env, const String & jobId)
     }
     return env->NewObject(cache_result_class, cache_result_constructor, status, charTojstring(env, message.c_str()));
 }
+
+Task CacheManager::cacheFile(const substrait::ReadRel::LocalFiles::FileOrFiles & file, ReadBufferBuilderPtr read_buffer_builder)
+{
+    auto task = [file, read_buffer_builder, context = this->context]()
+    {
+        LOG_INFO(getLogger("CacheManager"), "Loading cache file {}", file.uri_file());
+
+        try
+        {
+            std::unique_ptr<DB::ReadBuffer> rb = read_buffer_builder->build(file);
+            while (!rb->eof())
+                rb->ignoreAll();
+        }
+        catch (std::exception & e)
+        {
+            LOG_ERROR(getLogger("CacheManager"), "Load cache file {} failed.\n {}", file.uri_file(), e.what());
+            std::rethrow_exception(std::current_exception());
+        }
+    };
+
+    return std::move(task);
+}
+
+JobId CacheManager::cacheFiles(substrait::ReadRel::LocalFiles file_infos)
+{
+    JobId id = toString(UUIDHelpers::generateV4());
+    Job job(id);
+
+    if (file_infos.items_size())
+    {
+        const Poco::URI file_uri(file_infos.items().Get(0).uri_file());
+        const auto read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
+
+        if (read_buffer_builder->file_cache)
+            for (const auto & file : file_infos.items())
+                job.addTask(cacheFile(file, read_buffer_builder));
+        else
+            LOG_WARNING(getLogger("CacheManager"), "Load cache skipped because cache not enabled.");
+    }
+
+    auto & scheduler = JobScheduler::instance();
+    scheduler.scheduleJob(std::move(job));
+    return id;
+}
+
+void CacheManager::removeFiles(String file, String cache_name)
+{
+    // only for ut
+    for (const auto & [name, file_cache] : FileCacheFactory::instance().getAll())
+    {
+        if (name != cache_name)
+            continue;
+
+        if (const auto cache = file_cache->cache)
+            cache->removePathIfExists(file, DB::FileCache::getCommonUser().user_id);
+    }
+}
+
 }

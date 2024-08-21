@@ -573,6 +573,18 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
     std::vector<String> changed_paths;
     if (path_prefix.empty() && path_suffix.empty())
         return changed_paths;
+
+    auto change_func = [&](String key) -> void
+    {
+        if (const String value = config.getString(key, ""); value != "")
+        {
+            const String change_value = path_prefix + value + path_suffix;
+            config.setString(key, change_value);
+            changed_paths.emplace_back(change_value);
+            LOG_INFO(getLogger("BackendInitializerUtil"), "Change config `{}` from '{}' to {}.", key, value, change_value);
+        }
+    };
+
     Poco::Util::AbstractConfiguration::Keys disks;
     std::unordered_set<String> disk_types = {"s3_gluten", "hdfs_gluten", "cache"};
     config.keys("storage_configuration.disks", disks);
@@ -586,26 +598,14 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
             if (!disk_types.contains(disk_type))
                 return;
             if (disk_type == "cache")
-            {
-                String path = config.getString(disk_prefix + ".path", "");
-                if (!path.empty())
-                {
-                    String final_path = path_prefix + path + path_suffix;
-                    config.setString(disk_prefix + ".path", final_path);
-                    changed_paths.emplace_back(final_path);
-                }
-            }
+                change_func(disk_prefix + ".path");
             else if (disk_type == "s3_gluten" || disk_type == "hdfs_gluten")
-            {
-                String metadata_path = config.getString(disk_prefix + ".metadata_path", "");
-                if (!metadata_path.empty())
-                {
-                    String final_path = path_prefix + metadata_path + path_suffix;
-                    config.setString(disk_prefix + ".metadata_path", final_path);
-                    changed_paths.emplace_back(final_path);
-                }
-            }
+                change_func(disk_prefix + ".metadata_path");
         });
+
+    change_func("path");
+    change_func("gluten_cache.local.path");
+
     return changed_paths;
 }
 

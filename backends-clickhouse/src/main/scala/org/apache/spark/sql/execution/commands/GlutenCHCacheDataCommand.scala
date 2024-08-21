@@ -16,24 +16,20 @@
  */
 package org.apache.spark.sql.execution.commands
 
-import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.execution.CacheResult
-import org.apache.gluten.execution.CacheResult.Status
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.rel.ExtensionTableBuilder
 
 import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.rpc.GlutenDriverEndpoint
-import org.apache.spark.rpc.GlutenRpcMessages.{CacheJobInfo, GlutenMergeTreeCacheLoad, GlutenMergeTreeCacheLoadStatus}
+import org.apache.spark.rpc.GlutenRpcMessages.{CacheJobInfo, GlutenMergeTreeCacheLoad}
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, GreaterThanOrEqual, IsNotNull, Literal}
 import org.apache.spark.sql.delta._
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
-import org.apache.spark.sql.execution.commands.GlutenCHCacheDataCommand.{checkExecutorId, collectJobTriggerResult, toExecutorId, waitAllJobFinish, waitRpcResults}
+import org.apache.spark.sql.execution.commands.GlutenCacheBase._
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.types.{BooleanType, StringType}
-import org.apache.spark.util.ThreadUtils
 
 import org.apache.hadoop.fs.Path
 
@@ -43,7 +39,6 @@ import java.util.{ArrayList => JList}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
-import scala.concurrent.duration.Duration
 
 case class GlutenCHCacheDataCommand(
     onlyMetaCache: Boolean,
@@ -140,9 +135,7 @@ case class GlutenCHCacheDataCommand(
     val executorIdsToAddFiles =
       scala.collection.mutable.Map[String, ArrayBuffer[AddMergeTreeParts]]()
     val executorIdsToParts = scala.collection.mutable.Map[String, String]()
-    executorIdsToAddFiles.put(
-      GlutenCHCacheDataCommand.ALL_EXECUTORS,
-      new ArrayBuffer[AddMergeTreeParts]())
+    executorIdsToAddFiles.put(ALL_EXECUTORS, new ArrayBuffer[AddMergeTreeParts]())
     selectedAddFiles.foreach(
       addFile => {
         val mergeTreePart = addFile.asInstanceOf[AddMergeTreeParts]
@@ -156,7 +149,7 @@ case class GlutenCHCacheDataCommand(
 
         if (locations.isEmpty) {
           // non soft affinity
-          executorIdsToAddFiles(GlutenCHCacheDataCommand.ALL_EXECUTORS)
+          executorIdsToAddFiles(ALL_EXECUTORS)
             .append(mergeTreePart)
         } else {
           locations.foreach(
@@ -205,9 +198,9 @@ case class GlutenCHCacheDataCommand(
         }
       })
     val futureList = ArrayBuffer[(String, Future[CacheJobInfo])]()
-    if (executorIdsToParts.contains(GlutenCHCacheDataCommand.ALL_EXECUTORS)) {
+    if (executorIdsToParts.contains(ALL_EXECUTORS)) {
       // send all parts to all executors
-      val tableMessage = executorIdsToParts(GlutenCHCacheDataCommand.ALL_EXECUTORS)
+      val tableMessage = executorIdsToParts(ALL_EXECUTORS)
       GlutenDriverEndpoint.executorDataMap.forEach(
         (executorId, executor) => {
           futureList.append(
@@ -230,86 +223,7 @@ case class GlutenCHCacheDataCommand(
               )))
         })
     }
-    val resultList = waitRpcResults(futureList)
-    if (asynExecute) {
-      val res = collectJobTriggerResult(resultList)
-      Seq(Row(res._1, res._2.mkString(";")))
-    } else {
-      val res = waitAllJobFinish(resultList)
-      Seq(Row(res._1, res._2))
-    }
+
+    getResult(futureList, asynExecute)
   }
-
-}
-
-object GlutenCHCacheDataCommand {
-  private val ALL_EXECUTORS = "allExecutors"
-
-  private def toExecutorId(executorId: String): String =
-    executorId.split("_").last
-
-  def waitAllJobFinish(jobs: ArrayBuffer[(String, CacheJobInfo)]): (Boolean, String) = {
-    val res = collectJobTriggerResult(jobs)
-    var status = res._1
-    val messages = res._2
-    jobs.foreach(
-      job => {
-        if (status) {
-          var complete = false
-          while (!complete) {
-            Thread.sleep(5000)
-            val future_result = GlutenDriverEndpoint.executorDataMap
-              .get(toExecutorId(job._1))
-              .executorEndpointRef
-              .ask[CacheResult](GlutenMergeTreeCacheLoadStatus(job._2.jobId))
-            val result = ThreadUtils.awaitResult(future_result, Duration.Inf)
-            result.getStatus match {
-              case Status.ERROR =>
-                status = false
-                messages.append(
-                  s"executor : {}, failed with message: {};",
-                  job._1,
-                  result.getMessage)
-                complete = true
-              case Status.SUCCESS =>
-                complete = true
-              case _ =>
-              // still running
-            }
-          }
-        }
-      })
-    (status, messages.mkString(";"))
-  }
-
-  private def collectJobTriggerResult(jobs: ArrayBuffer[(String, CacheJobInfo)]) = {
-    var status = true
-    val messages = ArrayBuffer[String]()
-    jobs.foreach(
-      job => {
-        if (!job._2.status) {
-          messages.append(job._2.reason)
-          status = false
-        }
-      })
-    (status, messages)
-  }
-
-  private def waitRpcResults = (futureList: ArrayBuffer[(String, Future[CacheJobInfo])]) => {
-    val resultList = ArrayBuffer[(String, CacheJobInfo)]()
-    futureList.foreach(
-      f => {
-        resultList.append((f._1, ThreadUtils.awaitResult(f._2, Duration.Inf)))
-      })
-    resultList
-  }
-
-  private def checkExecutorId(executorId: String): Unit = {
-    if (!GlutenDriverEndpoint.executorDataMap.containsKey(toExecutorId(executorId))) {
-      throw new GlutenException(
-        s"executor $executorId not found," +
-          s" all executors are ${GlutenDriverEndpoint.executorDataMap.toString}")
-    }
-  }
-
 }

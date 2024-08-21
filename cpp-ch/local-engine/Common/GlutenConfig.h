@@ -20,6 +20,7 @@
 #include <Interpreters/Context.h>
 #include <base/types.h>
 #include <base/unit.h>
+#include <Common/logger_useful.h>
 
 namespace local_engine
 {
@@ -134,13 +135,17 @@ struct HdfsConfig
 {
     inline static const String HDFS_ASYNC = "hdfs.enable_async_io";
 
-    bool hdfs_async = true;
+    bool hdfs_async;
 
-    static HdfsConfig loadFromContext(DB::ContextPtr context)
+    static HdfsConfig loadFromContext(const Poco::Util::AbstractConfiguration & config, const DB::ReadSettings & read_settings)
     {
-        HdfsConfig config;
-        config.hdfs_async = context->getConfigRef().getBool(HDFS_ASYNC, true);
-        return config;
+        HdfsConfig hdfs;
+        if (read_settings.enable_filesystem_cache)
+            hdfs.hdfs_async = false;
+        else
+            hdfs.hdfs_async = config.getBool(HDFS_ASYNC, true);
+
+        return hdfs;
     }
 };
 
@@ -159,10 +164,17 @@ struct S3Config
     static S3Config loadFromContext(DB::ContextPtr context)
     {
         S3Config config;
-        config.s3_local_cache_enabled = context->getConfigRef().getBool(S3_LOCAL_CACHE_ENABLE, false);
-        config.s3_local_cache_max_size = context->getConfigRef().getUInt64(S3_LOCAL_CACHE_MAX_SIZE, 100_GiB);
-        config.s3_local_cache_cache_path = context->getConfigRef().getString(S3_LOCAL_CACHE_CACHE_PATH, "");
-        config.s3_gcs_issue_compose_request = context->getConfigRef().getBool(S3_GCS_ISSUE_COMPOSE_REQUEST, false);
+
+        if (context->getConfigRef().has("S3_LOCAL_CACHE_ENABLE"))
+        {
+            LOG_WARNING(&Poco::Logger::get("S3Config"), "Config {} has deprecated.", S3_LOCAL_CACHE_ENABLE);
+
+            config.s3_local_cache_enabled = context->getConfigRef().getBool(S3_LOCAL_CACHE_ENABLE, false);
+            config.s3_local_cache_max_size = context->getConfigRef().getUInt64(S3_LOCAL_CACHE_MAX_SIZE, 100_GiB);
+            config.s3_local_cache_cache_path = context->getConfigRef().getString(S3_LOCAL_CACHE_CACHE_PATH, "");
+            config.s3_gcs_issue_compose_request = context->getConfigRef().getBool(S3_GCS_ISSUE_COMPOSE_REQUEST, false);
+        }
+
         return config;
     }
 };

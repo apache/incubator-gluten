@@ -15,9 +15,13 @@
  * limitations under the License.
  */
 #pragma once
+
+#include <substrait/plan.pb.h>
+
 #include <Disks/IDisk.h>
 #include <Storages/Cache/JobScheduler.h>
 #include <jni.h>
+#include <Storages/SubstraitSource/ReadBufferBuilder.h>
 
 namespace local_engine
 {
@@ -40,6 +44,10 @@ public:
     Task cachePart(const MergeTreeTable& table, const MergeTreePart& part, const std::unordered_set<String>& columns);
     JobId cacheParts(const String& table_def, const std::unordered_set<String>& columns);
     static jobject getCacheStatus(JNIEnv * env, const String& jobId);
+
+    Task cacheFile(const substrait::ReadRel::LocalFiles::FileOrFiles & file, ReadBufferBuilderPtr read_buffer_builder);
+    JobId cacheFiles(substrait::ReadRel::LocalFiles file_infos);
+    static void removeFiles(String file, String cache_name);
 private:
     CacheManager() = default;
     DB::ContextMutablePtr context;

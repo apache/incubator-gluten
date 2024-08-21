@@ -30,4 +30,9 @@ public class CHNativeCacheManager {
   }
 
   private static native CacheResult nativeGetCacheStatus(String jobId);
+
+  public static native String nativeCacheFiles(byte[] files);
+
+  // only for ut
+  public static native void removeFiles(String file, String cacheName);
 }
