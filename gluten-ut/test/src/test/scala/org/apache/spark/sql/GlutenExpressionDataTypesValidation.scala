@@ -63,6 +63,7 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
 
   private val allPrimitiveDataTypes: Seq[DataType] =
     Seq(
+      BooleanType,
       ByteType,
       ShortType,
       IntegerType,
@@ -73,7 +74,8 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
       StringType,
       BinaryType,
       DateType,
-      TimestampType)
+      TimestampType,
+      NullType)
 
   private val allComplexDataTypes: Seq[DataType] = Seq(
     // Currently, only check certain inner types, assuming they are representative
@@ -85,6 +87,7 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
 
   def generateChildExpression(t: DataType): Expression = {
     t match {
+      case _: BooleanType => Literal(true, t)
       case _: IntegralType => Literal(null, t)
       case _: FractionalType => Literal(null, t)
       case StringType | BinaryType => Literal("123")
@@ -93,6 +96,7 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
       case ArrayType(_, _) => Literal(null, t)
       case MapType(_, _, _) => Literal(null, t)
       case StructType(_) => Literal(null, t)
+      case NullType => Literal(null, t)
       case _ => throw new UnsupportedOperationException("Not supported type: " + t)
     }
   }
