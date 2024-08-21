@@ -216,6 +216,9 @@ public class JniLibLoader {
       Files.delete(libPath);
     }
     final File temp = new File(workDir + "/" + libraryToLoad);
+    if (!temp.getParentFile().exists()) {
+      temp.getParentFile().mkdirs();
+    }
     try (InputStream is = JniLibLoader.class.getClassLoader().getResourceAsStream(libraryToLoad)) {
       if (is == null) {
         throw new FileNotFoundException(libraryToLoad);
