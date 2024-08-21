@@ -17,10 +17,9 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.BasicScanExecTransformer
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.{ExpandFallbackPolicy, FallbackEmptySchemaRelation, FallbackTags, RemoveFallbackTagRule}
+import org.apache.gluten.extension.columnar.{ExpandFallbackPolicy, FallbackTags, RemoveFallbackTagRule}
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleBuilder
 import org.apache.gluten.extension.columnar.MiscColumnarRules.RemoveTopmostColumnarToRow
 import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
@@ -31,6 +30,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{GlutenSQLTestsTrait, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.rules.Rule
 
 class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
   import FallbackStrategiesSuite._
@@ -133,13 +133,9 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     val rule = FallbackEmptySchemaRelation()
     val newPlan = rule.apply(originalPlan)
     val reason = FallbackTags.get(newPlan).reason()
-    if (BackendsApiManager.getSettings.fallbackOnEmptySchema(newPlan)) {
-      assert(
-        reason.contains("fake reason") &&
-          reason.contains("at least one of its children has empty output"))
-    } else {
-      assert(reason.contains("fake reason"))
-    }
+    assert(
+      reason.contains("fake reason") &&
+        reason.contains("at least one of its children has empty output"))
   }
 
   testGluten("test enabling/disabling Gluten at thread level") {
@@ -173,6 +169,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     thread.join(10000)
   }
 }
+
 private object FallbackStrategiesSuite {
   def newRuleApplier(
       spark: SparkSession,
@@ -187,6 +184,25 @@ private object FallbackStrategiesSuite {
       ),
       List(_ => RemoveFallbackTagRule())
     )
+  }
+
+  // TODO: Generalize the code among shim versions.
+  case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
+    override def apply(plan: SparkPlan): SparkPlan = plan.transformDown {
+      case p =>
+        if (p.children.exists(_.output.isEmpty)) {
+          // Some backends are not eligible to offload plan with zero-column input.
+          // If any child have empty output, mark the plan and that child as UNSUPPORTED.
+          FallbackTags.add(p, "at least one of its children has empty output")
+          p.children.foreach {
+            child =>
+              if (child.output.isEmpty) {
+                FallbackTags.add(child, "at least one of its children has empty output")
+              }
+          }
+        }
+        p
+    }
   }
 
   case class LeafOp(override val supportsColumnar: Boolean = false) extends LeafExecNode {
