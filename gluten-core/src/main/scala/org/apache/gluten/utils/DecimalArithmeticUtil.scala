@@ -99,7 +99,7 @@ object DecimalArithmeticUtil {
   // For decimal * 10 case, dec will be Decimal(38, 18), then the result precision is wrong,
   // so here we will get the real precision and scale of the literal.
   private def getNewPrecisionScale(dec: Decimal): (Integer, Integer) = {
-    val input = dec.abs.toString()
+    val input = dec.abs.toJavaBigDecimal.toPlainString()
     val dotIndex = input.indexOf(".")
     if (dotIndex == -1) {
       return (input.length, 0)
