@@ -172,14 +172,14 @@ struct MergeTreeConfig
     inline static const String TABLE_PART_METADATA_CACHE_MAX_COUNT = "table_part_metadata_cache_max_count";
     inline static const String TABLE_METADATA_CACHE_MAX_COUNT = "table_metadata_cache_max_count";
 
-    size_t table_part_metadata_cache_max_count = 1000;
-    size_t table_metadata_cache_max_count = 100;
+    size_t table_part_metadata_cache_max_count = 5000;
+    size_t table_metadata_cache_max_count = 500;
 
     static MergeTreeConfig loadFromContext(DB::ContextPtr context)
     {
         MergeTreeConfig config;
-        config.table_part_metadata_cache_max_count = context->getConfigRef().getUInt64(TABLE_PART_METADATA_CACHE_MAX_COUNT, 1000);
-        config.table_metadata_cache_max_count = context->getConfigRef().getUInt64(TABLE_METADATA_CACHE_MAX_COUNT, 100);
+        config.table_part_metadata_cache_max_count = context->getConfigRef().getUInt64(TABLE_PART_METADATA_CACHE_MAX_COUNT, 5000);
+        config.table_metadata_cache_max_count = context->getConfigRef().getUInt64(TABLE_METADATA_CACHE_MAX_COUNT, 500);
         return config;
     }
 };

@@ -262,16 +262,16 @@ MergeTreeData::LoadPartResult CustomStorageMergeTree::loadDataPart(
     return res;
 }
 
-void CustomStorageMergeTree::removePartFromMemory(const MergeTreeData::DataPartPtr & part_to_detach)
+void CustomStorageMergeTree::removePartFromMemory(const MergeTreeData::DataPart & part_to_detach)
 {
     auto lock = lockParts();
     bool removed_active_part = false;
     bool restored_active_part = false;
 
-    auto it_part = data_parts_by_info.find(part_to_detach->info);
+    auto it_part = data_parts_by_info.find(part_to_detach.info);
     if (it_part == data_parts_by_info.end())
     {
-        LOG_DEBUG(log, "No such data part {}", part_to_detach->getNameWithState());
+        LOG_DEBUG(log, "No such data part {}", part_to_detach.getNameWithState());
         return;
     }
 

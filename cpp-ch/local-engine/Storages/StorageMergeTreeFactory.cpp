@@ -87,20 +87,20 @@ DataPartsVector StorageMergeTreeFactory::getDataPartsByNames(const StorageID & i
     std::unordered_set<String> missing_names;
     if (!datapart_map->has(table_name)) [[unlikely]]
     {
-        auto cache = std::make_shared<Poco::LRUCache<std::string, DataPartPtr>>(config.table_part_metadata_cache_max_count);
+        auto cache = std::make_shared<Poco::LRUCache<std::string, DataPartStorageHolderPtr>>(config.table_part_metadata_cache_max_count);
         datapart_map->add(table_name, cache);
     }
 
     // find the missing cache part name
     for (const auto & name : part_name)
     {
-        if (!(*(datapart_map->get(table_name)))->has(name))
+        if (!(*datapart_map->get(table_name))->has(name))
         {
             missing_names.emplace(name);
         }
         else
         {
-            res.emplace_back((*((*(datapart_map->get(table_name)))->get(name))));
+            res.emplace_back((*datapart_map->get(table_name))->get(name)->get()->dataPart());
         }
     }
 
@@ -112,17 +112,17 @@ DataPartsVector StorageMergeTreeFactory::getDataPartsByNames(const StorageID & i
             storage_merge_tree = storage_map->get(table_name)->first;
         }
         auto missing_parts = storage_merge_tree->loadDataPartsWithNames(missing_names);
-        for (const auto & part : missing_parts)
+        for (auto & part : missing_parts)
         {
             res.emplace_back(part);
-            (*(datapart_map->get(table_name)))->add(part->name, part);
+            (*datapart_map->get(table_name))->add(part->name, std::make_shared<DataPartStorageHolder>(part, storage_merge_tree));
         }
     }
     return res;
 }
 // will be inited in native init phase
 std::unique_ptr<Poco::LRUCache<std::string, std::pair<CustomStorageMergeTreePtr, MergeTreeTable>>> StorageMergeTreeFactory::storage_map = nullptr;
-std::unique_ptr<Poco::LRUCache<std::string, std::shared_ptr<Poco::LRUCache<std::string, DataPartPtr>>>> StorageMergeTreeFactory::datapart_map = nullptr;
+std::unique_ptr<Poco::LRUCache<std::string, std::shared_ptr<Poco::LRUCache<std::string, DataPartStorageHolderPtr>>>> StorageMergeTreeFactory::datapart_map = nullptr;
 std::recursive_mutex StorageMergeTreeFactory::storage_map_mutex;
 std::recursive_mutex StorageMergeTreeFactory::datapart_mutex;
 
