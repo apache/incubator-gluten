@@ -407,5 +407,4 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         }
       }
   }
-
 }
