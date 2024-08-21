@@ -194,7 +194,22 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
   if (task_->isFinished()) {
     return nullptr;
   }
-  velox::RowVectorPtr vector = task_->next();
+  velox::RowVectorPtr vector;
+  while (true) {
+    auto future = velox::ContinueFuture::makeEmpty();
+    auto out = task_->next(&future);
+    if (!future.valid()) {
+      // Not need to wait. Break.
+      vector = std::move(out);
+      break;
+    }
+    // Velox suggested to wait. This might be because another thread (e.g., background io thread) is spilling the task.
+    GLUTEN_CHECK(out == nullptr, "Expected to wait but still got non-null output from Velox task");
+    VLOG(2) << "Velox task " << task_->taskId()
+            << " is busy when ::next() is called. Will wait and try again. Task state: "
+            << taskStateString(task_->state());
+    future.wait();
+  }
   if (vector == nullptr) {
     return nullptr;
   }
