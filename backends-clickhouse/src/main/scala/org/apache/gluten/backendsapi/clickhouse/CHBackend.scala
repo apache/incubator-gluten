@@ -53,6 +53,7 @@ class CHBackend extends Backend {
   override def validatorApi(): ValidatorApi = new CHValidatorApi
   override def metricsApi(): MetricsApi = new CHMetricsApi
   override def listenerApi(): ListenerApi = new CHListenerApi
+  override def ruleApi(): RuleApi = new CHRuleApi
   override def settings(): BackendSettingsApi = CHBackendSettings
 }
 

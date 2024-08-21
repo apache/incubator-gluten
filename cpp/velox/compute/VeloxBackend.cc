@@ -45,6 +45,7 @@
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
 DECLARE_bool(velox_memory_use_hugepages);
+DECLARE_bool(velox_memory_pool_capacity_transfer_across_tasks);
 DECLARE_int32(cache_prefetch_min_pct);
 
 DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
@@ -86,6 +87,9 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   }
   FLAGS_logtostderr = true;
   google::InitGoogleLogging("gluten");
+
+  // Allow growing buffer in another task through its memory pool.
+  FLAGS_velox_memory_pool_capacity_transfer_across_tasks = true;
 
   // Avoid creating too many shared leaf pools.
   FLAGS_velox_memory_num_shared_leaf_pools = 0;

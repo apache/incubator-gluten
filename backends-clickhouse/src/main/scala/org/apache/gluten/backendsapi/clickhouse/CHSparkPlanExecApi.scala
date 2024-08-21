@@ -21,11 +21,9 @@ import org.apache.gluten.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.{CommonSubexpressionEliminateRule, CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, RewriteDateTimestampComparisonRule, RewriteSortMergeJoinToHashJoinRule, RewriteToDateExpresstionRule}
 import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import org.apache.gluten.extension.columnar.transition.Convention
-import org.apache.gluten.parser.GlutenClickhouseSqlParser
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
@@ -36,18 +34,13 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, HashPartitioningWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
-import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRewrite}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
-import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RangePartitioning}
-import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
@@ -547,82 +540,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     val rowCount = countsAndBytes.map(_._1).sum
     numOutputRows += rowCount
     ClickHouseBuildSideRelation(mode, newOutput, batches.flatten, rowCount, newBuildKeys)
-  }
-
-  /**
-   * Generate extended DataSourceV2 Strategies. Currently only for ClickHouse backend.
-   *
-   * @return
-   */
-  override def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy] = {
-    List.empty
-  }
-
-  /**
-   * Generate extended query stage preparation rules.
-   *
-   * @return
-   */
-  override def genExtendedQueryStagePrepRules(): List[SparkSession => Rule[SparkPlan]] = {
-    List(spark => FallbackBroadcastHashJoinPrepQueryStage(spark))
-  }
-
-  /**
-   * Generate extended Analyzers. Currently only for ClickHouse backend.
-   *
-   * @return
-   */
-  override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(
-      spark => new RewriteToDateExpresstionRule(spark, spark.sessionState.conf),
-      spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
-  }
-
-  /**
-   * Generate extended Optimizers.
-   *
-   * @return
-   */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(
-      spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf),
-      spark => CHAggregateFunctionRewriteRule(spark),
-      _ => CountDistinctWithoutExpand,
-      _ => EqualToRewrite
-    )
-  }
-
-  /**
-   * Generate extended columnar pre-rules, in the validation phase.
-   *
-   * @return
-   */
-  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] =
-    List(spark => FallbackBroadcastHashJoin(spark))
-
-  /**
-   * Generate extended columnar pre-rules.
-   *
-   * @return
-   */
-  override def genExtendedColumnarTransformRules(): List[SparkSession => Rule[SparkPlan]] =
-    List(spark => RewriteSortMergeJoinToHashJoinRule(spark))
-
-  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
-    List()
-  }
-
-  /**
-   * Generate extended Strategies.
-   *
-   * @return
-   */
-  override def genExtendedStrategies(): List[SparkSession => Strategy] =
-    List()
-
-  override def genInjectExtendedParser()
-      : List[(SparkSession, ParserInterface) => ParserInterface] = {
-    List((spark, parserInterface) => new GlutenClickhouseSqlParser(spark, parserInterface))
   }
 
   /** Define backend specfic expression mappings. */

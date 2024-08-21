@@ -14,32 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi
+package org.apache.gluten.extension.injector
 
-trait Backend {
-  def name(): String
+import org.apache.spark.sql.SparkSessionExtensions
 
-  def buildInfo(): BackendBuildInfo
+/** Injector used to inject query planner rules into Spark and Gluten. */
+class RuleInjector {
+  val spark: SparkInjector = new SparkInjector()
+  val gluten: GlutenInjector = new GlutenInjector()
 
-  def iteratorApi(): IteratorApi
-
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def listenerApi(): ListenerApi
-
-  def ruleApi(): RuleApi
-
-  def settings(): BackendSettingsApi
+  private[extension] def inject(extensions: SparkSessionExtensions): Unit = {
+    spark.inject(extensions)
+    gluten.inject(extensions)
+  }
 }
 
-case class BackendBuildInfo(
-    backend: String,
-    backendBranch: String,
-    backendRevision: String,
-    backendRevisionTime: String)
+object RuleInjector {}

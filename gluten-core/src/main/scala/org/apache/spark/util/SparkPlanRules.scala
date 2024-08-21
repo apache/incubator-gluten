@@ -21,36 +21,48 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
-object SparkRuleUtil extends Logging {
-
-  /** Add the extended pre/post column rules */
-  def extendedColumnarRules(
-      session: SparkSession,
-      conf: String
-  ): List[SparkSession => Rule[SparkPlan]] = {
-    val extendedRules = conf.split(",").filter(_.nonEmpty)
-    extendedRules
-      .map {
-        ruleStr =>
+object SparkPlanRules extends Logging {
+  // Since https://github.com/apache/incubator-gluten/pull/1523
+  def extendedColumnarRule(ruleNamesStr: String): SparkSession => Rule[SparkPlan] =
+    (session: SparkSession) => {
+      val ruleNames = ruleNamesStr.split(",").filter(_.nonEmpty)
+      val rules = ruleNames.flatMap {
+        ruleName =>
           try {
-            val extensionConfClass = Utils.classForName(ruleStr)
-            val extensionConf =
-              extensionConfClass
+            val ruleClass = Utils.classForName(ruleName)
+            val rule =
+              ruleClass
                 .getConstructor(classOf[SparkSession])
                 .newInstance(session)
                 .asInstanceOf[Rule[SparkPlan]]
-
-            Some((sparkSession: SparkSession) => extensionConf)
+            Some(rule)
           } catch {
             // Ignore the error if we cannot find the class or when the class has the wrong type.
             case e @ (_: ClassCastException | _: ClassNotFoundException |
                 _: NoClassDefFoundError) =>
-              logWarning(s"Cannot create extended rule $ruleStr", e)
+              logWarning(s"Cannot create extended rule $ruleName", e)
               None
           }
       }
-      .filter(_.isDefined)
-      .map(_.get)
-      .toList
+      new OrderedRules(rules)
+    }
+
+  object EmptyRule extends Rule[SparkPlan] {
+    override def apply(plan: SparkPlan): SparkPlan = plan
+  }
+
+  class AbortRule(message: String) extends Rule[SparkPlan] {
+    override def apply(plan: SparkPlan): SparkPlan =
+      throw new IllegalStateException(
+        "AbortRule is being executed, this should not happen. Reason: " + message)
+  }
+
+  class OrderedRules(rules: Seq[Rule[SparkPlan]]) extends Rule[SparkPlan] {
+    override def apply(plan: SparkPlan): SparkPlan = {
+      rules.foldLeft(plan) {
+        case (plan, rule) =>
+          rule.apply(plan)
+      }
+    }
   }
 }

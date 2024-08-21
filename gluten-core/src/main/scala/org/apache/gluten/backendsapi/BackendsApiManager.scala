@@ -83,6 +83,10 @@ object BackendsApiManager {
     backend.metricsApi()
   }
 
+  def getRuleApiInstance: RuleApi = {
+    backend.ruleApi()
+  }
+
   def getSettings: BackendSettingsApi = {
     backend.settings
   }
