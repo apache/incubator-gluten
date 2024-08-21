@@ -37,7 +37,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.Vector;
 
@@ -159,17 +158,10 @@ public class JniLibLoader {
     }
   }
 
-  public void mapAndLoad(String unmappedLibName, boolean requireUnload) {
-    mapAndLoad(Optional.empty(), unmappedLibName, requireUnload);
-  }
-
-  public void mapAndLoad(
-      Optional<String> packagePath, String unmappedLibName, boolean requireUnload) {
+  public void mapAndLoad(String unmappedLibPath, boolean requireUnload) {
     synchronized (loadedLibraries) {
       try {
-        final String mappedLibName = System.mapLibraryName(unmappedLibName);
-        String resourceName = packagePath.map(p -> p + "/" + mappedLibName).orElse(mappedLibName);
-        load(resourceName, requireUnload);
+        load(unmappedLibPath, requireUnload);
       } catch (Exception e) {
         throw new GlutenException(e);
       }
