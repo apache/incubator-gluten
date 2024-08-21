@@ -18,7 +18,7 @@ name: Velox backend Github Runner
 on:
   pull_request:
     paths:
-      - '.github/workflows/velox_docker.yml'
+      - '.github/workflows/velox_backend.yml'
       - 'pom.xml'
       - 'backends-velox/**'
       - 'gluten-uniffle/**'
@@ -43,6 +43,7 @@ on:
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   MVN_CMD: 'mvn -ntp'
+  WGET_CMD: 'wget -nv'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -56,7 +57,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Generate cache key
         run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './github/workflows/*') }} > cache-key
+          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
       - name: Cache
         id: cache
         uses: actions/cache/restore@v3
@@ -205,7 +206,7 @@ jobs:
           else
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           fi
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
       - name: Set environment variables
@@ -408,58 +409,6 @@ jobs:
             --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
             --data-gen=skip  --random-kill-tasks --no-session-reuse
 
-  # run-tpc-test-ubuntu-sf30:
-  #   needs: build-native-lib-centos-7
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       spark: [ "spark-3.4" ]
-  #       shard: [ "1/4", "2/4", "3/4", "4/4" ]
-  #   runs-on: ubuntu-20.04
-  #   steps:
-  #     - name: Maximize build disk space
-  #       shell: bash
-  #       run: |
-  #         df -h
-  #         set -euo pipefail
-  #         echo "Removing unwanted software... "
-  #         sudo rm -rf /usr/share/dotnet
-  #         sudo rm -rf /usr/local/lib/android
-  #         sudo rm -rf /opt/ghc
-  #         sudo rm -rf /opt/hostedtoolcache/CodeQL
-  #         sudo docker image prune --all --force > /dev/null
-  #         df -h
-  #     - uses: actions/checkout@v2
-  #     - name: Download All Artifacts
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: velox-native-lib-centos-7-${{github.sha}}
-  #         path: ./cpp/build/releases
-  #     - name: Setup java and maven
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y openjdk-8-jdk maven
-  #     - name: Set environment variables
-  #       run: |
-  #         echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
-  #     - name: Build for Spark ${{ matrix.spark }}
-  #       run: |
-  #         cd $GITHUB_WORKSPACE/ 
-  #         $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
-  #         cd $GITHUB_WORKSPACE/tools/gluten-it
-  #         $MVN_CMD clean install -P${{ matrix.spark }}
-  #         GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=h -s=30.0 --threads=12
-  #         GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
-  #     - name: TPC-H / TPC-DS SF30.0 Parquet local ${{ matrix.spark }}
-  #       run: |
-  #         cd tools/gluten-it \
-  #         && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
-  #           --local --preset=velox --benchmark-type=h --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-  #           --data-gen=skip --shard=${{ matrix.shard }} \
-  #         && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries-compare \
-  #           --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-  #           --data-gen=skip --shard=${{ matrix.shard }}
-
   run-tpc-test-centos8-uniffle:
     needs: build-native-lib-centos-7
     strategy:
@@ -487,7 +436,7 @@ jobs:
       - name: Setup java and maven
         run: |
           yum update -y && yum install -y java-1.8.0-openjdk-devel wget git
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
       - name: Build for Uniffle 0.9.0
@@ -500,9 +449,9 @@ jobs:
           cd incubator-uniffle && \
           $MVN_CMD clean install -Phadoop2.8,spark3 -DskipTests
           cd /opt && \
-          wget -nv https://archive.apache.org/dist/incubator/uniffle/0.9.0/apache-uniffle-0.9.0-incubating-bin.tar.gz && \
+          ${WGET_CMD} https://archive.apache.org/dist/incubator/uniffle/0.9.0/apache-uniffle-0.9.0-incubating-bin.tar.gz && \
           tar xzf apache-uniffle-0.9.0-incubating-bin.tar.gz -C /opt/ && mv /opt/rss-0.9.0-hadoop2.8 /opt/uniffle && \
-          wget -nv https://archive.apache.org/dist/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz && \
+          ${WGET_CMD} https://archive.apache.org/dist/hadoop/common/hadoop-2.8.5/hadoop-2.8.5.tar.gz && \
           tar xzf hadoop-2.8.5.tar.gz -C /opt/
           rm -rf /opt/incubator-uniffle
           cd /opt/uniffle && mkdir shuffle_data && \
@@ -570,7 +519,7 @@ jobs:
           fi
           echo "EXTRA_PROFILE: ${EXTRA_PROFILE}"
           cd /opt && mkdir -p celeborn && \
-          wget https://archive.apache.org/dist/celeborn/${{ matrix.celeborn }}/apache-${{ matrix.celeborn }}-bin.tgz && \
+          ${WGET_CMD} https://archive.apache.org/dist/celeborn/${{ matrix.celeborn }}/apache-${{ matrix.celeborn }}-bin.tgz && \
           tar xzf apache-${{ matrix.celeborn }}-bin.tgz -C /opt/celeborn --strip-components=1 && cd celeborn && \
           mv ./conf/celeborn-env.sh.template ./conf/celeborn-env.sh && \
           bash -c "echo -e 'CELEBORN_MASTER_MEMORY=4g\nCELEBORN_WORKER_MEMORY=4g\nCELEBORN_WORKER_OFFHEAP_MEMORY=8g' > ./conf/celeborn-env.sh" && \
@@ -581,45 +530,6 @@ jobs:
             --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=8 --iterations=1 && \
           GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=8 --iterations=1
-
-  run-cpp-test-udf-test:
-    runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
-    steps:
-      - uses: actions/checkout@v2
-      - name: Generate cache key
-        run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './github/workflows/*') }} > cache-key
-      - name: Cache
-        id: cache
-        uses: actions/cache/restore@v3
-        with:
-          path: |
-            ./cpp/build/releases/
-            ./cpp/build/velox/udf/examples/
-            ./cpp/build/velox/benchmarks/
-            /root/.m2/repository/org/apache/arrow/
-          key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
-      - name: Build Gluten native libraries
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          df -a
-          bash dev/ci-velox-buildshared-centos-8.sh
-      - name: Run CPP unit test
-        run: |
-          cd ./cpp/build && ctest -V
-      - name: Run CPP benchmark test
-        run: |
-          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -pl backends-velox -am \
-          -DtagsToInclude="org.apache.gluten.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Dexec.skip
-          # This test depends on example.json generated by the above mvn test.
-          cd cpp/build/velox/benchmarks && sudo chmod +x ./generic_benchmark
-          ./generic_benchmark --run-example --with-shuffle --threads 1 --iterations 1
-      - name: Run UDF test
-        run: |
-          # Depends on --build_example=ON.
-          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None \
-          -DtagsToInclude=org.apache.gluten.tags.UDFTest
 
   run-spark-test-spark32:
     needs: build-native-lib-centos-7
@@ -644,7 +554,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
@@ -659,17 +569,7 @@ jobs:
           mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.2.2 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          wget https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.2.tgz && \
-          tar --strip-components=1 -xf spark-3.2.2-bin-hadoop3.2.tgz spark-3.2.2-bin-hadoop3.2/jars/ && \
-          rm -rf spark-3.2.2-bin-hadoop3.2.tgz && \
-          mkdir -p $GITHUB_WORKSPACE//shims/spark32/spark_home/assembly/target/scala-2.12 && \
-          mv jars $GITHUB_WORKSPACE//shims/spark32/spark_home/assembly/target/scala-2.12 && \
-          cd $GITHUB_WORKSPACE// && \
-          wget https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
-          tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
-          mkdir -p shims/spark32/spark_home/ && \
-          mv sql shims/spark32/spark_home/ && \
+          bash .github/workflows/util/install_spark_resources.sh 3.2
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
@@ -679,7 +579,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg \
+          $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg \
           -Pdelta -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload golden files
@@ -714,7 +614,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
@@ -729,15 +629,12 @@ jobs:
           mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.2.2 (slow tests)
         run: |
-          cd $GITHUB_WORKSPACE// && \
-          wget https://github.com/apache/spark/archive/refs/tags/v3.2.2.tar.gz && \
-          tar --strip-components=1 -xf v3.2.2.tar.gz spark-3.2.2/sql/core/src/test/resources/  && \
-          mkdir -p shims/spark32/spark_home/ && \
-          mv sql shims/spark32/spark_home/
+          bash .github/workflows/util/install_spark_resources.sh 3.2
       - name: Build and run unit test for Spark 3.2.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg -Pdelta -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+          $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg -Pdelta \
+          -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
   run-spark-test-spark33:
     needs: build-native-lib-centos-7
@@ -764,7 +661,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
@@ -779,17 +676,7 @@ jobs:
           mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.3.1 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          wget https://archive.apache.org/dist/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz && \
-          tar --strip-components=1 -xf spark-3.3.1-bin-hadoop3.tgz spark-3.3.1-bin-hadoop3/jars/ && \
-          rm -rf spark-3.3.1-bin-hadoop3.tgz && \
-          mkdir -p $GITHUB_WORKSPACE//shims/spark33/spark_home/assembly/target/scala-2.12 && \
-          mv jars $GITHUB_WORKSPACE//shims/spark33/spark_home/assembly/target/scala-2.12 && \
-          cd $GITHUB_WORKSPACE// && \
-          wget https://github.com/apache/spark/archive/refs/tags/v3.3.1.tar.gz && \
-          tar --strip-components=1 -xf v3.3.1.tar.gz spark-3.3.1/sql/core/src/test/resources/  && \
-          mkdir -p shims/spark33/spark_home/ && \
-          mv sql shims/spark33/spark_home/ && \
+          bash .github/workflows/util/install_spark_resources.sh 3.3
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
@@ -799,7 +686,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload golden files
@@ -835,7 +722,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
@@ -850,15 +737,11 @@ jobs:
           mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.3.1 (slow tests)
         run: |
-          cd $GITHUB_WORKSPACE// && \
-          wget https://github.com/apache/spark/archive/refs/tags/v3.3.1.tar.gz && \
-          tar --strip-components=1 -xf v3.3.1.tar.gz spark-3.3.1/sql/core/src/test/resources/  && \
-          mkdir -p shims/spark33/spark_home/ && \
-          mv sql shims/spark33/spark_home/
+          bash .github/workflows/util/install_spark_resources.sh 3.3
       - name: Build and Run unit test for Spark 3.3.1 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean install -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
@@ -887,7 +770,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
@@ -902,17 +785,7 @@ jobs:
           mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.4.2 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          wget https://archive.apache.org/dist/spark/spark-3.4.2/spark-3.4.2-bin-hadoop3.tgz && \
-          tar --strip-components=1 -xf spark-3.4.2-bin-hadoop3.tgz spark-3.4.2-bin-hadoop3/jars/ && \
-          rm -rf spark-3.4.2-bin-hadoop3.tgz && \
-          mkdir -p $GITHUB_WORKSPACE//shims/spark34/spark_home/assembly/target/scala-2.12 && \
-          mv jars $GITHUB_WORKSPACE//shims/spark34/spark_home/assembly/target/scala-2.12 && \
-          cd $GITHUB_WORKSPACE// && \
-          wget https://github.com/apache/spark/archive/refs/tags/v3.4.2.tar.gz && \
-          tar --strip-components=1 -xf v3.4.2.tar.gz spark-3.4.2/sql/core/src/test/resources/  && \
-          mkdir -p shims/spark34/spark_home/ && \
-          mv sql shims/spark34/spark_home/ && \
+          bash .github/workflows/util/install_spark_resources.sh 3.4
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
@@ -922,7 +795,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload golden files
@@ -958,7 +831,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
@@ -973,15 +846,11 @@ jobs:
           mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.4.2 (slow tests)
         run: |
-          cd $GITHUB_WORKSPACE// && \
-          wget https://github.com/apache/spark/archive/refs/tags/v3.4.2.tar.gz && \
-          tar --strip-components=1 -xf v3.4.2.tar.gz spark-3.4.2/sql/core/src/test/resources/  && \
-          mkdir -p shims/spark34/spark_home/ && \
-          mv sql shims/spark34/spark_home/
+          bash .github/workflows/util/install_spark_resources.sh 3.4
       - name: Build and Run unit test for Spark 3.4.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean install -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
 
@@ -1010,7 +879,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
@@ -1025,17 +894,7 @@ jobs:
           mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          wget https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz && \
-          tar --strip-components=1 -xf spark-3.5.1-bin-hadoop3.tgz spark-3.5.1-bin-hadoop3/jars/ && \
-          rm -rf spark-3.5.1-bin-hadoop3.tgz && \
-          mkdir -p $GITHUB_WORKSPACE//shims/spark35/spark_home/assembly/target/scala-2.12 && \
-          mv jars $GITHUB_WORKSPACE//shims/spark35/spark_home/assembly/target/scala-2.12 && \
-          cd $GITHUB_WORKSPACE// && \
-          wget https://github.com/apache/spark/archive/refs/tags/v3.5.1.tar.gz && \
-          tar --strip-components=1 -xf v3.5.1.tar.gz spark-3.5.1/sql/core/src/test/resources/  && \
-          mkdir -p shims/spark35/spark_home/ && \
-          mv sql shims/spark35/spark_home/ && \
+          bash .github/workflows/util/install_spark_resources.sh 3.5
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
@@ -1045,7 +904,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
-          $MVN_CMD clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
       - name: Upload golden files
@@ -1080,7 +939,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
@@ -1095,17 +954,7 @@ jobs:
           mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          wget https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz && \
-          tar --strip-components=1 -xf spark-3.5.1-bin-hadoop3.tgz spark-3.5.1-bin-hadoop3/jars/ && \
-          rm -rf spark-3.5.1-bin-hadoop3.tgz && \
-          mkdir -p $GITHUB_WORKSPACE//shims/spark35/spark_home/assembly/target/scala-2.13 && \
-          mv jars $GITHUB_WORKSPACE//shims/spark35/spark_home/assembly/target/scala-2.13 && \
-          cd $GITHUB_WORKSPACE// && \
-          wget https://github.com/apache/spark/archive/refs/tags/v3.5.1.tar.gz && \
-          tar --strip-components=1 -xf v3.5.1.tar.gz spark-3.5.1/sql/core/src/test/resources/  && \
-          mkdir -p shims/spark35/spark_home/ && \
-          mv sql shims/spark35/spark_home/ && \
+          bash .github/workflows/util/install_spark_resources.sh 3.5-scala2.13
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
@@ -1115,7 +964,7 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.13
-          $MVN_CMD clean install -Pspark-3.5 -Pscala-2.13 -Pbackends-velox -Pceleborn -Piceberg \
+          $MVN_CMD clean test -Pspark-3.5 -Pscala-2.13 -Pbackends-velox -Pceleborn -Piceberg \
           -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
 
@@ -1144,7 +993,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
           tar -xvf apache-maven-3.8.8-bin.tar.gz
           mv apache-maven-3.8.8 /usr/lib/maven
           echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
@@ -1159,20 +1008,49 @@ jobs:
           mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
         run: |
-          cd $GITHUB_WORKSPACE/ && \
-          wget https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz && \
-          tar --strip-components=1 -xf spark-3.5.1-bin-hadoop3.tgz spark-3.5.1-bin-hadoop3/jars/ && \
-          rm -rf spark-3.5.1-bin-hadoop3.tgz && \
-          mkdir -p $GITHUB_WORKSPACE//shims/spark35/spark_home/assembly/target/scala-2.12 && \
-          mv jars $GITHUB_WORKSPACE//shims/spark35/spark_home/assembly/target/scala-2.12 && \
-          cd $GITHUB_WORKSPACE// && \
-          wget https://github.com/apache/spark/archive/refs/tags/v3.5.1.tar.gz && \
-          tar --strip-components=1 -xf v3.5.1.tar.gz spark-3.5.1/sql/core/src/test/resources/  && \
-          mkdir -p shims/spark35/spark_home/ && \
-          mv sql shims/spark35/spark_home/
+          bash .github/workflows/util/install_spark_resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.1 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
-          $MVN_CMD clean install -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+
+  run-cpp-test-udf-test:
+    runs-on: ubuntu-20.04
+    container: ghcr.io/facebookincubator/velox-dev:centos8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Generate cache key
+        run: |
+          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
+      - name: Cache
+        id: cache
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            ./cpp/build/releases/
+            ./cpp/build/velox/udf/examples/
+            ./cpp/build/velox/benchmarks/
+            /root/.m2/repository/org/apache/arrow/
+          key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
+      - name: Build Gluten native libraries
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          df -a
+          bash dev/ci-velox-buildshared-centos-8.sh
+      - name: Run CPP unit test
+        run: |
+          cd ./cpp/build && ctest -V
+      - name: Run CPP benchmark test
+        run: |
+          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -pl backends-velox -am \
+          -DtagsToInclude="org.apache.gluten.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Dexec.skip
+          # This test depends on example.json generated by the above mvn test.
+          cd cpp/build/velox/benchmarks && sudo chmod +x ./generic_benchmark
+          ./generic_benchmark --run-example --with-shuffle --threads 1 --iterations 1
+      - name: Run UDF test
+        run: |
+          # Depends on --build_example=ON.
+          $MVN_CMD test -Pspark-3.5 -Pbackends-velox -Piceberg -Pdelta -DtagsToExclude=None \
+          -DtagsToInclude=org.apache.gluten.tags.UDFTest
