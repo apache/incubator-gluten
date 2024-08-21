@@ -53,11 +53,10 @@ using namespace DB;
 
 namespace local_engine
 {
-std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type, bool is_existence_join)
+std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type, bool is_existence_join, ContextPtr & context)
 {
-    auto & global_context = SerializedPlanParser::global_context;
     auto table_join = std::make_shared<TableJoin>(
-        global_context->getSettingsRef(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
+        context->getSettingsRef(), context->getGlobalTemporaryVolume(), context->getTempDataOnDisk());
 
     std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = JoinUtil::getJoinKindAndStrictness(join_type, is_existence_join);
     table_join->setKind(kind_and_strictness.first);
@@ -216,7 +215,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         renamePlanColumns(*left, *right, *storage_join);
     }
 
-    auto table_join = createDefaultTableJoin(join.type(), join_opt_info.is_existence_join);
+    auto table_join = createDefaultTableJoin(join.type(), join_opt_info.is_existence_join, context);
     DB::Block right_header_before_convert_step = right->getCurrentDataStream().header;
     addConvertStep(*table_join, *left, *right);
 
