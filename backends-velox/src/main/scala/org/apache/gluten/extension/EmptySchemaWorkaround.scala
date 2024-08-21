@@ -93,6 +93,8 @@ object EmptySchemaWorkaround {
      * Sum(1), Count(1), rand(), etc.
      * @param plan:
      *   The Spark plan to check.
+     *
+     * Since https://github.com/apache/incubator-gluten/pull/2749.
      */
     private def mayNeedOffload(plan: SparkPlan): Boolean = {
       def checkExpr(expr: Expression): Boolean = {
