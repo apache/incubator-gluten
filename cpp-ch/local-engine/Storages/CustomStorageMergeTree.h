@@ -54,7 +54,7 @@ public:
     bool scheduleDataProcessingJob(BackgroundJobsAssignee & executor) override;
     std::map<std::string, MutationCommands> getUnfinishedMutationCommands() const override;
     std::vector<MergeTreeDataPartPtr> loadDataPartsWithNames(std::unordered_set<std::string> parts);
-    void removePartFromMemory(const MergeTreeData::DataPartPtr & part_to_detach);
+    void removePartFromMemory(const MergeTreeData::DataPart & part_to_detach);
 
     MergeTreeDataWriter writer;
     MergeTreeDataSelectExecutor reader;
