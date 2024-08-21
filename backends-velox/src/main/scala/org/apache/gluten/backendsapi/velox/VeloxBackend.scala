@@ -28,12 +28,10 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFo
 import org.apache.gluten.utils._
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, EulerNumber, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Pi, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SparkVersion, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Count, Sum}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Lead, NamedExpression, NthValue, NTile, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile}
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
-import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
@@ -441,49 +439,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
           case _ => false
         }
       }
-  }
-
-  /**
-   * Check whether a plan needs to be offloaded even though they have empty input schema, e.g,
-   * Sum(1), Count(1), rand(), etc.
-   * @param plan:
-   *   The Spark plan to check.
-   */
-  private def mayNeedOffload(plan: SparkPlan): Boolean = {
-    def checkExpr(expr: Expression): Boolean = {
-      expr match {
-        // Block directly falling back the below functions by FallbackEmptySchemaRelation.
-        case alias: Alias => checkExpr(alias.child)
-        case _: Rand | _: Uuid | _: MakeYMInterval | _: SparkPartitionID | _: EulerNumber | _: Pi |
-            _: SparkVersion =>
-          true
-        case _ => false
-      }
-    }
-
-    plan match {
-      case exec: HashAggregateExec if exec.aggregateExpressions.nonEmpty =>
-        // Check Sum(Literal) or Count(Literal).
-        exec.aggregateExpressions.forall(
-          expression => {
-            val aggFunction = expression.aggregateFunction
-            aggFunction match {
-              case Sum(Literal(_, _), _) => true
-              case Count(Seq(Literal(_, _))) => true
-              case _ => false
-            }
-          })
-      case p: ProjectExec if p.projectList.nonEmpty =>
-        p.projectList.forall(checkExpr(_))
-      case _ =>
-        false
-    }
-  }
-
-  override def fallbackOnEmptySchema(plan: SparkPlan): Boolean = {
-    // Count(1) and Sum(1) are special cases that Velox backend can handle.
-    // Do not fallback it and its children in the first place.
-    !mayNeedOffload(plan)
   }
 
   override def fallbackAggregateWithEmptyOutputChild(): Boolean = true

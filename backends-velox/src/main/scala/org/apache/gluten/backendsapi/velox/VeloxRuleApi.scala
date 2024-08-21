@@ -18,7 +18,8 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.datasource.ArrowConvertorRule
-import org.apache.gluten.extension._
+import org.apache.gluten.extension.{ArrowScanReplaceRule, BloomFilterMightContainJointRewriteRule, CollectRewriteRule, FlushableHashAggregateRule, HLLRewriteRule}
+import org.apache.gluten.extension.EmptySchemaWorkaround.{FallbackEmptySchemaRelation, PlanOneRowRelation}
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast, TransformPreOverrides}
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
@@ -61,7 +62,6 @@ private object VeloxRuleApi {
     injector.injectTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
     injector.injectTransform(c => ArrowScanReplaceRule.apply(c.session))
     injector.injectTransform(_ => FallbackEmptySchemaRelation())
-    injector.injectTransform(c => MergeTwoPhasesHashBaseAggregate.apply(c.session))
     injector.injectTransform(_ => RewriteSparkPlanRulesManager())
     injector.injectTransform(_ => AddFallbackTagRule())
     injector.injectTransform(_ => TransformPreOverrides())
@@ -103,7 +103,6 @@ private object VeloxRuleApi {
     injector.inject(_ => RewriteSubqueryBroadcast())
     injector.inject(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
     injector.inject(c => ArrowScanReplaceRule.apply(c.session))
-    injector.inject(c => MergeTwoPhasesHashBaseAggregate.apply(c.session))
 
     // Gluten RAS: The RAS rule.
     injector.inject(c => EnumeratedTransform(c.session, c.outputsColumnar))
