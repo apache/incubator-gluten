@@ -31,6 +31,7 @@ import org.apache.spark.sql.types.StringType
 
 /** Rules to make Velox backend work correctly with query plans that have empty output schemas. */
 object EmptySchemaWorkaround {
+
   /**
    * This rule plans [[RDDScanExec]] with a fake schema to make gluten work, because gluten does not
    * support empty output relation, see [[FallbackEmptySchemaRelation]].
