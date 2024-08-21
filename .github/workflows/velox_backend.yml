@@ -1034,6 +1034,14 @@ jobs:
             ./cpp/build/velox/benchmarks/
             /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
+      - name: Setup java and maven
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
+          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
+          tar -xvf apache-maven-3.8.8-bin.tar.gz && mv apache-maven-3.8.8 /usr/lib/maven
+          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
       - name: Build Gluten native libraries
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
