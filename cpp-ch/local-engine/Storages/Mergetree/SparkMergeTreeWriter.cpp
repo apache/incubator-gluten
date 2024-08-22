@@ -265,11 +265,11 @@ void SparkMergeTreeWriter::finalizeMerge()
                 continue;
 
             GlobalThreadPool::instance().scheduleOrThrow(
-                [&]() -> void
+                [storage_ = storage, tmp = tmp_part]() -> void
                 {
-                    for (const auto & disk : storage->getDisks())
+                    for (const auto & disk : storage_->getDisks())
                     {
-                        auto rel_path = storage->getRelativeDataPath() + "/" + tmp_part;
+                        auto rel_path = storage_->getRelativeDataPath() + "/" + tmp;
                         disk->removeRecursive(rel_path);
                     }
                 });
