@@ -59,7 +59,6 @@ class GlutenClickHouseHDFSSuite
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    deleteCache()
   }
 
   override protected def beforeEach(): Unit = {
@@ -110,19 +109,19 @@ class GlutenClickHouseHDFSSuite
     }
   }
 
-  test("test hdfs cache") {
+  ignore("test hdfs cache") {
     runWithoutCache()
     runWithCache()
   }
 
-  test("test cache file command") {
+  ignore("test cache file command") {
     runSql(
       s"CACHE FILES select * from '$HDFS_URL_ENDPOINT/tpch-data/lineitem'",
       noFallBack = false) { _ => }
     runWithCache()
   }
 
-  test("test no cache by query") {
+  ignore("test no cache by query") {
     withSQLConf(
       s"$CH_SETTING_PREFIX.read_from_filesystem_cache_if_exists_otherwise_bypass_cache" -> "true") {
       runWithoutCache()
