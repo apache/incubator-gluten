@@ -212,7 +212,9 @@
                   <arg>-Wconf:cat=unchecked&amp;msg=eliminated by erasure:s</arg>
                   <arg>-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s</arg>
                   <!--
-                  <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+                  <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.
+
+                  </arg>
                   -->
                 </args>
                 <compilerPlugins combine.self="override">
@@ -768,7 +770,7 @@
               </goals>
               <configuration>
                 <classifier>${scala.binary.version}</classifier>
-		<classifier>${sparkbundle.version}</classifier>
+                <classifier>${sparkbundle.version}</classifier>
               </configuration>
             </execution>
           </executions>
