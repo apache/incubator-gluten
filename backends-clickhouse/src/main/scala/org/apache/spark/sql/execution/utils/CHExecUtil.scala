@@ -319,7 +319,7 @@ object CHExecUtil extends Logging {
     // Thus in Columnar Shuffle we never use the "key" part.
     val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
 
-    val rddWithpartitionKey: RDD[Product2[Int, ColumnarBatch]] =
+    val rddWithPartitionKey: RDD[Product2[Int, ColumnarBatch]] =
       if (
         GlutenConfig.getConf.isUseColumnarShuffleManager
         || GlutenConfig.getConf.isUseCelebornShuffleManager
@@ -345,7 +345,7 @@ object CHExecUtil extends Logging {
 
     val dependency =
       new ColumnarShuffleDependency[Int, ColumnarBatch, ColumnarBatch](
-        rddWithpartitionKey,
+        rddWithPartitionKey,
         new PartitionIdPassthrough(newPartitioning.numPartitions),
         serializer,
         shuffleWriterProcessor = ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),

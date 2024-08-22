@@ -14,9 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.compatibility
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
@@ -76,6 +77,18 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
         assert(diffCount == 0)
       }
     }
+  }
+
+  test("https://github.com/apache/incubator-gluten/issues/6938") {
+    val testSQL =
+      s"""
+         |select * from (
+         |  select 1 as x, r_name as y, 's' as z from region
+         |  union all
+         |  select 2 as x, n_name as y, null as z from nation
+         |) order by y,x,z
+         |""".stripMargin
+    runQueryAndCompare(testSQL)(_ => ())
   }
 
   test("Support In list option contains non-foldable expression") {
@@ -217,5 +230,4 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
       )
     }
   }
-
 }
