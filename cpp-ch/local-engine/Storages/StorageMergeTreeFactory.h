@@ -49,7 +49,7 @@ public:
     ~DataPartStorageHolder()
     {
         storage_->removePartFromMemory(*data_part_);
-        std::cerr << fmt::format("clean part {}", data_part_->name) << std::endl;
+        // std::cerr << fmt::format("clean part {}", data_part_->name) << std::endl;
     }
 
 private:
