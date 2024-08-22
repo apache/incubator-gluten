@@ -49,6 +49,7 @@ class GlutenParquetRowIndexSuite extends ParquetRowIndexSuite with GlutenSQLTest
       .getBlocks
       .asScala
       .map(_.getRowCount)
+      .toSeq
   }
 
   private def readRowGroupRowCounts(dir: File): Seq[Seq[Long]] = {

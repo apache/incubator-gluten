@@ -16,8 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import org.apache.spark.{SparkException, TaskContext}
-import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
+import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -27,8 +26,6 @@ import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, UnaryNode}
 import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.ConcurrentOutputWriterSpec
-
-import java.util.Date
 
 /**
  * This class is copied from Spark 3.4 and modified for Gluten. Spark 3.4 introduced a new operator,

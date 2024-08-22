@@ -24,8 +24,8 @@
   <description>Apache Gluten(incubating)</description>
 
   <organization>
-        <name>Apache</name>
-        <url>http://gluten.apache.org</url>
+    <name>Apache</name>
+    <url>http://gluten.apache.org</url>
   </organization>
 
   <scm>
@@ -171,6 +171,7 @@
                     <version>0.1.2</version>
                   </dependency>
                 </dependencies> -->
+                <recompileMode>${scala.recompile.mode}</recompileMode>
                 <args>
                   <arg>-unchecked</arg>
                   <arg>-deprecation</arg>
@@ -215,9 +216,24 @@
                   <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
                   -->
                 </args>
-                <compilerPlugins combine.self="override">
-                </compilerPlugins>
               </configuration>
+              <executions>
+                <execution>
+                  <id>scala-compile-first</id>
+                  <phase>process-resources</phase>
+                  <goals>
+                    <goal>add-source</goal>
+                    <goal>compile</goal>
+                  </goals>
+                </execution>
+                <execution>
+                  <id>scala-test-compile-first</id>
+                  <phase>process-test-resources</phase>
+                  <goals>
+                    <goal>testCompile</goal>
+                  </goals>
+                </execution>
+              </executions>
             </plugin>
           </plugins>
         </pluginManagement>
@@ -471,7 +487,7 @@
                   <appendAssemblyId>true</appendAssemblyId>
                   <descriptors>
                     <descriptor>
-                    src/assembly/source-assembly.xml
+                      src/assembly/source-assembly.xml
                     </descriptor>
                   </descriptors>
                   <finalName>apache-gluten-${project.version}</finalName>
@@ -479,7 +495,7 @@
               </execution>
             </executions>
           </plugin>
-	</plugins>
+        </plugins>
       </build>
     </profile>
   </profiles>
@@ -768,7 +784,7 @@
               </goals>
               <configuration>
                 <classifier>${scala.binary.version}</classifier>
-		<classifier>${sparkbundle.version}</classifier>
+                <classifier>${sparkbundle.version}</classifier>
               </configuration>
             </execution>
           </executions>
@@ -828,6 +844,7 @@
               <arg>-Ywarn-unused:imports</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
+              <arg>-Wconf:cat=deprecation:wv,any:e</arg>
               <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
             </args>
           </configuration>
@@ -945,7 +962,7 @@
           <version>${spotless.version}</version>
           <configuration>
             <java>
-              <toggleOffOn />
+              <toggleOffOn/>
               <googleJavaFormat>
                 <version>1.7</version>
               </googleJavaFormat>
@@ -955,7 +972,7 @@
                 <order>org.apache.gluten,io.substrait.spark,,javax,java,scala,\#</order>
               </importOrder>
 
-              <removeUnusedImports />
+              <removeUnusedImports/>
               <licenseHeader>
                 <content>${spotless.license.header}</content>
                 <delimiter>${spotless.delimiter}</delimiter>
@@ -963,7 +980,7 @@
             </java>
             <scala>
               <!--  make it works `// spotless:off `  -->
-              <toggleOffOn />
+              <toggleOffOn/>
               <scalafmt>
                 <version>${spotless.scalafmt.version}</version>
                 <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>

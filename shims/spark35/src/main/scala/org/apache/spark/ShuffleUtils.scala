@@ -25,8 +25,7 @@ object ShuffleUtils {
       startMapIndex: Int,
       endMapIndex: Int,
       startPartition: Int,
-      endPartition: Int)
-      : Tuple2[Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])], Boolean] = {
+      endPartition: Int): Tuple2[Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])], Boolean] = {
     val baseShuffleHandle = handle.asInstanceOf[BaseShuffleHandle[K, _, C]]
     if (baseShuffleHandle.dependency.isShuffleMergeFinalizedMarked) {
       val res = SparkEnv.get.mapOutputTracker.getPushBasedShuffleMapSizesByExecutorId(
@@ -35,7 +34,7 @@ object ShuffleUtils {
         endMapIndex,
         startPartition,
         endPartition)
-      (res.iter, res.enableBatchFetch)
+      (res.iter.map(b => (b._1, b._2.toSeq)), res.enableBatchFetch)
     } else {
       val address = SparkEnv.get.mapOutputTracker.getMapSizesByExecutorId(
         handle.shuffleId,
@@ -43,7 +42,7 @@ object ShuffleUtils {
         endMapIndex,
         startPartition,
         endPartition)
-      (address, true)
+      (address.map(b => (b._1, b._2.toSeq)), true)
     }
   }
 }

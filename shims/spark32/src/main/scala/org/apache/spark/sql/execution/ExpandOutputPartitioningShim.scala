@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.plans.{InnerLike, JoinType}
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, PartitioningCollection}
 
 import scala.collection.mutable
