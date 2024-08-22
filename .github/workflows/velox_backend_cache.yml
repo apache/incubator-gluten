@@ -81,6 +81,10 @@ jobs:
         if: steps.check-cache.outputs.cache-hit != 'true'
         run: |
           df -a
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
+          bash .github/workflows/util/setup_helper.sh install_maven
           bash dev/ci-velox-buildshared-centos-8.sh
       - name: Cache
         if: steps.check-cache.outputs.cache-hit != 'true'
