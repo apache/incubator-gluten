@@ -719,6 +719,17 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   }
 
   @Override
+  public void putDecimal(int rowId, Decimal value, int precision) {
+    if (precision <= Decimal.MAX_INT_DIGITS()) {
+      putInt(rowId, (int) value.toUnscaledLong());
+    } else if (precision <= Decimal.MAX_LONG_DIGITS()) {
+      putLong(rowId, value.toUnscaledLong());
+    } else {
+      writer.setBytes(rowId, value.toJavaBigDecimal());
+    }
+  }
+
+  @Override
   public UTF8String getUTF8String(int rowId) {
     if (isNullAt(rowId)) {
       return null;
@@ -1255,9 +1266,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       throw new UnsupportedOperationException();
     }
 
-    void setNotNull(int rowId) {
-      throw new UnsupportedOperationException();
-    }
+    // Arrow not need to setNotNull, set the valus is enough.
+    void setNotNull(int rowId) {}
 
     void setNulls(int rowId, int count) {
       throw new UnsupportedOperationException();
