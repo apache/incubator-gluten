@@ -16,6 +16,9 @@
 
 # Download Spark resources, required by some Spark UTs. The resource path should be set
 # for spark.test.home in mvn test.
+
+set -e
+
 INSTALL_DIR=$GITHUB_WORKSPACE
 case "$1" in
 3.2)
