@@ -368,7 +368,7 @@ void RangeSelectorBuilder::computePartitionIdByBinarySearch(DB::Block & block, D
     }
 }
 namespace {
-int do_compare_at(const ColumnPtr & lhs, size_t n, size_t m, const IColumn & rhs, int nan_direction_hint)
+int doCompareAt(const ColumnPtr & lhs, size_t n, size_t m, const IColumn & rhs, int nan_direction_hint)
 {
     if (const auto * l_const = typeid_cast<const ColumnConst *>(lhs.get()))
     {
@@ -391,7 +391,7 @@ int RangeSelectorBuilder::compareRow(
     {
         auto lpos = required_columns[i];
         auto rpos = i;
-        auto res = do_compare_at(columns[lpos], row, bound_row, *bound_columns[rpos], sort_descriptions[i].nulls_direction)
+        auto res = doCompareAt(columns[lpos], row, bound_row, *bound_columns[rpos], sort_descriptions[i].nulls_direction)
             * sort_descriptions[i].direction;
         if (res != 0)
             return res;
