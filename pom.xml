@@ -141,6 +141,59 @@
         <scala.version>2.12.15</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
       </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>net.alchim31.maven</groupId>
+              <artifactId>scala-maven-plugin</artifactId>
+              <version>${scala.compiler.version}</version>
+              <configuration>
+                <compilerPlugins>
+                  <compilerPlugin>
+                    <groupId>org.wartremover</groupId>
+                    <artifactId>wartremover_${scala.binary.version}</artifactId>
+                    <version>3.1.6</version>
+                  </compilerPlugin>
+                </compilerPlugins>
+                <dependencies>
+                  <dependency>
+                    <groupId>io.github.zhztheplayer.scalawarts</groupId>
+                    <artifactId>scalawarts_${scala.binary.version}</artifactId>
+                    <version>0.1.2</version>
+                  </dependency>
+                </dependencies>
+                <recompileMode>${scala.recompile.mode}</recompileMode>
+                <args>
+                  <arg>-Wconf:msg=While parsing annotations in:silent,any:e</arg>
+                  <arg>-Ywarn-unused:imports</arg>
+                  <arg>-deprecation</arg>
+                  <arg>-feature</arg>
+                  <arg>-Wconf:cat=deprecation:wv,any:e</arg>
+                  <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
+                </args>
+              </configuration>
+              <executions>
+                <execution>
+                  <id>scala-compile-first</id>
+                  <phase>process-resources</phase>
+                  <goals>
+                    <goal>add-source</goal>
+                    <goal>compile</goal>
+                  </goals>
+                </execution>
+                <execution>
+                  <id>scala-test-compile-first</id>
+                  <phase>process-test-resources</phase>
+                  <goals>
+                    <goal>testCompile</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
     </profile>
     <profile>
       <id>scala-2.13</id>
@@ -171,6 +224,7 @@
                     <version>0.1.2</version>
                   </dependency>
                 </dependencies> -->
+                <recompileMode>${scala.recompile.mode}</recompileMode>
                 <args>
                   <arg>-unchecked</arg>
                   <arg>-deprecation</arg>
@@ -212,14 +266,27 @@
                   <arg>-Wconf:cat=unchecked&amp;msg=eliminated by erasure:s</arg>
                   <arg>-Wconf:msg=^(?=.*?a value of type)(?=.*?cannot also be).+$:s</arg>
                   <!--
-                  <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.
-
-                  </arg>
+                  <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
                   -->
                 </args>
-                <compilerPlugins combine.self="override">
-                </compilerPlugins>
               </configuration>
+              <executions>
+                <execution>
+                  <id>scala-compile-first</id>
+                  <phase>process-resources</phase>
+                  <goals>
+                    <goal>add-source</goal>
+                    <goal>compile</goal>
+                  </goals>
+                </execution>
+                <execution>
+                  <id>scala-test-compile-first</id>
+                  <phase>process-test-resources</phase>
+                  <goals>
+                    <goal>testCompile</goal>
+                  </goals>
+                </execution>
+              </executions>
             </plugin>
           </plugins>
         </pluginManagement>
@@ -801,52 +868,6 @@
               <id>test</id>
               <goals>
                 <goal>test</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <groupId>net.alchim31.maven</groupId>
-          <artifactId>scala-maven-plugin</artifactId>
-          <version>${scala.compiler.version}</version>
-          <configuration>
-            <compilerPlugins>
-              <compilerPlugin>
-                <groupId>org.wartremover</groupId>
-                <artifactId>wartremover_${scala.binary.version}</artifactId>
-                <version>3.1.6</version>
-              </compilerPlugin>
-            </compilerPlugins>
-            <dependencies>
-              <dependency>
-                <groupId>io.github.zhztheplayer.scalawarts</groupId>
-                <artifactId>scalawarts_${scala.binary.version}</artifactId>
-                <version>0.1.2</version>
-              </dependency>
-            </dependencies>
-            <recompileMode>${scala.recompile.mode}</recompileMode>
-            <args>
-              <arg>-Wconf:msg=While parsing annotations in:silent,any:e</arg>
-              <arg>-Ywarn-unused:imports</arg>
-              <arg>-deprecation</arg>
-              <arg>-feature</arg>
-              <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
-            </args>
-          </configuration>
-          <executions>
-            <execution>
-              <id>scala-compile-first</id>
-              <phase>process-resources</phase>
-              <goals>
-                <goal>add-source</goal>
-                <goal>compile</goal>
-              </goals>
-            </execution>
-            <execution>
-              <id>scala-test-compile-first</id>
-              <phase>process-test-resources</phase>
-              <goals>
-                <goal>testCompile</goal>
               </goals>
             </execution>
           </executions>
