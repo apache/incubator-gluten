@@ -24,8 +24,8 @@
   <description>Apache Gluten(incubating)</description>
 
   <organization>
-        <name>Apache</name>
-        <url>http://gluten.apache.org</url>
+    <name>Apache</name>
+    <url>http://gluten.apache.org</url>
   </organization>
 
   <scm>
@@ -540,7 +540,7 @@
                   <appendAssemblyId>true</appendAssemblyId>
                   <descriptors>
                     <descriptor>
-                    src/assembly/source-assembly.xml
+                      src/assembly/source-assembly.xml
                     </descriptor>
                   </descriptors>
                   <finalName>apache-gluten-${project.version}</finalName>
@@ -548,7 +548,7 @@
               </execution>
             </executions>
           </plugin>
-	</plugins>
+        </plugins>
       </build>
     </profile>
   </profiles>
@@ -968,7 +968,7 @@
           <version>${spotless.version}</version>
           <configuration>
             <java>
-              <toggleOffOn />
+              <toggleOffOn/>
               <googleJavaFormat>
                 <version>1.7</version>
               </googleJavaFormat>
@@ -978,7 +978,7 @@
                 <order>org.apache.gluten,io.substrait.spark,,javax,java,scala,\#</order>
               </importOrder>
 
-              <removeUnusedImports />
+              <removeUnusedImports/>
               <licenseHeader>
                 <content>${spotless.license.header}</content>
                 <delimiter>${spotless.delimiter}</delimiter>
@@ -986,7 +986,7 @@
             </java>
             <scala>
               <!--  make it works `// spotless:off `  -->
-              <toggleOffOn />
+              <toggleOffOn/>
               <scalafmt>
                 <version>${spotless.scalafmt.version}</version>
                 <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>
