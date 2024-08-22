@@ -44,6 +44,7 @@ env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
   MVN_CMD: 'mvn -ntp'
   WGET_CMD: 'wget -nv'
+  SETUP: 'bash .github/workflows/util/setup_helper.sh'
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -206,12 +207,9 @@ jobs:
           else
             yum update -y && yum install -y java-1.8.0-openjdk-devel wget
           fi
-          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
+          $SETUP install_maven
       - name: Set environment variables
         run: |
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
           if [ "${{ matrix.java }}" = "java-17" ]; then
             echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk" >> $GITHUB_ENV
           elif [ "${{ matrix.java }}" = "java-11" ]; then
@@ -436,13 +434,9 @@ jobs:
       - name: Setup java and maven
         run: |
           yum update -y && yum install -y java-1.8.0-openjdk-devel wget git
-          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
+          $SETUP install_maven
       - name: Build for Uniffle 0.9.0
         run: |
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd /opt && \
           git clone -b v0.9.0 https://github.com/apache/incubator-uniffle.git && \
@@ -461,14 +455,10 @@ jobs:
           bash ./bin/start-coordinator.sh && bash ./bin/start-shuffle-server.sh
       - name: Build for Spark ${{ matrix.spark }}
         run: |
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
           cd $GITHUB_WORKSPACE/ && \
           $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -Puniffle -DskipTests
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 with uniffle-0.9.0
         run: |
-          export MAVEN_HOME=/usr/lib/maven && \
-          export PATH=${PATH}:${MAVEN_HOME}/bin && \
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
           cd $GITHUB_WORKSPACE/tools/gluten-it && \
           $MVN_CMD clean install -Pspark-3.2 -Puniffle  && \
@@ -554,10 +544,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+          $SETUP install_maven
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -614,10 +601,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+          $SETUP install_maven
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -661,10 +645,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+          $SETUP install_maven
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -722,10 +703,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+          $SETUP install_maven
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -770,10 +748,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+          $SETUP install_maven
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -831,10 +806,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+          $SETUP install_maven
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -879,10 +851,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+          $SETUP install_maven
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -939,10 +908,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+          $SETUP install_maven
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -993,10 +959,7 @@ jobs:
       - name: Setup build dependency
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz
-          mv apache-maven-3.8.8 /usr/lib/maven
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+          $SETUP install_maven
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -1039,9 +1002,7 @@ jobs:
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          ${WGET_CMD} https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz
-          tar -xvf apache-maven-3.8.8-bin.tar.gz && mv apache-maven-3.8.8 /usr/lib/maven
-          echo "PATH=${PATH}:/usr/lib/maven/bin" >> $GITHUB_ENV
+          $SETUP install_maven
       - name: Build Gluten native libraries
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
