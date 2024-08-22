@@ -17,8 +17,8 @@
 package org.apache.spark.sql.expression
 
 import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
-import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, GenericExpressionTransformer, Transformable, UDFMappings}
+import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
+import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, GenericExpressionTransformer, Transformable}
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.vectorized.JniWorkspace
 
@@ -95,11 +95,14 @@ case class UDAFSignature(
 
 case class UDFExpression(
     name: String,
+    alias: String,
     dataType: DataType,
     nullable: Boolean,
     children: Seq[Expression])
   extends Unevaluable
   with Transformable {
+  override def nodeName: String = alias
+
   override protected def withNewChildrenInternal(
       newChildren: IndexedSeq[Expression]): Expression = {
     this.copy(children = newChildren)
@@ -118,11 +121,11 @@ case class UDFExpression(
 }
 
 object UDFResolver extends Logging {
-  private val UDFNames = mutable.HashSet[String]()
+  val UDFNames = mutable.HashSet[String]()
   // (udf_name, arg1, arg2, ...) => return type
   private val UDFMap = mutable.HashMap[String, mutable.ListBuffer[UDFSignature]]()
 
-  private val UDAFNames = mutable.HashSet[String]()
+  val UDAFNames = mutable.HashSet[String]()
   // (udaf_name, arg1, arg2, ...) => return type, intermediate attributes
   private val UDAFMap =
     mutable.HashMap[String, mutable.ListBuffer[UDAFSignature]]()
@@ -341,14 +344,12 @@ object UDFResolver extends Logging {
         Seq.empty
       case Some(_) =>
         UdfJniWrapper.getFunctionSignatures()
-        UDFNames.foreach(UDFMappings.nativeHiveUDF.add)
-
         UDFNames.map {
           name =>
             (
               new FunctionIdentifier(name),
               new ExpressionInfo(classOf[UDFExpression].getName, name),
-              (e: Seq[Expression]) => getUdfExpression(name)(e))
+              (e: Seq[Expression]) => getUdfExpression(name, name)(e))
         }.toSeq ++ UDAFNames.map {
           name =>
             (
@@ -365,27 +366,29 @@ object UDFResolver extends Logging {
       .toBoolean
   }
 
-  private def getUdfExpression(name: String)(children: Seq[Expression]) = {
+  def getUdfExpression(name: String, alias: String)(children: Seq[Expression]): UDFExpression = {
     def errorMessage: String =
       s"UDF $name -> ${children.map(_.dataType.simpleString).mkString(", ")} is not registered."
 
     val allowTypeConversion = checkAllowTypeConversion
     val signatures =
-      UDFMap.getOrElse(name, throw new UnsupportedOperationException(errorMessage));
+      UDFMap.getOrElse(name, throw new GlutenNotSupportException(errorMessage));
     signatures.find(sig => tryBind(sig, children.map(_.dataType), allowTypeConversion)) match {
       case Some(sig) =>
         UDFExpression(
           name,
+          alias,
           sig.expressionType.dataType,
           sig.expressionType.nullable,
           if (!allowTypeConversion && !sig.allowTypeConversion) children
-          else applyCast(children, sig))
+          else applyCast(children, sig)
+        )
       case None =>
-        throw new UnsupportedOperationException(errorMessage)
+        throw new GlutenNotSupportException(errorMessage)
     }
   }
 
-  private def getUdafExpression(name: String)(children: Seq[Expression]) = {
+  def getUdafExpression(name: String)(children: Seq[Expression]): UserDefinedAggregateFunction = {
     def errorMessage: String =
       s"UDAF $name -> ${children.map(_.dataType.simpleString).mkString(", ")} is not registered."
 
@@ -393,7 +396,7 @@ object UDFResolver extends Logging {
     val signatures =
       UDAFMap.getOrElse(
         name,
-        throw new UnsupportedOperationException(errorMessage)
+        throw new GlutenNotSupportException(errorMessage)
       )
     signatures.find(sig => tryBind(sig, children.map(_.dataType), allowTypeConversion)) match {
       case Some(sig) =>
@@ -406,7 +409,7 @@ object UDFResolver extends Logging {
           sig.intermediateAttrs
         )
       case None =>
-        throw new UnsupportedOperationException(errorMessage)
+        throw new GlutenNotSupportException(errorMessage)
     }
   }
 

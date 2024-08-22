@@ -25,14 +25,12 @@ import org.apache.commons.lang3.StringUtils
 
 import java.util.Locale
 
-import scala.collection.mutable
 import scala.collection.mutable.Map
 
 object UDFMappings extends Logging {
   val hiveUDFMap: Map[String, String] = Map()
   val pythonUDFMap: Map[String, String] = Map()
   val scalaUDFMap: Map[String, String] = Map()
-  val nativeHiveUDF: mutable.Set[String] = mutable.HashSet()
 
   private def appendKVToMap(key: String, value: String, res: Map[String, String]): Unit = {
     if (key.isEmpty || value.isEmpty()) {

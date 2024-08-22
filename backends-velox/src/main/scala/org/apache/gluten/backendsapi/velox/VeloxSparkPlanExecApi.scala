@@ -50,6 +50,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.execution.utils.ExecUtil
 import org.apache.spark.sql.expression.{UDFExpression, UserDefinedAggregateFunction}
+import org.apache.spark.sql.hive.VeloxHiveUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -818,5 +819,11 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         }
       case other => other
     }
+  }
+
+  override def genHiveUDFTransformer(
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    VeloxHiveUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
   }
 }

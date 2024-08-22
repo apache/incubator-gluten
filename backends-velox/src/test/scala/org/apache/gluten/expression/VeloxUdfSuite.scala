@@ -22,6 +22,7 @@ import org.apache.gluten.tags.{SkipTestTags, UDFTest}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenQueryTest, Row, SparkSession}
 import org.apache.spark.sql.catalyst.plans.SQLHelper
+import org.apache.spark.sql.expression.UDFResolver
 
 import java.nio.file.Paths
 import java.sql.Date
@@ -61,6 +62,24 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
     }
 
     _spark.sparkContext.setLogLevel("info")
+  }
+
+  override def afterAll(): Unit = {
+    try {
+      super.afterAll()
+      if (_spark != null) {
+        try {
+          _spark.sessionState.catalog.reset()
+        } finally {
+          _spark.stop()
+          _spark = null
+        }
+      }
+    } finally {
+      SparkSession.clearActiveSession()
+      SparkSession.clearDefaultSession()
+      doThreadPostAudit()
+    }
   }
 
   override protected def spark = _spark
@@ -143,8 +162,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
 
           // Check native hive udf has been registered.
           assert(
-            UDFMappings.nativeHiveUDF.contains(
-              "org.apache.spark.sql.hive.execution.UDFStringString"))
+            UDFResolver.UDFNames.contains("org.apache.spark.sql.hive.execution.UDFStringString"))
 
           spark.sql("""
                       |CREATE TEMPORARY FUNCTION hive_string_string
@@ -154,13 +172,13 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
           val nativeResult =
             spark.sql(s"""SELECT hive_string_string(col2, 'a') FROM $tbl""").collect()
           // Unregister native hive udf to fallback.
-          UDFMappings.nativeHiveUDF.remove("org.apache.spark.sql.hive.execution.UDFStringString")
+          UDFResolver.UDFNames.remove("org.apache.spark.sql.hive.execution.UDFStringString")
           val fallbackResult =
             spark.sql(s"""SELECT hive_string_string(col2, 'a') FROM $tbl""").collect()
           assert(nativeResult.sameElements(fallbackResult))
 
           // Add an unimplemented udf to the map to test fallback of registered native hive udf.
-          UDFMappings.nativeHiveUDF.add("org.apache.spark.sql.hive.execution.UDFIntegerToString")
+          UDFResolver.UDFNames.add("org.apache.spark.sql.hive.execution.UDFIntegerToString")
           spark.sql("""
                       |CREATE TEMPORARY FUNCTION hive_int_to_string
                       |AS 'org.apache.spark.sql.hive.execution.UDFIntegerToString'
