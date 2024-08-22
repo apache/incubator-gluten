@@ -179,8 +179,7 @@ trait SparkShims {
       startMapIndex: Int,
       endMapIndex: Int,
       startPartition: Int,
-      endPartition: Int)
-      : Tuple2[Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])], Boolean]
+      endPartition: Int): Tuple2[Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])], Boolean]
 
   // Compatible with Spark-3.5 and later
   def getShuffleAdvisoryPartitionSize(shuffle: ShuffleExchangeLike): Option[Long] = None

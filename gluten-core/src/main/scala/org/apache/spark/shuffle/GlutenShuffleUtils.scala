@@ -97,7 +97,7 @@ object GlutenShuffleUtils {
       endMapIndex: Int,
       startPartition: Int,
       endPartition: Int
-  ): Tuple2[Iterator[(BlockManagerId, collection.Seq[(BlockId, Long, Int)])], Boolean] = {
+  ): Tuple2[Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])], Boolean] = {
     SparkShimLoader.getSparkShims.getShuffleReaderParam(
       handle,
       startMapIndex,
