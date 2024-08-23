@@ -1657,6 +1657,7 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  // FIXME: This only works with CH backend.
   val EXTENDED_COLUMNAR_TRANSFORM_RULES =
     buildConf("spark.gluten.sql.columnar.extended.columnar.transform.rules")
       .withAlternative("spark.gluten.sql.columnar.extended.columnar.pre.rules")
@@ -1664,6 +1665,7 @@ object GlutenConfig {
       .stringConf
       .createWithDefaultString("")
 
+  // FIXME: This only works with CH backend.
   val EXTENDED_COLUMNAR_POST_RULES =
     buildConf("spark.gluten.sql.columnar.extended.columnar.post.rules")
       .doc("A comma-separated list of classes for the extended columnar post rules.")
