@@ -253,16 +253,6 @@ message CrossRel {
 
   JoinType type = 5;
 
-  // TODO -- Remove this unnecessary type.
-  enum JoinType {
-    JOIN_TYPE_UNSPECIFIED = 0;
-    JOIN_TYPE_INNER = 1;
-    JOIN_TYPE_OUTER = 2;
-    JOIN_TYPE_LEFT = 3;
-    JOIN_TYPE_RIGHT = 4;
-    JOIN_TYPE_LEFT_SEMI = 5;
-  }
-
   substrait.extensions.AdvancedExtension advanced_extension = 10;
 }
 
