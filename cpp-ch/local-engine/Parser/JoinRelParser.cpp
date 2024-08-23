@@ -681,14 +681,14 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
                 auto optional_keys = parse_join_keys(current_expr);
                 if (!optional_keys)
                 {
-                    LOG_ERROR(getLogger("JoinRelParser"), "Not equal comparison for keys from both tables");
+                    LOG_DEBUG(getLogger("JoinRelParser"), "Not equal comparison for keys from both tables");
                     return false;
                 }
                 join_on_clause.addKey(optional_keys->first, optional_keys->second, false);
             }
             else
             {
-                LOG_ERROR(getLogger("JoinRelParser"), "And or equals function is expected");
+                LOG_DEBUG(getLogger("JoinRelParser"), "And or equals function is expected");
                 return false;
             }
         }
@@ -701,7 +701,8 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
         expression_stack.pop_back();
         if (!check_function("or", current_expr))
         {
-            LOG_ERROR(getLogger("JoinRelParser"), "Not an or expression");
+            LOG_DEBUG(getLogger("JoinRelParser"), "Not an or expression");
+            return false;
         }
 
         auto get_current_join_on_clause = [&]()
@@ -719,7 +720,7 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
                 auto optional_keys = parse_join_keys(arg.value());
                 if (!optional_keys)
                 {
-                    LOG_ERROR(getLogger("JoinRelParser"), "Not equal comparison for keys from both tables");
+                    LOG_DEBUG(getLogger("JoinRelParser"), "Not equal comparison for keys from both tables");
                     return false;
                 }
                 get_current_join_on_clause()->addKey(optional_keys->first, optional_keys->second, false);
@@ -728,7 +729,7 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
             {
                 if (!parse_and_expression(arg.value(), *get_current_join_on_clause()))
                 {
-                    LOG_ERROR(getLogger("JoinRelParser"), "Parse and expression failed");
+                    LOG_DEBUG(getLogger("JoinRelParser"), "Parse and expression failed");
                     return false;
                 }
             }
@@ -738,7 +739,7 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
             }
             else
             {
-                LOG_ERROR(getLogger("JoinRelParser"), "Unknow function");
+                LOG_DEBUG(getLogger("JoinRelParser"), "Unknow function");
                 return false;
             }
         }

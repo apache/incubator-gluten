@@ -62,11 +62,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
         })
 
   protected def fallbackSets(isAqe: Boolean): Set[Int] = {
-    val more = if (isSparkVersionGE("3.5")) Set(44, 67, 70) else Set.empty[Int]
-
-    // q16 smj + left semi + not condition
-    // Q94 BroadcastHashJoin, LeftSemi, NOT condition
-    Set(16, 94) | more
+    if (isSparkVersionGE("3.5")) Set(44, 67, 70) else Set.empty[Int]
   }
   protected def excludedTpcdsQueries: Set[String] = Set(
     "q66" // inconsistent results
