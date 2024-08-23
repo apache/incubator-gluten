@@ -21,8 +21,10 @@
 #include <Parser/TypeParser.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <google/protobuf/wrappers.pb.h>
+#include <Storages/Mergetree/MetaDataHelper.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
+#include <Parser/InputFileNameParser.h>
 
 namespace DB
 {
@@ -76,6 +78,30 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
             &Poco::Logger::get("SerializedPlanParser"), "Try to read ({}) instead of empty header", one_column_name_type.front().dump());
     }
 
+    InputFileNameParser input_file_name_parser;
+    if (InputFileNameParser::hasInputFileNameColumn(input))
+    {
+        std::vector<String> parts;
+        for(const auto & part : merge_tree_table.parts)
+        {
+            parts.push_back(merge_tree_table.absolute_path + "/" + part.name);
+        }
+        auto name = Poco::cat<String>(",", parts.begin(), parts.end());
+        input_file_name_parser.setFileName(name);
+    }
+    if (InputFileNameParser::hasInputFileBlockStartColumn(input))
+    {
+        // mergetree doesn't support block start
+        input_file_name_parser.setBlockStart(0);
+    }
+    if (InputFileNameParser::hasInputFileBlockLengthColumn(input))
+    {
+        // mergetree doesn't support block length
+        input_file_name_parser.setBlockLength(0);
+    }
+
+    input = InputFileNameParser::removeInputFileColumn(input);
+
     for (const auto & [name, sizes] : storage->getColumnSizes())
         column_sizes[name] = sizes.data_compressed;
     auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, storage->getInMemoryMetadataPtr());
@@ -128,6 +154,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
         if (remove_null_step)
             steps.emplace_back(remove_null_step);
     }
+    input_file_name_parser.addInputFileProjectStep(*query_plan);
     return query_plan;
 }
 

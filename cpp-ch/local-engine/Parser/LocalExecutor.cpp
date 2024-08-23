@@ -72,10 +72,6 @@ bool LocalExecutor::hasNext()
 
 bool LocalExecutor::fallbackMode()
 {
-    if (executor.get() || fallback_mode)
-        std::cerr << fmt::format("executor {} in fallback mode\n", reinterpret_cast<long>(this));
-    else
-        std::cerr << fmt::format("executor {} not in fallback mode\n", reinterpret_cast<long>(this));
     return executor.get() || fallback_mode;
 }
 
@@ -92,7 +88,6 @@ SparkRowInfoPtr LocalExecutor::next()
     spark_buffer = std::make_unique<SparkBuffer>();
     spark_buffer->address = row_info->getBufferAddress();
     spark_buffer->size = row_info->getTotalBytes();
-    std::cerr << "call next\n";
     return row_info;
 }
 Block * LocalExecutor::nextColumnar()

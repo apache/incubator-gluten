@@ -125,8 +125,6 @@ Block * SparkRowToCHColumn::getBlock(SparkRowToCHColumnHelper & helper)
         ColumnWithTypeAndName named_col(col, uint8_ty, "__anonymous_col__");
         block->insert(named_col);
     }
-    std::cout << "spark row to ch column:\n";
-    debug::headBlock(*block);
     return block;
 }
 

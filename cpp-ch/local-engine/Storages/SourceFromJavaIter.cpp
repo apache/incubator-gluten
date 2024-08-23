@@ -21,6 +21,7 @@
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
+#include <Common/DebugUtils.h>
 
 namespace DB
 {
@@ -40,10 +41,8 @@ static DB::Block getRealHeader(const DB::Block & header, const std::optional<DB:
 {
     if (!header)
         return BlockUtil::buildRowCountHeader();
-
     if (!first_block.has_value())
         return header;
-
     if (header.columns() != first_block.value().columns())
         throw DB::Exception(
             DB::ErrorCodes::LOGICAL_ERROR,
@@ -79,15 +78,17 @@ std::optional<DB::Block> SourceFromJavaIter::peekBlock(JNIEnv * env, jobject jav
 
     jbyteArray block_addr = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, serialized_record_batch_iterator_next));
     auto * block = reinterpret_cast<DB::Block *>(byteArrayToLong(env, block_addr));
-    if (block)
-        return DB::Block(*block);
-    return std::nullopt;
+    if (block->columns())
+        return std::optional(DB::Block(block->getColumnsWithTypeAndName()));
+    else
+        return std::nullopt;
+
 }
 
 
 SourceFromJavaIter::SourceFromJavaIter(
     DB::ContextPtr context_, const DB::Block& header, jobject java_iter_, bool materialize_input_, std::optional<DB::Block> && first_block_)
-    : DB::ISource(getRealHeader(header, first_block))
+    : DB::ISource(getRealHeader(header, first_block_))
     , context(context_)
     , original_header(header)
     , java_iter(java_iter_)

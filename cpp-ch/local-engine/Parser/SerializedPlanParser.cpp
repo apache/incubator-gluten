@@ -84,7 +84,7 @@
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
 #include <Processors/Executors/PipelineExecutor.h>
-
+#include <Parser/InputFileNameParser.h>
 
 namespace DB
 {
@@ -345,7 +345,7 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         NamesWithAliases aliases;
         auto cols = query_plan->getCurrentDataStream().header.getNamesAndTypesList();
         if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
-            throw Exception(ErrorCodes::LOGICAL_ERROR, "Missmatch result columns size.");
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "Missmatch result columns size. plan column size {}, subtrait plan size {}.", cols.getNames().size(), root_rel.root().names_size());
         for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
             aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
         actions_dag.project(aliases);

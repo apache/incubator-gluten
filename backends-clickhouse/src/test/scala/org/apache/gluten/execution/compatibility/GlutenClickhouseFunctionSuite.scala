@@ -230,4 +230,28 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
       )
     }
   }
+
+  test("function_input_file_expr") {
+    withTable("test_table") {
+      sql("create table test_table(a int) using parquet")
+      sql("insert into test_table values(1)")
+      compareResultsAgainstVanillaSpark(
+        """
+          |select a,input_file_name(), input_file_block_start(),
+          |input_file_block_length() from test_table
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+      compareResultsAgainstVanillaSpark(
+        """
+          |select input_file_name(), input_file_block_start(),
+          |input_file_block_length() from test_table
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
 }

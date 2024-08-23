@@ -383,7 +383,7 @@ size_t MemorySortCelebornPartitionWriter::evictPartitions()
                 celeborn_client->pushPartitionData(cur_partition_id, data.data(), data.size());
                 split_result->total_io_time += push_time_watch.elapsedNanoseconds();
                 split_result->partition_lengths[cur_partition_id] += data.size();
-                shuffle_writer->split_result.total_bytes_written += data.size();
+                split_result->total_bytes_written += data.size();
             }
             output.restart();
         };
@@ -497,7 +497,7 @@ size_t CelebornPartitionWriter::evictSinglePartition(size_t partition_id)
         split_result->total_write_time += push_time_watch.elapsedNanoseconds();
         split_result->total_io_time += push_time_watch.elapsedNanoseconds();
         split_result->total_serialize_time += serialization_time_watch.elapsedNanoseconds();
-        shuffle_writer->split_result.total_bytes_written += written_bytes;
+        split_result->total_bytes_written += written_bytes;
     };
 
     Stopwatch spill_time_watch;
