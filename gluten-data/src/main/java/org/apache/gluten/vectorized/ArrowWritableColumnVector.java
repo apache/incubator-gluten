@@ -1255,7 +1255,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       throw new UnsupportedOperationException();
     }
 
-    // Arrow not need to setNotNull, set the valus is enough.
+    // Most of date type of Arrow does not need to setNotNull, set the value is enough.
     void setNotNull(int rowId) {}
 
     void setNulls(int rowId, int count) {
