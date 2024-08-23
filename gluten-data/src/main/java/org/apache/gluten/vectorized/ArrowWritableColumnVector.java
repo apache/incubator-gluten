@@ -719,17 +719,6 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   }
 
   @Override
-  public void putDecimal(int rowId, Decimal value, int precision) {
-    if (precision <= Decimal.MAX_INT_DIGITS()) {
-      putInt(rowId, (int) value.toUnscaledLong());
-    } else if (precision <= Decimal.MAX_LONG_DIGITS()) {
-      putLong(rowId, value.toUnscaledLong());
-    } else {
-      writer.setBytes(rowId, value.toJavaBigDecimal());
-    }
-  }
-
-  @Override
   public UTF8String getUTF8String(int rowId) {
     if (isNullAt(rowId)) {
       return null;
@@ -1754,6 +1743,14 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     @Override
     final void setBytes(int rowId, BigDecimal value) {
       writer.setSafe(rowId, value);
+    }
+
+    final void setBytes(int rowId, int count, byte[] src, int srcIndex) {
+      if (count == src.length && srcIndex == 0) {
+        writer.setBigEndianSafe(rowId, src);
+      } else {
+        throw new UnsupportedOperationException();
+      }
     }
   }
 
