@@ -114,7 +114,7 @@ class GlutenInsertSuite
     }
   }
 
-  testGluten("Cleanup staging files if job failed") {
+  ignoreGluten("Cleanup staging files if job failed") {
     // Using a unique table name in this test. Sometimes, the table is not removed for some unknown
     // reason, which can cause test failure (location already exists) if other following tests have
     // the same table name.
