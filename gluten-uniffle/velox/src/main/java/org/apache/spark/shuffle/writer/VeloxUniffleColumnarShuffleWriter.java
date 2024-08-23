@@ -226,11 +226,11 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
     // clear all
     sendRestBlockAndWait();
     sendCommit();
-    long writeDurationMs = System.nanoTime() - pushMergedDataTime;
-    shuffleWriteMetrics.incWriteTime(writeDurationMs);
+    long writeDurationNanos = System.nanoTime() - pushMergedDataTime;
+    shuffleWriteMetrics.incWriteTime(writeDurationNanos);
     LOG.info(
         "Finish write shuffle with rest write {} ms",
-        TimeUnit.MILLISECONDS.toNanos(writeDurationMs));
+        TimeUnit.NANOSECONDS.toMillis(writeDurationNanos));
   }
 
   @Override
