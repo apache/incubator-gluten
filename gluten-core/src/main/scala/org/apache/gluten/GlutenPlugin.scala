@@ -181,7 +181,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
         1024 * 1024 * 1024
       }
 
-    val overheadSize : Long = SparkResourceUtil.getMemoryOverheadSize(conf)
+    val overheadSize: Long = SparkResourceUtil.getMemoryOverheadSize(conf)
     conf.set(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY, overheadSize.toString)
 
     // If dynamic off-heap sizing is enabled, the off-heap size is calculated based on the on-heap

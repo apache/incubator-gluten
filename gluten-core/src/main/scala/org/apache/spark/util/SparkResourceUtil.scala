@@ -87,9 +87,9 @@ object SparkResourceUtil extends Logging {
     val overheadMib = conf.get(EXECUTOR_MEMORY_OVERHEAD).getOrElse {
       val executorMemMib = conf.get(EXECUTOR_MEMORY)
       val factor =
-        conf.getDouble("spark.executor.memoryOverheadFactor", 0.1D)
+        conf.getDouble("spark.executor.memoryOverheadFactor", 0.1d)
       val minMib = conf.getLong("spark.executor.minMemoryOverhead", 384L)
-      (executorMemMib * factor).toLong max minMib
+      (executorMemMib * factor).toLong.max(minMib)
     }
     ByteUnit.MiB.toBytes(overheadMib)
   }
