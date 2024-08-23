@@ -336,5 +336,22 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     compareResultsAgainstVanillaSpark(sql5, compareResult = true, _ => {})
   }
 
+  test("TakeOrderedAndProjectExecTransformer in broadcastRelation") {
+    val q =
+      """
+        | with dd as (
+        | select d_date_sk, count(*) as cn
+        | from date_dim
+        | where d_date_sk is not null
+        | group by d_date_sk
+        | order by cn desc
+        | limit 10)
+        | select count(ss.ss_sold_date_sk)
+        | from store_sales ss, dd
+        | where ss_sold_date_sk=dd.d_date_sk+1
+        |""".stripMargin
+    runQueryAndCompare(q)(checkGlutenOperatorMatch[TakeOrderedAndProjectExecTransformer])
+  }
+
 }
 // scalastyle:on line.size.limit
