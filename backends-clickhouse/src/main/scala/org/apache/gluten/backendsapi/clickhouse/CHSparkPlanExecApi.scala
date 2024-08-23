@@ -560,6 +560,21 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       SparkShimLoader.getSparkShims.bloomFilterExpressionMappings()
   }
 
+  /** Define backend-specific expression converter. */
+  override def extraExpressionConverter(
+      substraitExprName: String,
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): Option[ExpressionTransformer] = expr match {
+    case e
+        if ExpressionExtensionTrait.expressionExtensionTransformer.extensionExpressionsMapping
+          .contains(e.getClass) =>
+      // Use extended expression transformer to replace custom expression first
+      Some(
+        ExpressionExtensionTrait.expressionExtensionTransformer
+          .replaceWithExtensionExpressionTransformer(substraitExprName, e, attributeSeq))
+    case _ => None
+  }
+
   override def genStringTranslateTransformer(
       substraitExprName: String,
       srcExpr: ExpressionTransformer,

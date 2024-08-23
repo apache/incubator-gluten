@@ -448,8 +448,15 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, exprs, original)
   }
 
-  /** Define backend specfic expression mappings. */
+  /** Define backend-specific expression mappings. */
   def extraExpressionMappings: Seq[Sig] = Seq.empty
+
+  /** Define backend-specific expression converter. */
+  def extraExpressionConverter(
+      substraitExprName: String,
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): Option[ExpressionTransformer] =
+    None
 
   /**
    * Define whether the join operator is fallback because of the join operator is not supported by

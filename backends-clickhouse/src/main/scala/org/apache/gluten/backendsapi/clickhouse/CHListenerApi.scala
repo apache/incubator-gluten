@@ -20,8 +20,10 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.execution.CHBroadcastBuildSideCache
 import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
-import org.apache.gluten.expression.{ExpressionMappings, UDFMappings}
+import org.apache.gluten.expression.UDFMappings
+import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
+
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
@@ -29,9 +31,10 @@ import org.apache.spark.listener.CHGlutenSQLAppStatusListener
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.execution.datasources.v1._
-import org.apache.spark.util.SparkDirectoryUtil
-import org.apache.commons.lang3.StringUtils
 import org.apache.spark.sql.utils.ExpressionUtil
+import org.apache.spark.util.SparkDirectoryUtil
+
+import org.apache.commons.lang3.StringUtils
 
 import java.util.TimeZone
 
@@ -46,7 +49,7 @@ class CHListenerApi extends ListenerApi with Logging {
       pc.conf.get(GlutenConfig.GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF, "")
     )
     if (expressionExtensionTransformer != null) {
-      ExpressionMappings.expressionExtensionTransformer = expressionExtensionTransformer
+      ExpressionExtensionTrait.expressionExtensionTransformer = expressionExtensionTransformer
     }
   }
 
