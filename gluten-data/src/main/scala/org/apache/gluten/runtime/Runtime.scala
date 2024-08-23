@@ -98,16 +98,17 @@ object Runtime {
           s"Runtime instance already released: $handle, ${resourceName()}, ${priority()}")
       }
 
-      def dump(): KnownNameAndStats = {
-        new KnownNameAndStats() {
-          override def name: String = resourceName()
-          override def stats: MemoryUsageStats = collectMemoryUsage()
-        }
+      def dump(): String = {
+        SparkMemoryUtil.prettyPrintStats(
+          s"[${resourceName()}]",
+          new KnownNameAndStats() {
+            override def name: String = resourceName()
+            override def stats: MemoryUsageStats = collectMemoryUsage()
+          })
       }
 
       if (LOGGER.isDebugEnabled) {
-        LOGGER.debug(
-          SparkMemoryUtil.prettyPrintStats("About to release memory manager, usage dump:", dump()))
+        LOGGER.debug("About to release memory manager, " + dump())
       }
 
       RuntimeJniWrapper.releaseRuntime(handle)
