@@ -47,6 +47,7 @@ OS_VERSION=${OS_VERSION}
 OS_ARCH=$(uname -m)
 PACKAGE_NAME=gluten-${BUILD_VERSION}-${OS_VERSION}-${OS_ARCH}
 PACKAGE_DIR_PATH="${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
+spark_versions=("3.2" "3.3" "3.5")
 
 # cleanup working directory
 [[ -d "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}" ]] && rm -rf "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
@@ -61,10 +62,14 @@ mkdir -p "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
 mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/bin
 mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/conf
 mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/jars
-mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/jars/spark32
-mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/jars/spark33
 mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/libs
 mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/logs
+
+for sv in "${spark_versions[@]}"
+do
+    replace_dot=$(echo "$sv" | tr -d '.')
+    mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/jars/spark"$replace_dot"
+done
 
 # create BUILD_INFO
 {
@@ -78,30 +83,36 @@ mkdir "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/logs
 cp "${GLUTEN_SOURCE}"/LICENSE "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
 cp "${GLUTEN_SOURCE}"/README.md "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
 
-# build gluten with spark32
-mvn clean install -Pbackends-clickhouse -Pspark-3.2 -Pceleborn -DskipTests -Dcheckstyle.skip
-cp "${GLUTEN_SOURCE}"/backends-clickhouse/target/gluten-*-spark-3.2-jar-with-dependencies.jar "${PACKAGE_DIR_PATH}"/jars/spark32/gluten.jar
-cp "${GLUTEN_SOURCE}"/gluten-celeborn/clickhouse/target/gluten-celeborn-clickhouse-${PROJECT_VERSION}-jar-with-dependencies.jar "${PACKAGE_DIR_PATH}"/jars/spark32
-delta_version_32=$(mvn -q -Dexec.executable="echo" -Dexec.args='${delta.version}' -Pspark-3.2 --non-recursive exec:exec)
-wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/${delta_version_32}/delta-core_2.12-${delta_version_32}.jar -P "${PACKAGE_DIR_PATH}"/jars/spark32
-wget https://repo1.maven.org/maven2/io/delta/delta-storage/${delta_version_32}/delta-storage-${delta_version_32}.jar -P "${PACKAGE_DIR_PATH}"/jars/spark32
+function build_gluten_by_spark_version() {
+  spark_profile=$1
+  sv=$(echo "$spark_profile" | tr -d '.')
+  echo "build gluten with spark ${spark_profile}"
 
-# build gluten with spark33
-mvn clean install -Pbackends-clickhouse -Pspark-3.3 -Pceleborn -DskipTests -Dcheckstyle.skip
-cp "${GLUTEN_SOURCE}"/backends-clickhouse/target/gluten-*-spark-3.3-jar-with-dependencies.jar "${PACKAGE_DIR_PATH}"/jars/spark33/gluten.jar
-cp "${GLUTEN_SOURCE}"/gluten-celeborn/clickhouse/target/gluten-celeborn-clickhouse-${PROJECT_VERSION}-jar-with-dependencies.jar "${PACKAGE_DIR_PATH}"/jars/spark33
-delta_version_33=$(mvn -q -Dexec.executable="echo" -Dexec.args='${delta.version}' -Pspark-3.3 --non-recursive exec:exec)
-wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/${delta_version_33}/delta-core_2.12-${delta_version_33}.jar -P "${PACKAGE_DIR_PATH}"/jars/spark33
-wget https://repo1.maven.org/maven2/io/delta/delta-storage/${delta_version_33}/delta-storage-${delta_version_33}.jar -P "${PACKAGE_DIR_PATH}"/jars/spark33
+  mvn clean install -Pbackends-clickhouse -Pspark-"${spark_profile}" -Pceleborn -DskipTests -Dcheckstyle.skip
+  cp "${GLUTEN_SOURCE}"/backends-clickhouse/target/gluten-*-spark-"${spark_profile}"-jar-with-dependencies.jar "${PACKAGE_DIR_PATH}"/jars/spark"${sv}"/gluten.jar
+  cp "${GLUTEN_SOURCE}"/gluten-celeborn/clickhouse/target/gluten-celeborn-clickhouse-"${PROJECT_VERSION}"-jar-with-dependencies.jar "${PACKAGE_DIR_PATH}"/jars/spark"${sv}"
+  delta_version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${delta.version}' -Pspark-"${spark_profile}" --non-recursive exec:exec)
+  delta_package_name=$(mvn -q -Dexec.executable="echo" -Dexec.args='${delta.package.name}' -Pspark-"${spark_profile}" --non-recursive exec:exec)
+  wget https://repo1.maven.org/maven2/io/delta/"${delta_package_name}"_2.12/"${delta_version}"/"${delta_package_name}"_2.12-"${delta_version}".jar -P "${PACKAGE_DIR_PATH}"/jars/spark"${sv}"
+  wget https://repo1.maven.org/maven2/io/delta/delta-storage/"${delta_version}"/delta-storage-"${delta_version}".jar -P "${PACKAGE_DIR_PATH}"/jars/spark"${sv}"
+}
 
 # download common 3rd party jars
 protobuf_version=$(mvn -q -P${DEFAULT_SPARK_PROFILE} -Dexec.executable="echo" -Dexec.args='${protobuf.version}' --non-recursive exec:exec)
 wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/${protobuf_version}/protobuf-java-${protobuf_version}.jar -P "${PACKAGE_DIR_PATH}"/jars/spark32
-cp "${PACKAGE_DIR_PATH}"/jars/spark32/protobuf-java-${protobuf_version}.jar "${PACKAGE_DIR_PATH}"/jars/spark33
-
 celeborn_version=$(mvn -q -P${DEFAULT_SPARK_PROFILE} -Dexec.executable="echo" -Dexec.args='${celeborn.version}' --non-recursive exec:exec)
 wget https://repo1.maven.org/maven2/org/apache/celeborn/celeborn-client-spark-3-shaded_2.12/${celeborn_version}/celeborn-client-spark-3-shaded_2.12-${celeborn_version}.jar -P "${PACKAGE_DIR_PATH}"/jars/spark32
-cp "${PACKAGE_DIR_PATH}"/jars/spark32/celeborn-client-spark-3-shaded_2.12-${celeborn_version}.jar "${PACKAGE_DIR_PATH}"/jars/spark33
+
+for sv in "${spark_versions[@]}"
+do
+    build_gluten_by_spark_version "$sv"
+    replace_dot=$(echo "$sv" | tr -d '.')
+    if [[ "$replace_dot" == "32" ]];then
+        continue # error: xxx are the same file
+    fi
+    cp -f "${PACKAGE_DIR_PATH}"/jars/spark32/protobuf-java-"${protobuf_version}".jar "${PACKAGE_DIR_PATH}"/jars/spark"${replace_dot}"
+    cp -f "${PACKAGE_DIR_PATH}"/jars/spark32/celeborn-client-spark-3-shaded_2.12-"${celeborn_version}".jar "${PACKAGE_DIR_PATH}"/jars/spark"${replace_dot}"
+done
 
 # build libch.so
 bash "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/build_clickhouse.sh
