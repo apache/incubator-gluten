@@ -607,6 +607,7 @@ object GlutenConfig {
   val GLUTEN_SUPPORTED_PYTHON_UDFS = "spark.gluten.supported.python.udfs"
   val GLUTEN_SUPPORTED_SCALA_UDFS = "spark.gluten.supported.scala.udfs"
 
+  // FIXME: This only works with CH backend.
   val GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF =
     "spark.gluten.sql.columnar.extended.expressions.transformer"
 
@@ -1672,6 +1673,7 @@ object GlutenConfig {
       .stringConf
       .createWithDefaultString("")
 
+  // FIXME: This only works with CH backend.
   val EXTENDED_EXPRESSION_TRAN_CONF =
     buildConf(GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF)
       .doc("A class for the extended expressions transformer.")

@@ -18,10 +18,10 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, SparkPlanExecApi}
-import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
+import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import org.apache.gluten.extension.columnar.transition.Convention
@@ -556,6 +556,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       Sig[CollectList](ExpressionNames.COLLECT_LIST),
       Sig[CollectSet](ExpressionNames.COLLECT_SET)
     ) ++
+      ExpressionExtensionTrait.expressionExtensionTransformer.expressionSigList ++
       SparkShimLoader.getSparkShims.bloomFilterExpressionMappings()
   }
 
@@ -698,7 +699,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
                     .doTransform(args)))
 
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              AggregateFunctionsBuilder.create(args, aggExpression.aggregateFunction).toInt,
+              CHExpressions.createAggregateFunction(args, aggExpression.aggregateFunction).toInt,
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),

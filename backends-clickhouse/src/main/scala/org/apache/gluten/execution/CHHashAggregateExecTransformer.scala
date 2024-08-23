@@ -249,7 +249,7 @@ case class CHHashAggregateExecTransformer(
           childrenNodeList.add(node)
         }
         val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-          AggregateFunctionsBuilder.create(args, aggregateFunc),
+          CHExpressions.createAggregateFunction(args, aggregateFunc),
           childrenNodeList,
           modeToKeyWord(aggExpr.mode),
           ConverterUtils.getTypeNode(aggregateFunc.dataType, aggregateFunc.nullable)
