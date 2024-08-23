@@ -535,9 +535,11 @@ object GlutenConfig {
   val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // Private Spark configs.
-  val GLUTEN_ONHEAP_SIZE_KEY = "spark.executor.memory"
-  val GLUTEN_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
-  val GLUTEN_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
+  val SPARK_ONHEAP_SIZE_KEY = "spark.executor.memory"
+  val SPARK_OVERHEAD_SIZE_KEY = "spark.executor.memoryOverhead"
+  val SPARK_OVERHEAD_FACTOR_KEY = "spark.executor.memoryOverheadFactor"
+  val SPARK_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
+  val SPARK_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
   val SPARK_REDACTION_REGEX = "spark.redaction.regex"
 
   // For Soft Affinity Scheduling
@@ -570,6 +572,7 @@ object GlutenConfig {
 
   // Added back to Spark Conf during executor initialization
   val GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY = "spark.gluten.numTaskSlotsPerExecutor"
+  val GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY = "spark.gluten.memoryOverhead.size.in.bytes"
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
   val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
   val GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY =
@@ -762,9 +765,10 @@ object GlutenConfig {
       SPARK_SQL_PARQUET_COMPRESSION_CODEC,
       // datasource config end
 
+      GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY,
       GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
-      GLUTEN_OFFHEAP_ENABLED,
+      SPARK_OFFHEAP_ENABLED,
       SESSION_LOCAL_TIMEZONE.key,
       DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
       SPARK_REDACTION_REGEX
@@ -1243,6 +1247,16 @@ object GlutenConfig {
           "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
       .intConf
       .createWithDefaultString("-1")
+
+  val COLUMNAR_OVERHEAD_SIZE_IN_BYTES =
+    buildConf(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY)
+      .internal()
+      .doc(
+        "Must provide default value since non-execution operations " +
+          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
+          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("0")
 
   val COLUMNAR_OFFHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY)

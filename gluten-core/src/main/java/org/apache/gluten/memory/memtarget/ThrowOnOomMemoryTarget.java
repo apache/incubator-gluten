@@ -89,8 +89,8 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
         .append(
             String.format(
                 "\t%s=%s",
-                GlutenConfig$.MODULE$.GLUTEN_OFFHEAP_ENABLED(),
-                SQLConf.get().getConfString(GlutenConfig$.MODULE$.GLUTEN_OFFHEAP_ENABLED())))
+                GlutenConfig$.MODULE$.SPARK_OFFHEAP_ENABLED(),
+                SQLConf.get().getConfString(GlutenConfig$.MODULE$.SPARK_OFFHEAP_ENABLED())))
         .append(System.lineSeparator())
         .append(
             String.format(

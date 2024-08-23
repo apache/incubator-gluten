@@ -156,13 +156,13 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     val minOffHeapSize = "1MB"
     if (
       !conf.getBoolean(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED, false) &&
-      (!conf.getBoolean(GlutenConfig.GLUTEN_OFFHEAP_ENABLED, false) ||
-        conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY, 0) < JavaUtils.byteStringAsBytes(
+      (!conf.getBoolean(GlutenConfig.SPARK_OFFHEAP_ENABLED, false) ||
+        conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, 0) < JavaUtils.byteStringAsBytes(
           minOffHeapSize))
     ) {
       throw new GlutenException(
-        s"Must set '${GlutenConfig.GLUTEN_OFFHEAP_ENABLED}' to true " +
-          s"and set '${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY}' to be greater than $minOffHeapSize")
+        s"Must set '${GlutenConfig.SPARK_OFFHEAP_ENABLED}' to true " +
+          s"and set '${GlutenConfig.SPARK_OFFHEAP_SIZE_KEY}' to be greater than $minOffHeapSize")
     }
 
     // Session's local time zone must be set. If not explicitly set by user, its default
@@ -174,12 +174,15 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     conf.set(GlutenConfig.GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, taskSlots.toString)
 
     val onHeapSize: Long =
-      if (conf.contains(GlutenConfig.GLUTEN_ONHEAP_SIZE_KEY)) {
-        conf.getSizeAsBytes(GlutenConfig.GLUTEN_ONHEAP_SIZE_KEY)
+      if (conf.contains(GlutenConfig.SPARK_ONHEAP_SIZE_KEY)) {
+        conf.getSizeAsBytes(GlutenConfig.SPARK_ONHEAP_SIZE_KEY)
       } else {
         // 1GB default
         1024 * 1024 * 1024
       }
+
+    val overheadSize : Long = SparkResourceUtil.getMemoryOverheadSize(conf)
+    conf.set(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY, overheadSize.toString)
 
     // If dynamic off-heap sizing is enabled, the off-heap size is calculated based on the on-heap
     // size. Otherwise, the off-heap size is set to the value specified by the user (if any).
@@ -200,17 +203,17 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
         // The 300MB value, unfortunately, is hard-coded in Spark code.
         ((onHeapSize - (300 * 1024 * 1024)) *
           conf.getDouble(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION, 0.6d)).toLong
-      } else if (conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
+      } else if (conf.contains(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY)) {
         // Optimistic off-heap sizes, assuming all storage memory can be borrowed into execution
         // memory pool, regardless of Spark option spark.memory.storageFraction.
-        conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
+        conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY)
       } else {
         // Default Spark Value.
         0L
       }
 
     conf.set(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
-    conf.set(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY, offHeapSize.toString)
+    conf.set(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY, offHeapSize.toString)
 
     val offHeapPerTask = offHeapSize / taskSlots
     conf.set(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapPerTask.toString)
@@ -218,7 +221,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     // If we are using dynamic off-heap sizing, we should also enable off-heap memory
     // officially.
     if (conf.getBoolean(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED, false)) {
-      conf.set(GlutenConfig.GLUTEN_OFFHEAP_ENABLED, "true")
+      conf.set(GlutenConfig.SPARK_OFFHEAP_ENABLED, "true")
 
       // We already sized the off-heap per task in a conservative manner, so we can just
       // use it.
