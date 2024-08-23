@@ -18,7 +18,7 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.datasource.ArrowConvertorRule
-import org.apache.gluten.extension.{ArrowScanReplaceRule, BloomFilterMightContainJointRewriteRule, CollectRewriteRule, FlushableHashAggregateRule, HLLRewriteRule}
+import org.apache.gluten.extension._
 import org.apache.gluten.extension.EmptySchemaWorkaround.{FallbackEmptySchemaRelation, PlanOneRowRelation}
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast, TransformPreOverrides}
@@ -31,7 +31,6 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter}
 import org.apache.spark.sql.expression.UDFResolver
-import org.apache.spark.util.SparkPlanRules
 
 class VeloxRuleApi extends RuleApi {
   import VeloxRuleApi._
