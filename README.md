@@ -85,7 +85,7 @@ Alternatively, you can build gluten from source, then do some configurations to 
 
 ```
 export gluten_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
-spark-shell 
+spark-shell \
   --master yarn --deploy-mode client \
   --conf spark.plugins=org.apache.gluten.GlutenPlugin \
   --conf spark.memory.offHeap.enabled=true \
