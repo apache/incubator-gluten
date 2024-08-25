@@ -31,11 +31,11 @@ object AggregateFunctionsBuilder {
     // First handle the custom aggregate functions
     val (substraitAggFuncName, inputTypes) =
       if (
-        ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
+        ExpressionMappings.getExpressionExtensionTransformer.extensionExpressionsMapping.contains(
           aggregateFunc.getClass)
       ) {
         val (substraitAggFuncName, inputTypes) =
-          ExpressionMappings.expressionExtensionTransformer.buildCustomAggregateFunction(
+          ExpressionMappings.getExpressionExtensionTransformer.buildCustomAggregateFunction(
             aggregateFunc)
         assert(substraitAggFuncName.isDefined)
         (substraitAggFuncName.get, inputTypes)

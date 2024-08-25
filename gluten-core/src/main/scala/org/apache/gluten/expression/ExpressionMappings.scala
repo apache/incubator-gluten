@@ -18,8 +18,9 @@ package org.apache.gluten.expression
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression.ExpressionNames._
-import org.apache.gluten.extension.{DefaultExpressionExtensionTransformer, ExpressionExtensionTrait}
+import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -339,7 +340,7 @@ object ExpressionMappings {
   def expressionsMap: Map[Class[_], String] = {
     val blacklist = GlutenConfig.getConf.expressionBlacklist
     val supportedExprs = defaultExpressionsMap ++
-      expressionExtensionTransformer.extensionExpressionsMapping
+      expressionExtensionTransformer.get.extensionExpressionsMapping
     if (blacklist.isEmpty) {
       supportedExprs
     } else {
@@ -354,6 +355,20 @@ object ExpressionMappings {
       .toMap[Class[_], String]
   }
 
-  var expressionExtensionTransformer: ExpressionExtensionTrait =
-    DefaultExpressionExtensionTransformer()
+  private var expressionExtensionTransformer: Option[ExpressionExtensionTrait] = None
+
+  def getExpressionExtensionTransformer: ExpressionExtensionTrait = {
+    if (expressionExtensionTransformer.isEmpty) {
+      throw new GlutenException(
+        "The expressionExtensionTransformer is not set properly when ini driver or executor")
+    }
+    expressionExtensionTransformer.get
+  }
+
+  def setExpressionExtensionTransformer(value: ExpressionExtensionTrait): Unit = {
+    if (!expressionExtensionTransformer.isDefined) {
+      expressionExtensionTransformer = Some(value)
+    }
+  }
+
 }

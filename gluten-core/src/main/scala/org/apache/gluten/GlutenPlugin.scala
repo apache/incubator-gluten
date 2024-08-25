@@ -72,15 +72,10 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     BackendsApiManager.initialize()
     BackendsApiManager.getListenerApiInstance.onDriverStart(sc, pluginContext)
     GlutenListenerFactory.addToSparkListenerBus(sc)
-
-    val expressionExtensionTransformer = ExpressionUtil.extendedExpressionTransformer(
-      conf.get(GlutenConfig.GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF, "")
-    )
-
-    if (expressionExtensionTransformer != null) {
-      ExpressionMappings.expressionExtensionTransformer = expressionExtensionTransformer
-    }
-
+    ExpressionMappings.setExpressionExtensionTransformer(
+      ExpressionUtil.extendedExpressionTransformer(
+        conf.get(GlutenConfig.GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF, "")
+      ))
     Collections.emptyMap()
   }
 
@@ -275,6 +270,11 @@ private[gluten] class GlutenExecutorPlugin extends ExecutorPlugin {
     // TODO categorize the APIs by driver's or executor's
     BackendsApiManager.initialize()
     BackendsApiManager.getListenerApiInstance.onExecutorStart(ctx)
+
+    ExpressionMappings.setExpressionExtensionTransformer(
+      ExpressionUtil.extendedExpressionTransformer(
+        conf.get(GlutenConfig.GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF, "")
+      ))
   }
 
   /** Clean up and terminate this plugin. For example: close the native engine. */

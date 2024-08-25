@@ -155,10 +155,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
 
     expr match {
       case extendedExpr
-          if ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
-            extendedExpr.getClass) =>
+          if ExpressionMappings.getExpressionExtensionTransformer.extensionExpressionsMapping
+            .contains(extendedExpr.getClass) =>
         // Use extended expression transformer to replace custom expression first
-        ExpressionMappings.expressionExtensionTransformer
+        ExpressionMappings.getExpressionExtensionTransformer
           .replaceWithExtensionExpressionTransformer(substraitExprName, extendedExpr, attributeSeq)
       case c: CreateArray =>
         val children =
