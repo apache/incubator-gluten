@@ -45,10 +45,8 @@ import scala.runtime.BoxedUnit;
 public class JniLibLoader {
   private static final Logger LOG = LoggerFactory.getLogger(JniLibLoader.class);
 
-  private static final Set<String> LOADED_LIBRARY_PATHS =
-      Collections.synchronizedSet(new HashSet<>());
-  private static final Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS =
-      Collections.synchronizedSet(new LinkedHashSet<>());
+  private static final Set<String> LOADED_LIBRARY_PATHS = new HashSet<>();
+  private static final Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = new LinkedHashSet<>();
 
   static {
     GlutenShutdownManager.addHookForLibUnloading(
@@ -59,7 +57,7 @@ public class JniLibLoader {
   }
 
   private final String workDir;
-  private final Set<String> loadedLibraries = Collections.synchronizedSet(new HashSet<>());
+  private final Set<String> loadedLibraries = new HashSet<>();
 
   JniLibLoader(String workDir) {
     this.workDir = workDir;
@@ -99,7 +97,9 @@ public class JniLibLoader {
       }
     }
     if (requireUnload) {
-      REQUIRE_UNLOAD_LIBRARY_PATHS.add(libPath);
+      synchronized (REQUIRE_UNLOAD_LIBRARY_PATHS) {
+        REQUIRE_UNLOAD_LIBRARY_PATHS.add(libPath);
+      }
     }
   }
 
@@ -112,18 +112,18 @@ public class JniLibLoader {
   }
 
   public static void unloadFromPath(String libPath) {
-    if (!LOADED_LIBRARY_PATHS.remove(libPath)) {
-      LOG.warn("Library {} was not loaded or already unloaded:", libPath);
-      return;
-    }
-    LOG.info("Starting unload library path: {} ", libPath);
-    REQUIRE_UNLOAD_LIBRARY_PATHS.remove(libPath);
-    try {
-      ClassLoader classLoader = JniLibLoader.class.getClassLoader();
-      Field field = ClassLoader.class.getDeclaredField("nativeLibraries");
-      field.setAccessible(true);
-      Vector<Object> libs = (Vector<Object>) field.get(classLoader);
-      synchronized (libs) {
+    synchronized (JniLibLoader.class) {
+      if (!LOADED_LIBRARY_PATHS.remove(libPath)) {
+        LOG.warn("Library {} was not loaded or already unloaded:", libPath);
+        return;
+      }
+      LOG.info("Starting unload library path: {} ", libPath);
+      REQUIRE_UNLOAD_LIBRARY_PATHS.remove(libPath);
+      try {
+        ClassLoader classLoader = JniLibLoader.class.getClassLoader();
+        Field field = ClassLoader.class.getDeclaredField("nativeLibraries");
+        field.setAccessible(true);
+        Vector<Object> libs = (Vector<Object>) field.get(classLoader);
         Iterator<Object> it = libs.iterator();
         while (it.hasNext()) {
           Object object = it.next();
@@ -146,20 +146,18 @@ public class JniLibLoader {
             }
           }
         }
+      } catch (Throwable th) {
+        LOG.error("Unload native library error: ", th);
       }
-    } catch (Throwable th) {
-      LOG.error("Unload native library error: ", th);
     }
   }
 
   public void mapAndLoad(String unmappedLibName, boolean requireUnload) {
-    synchronized (loadedLibraries) {
-      try {
-        final String mappedLibName = System.mapLibraryName(unmappedLibName);
-        load(mappedLibName, requireUnload);
-      } catch (Exception e) {
-        throw new GlutenException(e);
-      }
+    try {
+      final String mappedLibName = System.mapLibraryName(unmappedLibName);
+      load(mappedLibName, requireUnload);
+    } catch (Exception e) {
+      throw new GlutenException(e);
     }
   }
 
