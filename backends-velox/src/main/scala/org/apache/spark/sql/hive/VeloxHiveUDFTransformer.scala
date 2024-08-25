@@ -17,49 +17,33 @@
 package org.apache.spark.sql.hive
 
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.{ExpressionConverter, ExpressionTransformer, GenericExpressionTransformer, UDFMappings}
+import org.apache.gluten.expression.{ExpressionConverter, ExpressionTransformer}
 
-import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.expression.UDFResolver
 
-import java.util.Locale
-
-object HiveUDFTransformer {
-  def isHiveUDF(expr: Expression): Boolean = {
-    expr match {
-      case _: HiveSimpleUDF | _: HiveGenericUDF => true
-      case _ => false
-    }
-  }
-
+object VeloxHiveUDFTransformer {
   def replaceWithExpressionTransformer(
       expr: Expression,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
-    val udfName = expr match {
+    val (udfName, udfClassName) = expr match {
       case s: HiveSimpleUDF =>
-        s.name.stripPrefix("default.")
+        (s.name.stripPrefix("default."), s.funcWrapper.functionClassName)
       case g: HiveGenericUDF =>
-        g.name.stripPrefix("default.")
+        (g.name.stripPrefix("default."), g.funcWrapper.functionClassName)
       case _ =>
         throw new GlutenNotSupportException(
           s"Expression $expr is not a HiveSimpleUDF or HiveGenericUDF")
     }
-    genTransformerFromUDFMappings(udfName, expr, attributeSeq)
-  }
 
-  def genTransformerFromUDFMappings(
-      udfName: String,
-      expr: Expression,
-      attributeSeq: Seq[Attribute]): GenericExpressionTransformer = {
-    UDFMappings.hiveUDFMap.get(udfName.toLowerCase(Locale.ROOT)) match {
-      case Some(name) =>
-        GenericExpressionTransformer(
-          name,
-          ExpressionConverter.replaceWithExpressionTransformer(expr.children, attributeSeq),
-          expr)
-      case _ =>
-        throw new GlutenNotSupportException(
-          s"Not supported hive udf:$expr"
-            + s" name:$udfName hiveUDFMap:${UDFMappings.hiveUDFMap}")
+    if (UDFResolver.UDFNames.contains(udfClassName)) {
+      UDFResolver
+        .getUdfExpression(udfClassName, udfName)(expr.children)
+        .getTransformer(
+          ExpressionConverter.replaceWithExpressionTransformer(expr.children, attributeSeq)
+        )
+    } else {
+      HiveUDFTransformer.genTransformerFromUDFMappings(udfName, expr, attributeSeq)
     }
   }
 }

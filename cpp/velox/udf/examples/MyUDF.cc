@@ -30,6 +30,7 @@ namespace {
 static const char* kInteger = "int";
 static const char* kBigInt = "bigint";
 static const char* kDate = "date";
+static const char* kVarChar = "varchar";
 
 namespace myudf {
 
@@ -248,6 +249,43 @@ class MyDate2Registerer final : public gluten::UdfRegisterer {
 };
 } // namespace mydate
 
+namespace hivestringstring {
+template <typename T>
+struct HiveStringStringFunction {
+  VELOX_DEFINE_FUNCTION_TYPES(T);
+
+  FOLLY_ALWAYS_INLINE void call(out_type<Varchar>& result, const arg_type<Varchar>& a, const arg_type<Varchar>& b) {
+    result.append(a.data());
+    result.append(" ");
+    result.append(b.data());
+  }
+};
+
+// name: org.apache.spark.sql.hive.execution.UDFStringString
+// signatures:
+//    varchar, varchar -> varchar
+// type: SimpleFunction
+class HiveStringStringRegisterer final : public gluten::UdfRegisterer {
+ public:
+  int getNumUdf() override {
+    return 1;
+  }
+
+  void populateUdfEntries(int& index, gluten::UdfEntry* udfEntries) override {
+    // Set `allowTypeConversion` for hive udf.
+    udfEntries[index++] = {name_.c_str(), kVarChar, 2, arg_, false, true};
+  }
+
+  void registerSignatures() override {
+    facebook::velox::registerFunction<HiveStringStringFunction, Varchar, Varchar, Varchar>({name_});
+  }
+
+ private:
+  const std::string name_ = "org.apache.spark.sql.hive.execution.UDFStringString";
+  const char* arg_[2] = {kVarChar, kVarChar};
+};
+} // namespace hivestringstring
+
 std::vector<std::shared_ptr<gluten::UdfRegisterer>>& globalRegisters() {
   static std::vector<std::shared_ptr<gluten::UdfRegisterer>> registerers;
   return registerers;
@@ -264,6 +302,7 @@ void setupRegisterers() {
   registerers.push_back(std::make_shared<myudf::MyUdf3Registerer>());
   registerers.push_back(std::make_shared<mydate::MyDateRegisterer>());
   registerers.push_back(std::make_shared<mydate::MyDate2Registerer>());
+  registerers.push_back(std::make_shared<hivestringstring::HiveStringStringRegisterer>());
   inited = true;
 }
 } // namespace
