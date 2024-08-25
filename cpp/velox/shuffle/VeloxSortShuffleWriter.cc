@@ -273,6 +273,7 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
 }
 
 arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_t begin, size_t end) {
+  VELOX_CHECK(begin < end);
   // Count copy row time into sortTime_.
   Timer sortTime{};
   // Serialize [begin, end)
@@ -303,6 +304,7 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
         RETURN_NOT_OK(evictPartition0(partitionId, 0, buffer + bytes, rawLength));
         bytes += rawLength;
       }
+      begin++;
       sortTime.start();
     } else {
       // Copy small rows.
@@ -313,6 +315,7 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
   }
   sortTime.stop();
   if (offset > 0) {
+    VELOX_CHECK(index > begin);
     RETURN_NOT_OK(evictPartition0(partitionId, index - begin, rawBuffer_, offset));
   }
   sortTime_ += sortTime.realTimeUsed();

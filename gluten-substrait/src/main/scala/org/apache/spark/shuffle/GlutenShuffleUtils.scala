@@ -93,9 +93,13 @@ object GlutenShuffleUtils {
 
   def getCompressionBufferSize(conf: SparkConf, codec: String): Int = {
     if ("lz4" == codec) {
-      conf.get(IO_COMPRESSION_LZ4_BLOCKSIZE).toInt
+      Math.max(
+        conf.get(IO_COMPRESSION_LZ4_BLOCKSIZE).toInt,
+        GlutenConfig.GLUTEN_SHUFFLE_COMPRESSION_BUFFER_MIN_SIZE)
     } else if ("zstd" == codec) {
-      conf.get(IO_COMPRESSION_ZSTD_BUFFERSIZE).toInt
+      Math.max(
+        conf.get(IO_COMPRESSION_ZSTD_BUFFERSIZE).toInt,
+        GlutenConfig.GLUTEN_SHUFFLE_COMPRESSION_BUFFER_MIN_SIZE)
     } else {
       32 * 1024
     }

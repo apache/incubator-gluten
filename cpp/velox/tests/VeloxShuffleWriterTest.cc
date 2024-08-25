@@ -70,7 +70,7 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
   std::vector<int32_t> mergeBufferSizes = {0, 3, 4, 10, 4096};
 
   for (const auto& compression : compressions) {
-    for (const auto compressionBufferSize : {1, 56, 32 * 1024}) {
+    for (const auto compressionBufferSize : {4, 56, 32 * 1024}) {
       for (auto useRadixSort : {true, false}) {
         params.push_back(ShuffleTestParams{
             .shuffleWriterType = ShuffleWriterType::kSortShuffle,
