@@ -17,6 +17,7 @@
 package org.apache.gluten.metrics
 
 import org.apache.gluten.substrait.AggregationParams
+
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkMetricsUtil
 import org.apache.spark.util.TaskResources
@@ -83,9 +84,11 @@ class HashAggregateMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
       idx += 1
     }
     if (TaskResources.inSparkTask()) {
-      SparkMetricsUtil.incMemoryBytesSpilled(TaskResources.getLocalTaskContext().taskMetrics(),
+      SparkMetricsUtil.incMemoryBytesSpilled(
+        TaskResources.getLocalTaskContext().taskMetrics(),
         aggMetrics.spilledInputBytes)
-      SparkMetricsUtil.incDiskBytesSpilled(TaskResources.getLocalTaskContext().taskMetrics(),
+      SparkMetricsUtil.incDiskBytesSpilled(
+        TaskResources.getLocalTaskContext().taskMetrics(),
         aggMetrics.spilledBytes)
     }
   }

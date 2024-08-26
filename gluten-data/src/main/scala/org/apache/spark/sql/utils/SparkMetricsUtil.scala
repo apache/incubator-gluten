@@ -14,12 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.utils
 
 import org.apache.spark.executor.TaskMetrics
 
 object SparkMetricsUtil {
-   def incMemoryBytesSpilled(task: TaskMetrics, v: Long): Unit = task.incMemoryBytesSpilled(v)
-   def incDiskBytesSpilled(task: TaskMetrics, v: Long): Unit = task.incDiskBytesSpilled(v)
+  def incMemoryBytesSpilled(task: TaskMetrics, v: Long): Unit = task.incMemoryBytesSpilled(v)
+  def incDiskBytesSpilled(task: TaskMetrics, v: Long): Unit = task.incDiskBytesSpilled(v)
 }

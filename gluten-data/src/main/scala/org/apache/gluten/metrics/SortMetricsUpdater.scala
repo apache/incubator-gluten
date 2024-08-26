@@ -37,9 +37,11 @@ class SortMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpd
       metrics("spilledPartitions") += operatorMetrics.spilledPartitions
       metrics("spilledFiles") += operatorMetrics.spilledFiles
       if (TaskResources.inSparkTask()) {
-        SparkMetricsUtil.incMemoryBytesSpilled(TaskResources.getLocalTaskContext().taskMetrics(),
+        SparkMetricsUtil.incMemoryBytesSpilled(
+          TaskResources.getLocalTaskContext().taskMetrics(),
           operatorMetrics.spilledInputBytes)
-        SparkMetricsUtil.incDiskBytesSpilled(TaskResources.getLocalTaskContext().taskMetrics(),
+        SparkMetricsUtil.incDiskBytesSpilled(
+          TaskResources.getLocalTaskContext().taskMetrics(),
           operatorMetrics.spilledBytes)
       }
     }
