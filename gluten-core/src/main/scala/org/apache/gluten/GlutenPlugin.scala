@@ -184,13 +184,6 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     val overheadSize: Long = SparkResourceUtil.getMemoryOverheadSize(conf)
     conf.set(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY, overheadSize.toString)
 
-    // FIXME: The following is a workaround. Remove once the causes are fixed.
-    conf.set(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY, Long.MaxValue.toString)
-    logWarning(
-      "Setting overhead memory that Gluten can use to UNLIMITED. This is currently a" +
-        " temporary solution to avoid OOM by Velox's global memory pools." +
-        " See GLUTEN-6960 for more information.")
-
     // If dynamic off-heap sizing is enabled, the off-heap size is calculated based on the on-heap
     // size. Otherwise, the off-heap size is set to the value specified by the user (if any).
     // Note that this means that we will IGNORE the off-heap size specified by the user if the
