@@ -19,7 +19,6 @@ package org.apache.gluten.expression
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ExpressionNames._
-import org.apache.gluten.extension.{DefaultExpressionExtensionTransformer, ExpressionExtensionTrait}
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -338,22 +337,19 @@ object ExpressionMappings {
 
   def expressionsMap: Map[Class[_], String] = {
     val blacklist = GlutenConfig.getConf.expressionBlacklist
-    val supportedExprs = defaultExpressionsMap ++
-      expressionExtensionTransformer.extensionExpressionsMapping
-    if (blacklist.isEmpty) {
-      supportedExprs
-    } else {
-      supportedExprs.filterNot(kv => blacklist.contains(kv._2))
-    }
+    val filtered = (defaultExpressionsMap ++ toMap(
+      BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)).filterNot(
+      kv => blacklist.contains(kv._2))
+    filtered
   }
 
   private lazy val defaultExpressionsMap: Map[Class[_], String] = {
-    (SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS ++
-      BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)
+    toMap(SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS)
+  }
+
+  private def toMap(sigs: Seq[Sig]): Map[Class[_], String] = {
+    sigs
       .map(s => (s.expClass, s.name))
       .toMap[Class[_], String]
   }
-
-  var expressionExtensionTransformer: ExpressionExtensionTrait =
-    DefaultExpressionExtensionTransformer()
 }

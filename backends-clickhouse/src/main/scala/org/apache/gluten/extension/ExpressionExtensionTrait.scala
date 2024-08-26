@@ -63,8 +63,13 @@ trait ExpressionExtensionTrait {
   }
 }
 
-case class DefaultExpressionExtensionTransformer() extends ExpressionExtensionTrait with Logging {
+object ExpressionExtensionTrait {
+  var expressionExtensionTransformer: ExpressionExtensionTrait =
+    DefaultExpressionExtensionTransformer()
 
-  /** Generate the extension expressions list, format: Sig[XXXExpression]("XXXExpressionName") */
-  override def expressionSigList: Seq[Sig] = Seq.empty[Sig]
+  case class DefaultExpressionExtensionTransformer() extends ExpressionExtensionTrait with Logging {
+
+    /** Generate the extension expressions list, format: Sig[XXXExpression]("XXXExpressionName") */
+    override def expressionSigList: Seq[Sig] = Seq.empty[Sig]
+  }
 }

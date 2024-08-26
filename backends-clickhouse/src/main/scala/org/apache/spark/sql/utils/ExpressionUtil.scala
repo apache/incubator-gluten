@@ -16,7 +16,8 @@
  */
 package org.apache.spark.sql.utils
 
-import org.apache.gluten.extension.{DefaultExpressionExtensionTransformer, ExpressionExtensionTrait}
+import org.apache.gluten.extension.ExpressionExtensionTrait
+import org.apache.gluten.extension.ExpressionExtensionTrait.DefaultExpressionExtensionTransformer
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils

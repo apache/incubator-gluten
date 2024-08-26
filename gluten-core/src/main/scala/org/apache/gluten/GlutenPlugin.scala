@@ -20,7 +20,6 @@ import org.apache.gluten.GlutenConfig.GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.events.GlutenBuildInfoEvent
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.expression.ExpressionMappings
 import org.apache.gluten.extension.GlutenSessionExtensions.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.TaskListener
@@ -32,7 +31,6 @@ import org.apache.spark.listener.GlutenListenerFactory
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.execution.ui.GlutenEventUtils
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.utils.ExpressionUtil
 import org.apache.spark.util.{SparkResourceUtil, TaskResources}
 
 import java.util
@@ -72,14 +70,6 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     BackendsApiManager.initialize()
     BackendsApiManager.getListenerApiInstance.onDriverStart(sc, pluginContext)
     GlutenListenerFactory.addToSparkListenerBus(sc)
-
-    val expressionExtensionTransformer = ExpressionUtil.extendedExpressionTransformer(
-      conf.get(GlutenConfig.GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF, "")
-    )
-
-    if (expressionExtensionTransformer != null) {
-      ExpressionMappings.expressionExtensionTransformer = expressionExtensionTransformer
-    }
 
     Collections.emptyMap()
   }
@@ -275,7 +265,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 }
 
 private[gluten] class GlutenExecutorPlugin extends ExecutorPlugin {
-  private val taskListeners: Seq[TaskListener] = Array(TaskResources)
+  private val taskListeners: Seq[TaskListener] = Seq(TaskResources)
 
   /** Initialize the executor plugin. */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {

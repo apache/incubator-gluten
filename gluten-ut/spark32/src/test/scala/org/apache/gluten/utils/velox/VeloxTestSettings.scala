@@ -34,7 +34,7 @@ import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, Glute
 import org.apache.spark.sql.execution.datasources.v2.GlutenFileTableSuite
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
-import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenCustomerExpressionTransformerSuite, GlutenSessionExtensionSuite}
+import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite}
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
 import org.apache.spark.sql.sources._
 
@@ -44,7 +44,6 @@ import org.apache.spark.sql.sources._
 class VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenSessionExtensionSuite]
-  enableSuite[GlutenCustomerExpressionTransformerSuite]
 
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude(
