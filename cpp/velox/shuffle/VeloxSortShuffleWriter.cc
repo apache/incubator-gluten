@@ -104,8 +104,8 @@ arrow::Status VeloxSortShuffleWriter::init() {
       options_.partitioning == Partitioning::kSingle,
       arrow::Status::Invalid("VeloxSortShuffleWriter doesn't support single partition."));
   allocateMinimalArray();
-  // In Spark, sortedBuffer_ memory and compressionBuffer_ memory are pre-allocated and not counted into executor
-  // memory. To align with Spark, we use arrow::default_memory_pool() to avoid counting these memory in Gluten.
+  // In Spark, sortedBuffer_ memory and compressionBuffer_ memory are pre-allocated and counted into executor
+  // memory overhead. To align with Spark, we use arrow::default_memory_pool() to avoid counting these memory in Gluten.
   ARROW_ASSIGN_OR_RAISE(
       sortedBuffer_, arrow::AllocateBuffer(options_.compressionBufferSize, arrow::default_memory_pool()));
   rawBuffer_ = sortedBuffer_->mutable_data();
