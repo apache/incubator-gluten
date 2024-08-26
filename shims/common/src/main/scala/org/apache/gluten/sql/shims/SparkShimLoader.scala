@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.sql.shims
 
+import org.apache.gluten.GlutenConfig
+
 import org.apache.spark.SPARK_VERSION_SHORT
 import org.apache.spark.internal.Logging
 
@@ -25,12 +27,18 @@ import scala.collection.JavaConverters._
 
 object SparkShimLoader extends Logging {
   private var sparkShims: SparkShims = null
-  private var sparkShimProviderClass: String = null
+  @volatile private var sparkShimProviderClass: String = {
+    GlutenConfig.getConf.sparkShimProvider.orNull
+  }
 
   def getSparkShims: SparkShims = {
     if (sparkShims == null) {
-      val provider = getSparkShimProvider
-      sparkShims = provider.createShim
+      synchronized {
+        if (sparkShims == null) {
+          val provider = getSparkShimProvider
+          sparkShims = provider.createShim
+        }
+      }
     }
     sparkShims
   }

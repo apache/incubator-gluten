@@ -460,6 +460,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableHiveFileFormatWriter: Boolean = conf.getConf(NATIVE_HIVEFILEFORMAT_WRITER_ENABLED)
 
   def enableCelebornFallback: Boolean = conf.getConf(CELEBORN_FALLBACK_ENABLED)
+
+  def sparkShimProvider: Option[String] = conf.getConf(GLUTEN_SPARK_SHIM_PROVIDER)
 }
 
 object GlutenConfig {
@@ -2078,4 +2080,10 @@ object GlutenConfig {
         "Otherwise, throw an exception.")
       .booleanConf
       .createWithDefault(true)
+
+  val GLUTEN_SPARK_SHIM_PROVIDER =
+    buildStaticConf("spark.gluten.shim.provider")
+      .doc("The class name of gluten spark shim provider.")
+      .stringConf
+      .createOptional
 }
