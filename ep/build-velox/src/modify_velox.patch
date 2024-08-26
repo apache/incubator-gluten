@@ -1,8 +1,8 @@
 diff --git a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
-index 56b673e87..ef48ae9d9 100644
+index ddf1fac71..ef48ae9d9 100644
 --- a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
 +++ b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
-@@ -14,16 +14,13 @@
+@@ -14,17 +14,13 @@
  project(Arrow)
  
  if(VELOX_ENABLE_ARROW)
@@ -16,6 +16,7 @@ index 56b673e87..ef48ae9d9 100644
    set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep")
    set(ARROW_CMAKE_ARGS
 -      -DARROW_PARQUET=OFF
+-      -DARROW_DEPENDENCY_SOURCE=AUTO
 +      -DARROW_PARQUET=ON
 +      -DARROW_FILESYSTEM=ON
 +      -DARROW_PROTOBUF_USE_SHARED=OFF
@@ -24,7 +25,7 @@ index 56b673e87..ef48ae9d9 100644
        -DARROW_WITH_THRIFT=ON
        -DARROW_WITH_LZ4=ON
        -DARROW_WITH_SNAPPY=ON
-@@ -37,18 +34,16 @@ if(VELOX_ENABLE_ARROW)
+@@ -38,18 +34,16 @@ if(VELOX_ENABLE_ARROW)
        -DCMAKE_INSTALL_PREFIX=${ARROW_PREFIX}/install
        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
        -DARROW_BUILD_STATIC=ON
@@ -48,7 +49,7 @@ index 56b673e87..ef48ae9d9 100644
  
    set_property(TARGET thrift PROPERTY INTERFACE_INCLUDE_DIRECTORIES
                                        ${THRIFT_INCLUDE_DIR})
-@@ -67,6 +62,9 @@ if(VELOX_ENABLE_ARROW)
+@@ -68,6 +62,9 @@ if(VELOX_ENABLE_ARROW)
      arrow_ep
      PREFIX ${ARROW_PREFIX}
      URL ${VELOX_ARROW_SOURCE_URL}
@@ -70,10 +71,10 @@ index 69e7f2044..777eb5ec1 100644
 +
  FetchContent_MakeAvailable(simdjson)
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index cc180b86c..7ca6fa727 100644
+index 7f7cbc92f..52adb1250 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -236,10 +236,15 @@ if(VELOX_ENABLE_ABFS)
+@@ -242,10 +242,15 @@ if(VELOX_ENABLE_ABFS)
  endif()
  
  if(VELOX_ENABLE_HDFS)
@@ -93,7 +94,7 @@ index cc180b86c..7ca6fa727 100644
    add_definitions(-DVELOX_ENABLE_HDFS3)
  endif()
  
-@@ -380,7 +385,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+@@ -385,7 +390,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
  
  set_source(gflags)
@@ -115,7 +116,7 @@ index 23ef279c2..7e4c2f2b2 100644
 +    glog::glog
 +    gflags::gflags)
 diff --git a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
-index 5a566770f..8c2a48cc2 100644
+index a8b0df52a..254c56b70 100644
 --- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 +++ b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 @@ -38,7 +38,6 @@ std::shared_ptr<FileSystem> abfsFileSystemGenerator(
