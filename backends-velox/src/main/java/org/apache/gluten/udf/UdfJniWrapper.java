@@ -18,5 +18,5 @@ package org.apache.gluten.udf;
 
 public class UdfJniWrapper {
 
-  public static native void getFunctionSignatures();
+  public static native void registerFunctionSignatures();
 }

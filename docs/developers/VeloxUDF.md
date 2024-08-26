@@ -10,9 +10,10 @@ parent: /developer-overview/
 ## Introduction
 
 Velox backend supports User-Defined Functions (UDF) and User-Defined Aggregate Functions (UDAF).
-Users can create their own functions using the UDF interface provided in Velox backend and build libraries for these functions.
-At runtime, the UDF are registered at the start of applications.
-Once registered, Gluten will be able to parse and offload these UDF into Velox during execution.
+Users can implement custom functions using the UDF interface provided by Velox and compile them into libraries.
+At runtime, these UDFs are registered alongside their Java implementations via `CREATE TEMPORARY FUNCTION`.
+Once registered, Gluten can parse and offload these UDFs to Velox during execution, 
+meanwhile ensuring proper fallback to Java UDFs when necessary.
 
 ## Create and Build UDF/UDAF library
 
@@ -39,22 +40,23 @@ The following steps demonstrate how to set up a UDF library project:
       This function is called to register the UDF to Velox function registry.
       This is where users should register functions by calling `facebook::velox::exec::registerVecotorFunction` or other Velox APIs.
 
-    - The interface functions are mapped to marcos in [Udf.h](../../cpp/velox/udf/Udf.h). Here's an example of how to implement these functions:
+    - The interface functions are mapped to marcos in [Udf.h](../../cpp/velox/udf/Udf.h).
+  
+  Assuming there is an existing Hive UDF `org.apache.gluten.sql.hive.MyUDF`, its native UDF can be implemented as follows.
 
   ```
-  // Filename MyUDF.cc
-
   #include <velox/expression/VectorFunction.h>
   #include <velox/udf/Udf.h>
 
   namespace {
   static const char* kInteger = "integer";
+  static const char* kMyUdfFunctionName = "org.apache.gluten.sql.hive.MyUDF";
   }
 
   const int kNumMyUdf = 1;
 
   const char* myUdfArgs[] = {kInteger}:
-  gluten::UdfEntry myUdfSig = {"myudf", kInteger, 1, myUdfArgs};
+  gluten::UdfEntry myUdfSig = {kMyUdfFunctionName, kInteger, 1, myUdfArgs};
 
   class MyUdf : public facebook::velox::exec::VectorFunction {
     ... // Omit concrete implementation
@@ -167,20 +169,25 @@ or
 --conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=file:///path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
 ```
 
-Run query. The functions `myudf1` and `myudf2` increment the input value by a constant of 5
+Start `spark-sql` and run query. You need to add jar "spark-hive_2.12-<spark.version>-tests.jar" to the classpath for hive udf `org.apache.spark.sql.hive.execution.UDFStringString`
 
 ```
-select myudf1(100L), myudf2(1)
+spark-sql (default)> CREATE TEMPORARY FUNCTION hive_string_string AS 'org.apache.spark.sql.hive.execution.UDFStringString';
+Time taken: 0.808 seconds
+spark-sql (default)> select hive_string_string("hello", "world");
+hello world
+Time taken: 3.208 seconds, Fetched 1 row(s)
 ```
 
-The output from spark-shell will be like
-
+You can verify the offload with "explain".
 ```
-+------------------+----------------+
-|udfexpression(100)|udfexpression(1)|
-+------------------+----------------+
-|               105|               6|
-+------------------+----------------+
+spark-sql (default)> explain select hive_string_string("hello", "world");
+== Physical Plan ==
+VeloxColumnarToRowExec
++- ^(2) ProjectExecTransformer [hello world AS hive_string_string(hello, world)#8]
+   +- ^(2) InputIteratorTransformer[fake_column#9]
+      +- RowToVeloxColumnar
+         +- *(1) Scan OneRowRelation[fake_column#9]
 ```
 
 ## Configurations

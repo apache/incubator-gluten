@@ -49,7 +49,7 @@ void gluten::finalizeVeloxJniUDF(JNIEnv* env) {
   env->DeleteGlobalRef(udfResolverClass);
 }
 
-void gluten::jniGetFunctionSignatures(JNIEnv* env) {
+void gluten::jniRegisterFunctionSignatures(JNIEnv* env) {
   auto udfLoader = gluten::UdfLoader::getInstance();
 
   const auto& signatures = udfLoader->getRegisteredUdfSignatures();

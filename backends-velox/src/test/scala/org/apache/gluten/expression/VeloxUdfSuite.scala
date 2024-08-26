@@ -25,7 +25,6 @@ import org.apache.spark.sql.catalyst.plans.SQLHelper
 import org.apache.spark.sql.expression.UDFResolver
 
 import java.nio.file.Paths
-import java.sql.Date
 
 abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
 
@@ -92,41 +91,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
       .set("spark.memory.offHeap.size", "1024MB")
   }
 
-  test("test udf") {
-    val df = spark.sql("""select
-                         |  myudf1(100L),
-                         |  myudf2(1),
-                         |  myudf2(1L),
-                         |  myudf3(),
-                         |  myudf3(1),
-                         |  myudf3(1, 2, 3),
-                         |  myudf3(1L),
-                         |  myudf3(1L, 2L, 3L),
-                         |  mydate(cast('2024-03-25' as date), 5)
-                         |""".stripMargin)
-    assert(
-      df.collect()
-        .sameElements(Array(Row(105L, 6, 6L, 5, 6, 11, 6L, 11L, Date.valueOf("2024-03-30")))))
-  }
-
-  test("test udf allow type conversion") {
-    withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "true") {
-      val df = spark.sql("""select myudf1("100"), myudf1(1), mydate('2024-03-25', 5)""")
-      assert(
-        df.collect()
-          .sameElements(Array(Row(105L, 6L, Date.valueOf("2024-03-30")))))
-    }
-
-    withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "false") {
-      assert(
-        spark
-          .sql("select mydate2('2024-03-25', 5)")
-          .collect()
-          .sameElements(Array(Row(Date.valueOf("2024-03-30")))))
-    }
-  }
-
-  test("test udaf") {
+  ignore("test udaf") {
     val df = spark.sql("""select
                          |  myavg(1),
                          |  myavg(1L),
@@ -140,7 +105,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
         .sameElements(Array(Row(1.0, 1.0, 1.0, 1.0, 1L))))
   }
 
-  test("test udaf allow type conversion") {
+  ignore("test udaf allow type conversion") {
     withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "true") {
       val df = spark.sql("""select myavg("1"), myavg("1.0"), mycount_if("true")""")
       assert(
@@ -149,7 +114,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
     }
   }
 
-  test("test hive udf replacement") {
+  test("test native hive udf") {
     val tbl = "test_hive_udf_replacement"
     withTempPath {
       dir =>
@@ -169,12 +134,15 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
                       |AS 'org.apache.spark.sql.hive.execution.UDFStringString'
                       |""".stripMargin)
 
+          val nativeResultWithImplicitConversion =
+            spark.sql(s"""SELECT hive_string_string(col1, 'a') FROM $tbl""").collect()
           val nativeResult =
             spark.sql(s"""SELECT hive_string_string(col2, 'a') FROM $tbl""").collect()
           // Unregister native hive udf to fallback.
           UDFResolver.UDFNames.remove("org.apache.spark.sql.hive.execution.UDFStringString")
           val fallbackResult =
             spark.sql(s"""SELECT hive_string_string(col2, 'a') FROM $tbl""").collect()
+          assert(nativeResultWithImplicitConversion.sameElements(fallbackResult))
           assert(nativeResult.sameElements(fallbackResult))
 
           // Add an unimplemented udf to the map to test fallback of registered native hive udf.

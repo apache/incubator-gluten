@@ -27,6 +27,6 @@ void initVeloxJniUDF(JNIEnv* env);
 
 void finalizeVeloxJniUDF(JNIEnv* env);
 
-void jniGetFunctionSignatures(JNIEnv* env);
+void jniRegisterFunctionSignatures(JNIEnv* env);
 
 } // namespace gluten
