@@ -54,17 +54,17 @@ class GlutenClickhouseStringFunctionsSuite extends GlutenClickHouseWholeStageTra
       sql("create table trim(trim_col String, src_col String) using parquet")
       sql("""
             |insert into trim values
-            |  ('aba', 'a'),('bba', 'b'),('abcdef', 'abcd'),
+            |  ('bAa', 'a'),('bba', 'b'),('abcdef', 'abcd'),
             |  (null, '123'),('123', null), ('', 'aaa'), ('bbb', '')
             |""".stripMargin)
 
       val sql0 = "select rtrim('aba', 'a') from trim order by src_col"
       val sql1 = "select rtrim(trim_col, src_col) from trim order by src_col"
-      val sql2 = "select rtrim(trim_col, 'NSSS') from trim order by src_col"
+      val sql2 = "select rtrim(trim_col, 'cCBbAa') from trim order by src_col"
       val sql3 = "select rtrim(trim_col, '') from trim order by src_col"
       val sql4 = "select rtrim('', 'AAA') from trim order by src_col"
       val sql5 = "select rtrim('', src_col) from trim order by src_col"
-      val sql6 = "select rtrim('ttt', src_col) from trim order by src_col"
+      val sql6 = "select rtrim('ab', src_col) from trim order by src_col"
 
       runQueryAndCompare(sql0) { _ => }
       runQueryAndCompare(sql1) { _ => }
