@@ -116,9 +116,12 @@ namespace
             if (src_const_col)
                 src_const_str = src_const_col->getValue<String>();
             if (trim_const_col)
+            {
                 trim_const_str = trim_const_col->getValue<String>();
-            if (trim_const_col && trim_const_str.empty()) {
-                return arguments[0].column;
+                if (trim_const_str.empty())
+                {
+                    return arguments[0].column;
+                }
             }
 
             // If both arguments are constants, it will be simplified to a constant. Skipped here.
@@ -135,8 +138,8 @@ namespace
                 for (size_t row = 0; row < input_rows_count; ++row)
                 {
                     StringRef trim_str_ref = trim_col->getDataAt(row);
-                    std::unique_ptr<std::bitset<256>> trim_set = buildTrimSet(trim_str_ref.toString());
-                    executeRow(src_const_str.c_str(), src_const_str.size(), res_data, res_offsets, row, trim_set);
+                    std::unique_ptr<std::bitset<256>> trim_set = buildTrimSet(trim_str_ref.data, trim_str_ref.size);
+                    executeRow(src_const_str.c_str(), src_const_str.size(), res_data, res_offsets, row, *trim_set);
                 }
                 return std::move(res_col);
             }
@@ -145,11 +148,11 @@ namespace
             if (trim_const_col)
             {
                 res_data.reserve_exact(src_col->getChars().size());
-                std::unique_ptr<std::bitset<256>> trim_set = buildTrimSet(trim_const_str);
+                std::unique_ptr<std::bitset<256>> trim_set = buildTrimSet(trim_const_str.c_str(), trim_const_str.size());
                 for (size_t row = 0; row < input_rows_count; ++row)
                 {
                     StringRef src_str_ref = src_col->getDataAt(row);
-                    executeRow(src_str_ref.data, src_str_ref.size, res_data, res_offsets, row, trim_set);
+                    executeRow(src_str_ref.data, src_str_ref.size, res_data, res_offsets, row, *trim_set);
                 }
                 return std::move(res_col);
             }
@@ -160,8 +163,8 @@ namespace
             {
                 StringRef src_str_ref = src_col->getDataAt(row);
                 StringRef trim_str_ref = trim_col->getDataAt(row);
-                std::unique_ptr<std::bitset<256>> trim_set = buildTrimSet(trim_str_ref.toString());
-                executeRow(src_str_ref.data, src_str_ref.size, res_data, res_offsets, row, trim_set);
+                std::unique_ptr<std::bitset<256>> trim_set = buildTrimSet(trim_str_ref.data, trim_str_ref.size);
+                executeRow(src_str_ref.data, src_str_ref.size, res_data, res_offsets, row, *trim_set);
             }
             return std::move(res_col);
         }
@@ -172,8 +175,8 @@ namespace
             size_t src_size,
             ColumnString::Chars & res_data,
             ColumnString::Offsets & res_offsets,
-            size_t & row,
-            const std::unique_ptr<std::bitset<256>> & trim_set) const
+            size_t row,
+            const std::bitset<256> & trim_set) const
         {
             const char * dst;
             size_t dst_size;
@@ -186,17 +189,18 @@ namespace
             res_offsets[row] = res_offset;
         }
 
-        std::unique_ptr<std::bitset<256>> buildTrimSet(const String& trim_str) const
+        std::unique_ptr<std::bitset<256>> buildTrimSet(const char* data, const size_t size) const
         {
             auto trim_set = std::make_unique<std::bitset<256>>();
-            for (unsigned char i : trim_str)
-                trim_set->set(i);
+            for (size_t i = 0; i < size; ++i)
+                trim_set->set((unsigned char)data[i]);
             return trim_set;
         }
 
-        void trim(const char * src, size_t src_size, const char *& dst, size_t & dst_size, const std::unique_ptr<std::bitset<256>> & trim_set) const
+        void trim(const char * src, size_t src_size, const char *& dst, size_t dst_size, const std::bitset<256> & trim_set) const
         {
-            if (!trim_set || trim_set->none())
+            // If trim column is not constant and contains null value
+            if (trim_set.none())
             {
                 dst = src;
                 dst_size = src_size;
@@ -205,14 +209,14 @@ namespace
 
             const char * src_end = src + src_size;
             if constexpr (TrimMode::trim_left)
-                while (src < src_end && trim_set->test((unsigned char)*src))
+                while (src < src_end && trim_set.test((unsigned char)*src))
                     ++src;
 
             if constexpr (TrimMode::trim_right)
-                while (src < src_end && trim_set->test((unsigned char)*(src_end - 1)))
+                while (src < src_end && trim_set.test((unsigned char)*(src_end - 1)))
                     --src_end;
 
-            dst = const_cast<char *>(src);
+            dst = src;
             dst_size = src_end - src;
         }
     };
