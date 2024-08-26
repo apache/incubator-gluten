@@ -42,6 +42,13 @@ class VeloxListenerApi extends ListenerApi with Logging {
   override def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {
     val conf = pc.conf()
 
+    // FIXME: The following is a workaround. Remove once the causes are fixed.
+    conf.set(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY, Long.MaxValue.toString)
+    logWarning(
+      "Setting overhead memory that Gluten can use to UNLIMITED. This is currently a" +
+        " temporary solution to avoid OOM by Velox's global memory pools." +
+        " See GLUTEN-6960 for more information.")
+
     // Sql table cache serializer.
     if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = false)) {
       conf.set(
