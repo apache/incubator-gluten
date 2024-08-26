@@ -30,6 +30,7 @@ public class OperatorMetrics implements IOperatorMetrics {
   public long scanTime;
   public long peakMemoryBytes;
   public long numMemoryAllocations;
+  public long spilledInputBytes;
   public long spilledBytes;
   public long spilledRows;
   public long spilledPartitions;
@@ -64,6 +65,7 @@ public class OperatorMetrics implements IOperatorMetrics {
       long wallNanos,
       long peakMemoryBytes,
       long numMemoryAllocations,
+      long spilledInputBytes,
       long spilledBytes,
       long spilledRows,
       long spilledPartitions,
@@ -95,6 +97,7 @@ public class OperatorMetrics implements IOperatorMetrics {
     this.scanTime = scanTime;
     this.peakMemoryBytes = peakMemoryBytes;
     this.numMemoryAllocations = numMemoryAllocations;
+    this.spilledInputBytes = spilledInputBytes;
     this.spilledBytes = spilledBytes;
     this.spilledRows = spilledRows;
     this.spilledPartitions = spilledPartitions;

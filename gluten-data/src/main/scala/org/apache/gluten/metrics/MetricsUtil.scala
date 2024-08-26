@@ -105,6 +105,7 @@ object MetricsUtil extends Logging {
     var wallNanos: Long = 0
     var peakMemoryBytes: Long = 0
     var numMemoryAllocations: Long = 0
+    var spilledInputBytes: Long = 0
     var spilledBytes: Long = 0
     var spilledRows: Long = 0
     var spilledPartitions: Long = 0
@@ -130,6 +131,7 @@ object MetricsUtil extends Logging {
       wallNanos += metrics.wallNanos
       peakMemoryBytes = peakMemoryBytes.max(metrics.peakMemoryBytes)
       numMemoryAllocations += metrics.numMemoryAllocations
+      spilledInputBytes += metrics.spilledInputBytes
       spilledBytes += metrics.spilledBytes
       spilledRows += metrics.spilledRows
       spilledPartitions += metrics.spilledPartitions
@@ -162,6 +164,7 @@ object MetricsUtil extends Logging {
       wallNanos,
       peakMemoryBytes,
       numMemoryAllocations,
+      spilledInputBytes,
       spilledBytes,
       spilledRows,
       spilledPartitions,
