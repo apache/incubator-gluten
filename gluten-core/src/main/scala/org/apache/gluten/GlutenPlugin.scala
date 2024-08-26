@@ -184,6 +184,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     val overheadSize: Long = SparkResourceUtil.getMemoryOverheadSize(conf)
     conf.set(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY, overheadSize.toString)
 
+    // FIXME: The following is a workaround. Remove once the causes are fixed.
     conf.set(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY, Long.MaxValue.toString)
     logWarning(
       "Setting overhead memory that Gluten can use to UNLIMITED. This is currently a" +
