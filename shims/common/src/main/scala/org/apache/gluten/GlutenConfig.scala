@@ -2082,7 +2082,7 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val GLUTEN_SPARK_SHIM_PROVIDER =
-    buildStaticConf("spark.gluten.shim.provider")
+    buildConf("spark.gluten.shim.provider")
       .internal()
       .doc("The class name of gluten spark shim provider.")
       .stringConf
