@@ -16,17 +16,17 @@
  */
 package org.apache.spark.sql.extension
 
-import org.apache.gluten.execution.ProjectExecTransformer
+import org.apache.gluten.execution.{GlutenClickHouseWholeStageTransformerSuite, ProjectExecTransformer}
 import org.apache.gluten.expression.ExpressionConverter
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.util.{IntervalUtils, TypeUtils}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{AbstractDataType, CalendarIntervalType, DayTimeIntervalType, TypeCollection, YearMonthIntervalType}
+import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.CalendarInterval
 
 case class CustomAdd(
@@ -71,7 +71,8 @@ case class CustomAdd(
   ): CustomAdd = copy(left = newLeft, right = newRight)
 }
 
-class GlutenCustomerExpressionTransformerSuite extends GlutenSQLTestsTrait {
+class GlutenClickhouseCustomerExpressionTransformerSuite
+  extends GlutenClickHouseWholeStageTransformerSuite {
 
   override def sparkConf: SparkConf = {
     super.sparkConf
@@ -92,7 +93,7 @@ class GlutenCustomerExpressionTransformerSuite extends GlutenSQLTestsTrait {
     )
   }
 
-  testGluten("test custom expression transformer") {
+  test("test custom expression transformer") {
     spark
       .createDataFrame(Seq((1, 1.1), (2, 2.2)))
       .createOrReplaceTempView("custom_table")

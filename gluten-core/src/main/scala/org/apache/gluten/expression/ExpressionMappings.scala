@@ -337,13 +337,18 @@ object ExpressionMappings {
 
   def expressionsMap: Map[Class[_], String] = {
     val blacklist = GlutenConfig.getConf.expressionBlacklist
-    val filtered = defaultExpressionsMap.filterNot(kv => blacklist.contains(kv._2))
+    val filtered = (defaultExpressionsMap ++ toMap(
+      BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)).filterNot(
+      kv => blacklist.contains(kv._2))
     filtered
   }
 
   private lazy val defaultExpressionsMap: Map[Class[_], String] = {
-    (SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS ++
-      BackendsApiManager.getSparkPlanExecApiInstance.extraExpressionMappings)
+    toMap(SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS)
+  }
+
+  private def toMap(sigs: Seq[Sig]): Map[Class[_], String] = {
+    sigs
       .map(s => (s.expClass, s.name))
       .toMap[Class[_], String]
   }
