@@ -30,6 +30,7 @@ public:
     }
     int64_t initializeQuery();
     DB::ContextMutablePtr currentQueryContext();
+    static std::shared_ptr<DB::ThreadGroup> currentThreadGroup();
     void logCurrentPerformanceCounters(ProfileEvents::Counters& counters);
     size_t currentPeakMemory(int64_t id);
     void finalizeQuery(int64_t id);

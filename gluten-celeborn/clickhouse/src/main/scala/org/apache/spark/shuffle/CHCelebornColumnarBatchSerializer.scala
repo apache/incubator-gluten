@@ -58,8 +58,14 @@ private class CHCelebornColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private lazy val compressionCodec =
-    GlutenShuffleUtils.getCompressionCodec(SparkEnv.get.conf).toUpperCase(Locale.ROOT)
+  private lazy val conf = SparkEnv.get.conf
+  private lazy val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
+  private lazy val capitalizedCompressionCodec = compressionCodec.toUpperCase(Locale.ROOT)
+  private lazy val compressionLevel =
+    GlutenShuffleUtils.getCompressionLevel(
+      conf,
+      compressionCodec,
+      GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
@@ -199,7 +205,8 @@ private class CHCelebornColumnarBatchSerializerInstance(
         writeBuffer,
         dataSize,
         CHBackendSettings.useCustomizedShuffleCodec,
-        compressionCodec,
+        capitalizedCompressionCodec,
+        compressionLevel,
         CHBackendSettings.customizeBufferSize
       )
 

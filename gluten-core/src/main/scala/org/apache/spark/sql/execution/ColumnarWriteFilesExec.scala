@@ -33,6 +33,7 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet}
 import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 // The class inherits from "BinaryExecNode" instead of "UnaryExecNode" because
 // we need to expose a dummy child (as right child) with type "WriteFilesExec" to let Spark
@@ -43,18 +44,42 @@ abstract class ColumnarWriteFilesExec protected (
     override val right: SparkPlan)
   extends BinaryExecNode
   with GlutenPlan
+  with KnownChildrenConventions
+  with KnownRowType
   with ColumnarWriteFilesExec.ExecuteWriteCompatible {
 
   val child: SparkPlan = left
 
   override lazy val references: AttributeSet = AttributeSet.empty
 
-  override def supportsColumnar(): Boolean = true
+  override def supportsColumnar: Boolean = true
+
+  override def requiredChildrenConventions(): Seq[ConventionReq] = {
+    List(ConventionReq.backendBatch)
+  }
+
+  /**
+   * Mark the plan node as outputting both row-based and columnar data. Then we could avoid
+   * unnecessary transitions from being added on the exit side of the node.
+   *
+   * This is feasible based on the assumption that the node doesn't actually involve in either row
+   * processing or columnar processing. It's true because Spark only calls `doExecuteWrite` of the
+   * object.
+   *
+   * Since https://github.com/apache/incubator-gluten/pull/6745.
+   */
+  override def rowType(): RowType = {
+    RowType.VanillaRow
+  }
 
   override def output: Seq[Attribute] = Seq.empty
 
   override protected def doExecute(): RDD[InternalRow] = {
-    throw new GlutenException(s"$nodeName does not support doExecute")
+    throw new GlutenException(s"$nodeName does not implement #doExecute")
+  }
+
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    throw new GlutenException(s"$nodeName does not implement #doExecuteColumnar")
   }
 
   /** Fallback to use vanilla Spark write files to generate an empty file for metadata only. */
@@ -84,7 +109,7 @@ abstract class ColumnarWriteFilesExec protected (
 
   /** We need this to avoid compiler error. */
   override def doExecuteWrite(writeFilesSpec: WriteFilesSpec): RDD[WriterCommitMessage] = {
-    super.doExecuteWrite(writeFilesSpec)
+    throw new GlutenException(s"$nodeName does not implement #doExecuteWrite")
   }
 }
 
@@ -131,24 +156,10 @@ object ColumnarWriteFilesExec {
     override def output: Seq[Attribute] = Seq.empty
   }
 
-  /**
-   * ColumnarWriteFilesExec neither output Row nor columnar data. We output both row and columnar to
-   * avoid c2r and r2c transitions. Please note, [[GlutenPlan]] already implement batchType()
-   */
-  sealed trait ExecuteWriteCompatible extends KnownChildrenConventions with KnownRowType {
+  sealed trait ExecuteWriteCompatible {
     // To be compatible with Spark (version < 3.4)
     protected def doExecuteWrite(writeFilesSpec: WriteFilesSpec): RDD[WriterCommitMessage] = {
-      throw new GlutenException(
-        s"Internal Error ${this.getClass} has write support" +
-          s" mismatch:\n${this}")
-    }
-
-    override def requiredChildrenConventions(): Seq[ConventionReq] = {
-      List(ConventionReq.backendBatch)
-    }
-
-    override def rowType(): RowType = {
-      RowType.VanillaRow
+      throw new GlutenException("Illegal state: The method is not expected to be called")
     }
   }
 }

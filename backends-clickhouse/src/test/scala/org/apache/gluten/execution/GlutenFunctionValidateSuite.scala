@@ -740,4 +740,19 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                 |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
+
+  test("test function format_string") {
+    val sql = """
+                | SELECT
+                |  format_string(
+                |    'hello world %d %d %s %f',
+                |    id,
+                |    id,
+                |    CAST(id AS STRING),
+                |    CAST(id AS float)
+                |  )
+                |FROM range(10)
+                |""".stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
 }

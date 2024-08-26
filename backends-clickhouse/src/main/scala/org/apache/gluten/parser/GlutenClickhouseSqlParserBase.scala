@@ -29,7 +29,7 @@ import org.apache.spark.sql.internal.VariableSubstitution
 
 import org.antlr.v4.runtime._
 import org.antlr.v4.runtime.atn.PredictionMode
-import org.antlr.v4.runtime.misc.{Interval, ParseCancellationException}
+import org.antlr.v4.runtime.misc.ParseCancellationException
 import org.antlr.v4.runtime.tree.TerminalNodeImpl
 
 import java.util.Locale
@@ -254,23 +254,5 @@ case object PostProcessor extends GlutenClickhouseSqlBaseBaseListener {
       token.getStopIndex - stripMargins
     )
     parent.addChild(new TerminalNodeImpl(f(newToken)))
-  }
-}
-
-class UpperCaseCharStream(wrapped: CodePointCharStream) extends CharStream {
-  override def consume(): Unit = wrapped.consume
-  override def getSourceName(): String = wrapped.getSourceName
-  override def index(): Int = wrapped.index
-  override def mark(): Int = wrapped.mark
-  override def release(marker: Int): Unit = wrapped.release(marker)
-  override def seek(where: Int): Unit = wrapped.seek(where)
-  override def size(): Int = wrapped.size
-
-  override def getText(interval: Interval): String = wrapped.getText(interval)
-
-  override def LA(i: Int): Int = {
-    val la = wrapped.LA(i)
-    if (la == 0 || la == IntStream.EOF) la
-    else Character.toUpperCase(la)
   }
 }

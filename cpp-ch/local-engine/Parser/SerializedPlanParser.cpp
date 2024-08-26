@@ -285,7 +285,10 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
     if (rel.has_local_files())
         local_files = rel.local_files();
     else
+    {
         local_files = BinaryToMessage<substrait::ReadRel::LocalFiles>(split_infos.at(nextSplitInfoIndex()));
+        logDebugMessage(local_files, "local_files");
+    }
     auto source = std::make_shared<SubstraitFileSource>(context, header, local_files);
     auto source_pipe = Pipe(source);
     auto source_step = std::make_unique<SubstraitFileSourceStep>(context, std::move(source_pipe), "substrait local files");
@@ -496,7 +499,10 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
                 if (read.has_extension_table())
                     extension_table = read.extension_table();
                 else
+                {
                     extension_table = BinaryToMessage<substrait::ReadRel::ExtensionTable>(split_infos.at(nextSplitInfoIndex()));
+                    logDebugMessage(extension_table, "extension_table");
+                }
 
                 MergeTreeRelParser mergeTreeParser(this, context);
                 query_plan = mergeTreeParser.parseReadRel(std::make_unique<QueryPlan>(), read, extension_table);
@@ -689,7 +695,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
 
         /// pos = cast(arrayJoin(arg_not_null).1, "Int32")
         const auto * pos_node = add_tuple_element(array_join_node, 1);
-        pos_node = ActionsDAGUtil::convertNodeType(actions_dag, pos_node, "Int32");
+        pos_node = ActionsDAGUtil::convertNodeType(actions_dag, pos_node, INT());
 
         /// if is_map is false, output col = arrayJoin(arg_not_null).2
         /// if is_map is true,  output (key, value) = arrayJoin(arg_not_null).2
@@ -772,7 +778,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::convertStructFieldType(const
 #define UINT_CONVERT(type_ptr, field, type_name) \
     if ((type_ptr)->getTypeId() == TypeIndex::type_name) \
     { \
-        return {std::make_shared<DataTypeU##type_name>(), static_cast<U##type_name>((field).get<type_name>()) + 1}; \
+        return {std::make_shared<DataTypeU##type_name>(), static_cast<U##type_name>((field).safeGet<type_name>()) + 1}; \
     }
 
     auto type_id = type->getTypeId();

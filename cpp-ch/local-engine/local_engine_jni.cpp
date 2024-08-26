@@ -163,6 +163,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
         env, local_engine::SparkRowToCHColumn::spark_row_interator_class, "nextBatch", "()Ljava/nio/ByteBuffer;");
 
     local_engine::BroadCastJoinBuilder::init(env);
+    local_engine::CacheManager::initJNI(env);
 
     local_engine::JNIUtils::vm = vm;
     return JNI_VERSION_1_8;
@@ -544,6 +545,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
     jlong map_id,
     jint split_size,
     jstring codec,
+    jint compress_level,
     jstring data_file,
     jstring local_dirs,
     jint num_sub_dirs,
@@ -585,6 +587,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
+        .compress_level = compress_level < 0 ? std::nullopt : std::optional<int>(compress_level),
         .spill_threshold = static_cast<size_t>(spill_threshold),
         .hash_algorithm = jstring2string(env, hash_algorithm),
         .max_sort_buffer_size = static_cast<size_t>(max_sort_buffer_size),
@@ -606,6 +609,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
     jlong map_id,
     jint split_size,
     jstring codec,
+    jint compress_level,
     jlong spill_threshold,
     jstring hash_algorithm,
     jobject pusher,
@@ -637,6 +641,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
+        .compress_level = compress_level < 0 ? std::nullopt : std::optional<int>(compress_level),
         .spill_threshold = static_cast<size_t>(spill_threshold),
         .hash_algorithm = jstring2string(env, hash_algorithm),
         .force_memory_sort = static_cast<bool>(force_memory_sort)};
@@ -672,6 +677,11 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_
     auto * raw_partition_length_arr = env->NewLongArray(raw_partition_lengths.size());
     const auto * raw_src = reinterpret_cast<const jlong *>(raw_partition_lengths.data());
     env->SetLongArrayRegion(raw_partition_length_arr, 0, raw_partition_lengths.size(), raw_src);
+
+    // AQE has dependency on total_bytes_written, if the data is wrong, it will generate inappropriate plan
+    // add a log here for remining this.
+    if (!result.total_bytes_written)
+        LOG_WARNING(getLogger("CHShuffleSplitterJniWrapper"), "total_bytes_written is 0, something may be wrong");
 
     jobject split_result = env->NewObject(
         split_result_class,
@@ -1160,11 +1170,11 @@ JNIEXPORT jint Java_org_apache_gluten_vectorized_BlockSplitIterator_nativeNextPa
 }
 
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_BlockOutputStream_nativeCreate(
-    JNIEnv * env, jobject, jobject output_stream, jbyteArray buffer, jstring codec, jboolean compressed, jint customize_buffer_size)
+    JNIEnv * env, jobject, jobject output_stream, jbyteArray buffer, jstring codec, jint level, jboolean compressed, jint customize_buffer_size)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::ShuffleWriter * writer
-        = new local_engine::ShuffleWriter(output_stream, buffer, jstring2string(env, codec), compressed, customize_buffer_size);
+        = new local_engine::ShuffleWriter(output_stream, buffer, jstring2string(env, codec), level, compressed, customize_buffer_size);
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
@@ -1265,7 +1275,7 @@ JNIEXPORT void Java_org_apache_gluten_utils_TestExceptionUtils_generateNativeExc
 
 
 
-JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * env, jobject, jstring table_, jstring columns_, jboolean async_)
+JNIEXPORT jstring Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * env, jobject, jstring table_, jstring columns_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto table_def = jstring2string(env, table_);
@@ -1276,7 +1286,38 @@ JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCache
     {
         column_set.insert(col);
     }
-    local_engine::CacheManager::instance().cacheParts(table_def, column_set, async_);
+    auto id = local_engine::CacheManager::instance().cacheParts(table_def, column_set);
+    return local_engine::charTojstring(env, id.c_str());
+    LOCAL_ENGINE_JNI_METHOD_END(env, nullptr);
+}
+
+JNIEXPORT jobject Java_org_apache_gluten_execution_CHNativeCacheManager_nativeGetCacheStatus(JNIEnv * env, jobject, jstring id)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    return local_engine::CacheManager::instance().getCacheStatus(env, jstring2string(env, id));
+    LOCAL_ENGINE_JNI_METHOD_END(env, nullptr);
+}
+
+JNIEXPORT jstring Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheFiles(JNIEnv * env, jobject, jbyteArray files)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    const auto files_bytes = local_engine::getByteArrayElementsSafe(env, files);
+    const std::string::size_type files_bytes_size = files_bytes.length();
+    std::string_view files_view = {reinterpret_cast<const char *>(files_bytes.elems()), files_bytes_size};
+    substrait::ReadRel::LocalFiles local_files = local_engine::BinaryToMessage<substrait::ReadRel::LocalFiles>(files_view);
+
+    auto jobId = local_engine::CacheManager::instance().cacheFiles(local_files);
+    return local_engine::charTojstring(env, jobId.c_str());
+    LOCAL_ENGINE_JNI_METHOD_END(env, nullptr);
+}
+
+JNIEXPORT void Java_org_apache_gluten_execution_CHNativeCacheManager_removeFiles(JNIEnv * env, jobject, jstring file_, jstring cache_name_)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    auto file = jstring2string(env, file_);
+    auto cache_name = jstring2string(env, cache_name_);
+
+    local_engine::CacheManager::removeFiles(file, cache_name);
     LOCAL_ENGINE_JNI_METHOD_END(env, );
 }
 

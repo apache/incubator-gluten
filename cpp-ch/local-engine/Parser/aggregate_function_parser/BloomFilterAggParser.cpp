@@ -63,8 +63,8 @@ DB::Array AggregateFunctionParserBloomFilterAgg::parseFunctionParameters(
             node->column->get(0, ret);
             return ret;
         };
-        Int64 insert_num = get_parameter_field(arg_nodes[1], 1).get<Int64>();
-        Int64 bits_num = get_parameter_field(arg_nodes[2], 2).get<Int64>();
+        Int64 insert_num = get_parameter_field(arg_nodes[1], 1).safeGet<Int64>();
+        Int64 bits_num = get_parameter_field(arg_nodes[2], 2).safeGet<Int64>();
 
         // Delete all args except the first arg.
         arg_nodes.resize(1);

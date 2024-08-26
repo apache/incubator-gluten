@@ -36,11 +36,6 @@
       <scope>test</scope>
       <classifier>tests</classifier>
     </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
-      <version>2.15.1</version>
-    </dependency>
   </dependencies>
 
   <profiles>
@@ -61,6 +56,38 @@
           <artifactId>celeborn-client-spark-${spark.major.version}-shaded_${scala.binary.version}</artifactId>
           <version>${celeborn.version}</version>
           <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.arrow</groupId>
+          <artifactId>arrow-memory-core</artifactId>
+          <version>${arrow.version}</version>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>io.netty</groupId>
+              <artifactId>netty-common</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>io.netty</groupId>
+              <artifactId>netty-buffer</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.arrow</groupId>
+          <artifactId>arrow-vector</artifactId>
+          <version>${arrow.version}</version>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>io.netty</groupId>
+              <artifactId>netty-common</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>io.netty</groupId>
+              <artifactId>netty-buffer</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
       <build>
@@ -97,44 +124,6 @@
           <artifactId>backends-velox</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.arrow</groupId>
-          <artifactId>arrow-vector</artifactId>
-          <version>${arrow.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-common</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-buffer</artifactId>
-            </exclusion>
-          </exclusions>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.arrow</groupId>
-          <artifactId>arrow-memory-netty</artifactId>
-          <version>${arrow.version}</version>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.arrow</groupId>
-          <artifactId>arrow-memory-core</artifactId>
-          <version>${arrow.version}</version>
-          <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-common</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-buffer</artifactId>
-            </exclusion>
-          </exclusions>
         </dependency>
         <!-- log4j -->
         <dependency>

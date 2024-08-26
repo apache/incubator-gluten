@@ -32,6 +32,7 @@ public class Metrics implements IMetrics {
   public long[] scanTime;
   public long[] peakMemoryBytes;
   public long[] numMemoryAllocations;
+  public long[] spilledInputBytes;
   public long[] spilledBytes;
   public long[] spilledRows;
   public long[] spilledPartitions;
@@ -69,6 +70,7 @@ public class Metrics implements IMetrics {
       long veloxToArrow,
       long[] peakMemoryBytes,
       long[] numMemoryAllocations,
+      long[] spilledInputBytes,
       long[] spilledBytes,
       long[] spilledRows,
       long[] spilledPartitions,
@@ -101,6 +103,7 @@ public class Metrics implements IMetrics {
     this.singleMetric.veloxToArrow = veloxToArrow;
     this.peakMemoryBytes = peakMemoryBytes;
     this.numMemoryAllocations = numMemoryAllocations;
+    this.spilledInputBytes = spilledInputBytes;
     this.spilledBytes = spilledBytes;
     this.spilledRows = spilledRows;
     this.spilledPartitions = spilledPartitions;
@@ -138,6 +141,7 @@ public class Metrics implements IMetrics {
         wallNanos[index],
         peakMemoryBytes[index],
         numMemoryAllocations[index],
+        spilledInputBytes[index],
         spilledBytes[index],
         spilledRows[index],
         spilledPartitions[index],

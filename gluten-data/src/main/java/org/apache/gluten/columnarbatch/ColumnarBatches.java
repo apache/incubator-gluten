@@ -16,12 +16,13 @@
  */
 package org.apache.gluten.columnarbatch;
 
-import org.apache.gluten.exception.GlutenException;
+import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;
 import org.apache.gluten.utils.ImplicitClass;
+import org.apache.gluten.utils.InternalRowUtl;
 import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -32,26 +33,19 @@ import org.apache.arrow.c.Data;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
+import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.utils.SparkArrowUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
+import org.apache.spark.sql.vectorized.ColumnarBatchUtil;
 
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public class ColumnarBatches {
-  private static final Field FIELD_COLUMNS;
+import scala.collection.JavaConverters;
 
-  static {
-    try {
-      Field f = ColumnarBatch.class.getDeclaredField("columns");
-      f.setAccessible(true);
-      FIELD_COLUMNS = f;
-    } catch (NoSuchFieldException e) {
-      throw new GlutenException(e);
-    }
-  }
+public class ColumnarBatches {
 
   private ColumnarBatches() {}
 
@@ -88,21 +82,6 @@ public class ColumnarBatches {
       }
     }
     return BatchType.HEAVY;
-  }
-
-  private static void transferVectors(ColumnarBatch from, ColumnarBatch target) {
-    try {
-      if (target.numCols() != from.numCols()) {
-        throw new IllegalStateException();
-      }
-      final ColumnVector[] newVectors = new ColumnVector[from.numCols()];
-      for (int i = 0; i < target.numCols(); i++) {
-        newVectors[i] = from.column(i);
-      }
-      FIELD_COLUMNS.set(target, newVectors);
-    } catch (IllegalAccessException e) {
-      throw new GlutenException(e);
-    }
   }
 
   /** Heavy batch: Data is readable from JVM and formatted as Arrow data. */
@@ -201,8 +180,9 @@ public class ColumnarBatches {
       }
 
       // populate new vectors to input
-      transferVectors(output, input);
-      return input;
+      ColumnarBatchUtil.transferVectors(output, input);
+
+      return output;
     }
   }
 
@@ -236,7 +216,7 @@ public class ColumnarBatches {
       }
 
       // populate new vectors to input
-      transferVectors(output, input);
+      ColumnarBatchUtil.transferVectors(output, input);
       return input;
     }
   }
@@ -378,5 +358,12 @@ public class ColumnarBatches {
 
   public static long getNativeHandle(ColumnarBatch batch) {
     return getIndicatorVector(batch).handle();
+  }
+
+  public static String toString(ColumnarBatch batch, int start, int length) {
+    ColumnarBatch loadedBatch = ensureLoaded(ArrowBufferAllocators.contextInstance(), batch);
+    StructType type = SparkArrowUtil.fromArrowSchema(ArrowUtil.toSchema(loadedBatch));
+    return InternalRowUtl.toString(
+        type, JavaConverters.asScalaIterator(loadedBatch.rowIterator()), start, length);
   }
 }

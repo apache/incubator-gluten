@@ -143,8 +143,6 @@ object Validators {
       case p: SortMergeJoinExec if !settings.supportSortMergeJoinExec() => fail(p)
       case p: WriteFilesExec if !settings.enableNativeWriteFiles() =>
         fail(p)
-      case p: SortAggregateExec if !settings.replaceSortAggWithHashAgg =>
-        fail(p)
       case p: CartesianProductExec if !settings.supportCartesianProductExec() => fail(p)
       case p: TakeOrderedAndProjectExec if !settings.supportColumnarShuffleExec() => fail(p)
       case _ => pass()
@@ -162,6 +160,7 @@ object Validators {
       case p: FilterExec if !conf.enableColumnarFilter => fail(p)
       case p: UnionExec if !conf.enableColumnarUnion => fail(p)
       case p: ExpandExec if !conf.enableColumnarExpand => fail(p)
+      case p: SortAggregateExec if !conf.forceToUseHashAgg => fail(p)
       case p: ShuffledHashJoinExec if !conf.enableColumnarShuffledHashJoin => fail(p)
       case p: ShuffleExchangeExec if !conf.enableColumnarShuffle => fail(p)
       case p: BroadcastExchangeExec if !conf.enableColumnarBroadcastExchange => fail(p)

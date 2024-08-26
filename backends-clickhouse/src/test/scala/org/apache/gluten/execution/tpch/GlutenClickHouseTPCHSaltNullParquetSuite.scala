@@ -335,7 +335,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("TPCH Q21") {
-    runTPCHQuery(21, noFallBack = false) { df => }
+    runTPCHQuery(21) { df => }
   }
 
   test("GLUTEN-2115: Fix wrong number of records shuffle written") {
@@ -978,7 +978,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
-  ignore("window percent_rank") {
+  test("window percent_rank") {
     val sql =
       """
         |select n_regionkey, n_nationkey,

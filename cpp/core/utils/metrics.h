@@ -54,6 +54,7 @@ struct Metrics {
     kNumMemoryAllocations,
 
     // Spill.
+    kSpilledInputBytes,
     kSpilledBytes,
     kSpilledRows,
     kSpilledPartitions,

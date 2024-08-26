@@ -248,6 +248,11 @@ class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTr
     checkEvaluation(BRound(-3.5, 0), -4.0)
     checkEvaluation(BRound(-0.35, 1), -0.4)
     checkEvaluation(BRound(-35, -1), -40)
+    checkEvaluation(Round(1.12345678901234567, 8), 1.12345679)
+    checkEvaluation(Round(-0.98765432109876543, 5), -0.98765)
+    checkEvaluation(Round(12345.67890123456789, 6), 12345.678901)
+    // Enable the test after fixing https://github.com/apache/incubator-gluten/issues/6827
+    // checkEvaluation(Round(0.5549999999999999, 2), 0.55)
     checkEvaluation(BRound(BigDecimal("45.00"), -1), BigDecimal(40))
     checkEvaluation(checkDataTypeAndCast(RoundFloor(Literal(2.5), Literal(0))), Decimal(2))
     checkEvaluation(checkDataTypeAndCast(RoundFloor(Literal(3.5), Literal(0))), Decimal(3))

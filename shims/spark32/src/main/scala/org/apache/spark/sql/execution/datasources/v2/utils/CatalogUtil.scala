@@ -39,6 +39,6 @@ object CatalogUtil {
         throw new UnsupportedOperationException(s"Partitioning by expressions")
     }
 
-    (identityCols, bucketSpec)
+    (identityCols.toSeq, bucketSpec)
   }
 }

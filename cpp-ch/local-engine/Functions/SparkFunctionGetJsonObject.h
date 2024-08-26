@@ -72,7 +72,7 @@ class GetJsonObjectImpl
 public:
     using Element = typename JSONParser::Element;
 
-    static DB::DataTypePtr getReturnType(const char *, const DB::ColumnsWithTypeAndName &, const DB::ContextPtr &)
+    static DB::DataTypePtr getReturnType(const char *, const DB::ColumnsWithTypeAndName &, bool )
     {
         auto nested_type = std::make_shared<DB::DataTypeString>();
         return std::make_shared<DB::DataTypeNullable>(nested_type);
@@ -81,7 +81,7 @@ public:
     static size_t getNumberOfIndexArguments(const DB::ColumnsWithTypeAndName & arguments) { return arguments.size() - 1; }
 
     bool insertResultToColumn(
-        DB::IColumn & dest, const Element & root, DB::GeneratorJSONPath<JSONParser> & generator_json_path, const DB::ContextPtr &)
+        DB::IColumn & dest, const Element & root, DB::GeneratorJSONPath<JSONParser> & generator_json_path, bool )
     {
         Element current_element = root;
         DB::VisitorStatus status;
@@ -353,7 +353,7 @@ private:
                 for (size_t j = 0; j < tuple_size; ++j)
                 {
                     generator_json_paths[j]->reinitialize();
-                    if (!impl.insertResultToColumn(*tuple_columns[j], document, *generator_json_paths[j], context))
+                    if (!impl.insertResultToColumn(*tuple_columns[j], document, *generator_json_paths[j], true))
                     {
                         tuple_columns[j]->insertDefault();
                     }

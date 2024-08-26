@@ -57,13 +57,26 @@ jlong callJavaGet(const std::string & id)
 DB::Block resetBuildTableBlockName(Block & block, bool only_one = false)
 {
     DB::ColumnsWithTypeAndName new_cols;
+    std::set<std::string> names;
+    int32_t seq = 0;
     for (const auto & col : block)
     {
-        // Add a prefix to avoid column name conflicts with left table.
-        new_cols.emplace_back(col.column, col.type, BlockUtil::RIHGT_COLUMN_PREFIX + col.name);
+      // Add a prefix to avoid column name conflicts with left table.
+      std::stringstream new_name;
+      // add a sequence to avoid duplicate name in some rare cases
+      if (names.find(col.name) == names.end())
+      {
+         new_name << BlockUtil::RIHGT_COLUMN_PREFIX << col.name;
+         names.insert(col.name);
+      }
+      else
+      {
+        new_name << BlockUtil::RIHGT_COLUMN_PREFIX  << (seq++) << "_" << col.name;
+      }
+      new_cols.emplace_back(col.column, col.type, new_name.str());
 
-        if (only_one)
-            break;
+      if (only_one)
+        break;
     }
     return DB::Block(new_cols);
 }

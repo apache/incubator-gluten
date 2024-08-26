@@ -51,11 +51,13 @@
 #include <Interpreters/JIT/CompiledExpressionCache.h>
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Planner/PlannerActionsVisitor.h>
 #include <Processors/Chunk.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
+#include <Storages/Cache/CacheManager.h>
 #include <Storages/Output/WriteBufferBuilder.h>
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
@@ -72,7 +74,6 @@
 #include <Common/LoggerExtend.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
-#include <Storages/Cache/CacheManager.h>
 
 namespace DB
 {
@@ -463,20 +464,22 @@ const DB::ColumnWithTypeAndName * NestedColumnExtractHelper::findColumn(const DB
 const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     DB::ActionsDAG & actions_dag,
     const DB::ActionsDAG::Node * node,
-    const std::string & type_name,
+    const DataTypePtr & cast_to_type,
     const std::string & result_name,
     CastType cast_type)
 {
     DB::ColumnWithTypeAndName type_name_col;
-    type_name_col.name = type_name;
+    type_name_col.name = cast_to_type->getName();
     type_name_col.column = DB::DataTypeString().createColumnConst(0, type_name_col.name);
     type_name_col.type = std::make_shared<DB::DataTypeString>();
     const auto * right_arg = &actions_dag.addColumn(std::move(type_name_col));
     const auto * left_arg = node;
     DB::CastDiagnostic diagnostic = {node->result_name, node->result_name};
+    ColumnWithTypeAndName left_column{nullptr, node->result_type, {}};
     DB::ActionsDAG::NodeRawConstPtrs children = {left_arg, right_arg};
-    return &actions_dag.addFunction(
-        DB::createInternalCastOverloadResolver(cast_type, std::move(diagnostic)), std::move(children), result_name);
+    auto func_base_cast = createInternalCast(std::move(left_column), cast_to_type, cast_type, diagnostic);
+
+    return &actions_dag.addFunction(func_base_cast, std::move(children), result_name);
 }
 
 const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeTypeIfNeeded(
@@ -489,7 +492,7 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeTypeIfNeeded(
     if (node->result_type->equals(*dst_type))
         return node;
 
-    return convertNodeType(actions_dag, node, dst_type->getName(), result_name, cast_type);
+    return convertNodeType(actions_dag, node, dst_type, result_name, cast_type);
 }
 
 String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
@@ -570,6 +573,18 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
     std::vector<String> changed_paths;
     if (path_prefix.empty() && path_suffix.empty())
         return changed_paths;
+
+    auto change_func = [&](String key) -> void
+    {
+        if (const String value = config.getString(key, ""); value != "")
+        {
+            const String change_value = path_prefix + value + path_suffix;
+            config.setString(key, change_value);
+            changed_paths.emplace_back(change_value);
+            LOG_INFO(getLogger("BackendInitializerUtil"), "Change config `{}` from '{}' to {}.", key, value, change_value);
+        }
+    };
+
     Poco::Util::AbstractConfiguration::Keys disks;
     std::unordered_set<String> disk_types = {"s3_gluten", "hdfs_gluten", "cache"};
     config.keys("storage_configuration.disks", disks);
@@ -583,26 +598,14 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
             if (!disk_types.contains(disk_type))
                 return;
             if (disk_type == "cache")
-            {
-                String path = config.getString(disk_prefix + ".path", "");
-                if (!path.empty())
-                {
-                    String final_path = path_prefix + path + path_suffix;
-                    config.setString(disk_prefix + ".path", final_path);
-                    changed_paths.emplace_back(final_path);
-                }
-            }
+                change_func(disk_prefix + ".path");
             else if (disk_type == "s3_gluten" || disk_type == "hdfs_gluten")
-            {
-                String metadata_path = config.getString(disk_prefix + ".metadata_path", "");
-                if (!metadata_path.empty())
-                {
-                    String final_path = path_prefix + metadata_path + path_suffix;
-                    config.setString(disk_prefix + ".metadata_path", final_path);
-                    changed_paths.emplace_back(final_path);
-                }
-            }
+                change_func(disk_prefix + ".metadata_path");
         });
+
+    change_func("path");
+    change_func("gluten_cache.local.path");
+
     return changed_paths;
 }
 
@@ -976,6 +979,7 @@ void BackendInitializerUtil::init(const std::string_view plan)
     // Init the table metadata cache map
     StorageMergeTreeFactory::init_cache_map();
 
+    JobScheduler::initialize(SerializedPlanParser::global_context);
     CacheManager::initialize(SerializedPlanParser::global_context);
 
     std::call_once(

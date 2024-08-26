@@ -16,6 +16,7 @@
  */
 
 #include "VeloxShuffleReader.h"
+#include "GlutenByteStream.h"
 
 #include <arrow/array/array_binary.h>
 #include <arrow/io/buffered.h>
@@ -177,7 +178,7 @@ VectorPtr readFlatVector<TypeKind::VARBINARY>(
 std::unique_ptr<ByteInputStream> toByteStream(uint8_t* data, int32_t size) {
   std::vector<ByteRange> byteRanges;
   byteRanges.push_back(ByteRange{data, size, 0});
-  auto byteStream = std::make_unique<ByteInputStream>(byteRanges);
+  auto byteStream = std::make_unique<BufferInputStream>(byteRanges);
   return byteStream;
 }
 
@@ -450,7 +451,7 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::deserializeTo
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
 }
 
-class VeloxRssSortShuffleReaderDeserializer::VeloxInputStream : public facebook::velox::ByteInputStream {
+class VeloxRssSortShuffleReaderDeserializer::VeloxInputStream : public facebook::velox::GlutenByteInputStream {
  public:
   VeloxInputStream(std::shared_ptr<arrow::io::InputStream> input, facebook::velox::BufferPtr buffer);
 

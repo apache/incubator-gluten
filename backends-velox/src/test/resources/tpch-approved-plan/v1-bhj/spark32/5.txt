@@ -320,7 +320,7 @@ Arguments: X, X
 
 (54) ColumnarExchange
 Input [4]: [hash_partition_key#X, n_name#X, sum#X, isEmpty#X]
-Arguments: hashpartitioning(n_name#X, 1), ENSURE_REQUIREMENTS, [n_name#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(n_name#X, 1), ENSURE_REQUIREMENTS, [n_name#X, sum#X, isEmpty#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (55) ShuffleQueryStage
 Output [3]: [n_name#X, sum#X, isEmpty#X]
@@ -349,7 +349,7 @@ Arguments: X, X
 
 (61) ColumnarExchange
 Input [2]: [n_name#X, revenue#X]
-Arguments: rangepartitioning(revenue#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+Arguments: rangepartitioning(revenue#X DESC NULLS LAST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (62) ShuffleQueryStage
 Output [2]: [n_name#X, revenue#X]

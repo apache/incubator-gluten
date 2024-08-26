@@ -16,6 +16,8 @@
  */
 #include "JoinRelParser.h"
 
+#include <Core/Block.h>
+#include <Functions/FunctionFactory.h>
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
@@ -25,15 +27,15 @@
 #include <Interpreters/TableJoin.h>
 #include <Join/BroadCastJoinBuilder.h>
 #include <Join/StorageJoinFromReadBuffer.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parser/AdvancedParametersParseUtil.h>
+#include <Parser/SerializedPlanParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/JoinStep.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/CHUtil.h>
-#include <Functions/FunctionFactory.h>
+#include <Common/GlutenConfig.h>
 
 #include <Common/logger_useful.h>
 
@@ -42,20 +44,19 @@ namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
-    extern const int UNKNOWN_TYPE;
-    extern const int BAD_ARGUMENTS;
+extern const int LOGICAL_ERROR;
+extern const int UNKNOWN_TYPE;
+extern const int BAD_ARGUMENTS;
 }
 }
 using namespace DB;
 
 namespace local_engine
 {
-std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type, bool is_existence_join)
+std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type, bool is_existence_join, ContextPtr & context)
 {
-    auto & global_context = SerializedPlanParser::global_context;
     auto table_join = std::make_shared<TableJoin>(
-        global_context->getSettingsRef(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
+        context->getSettingsRef(), context->getGlobalTemporaryVolume(), context->getTempDataOnDisk());
 
     std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = JoinUtil::getJoinKindAndStrictness(join_type, is_existence_join);
     table_join->setKind(kind_and_strictness.first);
@@ -98,7 +99,8 @@ DB::QueryPlanPtr JoinRelParser::parseOp(const substrait::Rel & rel, std::list<co
     return parseJoin(join, std::move(left_plan), std::move(right_plan));
 }
 
-std::unordered_set<DB::JoinTableSide> JoinRelParser::extractTableSidesFromExpression(const substrait::Expression & expr, const DB::Block & left_header, const DB::Block & right_header)
+std::unordered_set<DB::JoinTableSide> JoinRelParser::extractTableSidesFromExpression(
+    const substrait::Expression & expr, const DB::Block & left_header, const DB::Block & right_header)
 {
     std::unordered_set<DB::JoinTableSide> table_sides;
     if (expr.has_scalar_function())
@@ -169,8 +171,7 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
         storage_join.getRightSampleBlock().getColumnsWithTypeAndName(),
         ActionsDAG::MatchColumnsMode::Position);
 
-    QueryPlanStepPtr right_project_step =
-        std::make_unique<ExpressionStep>(right.getCurrentDataStream(), std::move(right_project));
+    QueryPlanStepPtr right_project_step = std::make_unique<ExpressionStep>(right.getCurrentDataStream(), std::move(right_project));
     right_project_step->setStepDescription("Rename Broadcast Table Name");
     steps.emplace_back(right_project_step.get());
     right.addStep(std::move(right_project_step));
@@ -193,12 +194,9 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
         }
     }
     ActionsDAG left_project = ActionsDAG::makeConvertingActions(
-        left.getCurrentDataStream().header.getColumnsWithTypeAndName(),
-        new_left_cols,
-        ActionsDAG::MatchColumnsMode::Position);
+        left.getCurrentDataStream().header.getColumnsWithTypeAndName(), new_left_cols, ActionsDAG::MatchColumnsMode::Position);
 
-    QueryPlanStepPtr left_project_step =
-        std::make_unique<ExpressionStep>(left.getCurrentDataStream(), std::move(left_project));
+    QueryPlanStepPtr left_project_step = std::make_unique<ExpressionStep>(left.getCurrentDataStream(), std::move(left_project));
     left_project_step->setStepDescription("Rename Left Table Name for broadcast join");
     steps.emplace_back(left_project_step.get());
     left.addStep(std::move(left_project_step));
@@ -206,16 +204,18 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
 
 DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right)
 {
+    auto join_config = JoinConfig::loadFromContext(getContext());
     google::protobuf::StringValue optimization_info;
     optimization_info.ParseFromString(join.advanced_extension().optimization().value());
     auto join_opt_info = JoinOptimizationInfo::parse(optimization_info.value());
+    LOG_DEBUG(getLogger("JoinRelParser"), "optimization info:{}", optimization_info.value());
     auto storage_join = join_opt_info.is_broadcast ? BroadCastJoinBuilder::getJoin(join_opt_info.storage_join_key) : nullptr;
     if (storage_join)
     {
         renamePlanColumns(*left, *right, *storage_join);
     }
 
-    auto table_join = createDefaultTableJoin(join.type(), join_opt_info.is_existence_join);
+    auto table_join = createDefaultTableJoin(join.type(), join_opt_info.is_existence_join, context);
     DB::Block right_header_before_convert_step = right->getCurrentDataStream().header;
     addConvertStep(*table_join, *left, *right);
 
@@ -239,7 +239,9 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         }
         if (is_col_names_changed)
         {
-            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "For broadcast join, we must not change the columns name in the right table.\nleft header:{},\nright header: {} -> {}",
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR,
+                "For broadcast join, we must not change the columns name in the right table.\nleft header:{},\nright header: {} -> {}",
                 left->getCurrentDataStream().header.dumpStructure(),
                 right_header_before_convert_step.dumpStructure(),
                 right->getCurrentDataStream().header.dumpStructure());
@@ -266,7 +268,6 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
     if (storage_join)
     {
-
         applyJoinFilter(*table_join, join, *left, *right, true);
         auto broadcast_hash_join = storage_join->getJoinLocked(table_join, context);
 
@@ -288,15 +289,13 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         /// TODO: make smj support mixed conditions
         if (need_post_filter && table_join->kind() != DB::JoinKind::Inner)
         {
-            throw DB::Exception(
-                DB::ErrorCodes::LOGICAL_ERROR,
-                "Sort merge join doesn't support mixed join conditions, except inner join.");
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Sort merge join doesn't support mixed join conditions, except inner join.");
         }
 
         JoinPtr smj_join = std::make_shared<FullSortingMergeJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty(), -1);
         MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef().join_algorithm;
         QueryPlanStepPtr join_step
-                 = std::make_unique<DB::JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), smj_join, 8192, 1, false);
+            = std::make_unique<DB::JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), smj_join, 8192, 1, false);
 
         join_step->setStepDescription("SORT_MERGE_JOIN");
         steps.emplace_back(join_step.get());
@@ -311,41 +310,22 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
     }
     else
     {
-        applyJoinFilter(*table_join, join, *left, *right, true);
-
-        /// Following is some configurations for grace hash join.
-        /// - spark.gluten.sql.columnar.backend.ch.runtime_settings.join_algorithm=grace_hash. This will
-        ///   enable grace hash join.
-        /// - spark.gluten.sql.columnar.backend.ch.runtime_settings.max_bytes_in_join=3145728. This setup
-        ///   the memory limitation fro grace hash join. If the memory consumption exceeds the limitation,
-        ///   data will be spilled to disk. Don't set the limitation too small, otherwise the buckets number
-        ///   will be too large and the performance will be bad.
-        JoinPtr hash_join = nullptr;
-        MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef().join_algorithm;
-        if (join_algorithm.isSet(DB::JoinAlgorithm::GRACE_HASH))
+        std::vector<DB::TableJoin::JoinOnClause> join_on_clauses;
+        if (table_join->getClauses().empty())
+            table_join->addDisjunct();
+        bool is_multi_join_on_clauses
+            = couldRewriteToMultiJoinOnClauses(table_join->getOnlyClause(), join_on_clauses, join, left_header, right_header);
+        if (is_multi_join_on_clauses && join_config.prefer_multi_join_on_clauses && join_opt_info.right_table_rows > 0
+            && join_opt_info.partitions_num > 0
+            && join_opt_info.right_table_rows / join_opt_info.partitions_num
+                < join_config.multi_join_on_clauses_build_side_rows_limit)
         {
-            hash_join = std::make_shared<GraceHashJoin>(
-                context,
-                table_join,
-                left->getCurrentDataStream().header,
-                right->getCurrentDataStream().header,
-                context->getTempDataOnDisk());
+            query_plan = buildMultiOnClauseHashJoin(table_join, std::move(left), std::move(right), join_on_clauses);
         }
         else
         {
-            hash_join = std::make_shared<HashJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty());
+            query_plan = buildSingleOnClauseHashJoin(join, table_join, std::move(left), std::move(right));
         }
-        QueryPlanStepPtr join_step
-            = std::make_unique<DB::JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), hash_join, 8192, 1, false);
-
-        join_step->setStepDescription("HASH_JOIN");
-        steps.emplace_back(join_step.get());
-        std::vector<QueryPlanPtr> plans;
-        plans.emplace_back(std::move(left));
-        plans.emplace_back(std::move(right));
-
-        query_plan = std::make_unique<QueryPlan>();
-        query_plan->unitePlans(std::move(join_step), {std::move(plans)});
     }
 
     JoinUtil::reorderJoinOutput(*query_plan, after_join_names);
@@ -508,7 +488,11 @@ void JoinRelParser::collectJoinKeys(
 }
 
 bool JoinRelParser::applyJoinFilter(
-    DB::TableJoin & table_join, const substrait::JoinRel & join_rel, DB::QueryPlan & left, DB::QueryPlan & right, bool allow_mixed_condition)
+    DB::TableJoin & table_join,
+    const substrait::JoinRel & join_rel,
+    DB::QueryPlan & left,
+    DB::QueryPlan & right,
+    bool allow_mixed_condition)
 {
     if (!join_rel.has_post_join_filter())
         return true;
@@ -593,12 +577,14 @@ bool JoinRelParser::applyJoinFilter(
         if (!allow_mixed_condition)
             return false;
         auto mixed_join_expressions_actions = expressionsToActionsDAG({expr}, mixed_header);
-        table_join.getMixedJoinExpression()
-            = std::make_shared<DB::ExpressionActions>(std::move(mixed_join_expressions_actions), ExpressionActionsSettings::fromContext(context));
+        mixed_join_expressions_actions.removeUnusedActions();
+        table_join.getMixedJoinExpression() = std::make_shared<DB::ExpressionActions>(
+            std::move(mixed_join_expressions_actions), ExpressionActionsSettings::fromContext(context));
     }
     else
     {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not any table column is used in the join condition.\n{}", join_rel.DebugString());
+        throw DB::Exception(
+            DB::ErrorCodes::LOGICAL_ERROR, "Not any table column is used in the join condition.\n{}", join_rel.DebugString());
     }
     return true;
 }
@@ -609,7 +595,7 @@ void JoinRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::J
     ActionsDAG actions_dag{query_plan.getCurrentDataStream().header.getColumnsWithTypeAndName()};
     if (!join.post_join_filter().has_scalar_function())
     {
-	// It may be singular_or_list
+        // It may be singular_or_list
         auto * in_node = getPlanParser()->parseExpression(actions_dag, join.post_join_filter());
         filter_name = in_node->result_name;
     }
@@ -621,6 +607,215 @@ void JoinRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::J
     filter_step->setStepDescription("Post Join Filter");
     steps.emplace_back(filter_step.get());
     query_plan.addStep(std::move(filter_step));
+}
+
+/// Only support following pattern: a1 = b1 or a2 = b2 or (a3 = b3 and a4 = b4)
+bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
+    const DB::TableJoin::JoinOnClause & prefix_clause,
+    std::vector<DB::TableJoin::JoinOnClause> & clauses,
+    const substrait::JoinRel & join_rel,
+    const DB::Block & left_header,
+    const DB::Block & right_header)
+{
+    /// There is only one join clause
+    if (!join_rel.has_post_join_filter())
+        return false;
+
+    const auto & filter_expr = join_rel.post_join_filter();
+    std::list<const substrait::Expression *> expression_stack;
+    expression_stack.push_back(&filter_expr);
+
+    auto check_function = [&](const String function_name_, const substrait::Expression & e)
+    {
+        if (!e.has_scalar_function())
+        {
+            return false;
+        }
+        auto function_name = parseFunctionName(e.scalar_function().function_reference(), e.scalar_function());
+        return function_name.has_value() && *function_name == function_name_;
+    };
+
+    auto get_field_ref = [](const substrait::Expression & e) -> std::optional<Int32>
+    {
+        if (e.has_selection() && e.selection().has_direct_reference() && e.selection().direct_reference().has_struct_field())
+        {
+            return std::optional<Int32>(e.selection().direct_reference().struct_field().field());
+        }
+        return {};
+    };
+
+    auto parse_join_keys = [&](const substrait::Expression & e) -> std::optional<std::pair<String, String>>
+    {
+        const auto & args = e.scalar_function().arguments();
+        auto l_field_ref = get_field_ref(args[0].value());
+        auto r_field_ref = get_field_ref(args[1].value());
+        if (!l_field_ref.has_value() || !r_field_ref.has_value())
+            return {};
+        size_t l_pos = static_cast<size_t>(*l_field_ref);
+        size_t r_pos = static_cast<size_t>(*r_field_ref);
+        size_t l_cols = left_header.columns();
+        size_t total_cols = l_cols + right_header.columns();
+
+        if (l_pos < l_cols && r_pos >= l_cols && r_pos < total_cols)
+            return std::make_pair(left_header.getByPosition(l_pos).name, right_header.getByPosition(r_pos - l_cols).name);
+        else if (r_pos < l_cols && l_pos >= l_cols && l_pos < total_cols)
+            return std::make_pair(left_header.getByPosition(r_pos).name, right_header.getByPosition(l_pos - l_cols).name);
+        return {};
+    };
+
+    auto parse_and_expression = [&](const substrait::Expression & e, DB::TableJoin::JoinOnClause & join_on_clause)
+    {
+        std::vector<const substrait::Expression *> and_expression_stack;
+        and_expression_stack.push_back(&e);
+        while (!and_expression_stack.empty())
+        {
+            const auto & current_expr = *(and_expression_stack.back());
+            and_expression_stack.pop_back();
+            if (check_function("and", current_expr))
+            {
+                for (const auto & arg : e.scalar_function().arguments())
+                    and_expression_stack.push_back(&arg.value());
+            }
+            else if (check_function("equals", current_expr))
+            {
+                auto optional_keys = parse_join_keys(current_expr);
+                if (!optional_keys)
+                {
+                    LOG_DEBUG(getLogger("JoinRelParser"), "Not equal comparison for keys from both tables");
+                    return false;
+                }
+                join_on_clause.addKey(optional_keys->first, optional_keys->second, false);
+            }
+            else
+            {
+                LOG_DEBUG(getLogger("JoinRelParser"), "And or equals function is expected");
+                return false;
+            }
+        }
+        return true;
+    };
+
+    while (!expression_stack.empty())
+    {
+        const auto & current_expr = *(expression_stack.back());
+        expression_stack.pop_back();
+        if (!check_function("or", current_expr))
+        {
+            LOG_DEBUG(getLogger("JoinRelParser"), "Not an or expression");
+            return false;
+        }
+
+        auto get_current_join_on_clause = [&]()
+        {
+            DB::TableJoin::JoinOnClause new_clause = prefix_clause;
+            clauses.push_back(new_clause);
+            return &clauses.back();
+        };
+
+        const auto & args = current_expr.scalar_function().arguments();
+        for (const auto & arg : args)
+        {
+            if (check_function("equals", arg.value()))
+            {
+                auto optional_keys = parse_join_keys(arg.value());
+                if (!optional_keys)
+                {
+                    LOG_DEBUG(getLogger("JoinRelParser"), "Not equal comparison for keys from both tables");
+                    return false;
+                }
+                get_current_join_on_clause()->addKey(optional_keys->first, optional_keys->second, false);
+            }
+            else if (check_function("and", arg.value()))
+            {
+                if (!parse_and_expression(arg.value(), *get_current_join_on_clause()))
+                {
+                    LOG_DEBUG(getLogger("JoinRelParser"), "Parse and expression failed");
+                    return false;
+                }
+            }
+            else if (check_function("or", arg.value()))
+            {
+                expression_stack.push_back(&arg.value());
+            }
+            else
+            {
+                LOG_DEBUG(getLogger("JoinRelParser"), "Unknow function");
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+
+DB::QueryPlanPtr JoinRelParser::buildMultiOnClauseHashJoin(
+    std::shared_ptr<DB::TableJoin> table_join,
+    DB::QueryPlanPtr left_plan,
+    DB::QueryPlanPtr right_plan,
+    const std::vector<DB::TableJoin::JoinOnClause> & join_on_clauses)
+{
+    DB::TableJoin::JoinOnClause & base_join_on_clause = table_join->getOnlyClause();
+    base_join_on_clause = join_on_clauses[0];
+    for (size_t i = 1; i < join_on_clauses.size(); ++i)
+    {
+        table_join->addDisjunct();
+        auto & join_on_clause = table_join->getClauses().back();
+        join_on_clause = join_on_clauses[i];
+    }
+
+    LOG_INFO(getLogger("JoinRelParser"), "multi join on clauses:\n{}", DB::TableJoin::formatClauses(table_join->getClauses()));
+
+    JoinPtr hash_join = std::make_shared<HashJoin>(table_join, right_plan->getCurrentDataStream().header);
+    QueryPlanStepPtr join_step
+        = std::make_unique<DB::JoinStep>(left_plan->getCurrentDataStream(), right_plan->getCurrentDataStream(), hash_join, 8192, 1, false);
+    join_step->setStepDescription("Multi join on clause hash join");
+    steps.emplace_back(join_step.get());
+    std::vector<QueryPlanPtr> plans;
+    plans.emplace_back(std::move(left_plan));
+    plans.emplace_back(std::move(right_plan));
+    auto query_plan = std::make_unique<QueryPlan>();
+    query_plan->unitePlans(std::move(join_step), {std::move(plans)});
+    return query_plan;
+}
+
+DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
+    const substrait::JoinRel & join_rel, std::shared_ptr<DB::TableJoin> table_join, DB::QueryPlanPtr left_plan, DB::QueryPlanPtr right_plan)
+{
+    applyJoinFilter(*table_join, join_rel, *left_plan, *right_plan, true);
+    /// Following is some configurations for grace hash join.
+    /// - spark.gluten.sql.columnar.backend.ch.runtime_settings.join_algorithm=grace_hash. This will
+    ///   enable grace hash join.
+    /// - spark.gluten.sql.columnar.backend.ch.runtime_settings.max_bytes_in_join=3145728. This setup
+    ///   the memory limitation fro grace hash join. If the memory consumption exceeds the limitation,
+    ///   data will be spilled to disk. Don't set the limitation too small, otherwise the buckets number
+    ///   will be too large and the performance will be bad.
+    JoinPtr hash_join = nullptr;
+    MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef().join_algorithm;
+    if (join_algorithm.isSet(DB::JoinAlgorithm::GRACE_HASH))
+    {
+        hash_join = std::make_shared<GraceHashJoin>(
+            context,
+            table_join,
+            left_plan->getCurrentDataStream().header,
+            right_plan->getCurrentDataStream().header,
+            context->getTempDataOnDisk());
+    }
+    else
+    {
+        hash_join = std::make_shared<HashJoin>(table_join, right_plan->getCurrentDataStream().header.cloneEmpty());
+    }
+    QueryPlanStepPtr join_step
+        = std::make_unique<DB::JoinStep>(left_plan->getCurrentDataStream(), right_plan->getCurrentDataStream(), hash_join, 8192, 1, false);
+
+    join_step->setStepDescription("HASH_JOIN");
+    steps.emplace_back(join_step.get());
+    std::vector<QueryPlanPtr> plans;
+    plans.emplace_back(std::move(left_plan));
+    plans.emplace_back(std::move(right_plan));
+
+    auto query_plan = std::make_unique<QueryPlan>();
+    query_plan->unitePlans(std::move(join_step), {std::move(plans)});
+    return query_plan;
 }
 
 void registerJoinRelParser(RelParserFactory & factory)

@@ -1,40 +1,3 @@
-diff --git a/CMake/Findlz4.cmake b/CMake/Findlz4.cmake
-index d49115f12..1aaa8e532 100644
---- a/CMake/Findlz4.cmake
-+++ b/CMake/Findlz4.cmake
-@@ -21,18 +21,19 @@ find_package_handle_standard_args(lz4 DEFAULT_MSG LZ4_LIBRARY LZ4_INCLUDE_DIR)
- 
- mark_as_advanced(LZ4_LIBRARY LZ4_INCLUDE_DIR)
- 
--get_filename_component(liblz4_ext ${LZ4_LIBRARY} EXT)
--if(liblz4_ext STREQUAL ".a")
--  set(liblz4_type STATIC)
--else()
--  set(liblz4_type SHARED)
--endif()
--
- if(NOT TARGET lz4::lz4)
--  add_library(lz4::lz4 ${liblz4_type} IMPORTED)
--  set_target_properties(lz4::lz4 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
--                                            "${LZ4_INCLUDE_DIR}")
--  set_target_properties(
--    lz4::lz4 PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "C"
--                        IMPORTED_LOCATION "${LZ4_LIBRARIES}")
-+  add_library(lz4::lz4 UNKNOWN IMPORTED)
-+  set_target_properties(lz4::lz4 PROPERTIES
-+    INTERFACE_INCLUDE_DIRECTORIES "${LZ4_INCLUDE_DIR}"
-+    IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-+    IMPORTED_LOCATION_RELEASE "${LZ4_LIBRARY_RELEASE}")
-+  set_property(TARGET lz4::lz4 APPEND PROPERTY
-+      IMPORTED_CONFIGURATIONS RELEASE)
-+
-+  if(LZ4_LIBRARY_DEBUG)
-+      set_property(TARGET lz4::lz4 APPEND PROPERTY
-+          IMPORTED_CONFIGURATIONS DEBUG)
-+      set_property(TARGET lz4::lz4 PROPERTY
-+          IMPORTED_LOCATION_DEBUG "${LZ4_LIBRARY_DEBUG}")
-+  endif()
- endif()
 diff --git a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
 index 56b673e87..ef48ae9d9 100644
 --- a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
@@ -95,8 +58,19 @@ index 56b673e87..ef48ae9d9 100644
      URL_HASH ${VELOX_ARROW_BUILD_SHA256_CHECKSUM}
      SOURCE_SUBDIR cpp
      CMAKE_ARGS ${ARROW_CMAKE_ARGS}
+diff --git a/CMake/resolve_dependency_modules/simdjson.cmake b/CMake/resolve_dependency_modules/simdjson.cmake
+index 69e7f2044..777eb5ec1 100644
+--- a/CMake/resolve_dependency_modules/simdjson.cmake
++++ b/CMake/resolve_dependency_modules/simdjson.cmake
+@@ -29,4 +29,6 @@ FetchContent_Declare(
+   URL ${VELOX_SIMDJSON_SOURCE_URL}
+   URL_HASH ${VELOX_SIMDJSON_BUILD_SHA256_CHECKSUM})
+ 
++set(SIMDJSON_SKIPUTF8VALIDATION ON)
++
+ FetchContent_MakeAvailable(simdjson)
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 2dc95f972..391485879 100644
+index cc180b86c..7ca6fa727 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -236,10 +236,15 @@ if(VELOX_ENABLE_ABFS)
@@ -129,19 +103,19 @@ index 2dc95f972..391485879 100644
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
 diff --git a/velox/common/process/tests/CMakeLists.txt b/velox/common/process/tests/CMakeLists.txt
-index f5e6aae72..4c4afe70b 100644
+index 23ef279c2..7e4c2f2b2 100644
 --- a/velox/common/process/tests/CMakeLists.txt
 +++ b/velox/common/process/tests/CMakeLists.txt
 @@ -24,4 +24,6 @@ target_link_libraries(
      fmt::fmt
-     gtest
      velox_time
--    gtest_main)
-+    gtest_main
+     GTest::gtest
+-    GTest::gtest_main)
++    GTest::gtest_main
 +    glog::glog
 +    gflags::gflags)
 diff --git a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
-index e2a638df6..e383cf205 100644
+index 5a566770f..8c2a48cc2 100644
 --- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 +++ b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 @@ -38,7 +38,6 @@ std::shared_ptr<FileSystem> abfsFileSystemGenerator(
@@ -166,12 +140,12 @@ index 10ee508ba..027a58ecc 100644
  }
  
 diff --git a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
-index 97266c253..11d88dcc4 100644
+index 0cda25430..b15565796 100644
 --- a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
 +++ b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
 @@ -38,7 +38,9 @@ target_link_libraries(
-   gtest
-   gtest_main
+   GTest::gtest
+   GTest::gtest_main
    arrow
 -  arrow_testing)
 +  arrow_testing
@@ -180,14 +154,3 @@ index 97266c253..11d88dcc4 100644
  
  add_library(
    velox_dwio_arrow_parquet_writer_test_lib
-diff --git a/CMake/resolve_dependency_modules/simdjson.cmake b/CMake/resolve_dependency_modules/simdjson.cmake
-index 69e7f2044..777eb5ec1 100644
---- a/CMake/resolve_dependency_modules/simdjson.cmake
-+++ b/CMake/resolve_dependency_modules/simdjson.cmake
-@@ -29,4 +29,6 @@ FetchContent_Declare(
-   URL ${VELOX_SIMDJSON_SOURCE_URL}
-   URL_HASH ${VELOX_SIMDJSON_BUILD_SHA256_CHECKSUM})
-
-+set(SIMDJSON_SKIPUTF8VALIDATION ON)
-+
- FetchContent_MakeAvailable(simdjson)

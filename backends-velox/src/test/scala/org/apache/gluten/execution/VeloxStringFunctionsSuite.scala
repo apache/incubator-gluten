@@ -519,23 +519,56 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
         s"from $LINEITEM_TABLE limit 5") { _ => }
   }
 
-  ignore("split") {
+  testWithSpecifiedSparkVersion("split", Some("3.4")) {
     runQueryAndCompare(
-      s"select l_orderkey, l_comment, split(l_comment, ' ', 3) " +
-        s"from $LINEITEM_TABLE limit 5") { _ => }
+      s"select l_orderkey, l_comment, split(l_comment, '') " +
+        s"from $LINEITEM_TABLE limit 5") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare(
+      s"select l_orderkey, l_comment, split(l_comment, '', 1) " +
+        s"from $LINEITEM_TABLE limit 5") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
 
-    // todo incorrect results
     runQueryAndCompare(
-      s"select l_orderkey, l_comment, split(l_comment, '[a]', 3) " +
-        s"from $LINEITEM_TABLE limit 5") { _ => }
+      s"select l_orderkey, l_comment, split(l_comment, ',') " +
+        s"from $LINEITEM_TABLE limit 5") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare(
+      s"select l_orderkey, l_comment, split(l_comment, ',', 10) " +
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
 
     runQueryAndCompare(
       s"select l_orderkey, split(l_comment, ' ') " +
-        s"from $LINEITEM_TABLE limit 5") { _ => }
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, l_comment, split(l_comment, ' ', 3) " +
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
 
     runQueryAndCompare(
-      s"select l_orderkey, split(l_comment, 'h') " +
-        s"from $LINEITEM_TABLE limit 5") { _ => }
+      s"select l_orderkey, l_comment, split(l_comment, '[a-z]+') " +
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, l_comment, split(l_comment, '[a-z]+', 3) " +
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
+
+    runQueryAndCompare(
+      s"select l_orderkey, split(l_comment, '[1-9]+', -2) " +
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
+    runQueryAndCompare(
+      s"select l_orderkey, split(l_comment, '[1-9]+', 0) " +
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
+
+    runQueryAndCompare(
+      s"select l_orderkey, l_comment, split(l_comment, 'h') " +
+        s"from $LINEITEM_TABLE limit 5") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+    runQueryAndCompare(
+      s"select l_orderkey, l_comment, split(l_comment, '[a]', 3) " +
+        s"from $LINEITEM_TABLE limit 5")(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
 
   test("substr") {

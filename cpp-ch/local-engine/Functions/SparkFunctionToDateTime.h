@@ -128,7 +128,7 @@ public:
 
         Field field;
         named_column.column->get(0, field);
-        return static_cast<UInt32>(field.get<UInt32>());
+        return static_cast<UInt32>(field.safeGet<UInt32>());
     }
 
     DB::DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName & arguments) const override

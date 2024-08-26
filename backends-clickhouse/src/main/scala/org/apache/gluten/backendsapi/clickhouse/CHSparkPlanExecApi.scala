@@ -18,36 +18,31 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, SparkPlanExecApi}
+import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.{CommonSubexpressionEliminateRule, CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, RewriteDateTimestampComparisonRule, RewriteSortMergeJoinToHashJoinRule, RewriteToDateExpresstionRule}
 import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import org.apache.gluten.extension.columnar.transition.Convention
-import org.apache.gluten.parser.GlutenClickhouseSqlParser
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
 import org.apache.gluten.vectorized.CHColumnarBatchSerializer
 
-import org.apache.spark.{ShuffleDependency, SparkException}
+import org.apache.spark.ShuffleDependency
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, HashPartitioningWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
-import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRewrite}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
-import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RangePartitioning}
-import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
@@ -69,7 +64,7 @@ import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-class CHSparkPlanExecApi extends SparkPlanExecApi {
+class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
 
   /** The columnar-batch type this backend is using. */
   override def batchType: Convention.BatchType = CHBatch
@@ -309,7 +304,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       condition: Option[Expression],
       left: SparkPlan,
       right: SparkPlan,
-      isSkewJoin: Boolean): ShuffledHashJoinExecTransformerBase =
+      isSkewJoin: Boolean): ShuffledHashJoinExecTransformerBase = {
     CHShuffledHashJoinExecTransformer(
       leftKeys,
       rightKeys,
@@ -319,6 +314,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left,
       right,
       isSkewJoin)
+  }
 
   /** Generate BroadcastHashJoinExecTransformer. */
   def genBroadcastHashJoinExecTransformer(
@@ -433,6 +429,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
   // scalastyle:on argcount
 
+  /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
+  override def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean =
+    false
+
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
    *
@@ -524,6 +524,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             wrapChild(r2c)
           case union: ColumnarUnionExec =>
             wrapChild(union)
+          case ordered: TakeOrderedAndProjectExecTransformer =>
+            wrapChild(ordered)
           case other =>
             throw new GlutenNotSupportException(
               s"Not supported operator ${other.nodeName} for BroadcastRelation")
@@ -534,90 +536,20 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       CHExecUtil.buildSideRDD(dataSize, newChild).collect
 
     val batches = countsAndBytes.map(_._2)
+    val totalBatchesSize = batches.map(_.length).sum
     val rawSize = dataSize.value
     if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
-      throw new SparkException(
-        s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
+      throw new GlutenException(
+        s"Cannot broadcast the table that is larger than 8GB: $rawSize bytes")
+    }
+    if ((rawSize == 0 && totalBatchesSize != 0) || totalBatchesSize < 0) {
+      throw new GlutenException(
+        s"Invalid rawSize($rawSize) or totalBatchesSize ($totalBatchesSize). Ensure the shuffle" +
+          s" written bytes is correct.")
     }
     val rowCount = countsAndBytes.map(_._1).sum
     numOutputRows += rowCount
     ClickHouseBuildSideRelation(mode, newOutput, batches.flatten, rowCount, newBuildKeys)
-  }
-
-  /**
-   * Generate extended DataSourceV2 Strategies. Currently only for ClickHouse backend.
-   *
-   * @return
-   */
-  override def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy] = {
-    List.empty
-  }
-
-  /**
-   * Generate extended query stage preparation rules.
-   *
-   * @return
-   */
-  override def genExtendedQueryStagePrepRules(): List[SparkSession => Rule[SparkPlan]] = {
-    List(spark => FallbackBroadcastHashJoinPrepQueryStage(spark))
-  }
-
-  /**
-   * Generate extended Analyzers. Currently only for ClickHouse backend.
-   *
-   * @return
-   */
-  override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(
-      spark => new RewriteToDateExpresstionRule(spark, spark.sessionState.conf),
-      spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
-  }
-
-  /**
-   * Generate extended Optimizers.
-   *
-   * @return
-   */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(
-      spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf),
-      spark => CHAggregateFunctionRewriteRule(spark),
-      _ => CountDistinctWithoutExpand,
-      _ => EqualToRewrite
-    )
-  }
-
-  /**
-   * Generate extended columnar pre-rules, in the validation phase.
-   *
-   * @return
-   */
-  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] =
-    List(spark => FallbackBroadcastHashJoin(spark))
-
-  /**
-   * Generate extended columnar pre-rules.
-   *
-   * @return
-   */
-  override def genExtendedColumnarTransformRules(): List[SparkSession => Rule[SparkPlan]] =
-    List(spark => RewriteSortMergeJoinToHashJoinRule(spark))
-
-  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
-    List()
-  }
-
-  /**
-   * Generate extended Strategies.
-   *
-   * @return
-   */
-  override def genExtendedStrategies(): List[SparkSession => Strategy] =
-    List()
-
-  override def genInjectExtendedParser()
-      : List[(SparkSession, ParserInterface) => ParserInterface] = {
-    List((spark, parserInterface) => new GlutenClickhouseSqlParser(spark, parserInterface))
   }
 
   /** Define backend specfic expression mappings. */

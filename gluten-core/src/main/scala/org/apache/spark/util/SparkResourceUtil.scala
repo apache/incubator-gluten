@@ -76,4 +76,8 @@ object SparkResourceUtil extends Logging {
     val taskCores = conf.getInt("spark.task.cpus", 1)
     executorCores / taskCores
   }
+
+  def isLocalMaster(conf: SparkConf): Boolean = {
+    Utils.isLocalMaster(conf)
+  }
 }

@@ -18,12 +18,10 @@ package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.SparkPlanExecApi
-import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
-import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.extension.columnar.transition.ConventionFunc.BatchOverride
@@ -36,18 +34,13 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.ShuffleUtil
-import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.FunctionIdentifier
-import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical._
-import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.FileFormat
@@ -56,7 +49,8 @@ import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBr
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
 import org.apache.spark.sql.execution.utils.ExecUtil
-import org.apache.spark.sql.expression.{UDFExpression, UDFResolver, UserDefinedAggregateFunction}
+import org.apache.spark.sql.expression.{UDFExpression, UserDefinedAggregateFunction}
+import org.apache.spark.sql.hive.VeloxHiveUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -64,8 +58,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.commons.lang3.ClassUtils
 
 import javax.ws.rs.core.UriBuilder
-
-import scala.collection.mutable.ListBuffer
 
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
 
@@ -548,6 +540,17 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   }
   // scalastyle:on argcount
 
+  /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
+  override def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean = {
+    val conf = GlutenConfig.getConf
+    lazy val isCelebornSortBasedShuffle = conf.isUseCelebornShuffleManager &&
+      conf.celebornShuffleWriterType == GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER
+    partitioning != SinglePartition &&
+    (partitioning.numPartitions >= GlutenConfig.getConf.columnarShuffleSortPartitionsThreshold ||
+      output.size >= GlutenConfig.getConf.columnarShuffleSortColumnsThreshold) ||
+    isCelebornSortBasedShuffle
+  }
+
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
    *
@@ -650,17 +653,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
    * * Expressions.
    */
 
-  /** Generate StringSplit transformer. */
-  override def genStringSplitTransformer(
-      substraitExprName: String,
-      srcExpr: ExpressionTransformer,
-      regexExpr: ExpressionTransformer,
-      limitExpr: ExpressionTransformer,
-      original: StringSplit): ExpressionTransformer = {
-    // In velox, split function just support tow args, not support limit arg for now
-    VeloxStringSplitTransformer(substraitExprName, srcExpr, regexExpr, limitExpr, original)
-  }
-
   /**
    * Generate Alias transformer.
    *
@@ -760,74 +752,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     }
   }
 
-  /**
-   * * Rules and strategies.
-   */
-
-  /**
-   * Generate extended DataSourceV2 Strategy.
-   *
-   * @return
-   */
-  override def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy] = List()
-
-  /**
-   * Generate extended query stage preparation rules.
-   *
-   * @return
-   */
-  override def genExtendedQueryStagePrepRules(): List[SparkSession => Rule[SparkPlan]] = List()
-
-  /**
-   * Generate extended Analyzer.
-   *
-   * @return
-   */
-  override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = List()
-
-  /**
-   * Generate extended Optimizer. Currently only for Velox backend.
-   *
-   * @return
-   */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] =
-    List(CollectRewriteRule.apply, HLLRewriteRule.apply)
-
-  /**
-   * Generate extended columnar pre-rules, in the validation phase.
-   *
-   * @return
-   */
-  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] = {
-    List(BloomFilterMightContainJointRewriteRule.apply, ArrowScanReplaceRule.apply)
-  }
-
-  /**
-   * Generate extended columnar pre-rules.
-   *
-   * @return
-   */
-  override def genExtendedColumnarTransformRules(): List[SparkSession => Rule[SparkPlan]] = {
-    val buf: ListBuffer[SparkSession => Rule[SparkPlan]] = ListBuffer()
-    if (GlutenConfig.getConf.enableVeloxFlushablePartialAggregation) {
-      buf += FlushableHashAggregateRule.apply
-    }
-    buf.result
-  }
-
-  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(ArrowConvertorRule)
-  }
-
-  /**
-   * Generate extended Strategy.
-   *
-   * @return
-   */
-  override def genExtendedStrategies(): List[SparkSession => Strategy] = {
-    List()
-  }
-
   /** Define backend specfic expression mappings. */
   override def extraExpressionMappings: Seq[Sig] = {
     Seq(
@@ -842,11 +766,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       // For test purpose.
       Sig[VeloxDummyExpression](VeloxDummyExpression.VELOX_DUMMY_EXPRESSION)
     )
-  }
-
-  override def genInjectedFunctions()
-      : Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
-    UDFResolver.getFunctionSignatures
   }
 
   override def rewriteSpillPath(path: String): String = {
@@ -900,5 +819,11 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         }
       case other => other
     }
+  }
+
+  override def genHiveUDFTransformer(
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    VeloxHiveUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
   }
 }

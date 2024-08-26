@@ -128,7 +128,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case s: ScalaUDF =>
         return replaceScalaUDFWithExpressionTransformer(s, attributeSeq, expressionsMap)
       case _ if HiveUDFTransformer.isHiveUDF(expr) =>
-        return HiveUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
+        return BackendsApiManager.getSparkPlanExecApiInstance.genHiveUDFTransformer(
+          expr,
+          attributeSeq)
       case i: StaticInvoke =>
         val objectName = i.staticObject.getName.stripSuffix("$")
         if (objectName.endsWith("UrlCodec")) {
@@ -376,14 +378,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(t.matchingExpr, attributeSeq, expressionsMap),
           replaceWithExpressionTransformerInternal(t.replaceExpr, attributeSeq, expressionsMap),
           t
-        )
-      case s: StringSplit =>
-        BackendsApiManager.getSparkPlanExecApiInstance.genStringSplitTransformer(
-          substraitExprName,
-          replaceWithExpressionTransformerInternal(s.str, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(s.regex, attributeSeq, expressionsMap),
-          replaceWithExpressionTransformerInternal(s.limit, attributeSeq, expressionsMap),
-          s
         )
       case r: RegExpReplace =>
         BackendsApiManager.getSparkPlanExecApiInstance.genRegexpReplaceTransformer(

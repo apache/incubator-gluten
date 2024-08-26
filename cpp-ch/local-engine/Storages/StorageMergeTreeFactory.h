@@ -27,6 +27,37 @@ namespace local_engine
 {
 using CustomStorageMergeTreePtr = std::shared_ptr<CustomStorageMergeTree>;
 
+class DataPartStorageHolder
+{
+public:
+    DataPartStorageHolder(const DataPartPtr& data_part, const CustomStorageMergeTreePtr& storage)
+        : data_part_(data_part),
+          storage_(storage)
+    {
+    }
+
+    [[nodiscard]] DataPartPtr dataPart() const
+    {
+        return data_part_;
+    }
+
+    [[nodiscard]] CustomStorageMergeTreePtr storage() const
+    {
+        return storage_;
+    }
+
+    ~DataPartStorageHolder()
+    {
+        storage_->removePartFromMemory(*data_part_);
+        // std::cerr << fmt::format("clean part {}", data_part_->name) << std::endl;
+    }
+
+private:
+    DataPartPtr data_part_;
+    CustomStorageMergeTreePtr storage_;
+};
+using DataPartStorageHolderPtr = std::shared_ptr<DataPartStorageHolder>;
+
 class StorageMergeTreeFactory
 {
 public:
@@ -50,7 +81,7 @@ public:
         auto & datapart_map_v = datapart_map;
         if (!datapart_map_v)
         {
-            datapart_map_v = std::make_unique<Poco::LRUCache<std::string, std::shared_ptr<Poco::LRUCache<std::string, DataPartPtr>>>>(
+            datapart_map_v = std::make_unique<Poco::LRUCache<std::string, std::shared_ptr<Poco::LRUCache<std::string, DataPartStorageHolderPtr>>>>(
                 config.table_metadata_cache_max_count);
         }
         else
@@ -68,7 +99,8 @@ public:
 
 private:
     static std::unique_ptr<Poco::LRUCache<std::string, std::pair<CustomStorageMergeTreePtr, MergeTreeTable>>> storage_map;
-    static std::unique_ptr<Poco::LRUCache<std::string, std::shared_ptr<Poco::LRUCache<std::string, DataPartPtr>>>> datapart_map;
+    static std::unique_ptr<Poco::LRUCache<std::string, std::shared_ptr<Poco::LRUCache<std::string, DataPartStorageHolderPtr>>>> datapart_map;
+
     static std::recursive_mutex storage_map_mutex;
     static std::recursive_mutex datapart_mutex;
 };

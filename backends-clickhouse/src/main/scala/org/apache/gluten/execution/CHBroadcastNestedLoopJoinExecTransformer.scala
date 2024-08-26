@@ -22,7 +22,7 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.optimizer.BuildSide
+import org.apache.spark.sql.catalyst.optimizer.{BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.{InnerLike, JoinType, LeftSemi}
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
@@ -68,6 +68,7 @@ case class CHBroadcastNestedLoopJoinExecTransformer(
       BroadCastHashJoinContext(
         Seq.empty,
         finalJoinType,
+        buildSide == BuildRight,
         false,
         joinType.isInstanceOf[ExistenceJoin],
         buildPlan.output,

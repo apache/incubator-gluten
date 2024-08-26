@@ -16,8 +16,6 @@
  */
 #include "QueryContext.h"
 
-#include <format>
-
 #include <Interpreters/Context.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Common/CurrentThread.h>
@@ -79,12 +77,17 @@ int64_t QueryContextManager::initializeQuery()
 
 DB::ContextMutablePtr QueryContextManager::currentQueryContext()
 {
-    if (!CurrentThread::getGroup())
-    {
-        throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found.");
-    }
+    auto thread_group = currentThreadGroup();
     int64_t id = reinterpret_cast<int64_t>(CurrentThread::getGroup().get());
     return query_map.get(id)->query_context;
+}
+
+std::shared_ptr<DB::ThreadGroup> QueryContextManager::currentThreadGroup()
+{
+    if (auto thread_group = CurrentThread::getGroup())
+        return thread_group;
+
+    throw Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found.");
 }
 
 void QueryContextManager::logCurrentPerformanceCounters(ProfileEvents::Counters & counters)

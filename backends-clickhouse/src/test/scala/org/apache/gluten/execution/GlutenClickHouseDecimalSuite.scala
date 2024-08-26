@@ -343,7 +343,7 @@ class GlutenClickHouseDecimalSuite
               decimalTPCHTables.foreach {
                 dt =>
                   {
-                    val fallBack = (sql_num == 16 || sql_num == 21)
+                    val fallBack = (sql_num == 16)
                     val compareResult = !dt._2.contains(sql_num)
                     val native = if (fallBack) "fallback" else "native"
                     val compare = if (compareResult) "compare" else "noCompare"

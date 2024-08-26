@@ -260,6 +260,14 @@
               "value": {
                 "string": "false"
               }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format"
+              },
+              "value": {
+                "string": "true"
+              }
             }
           ]
         }

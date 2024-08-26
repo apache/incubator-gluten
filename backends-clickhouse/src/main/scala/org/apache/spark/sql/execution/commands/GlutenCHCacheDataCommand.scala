@@ -16,22 +16,20 @@
  */
 package org.apache.spark.sql.execution.commands
 
-import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.rel.ExtensionTableBuilder
 
 import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.rpc.GlutenDriverEndpoint
-import org.apache.spark.rpc.GlutenRpcMessages.{CacheLoadResult, GlutenMergeTreeCacheLoad}
+import org.apache.spark.rpc.GlutenRpcMessages.{CacheJobInfo, GlutenMergeTreeCacheLoad}
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, GreaterThanOrEqual, IsNotNull, Literal}
 import org.apache.spark.sql.delta._
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
-import org.apache.spark.sql.execution.commands.GlutenCHCacheDataCommand.toExecutorId
+import org.apache.spark.sql.execution.commands.GlutenCacheBase._
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.types.{BooleanType, StringType}
-import org.apache.spark.util.ThreadUtils
 
 import org.apache.hadoop.fs.Path
 
@@ -41,7 +39,6 @@ import java.util.{ArrayList => JList}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
-import scala.concurrent.duration.Duration
 
 case class GlutenCHCacheDataCommand(
     onlyMetaCache: Boolean,
@@ -106,7 +103,8 @@ case class GlutenCHCacheDataCommand(
     }
 
     val selectedAddFiles = if (tsfilter.isDefined) {
-      val allParts = DeltaAdapter.snapshotFilesForScan(snapshot, Seq.empty, Seq.empty, false)
+      val allParts =
+        DeltaAdapter.snapshotFilesForScan(snapshot, Seq.empty, Seq.empty, keepNumRecords = false)
       allParts.files.filter(_.modificationTime >= tsfilter.get.toLong).toSeq
     } else if (partitionColumn.isDefined && partitionValue.isDefined) {
       val partitionColumns = snapshot.metadata.partitionSchema.fieldNames
@@ -126,18 +124,18 @@ case class GlutenCHCacheDataCommand(
           snapshot,
           Seq(partitionColumnAttr),
           Seq(isNotNullExpr, greaterThanOrEqual),
-          false)
+          keepNumRecords = false)
         .files
     } else {
-      DeltaAdapter.snapshotFilesForScan(snapshot, Seq.empty, Seq.empty, false).files
+      DeltaAdapter
+        .snapshotFilesForScan(snapshot, Seq.empty, Seq.empty, keepNumRecords = false)
+        .files
     }
 
     val executorIdsToAddFiles =
       scala.collection.mutable.Map[String, ArrayBuffer[AddMergeTreeParts]]()
     val executorIdsToParts = scala.collection.mutable.Map[String, String]()
-    executorIdsToAddFiles.put(
-      GlutenCHCacheDataCommand.ALL_EXECUTORS,
-      new ArrayBuffer[AddMergeTreeParts]())
+    executorIdsToAddFiles.put(ALL_EXECUTORS, new ArrayBuffer[AddMergeTreeParts]())
     selectedAddFiles.foreach(
       addFile => {
         val mergeTreePart = addFile.asInstanceOf[AddMergeTreeParts]
@@ -151,9 +149,7 @@ case class GlutenCHCacheDataCommand(
 
         if (locations.isEmpty) {
           // non soft affinity
-          executorIdsToAddFiles
-            .get(GlutenCHCacheDataCommand.ALL_EXECUTORS)
-            .get
+          executorIdsToAddFiles(ALL_EXECUTORS)
             .append(mergeTreePart)
         } else {
           locations.foreach(
@@ -161,7 +157,7 @@ case class GlutenCHCacheDataCommand(
               if (!executorIdsToAddFiles.contains(executor)) {
                 executorIdsToAddFiles.put(executor, new ArrayBuffer[AddMergeTreeParts]())
               }
-              executorIdsToAddFiles.get(executor).get.append(mergeTreePart)
+              executorIdsToAddFiles(executor).append(mergeTreePart)
             })
         }
       })
@@ -201,87 +197,33 @@ case class GlutenCHCacheDataCommand(
           executorIdsToParts.put(executorId, extensionTableNode.getExtensionTableStr)
         }
       })
-
-    // send rpc call
-    if (executorIdsToParts.contains(GlutenCHCacheDataCommand.ALL_EXECUTORS)) {
+    val futureList = ArrayBuffer[(String, Future[CacheJobInfo])]()
+    if (executorIdsToParts.contains(ALL_EXECUTORS)) {
       // send all parts to all executors
-      val tableMessage = executorIdsToParts.get(GlutenCHCacheDataCommand.ALL_EXECUTORS).get
-      if (asynExecute) {
-        GlutenDriverEndpoint.executorDataMap.forEach(
-          (executorId, executor) => {
-            executor.executorEndpointRef.send(
-              GlutenMergeTreeCacheLoad(tableMessage, selectedColumns.toSet.asJava))
-          })
-        Seq(Row(true, ""))
-      } else {
-        val futureList = ArrayBuffer[Future[CacheLoadResult]]()
-        val resultList = ArrayBuffer[CacheLoadResult]()
-        GlutenDriverEndpoint.executorDataMap.forEach(
-          (executorId, executor) => {
-            futureList.append(
-              executor.executorEndpointRef.ask[CacheLoadResult](
+      val tableMessage = executorIdsToParts(ALL_EXECUTORS)
+      GlutenDriverEndpoint.executorDataMap.forEach(
+        (executorId, executor) => {
+          futureList.append(
+            (
+              executorId,
+              executor.executorEndpointRef.ask[CacheJobInfo](
                 GlutenMergeTreeCacheLoad(tableMessage, selectedColumns.toSet.asJava)
-              ))
-          })
-        futureList.foreach(
-          f => {
-            resultList.append(ThreadUtils.awaitResult(f, Duration.Inf))
-          })
-        if (resultList.exists(!_.success)) {
-          Seq(Row(false, resultList.filter(!_.success).map(_.reason).mkString(";")))
-        } else {
-          Seq(Row(true, ""))
-        }
-      }
+              )))
+        })
     } else {
-      if (asynExecute) {
-        executorIdsToParts.foreach(
-          value => {
-            val executorData = GlutenDriverEndpoint.executorDataMap.get(toExecutorId(value._1))
-            if (executorData != null) {
-              executorData.executorEndpointRef.send(
-                GlutenMergeTreeCacheLoad(value._2, selectedColumns.toSet.asJava))
-            } else {
-              throw new GlutenException(
-                s"executor ${value._1} not found," +
-                  s" all executors are ${GlutenDriverEndpoint.executorDataMap.toString}")
-            }
-          })
-        Seq(Row(true, ""))
-      } else {
-        val futureList = ArrayBuffer[Future[CacheLoadResult]]()
-        val resultList = ArrayBuffer[CacheLoadResult]()
-        executorIdsToParts.foreach(
-          value => {
-            val executorData = GlutenDriverEndpoint.executorDataMap.get(toExecutorId(value._1))
-            if (executorData != null) {
-              futureList.append(
-                executorData.executorEndpointRef.ask[CacheLoadResult](
-                  GlutenMergeTreeCacheLoad(value._2, selectedColumns.toSet.asJava)
-                ))
-            } else {
-              throw new GlutenException(
-                s"executor ${value._1} not found," +
-                  s" all executors are ${GlutenDriverEndpoint.executorDataMap.toString}")
-            }
-          })
-        futureList.foreach(
-          f => {
-            resultList.append(ThreadUtils.awaitResult(f, Duration.Inf))
-          })
-        if (resultList.exists(!_.success)) {
-          Seq(Row(false, resultList.filter(!_.success).map(_.reason).mkString(";")))
-        } else {
-          Seq(Row(true, ""))
-        }
-      }
+      executorIdsToParts.foreach(
+        value => {
+          checkExecutorId(value._1)
+          val executorData = GlutenDriverEndpoint.executorDataMap.get(toExecutorId(value._1))
+          futureList.append(
+            (
+              value._1,
+              executorData.executorEndpointRef.ask[CacheJobInfo](
+                GlutenMergeTreeCacheLoad(value._2, selectedColumns.toSet.asJava)
+              )))
+        })
     }
+
+    getResult(futureList, asynExecute)
   }
-}
-
-object GlutenCHCacheDataCommand {
-  val ALL_EXECUTORS = "allExecutors"
-
-  private def toExecutorId(executorId: String): String =
-    executorId.split("_").last
 }

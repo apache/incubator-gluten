@@ -27,27 +27,21 @@ import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
-import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.FunctionIdentifier
-import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
-import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
-import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, FileSourceScanExec, GenerateExec, LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
-import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+import org.apache.spark.sql.hive.{HiveTableScanExecTransformer, HiveUDFTransformer}
 import org.apache.spark.sql.types.{DecimalType, LongType, NullType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -163,16 +157,6 @@ trait SparkPlanExecApi {
       child: ExpressionTransformer,
       original: Expression): ExpressionTransformer =
     AliasTransformer(substraitExprName, child, original)
-
-  /** Generate SplitTransformer. */
-  def genStringSplitTransformer(
-      substraitExprName: String,
-      srcExpr: ExpressionTransformer,
-      regexExpr: ExpressionTransformer,
-      limitExpr: ExpressionTransformer,
-      original: StringSplit): ExpressionTransformer = {
-    GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
-  }
 
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
   def genGetMapValueTransformer(
@@ -353,6 +337,9 @@ trait SparkPlanExecApi {
       metrics: Map[String, SQLMetric],
       isSort: Boolean): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
 
+  /** Determine whether to use sort-based shuffle based on shuffle partitioning and output. */
+  def useSortBasedShuffle(partitioning: Partitioning, output: Seq[Attribute]): Boolean
+
   /**
    * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
    *
@@ -398,69 +385,6 @@ trait SparkPlanExecApi {
       resultAttrs: Seq[Attribute],
       child: SparkPlan,
       evalType: Int): SparkPlan
-
-  /**
-   * Generate extended DataSourceV2 Strategies. Currently only for ClickHouse backend.
-   *
-   * @return
-   */
-  def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy]
-
-  /**
-   * Generate extended query stage preparation rules.
-   *
-   * @return
-   */
-  def genExtendedQueryStagePrepRules(): List[SparkSession => Rule[SparkPlan]]
-
-  /**
-   * Generate extended Analyzers. Currently only for ClickHouse backend.
-   *
-   * @return
-   */
-  def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]]
-
-  /**
-   * Generate extended Optimizers. Currently only for Velox backend.
-   *
-   * @return
-   */
-  def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]]
-
-  /**
-   * Generate extended Strategies
-   *
-   * @return
-   */
-  def genExtendedStrategies(): List[SparkSession => Strategy]
-
-  /**
-   * Generate extended columnar pre-rules, in the validation phase.
-   *
-   * @return
-   */
-  def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]]
-
-  /**
-   * Generate extended columnar transform-rules.
-   *
-   * @return
-   */
-  def genExtendedColumnarTransformRules(): List[SparkSession => Rule[SparkPlan]]
-
-  /**
-   * Generate extended columnar post-rules.
-   *
-   * @return
-   */
-  def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
-  }
-
-  def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]]
-
-  def genInjectExtendedParser(): List[(SparkSession, ParserInterface) => ParserInterface] =
-    List.empty
 
   def genGetStructFieldTransformer(
       substraitExprName: String,
@@ -672,8 +596,6 @@ trait SparkPlanExecApi {
     }
   }
 
-  def genInjectedFunctions(): Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = Seq.empty
-
   def rewriteSpillPath(path: String): String = path
 
   /**
@@ -747,5 +669,11 @@ trait SparkPlanExecApi {
       // We have to accept the risk of overflow as we can't exceed the max precision.
       DecimalType(math.min(integralLeastNumDigits + newScale, 38), newScale)
     }
+  }
+
+  def genHiveUDFTransformer(
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    HiveUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
   }
 }

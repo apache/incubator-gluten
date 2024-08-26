@@ -1,3 +1,10 @@
+---
+layout: page
+title: Debug for CH Backend with gpertools Tool
+nav_order: 11
+has_children: true
+parent: /developer-overview/
+---
 We need using gpertools to find the memory or CPU issue. That's what this document is about.
 
 ## Install gperftools

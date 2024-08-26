@@ -19,9 +19,20 @@ package org.apache.gluten.execution;
 import java.util.Set;
 
 public class CHNativeCacheManager {
-  public static void cacheParts(String table, Set<String> columns, boolean async) {
-    nativeCacheParts(table, String.join(",", columns), async);
+  public static String cacheParts(String table, Set<String> columns) {
+    return nativeCacheParts(table, String.join(",", columns));
   }
 
-  private static native void nativeCacheParts(String table, String columns, boolean async);
+  private static native String nativeCacheParts(String table, String columns);
+
+  public static CacheResult getCacheStatus(String jobId) {
+    return nativeGetCacheStatus(jobId);
+  }
+
+  private static native CacheResult nativeGetCacheStatus(String jobId);
+
+  public static native String nativeCacheFiles(byte[] files);
+
+  // only for ut
+  public static native void removeFiles(String file, String cacheName);
 }

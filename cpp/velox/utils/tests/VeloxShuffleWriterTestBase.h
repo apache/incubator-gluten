@@ -196,9 +196,12 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
     inputVectorComplex_ = makeRowVector(childrenComplex_);
   }
 
-  arrow::Status splitRowVector(VeloxShuffleWriter& shuffleWriter, facebook::velox::RowVectorPtr vector) {
+  arrow::Status splitRowVector(
+      VeloxShuffleWriter& shuffleWriter,
+      facebook::velox::RowVectorPtr vector,
+      int64_t memLimit = ShuffleWriter::kMinMemLimit) {
     std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
-    return shuffleWriter.write(cb, ShuffleWriter::kMinMemLimit);
+    return shuffleWriter.write(cb, memLimit);
   }
 
   // Create multiple local dirs and join with comma.
@@ -533,7 +536,7 @@ class RoundRobinPartitioningShuffleWriter : public MultiplePartitioningShuffleWr
   }
 };
 
-class VeloxShuffleWriterMemoryTest : public VeloxShuffleWriterTestBase, public testing::Test {
+class VeloxHashShuffleWriterMemoryTest : public VeloxShuffleWriterTestBase, public testing::Test {
  protected:
   static void SetUpTestCase() {
     facebook::velox::memory::MemoryManager::testingSetInstance({});

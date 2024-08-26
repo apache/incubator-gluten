@@ -128,8 +128,8 @@ class ActionsDAGUtil
 public:
     static const DB::ActionsDAG::Node * convertNodeType(
         DB::ActionsDAG & actions_dag,
-        const DB::ActionsDAG::Node * node,
-        const std::string & type_name,
+        const DB::ActionsDAG::Node * node_to_cast,
+        const DB::DataTypePtr & cast_to_type,
         const std::string & result_name = "",
         DB::CastType cast_type = DB::CastType::nonAccurate);
 
@@ -194,6 +194,8 @@ public:
     inline static const std::string SPARK_SESSION_TIME_ZONE = "spark.sql.session.timeZone";
 
     inline static const String GLUTEN_TASK_OFFHEAP = "spark.gluten.memory.task.offHeap.size.in.bytes";
+
+    inline static const String GLUTEN_LOCAL_CACHE_PREFIX = "gluten_cache.local.";
 
     /// On yarn mode, native writing on hdfs cluster takes yarn container user as the user passed to libhdfs3, which
     /// will cause permission issue because yarn container user is not the owner of the hdfs dir to be written.

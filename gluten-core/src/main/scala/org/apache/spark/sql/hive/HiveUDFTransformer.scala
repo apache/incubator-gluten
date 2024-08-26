@@ -43,7 +43,13 @@ object HiveUDFTransformer {
         throw new GlutenNotSupportException(
           s"Expression $expr is not a HiveSimpleUDF or HiveGenericUDF")
     }
+    genTransformerFromUDFMappings(udfName, expr, attributeSeq)
+  }
 
+  def genTransformerFromUDFMappings(
+      udfName: String,
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): GenericExpressionTransformer = {
     UDFMappings.hiveUDFMap.get(udfName.toLowerCase(Locale.ROOT)) match {
       case Some(name) =>
         GenericExpressionTransformer(

@@ -137,12 +137,12 @@ void addSinkTransfrom(const DB::ContextPtr & context, const substrait::WriteRel 
     DB::Field field_tmp_dir;
     if (!settings.tryGet(SPARK_TASK_WRITE_TMEP_DIR, field_tmp_dir))
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Write Pipeline need inject temp directory.");
-    const auto & tmp_dir = field_tmp_dir.get<std::string>();
+    const auto & tmp_dir = field_tmp_dir.safeGet<std::string>();
 
     DB::Field field_filename;
     if (!settings.tryGet(SPARK_TASK_WRITE_FILENAME, field_filename))
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Write Pipeline need inject file name.");
-    const auto & filename = field_filename.get<std::string>();
+    const auto & filename = field_filename.safeGet<std::string>();
 
     assert(write_rel.has_named_table());
     const substrait::NamedObjectWrite & named_table = write_rel.named_table();

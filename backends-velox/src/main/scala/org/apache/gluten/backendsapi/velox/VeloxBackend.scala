@@ -25,20 +25,21 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
+import org.apache.gluten.utils._
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, EulerNumber, Expression, Lag, Lead, Literal, MakeYMInterval, NamedExpression, NthValue, NTile, PercentRank, Pi, Rand, RangeFrame, Rank, RowNumber, SortOrder, SparkPartitionID, SparkVersion, SpecialFrameBoundary, SpecifiedWindowFrame, Uuid}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Count, Sum}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Lead, NamedExpression, NthValue, NTile, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile}
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
-import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+
+import org.apache.hadoop.fs.Path
 
 import scala.util.control.Breaks.breakable
 
@@ -52,6 +53,7 @@ class VeloxBackend extends Backend {
   override def validatorApi(): ValidatorApi = new VeloxValidatorApi
   override def metricsApi(): MetricsApi = new VeloxMetricsApi
   override def listenerApi(): ListenerApi = new VeloxListenerApi
+  override def ruleApi(): RuleApi = new VeloxRuleApi
   override def settings(): BackendSettingsApi = VeloxBackendSettings
 }
 
@@ -70,11 +72,20 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   val MAXIMUM_BATCH_SIZE: Int = 32768
 
-  override def supportFileFormatRead(
+  override def validateScan(
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
+      rootPaths: Seq[String],
       paths: Seq[String]): ValidationResult = {
+    val filteredRootPaths = distinctRootPaths(rootPaths)
+    if (
+      !filteredRootPaths.isEmpty && !VeloxFileSystemValidationJniWrapper
+        .allSupportedByRegisteredFileSystems(filteredRootPaths.toArray)
+    ) {
+      return ValidationResult.failed(
+        s"Scheme of [$filteredRootPaths] is not supported by registered file systems.")
+    }
     // Validate if all types are supported.
     def validateTypes(validatorFunc: PartialFunction[StructField, String]): ValidationResult = {
       // Collect unsupported types.
@@ -177,6 +188,17 @@ object VeloxBackendSettings extends BackendSettingsApi {
           .getRawTypeString(metadata)
           .getOrElse(stringType.catalogString))
       .isDefined
+  }
+
+  def distinctRootPaths(paths: Seq[String]): Seq[String] = {
+    // Skip native validation for local path, as local file system is always registered.
+    // For evey file scheme, only one path is kept.
+    paths
+      .map(p => (new Path(p).toUri.getScheme, p))
+      .groupBy(_._1)
+      .filter(_._1 != "file")
+      .map(_._2.head._2)
+      .toSeq
   }
 
   override def supportWriteFilesExec(
@@ -417,49 +439,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
           case _ => false
         }
       }
-  }
-
-  /**
-   * Check whether a plan needs to be offloaded even though they have empty input schema, e.g,
-   * Sum(1), Count(1), rand(), etc.
-   * @param plan:
-   *   The Spark plan to check.
-   */
-  private def mayNeedOffload(plan: SparkPlan): Boolean = {
-    def checkExpr(expr: Expression): Boolean = {
-      expr match {
-        // Block directly falling back the below functions by FallbackEmptySchemaRelation.
-        case alias: Alias => checkExpr(alias.child)
-        case _: Rand | _: Uuid | _: MakeYMInterval | _: SparkPartitionID | _: EulerNumber | _: Pi |
-            _: SparkVersion =>
-          true
-        case _ => false
-      }
-    }
-
-    plan match {
-      case exec: HashAggregateExec if exec.aggregateExpressions.nonEmpty =>
-        // Check Sum(Literal) or Count(Literal).
-        exec.aggregateExpressions.forall(
-          expression => {
-            val aggFunction = expression.aggregateFunction
-            aggFunction match {
-              case Sum(Literal(_, _), _) => true
-              case Count(Seq(Literal(_, _))) => true
-              case _ => false
-            }
-          })
-      case p: ProjectExec if p.projectList.nonEmpty =>
-        p.projectList.forall(checkExpr(_))
-      case _ =>
-        false
-    }
-  }
-
-  override def fallbackOnEmptySchema(plan: SparkPlan): Boolean = {
-    // Count(1) and Sum(1) are special cases that Velox backend can handle.
-    // Do not fallback it and its children in the first place.
-    !mayNeedOffload(plan)
   }
 
   override def fallbackAggregateWithEmptyOutputChild(): Boolean = true

@@ -51,6 +51,28 @@
           <scope>test</scope>
         </dependency>
       </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>add-sources</id>
+                <phase>generate-sources</phase>
+                <goals>
+                  <goal>add-test-source</goal>
+                </goals>
+                <configuration>
+                  <sources>
+                    <source>src/test/backends-clickhouse</source>
+                  </sources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
     <profile>
       <id>backends-velox</id>
@@ -63,44 +85,6 @@
           <artifactId>backends-velox</artifactId>
           <version>${project.version}</version>
           <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.arrow</groupId>
-          <artifactId>arrow-vector</artifactId>
-          <version>${arrow.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-common</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-buffer</artifactId>
-            </exclusion>
-          </exclusions>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.arrow</groupId>
-          <artifactId>arrow-memory-netty</artifactId>
-          <version>${arrow.version}</version>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.arrow</groupId>
-          <artifactId>arrow-memory-core</artifactId>
-          <version>${arrow.version}</version>
-          <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-common</artifactId>
-            </exclusion>
-            <exclusion>
-              <groupId>io.netty</groupId>
-              <artifactId>netty-buffer</artifactId>
-            </exclusion>
-          </exclusions>
         </dependency>
       </dependencies>
       <properties>

@@ -59,14 +59,16 @@ object CHExecUtil extends Logging {
       dataSize: SQLMetric,
       iter: Iterator[ColumnarBatch],
       compressionCodec: Option[String] = Some("lz4"),
+      compressionLevel: Option[Int] = None,
       bufferSize: Int = 4 << 10): Iterator[(Int, Array[Byte])] = {
     var count = 0
     val bos = new ByteArrayOutputStream()
     val buffer = new Array[Byte](bufferSize) // 4K
+    val level = compressionLevel.getOrElse(Int.MinValue)
     val blockOutputStream =
       compressionCodec
-        .map(new BlockOutputStream(bos, buffer, dataSize, true, _, bufferSize))
-        .getOrElse(new BlockOutputStream(bos, buffer, dataSize, false, "", bufferSize))
+        .map(new BlockOutputStream(bos, buffer, dataSize, true, _, level, bufferSize))
+        .getOrElse(new BlockOutputStream(bos, buffer, dataSize, false, "", level, bufferSize))
     while (iter.hasNext) {
       val batch = iter.next()
       count += batch.numRows
@@ -127,7 +129,7 @@ object CHExecUtil extends Logging {
         result
       }
 
-      override def next: UnsafeRow = {
+      override def next(): UnsafeRow = {
         if (rowId >= rows) throw new NoSuchElementException
 
         val (offset, length) = (rowInfo.offsets(rowId), rowInfo.lengths(rowId))
@@ -317,7 +319,7 @@ object CHExecUtil extends Logging {
     // Thus in Columnar Shuffle we never use the "key" part.
     val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
 
-    val rddWithpartitionKey: RDD[Product2[Int, ColumnarBatch]] =
+    val rddWithPartitionKey: RDD[Product2[Int, ColumnarBatch]] =
       if (
         GlutenConfig.getConf.isUseColumnarShuffleManager
         || GlutenConfig.getConf.isUseCelebornShuffleManager
@@ -343,7 +345,7 @@ object CHExecUtil extends Logging {
 
     val dependency =
       new ColumnarShuffleDependency[Int, ColumnarBatch, ColumnarBatch](
-        rddWithpartitionKey,
+        rddWithPartitionKey,
         new PartitionIdPassthrough(newPartitioning.numPartitions),
         serializer,
         shuffleWriterProcessor = ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),

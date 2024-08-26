@@ -205,7 +205,7 @@ namespace
                 else
                     return false;
             }
-            result = static_cast<ToNativeType>(convert_to.get<ToNativeType>());
+            result = static_cast<ToNativeType>(convert_to.safeGet<ToNativeType>());
 
             ToNativeType pow10 = intExp10OfSize<ToNativeType>(precision_value);
             if ((result < 0 && result <= -pow10) || result >= pow10)

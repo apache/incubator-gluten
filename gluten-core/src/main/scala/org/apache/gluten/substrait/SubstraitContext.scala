@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.substrait
 
-import org.apache.gluten.substrait.ddlplan.InsertOutputNode
-
 import java.lang.{Long => JLong}
 import java.security.InvalidParameterException
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, Map => JMap}
@@ -64,15 +62,8 @@ class SubstraitContext extends Serializable {
   private val aggregationParamsMap = new JHashMap[JLong, AggregationParams]()
 
   private var iteratorIndex: JLong = 0L
-  private var insertOutputNode: InsertOutputNode = _
   private var operatorId: JLong = 0L
   private var relId: JLong = 0L
-
-  def getInsertOutputNode: InsertOutputNode = insertOutputNode
-
-  def setInsertOutputNode(insertOutputNode: InsertOutputNode): Unit = {
-    this.insertOutputNode = insertOutputNode
-  }
 
   def registerFunction(funcName: String): JLong = {
     if (!functionMap.containsKey(funcName)) {

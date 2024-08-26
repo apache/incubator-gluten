@@ -44,7 +44,7 @@ struct SplitOptions
     std::string hash_exprs;
     std::string out_exprs;
     std::string compress_method = "zstd";
-    int compress_level;
+    std::optional<int> compress_level;
     size_t spill_threshold = 300 * 1024 * 1024;
     std::string hash_algorithm;
     size_t max_sort_buffer_size = 1_GiB;

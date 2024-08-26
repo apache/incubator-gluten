@@ -31,10 +31,11 @@ import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopF
 import org.apache.spark.sql.types.StructField
 
 trait BackendSettingsApi {
-  def supportFileFormatRead(
+  def validateScan(
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
+      rootPaths: Seq[String],
       paths: Seq[String]): ValidationResult = ValidationResult.succeeded
   def supportWriteFilesExec(
       format: FileFormat,
@@ -68,7 +69,6 @@ trait BackendSettingsApi {
     case _ => false
   }
   def supportStructType(): Boolean = false
-  def fallbackOnEmptySchema(plan: SparkPlan): Boolean = false
 
   // Whether to fallback aggregate at the same time if its empty-output child is fallen back.
   def fallbackAggregateWithEmptyOutputChild(): Boolean = false
@@ -88,12 +88,6 @@ trait BackendSettingsApi {
   def supportShuffleWithProject(outputPartitioning: Partitioning, child: SparkPlan): Boolean = false
   def excludeScanExecFromCollapsedStage(): Boolean = false
   def rescaleDecimalArithmetic: Boolean = false
-
-  /**
-   * Whether to replace sort agg with hash agg., e.g., sort agg will be used in spark's planning for
-   * string type input.
-   */
-  def replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
 
   /** Get the config prefix for each backend */
   def getBackendConfigPrefix: String
@@ -145,9 +139,6 @@ trait BackendSettingsApi {
   def supportBroadcastNestedLoopJoinExec(): Boolean = true
 
   def supportSampleExec(): Boolean = false
-
-  /** Merge two phases hash based aggregate if need */
-  def mergeTwoPhasesHashBaseAggregateIfNeed(): Boolean = false
 
   def supportColumnarArrowUdf(): Boolean = false
 

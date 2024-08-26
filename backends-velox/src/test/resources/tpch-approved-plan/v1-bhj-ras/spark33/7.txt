@@ -290,7 +290,7 @@ Arguments: X, X
 
 (49) ColumnarExchange
 Input [6]: [hash_partition_key#X, supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
-Arguments: hashpartitioning(supp_nation#X, cust_nation#X, l_year#X, 1), ENSURE_REQUIREMENTS, [supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X], [plan_id=X], [id=#X]
+Arguments: hashpartitioning(supp_nation#X, cust_nation#X, l_year#X, 1), ENSURE_REQUIREMENTS, [supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X], [plan_id=X], [shuffle_writer_type=hash]
 
 (50) ShuffleQueryStage
 Output [5]: [supp_nation#X, cust_nation#X, l_year#X, sum#X, isEmpty#X]
@@ -319,7 +319,7 @@ Arguments: X, X
 
 (56) ColumnarExchange
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]
-Arguments: rangepartitioning(supp_nation#X ASC NULLS FIRST, cust_nation#X ASC NULLS FIRST, l_year#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [id=#X]
+Arguments: rangepartitioning(supp_nation#X ASC NULLS FIRST, cust_nation#X ASC NULLS FIRST, l_year#X ASC NULLS FIRST, 1), ENSURE_REQUIREMENTS, [plan_id=X], [shuffle_writer_type=hash]
 
 (57) ShuffleQueryStage
 Output [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]

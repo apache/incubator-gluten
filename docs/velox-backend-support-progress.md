@@ -92,6 +92,34 @@ Gluten supports 28 operators (Drag to right to see all data types)
 
 Gluten supports 199 functions. (Drag to right to see all data types)
 
+#### Cast function's support status
+ 
+ * S: supported.
+ * NS: not supported.
+ * -: not accepted by Spark.
+ * N/A: not applicable case, e.g., from type is as same as to type, where cast will not actually happen.
+
+| From \ To | BOOLEAN | BYTE | SHORT | INT | LONG | FLOAT | DOUBLE | DECIMAL | DATE | TIMESTAMP | STRING | BINARY | ARRAY | MAP | STRUCT | NULL |
+|-----------|---------|------|-------|-----|------|-------|--------|---------|------|-----------|--------|--------|-------|-----|--------|------|
+| BOOLEAN   | N/A     | S    | S     | S   | S    | S     | S      | S       | -    | NS        | S      | -      | -     | -   | -      | -    |
+| BYTE      | S       | N/A  | S     | S   | S    | S     | S      | S       | -    | NS        | S      | S      | -     | -   | -      | -    |
+| SHORT     | S       | S    | N/A   | S   | S    | S     | S      | S       | -    | NS        | S      | S      | -     | -   | -      | -    |
+| INT       | S       | S    | S     | N/A | S    | S     | S      | S       | -    | NS        | S      | S      | -     | -   | -      | -    |
+| LONG      | S       | S    | S     | S   | N/A  | S     | S      | S       | -    | NS        | S      | S      | -     | -   | -      | -    |
+| FLOAT     | S       | S    | S     | S   | S    | N/A   | S      | S       | -    | NS        | S      | -      | -     | -   | -      | -    |
+| DOUBLE    | S       | S    | S     | S   | S    | S     | N/A    | S       | -    | NS        | S      | -      | -     | -   | -      | -    |
+| DECIMAL   | S       | S    | S     | S   | S    | S     | S      | N/A     | -    | NS        | S      | -      | -     | -   | -      | -    |
+| DATE      | NS      | NS   | NS    | NS  | NS   | NS    | NS     | NS      | N/A  | NS        | NS     | -      | -     | -   | -      | -    |
+| TIMESTAMP | NS      | NS   | NS    | NS  | NS   | NS    | NS     | NS      | NS   | N/A       | NS     | -      | -     | -   | -      | -    |
+| STRING    | S       | S    | S     | S   | S    | S     | S      | S       | NS   | NS        | N/A    | -      | -     | -   | -      | -    |
+| BINARY    | S       | S    | S     | S   | S    | S     | S      | S       | NS   | NS        | S      | N/A    | -     | -   | -      | -    |
+| ARRAY     | -       | -    | -     | -   | -    | -     | -      | -       | -    | -         | NS     | -      | N/A   | -   | -      | -    |
+| Map       | -       | -    | -     | -   | -    | -     | -      | -       | -    | -         | NS     | -      | -     | N/A | -      | -    |
+| STRUCT    | -       | -    | -     | -   | -    | -     | -      | -       | -    | -         | NS     | -      | -     | -   | N/A    | -    |
+| NULL      | S       | S    | S     | S   | S    | S     | S      | S       | S    | NS        | S      | S      | S     | S   | S      | N/A  |
+
+#### Other functions' support status 
+
 | Spark Functions              | Velox/Presto Functions | Velox/Spark functions | Gluten | Restrictions             | BOOLEAN | BYTE | SHORT | INT | LONG | FLOAT | DOUBLE | DATE | TIMESTAMP | STRING | DECIMAL | NULL | BINARY | CALENDAR | ARRAY | MAP | STRUCT | UDT |
 |------------------------------|------------------------|-----------------------|--------|--------------------------|---------|------|-------|-----|------|-------|--------|------|-----------|--------|---------|------|--------|----------|-------|-----|--------|-----|
 | !                            |                        | not                   | S      |                          | S       | S    | S     | S   | S    | S     | S      |      |           | S      |         |      |        |          |       |     |        |     |
@@ -180,7 +208,7 @@ Gluten supports 199 functions. (Drag to right to see all data types)
 | sentences                    |                        |                       |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | soundex                      |                        | soundex               | S      |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | space                        |                        |                       |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
-| split                        | split                  | split                 | S      | Mismatched               |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
+| split                        | split                  | split                 | S      |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | split_part                   | split_part             |                       |        | Mismatched               |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | startswith                   |                        | startsWith            |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | substr, substring            | substr                 | substring             | S      |                          |         |      |       |     |      |       |        |      |           | S      |         |      |        |          |       |     |        |     |
@@ -292,6 +320,7 @@ Gluten supports 199 functions. (Drag to right to see all data types)
 | map_keys                     | map_keys               | map_keys              | S      |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | map_values                   | map_values             | map_values            | S      |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       | S   |        |     |
 | map_zip_with                 | map_zip_with           |                       | S      |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       | S   |        |     |
+| mask                         |                        | mask                  | S      |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | named_struct,struct          | row_construct          | named_struct          | S      |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     | S      |     |
 | posexplode_outer,posexplode  |                        |                       |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |
 | sequence                     |                        |                       |        |                          |         |      |       |     |      |       |        |      |           |        |         |      |        |          |       |     |        |     |

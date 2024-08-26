@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.datasource.GlutenParquetWriterInjects
 
 import org.apache.spark.TaskContext

@@ -16,11 +16,12 @@
  */
 package org.apache.gluten
 
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, SparkPlan}
 
 trait GlutenColumnarWriteTestSupport {
 
   def checkWriteFilesAndGetChild(sparkPlan: SparkPlan): SparkPlan = {
-    throw new UnsupportedOperationException("Clickhouse Backend does not support write files")
+    assert(sparkPlan.isInstanceOf[ColumnarWriteFilesExec])
+    sparkPlan.asInstanceOf[ColumnarWriteFilesExec].child
   }
 }

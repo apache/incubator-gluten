@@ -116,6 +116,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def forceParquetTimestampTypeScanFallbackEnabled: Boolean =
     conf.getConf(VELOX_FORCE_PARQUET_TIMESTAMP_TYPE_SCAN_FALLBACK)
 
+  def scanFileSchemeValidationEnabled: Boolean =
+    conf.getConf(VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED)
+
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
     conf
@@ -535,16 +538,17 @@ object GlutenConfig {
   val GLUTEN_ONHEAP_SIZE_KEY = "spark.executor.memory"
   val GLUTEN_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
   val GLUTEN_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
+  val SPARK_REDACTION_REGEX = "spark.redaction.regex"
 
   // For Soft Affinity Scheduling
-  // Enable Soft Affinity Scheduling, defalut value is false
+  // Enable Soft Affinity Scheduling, default value is false
   val GLUTEN_SOFT_AFFINITY_ENABLED = "spark.gluten.soft-affinity.enabled"
   val GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE = false
-  // Calculate the number of the replcations for scheduling to the target executors per file
+  // Calculate the number of the replications for scheduling to the target executors per file
   val GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM = "spark.gluten.soft-affinity.replications.num"
   val GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM_DEFAULT_VALUE = 2
   // For on HDFS, if there are already target hosts,
-  // and then prefer to use the orginal target hosts to schedule
+  // and then prefer to use the original target hosts to schedule
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS = "spark.gluten.soft-affinity.min.target-hosts"
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
 
@@ -583,9 +587,6 @@ object GlutenConfig {
   val GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE = "spark.gluten.shuffleWriter.bufferSize"
 
   val GLUTEN_SHUFFLE_WRITER_MERGE_THRESHOLD = "spark.gluten.sql.columnar.shuffle.merge.threshold"
-
-  // Columnar to row memory threshold.
-  val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY = "spark.gluten.sql.columnarToRowMemoryThreshold"
 
   // Controls whether to load DLL from jars. User can get dependent native libs packed into a jar
   // by executing dev/package.sh. Then, with that jar configured, Gluten can load the native libs
@@ -651,7 +652,6 @@ object GlutenConfig {
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_MAX_BATCH_SIZE_KEY,
-      GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY,
       GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
@@ -678,7 +678,8 @@ object GlutenConfig {
       // gcs config
       SPARK_GCS_STORAGE_ROOT_URL,
       SPARK_GCS_AUTH_TYPE,
-      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
+      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
+      SPARK_REDACTION_REGEX
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -687,7 +688,10 @@ object GlutenConfig {
       (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
       (
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
-        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString)
+        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
+      (
+        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
+        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -762,7 +766,8 @@ object GlutenConfig {
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_OFFHEAP_ENABLED,
       SESSION_LOCAL_TIMEZONE.key,
-      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key
+      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
+      SPARK_REDACTION_REGEX
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -1120,7 +1125,7 @@ object GlutenConfig {
       .createWithDefault(4096)
 
   val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD =
-    buildConf(GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY)
+    buildConf("spark.gluten.sql.columnarToRowMemoryThreshold")
       .internal()
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64MB")
@@ -1317,10 +1322,11 @@ object GlutenConfig {
   val RAS_COST_MODEL =
     buildConf("spark.gluten.ras.costModel")
       .doc(
-        "Experimental: The class name of user-defined cost model that will be used by RAS. " +
-          "If not specified, a rough built-in cost model will be used.")
+        "Experimental: The class name of user-defined cost model that will be used by RAS. If " +
+          "not specified, a legacy built-in cost model that exhaustively offloads computations " +
+          "will be used.")
       .stringConf
-      .createWithDefaultString("rough")
+      .createWithDefaultString("legacy")
 
   // velox caching options.
   val COLUMNAR_VELOX_CACHE_ENABLED =
@@ -1651,6 +1657,7 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  // FIXME: This only works with CH backend.
   val EXTENDED_COLUMNAR_TRANSFORM_RULES =
     buildConf("spark.gluten.sql.columnar.extended.columnar.transform.rules")
       .withAlternative("spark.gluten.sql.columnar.extended.columnar.pre.rules")
@@ -1658,6 +1665,7 @@ object GlutenConfig {
       .stringConf
       .createWithDefaultString("")
 
+  // FIXME: This only works with CH backend.
   val EXTENDED_COLUMNAR_POST_RULES =
     buildConf("spark.gluten.sql.columnar.extended.columnar.post.rules")
       .doc("A comma-separated list of classes for the extended columnar post rules.")
@@ -2007,6 +2015,16 @@ object GlutenConfig {
       .doc("Force fallback for parquet timestamp type scan.")
       .booleanConf
       .createWithDefault(false)
+
+  val VELOX_SCAN_FILE_SCHEME_VALIDATION_ENABLED =
+    buildConf("spark.gluten.sql.scan.fileSchemeValidation.enabled")
+      .internal()
+      .doc(
+        "When true, enable file path scheme validation for scan. Validation will fail if" +
+          " file scheme is not supported by registered file systems, which will cause scan " +
+          " operator fall back.")
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_NATIVE_CAST_AGGREGATE_ENABLED =
     buildConf("spark.gluten.sql.columnar.cast.avg")

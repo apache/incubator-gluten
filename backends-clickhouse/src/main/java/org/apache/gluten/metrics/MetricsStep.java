@@ -35,6 +35,24 @@ public class MetricsStep {
   @JsonProperty("selected_marks")
   protected long selectedMarks;
 
+  @JsonProperty("read_cache_hits")
+  protected long readCacheHits;
+
+  @JsonProperty("miss_cache_hits")
+  protected long missCacheHits;
+
+  @JsonProperty("read_cache_bytes")
+  protected long readCacheBytes;
+
+  @JsonProperty("read_miss_bytes")
+  protected long readMissBytes;
+
+  @JsonProperty("read_cache_millisecond")
+  protected long readCacheMillisecond;
+
+  @JsonProperty("miss_cache_millisecond")
+  protected long missCacheMillisecond;
+
   public String getName() {
     return name;
   }
@@ -81,5 +99,53 @@ public class MetricsStep {
 
   public long getSelectedMarksPk() {
     return selectedMarksPk;
+  }
+
+  public long getReadCacheHits() {
+    return readCacheHits;
+  }
+
+  public void setReadCacheHits(long readCacheHits) {
+    this.readCacheHits = readCacheHits;
+  }
+
+  public long getMissCacheHits() {
+    return missCacheHits;
+  }
+
+  public void setMissCacheHits(long missCacheHits) {
+    this.missCacheHits = missCacheHits;
+  }
+
+  public long getReadCacheBytes() {
+    return readCacheBytes;
+  }
+
+  public void setReadCacheBytes(long readCacheBytes) {
+    this.readCacheBytes = readCacheBytes;
+  }
+
+  public long getReadMissBytes() {
+    return readMissBytes;
+  }
+
+  public void setReadMissBytes(long readMissBytes) {
+    this.readMissBytes = readMissBytes;
+  }
+
+  public long getReadCacheMillisecond() {
+    return readCacheMillisecond;
+  }
+
+  public void setReadCacheMillisecond(long readCacheMillisecond) {
+    this.readCacheMillisecond = readCacheMillisecond;
+  }
+
+  public long getMissCacheMillisecond() {
+    return missCacheMillisecond;
+  }
+
+  public void setMissCacheMillisecond(long missCacheMillisecond) {
+    this.missCacheMillisecond = missCacheMillisecond;
   }
 }

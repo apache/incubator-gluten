@@ -45,7 +45,6 @@ class GlutenClickHouseTPCHParquetAQEConcurrentSuite
       .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
-      .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
   }
@@ -82,5 +81,4 @@ class GlutenClickHouseTPCHParquetAQEConcurrentSuite
     queries.map(queryId => runTPCHQuery(queryId) { df => })
 
   }
-
 }

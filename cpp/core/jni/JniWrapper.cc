@@ -175,7 +175,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/metrics/Metrics;");
 
   metricsBuilderConstructor = getMethodIdOrError(
-      env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+      env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
 
   nativeColumnarToRowInfoClass =
       createGlobalClassReferenceOrError(env, "Lorg/apache/gluten/vectorized/NativeColumnarToRowInfo;");
@@ -478,6 +478,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIter
       metrics ? metrics->veloxToArrow : -1,
       longArray[Metrics::kPeakMemoryBytes],
       longArray[Metrics::kNumMemoryAllocations],
+      longArray[Metrics::kSpilledInputBytes],
       longArray[Metrics::kSpilledBytes],
       longArray[Metrics::kSpilledRows],
       longArray[Metrics::kSpilledPartitions],
@@ -534,19 +535,8 @@ Java_org_apache_gluten_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarTo
   auto& conf = ctx->getConfMap();
   int64_t column2RowMemThreshold;
   auto it = conf.find(kColumnarToRowMemoryThreshold);
-  bool confIsLegal =
-      ((it == conf.end()) ? false : std::all_of(it->second.begin(), it->second.end(), [](unsigned char c) {
-        return std::isdigit(c);
-      }));
-  if (confIsLegal) {
-    column2RowMemThreshold = std::stoll(it->second);
-  } else {
-    LOG(INFO)
-        << "Because the spark.gluten.sql.columnarToRowMemoryThreshold configuration item is invalid, the kColumnarToRowMemoryDefaultThreshold default value is used, which is "
-        << kColumnarToRowMemoryDefaultThreshold << " byte";
-    column2RowMemThreshold = std::stoll(kColumnarToRowMemoryDefaultThreshold);
-  }
-
+  GLUTEN_CHECK(!(it == conf.end()), "Required key not found in runtime config: " + kColumnarToRowMemoryThreshold);
+  column2RowMemThreshold = std::stoll(it->second);
   // Convert the native batch to Spark unsafe row.
   return ctx->saveObject(ctx->createColumnar2RowConverter(column2RowMemThreshold));
   JNI_METHOD_END(kInvalidObjectHandle)
