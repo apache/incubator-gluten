@@ -18,6 +18,8 @@ package org.apache.spark.util
 
 import org.apache.spark.{SparkConf, SparkMasterRegex}
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.{EXECUTOR_MEMORY, EXECUTOR_MEMORY_OVERHEAD}
+import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.internal.SQLConf
 
 object SparkResourceUtil extends Logging {
@@ -79,5 +81,16 @@ object SparkResourceUtil extends Logging {
 
   def isLocalMaster(conf: SparkConf): Boolean = {
     Utils.isLocalMaster(conf)
+  }
+
+  def getMemoryOverheadSize(conf: SparkConf): Long = {
+    val overheadMib = conf.get(EXECUTOR_MEMORY_OVERHEAD).getOrElse {
+      val executorMemMib = conf.get(EXECUTOR_MEMORY)
+      val factor =
+        conf.getDouble("spark.executor.memoryOverheadFactor", 0.1d)
+      val minMib = conf.getLong("spark.executor.minMemoryOverhead", 384L)
+      (executorMemMib * factor).toLong.max(minMib)
+    }
+    ByteUnit.MiB.toBytes(overheadMib)
   }
 }

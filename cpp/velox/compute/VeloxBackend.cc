@@ -126,8 +126,18 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   initUdf();
   registerSparkTokenizer();
 
-  // initialize the global memory manager for current process
-  facebook::velox::memory::MemoryManager::initialize({});
+  // Initialize the global memory manager for current process.
+  auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
+  int64_t memoryManagerCapacity;
+  if (sparkOverhead.hasValue()) {
+    // 0.75 * total overhead memory is used for Velox global memory manager.
+    // FIXME: Make this configurable.
+    memoryManagerCapacity = sparkOverhead.value() * 0.75;
+  } else {
+    memoryManagerCapacity = facebook::velox::memory::kMaxMemory;
+  }
+  LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
+  facebook::velox::memory::MemoryManager::initialize({.allocatorCapacity = memoryManagerCapacity});
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
