@@ -555,7 +555,7 @@ object GlutenConfig {
   // Enable Soft Affinity duplicate reading detection, defalut value is true
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED =
     "spark.gluten.soft-affinity.duplicateReadingDetect.enabled"
-  val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED_DEFAULT_VALUE = true
+  val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED_DEFAULT_VALUE = false
   // Enable Soft Affinity duplicate reading detection, defalut value is 10000
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS =
     "spark.gluten.soft-affinity.duplicateReading.maxCacheItems"
