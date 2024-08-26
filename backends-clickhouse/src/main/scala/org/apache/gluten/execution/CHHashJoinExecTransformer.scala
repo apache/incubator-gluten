@@ -34,15 +34,12 @@ import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.JoinRel
 
 object JoinTypeTransform {
-  def toNativeJoinType(joinType: JoinType): JoinType = {
-    joinType match {
-      case ExistenceJoin(_) =>
-        LeftSemi
-      case _ =>
-        joinType
-    }
-  }
 
+  // ExistenceJoin is introduced in #SPARK-14781. It returns all rows from the left table with
+  // a new column to indecate whether the row is matched in the right table.
+  // Indeed, the ExistenceJoin is transformed into left any join in CH.
+  // We don't have left any join in substrait, so use left semi join instead.
+  // and isExistenceJoin is set to true to indicate that it is an existence join.
   def toSubstraitJoinType(sparkJoin: JoinType, buildRight: Boolean): JoinRel.JoinType =
     sparkJoin match {
       case _: InnerLike =>
@@ -104,7 +101,7 @@ case class CHShuffledHashJoinExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     val shouldFallback =
       CHJoinValidateUtil.shouldFallback(
-        ShuffleHashJoinStrategy(finalJoinType),
+        ShuffleHashJoinStrategy(joinType),
         left.outputSet,
         right.outputSet,
         condition)
@@ -113,7 +110,6 @@ case class CHShuffledHashJoinExecTransformer(
     }
     super.doValidateInternal()
   }
-  private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
 
   override def genJoinParameters(): Any = {
     val (isBHJ, isNullAwareAntiJoin, buildHashTableId): (Int, Int, String) = (0, 0, "")
@@ -226,7 +222,7 @@ case class CHBroadcastHashJoinExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     val shouldFallback =
       CHJoinValidateUtil.shouldFallback(
-        BroadcastHashJoinStrategy(finalJoinType),
+        BroadcastHashJoinStrategy(joinType),
         left.outputSet,
         right.outputSet,
         condition)
@@ -255,7 +251,7 @@ case class CHBroadcastHashJoinExecTransformer(
     val context =
       BroadCastHashJoinContext(
         buildKeyExprs,
-        finalJoinType,
+        joinType,
         buildSide == BuildRight,
         isMixedCondition(condition),
         joinType.isInstanceOf[ExistenceJoin],
@@ -278,12 +274,6 @@ case class CHBroadcastHashJoinExecTransformer(
     res
   }
 
-  // ExistenceJoin is introduced in #SPARK-14781. It returns all rows from the left table with
-  // a new column to indecate whether the row is matched in the right table.
-  // Indeed, the ExistenceJoin is transformed into left any join in CH.
-  // We don't have left any join in substrait, so use left semi join instead.
-  // and isExistenceJoin is set to true to indicate that it is an existence join.
-  private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
   override protected lazy val substraitJoinType: JoinRel.JoinType = {
     JoinTypeTransform.toSubstraitJoinType(joinType, buildSide == BuildRight)
   }

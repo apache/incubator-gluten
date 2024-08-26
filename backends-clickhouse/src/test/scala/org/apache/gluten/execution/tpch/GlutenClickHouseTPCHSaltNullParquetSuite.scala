@@ -335,7 +335,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("TPCH Q21") {
-    runTPCHQuery(21, noFallBack = false) { df => }
+    runTPCHQuery(21) { df => }
   }
 
   test("GLUTEN-2115: Fix wrong number of records shuffle written") {
