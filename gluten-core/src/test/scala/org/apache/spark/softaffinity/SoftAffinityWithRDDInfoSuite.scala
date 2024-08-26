@@ -18,7 +18,7 @@ package org.apache.spark.softaffinity
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.GlutenPartition
-import org.apache.gluten.softaffinity.SoftAffinityManager
+import org.apache.gluten.softaffinity.{AffinityManager, SoftAffinityManager}
 import org.apache.gluten.softaffinity.scheduler.SoftAffinityListener
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.plan.PlanBuilder
@@ -32,6 +32,16 @@ import org.apache.spark.sql.catalyst.expressions.PredicateHelper
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.storage.{RDDInfo, StorageLevel}
+
+object FakeSoftAffinityManager extends AffinityManager {
+  override lazy val usingSoftAffinity: Boolean = true
+
+  override lazy val minOnTargetHosts: Int = 1
+
+  override lazy val detectDuplicateReading = true
+
+  override lazy val duplicateReadingMaxCacheItems = 1
+}
 
 class SoftAffinityWithRDDInfoSuite extends QueryTest with SharedSparkSession with PredicateHelper {
 
@@ -108,6 +118,34 @@ class SoftAffinityWithRDDInfoSuite extends QueryTest with SharedSparkSession wit
       softAffinityListener.onExecutorRemoved(removedEvent1)
       // executor 0 is removed, return empty.
       assert(SoftAffinityManager.askExecutors(filePartition).isEmpty)
+    }
+  }
+
+  test("Duplicate reading detection limits middle states count") {
+    // This test simulate the case listener bus stucks. We need to make sure the middle states
+    // count would not exceed the configed threshold.
+    if (SparkShimLoader.getSparkShims.supportDuplicateReadingTracking) {
+      val files = Seq(
+        SparkShimLoader.getSparkShims.generatePartitionedFile(
+          InternalRow.empty,
+          "fakePath0",
+          0,
+          100,
+          Array("host-3")),
+        SparkShimLoader.getSparkShims.generatePartitionedFile(
+          InternalRow.empty,
+          "fakePath0",
+          100,
+          200,
+          Array("host-3"))
+      ).toArray
+      val filePartition = FilePartition(-1, files)
+      FakeSoftAffinityManager.updatePartitionMap(filePartition, 1)
+      assert(FakeSoftAffinityManager.rddPartitionInfoMap.size == 1)
+      val filePartition1 = FilePartition(-1, files)
+      FakeSoftAffinityManager.updatePartitionMap(filePartition1, 2)
+      assert(FakeSoftAffinityManager.rddPartitionInfoMap.size == 1)
+      assert(FakeSoftAffinityManager.stageInfoMap.size <= 1)
     }
   }
 }

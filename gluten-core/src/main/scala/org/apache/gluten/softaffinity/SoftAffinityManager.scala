@@ -28,7 +28,6 @@ import org.apache.spark.sql.execution.datasources.FilePartition
 
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
@@ -56,18 +55,34 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
 
   lazy val detectDuplicateReading = true
 
-  lazy val maxDuplicateReadingRecords =
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_MAX_DUPLICATE_READING_RECORDS_DEFAULT_VALUE
+  lazy val duplicateReadingMaxCacheItems =
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
 
   // rdd id -> patition id, file path, start, length
-  val rddPartitionInfoMap = new ConcurrentHashMap[Int, Array[(Int, String, Long, Long)]]()
+  val rddPartitionInfoMap: LoadingCache[Integer, Array[(Int, String, Long, Long)]] =
+    CacheBuilder
+      .newBuilder()
+      .maximumSize(duplicateReadingMaxCacheItems)
+      .build(new CacheLoader[Integer, Array[(Int, String, Long, Long)]] {
+        override def load(id: Integer): Array[(Int, String, Long, Long)] = {
+          Array.empty[(Int, String, Long, Long)]
+        }
+      })
   // stage id -> execution id + rdd ids: job start / execution end
-  val stageInfoMap = new ConcurrentHashMap[Int, Array[Int]]()
+  val stageInfoMap: LoadingCache[Integer, Array[Int]] =
+    CacheBuilder
+      .newBuilder()
+      .maximumSize(duplicateReadingMaxCacheItems)
+      .build(new CacheLoader[Integer, Array[Int]] {
+        override def load(id: Integer): Array[Int] = {
+          Array.empty[Int]
+        }
+      })
   // final result: partition composed key("path1_start_length,path2_start_length") --> array_host
   val duplicateReadingInfos: LoadingCache[String, Array[(String, String)]] =
     CacheBuilder
       .newBuilder()
-      .maximumSize(maxDuplicateReadingRecords)
+      .maximumSize(duplicateReadingMaxCacheItems)
       .build(new CacheLoader[String, Array[(String, String)]] {
         override def load(name: String): Array[(String, String)] = {
           Array.empty[(String, String)]
@@ -162,11 +177,11 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
     event.reason match {
       case org.apache.spark.Success =>
         val stageId = event.stageId
-        val rddInfo = stageInfoMap.get(stageId)
+        val rddInfo = stageInfoMap.getIfPresent(stageId)
         if (rddInfo != null) {
           rddInfo.foreach {
             rddId =>
-              val partitions = rddPartitionInfoMap.get(rddId)
+              val partitions = rddPartitionInfoMap.getIfPresent(rddId)
               if (partitions != null) {
                 val key = partitions
                   .filter(p => p._1 == SparkShimLoader.getSparkShims.getPartitionId(event.taskInfo))
@@ -195,11 +210,11 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
   }
 
   def clearPartitionMap(rddIds: Seq[Int]): Unit = {
-    rddIds.foreach(id => rddPartitionInfoMap.remove(id))
+    rddIds.foreach(id => rddPartitionInfoMap.invalidate(id))
   }
 
   def clearStageMap(id: Int): Unit = {
-    stageInfoMap.remove(id)
+    stageInfoMap.invalidate(id)
   }
 
   def checkTargetHosts(hosts: Array[String]): Boolean = {
@@ -274,8 +289,9 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
     val paths =
       f.files.map(file => (f.index, file.filePath.toString, file.start, file.length)).toArray
     val key = rddId
-    val values = if (rddPartitionInfoMap.containsKey(key)) {
-      rddPartitionInfoMap.get(key) ++ paths
+    var values = rddPartitionInfoMap.getIfPresent(key)
+    values = if (values != null) {
+      values ++ paths
     } else {
       paths
     }
@@ -300,8 +316,8 @@ object SoftAffinityManager extends AffinityManager {
   ) &&
     SparkShimLoader.getSparkShims.supportDuplicateReadingTracking
 
-  override lazy val maxDuplicateReadingRecords = SparkEnv.get.conf.getInt(
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_MAX_DUPLICATE_READING_RECORDS,
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_MAX_DUPLICATE_READING_RECORDS_DEFAULT_VALUE
+  override lazy val duplicateReadingMaxCacheItems = SparkEnv.get.conf.getInt(
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS,
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
   )
 }
