@@ -32,8 +32,9 @@ import org.apache.spark.unsafe.types.CalendarInterval
 case class CustomAdd(
     left: Expression,
     right: Expression,
-    failOnError: Boolean = SQLConf.get.ansiEnabled)
-  extends BinaryArithmetic {
+    override val failOnError: Boolean = SQLConf.get.ansiEnabled)
+  extends BinaryArithmetic
+  with CustomAdd.Compatibility {
 
   def this(left: Expression, right: Expression) = this(left, right, SQLConf.get.ansiEnabled)
 
@@ -69,6 +70,14 @@ case class CustomAdd(
       newLeft: Expression,
       newRight: Expression
   ): CustomAdd = copy(left = newLeft, right = newRight)
+
+  override protected val evalMode: EvalMode.Value = EvalMode.LEGACY
+}
+
+object CustomAdd {
+  trait Compatibility {
+    protected val evalMode: EvalMode.Value
+  }
 }
 
 class GlutenClickhouseCustomerExpressionTransformerSuite
