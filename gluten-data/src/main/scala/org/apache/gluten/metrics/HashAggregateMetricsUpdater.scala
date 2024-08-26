@@ -19,6 +19,8 @@ package org.apache.gluten.metrics
 import org.apache.gluten.substrait.AggregationParams
 
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.utils.SparkMetricsUtil
+import org.apache.spark.util.TaskResources
 
 trait HashAggregateMetricsUpdater extends MetricsUpdater {
   def updateAggregationMetrics(
@@ -80,6 +82,14 @@ class HashAggregateMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
       rowConstructionCpuCount += aggregationMetrics.get(idx).cpuCount
       rowConstructionWallNanos += aggregationMetrics.get(idx).wallNanos
       idx += 1
+    }
+    if (TaskResources.inSparkTask()) {
+      SparkMetricsUtil.incMemoryBytesSpilled(
+        TaskResources.getLocalTaskContext().taskMetrics(),
+        aggMetrics.spilledInputBytes)
+      SparkMetricsUtil.incDiskBytesSpilled(
+        TaskResources.getLocalTaskContext().taskMetrics(),
+        aggMetrics.spilledBytes)
     }
   }
 }
