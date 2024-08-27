@@ -17,7 +17,7 @@
 package org.apache.gluten.metrics
 
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
+import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 
 /**
  * Note: "val metrics" is made transient to avoid sending driver-side metrics to tasks, e.g.

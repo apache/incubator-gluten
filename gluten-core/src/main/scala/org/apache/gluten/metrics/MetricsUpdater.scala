@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.metrics
 
-import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
+import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 
 /**
  * A minimized controller for updating operator's metrics, which means it never persists the

@@ -19,7 +19,7 @@ package org.apache.spark.sql.utils
 import org.apache.spark.executor.InputMetrics
 
 /** Bridge to package org.apache.spark. */
-object OASPackageBridge {
+object SparkInputMetricsUtil {
   implicit class InputMetricsWrapper(val m: InputMetrics) {
     def bridgeIncBytesRead(v: Long): Unit = {
       m.incBytesRead(v)
