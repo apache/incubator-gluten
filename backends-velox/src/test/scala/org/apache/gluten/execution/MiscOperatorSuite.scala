@@ -2086,4 +2086,12 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     val df2 = runQueryAndCompare("SELECT round(cast(0.19324999999999998 as double), 2)") { _ => }
     checkLengthAndPlan(df2, 1)
   }
+
+  test("Fix wrong rescale") {
+    withTable("t") {
+      sql("create table t (col0 decimal(10, 0), col1 decimal(10, 0)) using parquet")
+      sql("insert into t values (0, 0)")
+      runQueryAndCompare("select col0 / (col1 + 1E-8) from t") { _ => }
+    }
+  }
 }
