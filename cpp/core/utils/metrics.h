@@ -76,6 +76,7 @@ struct Metrics {
 
     // Write metrics.
     kPhysicalWrittenBytes,
+    kWriteIOTime,
     kNumWrittenFiles,
 
     // The end of enum items.

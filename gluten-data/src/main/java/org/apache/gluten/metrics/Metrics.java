@@ -50,7 +50,7 @@ public class Metrics implements IMetrics {
   public long[] preloadSplits;
 
   public long[] physicalWrittenBytes;
-
+  public long[] writeIOTime;
   public long[] numWrittenFiles;
 
   public SingleMetric singleMetric = new SingleMetric();
@@ -88,6 +88,7 @@ public class Metrics implements IMetrics {
       long[] ioWaitTime,
       long[] preloadSplits,
       long[] physicalWrittenBytes,
+      long[] writeIOTime,
       long[] numWrittenFiles) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
@@ -120,6 +121,7 @@ public class Metrics implements IMetrics {
     this.ioWaitTime = ioWaitTime;
     this.preloadSplits = preloadSplits;
     this.physicalWrittenBytes = physicalWrittenBytes;
+    this.writeIOTime = writeIOTime;
     this.numWrittenFiles = numWrittenFiles;
   }
 
@@ -159,6 +161,7 @@ public class Metrics implements IMetrics {
         ioWaitTime[index],
         preloadSplits[index],
         physicalWrittenBytes[index],
+        writeIOTime[index],
         numWrittenFiles[index]);
   }
 
