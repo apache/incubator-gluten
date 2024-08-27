@@ -1,10 +1,6 @@
 FROM centos:7
 
-RUN sed -e 's|^mirrorlist=|#mirrorlist=|g' \
-         -e 's|^#baseurl=http://mirror.centos.org/centos|baseurl=http://mirrors.edge.kernel.org/centos/|g' \
-         -i.bak \
-         /etc/yum.repos.d/CentOS-Base.repo
-RUN sed -i "s/enabled=1/enabled=0/" /etc/yum/pluginconf.d/fastestmirror.conf 
+RUN sed -i "s/enabled=1/enabled=0/" /etc/yum/pluginconf.d/fastestmirror.conf
 
 WORKDIR /tmp/vcpkg
 COPY setup-build-depends.sh setup-build-depends.sh
