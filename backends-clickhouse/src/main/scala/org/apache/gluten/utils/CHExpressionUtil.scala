@@ -195,7 +195,6 @@ object CHExpressionUtil {
     DATE_FORMAT -> DateFormatClassValidator(),
     DECODE -> EncodeDecodeValidator(),
     ENCODE -> EncodeDecodeValidator(),
-    ARRAY_EXCEPT -> DefaultValidator(),
     ARRAY_REPEAT -> DefaultValidator(),
     ARRAY_REMOVE -> DefaultValidator(),
     ARRAYS_ZIP -> DefaultValidator(),

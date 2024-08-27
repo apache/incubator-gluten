@@ -36,7 +36,7 @@ public:
         // Create lambda function x -> !has(arr2, x)
         ActionsDAG lambda_actions_dag;
         const auto * arr2_in_lambda = &lambda_actions_dag.addInput(arr2_arg->result_name, arr2_arg->result_type);
-        const auto & nested_type = assert_cast<DataTypeArray &>(removeNullable(arr1_arg->result_type)).getNestedType();
+        const auto & nested_type = assert_cast<const DataTypeArray &>(*removeNullable(arr1_arg->result_type)).getNestedType();
         const auto * x_in_lambda = &lambda_actions_dag.addInput("x", nested_type);
         const auto * has_in_lambda = toFunctionNode(lambda_actions_dag, "has", {arr2_in_lambda, x_in_lambda});
         const auto * lambda_output = toFunctionNode(lambda_actions_dag, "not", {has_in_lambda});

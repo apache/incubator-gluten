@@ -755,4 +755,12 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                 |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
+
+  test("test function array_except") {
+    val sql = """
+                |SELECT array_except(array(id, id+1, id+2), array(id+2, id+3))
+                |FROM RANGE(10)
+                |""".stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
 }
