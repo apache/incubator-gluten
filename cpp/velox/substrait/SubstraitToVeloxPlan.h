@@ -451,7 +451,8 @@ class SubstraitToVeloxPlanConverter {
   static bool canPushdownFunction(
       const ::substrait::Expression_ScalarFunction& scalarFunction,
       const std::string& filterName,
-      uint32_t& fieldIdx);
+      uint32_t& fieldIdx,
+      const std::vector<TypePtr>& veloxTypeList);
 
   /// Returns whether a NOT function can be pushed down.
   bool canPushdownNot(
@@ -472,6 +473,9 @@ class SubstraitToVeloxPlanConverter {
   /// column index. Curretly used to check whether the two chilren functions of
   /// 'or' expression are effective on the same column.
   static bool childrenFunctionsOnSameField(const ::substrait::Expression_ScalarFunction& function);
+
+  /// Check whether the data type is supported to pushdown.
+  static bool isPushdownSupported(TypePtr inputType);
 
   /// Extract the scalar function, and set the filter info for different types
   /// of columns. If reverse is true, the opposite filter info will be set.
