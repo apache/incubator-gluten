@@ -17,7 +17,7 @@
 package org.apache.gluten.metrics
 
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
+import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 
 class BatchScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric])
   extends MetricsUpdater {

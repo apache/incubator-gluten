@@ -60,7 +60,7 @@ public final class JniByteInputStreams {
     InputStream unwrapped = in;
     if (unwrapped instanceof BufferReleasingInputStream) {
       final BufferReleasingInputStream brin = (BufferReleasingInputStream) unwrapped;
-      unwrapped = org.apache.spark.storage.OASPackageBridge.unwrapBufferReleasingInputStream(brin);
+      unwrapped = org.apache.spark.storage.SparkInputStreamUtil.unwrapBufferReleasingInputStream(brin);
     }
     if (unwrapped instanceof CheckedInputStream) {
       final CheckedInputStream cin = (CheckedInputStream) unwrapped;

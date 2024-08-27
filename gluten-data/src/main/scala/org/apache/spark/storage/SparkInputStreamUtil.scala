@@ -18,7 +18,7 @@ package org.apache.spark.storage
 
 import java.io.InputStream
 
-object OASPackageBridge {
+object SparkInputStreamUtil {
   def unwrapBufferReleasingInputStream(in: BufferReleasingInputStream): InputStream = {
     in.delegate
   }
