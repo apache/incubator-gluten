@@ -387,8 +387,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenJoinSuite].exclude(
     "SPARK-36794: Ignore duplicated key when building relation for semi/anti hash join")
   enableSuite[GlutenJsonFunctionsSuite]
-    .exclude("function get_json_object - support single quotes")
-    .exclude("function get_json_object - null")
     .exclude("from_json with option")
     .exclude("from_json missing columns")
     .exclude("from_json invalid json")

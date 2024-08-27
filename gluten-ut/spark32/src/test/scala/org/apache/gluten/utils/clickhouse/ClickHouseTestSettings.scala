@@ -371,8 +371,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenJoinSuite]
   enableSuite[GlutenJsonFunctionsSuite]
-    .exclude("function get_json_object - support single quotes")
-    .exclude("function get_json_object - null")
     .exclude("from_json with option")
     .exclude("from_json missing columns")
     .exclude("from_json invalid json")
