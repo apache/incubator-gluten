@@ -79,8 +79,8 @@ case class SortExecTransformer(
       RelBuilder.makeSortRel(input, sortFieldList.asJava, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = originalInputAttributes.map(
-        attr => ConverterUtil.getTypeNode(attr.dataType, attr.nullable))
+      val inputTypeNodeList =
+        originalInputAttributes.map(attr => ConverterUtil.getTypeNode(attr.dataType, attr.nullable))
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         BackendsApiManager.getTransformerApiInstance.packPBMessage(
           TypeBuilder.makeStruct(false, inputTypeNodeList.asJava).toProtobuf))

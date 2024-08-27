@@ -69,8 +69,7 @@ object PlanNodesUtil {
       context,
       Lists.newArrayList(
         RelBuilder.makeProjectRel(readRel, projExprNodeList, context, operatorId, output.size)),
-      Lists.newArrayList(
-        ConverterUtil.genColumnNameWithExprId(ConverterUtil.getAttrFromExpr(key)))
+      Lists.newArrayList(ConverterUtil.genColumnNameWithExprId(ConverterUtil.getAttrFromExpr(key)))
     )
   }
 }

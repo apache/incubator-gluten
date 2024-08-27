@@ -21,6 +21,7 @@ import org.apache.gluten.vectorized.ArrowWritableColumnVector
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.execution.vectorized.ArrowColumnVectorUtil
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.{SparkArrowUtil, SparkSchemaUtil}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
@@ -33,7 +34,6 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 import org.apache.hadoop.fs.FileStatus
-import org.apache.spark.sql.execution.vectorized.ArrowColumnVectorUtil
 
 import java.net.{URI, URLDecoder}
 import java.util
