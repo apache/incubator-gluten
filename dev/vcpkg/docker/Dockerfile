@@ -11,8 +11,12 @@ RUN rm -rf /tmp/vcpkg
 
 ARG BUILDER_UID
 ARG BUILDER_GID
-RUN groupadd -g ${BUILDER_GID} build
-RUN useradd -mu ${BUILDER_UID} -g build -G wheel build
+RUN if ["$BUILDER_GID" != "0"]; then \
+    groupadd -g ${BUILDER_GID} build; \
+    fi
+RUN if ["$BUILDER_UID" != "0"]; then \
+    useradd -mu ${BUILDER_UID} -g ${BUILDER_GID} -G wheel build; \
+    fi
 USER ${BUILDER_UID}:${BUILDER_GID}
 
 ENV VCPKG_BINARY_SOURCES=default
