@@ -197,7 +197,7 @@ namespace
             return trim_set;
         }
 
-        void trim(const char * src, size_t src_size, const char *& dst, size_t dst_size, const std::bitset<256> & trim_set) const
+        void trim(const char * src, const size_t src_size, const char *& dst, size_t & dst_size, const std::bitset<256> & trim_set) const
         {
             // If trim column is not constant and contains null value
             if (trim_set.none())
