@@ -199,14 +199,6 @@ namespace
 
         void trim(const char * src, const size_t src_size, const char *& dst, size_t & dst_size, const std::bitset<256> & trim_set) const
         {
-            // If trim column is not constant and contains null value
-            if (trim_set.none())
-            {
-                dst = src;
-                dst_size = src_size;
-                return;
-            }
-
             const char * src_end = src + src_size;
             if constexpr (TrimMode::trim_left)
                 while (src < src_end && trim_set.test((unsigned char)*src))
