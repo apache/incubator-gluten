@@ -18,7 +18,7 @@ package org.apache.spark.sql.catalyst.types
 
 import org.apache.spark.sql.types.DataType
 
-object DataTypeUtils {
+object DataTypeUtil {
 
   /**
    * Check if `this` and `other` are the same data type when ignoring nullability

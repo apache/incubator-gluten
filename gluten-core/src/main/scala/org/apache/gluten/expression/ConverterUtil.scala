@@ -37,7 +37,7 @@ import scala.collection.JavaConverters._
 
 case class ExpressionType(dataType: DataType, nullable: Boolean) {}
 
-object ConverterUtils extends Logging {
+object ConverterUtil extends Logging {
 
   /**
    * Get the source Attribute for the input Expression. It will traverse the Expression tree in a
@@ -137,7 +137,7 @@ object ConverterUtils extends Logging {
 
   /** Convert StructType to Json */
   def convertNamedStructJson(tableSchema: StructType): String = {
-    val typeNodes = ConverterUtils.collectAttributeTypeNodes(tableSchema)
+    val typeNodes = ConverterUtil.collectAttributeTypeNodes(tableSchema)
     val nameList = tableSchema.fieldNames.map(normalizeColName)
 
     val structBuilder = Type.Struct.newBuilder

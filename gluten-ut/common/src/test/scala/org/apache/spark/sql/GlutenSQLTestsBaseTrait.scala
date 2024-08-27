@@ -17,7 +17,7 @@
 package org.apache.spark.sql
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
+import org.apache.gluten.utils.{BackendTestUtil, SystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.SparkPlan
@@ -100,7 +100,7 @@ object GlutenSQLTestsBaseTrait {
     // .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
     //     NullPropagation.ruleName)
 
-    if (BackendTestUtils.isCHBackendLoaded()) {
+    if (BackendTestUtil.isCHBackendLoaded()) {
       conf
         .set("spark.io.compression.codec", "LZ4")
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")

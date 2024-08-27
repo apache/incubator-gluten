@@ -18,7 +18,7 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.TransformerApi
 import org.apache.gluten.execution.CHHashAggregateExecTransformer
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtil
 import org.apache.gluten.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
@@ -209,17 +209,17 @@ class CHTransformerApi extends TransformerApi with Logging {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(
+      ConverterUtil.makeFuncName(
         substraitExprName,
         Seq(dataType, BooleanType),
-        ConverterUtils.FunctionConfig.OPT))
+        ConverterUtil.FunctionConfig.OPT))
 
     // Just make a fake toType value, because native engine cannot accept datatype itself.
     val toTypeNodes =
       ExpressionBuilder.makeDecimalLiteral(new Decimal().set(0, dataType.precision, dataType.scale))
     val expressionNodes =
       Lists.newArrayList(childNode, new BooleanLiteralNode(nullOnOverflow), toTypeNodes)
-    val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
+    val typeNode = ConverterUtil.getTypeNode(dataType, nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 

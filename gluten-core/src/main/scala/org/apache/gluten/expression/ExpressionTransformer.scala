@@ -36,10 +36,10 @@ trait ExpressionTransformer {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     // TODO: the funcName seems can be simplified to `substraitExprName`
     val funcName: String =
-      ConverterUtils.makeFuncName(substraitExprName, original.children.map(_.dataType))
+      ConverterUtil.makeFuncName(substraitExprName, original.children.map(_.dataType))
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, funcName)
     val childNodes = children.map(_.doTransform(args)).asJava
-    val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
+    val typeNode = ConverterUtil.getTypeNode(dataType, nullable)
     ExpressionBuilder.makeScalarFunction(functionId, childNodes, typeNode)
   }
 }

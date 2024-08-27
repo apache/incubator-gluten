@@ -19,7 +19,7 @@ package org.apache.spark.sql.gluten
 import org.apache.gluten.{GlutenConfig, VERSION}
 import org.apache.gluten.events.GlutenPlanFallbackEvent
 import org.apache.gluten.execution.FileSourceScanExecTransformer
-import org.apache.gluten.utils.BackendTestUtils
+import org.apache.gluten.utils.BackendTestUtil
 
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
@@ -105,7 +105,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
 
       val id = runExecution("SELECT * FROM t1 FULL OUTER JOIN t2")
       val execution = glutenStore.execution(id)
-      if (BackendTestUtils.isVeloxBackendLoaded()) {
+      if (BackendTestUtil.isVeloxBackendLoaded()) {
         assert(execution.get.numFallbackNodes == 1)
         assert(
           execution.get.fallbackNodeToReason.head._2

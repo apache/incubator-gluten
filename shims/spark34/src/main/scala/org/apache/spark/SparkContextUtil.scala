@@ -20,7 +20,7 @@ import org.apache.spark.broadcast.Broadcast
 
 import scala.reflect.ClassTag
 
-object SparkContextUtils {
+object SparkContextUtil {
   def broadcastInternal[T: ClassTag](sc: SparkContext, value: T): Broadcast[T] = {
     sc.broadcastInternal(value, serializedOnly = true)
   }

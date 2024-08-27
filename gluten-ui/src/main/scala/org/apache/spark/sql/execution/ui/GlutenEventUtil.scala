@@ -14,32 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark
+package org.apache.spark.sql.execution.ui
 
-import org.apache.spark.executor.TaskMetrics
-import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
-import org.apache.spark.metrics.MetricsSystem
+import org.apache.gluten.events.GlutenEvent
 
-import java.util.Properties
+import org.apache.spark.SparkContext
+import org.apache.spark.status.ElementTrackingStore
 
-import scala.collection.JavaConverters._
+object GlutenEventUtil {
+  def post(sc: SparkContext, event: GlutenEvent): Unit = {
+    sc.listenerBus.post(event)
+  }
 
-object TaskContextUtils {
-  def createTestTaskContext(properties: Properties): TaskContext = {
-    val conf = new SparkConf()
-    conf.setAll(properties.asScala)
-    val memoryManager = UnifiedMemoryManager(conf, 1)
-    new TaskContextImpl(
-      -1,
-      -1,
-      -1,
-      -1L,
-      -1,
-      new TaskMemoryManager(memoryManager, -1L),
-      properties,
-      MetricsSystem.createMetricsSystem("GLUTEN_UNSAFE", conf),
-      TaskMetrics.empty,
-      Map.empty
-    )
+  def registerListener(sc: SparkContext): Unit = {
+    val kvStore = sc.statusStore.store.asInstanceOf[ElementTrackingStore]
+    val listener = new GlutenSQLAppStatusListener(sc.conf, kvStore)
+    sc.listenerBus.addToStatusQueue(listener)
+  }
+
+  def attachUI(sc: SparkContext): Unit = {
+    val kvStore = sc.statusStore.store.asInstanceOf[ElementTrackingStore]
+    val statusStore = new GlutenSQLAppStatusStore(kvStore)
+    sc.ui.foreach(new GlutenSQLTab(statusStore, _))
   }
 }

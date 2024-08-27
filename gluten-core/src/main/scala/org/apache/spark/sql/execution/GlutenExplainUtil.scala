@@ -40,7 +40,7 @@ import scala.collection.mutable.{ArrayBuffer, BitSet}
 // 1. add function `collectFallbackNodes`
 // 2. remove `plan.verboseStringWithOperatorId`
 // 3. remove codegen id
-object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
+object GlutenExplainUtil extends AdaptiveSparkPlanHelper {
   type FallbackInfo = (Int, Map[String, String])
 
   def addFallbackNodeWithReason(

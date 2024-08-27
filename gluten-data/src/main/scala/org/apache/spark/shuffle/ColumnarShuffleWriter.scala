@@ -80,7 +80,7 @@ class ColumnarShuffleWriter[K, V](
 
   private val compressionCodec =
     if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
-      GlutenShuffleUtils.getCompressionCodec(conf)
+      GlutenShuffleUtil.getCompressionCodec(conf)
     } else {
       null // uncompressed
     }
@@ -89,7 +89,7 @@ class ColumnarShuffleWriter[K, V](
     GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
 
   private val compressionLevel =
-    GlutenShuffleUtils.getCompressionLevel(conf, compressionCodec, compressionCodecBackend)
+    GlutenShuffleUtil.getCompressionLevel(conf, compressionCodec, compressionCodecBackend)
 
   private val bufferCompressThreshold =
     GlutenConfig.getConf.columnarShuffleCompressionThreshold
@@ -159,7 +159,7 @@ class ColumnarShuffleWriter[K, V](
             reallocThreshold,
             handle,
             taskContext.taskAttemptId(),
-            GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, taskContext.partitionId),
+            GlutenShuffleUtil.getStartPartitionId(dep.nativePartitioning, taskContext.partitionId),
             shuffleWriterType
           )
           runtime.addSpiller(new Spiller() {

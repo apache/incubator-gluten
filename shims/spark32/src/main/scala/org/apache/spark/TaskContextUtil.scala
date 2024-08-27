@@ -14,21 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.expression
+package org.apache.spark
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, LeafExpression}
+import org.apache.spark.executor.TaskMetrics
+import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
+import org.apache.spark.metrics.MetricsSystem
 
-object ExpressionUtils {
+import java.util.Properties
 
-  def getExpressionTreeDepth(expr: Expression): Integer = {
-    if (expr.isInstanceOf[LeafExpression]) {
-      return 0
-    }
-    val childrenDepth = expr.children.map(child => getExpressionTreeDepth(child))
-    if (childrenDepth.isEmpty) {
-      1
-    } else {
-      1 + childrenDepth.max
-    }
+import scala.collection.JavaConverters._
+
+object TaskContextUtil {
+  def createTestTaskContext(properties: Properties): TaskContext = {
+    val conf = new SparkConf()
+    conf.setAll(properties.asScala)
+    val memoryManager = UnifiedMemoryManager(conf, 1)
+    new TaskContextImpl(
+      -1,
+      -1,
+      -1,
+      -1L,
+      -1,
+      new TaskMemoryManager(memoryManager, -1L),
+      properties,
+      MetricsSystem.createMetricsSystem("GLUTEN_UNSAFE", conf),
+      TaskMetrics.empty,
+      Map.empty
+    )
   }
 }

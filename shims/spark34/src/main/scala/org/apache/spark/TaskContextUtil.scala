@@ -14,17 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.init;
+package org.apache.spark
 
-import org.apache.gluten.proto.ConfigMap;
+import org.apache.spark.executor.TaskMetrics
+import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
+import org.apache.spark.metrics.MetricsSystem
 
-import java.util.Map;
+import java.util.Properties
 
-public class JniUtils {
+import scala.collection.JavaConverters._
 
-  public static byte[] toNativeConf(Map<String, String> confs) {
-    ConfigMap.Builder builder = ConfigMap.newBuilder();
-    builder.putAllConfigs(confs);
-    return builder.build().toByteArray();
+object TaskContextUtil {
+  def createTestTaskContext(properties: Properties): TaskContext = {
+    val conf = new SparkConf()
+    conf.setAll(properties.asScala)
+    val memoryManager = UnifiedMemoryManager(conf, 1)
+    new TaskContextImpl(
+      -1,
+      -1,
+      -1,
+      -1L,
+      -1,
+      -1,
+      new TaskMemoryManager(memoryManager, -1L),
+      properties,
+      MetricsSystem.createMetricsSystem("GLUTEN_UNSAFE", conf),
+      TaskMetrics.empty,
+      1,
+      Map.empty
+    )
   }
 }

@@ -212,7 +212,7 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
       return ValidationResult
         .failed(s"Unsupported join type of $hashJoinType for substrait: $substraitJoinType")
     }
-    val relNode = JoinUtils.createJoinRel(
+    val relNode = JoinUtil.createJoinRel(
       streamedKeyExprs,
       buildKeyExprs,
       condition,
@@ -245,10 +245,10 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
     val operatorId = context.nextOperatorId(this.nodeName)
 
     val joinParams = new JoinParams
-    if (JoinUtils.preProjectionNeeded(streamedKeyExprs)) {
+    if (JoinUtil.preProjectionNeeded(streamedKeyExprs)) {
       joinParams.streamPreProjectionNeeded = true
     }
-    if (JoinUtils.preProjectionNeeded(buildKeyExprs)) {
+    if (JoinUtil.preProjectionNeeded(buildKeyExprs)) {
       joinParams.buildPreProjectionNeeded = true
     }
 
@@ -260,7 +260,7 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
       joinParams.isBHJ = true
     }
 
-    val joinRel = JoinUtils.createJoinRel(
+    val joinRel = JoinUtil.createJoinRel(
       streamedKeyExprs,
       buildKeyExprs,
       condition,
@@ -278,7 +278,7 @@ trait HashJoinLikeExecTransformer extends BaseJoinExec with TransformSupport {
 
     context.registerJoinParam(operatorId, joinParams)
 
-    JoinUtils.createTransformContext(
+    JoinUtil.createTransformContext(
       needSwitchChildren,
       output,
       joinRel,
@@ -327,7 +327,7 @@ object HashJoinLikeExecTransformer {
       functionMap: JMap[String, JLong]): ExpressionNode = {
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(ExpressionNames.EQUAL, Seq(leftType, rightType)))
+      ConverterUtil.makeFuncName(ExpressionNames.EQUAL, Seq(leftType, rightType)))
 
     val expressionNodes = Lists.newArrayList(leftNode, rightNode)
     val typeNode = TypeBuilder.makeBoolean(true)
@@ -341,7 +341,7 @@ object HashJoinLikeExecTransformer {
       functionMap: JMap[String, JLong]): ExpressionNode = {
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(ExpressionNames.AND, Seq(BooleanType, BooleanType)))
+      ConverterUtil.makeFuncName(ExpressionNames.AND, Seq(BooleanType, BooleanType)))
 
     val expressionNodes = Lists.newArrayList(leftNode, rightNode)
     val typeNode = TypeBuilder.makeBoolean(true)

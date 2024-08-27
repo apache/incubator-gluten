@@ -58,7 +58,7 @@ public final class NativeBackendInitializer {
       String prefix = BackendsApiManager.getSettings().getBackendConfigPrefix();
       Map<String, String> nativeConfMap = GlutenConfig.getNativeBackendConf(prefix, conf);
       BackendsApiManager.getSettings().resolveNativeConf(nativeConfMap);
-      initialize(JniUtils.toNativeConf(nativeConfMap));
+      initialize(JniUtil.toNativeConf(nativeConfMap));
     } catch (Exception e) {
       LOG.error("Failed to call native backend's initialize method", e);
       throw e;

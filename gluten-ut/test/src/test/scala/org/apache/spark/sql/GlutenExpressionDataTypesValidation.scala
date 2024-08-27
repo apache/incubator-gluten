@@ -19,12 +19,12 @@ package org.apache.spark.sql
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{ProjectExecTransformer, WholeStageTransformerSuite}
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
+import org.apache.gluten.utils.{BackendTestUtil, SystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{BinaryArrayExpressionWithImplicitCast, _}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.LeafExecNode
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
@@ -44,7 +44,7 @@ class GlutenExpressionDataTypesValidation extends WholeStageTransformerSuite {
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.ui.enabled", "false")
       .set("spark.gluten.ui.enabled", "false")
-    if (BackendTestUtils.isCHBackendLoaded()) {
+    if (BackendTestUtil.isCHBackendLoaded()) {
       conf
         .set("spark.gluten.sql.enable.native.validation", "false")
         .set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)

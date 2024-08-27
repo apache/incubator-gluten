@@ -16,8 +16,8 @@
  */
 package org.apache.spark.sql.delta.catalog
 
-import org.apache.gluten.expression.ConverterUtils
-import org.apache.gluten.expression.ConverterUtils.normalizeColName
+import org.apache.gluten.expression.ConverterUtil
+import org.apache.gluten.expression.ConverterUtil.normalizeColName
 
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable}
 import org.apache.spark.sql.delta.Snapshot
@@ -82,7 +82,7 @@ trait ClickHouseTableV2Base {
         val keys = tableProperties
           .get(keyName)
           .split(",")
-          .map(n => ConverterUtils.normalizeColName(n.trim))
+          .map(n => ConverterUtil.normalizeColName(n.trim))
           .toSeq
         keys.foreach(
           s => {

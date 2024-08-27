@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.datasources.utils
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.execution.{GlutenMergeTreePartition, MergeTreePartRange, MergeTreePartSplit}
-import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
+import org.apache.gluten.expression.{ConverterUtil, ExpressionConverter}
 import org.apache.gluten.softaffinity.SoftAffinityManager
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
@@ -88,7 +88,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
     val engine = "MergeTree"
     val relativeTablePath = fileIndex.deltaLog.dataPath.toUri.getPath.substring(1)
     val absoluteTablePath = fileIndex.deltaLog.dataPath.toUri.toString
-    val tableSchemaJson = ConverterUtils.convertNamedStructJson(table.schema())
+    val tableSchemaJson = ConverterUtil.convertNamedStructJson(table.schema())
 
     // bucket table
     if (table.bucketOption.isDefined && bucketedScan) {
@@ -523,8 +523,8 @@ object MergeTreePartsPartitionsUtil extends Logging {
         .reduceLeftOption(And)
         .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
 
-      val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
-      val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
+      val typeNodes = ConverterUtil.collectAttributeTypeNodes(output)
+      val nameList = ConverterUtil.collectAttributeNamesWithoutExprId(output)
       val columnTypeNodes = output.map {
         attr =>
           if (table.partitionColumns.exists(_.equals(attr.name))) {

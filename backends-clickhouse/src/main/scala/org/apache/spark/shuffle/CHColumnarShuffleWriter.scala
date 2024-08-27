@@ -51,10 +51,10 @@ class CHColumnarShuffleWriter[K, V](
     .mkString(",")
   private val subDirsPerLocalDir = blockManager.diskBlockManager.subDirsPerLocalDir
   private val splitSize = GlutenConfig.getConf.maxBatchSize
-  private val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
+  private val compressionCodec = GlutenShuffleUtil.getCompressionCodec(conf)
   private val capitalizedCompressionCodec = compressionCodec.toUpperCase(Locale.ROOT)
   private val compressionLevel =
-    GlutenShuffleUtils.getCompressionLevel(
+    GlutenShuffleUtil.getCompressionLevel(
       conf,
       compressionCodec,
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)

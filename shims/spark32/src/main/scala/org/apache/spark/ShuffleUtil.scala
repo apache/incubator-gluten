@@ -16,31 +16,22 @@
  */
 package org.apache.spark
 
-import org.apache.spark.executor.TaskMetrics
-import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
-import org.apache.spark.metrics.MetricsSystem
+import org.apache.spark.shuffle.ShuffleHandle
+import org.apache.spark.storage.{BlockId, BlockManagerId}
 
-import java.util.Properties
-
-import scala.collection.JavaConverters._
-
-object TaskContextUtils {
-  def createTestTaskContext(properties: Properties): TaskContext = {
-    val conf = new SparkConf()
-    conf.setAll(properties.asScala)
-    val memoryManager = UnifiedMemoryManager(conf, 1)
-    new TaskContextImpl(
-      -1,
-      -1,
-      -1,
-      -1L,
-      -1,
-      new TaskMemoryManager(memoryManager, -1L),
-      properties,
-      MetricsSystem.createMetricsSystem("GLUTEN_UNSAFE", conf),
-      TaskMetrics.empty,
-      1,
-      Map.empty
-    )
+object ShuffleUtil {
+  def getReaderParam[K, C](
+      handle: ShuffleHandle,
+      startMapIndex: Int,
+      endMapIndex: Int,
+      startPartition: Int,
+      endPartition: Int): Tuple2[Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])], Boolean] = {
+    val address = SparkEnv.get.mapOutputTracker.getMapSizesByExecutorId(
+      handle.shuffleId,
+      startMapIndex,
+      endMapIndex,
+      startPartition,
+      endPartition)
+    (address, true)
   }
 }

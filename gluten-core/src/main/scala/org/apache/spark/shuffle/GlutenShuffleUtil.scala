@@ -28,7 +28,7 @@ import org.apache.spark.util.random.XORShiftRandom
 
 import java.util.Locale
 
-object GlutenShuffleUtils {
+object GlutenShuffleUtil {
   val SinglePartitioningShortName = "single"
   val RoundRobinPartitioningShortName = "rr"
   val HashPartitioningShortName = "hash"

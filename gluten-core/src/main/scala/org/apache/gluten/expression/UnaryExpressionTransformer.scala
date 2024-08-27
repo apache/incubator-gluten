@@ -42,7 +42,7 @@ case class ChildTransformer(
 case class CastTransformer(substraitExprName: String, child: ExpressionTransformer, original: Cast)
   extends UnaryExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val typeNode = ConverterUtils.getTypeNode(dataType, original.nullable)
+    val typeNode = ConverterUtil.getTypeNode(dataType, original.nullable)
     ExpressionBuilder.makeCast(typeNode, child.doTransform(args), original.ansiEnabled)
   }
 }
@@ -59,10 +59,10 @@ case class ExplodeTransformer(
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(substraitExprName, Seq(original.child.dataType)))
+      ConverterUtil.makeFuncName(substraitExprName, Seq(original.child.dataType)))
 
     val expressionNodes = Lists.newArrayList(childNode)
-    val childTypeNode = ConverterUtils.getTypeNode(original.child.dataType, original.child.nullable)
+    val childTypeNode = ConverterUtil.getTypeNode(original.child.dataType, original.child.nullable)
     childTypeNode match {
       case l: ListNode =>
         ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, l.getNestedType)

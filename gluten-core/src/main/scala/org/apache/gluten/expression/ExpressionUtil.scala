@@ -14,15 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.catalyst.types
+package org.apache.gluten.expression
 
-import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.catalyst.expressions.{Expression, LeafExpression}
 
-object DataTypeUtils {
+object ExpressionUtil {
 
-  /**
-   * Check if `this` and `other` are the same data type when ignoring nullability
-   * (`StructField.nullable`, `ArrayType.containsNull`, and `MapType.valueContainsNull`).
-   */
-  def sameType(left: DataType, right: DataType): Boolean = left.sameType(right)
+  def getExpressionTreeDepth(expr: Expression): Integer = {
+    if (expr.isInstanceOf[LeafExpression]) {
+      return 0
+    }
+    val childrenDepth = expr.children.map(child => getExpressionTreeDepth(child))
+    if (childrenDepth.isEmpty) {
+      1
+    } else {
+      1 + childrenDepth.max
+    }
+  }
 }

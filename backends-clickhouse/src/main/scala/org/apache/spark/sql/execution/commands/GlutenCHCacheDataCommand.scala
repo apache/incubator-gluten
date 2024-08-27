@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.commands
 
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtil
 import org.apache.gluten.substrait.rel.ExtensionTableBuilder
 
 import org.apache.spark.affinity.CHAffinity
@@ -96,10 +96,10 @@ case class GlutenCHCacheDataCommand(
     val selectedColumns = if (selectedColuman.nonEmpty) {
       selectedColuman.get
         .filter(allColumns.contains(_))
-        .map(ConverterUtils.normalizeColName)
+        .map(ConverterUtil.normalizeColName)
         .toSeq
     } else {
-      allColumns.map(ConverterUtils.normalizeColName)
+      allColumns.map(ConverterUtil.normalizeColName)
     }
 
     val selectedAddFiles = if (tsfilter.isDefined) {
@@ -114,7 +114,7 @@ case class GlutenCHCacheDataCommand(
       val partitionColumnField = snapshot.metadata.partitionSchema(partitionColumn.get)
 
       val partitionColumnAttr = AttributeReference(
-        ConverterUtils.normalizeColName(partitionColumn.get),
+        ConverterUtil.normalizeColName(partitionColumn.get),
         partitionColumnField.dataType,
         partitionColumnField.nullable)()
       val isNotNullExpr = IsNotNull(partitionColumnAttr)
@@ -189,7 +189,7 @@ case class GlutenCHCacheDataCommand(
             partNameList.asJava,
             partRanges,
             partRanges,
-            ConverterUtils.convertNamedStructJson(snapshot.metadata.schema),
+            ConverterUtil.convertNamedStructJson(snapshot.metadata.schema),
             snapshot.metadata.configuration.asJava,
             new JList[String]()
           )

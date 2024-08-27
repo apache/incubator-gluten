@@ -20,7 +20,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, Row, TestUtils}
+import org.apache.spark.sql.{DataFrame, Row, TestUtil}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -505,7 +505,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       // check the result
       val result = df.collect()
       assert(result.size == exceptedResult.size)
-      TestUtils.compareAnswers(result, exceptedResult)
+      TestUtil.compareAnswers(result, exceptedResult)
     }
 
     runSql("select round(0.41875d * id , 4) from range(10);")(

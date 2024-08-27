@@ -27,7 +27,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.execution.{BroadcastUtils, SparkPlan}
+import org.apache.spark.sql.execution.{BroadcastUtil, SparkPlan}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -85,9 +85,9 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
     val numInputBatches = longMetric("numInputBatches")
     val convertTime = longMetric("convertTime")
 
-    val mode = BroadcastUtils.getBroadcastMode(outputPartitioning)
+    val mode = BroadcastUtil.getBroadcastMode(outputPartitioning)
     val relation = child.executeBroadcast()
-    BroadcastUtils.veloxToSparkUnsafe(
+    BroadcastUtil.veloxToSparkUnsafe(
       sparkContext,
       mode,
       relation,

@@ -44,7 +44,7 @@ object CHHashAggregateExecTransformer {
   def getAggregateResultAttributes(
       groupingExpressions: Seq[NamedExpression],
       aggregateExpressions: Seq[AggregateExpression]): Seq[Attribute] = {
-    groupingExpressions.map(ConverterUtils.getAttrFromExpr(_).toAttribute) ++ aggregateExpressions
+    groupingExpressions.map(ConverterUtil.getAttrFromExpr(_).toAttribute) ++ aggregateExpressions
       .map(_.resultAttribute)
   }
 
@@ -115,9 +115,9 @@ case class CHHashAggregateExecTransformer(
           // When there is no aggregate function or there is complete mode, it does not need
           // to handle outputs according to the AggregateMode
           for (attr <- child.output) {
-            typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-            nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
-            nameList.addAll(ConverterUtils.collectStructFieldNames(attr.dataType))
+            typeList.add(ConverterUtil.getTypeNode(attr.dataType, attr.nullable))
+            nameList.add(ConverterUtil.genColumnNameWithExprId(attr))
+            nameList.addAll(ConverterUtil.collectStructFieldNames(attr.dataType))
           }
           (child.output, output)
         } else if (!modes.contains(Partial)) {
@@ -132,17 +132,17 @@ case class CHHashAggregateExecTransformer(
             nameList.add(colName)
             val (dataType, nullable) =
               getIntermediateAggregateResultType(attr, aggregateExpressions)
-            nameList.addAll(ConverterUtils.collectStructFieldNames(dataType))
-            typeList.add(ConverterUtils.getTypeNode(dataType, nullable))
+            nameList.addAll(ConverterUtil.collectStructFieldNames(dataType))
+            typeList.add(ConverterUtil.getTypeNode(dataType, nullable))
             resultAttrIndex += 1
           }
           (aggregateResultAttributes, output)
         } else {
           // partial mode
           for (attr <- child.output) {
-            typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-            nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
-            nameList.addAll(ConverterUtils.collectStructFieldNames(attr.dataType))
+            typeList.add(ConverterUtil.getTypeNode(attr.dataType, attr.nullable))
+            nameList.add(ConverterUtil.genColumnNameWithExprId(attr))
+            nameList.addAll(ConverterUtil.collectStructFieldNames(attr.dataType))
           }
 
           (child.output, aggregateResultAttributes)
@@ -253,7 +253,7 @@ case class CHHashAggregateExecTransformer(
           CHExpressions.createAggregateFunction(args, aggregateFunc),
           childrenNodeList,
           modeToKeyWord(aggExpr.mode),
-          ConverterUtils.getTypeNode(aggregateFunc.dataType, aggregateFunc.nullable)
+          ConverterUtil.getTypeNode(aggregateFunc.dataType, aggregateFunc.nullable)
         )
         aggregateFunctionList.add(aggFunctionNode)
       })
@@ -281,7 +281,7 @@ case class CHHashAggregateExecTransformer(
       aggExpressions: Seq[AggregateExpression]): String = {
     val resultAttr = aggResultAttributes(columnIndex)
     if (columnIndex < groupingExprs.length) {
-      ConverterUtils.genColumnNameWithExprId(resultAttr)
+      ConverterUtil.genColumnNameWithExprId(resultAttr)
     } else {
       val aggExpr = aggExpressions(columnIndex - groupingExprs.length)
       val aggregateFunc = aggExpr.aggregateFunction
@@ -297,7 +297,7 @@ case class CHHashAggregateExecTransformer(
         } else {
           AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc)
         }
-      ConverterUtils.genColumnNameWithExprId(resultAttr) + "#Partial#" + aggFunctionName
+      ConverterUtil.genColumnNameWithExprId(resultAttr) + "#Partial#" + aggFunctionName
     }
   }
 
@@ -396,7 +396,7 @@ case class CHHashAggregateExecTransformer(
     val enhancement = if (validation) {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = originalInputAttributes
-        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .map(attr => ConverterUtil.getTypeNode(attr.dataType, attr.nullable))
         .asJava
       Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf)
     } else {
@@ -454,7 +454,7 @@ case class CHHashAggregateExecPullOutHelper(
         case Partial | PartialMerge =>
           val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
           for (index <- aggBufferAttr.indices) {
-            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+            val attr = ConverterUtil.getAttrFromExpr(aggBufferAttr(index))
             aggregateAttr += attr
           }
           resIndex += aggBufferAttr.size

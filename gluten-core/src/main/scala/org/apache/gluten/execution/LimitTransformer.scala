@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtil
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.`type`.TypeBuilder
@@ -72,7 +72,7 @@ case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
       RelBuilder.makeFetchRel(input, offset, count, context, operatorId)
     } else {
       val inputTypeNodes =
-        inputAttributes.map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)).asJava
+        inputAttributes.map(attr => ConverterUtil.getTypeNode(attr.dataType, attr.nullable)).asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         BackendsApiManager.getTransformerApiInstance.packPBMessage(
           TypeBuilder.makeStruct(false, inputTypeNodes).toProtobuf))

@@ -24,7 +24,7 @@ import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
-import org.apache.spark.shuffle.GlutenShuffleUtils
+import org.apache.spark.shuffle.GlutenShuffleUtil
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
@@ -90,7 +90,7 @@ private class ColumnarBatchSerializerInstance(
     val conf = SparkEnv.get.conf
     val compressionCodec =
       if (conf.getBoolean("spark.shuffle.compress", true)) {
-        GlutenShuffleUtils.getCompressionCodec(conf)
+        GlutenShuffleUtil.getCompressionCodec(conf)
       } else {
         null // uncompressed
       }

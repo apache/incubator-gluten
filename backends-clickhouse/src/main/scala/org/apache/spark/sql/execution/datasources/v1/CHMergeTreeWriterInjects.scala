@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.datasources.v1
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtil
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
@@ -91,7 +91,7 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
       primaryKeyOption,
       partitionColumns,
       Seq(),
-      ConverterUtils.convertNamedStructJson(tableSchema),
+      ConverterUtil.convertNamedStructJson(tableSchema),
       clickhouseTableConfigs,
       // use table schema instead of data schema
       SparkShimLoader.getSparkShims.attributesFromStruct(tableSchema)
@@ -151,8 +151,8 @@ object CHMergeTreeWriterInjects {
       clickhouseTableConfigs: Map[String, String],
       output: Seq[Attribute]): PlanWithSplitInfo = {
     // scalastyle:on argcount
-    val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
-    val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
+    val typeNodes = ConverterUtil.collectAttributeTypeNodes(output)
+    val nameList = ConverterUtil.collectAttributeNamesWithoutExprId(output)
     val columnTypeNodes = output.map {
       attr =>
         if (partitionColumns.exists(_.equals(attr.name))) {

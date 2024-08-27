@@ -19,7 +19,7 @@ package org.apache.gluten.runtime
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.init.JniUtils
+import org.apache.gluten.init.JniUtil
 import org.apache.gluten.memory.MemoryUsageStatsBuilder
 import org.apache.gluten.memory.listener.ReservationListeners
 import org.apache.gluten.memory.memtarget.{KnownNameAndStats, MemoryTarget, Spiller, Spillers}
@@ -57,7 +57,7 @@ object Runtime {
     private val handle = RuntimeJniWrapper.createRuntime(
       BackendsApiManager.getBackendName,
       rl,
-      JniUtils.toNativeConf(
+      JniUtil.toNativeConf(
         GlutenConfig.getNativeSessionConf(
           BackendsApiManager.getSettings.getBackendConfigPrefix,
           GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))

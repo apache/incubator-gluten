@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
+import org.apache.gluten.expression.{ConverterUtil, ExpressionConverter}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
@@ -130,8 +130,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
 
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val output = outputAttributes()
-    val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
-    val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
+    val typeNodes = ConverterUtil.collectAttributeTypeNodes(output)
+    val nameList = ConverterUtil.collectAttributeNamesWithoutExprId(output)
     val columnTypeNodes = output.map {
       attr =>
         if (getPartitionSchema.exists(_.name.equals(attr.name))) {

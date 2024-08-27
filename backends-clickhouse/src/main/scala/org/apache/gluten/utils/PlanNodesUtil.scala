@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
+import org.apache.gluten.expression.{ConverterUtil, ExpressionConverter}
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.ExpressionNode
 import org.apache.gluten.substrait.plan.{PlanBuilder, PlanNode}
@@ -32,8 +32,8 @@ object PlanNodesUtil {
     val context = new SubstraitContext
 
     var operatorId = context.nextOperatorId("ClickHouseBuildSideRelationReadIter")
-    val typeList = ConverterUtils.collectAttributeTypeNodes(output)
-    val nameList = ConverterUtils.collectAttributeNamesWithExprId(output)
+    val typeList = ConverterUtil.collectAttributeTypeNodes(output)
+    val nameList = ConverterUtil.collectAttributeNamesWithExprId(output)
     val readRel = RelBuilder.makeReadRelForInputIterator(typeList, nameList, context, operatorId)
 
     // replace attribute to BoundRefernce according to the output
@@ -70,7 +70,7 @@ object PlanNodesUtil {
       Lists.newArrayList(
         RelBuilder.makeProjectRel(readRel, projExprNodeList, context, operatorId, output.size)),
       Lists.newArrayList(
-        ConverterUtils.genColumnNameWithExprId(ConverterUtils.getAttrFromExpr(key)))
+        ConverterUtil.genColumnNameWithExprId(ConverterUtil.getAttrFromExpr(key)))
     )
   }
 }

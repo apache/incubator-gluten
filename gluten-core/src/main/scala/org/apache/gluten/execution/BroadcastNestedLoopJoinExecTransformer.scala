@@ -127,7 +127,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       joinParams.isWithCondition = true
     }
 
-    val crossRel = JoinUtils.createCrossRel(
+    val crossRel = JoinUtil.createCrossRel(
       substraitJoinType,
       condition,
       inputStreamedRelNode,
@@ -141,7 +141,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
 
     context.registerJoinParam(operatorId, joinParams)
 
-    val projectRelPostJoinRel = JoinUtils.createProjectRelPostJoinRel(
+    val projectRelPostJoinRel = JoinUtil.createProjectRelPostJoinRel(
       needSwitchChildren,
       joinType,
       streamedPlan.output,
@@ -153,7 +153,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       inputBuildOutput
     )
 
-    JoinUtils.createTransformContext(
+    JoinUtil.createTransformContext(
       needSwitchChildren,
       output,
       projectRelPostJoinRel,
@@ -197,7 +197,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
 
     val substraitContext = new SubstraitContext
 
-    val crossRel = JoinUtils.createCrossRel(
+    val crossRel = JoinUtil.createCrossRel(
       substraitJoinType,
       condition,
       null,

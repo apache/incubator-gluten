@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.datasource;
 
-import org.apache.gluten.init.JniUtils;
+import org.apache.gluten.init.JniUtil;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
 
@@ -43,7 +43,7 @@ public class DatasourceJniWrapper implements RuntimeAware {
   }
 
   public long nativeInitDatasource(String filePath, long cSchema, Map<String, String> options) {
-    return nativeInitDatasource(filePath, cSchema, JniUtils.toNativeConf(options));
+    return nativeInitDatasource(filePath, cSchema, JniUtil.toNativeConf(options));
   }
 
   public native long nativeInitDatasource(String filePath, long cSchema, byte[] options);

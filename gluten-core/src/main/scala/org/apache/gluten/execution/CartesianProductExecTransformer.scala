@@ -92,7 +92,7 @@ case class CartesianProductExecTransformer(
       }
 
     val extensionNode =
-      JoinUtils.createExtensionNode(inputLeftOutput ++ inputRightOutput, validation = false)
+      JoinUtil.createExtensionNode(inputLeftOutput ++ inputRightOutput, validation = false)
 
     val operatorId = context.nextOperatorId(this.nodeName)
 
@@ -120,7 +120,7 @@ case class CartesianProductExecTransformer(
           .doTransform(substraitContext.registeredFunction)
     }
     val extensionNode =
-      JoinUtils.createExtensionNode(left.output ++ right.output, validation = true)
+      JoinUtil.createExtensionNode(left.output ++ right.output, validation = true)
 
     val currRel = RelBuilder.makeCrossRel(
       null,

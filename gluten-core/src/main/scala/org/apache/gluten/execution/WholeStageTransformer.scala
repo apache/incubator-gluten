@@ -138,7 +138,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   private def inferSchemaFromAttributes(attrs: Seq[Attribute]): TypeNode = {
     val outputTypeNodeList = new java.util.ArrayList[TypeNode]()
     for (attr <- attrs) {
-      outputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      outputTypeNodeList.add(ConverterUtil.getTypeNode(attr.dataType, attr.nullable))
     }
 
     TypeBuilder.makeStruct(false, outputTypeNodeList)
@@ -204,7 +204,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
     val outNames = new java.util.ArrayList[String]()
     for (attr <- childCtx.outputAttributes) {
-      outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
+      outNames.add(ConverterUtil.genColumnNameWithExprId(attr))
     }
 
     val planNode = if (BackendsApiManager.getSettings.needOutputSchemaForPlan()) {
@@ -222,7 +222,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         null)
     } else {
       for (attr <- childCtx.outputAttributes) {
-        outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
+        outNames.add(ConverterUtil.genColumnNameWithExprId(attr))
       }
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
     }

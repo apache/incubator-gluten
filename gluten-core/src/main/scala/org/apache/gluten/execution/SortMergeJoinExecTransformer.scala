@@ -166,7 +166,7 @@ abstract class SortMergeJoinExecTransformerBase(
       return ValidationResult
         .failed(s"Found unsupported join type of $joinType for substrait: $substraitJoinType")
     }
-    val relNode = JoinUtils.createJoinRel(
+    val relNode = JoinUtil.createJoinRel(
       streamedKeys,
       bufferedKeys,
       condition,
@@ -199,14 +199,14 @@ abstract class SortMergeJoinExecTransformerBase(
     val operatorId = context.nextOperatorId(this.nodeName)
 
     val joinParams = new JoinParams
-    if (JoinUtils.preProjectionNeeded(leftKeys)) {
+    if (JoinUtil.preProjectionNeeded(leftKeys)) {
       joinParams.streamPreProjectionNeeded = true
     }
-    if (JoinUtils.preProjectionNeeded(rightKeys)) {
+    if (JoinUtil.preProjectionNeeded(rightKeys)) {
       joinParams.buildPreProjectionNeeded = true
     }
 
-    val joinRel = JoinUtils.createJoinRel(
+    val joinRel = JoinUtil.createJoinRel(
       streamedKeys,
       bufferedKeys,
       condition,
@@ -224,7 +224,7 @@ abstract class SortMergeJoinExecTransformerBase(
 
     context.registerJoinParam(operatorId, joinParams)
 
-    JoinUtils.createTransformContext(false, output, joinRel, inputStreamedOutput, inputBuildOutput)
+    JoinUtil.createTransformContext(false, output, joinRel, inputStreamedOutput, inputBuildOutput)
   }
 
 }

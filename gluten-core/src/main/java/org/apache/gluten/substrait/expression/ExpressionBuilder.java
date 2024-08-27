@@ -17,7 +17,7 @@
 package org.apache.gluten.substrait.expression;
 
 import org.apache.gluten.exception.GlutenNotSupportException;
-import org.apache.gluten.expression.ConverterUtils;
+import org.apache.gluten.expression.ConverterUtil;
 import org.apache.gluten.substrait.type.*;
 
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -216,7 +216,7 @@ public class ExpressionBuilder {
   }
 
   public static LiteralNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
-    TypeNode typeNode = ConverterUtils.getTypeNode(dataType, nullable);
+    TypeNode typeNode = ConverterUtil.getTypeNode(dataType, nullable);
     if (obj instanceof UnsafeArrayData) {
       UnsafeArrayData oldObj = (UnsafeArrayData) obj;
       int numElements = oldObj.numElements();

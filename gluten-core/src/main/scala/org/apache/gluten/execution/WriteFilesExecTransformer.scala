@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtil
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
@@ -93,7 +93,7 @@ case class WriteFilesExecTransformer(
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
-    val typeNodes = ConverterUtils.collectAttributeTypeNodes(originalInputAttributes)
+    val typeNodes = ConverterUtil.collectAttributeTypeNodes(originalInputAttributes)
 
     val columnTypeNodes = new java.util.ArrayList[ColumnTypeNode]()
     val inputAttributes = new java.util.ArrayList[Attribute]()
@@ -114,7 +114,7 @@ case class WriteFilesExecTransformer(
     }
 
     val nameList =
-      ConverterUtils.collectAttributeNames(inputAttributes.toSeq)
+      ConverterUtil.collectAttributeNames(inputAttributes.toSeq)
     val extensionNode = if (!validation) {
       ExtensionBuilder.makeAdvancedExtension(
         genWriteParameters(),

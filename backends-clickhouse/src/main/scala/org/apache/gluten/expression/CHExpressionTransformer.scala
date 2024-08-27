@@ -18,7 +18,7 @@ package org.apache.gluten.expression
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
+import org.apache.gluten.expression.ConverterUtil.FunctionConfig
 import org.apache.gluten.substrait.expression._
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -92,7 +92,7 @@ case class CHTruncTimestampTransformer(
 
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(substraitExprName, dataTypes))
+      ConverterUtil.makeFuncName(substraitExprName, dataTypes))
 
     val expressionNodes = new java.util.ArrayList[ExpressionNode]()
     expressionNodes.add(lowerFormatNode)
@@ -101,7 +101,7 @@ case class CHTruncTimestampTransformer(
       expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
     }
 
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    val typeNode = ConverterUtil.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
@@ -148,7 +148,7 @@ case class CHPosExplodeTransformer(
     val funcMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val funcId = ExpressionBuilder.newScalarFunction(
       funcMap,
-      ConverterUtils.makeFuncName(
+      ConverterUtil.makeFuncName(
         ExpressionNames.POSEXPLODE,
         Seq(original.child.dataType),
         FunctionConfig.OPT))
@@ -163,7 +163,7 @@ case class CHPosExplodeTransformer(
         ExpressionBuilder.makeScalarFunction(
           funcId,
           Lists.newArrayList(childNode),
-          ConverterUtils.getTypeNode(structType, false))
+          ConverterUtil.getTypeNode(structType, false))
       case m: MapType =>
         // Output (pos, key, value) when input is map type
         val structType = StructType(
@@ -174,7 +174,7 @@ case class CHPosExplodeTransformer(
         ExpressionBuilder.makeScalarFunction(
           funcId,
           Lists.newArrayList(childNode),
-          ConverterUtils.getTypeNode(structType, false))
+          ConverterUtil.getTypeNode(structType, false))
       case _ =>
         throw new GlutenNotSupportException(s"posexplode($childType) not supported yet.")
     }
@@ -221,7 +221,7 @@ case class GetArrayItemTransformer(
     // In Spark, the index of getarrayitem starts from 0
     // But in CH, the index of arrayElement starts from 1, besides index argument must
     // So we need to do transform: rightNode = add(rightNode, 1)
-    val addFunctionName = ConverterUtils.makeFuncName(
+    val addFunctionName = ConverterUtil.makeFuncName(
       ExpressionNames.ADD,
       Seq(IntegerType, getArrayItem.right.dataType),
       FunctionConfig.OPT)
@@ -230,9 +230,9 @@ case class GetArrayItemTransformer(
     rightNode = ExpressionBuilder.makeScalarFunction(
       addFunctionId,
       Lists.newArrayList(literalNode, rightNode),
-      ConverterUtils.getTypeNode(getArrayItem.right.dataType, getArrayItem.right.nullable))
+      ConverterUtil.getTypeNode(getArrayItem.right.dataType, getArrayItem.right.nullable))
 
-    val functionName = ConverterUtils.makeFuncName(
+    val functionName = ConverterUtil.makeFuncName(
       substraitExprName,
       Seq(getArrayItem.left.dataType, getArrayItem.right.dataType),
       FunctionConfig.OPT)
@@ -240,6 +240,6 @@ case class GetArrayItemTransformer(
     ExpressionBuilder.makeScalarFunction(
       ExpressionBuilder.newScalarFunction(functionMap, functionName),
       exprNodes,
-      ConverterUtils.getTypeNode(getArrayItem.dataType, getArrayItem.nullable))
+      ConverterUtil.getTypeNode(getArrayItem.dataType, getArrayItem.nullable))
   }
 }

@@ -327,11 +327,11 @@ class Spark35Shims extends SparkShims {
   override def enableNativeWriteFilesByDefault(): Boolean = true
 
   override def createTestTaskContext(properties: Properties): TaskContext = {
-    TaskContextUtils.createTestTaskContext(properties)
+    TaskContextUtil.createTestTaskContext(properties)
   }
 
   override def broadcastInternal[T: ClassTag](sc: SparkContext, value: T): Broadcast[T] = {
-    SparkContextUtils.broadcastInternal(sc, value)
+    SparkContextUtil.broadcastInternal(sc, value)
   }
 
   override def setJobDescriptionOrTagForBroadcastExchange(
@@ -354,7 +354,7 @@ class Spark35Shims extends SparkShims {
       endMapIndex: Int,
       startPartition: Int,
       endPartition: Int): Tuple2[Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])], Boolean] = {
-    ShuffleUtils.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
+    ShuffleUtil.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
   }
 
   override def getShuffleAdvisoryPartitionSize(shuffle: ShuffleExchangeLike): Option[Long] =

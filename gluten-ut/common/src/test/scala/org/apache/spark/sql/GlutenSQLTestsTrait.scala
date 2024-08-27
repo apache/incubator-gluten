@@ -34,7 +34,6 @@ import scala.collection.JavaConverters._
 
 /** Basic trait for Gluten SQL test cases. */
 trait GlutenSQLTestsTrait extends QueryTest with GlutenSQLTestsBaseTrait {
-
   def prepareWorkDir(): Unit = {
     // prepare working paths
     val basePathDir = new File(basePath)

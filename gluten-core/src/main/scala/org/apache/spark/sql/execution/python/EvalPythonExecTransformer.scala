@@ -115,7 +115,7 @@ case class EvalPythonExecTransformer(
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new JArrayList[TypeNode]()
       for (attr <- inputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        inputTypeNodeList.add(ConverterUtil.getTypeNode(attr.dataType, attr.nullable))
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         BackendsApiManager.getTransformerApiInstance.packPBMessage(

@@ -88,13 +88,13 @@ abstract class CelebornColumnarShuffleWriter[K, V](
 
   protected val customizedCompressionCodec: String =
     if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
-      GlutenShuffleUtils.getCompressionCodec(conf)
+      GlutenShuffleUtil.getCompressionCodec(conf)
     } else {
       null // uncompressed
     }
 
   protected val compressionLevel: Int =
-    GlutenShuffleUtils.getCompressionLevel(
+    GlutenShuffleUtil.getCompressionLevel(
       conf,
       customizedCompressionCodec,
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)

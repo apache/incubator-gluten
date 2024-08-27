@@ -20,7 +20,7 @@ import org.apache.gluten.execution.datasource.GlutenParquetWriterInjects
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
 
-import org.apache.spark.{ShuffleUtils, SparkContext, TaskContext, TaskContextUtils}
+import org.apache.spark.{ShuffleUtil, SparkContext, TaskContext, TaskContextUtil}
 import org.apache.spark.scheduler.TaskInfo
 import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.sql.{AnalysisException, SparkSession}
@@ -157,7 +157,7 @@ class Spark32Shims extends SparkShims {
   }
 
   override def createTestTaskContext(properties: Properties): TaskContext = {
-    TaskContextUtils.createTestTaskContext(properties)
+    TaskContextUtil.createTestTaskContext(properties)
   }
 
   def setJobDescriptionOrTagForBroadcastExchange(
@@ -182,7 +182,7 @@ class Spark32Shims extends SparkShims {
       endMapIndex: Int,
       startPartition: Int,
       endPartition: Int): Tuple2[Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])], Boolean] = {
-    ShuffleUtils.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
+    ShuffleUtil.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
   }
 
   override def getPartitionId(taskInfo: TaskInfo): Int = {

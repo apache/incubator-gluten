@@ -18,7 +18,7 @@ package org.apache.gluten.sql
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.WholeStageTransformerSuite
-import org.apache.gluten.utils.BackendTestUtils
+import org.apache.gluten.utils.BackendTestUtil
 import org.apache.gluten.utils.SystemParameters
 
 import org.apache.spark.SparkConf
@@ -38,7 +38,7 @@ class SQLQuerySuite extends WholeStageTransformerSuite {
       .set("spark.memory.offHeap.size", "1024MB")
       .set("spark.ui.enabled", "false")
       .set("spark.gluten.ui.enabled", "false")
-    if (BackendTestUtils.isCHBackendLoaded()) {
+    if (BackendTestUtil.isCHBackendLoaded()) {
       conf
         .set("spark.gluten.sql.enable.native.validation", "false")
         .set(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)

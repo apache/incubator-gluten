@@ -127,7 +127,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
       celebornPartitionPusher,
       ColumnarBatches.getNativeHandle(columnarBatch),
       context.taskAttemptId(),
-      GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
+      GlutenShuffleUtil.getStartPartitionId(dep.nativePartitioning, context.partitionId),
       "celeborn",
       shuffleWriterType,
       GlutenConfig.getConf.columnarShuffleReallocThreshold

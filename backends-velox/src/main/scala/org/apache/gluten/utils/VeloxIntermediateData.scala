@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtil
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -143,7 +143,7 @@ object VeloxIntermediateData {
     val structTypeNodes =
       aggFunc match {
         case _ @Type(dataTypes: Seq[DataType]) =>
-          dataTypes.map(ConverterUtils.getTypeNode(_, nullable = false))
+          dataTypes.map(ConverterUtil.getTypeNode(_, nullable = false))
         case _ =>
           throw new UnsupportedOperationException("Can not get velox intermediate types.")
       }

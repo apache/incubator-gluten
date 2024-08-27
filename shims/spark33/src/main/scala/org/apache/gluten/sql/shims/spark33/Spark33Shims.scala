@@ -249,7 +249,7 @@ class Spark33Shims extends SparkShims {
   }
 
   override def createTestTaskContext(properties: Properties): TaskContext = {
-    TaskContextUtils.createTestTaskContext(properties)
+    TaskContextUtil.createTestTaskContext(properties)
   }
 
   def setJobDescriptionOrTagForBroadcastExchange(
@@ -274,7 +274,7 @@ class Spark33Shims extends SparkShims {
       endMapIndex: Int,
       startPartition: Int,
       endPartition: Int): Tuple2[Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])], Boolean] = {
-    ShuffleUtils.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
+    ShuffleUtil.getReaderParam(handle, startMapIndex, endMapIndex, startPartition, endPartition)
   }
 
   override def getPartitionId(taskInfo: TaskInfo): Int = {

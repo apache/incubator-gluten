@@ -623,7 +623,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       dataSize: SQLMetric): BuildSideRelation = {
     val serialized: Array[ColumnarBatchSerializeResult] = child
       .executeColumnar()
-      .mapPartitions(itr => Iterator(BroadcastUtils.serializeStream(itr)))
+      .mapPartitions(itr => Iterator(BroadcastUtil.serializeStream(itr)))
       .filter(_.getNumRows != 0)
       .collect
     val rawSize = serialized.map(_.getSerialized.length).sum

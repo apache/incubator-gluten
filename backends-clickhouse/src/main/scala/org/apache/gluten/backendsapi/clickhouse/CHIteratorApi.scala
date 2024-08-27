@@ -19,7 +19,7 @@ package org.apache.gluten.backendsapi.clickhouse
 import org.apache.gluten.GlutenNumaBindingInfo
 import org.apache.gluten.backendsapi.IteratorApi
 import org.apache.gluten.execution._
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtil
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.metrics.{IMetrics, NativeMetrics}
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -37,7 +37,7 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{StructField, StructType}
-import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
+import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.lang.{Long => JLong}
@@ -116,7 +116,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       scan: BasicScanExecTransformer): Unit = {
     if (scan.fileFormat == ReadFileFormat.TextReadFormat) {
       val names =
-        ConverterUtils.collectAttributeNamesWithoutExprId(scan.outputAttributes())
+        ConverterUtil.collectAttributeNamesWithoutExprId(scan.outputAttributes())
       localFilesNode.setFileSchema(getFileSchema(scan.getDataSchema, names.asScala.toSeq))
     }
   }

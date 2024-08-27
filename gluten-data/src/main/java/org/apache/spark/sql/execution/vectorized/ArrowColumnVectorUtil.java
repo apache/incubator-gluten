@@ -39,7 +39,7 @@ import java.math.BigInteger;
  * debugging or other non-performance critical paths. These utilities are mostly used to convert
  * ColumnVectors into other formats.
  */
-public class ArrowColumnVectorUtils {
+public class ArrowColumnVectorUtil {
   /**
    * Populates the entire `col` with `row[fieldIdx]` This is copied from {@link
    * ColumnVectorUtils#populate}. We changed the way to putByteArrays.

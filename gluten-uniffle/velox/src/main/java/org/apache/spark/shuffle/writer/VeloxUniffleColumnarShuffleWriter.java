@@ -33,7 +33,7 @@ import org.apache.spark.internal.config.package$;
 import org.apache.spark.memory.SparkMemoryUtil;
 import org.apache.spark.scheduler.MapStatus;
 import org.apache.spark.shuffle.ColumnarShuffleDependency;
-import org.apache.spark.shuffle.GlutenShuffleUtils;
+import org.apache.spark.shuffle.GlutenShuffleUtil;
 import org.apache.spark.shuffle.RssShuffleHandle;
 import org.apache.spark.shuffle.RssShuffleManager;
 import org.apache.spark.shuffle.RssSparkConfig;
@@ -119,9 +119,9 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                 RssSparkConfig.RSS_WRITER_BUFFER_SIZE.key(),
                 RssSparkConfig.RSS_WRITER_BUFFER_SIZE.defaultValue().get());
     if ((boolean) sparkConf.get(package$.MODULE$.SHUFFLE_COMPRESS())) {
-      compressionCodec = GlutenShuffleUtils.getCompressionCodec(sparkConf);
+      compressionCodec = GlutenShuffleUtil.getCompressionCodec(sparkConf);
       compressionLevel =
-          GlutenShuffleUtils.getCompressionLevel(
+          GlutenShuffleUtil.getCompressionLevel(
               sparkConf,
               compressionCodec,
               GlutenConfig.getConf().columnarShuffleCodecBackend().getOrElse(() -> null));
@@ -159,7 +159,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                   partitionPusher,
                   handle,
                   taskAttemptId,
-                  GlutenShuffleUtils.getStartPartitionId(
+                  GlutenShuffleUtil.getStartPartitionId(
                       columnarDep.nativePartitioning(), partitionId),
                   "uniffle",
                   isSort

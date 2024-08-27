@@ -22,7 +22,7 @@ import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
-import org.apache.spark.shuffle.GlutenShuffleUtils
+import org.apache.spark.shuffle.GlutenShuffleUtil
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -55,10 +55,10 @@ private class CHColumnarBatchSerializerInstance(
   with Logging {
 
   private lazy val conf = SparkEnv.get.conf
-  private lazy val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
+  private lazy val compressionCodec = GlutenShuffleUtil.getCompressionCodec(conf)
   private lazy val capitalizedCompressionCodec = compressionCodec.toUpperCase(Locale.ROOT)
   private lazy val compressionLevel =
-    GlutenShuffleUtils.getCompressionLevel(
+    GlutenShuffleUtil.getCompressionLevel(
       conf,
       compressionCodec,
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)

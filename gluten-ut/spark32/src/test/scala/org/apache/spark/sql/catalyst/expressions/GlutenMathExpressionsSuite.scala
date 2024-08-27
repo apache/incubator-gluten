@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.catalyst.expressions
 
-import org.apache.gluten.utils.BackendTestUtils
+import org.apache.gluten.utils.BackendTestUtil
 
 import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.catalyst.dsl.expressions._
@@ -76,7 +76,7 @@ class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTr
           BRound(floatPi, scale),
           // the velox backend will fallback when executing bround,
           // so uses the same excepted results with the vanilla spark
-          if (BackendTestUtils.isCHBackendLoaded()) floatResults(i) else bRoundFloatResults(i),
+          if (BackendTestUtil.isCHBackendLoaded()) floatResults(i) else bRoundFloatResults(i),
           EmptyRow
         )
     }

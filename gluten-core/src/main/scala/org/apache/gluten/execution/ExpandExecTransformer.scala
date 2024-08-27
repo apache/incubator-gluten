@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
-import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
+import org.apache.gluten.expression.{ConverterUtil, ExpressionConverter}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
@@ -83,7 +83,7 @@ case class ExpandExecTransformer(
       // Use a extension node to send the input types through Substrait plan for a validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
       for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        inputTypeNodeList.add(ConverterUtil.getTypeNode(attr.dataType, attr.nullable))
       }
 
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(

@@ -18,8 +18,8 @@ package org.apache.gluten.vectorized;
 
 import org.apache.gluten.execution.BroadCastHashJoinContext;
 import org.apache.gluten.execution.JoinTypeTransform;
-import org.apache.gluten.expression.ConverterUtils;
-import org.apache.gluten.expression.ConverterUtils$;
+import org.apache.gluten.expression.ConverterUtil;
+import org.apache.gluten.expression.ConverterUtil$;
 import org.apache.gluten.substrait.type.TypeNode;
 import org.apache.gluten.utils.SubstraitUtil;
 
@@ -58,7 +58,7 @@ public class StorageJoinBuilder {
       BroadCastHashJoinContext broadCastContext,
       List<Expression> newBuildKeys,
       List<Attribute> newOutput) {
-    ConverterUtils$ converter = ConverterUtils$.MODULE$;
+    ConverterUtil$ converter = ConverterUtil$.MODULE$;
     List<Expression> keys;
     List<Attribute> output;
     if (newBuildKeys.isEmpty()) {
@@ -99,8 +99,8 @@ public class StorageJoinBuilder {
 
   /** create table named struct */
   private static NamedStruct toNameStruct(List<Attribute> output) {
-    List<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(output);
-    List<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(output);
+    List<TypeNode> typeList = ConverterUtil.collectAttributeTypeNodes(output);
+    List<String> nameList = ConverterUtil.collectAttributeNamesWithExprId(output);
     Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
     for (TypeNode typeNode : typeList) {
       structBuilder.addTypes(typeNode.toProtobuf());

@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, Row, TestUtils}
+import org.apache.spark.sql.{DataFrame, Row, TestUtil}
 import org.apache.spark.sql.execution.InputIteratorTransformer
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec

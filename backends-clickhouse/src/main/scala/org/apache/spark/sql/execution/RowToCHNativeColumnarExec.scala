@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.gluten.execution.{RowToColumnarExecBase, SparkRowIterator}
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtil
 import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.gluten.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
@@ -44,9 +44,9 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = this.schema
-    val fieldNames = output.map(ConverterUtils.genColumnNameWithExprId).toArray
+    val fieldNames = output.map(ConverterUtil.genColumnNameWithExprId).toArray
     val fieldTypes = output
-      .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable).toProtobuf.toByteArray)
+      .map(attr => ConverterUtil.getTypeNode(attr.dataType, attr.nullable).toProtobuf.toByteArray)
       .toArray
     child.execute().mapPartitions {
       rowIterator =>

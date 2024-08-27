@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.benchmarks
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, WholeStageTransformer}
 import org.apache.gluten.extension.columnar.transition.Transitions
-import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
+import org.apache.gluten.utils.{BackendTestUtil, SystemParameters}
 import org.apache.gluten.vectorized.JniLibLoader
 
 import org.apache.spark.SparkConf
@@ -77,7 +77,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
       .setIfMissing("spark.sql.files.maxPartitionBytes", "1G")
       .setIfMissing("spark.sql.files.openCostInBytes", "1073741824")
 
-    if (BackendTestUtils.isCHBackendLoaded()) {
+    if (BackendTestUtil.isCHBackendLoaded()) {
       conf
         .set("spark.io.compression.codec", "LZ4")
         .set("spark.gluten.sql.enable.native.validation", "false")
@@ -226,7 +226,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
   }
 
   override def afterAll(): Unit = {
-    if (BackendTestUtils.isCHBackendLoaded()) {
+    if (BackendTestUtil.isCHBackendLoaded()) {
       val libPath =
         spark.conf.get(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
       JniLibLoader.unloadFromPath(libPath)

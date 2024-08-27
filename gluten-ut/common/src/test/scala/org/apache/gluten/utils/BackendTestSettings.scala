@@ -185,14 +185,14 @@ abstract class BackendTestSettings {
 
 object BackendTestSettings {
   val instance: BackendTestSettings = {
-    if (BackendTestUtils.isCHBackendLoaded()) {
+    if (BackendTestUtil.isCHBackendLoaded()) {
       // scalastyle:off classforname
       Class
         .forName("org.apache.gluten.utils.clickhouse.ClickHouseTestSettings")
         .getDeclaredConstructor()
         .newInstance()
         .asInstanceOf[BackendTestSettings]
-    } else if (BackendTestUtils.isVeloxBackendLoaded()) {
+    } else if (BackendTestUtil.isVeloxBackendLoaded()) {
       Class
         .forName("org.apache.gluten.utils.velox.VeloxTestSettings")
         .getDeclaredConstructor()

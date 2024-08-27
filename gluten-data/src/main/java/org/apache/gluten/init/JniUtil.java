@@ -14,24 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark
+package org.apache.gluten.init;
 
-import org.apache.spark.shuffle.ShuffleHandle
-import org.apache.spark.storage.{BlockId, BlockManagerId}
+import org.apache.gluten.proto.ConfigMap;
 
-object ShuffleUtils {
-  def getReaderParam[K, C](
-      handle: ShuffleHandle,
-      startMapIndex: Int,
-      endMapIndex: Int,
-      startPartition: Int,
-      endPartition: Int): Tuple2[Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])], Boolean] = {
-    val address = SparkEnv.get.mapOutputTracker.getMapSizesByExecutorId(
-      handle.shuffleId,
-      startMapIndex,
-      endMapIndex,
-      startPartition,
-      endPartition)
-    (address, true)
+import java.util.Map;
+
+public class JniUtil {
+
+  public static byte[] toNativeConf(Map<String, String> confs) {
+    ConfigMap.Builder builder = ConfigMap.newBuilder();
+    builder.putAllConfigs(confs);
+    return builder.build().toByteArray();
   }
 }

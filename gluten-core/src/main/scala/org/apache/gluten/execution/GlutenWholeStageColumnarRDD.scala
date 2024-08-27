@@ -25,7 +25,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.InputFileBlockHolderProxy
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
+import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
 

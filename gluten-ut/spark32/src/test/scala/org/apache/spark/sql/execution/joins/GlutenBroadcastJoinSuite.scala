@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.joins
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{BroadcastHashJoinExecTransformerBase, BroadcastNestedLoopJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
-import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
+import org.apache.gluten.utils.{BackendTestUtil, SystemParameters}
 
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
 import org.apache.spark.sql.catalyst.optimizer._
@@ -40,7 +40,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
    * Create a new [[SparkSession]] running in local-cluster mode with unsafe and codegen enabled.
    */
 
-  private val isVeloxBackend = BackendTestUtils.isVeloxBackendLoaded()
+  private val isVeloxBackend = BackendTestUtil.isVeloxBackendLoaded()
 
   // BroadcastHashJoinExecTransformer is not case class, can't call toString method,
   // let's put constant string here.
@@ -83,7 +83,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       // Avoid the code size overflow error in Spark code generation.
       .config("spark.sql.codegen.wholeStage", "false")
 
-    spark = if (BackendTestUtils.isCHBackendLoaded()) {
+    spark = if (BackendTestUtil.isCHBackendLoaded()) {
       sparkBuilder
         .config("spark.io.compression.codec", "LZ4")
         .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")

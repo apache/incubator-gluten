@@ -124,7 +124,7 @@ class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Loggin
       context: TaskContext,
       metrics: ShuffleReadMetricsReporter): ShuffleReader[K, C] = {
     val (blocksByAddress, canEnableBatchFetch) = {
-      GlutenShuffleUtils.getReaderParam(
+      GlutenShuffleUtil.getReaderParam(
         handle,
         startMapIndex,
         endMapIndex,

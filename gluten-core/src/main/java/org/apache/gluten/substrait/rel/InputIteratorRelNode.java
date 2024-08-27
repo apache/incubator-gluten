@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.substrait.rel;
 
-import org.apache.gluten.expression.ConverterUtils;
+import org.apache.gluten.expression.ConverterUtil;
 import org.apache.gluten.substrait.type.TypeNode;
 
 import io.substrait.proto.*;
@@ -56,7 +56,7 @@ public class InputIteratorRelNode implements RelNode {
     readBuilder.setBaseSchema(nStructBuilder.build());
 
     LocalFilesNode iteratorIndexNode =
-        LocalFilesBuilder.makeLocalFiles(ConverterUtils.ITERATOR_PREFIX() + iteratorIndex);
+        LocalFilesBuilder.makeLocalFiles(ConverterUtil.ITERATOR_PREFIX() + iteratorIndex);
     readBuilder.setLocalFiles(iteratorIndexNode.toProtobuf());
 
     Rel.Builder builder = Rel.newBuilder();

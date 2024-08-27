@@ -20,7 +20,7 @@ import org.apache.gluten.exception.GlutenException
 
 import org.apache.spark.sql.test.SQLTestUtils
 
-object TestUtils {
+object TestUtil {
   def compareAnswers(actual: Seq[Row], expected: Seq[Row], sort: Boolean = false): Unit = {
     val result = SQLTestUtils.compareAnswers(actual, expected, sort)
     if (result.isDefined) {

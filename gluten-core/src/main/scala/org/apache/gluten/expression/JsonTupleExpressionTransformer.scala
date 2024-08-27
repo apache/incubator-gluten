@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
+import org.apache.gluten.expression.ConverterUtil.FunctionConfig
 import org.apache.gluten.substrait.`type`.ListNode
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
@@ -38,12 +38,12 @@ case class JsonTupleExpressionTransformer(
     fields.foreach(f => expressNodes.add(f.doTransform(args)))
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName =
-      ConverterUtils.makeFuncName(
+      ConverterUtil.makeFuncName(
         substraitExprName,
         original.children.map(_.dataType),
         FunctionConfig.REQ)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    val typeNode = ConverterUtil.getTypeNode(original.dataType, original.nullable)
     typeNode match {
       case node: ListNode =>
         val elementType = node.getNestedType

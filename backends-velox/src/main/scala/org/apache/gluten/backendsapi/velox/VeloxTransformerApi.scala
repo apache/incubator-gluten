@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.TransformerApi
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtil
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.utils.InputPartitionsUtil
@@ -77,7 +77,7 @@ class VeloxTransformerApi extends TransformerApi with Logging {
     if (childResultType.equals(dataType)) {
       childNode
     } else {
-      val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
+      val typeNode = ConverterUtil.getTypeNode(dataType, nullable)
       ExpressionBuilder.makeCast(typeNode, childNode, !nullOnOverflow)
     }
   }

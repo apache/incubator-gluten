@@ -17,7 +17,7 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
+import org.apache.gluten.expression.ConverterUtil.FunctionConfig
 import org.apache.gluten.expression.ExpressionConverter.replaceWithExpressionTransformer
 import org.apache.gluten.substrait.`type`.StructNode
 import org.apache.gluten.substrait.expression._
@@ -101,9 +101,9 @@ case class VeloxHashExpressionTransformer(
     val childrenTypes = seedType +: original.children.map(child => child.dataType)
     val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
     val functionName =
-      ConverterUtils.makeFuncName(substraitExprName, childrenTypes, FunctionConfig.OPT)
+      ConverterUtil.makeFuncName(substraitExprName, childrenTypes, FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    val typeNode = ConverterUtil.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
   }
 }

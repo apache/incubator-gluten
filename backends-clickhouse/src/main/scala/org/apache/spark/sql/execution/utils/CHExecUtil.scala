@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.utils
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtil
 import org.apache.gluten.row.SparkRowInfo
 import org.apache.gluten.vectorized._
 import org.apache.gluten.vectorized.BlockSplitIterator.IteratorOptions
@@ -27,7 +27,7 @@ import org.apache.spark.{Partitioner, ShuffleDependency}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.{ColumnarShuffleDependency, GlutenShuffleUtils, HashPartitioningWrapper}
+import org.apache.spark.shuffle.{ColumnarShuffleDependency, GlutenShuffleUtil, HashPartitioningWrapper}
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BindReferences, BoundReference, UnsafeProjection, UnsafeRow}
@@ -51,7 +51,7 @@ object CHExecUtil extends Logging {
 
   def inferSparkDataType(substraitType: Array[Byte]): DataType = {
     val (datatype, nullable) =
-      ConverterUtils.parseFromSubstraitType(Type.parseFrom(substraitType))
+      ConverterUtil.parseFromSubstraitType(Type.parseFrom(substraitType))
     datatype
   }
 
@@ -190,7 +190,7 @@ object CHExecUtil extends Logging {
       hashExpressions.map(
         a =>
           BindReferences
-            .bindReference(ConverterUtils.getAttrFromExpr(a).toAttribute, childOutput)
+            .bindReference(ConverterUtil.getAttrFromExpr(a).toAttribute, childOutput)
             .asInstanceOf[BoundReference]
             .ordinal)
     val outputFields = if (output != null) {
@@ -206,7 +206,7 @@ object CHExecUtil extends Logging {
     }
 
     new NativePartitioning(
-      GlutenShuffleUtils.HashPartitioningShortName,
+      GlutenShuffleUtil.HashPartitioningShortName,
       partitioning.numPartitions,
       Array.empty[Byte],
       hashFields.mkString(",").getBytes(),
@@ -254,14 +254,14 @@ object CHExecUtil extends Logging {
     val nativePartitioning: NativePartitioning = newPartitioning match {
       case SinglePartition =>
         new NativePartitioning(
-          GlutenShuffleUtils.SinglePartitioningShortName,
+          GlutenShuffleUtil.SinglePartitioningShortName,
           1,
           Array.empty[Byte],
           Array.empty[Byte],
           requiredFields)
       case RoundRobinPartitioning(n) =>
         new NativePartitioning(
-          GlutenShuffleUtils.RoundRobinPartitioningShortName,
+          GlutenShuffleUtil.RoundRobinPartitioningShortName,
           n,
           Array.empty[Byte],
           Array.empty[Byte],
@@ -301,7 +301,7 @@ object CHExecUtil extends Logging {
           Seq[Int]()
         }
         new NativePartitioning(
-          GlutenShuffleUtils.RangePartitioningShortName,
+          GlutenShuffleUtil.RangePartitioningShortName,
           numPartitions,
           Array.empty[Byte],
           orderingAndRangeBounds.getBytes(),

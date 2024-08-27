@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.substrait.rel;
 
-import org.apache.gluten.expression.ConverterUtils;
+import org.apache.gluten.expression.ConverterUtil;
 import org.apache.gluten.substrait.SubstraitContext;
 import org.apache.gluten.substrait.expression.AggregateFunctionNode;
 import org.apache.gluten.substrait.expression.ExpressionNode;
@@ -108,8 +108,8 @@ public class RelBuilder {
 
   public static RelNode makeReadRelForInputIterator(
       List<Attribute> attributes, SubstraitContext context, Long operatorId) {
-    List<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(attributes);
-    List<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(attributes);
+    List<TypeNode> typeList = ConverterUtil.collectAttributeTypeNodes(attributes);
+    List<String> nameList = ConverterUtil.collectAttributeNamesWithExprId(attributes);
     return makeReadRelForInputIterator(typeList, nameList, context, operatorId);
   }
 

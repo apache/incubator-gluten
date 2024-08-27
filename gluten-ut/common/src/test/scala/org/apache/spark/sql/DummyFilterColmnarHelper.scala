@@ -17,7 +17,7 @@
 package org.apache.spark.sql
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
+import org.apache.gluten.utils.{BackendTestUtil, SystemParameters}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -77,7 +77,7 @@ object DummyFilterColmnarHelper {
   }
 
   def withSession(builders: Seq[SparkSessionExtensionsProvider])(f: SparkSession => Unit): Unit = {
-    val builder = if (BackendTestUtils.isCHBackendLoaded()) {
+    val builder = if (BackendTestUtil.isCHBackendLoaded()) {
       SparkSession
         .builder()
         .master("local[1]")

@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
+import org.apache.gluten.expression.ConverterUtil.FunctionConfig
 import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.substrait.expression.ExpressionBuilder
 
@@ -37,7 +37,7 @@ object CHExpressions {
       assert(substraitAggFuncName.isDefined)
       return ExpressionBuilder.newScalarFunction(
         functionMap,
-        ConverterUtils.makeFuncName(substraitAggFuncName.get, inputTypes, FunctionConfig.REQ))
+        ConverterUtil.makeFuncName(substraitAggFuncName.get, inputTypes, FunctionConfig.REQ))
     }
 
     AggregateFunctionsBuilder.create(args, aggregateFunc)

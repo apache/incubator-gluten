@@ -28,7 +28,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.execution.{BroadcastUtils, SparkPlan}
+import org.apache.spark.sql.execution.{BroadcastUtil, SparkPlan}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
@@ -69,9 +69,9 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
     val numOutputBatches = longMetric("numOutputBatches")
     val convertTime = longMetric("convertTime")
     val numRows = GlutenConfig.getConf.maxBatchSize
-    val mode = BroadcastUtils.getBroadcastMode(outputPartitioning)
+    val mode = BroadcastUtil.getBroadcastMode(outputPartitioning)
     val relation = child.executeBroadcast()
-    BroadcastUtils.sparkToVeloxUnsafe(
+    BroadcastUtil.sparkToVeloxUnsafe(
       sparkContext,
       mode,
       schema,

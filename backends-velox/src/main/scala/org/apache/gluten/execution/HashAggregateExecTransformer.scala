@@ -19,7 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression._
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
+import org.apache.gluten.expression.ConverterUtil.FunctionConfig
 import org.apache.gluten.substrait.`type`.{TypeBuilder, TypeNode}
 import org.apache.gluten.substrait.{AggregationParams, SubstraitContext}
 import org.apache.gluten.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
@@ -146,7 +146,7 @@ abstract class HashAggregateExecTransformer(
                 expressionNodes.add(
                   ExpressionBuilder
                     .makeCast(
-                      ConverterUtils.getTypeNode(sparkType, nullable = false),
+                      ConverterUtil.getTypeNode(sparkType, nullable = false),
                       ExpressionBuilder.makeSelection(colIdx, adjustedOrders(idx)),
                       SQLConf.get.ansiEnabled))
               } else {
@@ -217,7 +217,7 @@ abstract class HashAggregateExecTransformer(
             VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
             childrenNodeList,
             modeKeyWord,
-            ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
+            ConverterUtil.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
           )
           aggregateNodeList.add(aggFunctionNode)
         case other =>
@@ -235,7 +235,7 @@ abstract class HashAggregateExecTransformer(
               VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
               childrenNodeList,
               modeKeyWord,
-              ConverterUtils.getTypeNode(
+              ConverterUtil.getTypeNode(
                 aggregateFunction.inputAggBufferAttributes.head.dataType,
                 aggregateFunction.inputAggBufferAttributes.head.nullable)
             )
@@ -245,7 +245,7 @@ abstract class HashAggregateExecTransformer(
               VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
               childrenNodeList,
               modeKeyWord,
-              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
+              ConverterUtil.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
             )
             aggregateNodeList.add(aggFunctionNode)
           case other =>
@@ -262,7 +262,7 @@ abstract class HashAggregateExecTransformer(
     val typeNodeList = new JArrayList[TypeNode]()
     groupingExpressions.foreach(
       expression => {
-        typeNodeList.add(ConverterUtils.getTypeNode(expression.dataType, expression.nullable))
+        typeNodeList.add(ConverterUtil.getTypeNode(expression.dataType, expression.nullable))
       })
 
     aggregateExpressions.foreach(
@@ -275,14 +275,14 @@ abstract class HashAggregateExecTransformer(
                 typeNodeList.add(VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction))
               case Final =>
                 typeNodeList.add(
-                  ConverterUtils
+                  ConverterUtil
                     .getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
               case other =>
                 throw new GlutenNotSupportException(s"$other is not supported.")
             }
           case _ =>
             typeNodeList.add(
-              ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
+              ConverterUtil.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable))
         }
       })
     typeNodeList
@@ -295,14 +295,14 @@ abstract class HashAggregateExecTransformer(
       rowConstructAttributes: Seq[Attribute],
       aggFunc: AggregateFunction): ScalarFunctionNode = {
     val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
-    val functionName = ConverterUtils.makeFuncName(
+    val functionName = ConverterUtil.makeFuncName(
       VeloxIntermediateData.getRowConstructFuncName(aggFunc),
       rowConstructAttributes.map(attr => attr.dataType))
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
 
     // Use struct type to represent Velox RowType.
     val structTypeNodes = rowConstructAttributes
-      .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      .map(attr => ConverterUtil.getTypeNode(attr.dataType, attr.nullable))
       .asJava
 
     ExpressionBuilder.makeScalarFunction(
@@ -386,7 +386,7 @@ abstract class HashAggregateExecTransformer(
                       newInputAttributes +=
                         attr.copy(dataType = veloxType)(attr.exprId, attr.qualifier)
                       ExpressionBuilder.makeCast(
-                        ConverterUtils.getTypeNode(veloxType, attr.nullable),
+                        ConverterUtil.getTypeNode(veloxType, attr.nullable),
                         aggFuncInputAttrNode,
                         SQLConf.get.ansiEnabled)
                     } else {
@@ -423,7 +423,7 @@ abstract class HashAggregateExecTransformer(
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = originalInputAttributes
-        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .map(attr => ConverterUtil.getTypeNode(attr.dataType, attr.nullable))
         .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         BackendsApiManager.getTransformerApiInstance.packPBMessage(
@@ -642,7 +642,7 @@ abstract class HashAggregateExecTransformer(
     val enhancement = if (validation) {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = originalInputAttributes
-        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .map(attr => ConverterUtil.getTypeNode(attr.dataType, attr.nullable))
         .asJava
       BackendsApiManager.getTransformerApiInstance.packPBMessage(
         TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf)
@@ -685,7 +685,7 @@ object VeloxAggregateFunctionsBuilder {
 
     ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(
+      ConverterUtil.makeFuncName(
         // Substrait-to-Velox procedure will choose appropriate companion function if needed.
         sigName,
         VeloxIntermediateData.getInputTypes(aggregateFunc, mode == PartialMerge || mode == Final),

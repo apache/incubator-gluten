@@ -49,7 +49,7 @@ case class CustomAggExpressionTransformer() extends ExpressionExtensionTrait {
           // custom logic: can not support 'Partial'
           /* case Partial =>
             val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
+            val attr = ConverterUtil.getAttrFromExpr(aggBufferAttr.head)
             aggregateAttr += attr
             reIndex += 1
             reIndex */

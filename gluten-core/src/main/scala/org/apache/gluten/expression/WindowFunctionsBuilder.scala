@@ -17,7 +17,7 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
+import org.apache.gluten.expression.ConverterUtil.FunctionConfig
 import org.apache.gluten.expression.ExpressionNames.{LAG, LEAD}
 import org.apache.gluten.substrait.expression.ExpressionBuilder
 
@@ -45,7 +45,7 @@ object WindowFunctionsBuilder {
     }
 
     val functionName =
-      ConverterUtils.makeFuncName(substraitFunc.get, Seq(windowFunc.dataType), FunctionConfig.OPT)
+      ConverterUtil.makeFuncName(substraitFunc.get, Seq(windowFunc.dataType), FunctionConfig.OPT)
     ExpressionBuilder.newScalarFunction(functionMap, functionName)
   }
 

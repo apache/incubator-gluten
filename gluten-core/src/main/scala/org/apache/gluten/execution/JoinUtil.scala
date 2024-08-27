@@ -32,7 +32,7 @@ import io.substrait.proto.{CrossRel, JoinRel}
 
 import scala.collection.JavaConverters._
 
-object JoinUtils {
+object JoinUtil {
 
   def createExtensionNode(output: Seq[Attribute], validation: Boolean): AdvancedExtensionNode = {
     // Use field [enhancement] in a extension node for input type validation.

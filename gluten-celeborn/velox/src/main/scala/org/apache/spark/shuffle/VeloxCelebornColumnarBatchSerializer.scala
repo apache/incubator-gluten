@@ -78,7 +78,7 @@ private class CelebornColumnarBatchSerializerInstance(
     val conf = SparkEnv.get.conf
     val compressionCodec =
       if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
-        GlutenShuffleUtils.getCompressionCodec(conf)
+        GlutenShuffleUtil.getCompressionCodec(conf)
       } else {
         null // uncompressed
       }

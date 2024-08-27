@@ -19,7 +19,7 @@ package org.apache.spark
 import org.apache.spark.shuffle.{BaseShuffleHandle, ShuffleHandle}
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 
-object ShuffleUtils {
+object ShuffleUtil {
   def getReaderParam[K, C](
       handle: ShuffleHandle,
       startMapIndex: Int,

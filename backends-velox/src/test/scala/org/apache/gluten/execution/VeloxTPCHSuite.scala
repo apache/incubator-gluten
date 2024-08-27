@@ -19,7 +19,7 @@ package org.apache.gluten.execution
 import org.apache.gluten.GlutenConfig
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, Row, TestUtils}
+import org.apache.spark.sql.{DataFrame, Row, TestUtil}
 import org.apache.spark.sql.execution.FormattedMode
 
 import org.apache.commons.io.FileUtils
@@ -260,7 +260,7 @@ class VeloxTPCHDistinctSpillSuite extends VeloxTPCHTableSupport {
 
   test("distinct spill") {
     val df = spark.sql("select count(distinct *) from lineitem limit 1")
-    TestUtils.compareAnswers(df.collect(), Seq(Row(60175)))
+    TestUtil.compareAnswers(df.collect(), Seq(Row(60175)))
   }
 }
 
@@ -282,7 +282,7 @@ class VeloxTPCHMiscSuite extends VeloxTPCHTableSupport {
     val result = df.collect()
     df.explain(true)
     val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
-    TestUtils.compareAnswers(result, expectedResult)
+    TestUtil.compareAnswers(result, expectedResult)
   }
 }
 

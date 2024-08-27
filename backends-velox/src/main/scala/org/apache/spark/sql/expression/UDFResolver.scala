@@ -18,7 +18,7 @@ package org.apache.spark.sql.expression
 
 import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
-import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, GenericExpressionTransformer, Transformable}
+import org.apache.gluten.expression.{ConverterUtil, ExpressionTransformer, ExpressionType, GenericExpressionTransformer, Transformable}
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.vectorized.JniWorkspace
 
@@ -141,8 +141,8 @@ object UDFResolver extends Logging {
       allowTypeConversion: Boolean): Unit = {
     registerUDF(
       name,
-      ConverterUtils.parseFromBytes(returnType),
-      ConverterUtils.parseFromBytes(argTypes),
+      ConverterUtil.parseFromBytes(returnType),
+      ConverterUtil.parseFromBytes(argTypes),
       variableArity,
       allowTypeConversion)
   }
@@ -174,9 +174,9 @@ object UDFResolver extends Logging {
       enableTypeConversion: Boolean): Unit = {
     registerUDAF(
       name,
-      ConverterUtils.parseFromBytes(returnType),
-      ConverterUtils.parseFromBytes(argTypes),
-      ConverterUtils.parseFromBytes(intermediateTypes),
+      ConverterUtil.parseFromBytes(returnType),
+      ConverterUtil.parseFromBytes(argTypes),
+      ConverterUtil.parseFromBytes(intermediateTypes),
       variableArity,
       enableTypeConversion
     )

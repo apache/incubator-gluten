@@ -14,20 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils
+package org.apache.spark.sql.catalyst.types
 
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.spark.sql.types.DataType
 
-// FIXME: We mixed the use of "Utils" and "Util" in utility class naming
-// FIXME: The utility methods "is...BackendLoaded" stands because we rely
-//  on legacy backend-specific code in UTs. The new usages of the methods should
-//  be better avoided. We'd remove them until the time is ripe.
-object BackendTestUtils {
-  def isVeloxBackendLoaded(): Boolean = {
-    BackendsApiManager.getBackendName == "velox" // the same with VeloxBackend.BACKEND_NAME
-  }
+object DataTypeUtil {
 
-  def isCHBackendLoaded(): Boolean = {
-    BackendsApiManager.getBackendName == "ch" // the same with CHBackend.BACKEND_NAME
-  }
+  /**
+   * Check if `this` and `other` are the same data type when ignoring nullability
+   * (`StructField.nullable`, `ArrayType.containsNull`, and `MapType.valueContainsNull`).
+   */
+  def sameType(left: DataType, right: DataType): Boolean = left.sameType(right)
 }

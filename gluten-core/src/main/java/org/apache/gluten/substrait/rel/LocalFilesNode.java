@@ -17,7 +17,7 @@
 package org.apache.gluten.substrait.rel;
 
 import org.apache.gluten.GlutenConfig;
-import org.apache.gluten.expression.ConverterUtils;
+import org.apache.gluten.expression.ConverterUtil;
 
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
@@ -103,8 +103,8 @@ public class LocalFilesNode implements SplitInfo {
       Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
       for (StructField field : fileSchema.fields()) {
         structBuilder.addTypes(
-            ConverterUtils.getTypeNode(field.dataType(), field.nullable()).toProtobuf());
-        namedStructBuilder.addNames(ConverterUtils.normalizeColName(field.name()));
+            ConverterUtil.getTypeNode(field.dataType(), field.nullable()).toProtobuf());
+        namedStructBuilder.addNames(ConverterUtil.normalizeColName(field.name()));
       }
       namedStructBuilder.setStruct(structBuilder.build());
     }

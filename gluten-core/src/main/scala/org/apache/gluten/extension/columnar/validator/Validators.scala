@@ -18,7 +18,7 @@ package org.apache.gluten.extension.columnar.validator
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, BackendSettingsApi}
-import org.apache.gluten.expression.ExpressionUtils
+import org.apache.gluten.expression.ExpressionUtil
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -118,7 +118,7 @@ object Validators {
 
   private class FallbackComplexExpressions(threshold: Int) extends Validator {
     override def validate(plan: SparkPlan): Validator.OutCome = {
-      if (plan.expressions.exists(e => ExpressionUtils.getExpressionTreeDepth(e) > threshold)) {
+      if (plan.expressions.exists(e => ExpressionUtil.getExpressionTreeDepth(e) > threshold)) {
         return fail(
           s"Disabled because at least one present expression exceeded depth threshold: " +
             s"${plan.nodeName}")

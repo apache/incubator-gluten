@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.delta.commands
 
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtil
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.spark.{TaskContext, TaskOutputFileAlreadyExistException}
 import org.apache.spark.internal.Logging
@@ -110,7 +110,7 @@ object OptimizeTableCommandOverwrites extends Logging {
           description.primaryKeyOption,
           description.partitionColumns,
           description.partList,
-          ConverterUtils.convertNamedStructJson(description.tableSchema),
+          ConverterUtil.convertNamedStructJson(description.tableSchema),
           description.clickhouseTableConfigs,
           description.tableSchema.toAttributes
         )

@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.utils
 
-import org.apache.gluten.expression.ConverterUtils.normalizeColName
+import org.apache.gluten.expression.ConverterUtil.normalizeColName
 
 object MergeTreeDeltaUtil {
 

@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.datasources.v1
 
 import org.apache.gluten.execution.datasource.GlutenRowSplitter
-import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.expression.ConverterUtil
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized.CHColumnVector
 
@@ -46,7 +46,7 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     val structBuilder = Type.Struct.newBuilder
     for (field <- dataSchema.fields) {
       namedStructBuilder.addNames(field.name)
-      structBuilder.addTypes(ConverterUtils.getTypeNode(field.dataType, field.nullable).toProtobuf)
+      structBuilder.addTypes(ConverterUtil.getTypeNode(field.dataType, field.nullable).toProtobuf)
     }
     namedStructBuilder.setStruct(structBuilder.build)
     var namedStruct = namedStructBuilder.build

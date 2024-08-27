@@ -202,7 +202,7 @@ object HashAggregateExecBaseTransformer {
 trait HashAggregateExecPullOutBaseHelper {
   // The direct outputs of Aggregation.
   def allAggregateResultAttributes(groupingExpressions: Seq[NamedExpression]): List[Attribute] =
-    groupingExpressions.map(ConverterUtils.getAttrFromExpr(_)).toList :::
+    groupingExpressions.map(ConverterUtil.getAttrFromExpr(_)).toList :::
       getAttrForAggregateExprs
 
   /** This method calculates the output attributes of Aggregation. */

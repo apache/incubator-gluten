@@ -25,7 +25,7 @@ import org.apache.gluten.utils.LogLevelUtil
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.util.StringUtils.PlanStringConcat
-import org.apache.spark.sql.execution.ui.GlutenEventUtils
+import org.apache.spark.sql.execution.ui.GlutenEventUtil
 
 /**
  * This rule is used to collect all fallback reason.
@@ -77,7 +77,7 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
     }
     val concat = new PlanStringConcat()
     concat.append("== Physical Plan ==\n")
-    val (numGlutenNodes, fallbackNodeToReason) = GlutenExplainUtils.processPlan(plan, concat.append)
+    val (numGlutenNodes, fallbackNodeToReason) = GlutenExplainUtil.processPlan(plan, concat.append)
 
     val event = GlutenPlanFallbackEvent(
       executionId.toLong,
@@ -86,7 +86,7 @@ case class GlutenFallbackReporter(glutenConfig: GlutenConfig, spark: SparkSessio
       concat.toString(),
       fallbackNodeToReason
     )
-    GlutenEventUtils.post(sc, event)
+    GlutenEventUtil.post(sc, event)
   }
 }
 

@@ -18,7 +18,7 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
+import org.apache.gluten.expression.{ConverterUtil, ExpressionConverter}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
@@ -85,7 +85,7 @@ abstract class GenerateExecTransformerBase(
   protected def getExtensionNodeForValidation: AdvancedExtensionNode = {
     // Use a extension node to send the input types through Substrait plan for validation.
     val inputTypeNodeList =
-      child.output.map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)).asJava
+      child.output.map(attr => ConverterUtil.getTypeNode(attr.dataType, attr.nullable)).asJava
     ExtensionBuilder.makeAdvancedExtension(
       BackendsApiManager.getTransformerApiInstance.packPBMessage(
         TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))

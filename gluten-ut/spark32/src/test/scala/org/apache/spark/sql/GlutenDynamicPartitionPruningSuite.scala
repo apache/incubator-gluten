@@ -18,7 +18,7 @@ package org.apache.spark.sql
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecTransformerBase}
-import org.apache.gluten.utils.BackendTestUtils
+import org.apache.gluten.utils.BackendTestUtil
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
@@ -640,10 +640,10 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
         //
         // See also org.apache.gluten.execution.FilterHandler#applyFilterPushdownToScan
         // See also DynamicPartitionPruningSuite.scala:1362
-        if (BackendTestUtils.isCHBackendLoaded()) {
+        if (BackendTestUtil.isCHBackendLoaded()) {
           assert(subqueryIds.size == 2, "Whole plan subquery reusing not working correctly")
           assert(reusedSubqueryIds.size == 1, "Whole plan subquery reusing not working correctly")
-        } else if (BackendTestUtils.isVeloxBackendLoaded()) {
+        } else if (BackendTestUtil.isVeloxBackendLoaded()) {
           assert(subqueryIds.size == 3, "Whole plan subquery reusing not working correctly")
           assert(reusedSubqueryIds.size == 2, "Whole plan subquery reusing not working correctly")
         } else {

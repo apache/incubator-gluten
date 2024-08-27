@@ -14,12 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.storage
+package org.apache.gluten.utils
 
-import java.io.InputStream
+import org.apache.gluten.backendsapi.BackendsApiManager
 
-object OASPackageBridge {
-  def unwrapBufferReleasingInputStream(in: BufferReleasingInputStream): InputStream = {
-    in.delegate
+// FIXME: We mixed the use of "Utils" and "Util" in utility class naming
+// FIXME: The utility methods "is...BackendLoaded" stands because we rely
+//  on legacy backend-specific code in UTs. The new usages of the methods should
+//  be better avoided. We'd remove them until the time is ripe.
+object BackendTestUtil {
+  def isVeloxBackendLoaded(): Boolean = {
+    BackendsApiManager.getBackendName == "velox" // the same with VeloxBackend.BACKEND_NAME
+  }
+
+  def isCHBackendLoaded(): Boolean = {
+    BackendsApiManager.getBackendName == "ch" // the same with CHBackend.BACKEND_NAME
   }
 }

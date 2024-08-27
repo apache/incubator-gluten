@@ -35,7 +35,7 @@ import scala.collection.mutable.ArrayBuffer;
 
 // Utility methods to convert Vanilla broadcast relations from/to Velox broadcast relations.
 // FIXME: Truncate output with batch size.
-object BroadcastUtils {
+object BroadcastUtil {
   def veloxToSparkUnsafe[F, T](
       context: SparkContext,
       mode: BroadcastMode,

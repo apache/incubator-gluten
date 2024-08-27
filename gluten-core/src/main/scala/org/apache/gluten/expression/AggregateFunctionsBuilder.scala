@@ -18,7 +18,7 @@ package org.apache.gluten.expression
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.expression.ConverterUtils.FunctionConfig
+import org.apache.gluten.expression.ConverterUtil.FunctionConfig
 import org.apache.gluten.substrait.expression.ExpressionBuilder
 
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -44,7 +44,7 @@ object AggregateFunctionsBuilder {
 
     ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(substraitAggFuncName, inputTypes, FunctionConfig.REQ))
+      ConverterUtil.makeFuncName(substraitAggFuncName, inputTypes, FunctionConfig.REQ))
   }
 
   def getSubstraitFunctionName(aggregateFunc: AggregateFunction): String = {

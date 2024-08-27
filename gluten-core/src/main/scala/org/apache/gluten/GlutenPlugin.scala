@@ -29,7 +29,7 @@ import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext,
 import org.apache.spark.internal.Logging
 import org.apache.spark.listener.GlutenListenerFactory
 import org.apache.spark.network.util.JavaUtils
-import org.apache.spark.sql.execution.ui.GlutenEventUtils
+import org.apache.spark.sql.execution.ui.GlutenEventUtil
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.{SparkResourceUtil, TaskResources}
 
@@ -53,7 +53,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     _sc = Some(sc)
-    GlutenEventUtils.registerListener(sc)
+    GlutenEventUtil.registerListener(sc)
     postBuildInfoEvent(sc)
 
     val conf = pluginContext.conf()
@@ -78,7 +78,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     if (pluginContext.conf().getBoolean(GlutenConfig.GLUTEN_UI_ENABLED, true)) {
       _sc.foreach {
         sc =>
-          GlutenEventUtils.attachUI(sc)
+          GlutenEventUtil.attachUI(sc)
           logInfo("Gluten SQL Tab has attached.")
       }
     }
@@ -124,7 +124,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       )
     logInfo(loggingInfo)
     val event = GlutenBuildInfoEvent(infoMap)
-    GlutenEventUtils.post(sc, event)
+    GlutenEventUtil.post(sc, event)
   }
 
   private def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {

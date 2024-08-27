@@ -18,7 +18,7 @@ package org.apache.spark.sql
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.utils.{BackendTestSettings, BackendTestUtils, SystemParameters}
+import org.apache.gluten.utils.{BackendTestSettings, BackendTestUtil, SystemParameters}
 
 import org.apache.spark.{SparkConf, SparkException, SparkThrowable}
 import org.apache.spark.ErrorMessageFormat.MINIMAL
@@ -177,7 +177,7 @@ class GlutenSQLQueryTestSuite
     attempt.isSuccess && attempt.get == 0
   }
 
-  private val isCHBackend = BackendTestUtils.isCHBackendLoaded()
+  private val isCHBackend = BackendTestUtil.isCHBackendLoaded()
 
   override protected def sparkConf: SparkConf = {
     val conf = super.sparkConf
