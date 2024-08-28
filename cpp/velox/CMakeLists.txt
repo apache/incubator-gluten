@@ -231,14 +231,8 @@ if(ENABLE_GLUTEN_VCPKG)
 endif()
 
 target_include_directories(
-  velox
-  PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH}
-         ${JNI_INCLUDE_DIRS}
-         ${CMAKE_CURRENT_SOURCE_DIR}
-         ${VELOX_HOME}/
-         ${VELOX_BUILD_PATH}/
-         ${VELOX_BUILD_PATH}/_deps/xsimd-src/include/
-         ${VELOX_HOME}/third_party/xsimd/include/)
+  velox PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS}
+               ${CMAKE_CURRENT_SOURCE_DIR} ${VELOX_HOME}/ ${VELOX_BUILD_PATH}/)
 
 set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
                                        ${root_directory}/releases)
