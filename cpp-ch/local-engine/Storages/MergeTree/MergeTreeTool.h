@@ -30,7 +30,6 @@ namespace local_engine
 {
 using namespace DB;
 
-
 struct MergeTreePart
 {
     std::string name;
@@ -66,7 +65,7 @@ struct MergeTreeTable
 };
 
 std::shared_ptr<DB::StorageInMemoryMetadata>
-buildMetaData(const DB::NamesAndTypesList & columns, ContextPtr context, const MergeTreeTable &);
+buildMetaData(const DB::Block & header, const ContextPtr & context, const MergeTreeTable & table);
 
 std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config);
 

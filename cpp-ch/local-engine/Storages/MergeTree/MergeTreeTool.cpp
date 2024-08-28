@@ -27,14 +27,13 @@
 #include <Poco/StringTokenizer.h>
 
 using namespace DB;
-
-namespace local_engine
+using namespace local_engine;
+namespace
 {
-
 // set skip index for each column if specified
 void setSecondaryIndex(
     const DB::NamesAndTypesList & columns,
-    ContextPtr context,
+    const ContextPtr & context,
     const MergeTreeTable & table,
     std::shared_ptr<DB::StorageInMemoryMetadata> metadata)
 {
@@ -91,8 +90,16 @@ void setSecondaryIndex(
     metadata->setSecondaryIndices(IndicesDescription::parse(ss.str(), metadata->getColumns(), context));
 }
 
+void parseTableConfig(MergeTreeTableSettings & settings, const String & config_json)
+{
+    rapidjson::Document doc;
+    doc.Parse(config_json.c_str());
+    if (doc.HasMember("storage_policy"))
+        settings.storage_policy = doc["storage_policy"].GetString();
+}
+
 std::shared_ptr<DB::StorageInMemoryMetadata>
-buildMetaData(const DB::NamesAndTypesList & columns, ContextPtr context, const MergeTreeTable & table)
+doBuildMetadata(const DB::NamesAndTypesList & columns, const ContextPtr & context, const MergeTreeTable & table)
 {
     std::shared_ptr<DB::StorageInMemoryMetadata> metadata = std::make_shared<DB::StorageInMemoryMetadata>();
     ColumnsDescription columns_description;
@@ -114,6 +121,16 @@ buildMetaData(const DB::NamesAndTypesList & columns, ContextPtr context, const M
     return metadata;
 }
 
+}
+namespace local_engine
+{
+
+std::shared_ptr<DB::StorageInMemoryMetadata>
+buildMetaData(const DB::Block & header, const ContextPtr & context, const MergeTreeTable & table)
+{
+    return doBuildMetadata(header.getNamesAndTypesList(), context, table);
+}
+
 std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config)
 {
     auto settings = std::make_unique<DB::MergeTreeSettings>();
@@ -133,14 +150,6 @@ std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_ty
     return query_info;
 }
 
-
-void parseTableConfig(MergeTreeTableSettings & settings, const String & config_json)
-{
-    rapidjson::Document doc;
-    doc.Parse(config_json.c_str());
-    if (doc.HasMember("storage_policy"))
-        settings.storage_policy = doc["storage_policy"].GetString();
-}
 
 MergeTreeTable parseMergeTreeTableString(const std::string & info)
 {

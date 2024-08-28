@@ -65,8 +65,7 @@ MergeTreeTable MergeTreeRelParser::parseMergeTreeTable(const substrait::ReadRel:
 CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context, bool restore)
 {
     const DB::Block header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema, merge_tree_table.low_card_key);
-    const auto names_and_types_list = header.getNamesAndTypesList();
-    const auto metadata = buildMetaData(names_and_types_list, context, merge_tree_table);
+    const auto metadata = buildMetaData(header, context, merge_tree_table);
 
     // use instance global table (without uuid) to restore metadata folder on current instance
     // we need its lock
