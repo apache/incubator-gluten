@@ -49,7 +49,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
     if (!SparkResourceUtil.isMemoryOverheadSet(conf)) {
       // If memory overhead is not set by user, automatically set it according to off-heap settings.
       logInfo(
-        "Memory overhead is not set. Setting it to 0.1 * off-heap memory size automatically." +
+        s"Memory overhead is not set. Setting it to $desiredOverheadSize automatically." +
           " Gluten doesn't follow Spark's calculation on default value of this option because the" +
           " actual required memory overhead will depend on off-heap usage than on on-heap usage.")
       conf.set(GlutenConfig.SPARK_OVERHEAD_SIZE_KEY, desiredOverheadSize.toString)
