@@ -280,6 +280,7 @@
         <delta.version>2.0.1</delta.version>
         <delta.binary.version>20</delta.binary.version>
         <antlr4.version>4.8</antlr4.version>
+        <hudi.version>0.15.0</hudi.version>
       </properties>
     </profile>
     <profile>
@@ -295,6 +296,7 @@
         <delta.version>2.3.0</delta.version>
         <delta.binary.version>23</delta.binary.version>
         <antlr4.version>4.8</antlr4.version>
+	<hudi.version>0.15.0</hudi.version>
       </properties>
     </profile>
     <profile>
@@ -309,6 +311,7 @@
         <delta.version>2.4.0</delta.version>
         <delta.binary.version>24</delta.binary.version>
         <antlr4.version>4.9.3</antlr4.version>
+        <hudi.version>0.15.0</hudi.version>
       </properties>
     </profile>
     <profile>
@@ -321,7 +324,8 @@
         <iceberg.version>1.5.0</iceberg.version>
         <delta.package.name>delta-spark</delta.package.name>
         <delta.version>3.2.0</delta.version>
-        <delta.binary.version>32</delta.binary.version>
+	<delta.binary.version>32</delta.binary.version>
+	<hudi.version>0.15.0</hudi.version>
         <fasterxml.version>2.15.1</fasterxml.version>
         <hadoop.version>3.3.4</hadoop.version>
         <antlr4.version>4.9.3</antlr4.version>
@@ -428,6 +432,15 @@
       </activation>
       <modules>
         <module>gluten-iceberg</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>hudi</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>gluten-hudi</module>
       </modules>
     </profile>
     <profile>
