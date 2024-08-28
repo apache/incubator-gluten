@@ -19,6 +19,21 @@ RUN if ["$BUILDER_UID" != "0"]; then \
     fi
 USER ${BUILDER_UID}:${BUILDER_GID}
 
+ARG SSH_PRV_KEY
+ARG SSH_PUB_KEY
+RUN mkdir -p ~/.ssh && \
+    chmod 0700 ~/.ssh
+RUN if [[ -n "$SSH_PRV_KEY" ]] ; then \
+    echo "$SSH_PRV_KEY" > ~/.ssh/id_rsa && \
+    chmod 600 ~/.ssh/id_rsa && \
+    echo -e "Host *\n    StrictHostKeyChecking no" > ~/.ssh/config && \
+    chmod 600 ~/.ssh/config; \
+    fi
+RUN if [[ -n "$SSH_PUB_KEY" ]] ; then \
+    echo "$SSH_PUB_KEY" > ~/.ssh/id_rsa.pub && \
+    chmod 600 ~/.ssh/id_rsa.pub; \
+    fi
+
 ENV VCPKG_BINARY_SOURCES=default
 COPY docker/entrypoint.sh /entrypoint
 ENTRYPOINT ["/entrypoint"]
