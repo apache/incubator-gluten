@@ -162,6 +162,7 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     future_part->uuid = UUIDHelpers::generateV4();
 
     future_part->assign(std::move(selected_parts));
+    future_part->part_info = MergeListElement::FAKE_RESULT_PART_FOR_PROJECTION;
 
     future_part->name = "";
     if(!partition_dir.empty())
