@@ -59,6 +59,7 @@ private class CHCelebornColumnarBatchSerializerInstance(
   with Logging {
 
   private lazy val conf = SparkEnv.get.conf
+  private lazy val gluten_conf = GlutenConfig.getConf
   private lazy val compressionCodec = GlutenShuffleUtils.getCompressionCodec(conf)
   private lazy val capitalizedCompressionCodec = compressionCodec.toUpperCase(Locale.ROOT)
   private lazy val compressionLevel =
@@ -78,8 +79,8 @@ private class CHCelebornColumnarBatchSerializerInstance(
       private var cb: ColumnarBatch = _
       private val isEmptyStream: Boolean = in.equals(CelebornInputStream.empty())
       private val forceCompress: Boolean =
-        GlutenConfig.getConf.isUseColumnarShuffleManager ||
-          GlutenConfig.getConf.isUseCelebornShuffleManager
+        gluten_conf.isUseColumnarShuffleManager ||
+          gluten_conf.isUseCelebornShuffleManager
 
       private var numBatchesTotal: Long = _
       private var numRowsTotal: Long = _

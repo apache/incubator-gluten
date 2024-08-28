@@ -108,7 +108,7 @@ class CHCelebornColumnarShuffleWriter[K, V](
       CHColumnarShuffleWriter.setOutputMetrics(splitResult)
       partitionLengths = splitResult.getPartitionLengths
       pushMergedDataToCeleborn()
-      mapStatus = MapStatus(blockManager.shuffleServerId, splitResult.getRawPartitionLengths, mapId)
+      mapStatus = MapStatus(blockManager.shuffleServerId, splitResult.getPartitionLengths, mapId)
     }
     closeShuffleWriter()
   }

@@ -497,7 +497,7 @@ size_t CelebornPartitionWriter::evictSinglePartition(size_t partition_id)
         split_result->total_write_time += push_time_watch.elapsedNanoseconds();
         split_result->total_io_time += push_time_watch.elapsedNanoseconds();
         split_result->total_serialize_time += serialization_time_watch.elapsedNanoseconds();
-        split_result->total_bytes_written += written_bytes;
+        split_result->total_bytes_written += output.str().size();
     };
 
     Stopwatch spill_time_watch;

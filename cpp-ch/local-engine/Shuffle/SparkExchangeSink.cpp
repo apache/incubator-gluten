@@ -102,7 +102,7 @@ void SparkExchangeSink::initOutputHeader(const Block & block)
     }
 }
 
-SparkExchangeManager::SparkExchangeManager(const Block& header, const String & short_name, const SplitOptions & options_, jobject rss_pusher): input_header(header), options(options_)
+SparkExchangeManager::SparkExchangeManager(const Block& header, const String & short_name, const SplitOptions & options_, jobject rss_pusher): input_header(materializeBlock(header)), options(options_)
 {
     if (rss_pusher)
     {
@@ -170,6 +170,7 @@ void SparkExchangeManager::setSinksToPipeline(DB::QueryPipelineBuilder & pipelin
         return std::make_shared<NullSink>(header);
     };
     chassert(pipeline.getNumStreams() == sinks.size());
+    pipeline.resize(sinks.size());
     pipeline.setSinks(getter);
 }
 
@@ -204,26 +205,42 @@ void SparkExchangeManager::finish()
 {
     Stopwatch wall_time;
     mergeSplitResult();
-    auto infos = gatherAllSpillInfo();
-    WriteBufferFromFile output(options.data_file, options.io_buffer_size);
-    std::vector<Spillable::ExtraData> extra_datas;
-    for (const auto & writer : partition_writers)
+    if (!use_rss)
     {
-        LocalPartitionWriter * local_partition_writer = dynamic_cast<LocalPartitionWriter *>(writer.get());
-        if (local_partition_writer)
+        auto infos = gatherAllSpillInfo();
+        std::vector<Spillable::ExtraData> extra_datas;
+        for (const auto & writer : partition_writers)
         {
-            extra_datas.emplace_back(local_partition_writer->getExtraData());
-        }
+            LocalPartitionWriter * local_partition_writer = dynamic_cast<LocalPartitionWriter *>(writer.get());
+            if (local_partition_writer)
+            {
+                extra_datas.emplace_back(local_partition_writer->getExtraData());
+            }
 
+        }
+        if (!extra_datas.empty())
+            chassert(extra_datas.size() == partition_writers.size());
+        WriteBufferFromFile output(options.data_file, options.io_buffer_size);
+        split_result.partition_lengths = mergeSpills(output, infos, extra_datas);
     }
-    if (!extra_datas.empty())
-        chassert(extra_datas.size() == partition_writers.size());
-    split_result.partition_lengths = mergeSpills(output, infos, extra_datas);
     split_result.wall_time += wall_time.elapsedNanoseconds();
+}
+
+void checkPartitionLengths(const std::vector<UInt64> & partition_length,size_t partition_num)
+{
+    if (partition_num != partition_length.size())
+    {
+        throw Exception(DB::ErrorCodes::LOGICAL_ERROR, "except partition_lengths size is {}, but got {}", partition_num, partition_length.size());
+    }
 }
 
 void SparkExchangeManager::mergeSplitResult()
 {
+    if (use_rss)
+    {
+        this->split_result.partition_lengths.resize(options.partition_num, 0);
+        this->split_result.raw_partition_lengths.resize(options.partition_num, 0);
+    }
     for (const auto & sink : sinks)
     {
         auto split_result = sink->getSplitResultCopy();
@@ -239,6 +256,16 @@ void SparkExchangeManager::mergeSplitResult()
         this->split_result.total_rows += split_result.total_rows;
         this->split_result.total_blocks += split_result.total_blocks;
         this->split_result.wall_time += split_result.wall_time;
+        if (use_rss)
+        {
+            checkPartitionLengths(split_result.partition_lengths, options.partition_num);
+            checkPartitionLengths(split_result.raw_partition_lengths, options.partition_num);
+            for (size_t i = 0; i < options.partition_num; ++i)
+            {
+                this->split_result.partition_lengths[i] += split_result.partition_lengths[i];
+                this->split_result.raw_partition_lengths[i] += split_result.raw_partition_lengths[i];
+            }
+        }
     }
 }
 
@@ -249,8 +276,9 @@ std::vector<SpillInfo> SparkExchangeManager::gatherAllSpillInfo()
     {
         if (Spillable * spillable = dynamic_cast<Spillable *>(writer.get()))
         {
-            for (const auto & info : spillable->getSpillInfos())
-                res.emplace_back(info);
+            if (spillable)
+                for (const auto & info : spillable->getSpillInfos())
+                    res.emplace_back(info);
         }
     }
     return res;
