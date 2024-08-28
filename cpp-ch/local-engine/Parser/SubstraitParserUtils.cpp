@@ -15,29 +15,27 @@
  * limitations under the License.
  */
 
-#pragma once
 
-#include <Storages/StorageMergeTreeFactory.h>
-#include <Common/MergeTreeTool.h>
+#include "SubstraitParserUtils.h"
+#include <Common/Exception.h>
+#include <Common/logger_useful.h>
+
+using namespace DB;
 
 namespace local_engine
 {
-
-void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, const Context & context);
-
-void saveFileStatus(
-    const DB::MergeTreeData & storage,
-    const DB::ContextPtr& context,
-    const String & part_name,
-    IDataPartStorage & data_part_storage);
-
-std::vector<MergeTreeDataPartPtr> mergeParts(
-    std::vector<DB::DataPartPtr> selected_parts,
-    std::unordered_map<String, String> & partition_values,
-    const String & new_part_uuid,
-    CustomStorageMergeTreePtr storage,
-    const String & partition_dir,
-    const String & bucket_dir);
-
-void extractPartitionValues(const String & partition_dir, std::unordered_map<String, String> & partition_values);
+void logDebugMessage(const google::protobuf::Message & message, const char * type)
+{
+    auto * logger = &Poco::Logger::get("SubstraitPlan");
+    if (logger->debug())
+    {
+        namespace pb_util = google::protobuf::util;
+        pb_util::JsonOptions options;
+        std::string json;
+        auto s = pb_util::MessageToJsonString(message, &json, options);
+        if (!s.ok())
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert {} to Json", type);
+        LOG_DEBUG(logger, "{}:\n{}", type, json);
+    }
+}
 }

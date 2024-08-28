@@ -15,19 +15,14 @@
  * limitations under the License.
  */
 
-
-#include <google/protobuf/wrappers.pb.h>
-
+#include "MergeTreeRelParser.h"
 #include <Parser/FunctionParser.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
-#include <Storages/MergeTree/MergeTreeDataMergerMutator.h>
-#include <Storages/Mergetree/MergeSparkMergeTreeTask.h>
-#include <Storages/Mergetree/MetaDataHelper.h>
+#include <Storages/MergeTree/MetaDataHelper.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
-
-#include "MergeTreeRelParser.h"
-
 
 namespace DB
 {
@@ -61,17 +56,17 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
 
 MergeTreeTable MergeTreeRelParser::parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table)
 {
+    logDebugMessage(extension_table, "merge_tree_table");
     google::protobuf::StringValue table;
     table.ParseFromString(extension_table.detail().value());
     return parseMergeTreeTableString(table.value());
 }
 
-CustomStorageMergeTreePtr
-MergeTreeRelParser::parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context, bool restore)
+CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context, bool restore)
 {
-    DB::Block header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema, merge_tree_table.low_card_key);
-    auto names_and_types_list = header.getNamesAndTypesList();
-    auto metadata = buildMetaData(names_and_types_list, context, merge_tree_table);
+    const DB::Block header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema, merge_tree_table.low_card_key);
+    const auto names_and_types_list = header.getNamesAndTypesList();
+    const auto metadata = buildMetaData(names_and_types_list, context, merge_tree_table);
 
     // use instance global table (without uuid) to restore metadata folder on current instance
     // we need its lock
@@ -99,8 +94,7 @@ MergeTreeRelParser::parseStorage(const MergeTreeTable & merge_tree_table, Contex
     return global_storage;
 }
 
-CustomStorageMergeTreePtr
-MergeTreeRelParser::copyToDefaultPolicyStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context)
+CustomStorageMergeTreePtr MergeTreeRelParser::copyToDefaultPolicyStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context)
 {
     auto temp_uuid = UUIDHelpers::generateV4();
     String temp_uuid_str = toString(temp_uuid);
@@ -111,8 +105,7 @@ MergeTreeRelParser::copyToDefaultPolicyStorage(MergeTreeTable merge_tree_table, 
     return parseStorage(merge_tree_table, context);
 }
 
-CustomStorageMergeTreePtr
-MergeTreeRelParser::copyToVirtualStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context)
+CustomStorageMergeTreePtr MergeTreeRelParser::copyToVirtualStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context)
 {
     auto temp_uuid = UUIDHelpers::generateV4();
     String temp_uuid_str = toString(temp_uuid);
@@ -158,8 +151,8 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
         query_info->prewhere_info = parsePreWhereInfo(rel.filter(), input);
     }
 
-    std::vector<DataPartPtr> selected_parts
-        = StorageMergeTreeFactory::getDataPartsByNames(storage->getStorageID(), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
+    std::vector<DataPartPtr> selected_parts = StorageMergeTreeFactory::getDataPartsByNames(
+        storage->getStorageID(), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
 
     auto read_step = storage->reader.readFromParts(
         selected_parts,
@@ -182,9 +175,9 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     auto ranges = merge_tree_table.extractRange(selected_parts);
     std::string ret;
     if (context->getSettingsRef().tryGetString("enabled_driver_filter_mergetree_index", ret) && ret == "'true'")
-        storage->analysisPartsByRanges(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
+        CustomStorageMergeTree::analysisPartsByRanges(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
     else
-        storage->wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
+        CustomStorageMergeTree::wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
 
     steps.emplace_back(read_step.get());
     query_plan->addStep(std::move(read_step));
@@ -399,10 +392,11 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
     query_info->prewhere_info = parsePreWhereInfo(read_rel.filter(), input);
 
     auto storage_factory = StorageMergeTreeFactory::instance();
-    std::vector<DataPartPtr> selected_parts
-        = storage_factory.getDataPartsByNames(StorageID(merge_tree_table.database, merge_tree_table.table), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
+    std::vector<DataPartPtr> selected_parts = StorageMergeTreeFactory::getDataPartsByNames(
+        StorageID(merge_tree_table.database, merge_tree_table.table), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
 
-    auto storage_snapshot = std::make_shared<StorageSnapshot>(*custom_storage_mergetree, custom_storage_mergetree->getInMemoryMetadataPtr());
+    auto storage_snapshot
+        = std::make_shared<StorageSnapshot>(*custom_storage_mergetree, custom_storage_mergetree->getInMemoryMetadataPtr());
     if (selected_parts.empty())
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
     auto read_step = custom_storage_mergetree->reader.readFromParts(

@@ -35,7 +35,7 @@ namespace local_engine
 {
 
 
-void CustomStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & source, DB::RangesInDataParts ranges_in_data_parts)
+void CustomStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges_in_data_parts)
 {
     ReadFromMergeTree::AnalysisResult result;
     result.column_names_to_read = source.getAllColumnNames();
@@ -76,14 +76,13 @@ void CustomStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & sourc
     result.selected_rows = sum_rows;
 
     if (source.getQueryInfo().input_order_info)
-        result.read_type = (source.getQueryInfo().input_order_info->direction > 0)
-            ? MergeTreeReadType::InOrder
-            : MergeTreeReadType::InReverseOrder;
+        result.read_type
+            = (source.getQueryInfo().input_order_info->direction > 0) ? MergeTreeReadType::InOrder : MergeTreeReadType::InReverseOrder;
 
     source.setAnalyzedResult(std::make_shared<ReadFromMergeTree::AnalysisResult>(std::move(result)));
 }
 
-void CustomStorageMergeTree::wrapRangesInDataParts(DB::ReadFromMergeTree & source, DB::RangesInDataParts ranges)
+void CustomStorageMergeTree::wrapRangesInDataParts(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges)
 {
     auto result = source.getAnalysisResult();
     std::unordered_map<String, std::tuple<size_t, size_t>> range_index;
@@ -107,7 +106,7 @@ void CustomStorageMergeTree::wrapRangesInDataParts(DB::ReadFromMergeTree & sourc
             const size_t end = std::min(range.end, std::get<1>(expected_range));
             // [1, 1) or [5, 2) are invalid.
             if (begin >= end)
-                continue ;
+                continue;
             MarkRange final_range(begin, end);
             final_ranges.emplace_back(final_range);
         }
@@ -138,7 +137,6 @@ CustomStorageMergeTree::CustomStorageMergeTree(
           std::move(storage_settings_),
           false, /// require_part_metadata
           attach ? LoadingStrictnessLevel::ATTACH : LoadingStrictnessLevel::FORCE_RESTORE)
-    , writer(*this)
     , reader(*this)
     , merger_mutator(*this)
 {
@@ -149,28 +147,29 @@ CustomStorageMergeTree::CustomStorageMergeTree(
 std::atomic<int> CustomStorageMergeTree::part_num;
 
 
-
-void CustomStorageMergeTree::prefectchMetaDataFile(std::unordered_set<std::string> parts)
+void CustomStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string> parts) const
 {
     auto disk = getDisks().front();
-    if (!disk->isRemote()) return;
+    if (!disk->isRemote())
+        return;
     std::vector<String> meta_paths;
     std::ranges::for_each(parts, [&](const String & name) { meta_paths.emplace_back(fs::path(relative_data_path) / name / "meta.bin"); });
-    for (const auto & meta_path: meta_paths)
+    for (const auto & meta_path : meta_paths)
     {
-        if (!disk->exists(meta_path)) continue;
+        if (!disk->exists(meta_path))
+            continue;
         auto in = disk->readFile(meta_path);
         String ignore_data;
         readStringUntilEOF(ignore_data, *in);
     }
 }
 
-std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames(std::unordered_set<std::string> parts)
+std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames(const std::unordered_set<std::string> & parts)
 {
-    prefectchMetaDataFile(parts);
+    prefetchMetaDataFile(parts);
     std::vector<MergeTreeDataPartPtr> data_parts;
     const auto disk = getStoragePolicy()->getDisks().at(0);
-    for (const auto& name : parts)
+    for (const auto & name : parts)
     {
         const auto num = part_num.fetch_add(1);
         MergeTreePartInfo part_info = {"all", num, num, 0};
@@ -182,10 +181,7 @@ std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames
 }
 
 MergeTreeData::LoadPartResult CustomStorageMergeTree::loadDataPart(
-    const MergeTreePartInfo & part_info,
-    const String & part_name,
-    const DiskPtr & part_disk_ptr,
-    MergeTreeDataPartState to_state)
+    const MergeTreePartInfo & part_info, const String & part_name, const DiskPtr & part_disk_ptr, MergeTreeDataPartState to_state)
 {
     LOG_TRACE(log, "Loading {} part {} from disk {}", magic_enum::enum_name(to_state), part_name, part_disk_ptr->getName());
 

@@ -26,7 +26,7 @@
 #include <Processors/Executors/PullingPipelineExecutor.h>
 #include <Processors/QueryPlan/ISourceStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
-#include <Storages/CustomStorageMergeTree.h>
+#include <Storages/MergeTree/CustomStorageMergeTree.h>
 #include <Storages/SourceFromJavaIter.h>
 #include <base/types.h>
 #include <substrait/plan.pb.h>

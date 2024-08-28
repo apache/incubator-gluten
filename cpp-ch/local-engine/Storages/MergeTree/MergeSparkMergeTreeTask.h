@@ -16,11 +16,10 @@
  */
 #pragma once
 
-#include <Storages/MergeTree/IExecutableTask.h>
-#include <Storages/MergeTree/MergeTask.h>
-#include <Storages/MutationCommands.h>
-#include <Storages/MergeTree/MergeMutateSelectedEntry.h>
 #include <Interpreters/MergeTreeTransactionHolder.h>
+#include <Storages/MergeTree/IExecutableTask.h>
+#include <Storages/MergeTree/MergeMutateSelectedEntry.h>
+#include <Storages/MergeTree/MergeTask.h>
 
 using namespace DB;
 

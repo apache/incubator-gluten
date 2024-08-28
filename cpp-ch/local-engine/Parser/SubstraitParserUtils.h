@@ -23,6 +23,7 @@
 namespace DB::ErrorCodes
 {
 extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
+extern const int LOGICAL_ERROR;
 }
 
 namespace local_engine
@@ -65,5 +66,7 @@ Message BinaryToMessage(const std::string_view binary)
         throw DB::Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse failed");
     return message;
 }
+
+void logDebugMessage(const google::protobuf::Message & message, const char * type);
 
 } // namespace local_engine

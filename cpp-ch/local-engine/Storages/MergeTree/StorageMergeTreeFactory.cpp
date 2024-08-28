@@ -18,8 +18,8 @@
 
 #include <Common/GlutenConfig.h>
 
-#include <Common/MergeTreeTool.h>
-#include <Storages/CustomStorageMergeTree.h>
+#include <Storages/MergeTree/CustomStorageMergeTree.h>
+#include <Storages/MergeTree/MergeTreeTool.h>
 
 namespace local_engine
 {
@@ -59,10 +59,11 @@ void StorageMergeTreeFactory::freeStorage(const StorageID & id, const String & s
 }
 
 
-CustomStorageMergeTreePtr
-StorageMergeTreeFactory::getStorage(const StorageID& id, const String & snapshot_id, MergeTreeTable merge_tree_table, std::function<CustomStorageMergeTreePtr()> creator)
+CustomStorageMergeTreePtr StorageMergeTreeFactory::getStorage(
+    const StorageID & id, const String & snapshot_id, MergeTreeTable merge_tree_table,
+    const std::function<CustomStorageMergeTreePtr()> & creator)
 {
-    auto table_name = getTableName(id, snapshot_id);
+    const auto table_name = getTableName(id, snapshot_id);
     std::lock_guard lock(storage_map_mutex);
 
     merge_tree_table.parts.clear();
@@ -78,7 +79,8 @@ StorageMergeTreeFactory::getStorage(const StorageID& id, const String & snapshot
     return storage_map->get(table_name)->first;
 }
 
-DataPartsVector StorageMergeTreeFactory::getDataPartsByNames(const StorageID & id, const String & snapshot_id, std::unordered_set<String> part_name)
+DataPartsVector
+StorageMergeTreeFactory::getDataPartsByNames(const StorageID & id, const String & snapshot_id, std::unordered_set<String> part_name)
 {
     DataPartsVector res;
     auto table_name = getTableName(id, snapshot_id);
@@ -121,8 +123,8 @@ DataPartsVector StorageMergeTreeFactory::getDataPartsByNames(const StorageID & i
     return res;
 }
 // will be inited in native init phase
-std::unique_ptr<Poco::LRUCache<std::string, std::pair<CustomStorageMergeTreePtr, MergeTreeTable>>> StorageMergeTreeFactory::storage_map = nullptr;
-std::unique_ptr<Poco::LRUCache<std::string, std::shared_ptr<Poco::LRUCache<std::string, DataPartStorageHolderPtr>>>> StorageMergeTreeFactory::datapart_map = nullptr;
+std::unique_ptr<storage_map_cache> StorageMergeTreeFactory::storage_map = nullptr;
+std::unique_ptr<datapart_map_cache> StorageMergeTreeFactory::datapart_map = nullptr;
 std::recursive_mutex StorageMergeTreeFactory::storage_map_mutex;
 std::recursive_mutex StorageMergeTreeFactory::datapart_mutex;
 

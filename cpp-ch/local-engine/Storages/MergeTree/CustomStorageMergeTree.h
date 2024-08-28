@@ -16,12 +16,12 @@
  */
 #pragma once
 
+#include <Processors/QueryPlan/ReadFromMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/MergeTreeDataSelectExecutor.h>
 #include <Storages/MergeTree/MergeTreeDataWriter.h>
-#include <Storages/MutationCommands.h>
 #include <Storages/MergeTree/RangesInDataPart.h>
-#include <Processors/QueryPlan/ReadFromMergeTree.h>
+#include <Storages/MutationCommands.h>
 #include <Storages/StorageMergeTree.h>
 
 namespace local_engine
@@ -37,8 +37,8 @@ class CustomStorageMergeTree final : public MergeTreeData
     friend class MergeSparkMergeTreeTask;
 
 public:
-    static void wrapRangesInDataParts(DB::ReadFromMergeTree & source, DB::RangesInDataParts ranges);
-    void analysisPartsByRanges(DB::ReadFromMergeTree & source, DB::RangesInDataParts ranges_in_data_parts);
+    static void wrapRangesInDataParts(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges);
+    static void analysisPartsByRanges(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges_in_data_parts);
     CustomStorageMergeTree(
         const StorageID & table_id_,
         const String & relative_data_path_,
@@ -53,10 +53,10 @@ public:
     std::vector<MergeTreeMutationStatus> getMutationsStatus() const override;
     bool scheduleDataProcessingJob(BackgroundJobsAssignee & executor) override;
     std::map<std::string, MutationCommands> getUnfinishedMutationCommands() const override;
-    std::vector<MergeTreeDataPartPtr> loadDataPartsWithNames(std::unordered_set<std::string> parts);
+    std::vector<MergeTreeDataPartPtr> loadDataPartsWithNames(const std::unordered_set<std::string> & parts);
     void removePartFromMemory(const MergeTreeData::DataPart & part_to_detach);
 
-    MergeTreeDataWriter writer;
+
     MergeTreeDataSelectExecutor reader;
     MergeTreeDataMergerMutator merger_mutator;
 
@@ -65,14 +65,11 @@ public:
 private:
     SimpleIncrement increment;
 
-    void prefectchMetaDataFile(std::unordered_set<std::string> parts);
+    void prefetchMetaDataFile(std::unordered_set<std::string> parts) const;
     void startBackgroundMovesIfNeeded() override;
     std::unique_ptr<MergeTreeSettings> getDefaultSettings() const override;
     LoadPartResult loadDataPart(
-        const MergeTreePartInfo & part_info,
-        const String & part_name,
-        const DiskPtr & part_disk_ptr,
-        MergeTreeDataPartState to_state);
+        const MergeTreePartInfo & part_info, const String & part_name, const DiskPtr & part_disk_ptr, MergeTreeDataPartState to_state);
 
 protected:
     void dropPartNoWaitNoThrow(const String & part_name) override;
@@ -85,7 +82,6 @@ protected:
     bool partIsAssignedToBackgroundOperation(const DataPartPtr & part) const override;
     MutationCommands getAlterMutationCommandsForPart(const DataPartPtr & /*part*/) const override { return {}; }
     void attachRestoredParts(MutableDataPartsVector && /*parts*/) override { throw std::runtime_error("not implement"); }
-
 };
 
 }

@@ -27,7 +27,7 @@
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Storages/Mergetree/MetaDataHelper.h>
+#include <Storages/MergeTree/MetaDataHelper.h>
 #include <Common/Logger.h>
 #include <Common/ThreadPool.h>
 #include <Common/logger_useful.h>

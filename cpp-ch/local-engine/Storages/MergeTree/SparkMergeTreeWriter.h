@@ -20,10 +20,10 @@
 #include <Interpreters/Squashing.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
 #include <Storages/MergeTree/MergeTreeDataWriter.h>
-#include <Storages/StorageMergeTreeFactory.h>
-#include <Poco/StringTokenizer.h>
+#include <Storages/MergeTree/StorageMergeTreeFactory.h>
+
+#include <Storages/MergeTree/MergeTreeTool.h>
 #include <Common/CHUtil.h>
-#include <Common/MergeTreeTool.h>
 
 namespace DB
 {
@@ -64,12 +64,8 @@ public:
     std::vector<PartInfo> getAllPartInfo();
 
 private:
-    void writeTempPart(
-        MergeTreeDataWriter::TemporaryPart & temp_part,
-        DB::BlockWithPartition & block_with_partition,
-        const DB::StorageMetadataPtr & metadata_snapshot);
     DB::MergeTreeDataWriter::TemporaryPart
-    writeTempPartAndFinalize(DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot);
+    writeTempPartAndFinalize(DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot) const;
     void checkAndMerge(bool force = false);
     void safeEmplaceBackPart(DB::MergeTreeDataPartPtr);
     void safeAddPart(DB::MergeTreeDataPartPtr);
@@ -80,7 +76,7 @@ private:
     bool blockToPart(Block & block);
     bool useLocalStorage() const;
 
-    CustomStorageMergeTreePtr storage = nullptr;
+    CustomStorageMergeTreePtr data = nullptr;
     CustomStorageMergeTreePtr dest_storage = nullptr;
     CustomStorageMergeTreePtr temp_storage = nullptr;
     DB::StorageMetadataPtr metadata_snapshot = nullptr;
@@ -103,6 +99,32 @@ private:
     size_t merge_limit_parts = 10;
     std::mutex memory_mutex;
     bool isRemoteStorage = false;
+};
+
+class CustomMergeTreeDataWriter
+{
+public:
+    CustomMergeTreeDataWriter(
+        MergeTreeData & data_, const String & part_name_prefix_, const String & partition_dir_, const String & bucket_dir_, int part_num_)
+        : data(data_)
+        , log(getLogger(data.getLogName() + " (Writer)"))
+        , part_name_prefix(part_name_prefix_)
+        , partition_dir(partition_dir_)
+        , bucket_dir(bucket_dir_)
+        , part_num(part_num_)
+    {
+    }
+    MergeTreeDataWriter::TemporaryPart writeTempPart(
+        DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot, const ContextPtr & context);
+
+private:
+    MergeTreeData & data;
+    LoggerPtr log;
+
+    String part_name_prefix;
+    String partition_dir;
+    String bucket_dir;
+    int part_num;
 };
 
 }

@@ -21,8 +21,8 @@
 
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
-#include <IO/WriteBufferFromString.h>
-#include <IO/WriteHelpers.h>
+#include <Parsers/ASTExpressionList.h>
+#include <Parsers/ASTSelectQuery.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
 #include <Poco/StringTokenizer.h>
 
@@ -67,7 +67,7 @@ void setSecondaryIndex(
                 ss << ", ";
             else
                 first = false;
-            ss << "_minmax_" << column.name << " " << column.name <<  " TYPE minmax GRANULARITY 1";
+            ss << "_minmax_" << column.name << " " << column.name << " TYPE minmax GRANULARITY 1";
         }
 
         if (bf_index_cols.contains(column.name))
@@ -76,7 +76,7 @@ void setSecondaryIndex(
                 ss << ", ";
             else
                 first = false;
-            ss << "_bloomfilter_"  << column.name << " " << column.name << " TYPE bloom_filter GRANULARITY 1";
+            ss << "_bloomfilter_" << column.name << " " << column.name << " TYPE bloom_filter GRANULARITY 1";
         }
 
         if (set_index_cols.contains(column.name))
@@ -91,17 +91,13 @@ void setSecondaryIndex(
     metadata->setSecondaryIndices(IndicesDescription::parse(ss.str(), metadata->getColumns(), context));
 }
 
-std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(
-    const DB::NamesAndTypesList & columns,
-    ContextPtr context,
-    const MergeTreeTable & table)
+std::shared_ptr<DB::StorageInMemoryMetadata>
+buildMetaData(const DB::NamesAndTypesList & columns, ContextPtr context, const MergeTreeTable & table)
 {
     std::shared_ptr<DB::StorageInMemoryMetadata> metadata = std::make_shared<DB::StorageInMemoryMetadata>();
     ColumnsDescription columns_description;
     for (const auto & item : columns)
-    {
         columns_description.add(ColumnDescription(item.name, item.type));
-    }
     metadata->setColumns(std::move(columns_description));
 
     setSecondaryIndex(columns, context, table, metadata);
@@ -109,16 +105,12 @@ std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(
     metadata->partition_key.expression_list_ast = std::make_shared<ASTExpressionList>();
     metadata->sorting_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context);
     if (table.primary_key.empty())
-    {
-         if (table.order_by_key != MergeTreeTable::TUPLE)
-             metadata->primary_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context);
-         else
+        if (table.order_by_key != MergeTreeTable::TUPLE)
+            metadata->primary_key = KeyDescription::parse(table.order_by_key, metadata->getColumns(), context);
+        else
             metadata->primary_key.expression = std::make_shared<ExpressionActions>(ActionsDAG{});
-    }
     else
-    {
         metadata->primary_key = KeyDescription::parse(table.primary_key, metadata->getColumns(), context);
-    }
     return metadata;
 }
 
@@ -142,13 +134,12 @@ std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_ty
 }
 
 
-void parseTableConfig(MergeTreeTableSettings & settings, String config_json)
+void parseTableConfig(MergeTreeTableSettings & settings, const String & config_json)
 {
     rapidjson::Document doc;
     doc.Parse(config_json.c_str());
     if (doc.HasMember("storage_policy"))
         settings.storage_policy = doc["storage_policy"].GetString();
-
 }
 
 MergeTreeTable parseMergeTreeTableString(const std::string & info)
@@ -240,27 +231,17 @@ bool sameColumns(const substrait::NamedStruct & left, const substrait::NamedStru
     for (size_t i = 0; i < left.names_size(); i++)
         map.emplace(left.names(i), left.struct_().types(i).kind_case());
     for (size_t i = 0; i < right.names_size(); i++)
-    {
         if (!map.contains(right.names(i)) || map[right.names(i)] != right.struct_().types(i).kind_case())
             return false;
-    }
     return true;
 }
 
-bool MergeTreeTable::sameStructWith(const MergeTreeTable & other)
+bool MergeTreeTable::sameStructWith(const MergeTreeTable & other) const
 {
-    return database == other.database &&
-        table == other.table &&
-        snapshot_id == other.snapshot_id &&
-        sameColumns(schema, other.schema) &&
-        order_by_key == other.order_by_key &&
-        low_card_key == other.low_card_key &&
-        minmax_index_key == other.minmax_index_key &&
-        bf_index_key == other.bf_index_key &&
-        set_index_key == other.set_index_key &&
-        primary_key == other.primary_key &&
-        relative_path == other.relative_path &&
-        absolute_path == other.absolute_path &&
-        table_configs.storage_policy == other.table_configs.storage_policy;
+    return database == other.database && table == other.table && snapshot_id == other.snapshot_id && sameColumns(schema, other.schema)
+        && order_by_key == other.order_by_key && low_card_key == other.low_card_key && minmax_index_key == other.minmax_index_key
+        && bf_index_key == other.bf_index_key && set_index_key == other.set_index_key && primary_key == other.primary_key
+        && relative_path == other.relative_path && absolute_path == other.absolute_path
+        && table_configs.storage_policy == other.table_configs.storage_policy;
 }
 }

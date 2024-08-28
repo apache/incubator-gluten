@@ -42,7 +42,6 @@
 #include <DataTypes/Serializations/ISerialization.h>
 #include <DataTypes/getLeastSupertype.h>
 #include <Functions/FunctionFactory.h>
-#include <Functions/FunctionHelpers.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
@@ -60,7 +59,6 @@
 #include <Parser/WriteRelParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
-#include <Processors/Formats/Impl/ArrowBlockOutputFormat.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/LimitStep.h>
@@ -71,7 +69,7 @@
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
-#include <Storages/CustomStorageMergeTree.h>
+#include <Storages/MergeTree/CustomStorageMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/Output/FileWriterWrappers.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
@@ -84,7 +82,6 @@
 #include <Common/Exception.h>
 #include <Common/GlutenConfig.h>
 #include <Common/JNIUtils.h>
-#include <Common/MergeTreeTool.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
 
@@ -117,21 +114,6 @@ std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
         res += v[i]->result_name;
     }
     return res;
-}
-
-void logDebugMessage(const google::protobuf::Message & message, const char * type)
-{
-    auto * logger = &Poco::Logger::get("SerializedPlanParser");
-    if (logger->debug())
-    {
-        namespace pb_util = google::protobuf::util;
-        pb_util::JsonOptions options;
-        std::string json;
-        auto s = pb_util::MessageToJsonString(message, &json, options);
-        if (!s.ok())
-            throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert {} to Json", type);
-        LOG_DEBUG(logger, "{}:\n{}", type, json);
-    }
 }
 
 const ActionsDAG::Node * SerializedPlanParser::addColumn(ActionsDAG& actions_dag, const DataTypePtr & type, const Field & field)

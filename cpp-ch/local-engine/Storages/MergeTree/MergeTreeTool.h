@@ -15,20 +15,15 @@
  * limitations under the License.
  */
 #pragma once
-#include <IO/ReadBufferFromString.h>
-#include <IO/ReadHelpers.h>
-#include <IO/WriteBufferFromString.h>
-#include <IO/WriteHelpers.h>
+
 #include <Interpreters/TableJoin.h>
 #include <Interpreters/TreeRewriter.h>
-#include <Parsers/ASTExpressionList.h>
-#include <Parsers/ASTFunction.h>
-#include <Parsers/ASTSelectQuery.h>
+
+#include <Interpreters/MergeTreeTransaction.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
 #include <Storages/MergeTree/RangesInDataPart.h>
 #include <Storages/SelectQueryInfo.h>
 #include <Storages/StorageInMemoryMetadata.h>
-#include <Interpreters/MergeTreeTransaction.h>
 #include <substrait/plan.pb.h>
 
 namespace local_engine
@@ -38,19 +33,19 @@ using namespace DB;
 
 struct MergeTreePart
 {
-    String name;
+    std::string name;
     size_t begin;
     size_t end;
 };
 
 struct MergeTreeTableSettings
 {
-    String storage_policy = "";
+    std::string storage_policy = "";
 };
 
 struct MergeTreeTable
 {
-    inline static const String TUPLE = "tuple()";
+    inline static const std::string TUPLE = "tuple()";
     std::string database;
     std::string table;
     std::string snapshot_id;
@@ -65,12 +60,13 @@ struct MergeTreeTable
     std::string absolute_path;
     MergeTreeTableSettings table_configs;
     std::vector<MergeTreePart> parts;
-    std::unordered_set<String> getPartNames() const;
+    std::unordered_set<std::string> getPartNames() const;
     RangesInDataParts extractRange(DataPartsVector parts_vector) const;
-    bool sameStructWith(const MergeTreeTable& other);
+    bool sameStructWith(const MergeTreeTable & other) const;
 };
 
-std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(const DB::NamesAndTypesList &columns, ContextPtr context, const MergeTreeTable &);
+std::shared_ptr<DB::StorageInMemoryMetadata>
+buildMetaData(const DB::NamesAndTypesList & columns, ContextPtr context, const MergeTreeTable &);
 
 std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config);
 
