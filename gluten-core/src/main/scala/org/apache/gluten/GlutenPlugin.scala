@@ -159,7 +159,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     // value (detected for the platform) is used, consistent with spark.
     conf.set(GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
 
-    // task slots
+    // Task slots.
     val taskSlots = SparkResourceUtil.getTaskSlots(conf)
     conf.set(GlutenConfig.GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, taskSlots.toString)
 
@@ -170,9 +170,6 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
         // 1GB default
         1024 * 1024 * 1024
       }
-
-    val overheadSize: Long = SparkResourceUtil.getMemoryOverheadSize(conf)
-    conf.set(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY, overheadSize.toString)
 
     // If dynamic off-heap sizing is enabled, the off-heap size is calculated based on the on-heap
     // size. Otherwise, the off-heap size is set to the value specified by the user (if any).
