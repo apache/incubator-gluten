@@ -305,12 +305,22 @@ target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
 
-import_library(external::stemmer
-               ${VELOX_BUILD_PATH}/_deps/libstemmer/src/libstemmer/libstemmer.a)
-target_link_libraries(velox PUBLIC external::stemmer)
-
 set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+
+find_library(STEMMER_LIB NAMES libstemmer.a)
+if(STEMMER_LIB)
+  message(STATUS "Found stemmer: ${STEMMER_LIB}")
+  add_library(external::stemmer STATIC IMPORTED)
+  set_target_properties(external::stemmer PROPERTIES IMPORTED_LOCATION
+                                                     ${STEMMER_LIB})
+else()
+  import_library(
+    external::stemmer
+    ${VELOX_BUILD_PATH}/_deps/libstemmer/src/libstemmer/libstemmer.a)
+endif()
+target_link_libraries(velox PUBLIC external::stemmer)
+
 find_package(simdjson CONFIG)
 if(simdjson_FOUND AND TARGET simdjson::simdjson)
   target_link_libraries(velox PUBLIC simdjson::simdjson)
@@ -319,6 +329,7 @@ else()
                  ${VELOX_BUILD_PATH}/_deps/simdjson-build/libsimdjson.a)
   target_link_libraries(velox PUBLIC external::simdjson)
 endif()
+
 set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 
 if(BUILD_TESTS)
