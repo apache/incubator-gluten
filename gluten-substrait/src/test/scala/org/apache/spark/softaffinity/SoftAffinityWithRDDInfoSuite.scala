@@ -38,9 +38,9 @@ object FakeSoftAffinityManager extends AffinityManager {
 
   override lazy val minOnTargetHosts: Int = 1
 
-  override lazy val detectDuplicateReading = true
+  override lazy val detectDuplicateReading: Boolean = true
 
-  override lazy val duplicateReadingMaxCacheItems = 1
+  override lazy val duplicateReadingMaxCacheItems: Int = 1
 }
 
 class SoftAffinityWithRDDInfoSuite extends QueryTest with SharedSparkSession with PredicateHelper {

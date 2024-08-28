@@ -34,7 +34,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   protected val tablesPath: String = basePath + "/tpch-data"
   protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+    rootPath + "../../../../gluten-substrait/src/test/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"
 
   private var parquetPath: String = _

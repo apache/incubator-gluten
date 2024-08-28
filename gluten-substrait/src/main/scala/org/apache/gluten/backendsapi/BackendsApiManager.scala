@@ -50,7 +50,7 @@ object BackendsApiManager {
 
   // Note: Do not make direct if-else checks based on output of the method.
   // Any form of backend-specific code should be avoided from appearing in common module
-  // (e.g. gluten-core, gluten-data)
+  // (e.g. gluten-substrait, gluten-data)
   def getBackendName: String = {
     backend.name()
   }

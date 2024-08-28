@@ -662,12 +662,12 @@ All TPC-H and TPC-DS queries are supported in Gluten Velox backend.
 The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
 [TPC-DS dategen script](../../tools/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh).
 
-The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original)
-and [TPC-H queries](../../gluten-core/src/test/resources/tpch-queries).
+The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../gluten-substrait/src/test/resources/tpcds-queries/tpcds.queries.original)
+and [TPC-H queries](../../gluten-substrait/src/test/resources/tpch-queries).
 
 Some other versions of TPC-DS queries are also provided, but are **not** recommended for testing, including:
 
-- the modified TPC-DS queries with "Decimal-to-Double": [TPC-DS non-decimal queries](../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.no-decimal) (outdated).
+- the modified TPC-DS queries with "Decimal-to-Double": [TPC-DS non-decimal queries](../../gluten-substrait/src/test/resources/tpcds-queries/tpcds.queries.no-decimal) (outdated).
 
 ## Submit the Spark SQL job
 
