@@ -4,6 +4,41 @@ set -e
 
 exec 3>&1 >&2
 
+BUILD_TESTS=OFF
+ENABLE_S3=OFF
+ENABLE_GCS=OFF
+ENABLE_HDFS=OFF
+ENABLE_ABFS=OFF
+
+for arg in "$@"; do
+  case $arg in
+  --build_tests=*)
+    BUILD_TESTS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_s3=*)
+    ENABLE_S3=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_gcs=*)
+    ENABLE_GCS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_hdfs=*)
+    ENABLE_HDFS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_abfs=*)
+    ENABLE_ABFS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  *)
+    echo "Unrecognized argument: $arg"
+    exit 1
+    ;;
+  esac
+done
+
 SCRIPT_ROOT="$(realpath "$(dirname "$0")")"
 VCPKG_ROOT="$SCRIPT_ROOT/.vcpkg"
 VCPKG="$SCRIPT_ROOT/.vcpkg/vcpkg"
@@ -21,6 +56,27 @@ sed -i "s/192374a68e2971f04974a194645726196d9b8ee7abd650d1e6f65f7aa2ccc9b186c3ed
 
 $VCPKG install --no-print-usage \
     --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}"
+
+if [ "$BUILD_TESTS" = "ON" ]; then
+  $VCPKG install --no-print-usage \
+      --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" --x-feature=duckdb
+fi
+if [ "$ENABLE_S3" = "ON" ]; then
+  $VCPKG install --no-print-usage \
+      --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" --x-feature=velox-s3
+fi
+if [ "$ENABLE_GCS" = "ON" ]; then
+  $VCPKG install --no-print-usage \
+      --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" --x-feature=velox-gcs
+fi
+if [ "$ENABLE_HDFS" = "ON" ]; then
+  $VCPKG install --no-print-usage \
+      --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" --x-feature=velox-hdfs
+fi
+if [ "$ENABLE_ABFS" = "ON" ]; then
+  $VCPKG install --no-print-usage \
+      --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" --x-feature=velox-abfs
+fi
 
 VCPKG_TRIPLET_INSTALL_DIR=${SCRIPT_ROOT}/vcpkg_installed/${VCPKG_TRIPLET}
 EXPORT_TOOLS_PATH=
