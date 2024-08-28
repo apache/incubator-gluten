@@ -159,7 +159,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     // value (detected for the platform) is used, consistent with spark.
     conf.set(GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
 
-    // Task slotss
+    // Task slots.
     val taskSlots = SparkResourceUtil.getTaskSlots(conf)
     conf.set(GlutenConfig.GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, taskSlots.toString)
 
