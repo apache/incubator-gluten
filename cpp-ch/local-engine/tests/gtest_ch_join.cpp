@@ -26,10 +26,10 @@
 #include <Processors/Sources/SourceFromSingleChunk.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 
+#include <Storages/MergeTree/MergeTreeTool.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <gtest/gtest.h>
 #include <Common/DebugUtils.h>
-#include <Common/MergeTreeTool.h>
 
 #include <Core/Settings.h>
 #include <Interpreters/HashJoin/HashJoin.h>
