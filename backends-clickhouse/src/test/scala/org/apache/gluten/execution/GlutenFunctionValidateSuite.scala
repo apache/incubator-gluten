@@ -776,6 +776,13 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                 |     cast(id as string)) as timestamp)),
                 |  unix_micros(cast(concat('2024-09-03 17:23:10.12345',
                 |     cast(id as string)) as timestamp))
+                |""".stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test function arrays_zip") {
+    val sql = """
+                |SELECT arrays_zip(array(id, id+1, id+2), array(id, id-1, id-2))
                 |FROM range(10)
                 |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
