@@ -54,29 +54,25 @@ fi
 sed -i "s/3.27.1/3.28.3/g" $VCPKG_ROOT/scripts/vcpkgTools.xml
 sed -i "s/192374a68e2971f04974a194645726196d9b8ee7abd650d1e6f65f7aa2ccc9b186c3edb473bb4958c764532edcdd42f4182ee1fcb86b17d78b0bcd6305ce3df1/bd311ca835ef0914952f21d70d1753564d58de2ede02e80ede96e78cd2f40b4189e006007643ebb37792e13edd97eb4a33810bc8aca1eab6dd428eaffe1d2e38/g" $VCPKG_ROOT/scripts/vcpkgTools.xml
 
-$VCPKG install --no-print-usage \
-    --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}"
-
+EXTRA_FEATURES=""
 if [ "$BUILD_TESTS" = "ON" ]; then
-  $VCPKG install --no-print-usage \
-      --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" --x-feature=duckdb
+  EXTRA_FEATURES+="--x-feature=duckdb "
 fi
 if [ "$ENABLE_S3" = "ON" ]; then
-  $VCPKG install --no-print-usage \
-      --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" --x-feature=velox-s3
+  EXTRA_FEATURES+="--x-feature=velox-s3 "
 fi
 if [ "$ENABLE_GCS" = "ON" ]; then
-  $VCPKG install --no-print-usage \
-      --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" --x-feature=velox-gcs
+  EXTRA_FEATURES+="--x-feature=velox-gcs "
 fi
 if [ "$ENABLE_HDFS" = "ON" ]; then
-  $VCPKG install --no-print-usage \
-      --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" --x-feature=velox-hdfs
+  EXTRA_FEATURES+="--x-feature=velox-hdfs "
 fi
 if [ "$ENABLE_ABFS" = "ON" ]; then
-  $VCPKG install --no-print-usage \
-      --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" --x-feature=velox-abfs
+  EXTRA_FEATURES+="--x-feature=velox-abfs"
 fi
+
+$VCPKG install --no-print-usage \
+    --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" ${EXTRA_FEATURES}
 
 VCPKG_TRIPLET_INSTALL_DIR=${SCRIPT_ROOT}/vcpkg_installed/${VCPKG_TRIPLET}
 EXPORT_TOOLS_PATH=
@@ -101,7 +97,7 @@ cp $VCPKG_TRIPLET_INSTALL_DIR/lib/libssl.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib
 cp $VCPKG_TRIPLET_INSTALL_DIR/lib/libcrypto.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib
 cp $VCPKG_TRIPLET_INSTALL_DIR/lib/liblzma.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib
 cp $VCPKG_TRIPLET_INSTALL_DIR/lib/libdwarf.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib
-cp $VCPKG_TRIPLET_INSTALL_DIR/lib/libhdfs3.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib
+cp $VCPKG_TRIPLET_INSTALL_DIR/lib/libhdfs3.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib || true
 
 cat <<EOF >&3
 if [ "\${GLUTEN_VCPKG_ENABLED:-}" != "${VCPKG_ROOT}" ]; then
