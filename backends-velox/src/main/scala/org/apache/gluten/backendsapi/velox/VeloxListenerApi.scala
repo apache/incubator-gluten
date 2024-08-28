@@ -42,12 +42,24 @@ class VeloxListenerApi extends ListenerApi with Logging {
   override def onDriverStart(sc: SparkContext, pc: PluginContext): Unit = {
     val conf = pc.conf()
 
-    // FIXME: The following is a workaround. Remove once the causes are fixed.
-    conf.set(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY, Long.MaxValue.toString)
-    logWarning(
-      "Setting overhead memory that Gluten can use to UNLIMITED. This is currently a" +
-        " temporary solution to avoid OOM by Velox's global memory pools." +
-        " See GLUTEN-6960 for more information.")
+    // Overhead memory limits.
+    val offHeapSize = conf.getSizeAsBytes(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY)
+    val desiredOverheadSize = (0.1 * offHeapSize).toLong
+    if (!SparkResourceUtil.isMemoryOverheadSet(conf)) {
+      // If memory overhead is not set by user, automatically set it according to off-heap settings.
+      logInfo(
+        "Memory overhead is not set. Setting it to 0.1 * off-heap memory size automatically." +
+          " Gluten doesn't follow Spark's calculation on this because the actual overhead will" +
+          " depend on off-heap usage than on on-heap usage.")
+      conf.set(GlutenConfig.SPARK_OVERHEAD_SIZE_KEY, desiredOverheadSize.toString)
+    }
+    val overheadSize: Long = SparkResourceUtil.getMemoryOverheadSize(conf)
+    if (overheadSize < desiredOverheadSize) {
+      logWarning(
+        s"Memory overhead is set to $overheadSize which is smaller than the recommended size" +
+          s" $desiredOverheadSize. This may cause OOM.")
+    }
+    conf.set(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY, overheadSize.toString)
 
     // Sql table cache serializer.
     if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = false)) {
