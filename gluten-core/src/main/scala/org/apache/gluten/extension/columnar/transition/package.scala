@@ -49,8 +49,8 @@ package object transition {
   object RowToColumnarLike {
     def unapply(plan: SparkPlan): Option[SparkPlan] = {
       plan match {
-        case c2r: RowToColumnarTransition =>
-          Some(c2r.child)
+        case r2c: RowToColumnarTransition =>
+          Some(r2c.child)
         case _ => None
       }
     }
