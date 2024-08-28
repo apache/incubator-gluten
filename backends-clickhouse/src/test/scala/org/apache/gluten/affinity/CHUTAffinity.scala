@@ -35,6 +35,6 @@ object CHUTSoftAffinityManager extends AffinityManager {
 
   override lazy val detectDuplicateReading = true
 
-  override lazy val maxDuplicateReadingRecords =
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_MAX_DUPLICATE_READING_RECORDS_DEFAULT_VALUE
+  override lazy val duplicateReadingMaxCacheItems =
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
 }
