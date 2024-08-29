@@ -20,8 +20,8 @@
 #include <Interpreters/Squashing.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
 #include <Storages/MergeTree/MergeTreeDataWriter.h>
-#include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Storages/MergeTree/MergeTreeTool.h>
+#include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Common/CHUtil.h>
 
 namespace DB
@@ -99,59 +99,4 @@ private:
     std::mutex memory_mutex;
     bool isRemoteStorage = false;
 };
-
-class SparkMergeTreeDataWriter
-{
-public:
-    struct PartitionInfo
-    {
-        std::string part_name_prefix;
-        std::string partition_dir;
-        std::string bucket_dir;
-        int part_num;
-    };
-
-    explicit SparkMergeTreeDataWriter(MergeTreeData & data_)
-        : data(data_)
-        , log(getLogger(data.getLogName() + " (Writer)"))
-    {
-    }
-    MergeTreeDataWriter::TemporaryPart writeTempPart(
-        DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot, const ContextPtr & context, const PartitionInfo & partition_info) const;
-
-private:
-    MergeTreeData & data;
-    LoggerPtr log;
-};
-
-class SparkStorageMergeTree final: public CustomStorageMergeTree
-{
-public:
-    SparkStorageMergeTree(
-        const StorageID & table_id_,
-        const String & relative_data_path_,
-        const StorageInMemoryMetadata & metadata,
-        bool attach,
-        const ContextMutablePtr & context_,
-        const String & date_column_name,
-        const MergingParams & merging_params_,
-        std::unique_ptr<MergeTreeSettings> settings_,
-        bool has_force_restore_data_flag)
-        : CustomStorageMergeTree(
-              table_id_,
-              relative_data_path_,
-              metadata,
-              attach,
-              context_,
-              date_column_name,
-              merging_params_,
-              std::move(settings_),
-              has_force_restore_data_flag)
-    {
-    }
-
-private:
-    // SparkMergeTreeDataWriter writer;
-};
-
 }
