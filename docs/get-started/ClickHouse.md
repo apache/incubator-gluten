@@ -148,9 +148,7 @@ The prerequisites are the same as the one mentioned above. Compile Gluten with C
 ```
 tar zxf spark-3.2.2-bin-hadoop2.7.tgz
 cd spark-3.2.2-bin-hadoop2.7
-rm -f jars/protobuf-java-2.5.0.jar
-#download protobuf-java-3.23.4.jar, delta-core_2.12-2.0.1.jar and delta-storage-2.0.1.jar
-wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.23.4/protobuf-java-3.23.4.jar -P ./jars
+#download delta-core_2.12-2.0.1.jar and delta-storage-2.0.1.jar
 wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.0.1/delta-core_2.12-2.0.1.jar -P ./jars
 wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.1/delta-storage-2.0.1.jar -P ./jars
 cp gluten-XXXXX-spark-3.2-jar-with-dependencies.jar jars/
@@ -161,9 +159,7 @@ cp gluten-XXXXX-spark-3.2-jar-with-dependencies.jar jars/
 ```
 tar zxf spark-3.3.1-bin-hadoop2.7.tgz
 cd spark-3.3.1-bin-hadoop2.7
-rm -f jars/protobuf-java-2.5.0.jar
-#download protobuf-java-3.23.4.jar, delta-core_2.12-2.2.0.jar and delta-storage-2.2.0.jar
-wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.23.4/protobuf-java-3.23.4.jar -P ./jars
+#download delta-core_2.12-2.2.0.jar and delta-storage-2.2.0.jar
 wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.2.0/delta-core_2.12-2.2.0.jar -P ./jars
 wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.2.0/delta-storage-2.2.0.jar -P ./jars
 cp gluten-XXXXX-spark-3.3-jar-with-dependencies.jar jars/
