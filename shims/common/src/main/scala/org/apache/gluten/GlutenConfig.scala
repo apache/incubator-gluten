@@ -661,7 +661,7 @@ object GlutenConfig {
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
       "spark.io.compression.codec",
-      SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
+      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key,
@@ -771,8 +771,7 @@ object GlutenConfig {
       SPARK_OFFHEAP_ENABLED,
       SESSION_LOCAL_TIMEZONE.key,
       DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
-      SPARK_REDACTION_REGEX,
-      SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
+      SPARK_REDACTION_REGEX
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
