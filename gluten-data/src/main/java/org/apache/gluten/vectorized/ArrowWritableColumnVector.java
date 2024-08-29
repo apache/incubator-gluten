@@ -1255,8 +1255,13 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       throw new UnsupportedOperationException();
     }
 
-    // Most of date type of Arrow does not need to setNotNull, set the value is enough.
-    void setNotNull(int rowId) {}
+    void setNotNull(int rowId) {
+      // Arrow Java library doesn't usually expose this API from its vectors. So we have to
+      // allow no-op here than throwing exceptions which could fail caller. And basically it's
+      // acceptable because finally Spark will set value after this method returned,
+      // During which Arrow Java will set the validity buffer anyway. As if the call to
+      // `setNotNull` is just deferred.
+    }
 
     void setNulls(int rowId, int count) {
       throw new UnsupportedOperationException();
@@ -1748,9 +1753,9 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     final void setBytes(int rowId, int count, byte[] src, int srcIndex) {
       if (count == src.length && srcIndex == 0) {
         writer.setBigEndianSafe(rowId, src);
-      } else {
-        throw new UnsupportedOperationException();
+        return;
       }
+      throw new UnsupportedOperationException();
     }
   }
 
