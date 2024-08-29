@@ -303,7 +303,7 @@ void WholeStageResultIterator::collectMetrics() {
 
   const auto& taskStats = task_->taskStats();
   if (taskStats.executionStartTimeMs == 0) {
-    LOG(INFO) << "collectMetrics failed, taskStats is zero, maybe task never call next().";
+    LOG(INFO) << "Skip collect task metrics since task did not call next().";
     return;
   }
 
