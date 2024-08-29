@@ -50,8 +50,7 @@ void LocalExecutor::initPullingPipelineExecutor()
     if (!executor)
     {
         query_pipeline = QueryPipelineBuilder::getPipeline(std::move(*query_pipeline_builder));
-        query_pipeline.setNumThreads(1);
-        executor = std::make_unique<PullingAsyncPipelineExecutor>(query_pipeline);
+        executor = std::make_unique<PullingPipelineExecutor>(query_pipeline);
     }
 }
 
@@ -121,18 +120,10 @@ void LocalExecutor::setSinks(std::function<void(DB::QueryPipelineBuilder &)> set
     setter(*query_pipeline_builder);
 }
 
-void LocalExecutor::setExternalPipelineBuilder(DB::QueryPipelineBuilderPtr builder)
-{
-    external_pipeline_builder = std::move(builder);
-}
-
 void LocalExecutor::execute()
 {
-    chassert(query_pipeline_builder || external_pipeline_builder);
-    if (external_pipeline_builder)
-        push_executor = external_pipeline_builder->execute();
-    else
-        push_executor = query_pipeline_builder->execute();
+    chassert(query_pipeline_builder);
+    push_executor = query_pipeline_builder->execute();
     push_executor->execute(local_engine::QueryContextManager::instance().currentQueryContext()->getSettingsRef().max_threads, false);
 }
 

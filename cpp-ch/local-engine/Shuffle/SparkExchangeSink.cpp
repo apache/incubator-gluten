@@ -174,6 +174,16 @@ void SparkExchangeManager::setSinksToPipeline(DB::QueryPipelineBuilder & pipelin
     pipeline.setSinks(getter);
 }
 
+void SparkExchangeManager::pushBlock(const DB::Block & block)
+{
+    if (sinks.size() != 1)
+    {
+        throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "only support push block to single sink");
+    }
+
+    sinks.front()->consume({block.getColumns(), block.rows()});
+}
+
 SelectBuilderPtr SparkExchangeManager::createRoundRobinSelectorBuilder(const SplitOptions & options_)
 {
     return std::make_unique<RoundRobinSelectorBuilder>(options_.partition_num);
@@ -204,6 +214,7 @@ SelectBuilderPtr SparkExchangeManager::createRangeSelectorBuilder(const SplitOpt
 void SparkExchangeManager::finish()
 {
     Stopwatch wall_time;
+
     mergeSplitResult();
     if (!use_rss)
     {
@@ -216,13 +227,13 @@ void SparkExchangeManager::finish()
             {
                 extra_datas.emplace_back(local_partition_writer->getExtraData());
             }
-
         }
         if (!extra_datas.empty())
             chassert(extra_datas.size() == partition_writers.size());
         WriteBufferFromFile output(options.data_file, options.io_buffer_size);
         split_result.partition_lengths = mergeSpills(output, infos, extra_datas);
     }
+
     split_result.wall_time += wall_time.elapsedNanoseconds();
 }
 
@@ -243,6 +254,7 @@ void SparkExchangeManager::mergeSplitResult()
     }
     for (const auto & sink : sinks)
     {
+        sink->onFinish();
         auto split_result = sink->getSplitResultCopy();
         this->split_result.total_bytes_written += split_result.total_bytes_written;
         this->split_result.total_bytes_spilled += split_result.total_bytes_spilled;
@@ -269,7 +281,7 @@ void SparkExchangeManager::mergeSplitResult()
     }
 }
 
-std::vector<SpillInfo> SparkExchangeManager::gatherAllSpillInfo()
+std::vector<SpillInfo> SparkExchangeManager::gatherAllSpillInfo() const
 {
     std::vector<SpillInfo> res;
     for (const auto& writer : partition_writers)

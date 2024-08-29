@@ -34,6 +34,7 @@ class PartitionWriter;
 
 class SparkExchangeSink : public DB::ISink
 {
+    friend class SparkExchangeManager;
 public:
     SparkExchangeSink(const DB::Block& header, std::unique_ptr<SelectorBuilder> partitioner_,
                       std::shared_ptr<PartitionWriter> partition_writer_,
@@ -87,6 +88,7 @@ public:
     SparkExchangeManager(const DB::Block& header, const String & short_name, const SplitOptions & options_,  jobject rss_pusher = nullptr);
     void initSinks(size_t num);
     void setSinksToPipeline(DB::QueryPipelineBuilder & pipeline) const;
+    void pushBlock(const DB::Block &block);
     void finish();
     [[nodiscard]] SplitResult getSplitResult() const
     {
@@ -101,7 +103,7 @@ private:
     static std::unordered_map<String, SelectBuilderCreator> partitioner_creators;
 
     void mergeSplitResult();
-    std::vector<SpillInfo> gatherAllSpillInfo();
+    std::vector<SpillInfo> gatherAllSpillInfo() const;
     std::vector<UInt64> mergeSpills(DB::WriteBuffer & data_file, const std::vector<SpillInfo>& spill_infos, const std::vector<Spillable::ExtraData> & extra_datas = {});
 
     DB::Block input_header;

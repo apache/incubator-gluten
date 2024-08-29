@@ -18,7 +18,7 @@
 #pragma once
 #include <Common/BlockIterator.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Processors/Executors/PullingAsyncPipelineExecutor.h>
+#include <Processors/Executors/PullingPipelineExecutor.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/RelMetric.h>
@@ -49,8 +49,6 @@ public:
     /// Stop execution, used when task receives shutdown command or executor receives SIGTERM signal
     void cancel();
     void setSinks(std::function<void(DB::QueryPipelineBuilder &)> setter);
-    // set shuffle write pipeline for fallback
-    void setExternalPipelineBuilder(DB::QueryPipelineBuilderPtr builder);
     void execute();
     DB::Block getHeader();
     RelMetricPtr getMetric() const { return metric; }
@@ -65,10 +63,10 @@ private:
     std::string dumpPipeline() const;
 
     DB::QueryPipelineBuilderPtr query_pipeline_builder;
-    // final shuffle write pipeline for fallback
-    DB::QueryPipelineBuilderPtr external_pipeline_builder = nullptr;
     DB::QueryPipeline query_pipeline;
-    std::unique_ptr<DB::PullingAsyncPipelineExecutor> executor = nullptr;
+    // executor for fallback or ResultTask
+    std::unique_ptr<DB::PullingPipelineExecutor> executor = nullptr;
+    // executor for ShuffleMapTask
     DB::PipelineExecutorPtr push_executor = nullptr;
     DB::Block header;
     bool dump_pipeline;

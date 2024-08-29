@@ -556,27 +556,14 @@ local_engine::SplitterHolder * buildAndExecuteShuffle(JNIEnv * env,
         {
             /// Try to decide header from the first block read from Java iterator.
             auto header = first_block.value().cloneEmpty();
-            auto context = local_engine::QueryContextManager::instance().currentQueryContext();
-            auto *global_iter = env->NewGlobalRef(iter);
-            auto source = std::make_shared<local_engine::SourceFromJavaIter>(context, header, global_iter, true, std::move(first_block));
             splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(header, name, options, rss_pusher)};
-
-            DB::QueryPipelineBuilderPtr builder = std::make_unique<DB::QueryPipelineBuilder>();
-            builder->init(DB::Pipe(source));
-            // fallback only support one sink
             splitter->exchange_manager->initSinks(1);
-            splitter->exchange_manager->setSinksToPipeline(*builder);
-            if (current_executor)
+            splitter->exchange_manager->pushBlock(first_block.value());
+            first_block = std::nullopt;
+            // in fallback mode, spark's whole stage code gen operator uses TaskContext and needs to be executed in the task thread.
+            while (auto block = local_engine::SourceFromJavaIter::peekBlock(env, iter))
             {
-                // partial fallback, can't build whole stage pipeline
-                current_executor->setExternalPipelineBuilder(std::move(builder));
-                current_executor->execute();
-            }
-            else
-            {
-                // whole stage fallback which no LocalExecutor created but use columnar shuffle
-                auto executor = builder->execute();
-                executor->execute(1, false);
+                splitter->exchange_manager->pushBlock(block.value());
             }
         }
         else
@@ -733,7 +720,7 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_
 
     // AQE has dependency on total_bytes_written, if the data is wrong, it will generate inappropriate plan
     // add a log here for remining this.
-    if (!result.total_bytes_written)
+    if (result.total_rows && !result.total_bytes_written)
         LOG_WARNING(getLogger("CHShuffleSplitterJniWrapper"), "total_bytes_written is 0, something may be wrong");
 
     jobject split_result = env->NewObject(
