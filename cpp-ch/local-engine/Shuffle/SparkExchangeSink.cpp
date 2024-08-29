@@ -276,9 +276,8 @@ std::vector<SpillInfo> SparkExchangeManager::gatherAllSpillInfo()
     {
         if (Spillable * spillable = dynamic_cast<Spillable *>(writer.get()))
         {
-            if (spillable)
-                for (const auto & info : spillable->getSpillInfos())
-                    res.emplace_back(info);
+            for (const auto & info : spillable->getSpillInfos())
+                res.emplace_back(info);
         }
     }
     return res;
