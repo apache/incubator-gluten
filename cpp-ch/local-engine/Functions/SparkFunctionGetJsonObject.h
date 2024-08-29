@@ -17,7 +17,6 @@
 #pragma once
 #include <memory>
 #include <string_view>
-#include <stack>
 #include <Columns/ColumnNullable.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
@@ -33,12 +32,14 @@
 #include <Parsers/IParser.h>
 #include <Parsers/Lexer.h>
 #include <Parsers/TokenIterator.h>
+#include <base/find_symbols.h>
 #include <base/range.h>
 #include <Poco/Logger.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/Exception.h>
 #include <Common/JSONParsers/DummyJSONParser.h>
 #include <Common/JSONParsers/SimdJSONParser.h>
+#include <Common/StringUtils.h>
 #include <Common/logger_useful.h>
 
 namespace DB
@@ -64,6 +65,332 @@ namespace local_engine
 struct GetJsonObject
 {
     static constexpr auto name{"get_json_object"};
+};
+
+class JSONTextNormalizer
+{
+public:
+    // simd json will fail to parse the json text on some cases, see #7014, #3750, #3337, #5303
+    // To keep the result same with vanilla, we normalize the json string when simd json fails.
+    // It returns null when normalize the json text fail, otherwise returns a position among `pos`
+    // and `end` which points to the whole json object end.
+    // `dst` refer to a memory buffer that is used to store the normalization result.
+    static const char * normalize(const char * pos, const char * end, char *& dst)
+    {
+        pos = normalizeWhitespace(pos, end, dst);
+        if (!pos || pos >= end)
+            return nullptr;
+        if (*pos == '[')
+            return normalizeArray(pos, end, dst);
+        else if (*pos == '{')
+            return normalizeObject(pos, end, dst);
+        return nullptr;
+    }
+
+private:
+    inline static void copyToDst(char *& p, char c)
+    {
+        *p = c;
+        p++;
+    }
+
+    inline static void copyToDst(char *& p, const char * src, size_t len)
+    {
+        memcpy(p, src, len);
+        p += len;
+    }
+
+    inline static bool isExpectedChar(char c, const char * pos, const char * end) { return pos && pos < end && *pos == c; }
+
+    inline static const char * normalizeWhitespace(const char * pos, const char * end, char *& dst)
+    {
+        const auto * start_pos = pos;
+        while (pos && pos < end)
+        {
+            if (isWhitespaceASCII(*pos))
+                pos++;
+            else
+                break;
+        }
+        if (pos != start_pos)
+            copyToDst(dst, start_pos, pos - start_pos);
+        return pos;
+    }
+
+    inline static const char * normalizeComma(const char * pos, const char * end, char *& dst)
+    {
+        pos = normalizeWhitespace(pos, end, dst);
+        if (!isExpectedChar(',', pos, end)) [[unlikely]]
+        {
+            // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeComma. not ,");
+            return nullptr;
+        }
+        pos += 1;
+        copyToDst(dst, ',');
+        return normalizeWhitespace(pos, end, dst);
+    }
+
+    inline static const char * normalizeColon(const char * pos, const char * end, char *& dst)
+    {
+        pos = normalizeWhitespace(pos, end, dst);
+        if (!isExpectedChar(':', pos, end))
+        {
+            // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeColon. not :");
+            return nullptr;
+        }
+        pos += 1;
+        copyToDst(dst, ':');
+        return normalizeWhitespace(pos, end, dst);
+    }
+
+    inline static const char * normalizeField(const char * pos, const char * end, char *& dst)
+    {
+        const auto * start_pos = pos;
+        pos = find_first_symbols<',', '}', ']'>(pos, end);
+        if (pos >= end) [[unlikely]]
+        {
+            // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeField. not field");
+            return nullptr;
+        }
+        copyToDst(dst, start_pos, pos - start_pos);
+        return pos;
+    }
+
+    inline static const char * normalizeString(const char * pos, const char * end, char *& dst)
+    {
+        const auto * start_pos = pos;
+        if (!isExpectedChar('"', pos, end)) [[unlikely]]
+        {
+            // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeString. not \"");
+            return nullptr;
+        }
+        pos += 1;
+
+        do
+        {
+            pos = find_first_symbols<'\\', '"'>(pos, end);
+            if (pos != end && *pos == '\\')
+            {
+                // escape charaters. e.g. '\"', '\\'
+                pos += 2;
+                if (pos >= end)
+                    return nullptr;
+            }
+            else
+                break;
+        } while (pos != end);
+
+        pos = find_first_symbols<'"'>(pos, end);
+        if (!isExpectedChar('"', pos, end))
+            return nullptr;
+        pos += 1;
+
+        size_t n = 0;
+        for (; start_pos != pos; ++start_pos)
+        {
+            if ((*start_pos >= 0x00 && *start_pos <= 0x1f) || *start_pos == 0x7f)
+            {
+                if (n)
+                {
+                    copyToDst(dst, start_pos - n, n);
+                    n = 0;
+                }
+                continue;
+            }
+            else
+            {
+                n += 1;
+            }
+        }
+        if (n)
+            copyToDst(dst, start_pos - n, n);
+
+        return normalizeWhitespace(pos, end, dst);
+    }
+
+    /// To use simdjson, we need to convert single quotes to double quotes.
+    /// FIXME: It will be OK if we just return a leaf value, but it will have different result for
+    /// returning a object with strings which are wrapped by single quotes.
+    inline static const char * normalizeSingleQuotesString(const char * pos, const char * end, char *&dst)
+    {
+        if (!isExpectedChar('\'', pos, end)) [[unlikely]]
+        {
+            // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeSingleQuotesString. not '");
+            return nullptr;
+        }
+        pos += 1;
+        const auto * start_pos = pos;
+        copyToDst(dst, '\"');
+        do
+        {
+            pos = find_first_symbols<'\\', '\''>(pos, end);
+            if (pos < end && *pos == '\\')
+            {
+                // escape charaters. e.g. '\\', '\''
+                pos += 2;
+                if (pos >= end)
+                    return nullptr;
+            }
+            else
+                break;
+        } while (pos != end);
+        pos = find_first_symbols<'\''>(pos, end);
+        if (!isExpectedChar('\'', pos, end))
+        {
+            LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeSingleQuotesString. not '");
+            return nullptr;
+        }
+        pos += 1;
+        size_t n = 0;
+        for (; start_pos != pos; ++start_pos)
+        {
+            if ((*start_pos >= 0x00 && *start_pos <= 0x1f) || *start_pos == 0x7f)
+            {
+                if (n)
+                {
+                    copyToDst(dst, start_pos - n, n);
+                    n = 0;
+                }
+                continue;
+            }
+            else
+            {
+                n += 1;
+            }
+        }
+        if (n && n - 1)
+            copyToDst(dst, start_pos - n, n - 1);
+        copyToDst(dst, '\"');
+
+        return normalizeWhitespace(pos, end, dst);
+    }
+
+    static const char * normalizeArray(const char * pos, const char * end, char *& dst)
+    {
+        if (!isExpectedChar('[', pos, end)) [[unlikely]]
+        {
+            // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeArray. not [");
+            return nullptr;
+        }
+        pos += 1;
+        copyToDst(dst, '[');
+
+        pos = normalizeWhitespace(pos, end, dst);
+
+        bool has_more = false;
+        while (pos && pos < end && *pos != ']')
+        {
+            has_more = false;
+            switch (*pos)
+            {
+                case '{': {
+                    pos = normalizeObject(pos, end, dst);
+                    break;
+                }
+                case '"': {
+                    pos = normalizeString(pos, end, dst);
+                    break;
+                }
+                case '\'': {
+                    pos = normalizeSingleQuotesString(pos, end, dst);
+                    break;
+                }
+                case '[': {
+                    pos = normalizeArray(pos, end, dst);
+                    break;
+                }
+                default: {
+                    pos = normalizeField(pos, end, dst);
+                    break;
+                }
+            }
+            if (!isExpectedChar(',', pos, end))
+                break;
+            pos = normalizeComma(pos, end, dst);
+            has_more = true;
+        }
+
+        if (!isExpectedChar(']', pos, end) || has_more)
+        {
+            // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeArray. not ]");
+            return nullptr;
+        }
+        pos += 1;
+        copyToDst(dst, ']');
+        return normalizeWhitespace(pos, end, dst);
+    }
+
+    static const char * normalizeObject(const char * pos, const char * end, char *& dst)
+    {
+        if (!isExpectedChar('{', pos, end)) [[unlikely]]
+        {
+            // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeObject. not object start");
+            return nullptr;
+        }
+        pos += 1;
+        copyToDst(dst, '{');
+
+        bool has_more = false;
+        while (pos && pos < end && *pos != '}')
+        {
+            has_more = false;
+            pos = normalizeWhitespace(pos, end, dst);
+            if (pos != end)
+            {
+                if (*pos == '\'')
+                    pos = normalizeSingleQuotesString(pos, end, dst);
+                else if (*pos == '"')
+                    pos = normalizeString(pos, end, dst);
+                else
+                    return nullptr;
+            }
+
+            pos = normalizeColon(pos, end, dst);
+            if (!pos)
+            {
+                // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeObject. not :");
+                break;
+            }
+
+            switch (*pos)
+            {
+                case '{': {
+                    pos = normalizeObject(pos, end, dst);
+                    break;
+                }
+                case '"': {
+                    pos = normalizeString(pos, end, dst);
+                    break;
+                }
+                case '\'': {
+                    pos = normalizeSingleQuotesString(pos, end, dst);
+                    break;
+                }
+                case '[': {
+                    pos = normalizeArray(pos, end, dst);
+                    break;
+                }
+                default: {
+                    pos = normalizeField(pos, end, dst);
+                    break;
+                }
+            }
+
+            if (!isExpectedChar(',', pos, end))
+                break;
+            pos = normalizeComma(pos, end, dst);
+            has_more = true;
+        }
+
+        if (!isExpectedChar('}', pos, end) || has_more)
+        {
+            // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeObject. not object end");
+            return nullptr;
+        }
+        pos += 1;
+        copyToDst(dst, '}');
+        return normalizeWhitespace(pos, end, dst);
+    }
 };
 
 template <typename JSONParser, typename JSONStringSerializer>
@@ -116,6 +443,7 @@ public:
             if (elements[0].isNull())
                 return false;
             nullable_col_str.getNullMapData().push_back(0);
+            
             if (elements[0].isString())
             {
                 auto str = elements[0].getString();
@@ -213,33 +541,40 @@ public:
 
 private:
     DB::ContextPtr context;
+    /// If too many rows cannot be parsed by simdjson directly, we will normalize the json text at first;
+    mutable bool is_most_normal_json_text = true;
+    mutable size_t total_parsed_rows = 0;
+    mutable size_t total_normalized_rows = 0;
 
-    size_t normalizeJson(std::string_view & json, char * dst) const
+    template<typename JSONParser>
+    bool safeParseJson(std::string_view str, JSONParser & parser, JSONParser::Element & doc) const
     {
-        const char * json_chars = json.data();
-        const size_t json_size = json.size();
-        std::stack<char> tmp;
-        size_t new_json_size = 0;
-        for (size_t i = 0; i <= json_size; ++i)
+        total_parsed_rows++;
+        if (total_parsed_rows > 10000 && total_normalized_rows * 100 / total_parsed_rows > 90)
         {
-            if ((*(json_chars + i) >= 0x00 && *(json_chars + i) <= 0x1F) || *(json_chars + i) == 0x7F)
-                continue;
-            else
+            is_most_normal_json_text = false;
+        }
+
+        bool is_doc_ok = false;
+        if (is_most_normal_json_text)
+        {
+            is_doc_ok = parser.parse(str, doc);
+        }
+        if (!is_doc_ok)
+        {
+            total_normalized_rows ++;
+            std::vector<char> buf;
+            buf.resize(str.size(), 0);
+            char * buf_pos = buf.data();
+            const char * pos = JSONTextNormalizer::normalize(str.data(), str.data() + str.size(), buf_pos);
+            if (pos)
             {
-                char ch = *(json_chars + i);
-                dst[new_json_size++] = ch;
-                if (ch == '{')
-                    tmp.push('{');
-                else if (ch == '}')
-                {
-                    if (!tmp.empty() && tmp.top() == '{')
-                        tmp.pop();
-                }
-                if (tmp.empty())
-                    break;
+                std::string n_str(buf.data(), buf_pos - buf.data());
+                // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalize {} to {}", str, n_str);
+                is_doc_ok = parser.parse(n_str, doc);
             }
         }
-        return new_json_size;
+        return is_doc_ok;
     }
 
     template <typename JSONParser, typename Impl>
@@ -318,13 +653,7 @@ private:
         if (col_json_const)
         {
             std::string_view json{reinterpret_cast<const char *>(chars.data()), offsets[0] - 1};
-            document_ok = parser.parse(json, document);
-            if (!document_ok)
-            {
-                char dst[json.size()];
-                size_t size = normalizeJson(json, dst);
-                document_ok = parser.parse(std::string_view(dst, size), document);
-            }
+            document_ok = safeParseJson(json, parser, document);
         }
 
         size_t tuple_size = tuple_columns.size();
@@ -340,13 +669,7 @@ private:
             if (!col_json_const)
             {
                 std::string_view json{reinterpret_cast<const char *>(&chars[offsets[i - 1]]), offsets[i] - offsets[i - 1] - 1};
-                document_ok = parser.parse(json, document);
-                if (!document_ok)
-                {
-                    char dst[json.size()];
-                    size_t size = normalizeJson(json, dst);
-                    document_ok = parser.parse(std::string_view(dst, size), document);
-                }
+                document_ok = safeParseJson(json, parser, document);
             }
             if (document_ok)
             {
