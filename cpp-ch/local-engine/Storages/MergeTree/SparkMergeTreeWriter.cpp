@@ -346,7 +346,7 @@ void SparkMergeTreeWriter::checkAndMerge(bool force)
     {
         for (const auto & selected_part : prepare_merge_parts)
             tmp_parts.emplace(selected_part->name);
-        // check thread group initailized in task thread
+        // check thread group initialized in task thread
         currentThreadGroupMemoryUsage();
         thread_pool.scheduleOrThrow(
             [this, prepare_merge_parts, thread_group = CurrentThread::getGroup()]() -> void

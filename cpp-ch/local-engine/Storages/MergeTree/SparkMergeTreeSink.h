@@ -44,8 +44,12 @@ private:
     LoggerPtr log;
 };
 
+class SparkMergeTreeSink;
+
 class SparkStorageMergeTree final : public CustomStorageMergeTree
 {
+    friend class SparkMergeTreeSink;
+
 public:
     SparkStorageMergeTree(
         const StorageID & table_id_,
@@ -55,8 +59,7 @@ public:
         const ContextMutablePtr & context_,
         const String & date_column_name,
         const MergingParams & merging_params_,
-        std::unique_ptr<MergeTreeSettings> settings_,
-        bool has_force_restore_data_flag)
+        std::unique_ptr<MergeTreeSettings> settings_)
         : CustomStorageMergeTree(
               table_id_,
               relative_data_path_,
@@ -66,7 +69,7 @@ public:
               date_column_name,
               merging_params_,
               std::move(settings_),
-              has_force_restore_data_flag)
+              false /*has_force_restore_data_flag*/)
         , writer(*this)
     {
     }
@@ -81,10 +84,24 @@ private:
 class SparkMergeTreeSink : public DB::SinkToStorage
 {
 public:
-    explicit SparkMergeTreeSink(const ::DB::Block & header) : SinkToStorage(header) { }
+    explicit SparkMergeTreeSink(
+        SparkStorageMergeTree & storage_, const StorageMetadataPtr & metadata_snapshot_, const ContextPtr & context_)
+        : SinkToStorage(metadata_snapshot_->getSampleBlock()), storage(storage_), metadata_snapshot(metadata_snapshot_), context(context_)
+    {
+    }
+    ~SparkMergeTreeSink() override;
+
+    String getName() const override { return "SparkMergeTreeSink"; }
+    void consume(Chunk & chunk) override;
+    void onStart() override;
+    void onFinish() override;
 
 private:
-    // SparkStorageMergeTree & storage;
+    SparkStorageMergeTree & storage;
+    StorageMetadataPtr metadata_snapshot;
+    ContextPtr context;
+    int part_num = 1;
+    std::vector<DB::MergeTreeDataPartPtr> new_parts{};
 };
 
 }

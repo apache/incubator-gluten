@@ -20,6 +20,7 @@
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
+#include <Storages/MergeTree/SparkMergeTreeSink.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
@@ -75,7 +76,7 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(const MergeTreeTable 
         merge_tree_table,
         [&]() -> CustomStorageMergeTreePtr
         {
-            auto custom_storage_merge_tree = std::make_shared<CustomStorageMergeTree>(
+            auto custom_storage_merge_tree = std::make_shared<SparkStorageMergeTree>(
                 StorageID(merge_tree_table.database, merge_tree_table.table),
                 merge_tree_table.relative_path,
                 *metadata,

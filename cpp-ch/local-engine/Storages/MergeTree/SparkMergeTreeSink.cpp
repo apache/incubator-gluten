@@ -60,6 +60,8 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     else
         part_dir = fmt::format("{}_{:03d}", part_name_prefix, part_num);
 
+    assert(part_num > 0 && !part_name_prefix.empty());
+
     String part_name = part_dir;
 
     temp_part.temporary_directory_lock = data.getTemporaryPartDirectoryHolder(part_dir);
@@ -171,9 +173,47 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
 
 
 SinkToStoragePtr SparkStorageMergeTree::write(
-    const ASTPtr & query, const StorageMetadataPtr & storage_in_memory_metadata, ContextPtr context, bool async_insert)
+    const ASTPtr &, const StorageMetadataPtr & storage_in_memory_metadata, ContextPtr context, bool /*async_insert*/)
 {
-    return CustomStorageMergeTree::write(query, storage_in_memory_metadata, context, async_insert);
+    return std::make_shared<SparkMergeTreeSink>(*this, storage_in_memory_metadata, context);
+}
+
+SparkMergeTreeSink::~SparkMergeTreeSink()
+{
+}
+
+void SparkMergeTreeSink::consume(Chunk & chunk)
+{
+    assert(!metadata_snapshot->hasPartitionKey());
+    auto block = getHeader().cloneWithColumns(chunk.getColumns());
+    auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, metadata_snapshot, context);
+
+    for (auto & item : blocks_with_partition)
+    {
+        size_t before_write_memory = 0;
+        if (auto * memory_tracker = CurrentThread::getMemoryTracker())
+        {
+            CurrentThread::flushUntrackedMemory();
+            before_write_memory = memory_tracker->get();
+        }
+
+        MergeTreeDataWriter::TemporaryPart temp_part
+            = storage.writer.writeTempPart(item, metadata_snapshot, context, SparkMergeTreeDataWriter::PartitionInfo{});
+        new_parts.emplace_back(temp_part.part);
+        part_num++;
+        /// Reset earlier to free memory
+        item.block.clear();
+        item.partition.clear();
+    }
+}
+
+void SparkMergeTreeSink::onStart()
+{
+    // DO NOTHING
+}
+void SparkMergeTreeSink::onFinish()
+{
+    // DO NOTHING
 }
 
 }
