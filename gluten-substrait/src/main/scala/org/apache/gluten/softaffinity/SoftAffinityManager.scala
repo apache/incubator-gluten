@@ -40,13 +40,14 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
 
   private val softAffinityAllocation = new SoftAffinityStrategy
 
-  val minOnTargetHosts: Int
+  lazy val minOnTargetHosts: Int = GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE
 
-  val usingSoftAffinity: Boolean
+  lazy val usingSoftAffinity: Boolean = true
 
-  val detectDuplicateReading: Boolean
+  lazy val detectDuplicateReading: Boolean = true
 
-  val duplicateReadingMaxCacheItems: Int
+  lazy val duplicateReadingMaxCacheItems: Int =
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
 
   // (execId, host) list
   val fixedIdForExecutors = new mutable.ListBuffer[Option[(String, String)]]()
