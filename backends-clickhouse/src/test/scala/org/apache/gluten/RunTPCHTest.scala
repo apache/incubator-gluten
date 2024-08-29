@@ -63,7 +63,7 @@ object RunTPCHTest {
     FileUtils.forceMkdir(new File(warehouse))
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
 
-    val resourcePath = rootPath + "../../../../gluten-substrait/src/test/resources/"
+    val resourcePath = rootPath + "../../../../gluten-core/src/test/resources/"
     val queryPath = resourcePath + "/tpch-queries/"
     // which sql to execute
     val sqlFilePath = queryPath + "q01.sql"

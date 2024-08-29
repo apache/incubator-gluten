@@ -43,7 +43,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
   protected val tablesPath: String = UTSystemParameters.tpcdsDecimalDataPath + "/"
   protected val db_name: String = "tpcdsdb"
   protected val tpcdsQueries: String =
-    rootPath + "../../../../gluten-substrait/src/test/resources/tpcds-queries/tpcds.queries.original"
+    rootPath + "../../../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original"
   protected val queriesResults: String = rootPath + "tpcds-decimal-queries-output"
 
   /** Return values: (sql num, is fall back) */

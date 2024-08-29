@@ -28,7 +28,7 @@ var gluten_root = "/PATH/TO/GLUTEN"
 // e.g. hdfs://hostname:8020
 var paq_file_root = "/ROOT_PATH"
 
-var tpcds_queries_path = "/gluten-substrait/src/test/resources/tpcds-queries/"
+var tpcds_queries_path = "/gluten-core/src/test/resources/tpcds-queries/"
 var queries_no_decimal = "tpcds.queries.no-decimal"
 var queries_original = "tpcds.queries.original"
 

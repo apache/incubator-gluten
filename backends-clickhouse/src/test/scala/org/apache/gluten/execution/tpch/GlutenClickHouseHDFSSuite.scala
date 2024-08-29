@@ -29,7 +29,7 @@ class GlutenClickHouseHDFSSuite
 
   override protected val tablesPath: String = HDFS_URL_ENDPOINT + "/tpch-data"
   override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-substrait/src/test/resources/tpch-queries"
+    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   private val hdfsCachePath = "/tmp/gluten_hdfs_cache/"
