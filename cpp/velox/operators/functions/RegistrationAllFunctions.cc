@@ -76,8 +76,8 @@ void registerFunctionOverwrite() {
 }
 } // namespace
 
-void registerAllFunctions() {
-  velox::functions::sparksql::registerFunctions("");
+void registerAllFunctions(const velox::functions::sparksql::SparkRegistrationConfig& config) {
+  velox::functions::sparksql::registerFunctions("", config);
   velox::aggregate::prestosql::registerAllAggregateFunctions(
       "", true /*registerCompanionFunctions*/, false /*onlyPrestoSignatures*/, true /*overwrite*/);
   velox::functions::aggregate::sparksql::registerAggregateFunctions(

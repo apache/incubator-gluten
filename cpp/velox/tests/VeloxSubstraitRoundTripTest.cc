@@ -542,7 +542,8 @@ TEST_F(VeloxSubstraitRoundTripTest, avgCompanion) {
 } // namespace gluten
 
 int main(int argc, char** argv) {
-  gluten::registerAllFunctions();
+  const functions::sparksql::SparkRegistrationConfig config;
+  gluten::registerAllFunctions(config);
   testing::InitGoogleTest(&argc, argv);
   folly::init(&argc, &argv, false);
   return RUN_ALL_TESTS();
