@@ -49,6 +49,44 @@ class GlutenClickhouseStringFunctionsSuite extends GlutenClickHouseWholeStageTra
     }
   }
 
+  test("GLUTEN-6989: rtrim support source column const") {
+    withTable("trim") {
+      sql("create table trim(trim_col String, src_col String) using parquet")
+      sql("""
+            |insert into trim values
+            |  ('bAa', 'a'),('bba', 'b'),('abcdef', 'abcd'),
+            |  (null, '123'),('123', null), ('', 'aaa'), ('bbb', '')
+            |""".stripMargin)
+
+      val sql0 = "select rtrim('aba', 'a') from trim order by src_col"
+      val sql1 = "select rtrim(trim_col, src_col) from trim order by src_col"
+      val sql2 = "select rtrim(trim_col, 'cCBbAa') from trim order by src_col"
+      val sql3 = "select rtrim(trim_col, '') from trim order by src_col"
+      val sql4 = "select rtrim('', 'AAA') from trim order by src_col"
+      val sql5 = "select rtrim('', src_col) from trim order by src_col"
+      val sql6 = "select rtrim('ab', src_col) from trim order by src_col"
+
+      runQueryAndCompare(sql0) { _ => }
+      runQueryAndCompare(sql1) { _ => }
+      runQueryAndCompare(sql2) { _ => }
+      runQueryAndCompare(sql3) { _ => }
+      runQueryAndCompare(sql4) { _ => }
+      runQueryAndCompare(sql5) { _ => }
+      runQueryAndCompare(sql6) { _ => }
+
+      // test other trim functions
+      val sql7 = "SELECT trim(LEADING trim_col FROM src_col) from trim"
+      val sql8 = "SELECT trim(LEADING trim_col FROM 'NSB') from trim"
+      val sql9 = "SELECT trim(TRAILING trim_col FROM src_col) from trim"
+      val sql10 = "SELECT trim(TRAILING trim_col FROM '') from trim"
+      runQueryAndCompare(sql7) { _ => }
+      runQueryAndCompare(sql8) { _ => }
+      runQueryAndCompare(sql9) { _ => }
+      runQueryAndCompare(sql10) { _ => }
+
+    }
+  }
+
   test("GLUTEN-5897: fix regexp_extract with bracket") {
     withTable("regexp_extract_bracket") {
       sql("create table regexp_extract_bracket(a String) using parquet")
