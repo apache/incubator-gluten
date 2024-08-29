@@ -38,7 +38,7 @@
         <exclusions>
           <exclusion>
             <groupId>org.apache.gluten</groupId>
-            <artifactId>gluten-core</artifactId>
+            <artifactId>gluten-substrait</artifactId>
           </exclusion>
         </exclusions>
         <scope>runtime</scope>

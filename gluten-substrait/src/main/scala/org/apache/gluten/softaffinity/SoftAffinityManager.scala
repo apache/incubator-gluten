@@ -42,6 +42,13 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
 
   lazy val minOnTargetHosts: Int = GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE
 
+  lazy val usingSoftAffinity: Boolean = true
+
+  lazy val detectDuplicateReading: Boolean = true
+
+  lazy val duplicateReadingMaxCacheItems: Int =
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
+
   // (execId, host) list
   val fixedIdForExecutors = new mutable.ListBuffer[Option[(String, String)]]()
   // host list
@@ -49,14 +56,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
 
   protected val totalRegisteredExecutors = new AtomicInteger(0)
 
-  lazy val usingSoftAffinity: Boolean = true
-
   lazy val logLevel: String = GlutenConfig.getConf.softAffinityLogLevel
-
-  lazy val detectDuplicateReading = true
-
-  lazy val duplicateReadingMaxCacheItems =
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
 
   // rdd id -> patition id, file path, start, length
   val rddPartitionInfoMap: LoadingCache[Integer, Array[(Int, String, Long, Long)]] =
@@ -310,13 +310,13 @@ object SoftAffinityManager extends AffinityManager {
     GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE
   )
 
-  override lazy val detectDuplicateReading = SparkEnv.get.conf.getBoolean(
+  override lazy val detectDuplicateReading: Boolean = SparkEnv.get.conf.getBoolean(
     GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED,
     GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED_DEFAULT_VALUE
   ) &&
     SparkShimLoader.getSparkShims.supportDuplicateReadingTracking
 
-  override lazy val duplicateReadingMaxCacheItems = SparkEnv.get.conf.getInt(
+  override lazy val duplicateReadingMaxCacheItems: Int = SparkEnv.get.conf.getInt(
     GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS,
     GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
   )
