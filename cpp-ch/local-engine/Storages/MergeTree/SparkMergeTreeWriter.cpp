@@ -283,8 +283,9 @@ void SparkMergeTreeWriter::finalizeMerge()
 DB::MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPartAndFinalize(
     DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot) const
 {
-    CustomMergeTreeDataWriter writer(*data, part_name_prefix, partition_dir, bucket_dir, part_num);
-    return writer.writeTempPart(block_with_partition, metadata_snapshot, context);
+    SparkMergeTreeDataWriter writer(*data);
+    return writer.writeTempPart(block_with_partition, metadata_snapshot, context, SparkMergeTreeDataWriter::PartitionInfo{
+        .part_name_prefix = part_name_prefix, .partition_dir = partition_dir, .bucket_dir = bucket_dir, .part_num = part_num});
 }
 
 std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo()
@@ -410,9 +411,14 @@ void SparkMergeTreeWriter::checkAndMerge(bool force)
     new_parts.emplace_back(skip_parts);
 }
 
-MergeTreeDataWriter::TemporaryPart CustomMergeTreeDataWriter::writeTempPart(
-    BlockWithPartition & block_with_partition, const StorageMetadataPtr & metadata_snapshot, const ContextPtr & context)
+MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
+    BlockWithPartition & block_with_partition, const StorageMetadataPtr & metadata_snapshot, const ContextPtr & context, const PartitionInfo & partition_info) const
 {
+    const std::string & part_name_prefix = partition_info.part_name_prefix;
+    const std::string & partition_dir = partition_info.partition_dir;
+    const std::string & bucket_dir = partition_info.bucket_dir;
+    const int part_num = partition_info.part_num;
+
     MergeTreeDataWriter::TemporaryPart temp_part;
 
     Block & block = block_with_partition.block;

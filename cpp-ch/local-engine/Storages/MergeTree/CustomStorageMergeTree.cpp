@@ -123,7 +123,7 @@ CustomStorageMergeTree::CustomStorageMergeTree(
     const String & relative_data_path_,
     const StorageInMemoryMetadata & metadata_,
     bool attach,
-    ContextMutablePtr context_,
+    const ContextMutablePtr & context_,
     const String & date_column_name,
     const MergingParams & merging_params_,
     std::unique_ptr<MergeTreeSettings> storage_settings_,
@@ -145,7 +145,6 @@ CustomStorageMergeTree::CustomStorageMergeTree(
 }
 
 std::atomic<int> CustomStorageMergeTree::part_num;
-
 
 void CustomStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string> parts) const
 {

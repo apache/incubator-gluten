@@ -28,12 +28,8 @@ namespace local_engine
 {
 using namespace DB;
 
-class CustomMergeTreeSink;
-
-class CustomStorageMergeTree final : public MergeTreeData
+class CustomStorageMergeTree : public MergeTreeData
 {
-    friend class CustomMergeTreeSink;
-
     friend class MergeSparkMergeTreeTask;
 
 public:
@@ -44,7 +40,7 @@ public:
         const String & relative_data_path_,
         const StorageInMemoryMetadata & metadata,
         bool attach,
-        ContextMutablePtr context_,
+        const ContextMutablePtr & context_,
         const String & date_column_name,
         const MergingParams & merging_params_,
         std::unique_ptr<MergeTreeSettings> settings_,
@@ -55,7 +51,6 @@ public:
     std::map<std::string, MutationCommands> getUnfinishedMutationCommands() const override;
     std::vector<MergeTreeDataPartPtr> loadDataPartsWithNames(const std::unordered_set<std::string> & parts);
     void removePartFromMemory(const MergeTreeData::DataPart & part_to_detach);
-
 
     MergeTreeDataSelectExecutor reader;
     MergeTreeDataMergerMutator merger_mutator;

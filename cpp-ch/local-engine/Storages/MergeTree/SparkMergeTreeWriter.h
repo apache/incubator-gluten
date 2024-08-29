@@ -21,7 +21,6 @@
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
 #include <Storages/MergeTree/MergeTreeDataWriter.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
-
 #include <Storages/MergeTree/MergeTreeTool.h>
 #include <Common/CHUtil.h>
 
@@ -101,30 +100,58 @@ private:
     bool isRemoteStorage = false;
 };
 
-class CustomMergeTreeDataWriter
+class SparkMergeTreeDataWriter
 {
 public:
-    CustomMergeTreeDataWriter(
-        MergeTreeData & data_, const String & part_name_prefix_, const String & partition_dir_, const String & bucket_dir_, int part_num_)
+    struct PartitionInfo
+    {
+        std::string part_name_prefix;
+        std::string partition_dir;
+        std::string bucket_dir;
+        int part_num;
+    };
+
+    explicit SparkMergeTreeDataWriter(MergeTreeData & data_)
         : data(data_)
         , log(getLogger(data.getLogName() + " (Writer)"))
-        , part_name_prefix(part_name_prefix_)
-        , partition_dir(partition_dir_)
-        , bucket_dir(bucket_dir_)
-        , part_num(part_num_)
     {
     }
     MergeTreeDataWriter::TemporaryPart writeTempPart(
-        DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot, const ContextPtr & context);
+        DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot, const ContextPtr & context, const PartitionInfo & partition_info) const;
 
 private:
     MergeTreeData & data;
     LoggerPtr log;
+};
 
-    String part_name_prefix;
-    String partition_dir;
-    String bucket_dir;
-    int part_num;
+class SparkStorageMergeTree final: public CustomStorageMergeTree
+{
+public:
+    SparkStorageMergeTree(
+        const StorageID & table_id_,
+        const String & relative_data_path_,
+        const StorageInMemoryMetadata & metadata,
+        bool attach,
+        const ContextMutablePtr & context_,
+        const String & date_column_name,
+        const MergingParams & merging_params_,
+        std::unique_ptr<MergeTreeSettings> settings_,
+        bool has_force_restore_data_flag)
+        : CustomStorageMergeTree(
+              table_id_,
+              relative_data_path_,
+              metadata,
+              attach,
+              context_,
+              date_column_name,
+              merging_params_,
+              std::move(settings_),
+              has_force_restore_data_flag)
+    {
+    }
+
+private:
+    // SparkMergeTreeDataWriter writer;
 };
 
 }
