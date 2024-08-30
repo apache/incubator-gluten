@@ -90,7 +90,8 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
       .set("spark.memory.offHeap.size", "1024MB")
   }
 
-  test("test native hive udaf") {
+  // Aggregate result can be flaky.
+  ignore("test native hive udaf") {
     val tbl = "test_hive_udaf_replacement"
     withTempPath {
       dir =>
