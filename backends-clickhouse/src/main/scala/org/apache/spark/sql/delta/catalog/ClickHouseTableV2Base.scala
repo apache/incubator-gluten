@@ -111,7 +111,7 @@ trait ClickHouseTableV2Base {
       Some(orderByKeys)
     } else {
       val orderByKeys = getCommaSeparatedColumns("orderByKey")
-      if (orderByKeys.nonEmpty) {
+      if (orderByKeys.isDefined) {
         val invalidKeys = orderByKeys.get.intersect(partitionColumns)
         if (invalidKeys.nonEmpty) {
           throw new IllegalStateException(
@@ -127,7 +127,11 @@ trait ClickHouseTableV2Base {
   lazy val primaryKeyOption: Option[Seq[String]] = {
     if (orderByKeyOption.isDefined) {
       val primaryKeys = getCommaSeparatedColumns("primaryKey")
-      if (!orderByKeyOption.get.mkString(",").startsWith(primaryKeys.get.mkString(","))) {
+      if (
+        primaryKeys.isDefined && !orderByKeyOption.get
+          .mkString(",")
+          .startsWith(primaryKeys.get.mkString(","))
+      ) {
         throw new IllegalStateException(
           s"Primary key $primaryKeys must be a prefix of the sorting key")
       }
