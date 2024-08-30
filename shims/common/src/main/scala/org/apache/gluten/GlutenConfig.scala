@@ -50,6 +50,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarHiveTableScan: Boolean = conf.getConf(COLUMNAR_HIVETABLESCAN_ENABLED)
 
+  def enableColumnarHiveTableScanNestedColumnPruning: Boolean =
+    conf.getConf(COLUMNAR_HIVETABLESCAN_NESTED_COLUMN_PRUNING_ENABLED)
+
   def enableVanillaVectorizedReaders: Boolean = conf.getConf(VANILLA_VECTORIZED_READERS_ENABLED)
 
   def enableColumnarHashAgg: Boolean = conf.getConf(COLUMNAR_HASHAGG_ENABLED)
@@ -856,6 +859,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.hivetablescan")
       .internal()
       .doc("Enable or disable columnar hivetablescan.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_HIVETABLESCAN_NESTED_COLUMN_PRUNING_ENABLED =
+    buildConf("spark.gluten.sql.columnar.enableNestedColumnPruningInHiveTableScan")
+      .internal()
+      .doc("Enable or disable nested column pruning in hivetablescan.")
       .booleanConf
       .createWithDefault(true)
 

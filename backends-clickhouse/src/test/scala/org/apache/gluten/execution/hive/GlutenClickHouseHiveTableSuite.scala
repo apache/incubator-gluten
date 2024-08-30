@@ -1499,4 +1499,57 @@ class GlutenClickHouseHiveTableSuite
     spark.sql("drop table if exists aj")
   }
 
+  test("test hive table scan nested column pruning") {
+    val json_table_name = "test_tbl_7267_json"
+    val pq_table_name = "test_tbl_7267_pq"
+    val create_table_sql =
+      s"""
+         | create table if not exists %s(
+         | id bigint,
+         | d1 STRUCT<c: STRING, d: ARRAY<STRUCT<x: STRING, y: STRING>>>,
+         | d2 STRUCT<c: STRING, d: Map<STRING, STRUCT<x: STRING, y: STRING>>>,
+         | day string,
+         | hour string
+         | ) partitioned by(day, hour)
+         |""".stripMargin
+    val create_table_json = create_table_sql.format(json_table_name) +
+      s"""
+         | ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'
+         | STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'
+         | OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+         |""".stripMargin
+    val create_table_pq = create_table_sql.format(pq_table_name) + " Stored as PARQUET"
+    val insert_sql =
+      """
+        | insert into %s values(1,
+        | named_struct('c', 'c123', 'd', array(named_struct('x', 'x123', 'y', 'y123'))),
+        | named_struct('c', 'c124', 'd', map('m124', named_struct('x', 'x124', 'y', 'y124'))),
+        | '2024-09-26', '12'
+        | )
+        |""".stripMargin
+    val select_sql =
+      "select id, d1.c, d1.d[0].x, d2.d['m124'].y from %s where day = '2024-09-26' and hour = '12'"
+    val table_names = Array.apply(json_table_name, pq_table_name)
+    val create_table_sqls = Array.apply(create_table_json, create_table_pq)
+    for (i <- table_names.indices) {
+      val table_name = table_names(i)
+      val create_table = create_table_sqls(i)
+      spark.sql(create_table)
+      spark.sql(insert_sql.format(table_name))
+      withSQLConf(("spark.sql.hive.convertMetastoreParquet" -> "false")) {
+        compareResultsAgainstVanillaSpark(
+          select_sql.format(table_name),
+          compareResult = true,
+          df => {
+            val scan = collect(df.queryExecution.executedPlan) {
+              case l: HiveTableScanExecTransformer => l
+            }
+            assert(scan.size == 1)
+          }
+        )
+      }
+      spark.sql("drop table if exists %s".format(table_name))
+    }
+  }
+
 }
