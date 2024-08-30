@@ -159,7 +159,15 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     } else if (SparkShimLoader.getSparkShims.withAnsiEvalMode(original)) {
       throw new GlutenNotSupportException(s"$substraitExprName with ansi mode is not supported")
     } else {
-      GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
+      if (
+        left.dataType.isInstanceOf[DecimalType] && right.dataType
+          .isInstanceOf[DecimalType] && !SQLConf.get.decimalOperationsAllowPrecisionLoss
+      ) {
+        val newName = "not_allow_precision_loss_"
+        GenericExpressionTransformer(newName, Seq(left, right), original)
+      } else {
+        GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
+      }
     }
   }
 
