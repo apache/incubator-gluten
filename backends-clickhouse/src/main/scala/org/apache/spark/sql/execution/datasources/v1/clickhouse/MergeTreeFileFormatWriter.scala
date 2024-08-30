@@ -94,7 +94,8 @@ object MergeTreeFileFormatWriter extends Logging {
 
     val writerBucketSpec = bucketSpec.map {
       spec =>
-        val bucketColumns = spec.bucketColumnNames.map(c => dataColumns.find(_.name == c).get)
+        val bucketColumns =
+          spec.bucketColumnNames.map(c => dataColumns.find(_.name.equalsIgnoreCase(c)).get)
         // Spark bucketed table: use `HashPartitioning.partitionIdExpression` as bucket id
         // expression, so that we can guarantee the data distribution is same between shuffle and
         // bucketed data source, which enables us to only shuffle one side when join a bucketed
@@ -104,7 +105,7 @@ object MergeTreeFileFormatWriter extends Logging {
         MergeTreeWriterBucketSpec(bucketIdExpression, (_: Int) => "")
     }
     val sortColumns = bucketSpec.toSeq.flatMap {
-      spec => spec.sortColumnNames.map(c => dataColumns.find(_.name == c).get)
+      spec => spec.sortColumnNames.map(c => dataColumns.find(_.name.equalsIgnoreCase(c)).get)
     }
 
     val caseInsensitiveOptions = CaseInsensitiveMap(options)
