@@ -96,7 +96,7 @@ WholeStageResultIterator::WholeStageResultIterator(
       0,
       std::move(queryCtx),
       velox::exec::Task::ExecutionMode::kSerial);
-  if (!task_->supportsSingleThreadedExecution()) {
+  if (!task_->supportSerialExecutionMode()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
   }
   auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
