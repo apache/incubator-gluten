@@ -21,8 +21,7 @@
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
-#include "velox/functions/sparksql/DecimalArithmetic.h"
-#include "velox/functions/sparksql/RegistrationConfig.h"
+
 #ifdef ENABLE_HDFS
 #include "utils/HdfsUtils.h"
 #endif
@@ -52,14 +51,6 @@ const std::string kWriteIOTime = "writeIOTime";
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 
-void overWriteFunctions(const velox::functions::sparksql::SparkRegistrationConfig& config) {
-  const std::string prefix = "";
-  velox::functions::sparksql::registerDecimalAdd(prefix, config.allowPrecisionLoss);
-  velox::functions::sparksql::registerDecimalSubtract(prefix, config.allowPrecisionLoss);
-  velox::functions::sparksql::registerDecimalMultiply(prefix, config.allowPrecisionLoss);
-  velox::functions::sparksql::registerDecimalDivide(prefix, config.allowPrecisionLoss);
-}
-
 } // namespace
 
 WholeStageResultIterator::WholeStageResultIterator(
@@ -70,8 +61,7 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
-    const SparkTaskInfo& taskInfo,
-    bool backendAllowPrecisionLossConfig)
+    const SparkTaskInfo& taskInfo)
     : memoryManager_(memoryManager),
       veloxCfg_(
           std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
@@ -94,10 +84,6 @@ WholeStageResultIterator::WholeStageResultIterator(
   // Create task instance.
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
-  if (backendAllowPrecisionLossConfig != veloxCfg_->get<bool>(kAllowPrecisionLoss, true)) {
-    const velox::functions::sparksql::SparkRegistrationConfig config = {backendAllowPrecisionLossConfig};
-    overWriteFunctions(config);
-  }
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
   static std::atomic<uint32_t> vtId{0}; // Velox task ID to distinguish from Spark task ID.
   task_ = velox::exec::Task::create(
@@ -458,6 +444,10 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     }
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
+
+    // To align with Spark's behavior, allow decimal precision loss or not.
+    configs[velox::core::QueryConfig::kSparkDecimalOperationsAllowPrecisionLoss] =
+        veloxCfg_->get<std::string>(kAllowPrecisionLoss, "true");
 
     {
       // partial aggregation memory config

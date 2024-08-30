@@ -103,7 +103,6 @@ class VeloxRuntime final : public Runtime {
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
   std::shared_ptr<facebook::velox::config::ConfigBase> veloxCfg_;
   bool debugModeEnabled_{false};
-  const bool backendDecimalAllowPrecisionLossConfig_;
 
   std::unordered_map<int32_t, std::shared_ptr<ColumnarBatch>> emptySchemaBatchLoopUp_;
 };

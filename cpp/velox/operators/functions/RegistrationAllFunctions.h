@@ -17,10 +17,8 @@
 
 #pragma once
 
-#include "velox/functions/sparksql/RegistrationConfig.h"
-
 namespace gluten {
 
-void registerAllFunctions(const facebook::velox::functions::sparksql::SparkRegistrationConfig& config);
+void registerAllFunctions();
 
 } // namespace gluten

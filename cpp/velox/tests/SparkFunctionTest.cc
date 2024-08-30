@@ -25,8 +25,7 @@ using namespace facebook::velox;
 class SparkFunctionTest : public SparkFunctionBaseTest {
  public:
   SparkFunctionTest() {
-    const functions::sparksql::SparkRegistrationConfig config;
-    gluten::registerAllFunctions(config);
+    gluten::registerAllFunctions();
   }
 
  protected:

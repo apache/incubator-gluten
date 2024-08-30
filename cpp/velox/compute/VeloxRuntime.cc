@@ -59,9 +59,7 @@ namespace gluten {
 VeloxRuntime::VeloxRuntime(
     std::unique_ptr<AllocationListener> listener,
     const std::unordered_map<std::string, std::string>& confMap)
-    : Runtime(std::make_shared<VeloxMemoryManager>(std::move(listener)), confMap),
-      backendDecimalAllowPrecisionLossConfig_(
-          VeloxBackend::get()->getBackendConf()->get<bool>(kAllowPrecisionLoss, true)) {
+    : Runtime(std::make_shared<VeloxMemoryManager>(std::move(listener)), confMap) {
   // Refresh session config.
   vmm_ = dynamic_cast<VeloxMemoryManager*>(memoryManager_.get());
   veloxCfg_ =
@@ -156,15 +154,7 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   getInfoAndIds(veloxPlanConverter.splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto wholestageIter = std::make_unique<WholeStageResultIterator>(
-      vmm_,
-      veloxPlan_,
-      scanIds,
-      scanInfos,
-      streamIds,
-      spillDir,
-      sessionConf,
-      taskInfo_,
-      backendDecimalAllowPrecisionLossConfig_);
+      vmm_, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
   return std::make_shared<ResultIterator>(std::move(wholestageIter), this);
 }
 

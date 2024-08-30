@@ -116,9 +116,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   initConnector();
 
   // Register Velox functions
-  const velox::functions::sparksql::SparkRegistrationConfig config = {
-      backendConf_->get<bool>(kAllowPrecisionLoss, true)};
-  registerAllFunctions(config);
+  registerAllFunctions();
   if (!facebook::velox::isRegisteredVectorSerde()) {
     // serde, for spill
     facebook::velox::serializer::presto::PrestoVectorSerde::registerVectorSerde();
