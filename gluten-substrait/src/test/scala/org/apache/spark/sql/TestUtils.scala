@@ -18,7 +18,10 @@ package org.apache.spark.sql
 
 import org.apache.gluten.exception.GlutenException
 
+import org.apache.spark.SparkContext
+import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.sql.test.SQLTestUtils
+import org.apache.spark.{TestUtils => SparkTestUtils}
 
 object TestUtils {
   def compareAnswers(actual: Seq[Row], expected: Seq[Row], sort: Boolean = false): Unit = {
@@ -26,5 +29,9 @@ object TestUtils {
     if (result.isDefined) {
       throw new GlutenException("Failed to compare answer" + result.get)
     }
+  }
+
+  def withListener[L <: SparkListener](sc: SparkContext, listener: L) (body: L => Unit): Unit = {
+    SparkTestUtils.withListener(sc, listener)(body)
   }
 }

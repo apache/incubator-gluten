@@ -20,6 +20,8 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
+import org.apache.spark.scheduler.{SparkListener, SparkListenerStageCompleted}
+import org.apache.spark.sql.TestUtils
 import org.apache.spark.sql.execution.CommandResultExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.internal.SQLConf
@@ -200,5 +202,29 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
         }
       }
     }
+  }
+
+  test("File scan task input metrics") {
+    createTPCHNotNullTables()
+
+    @volatile var inputRecords = 0L
+    val partTableRecords = spark.sql("select * from part").count()
+    val itemTableRecords = spark.sql("select * from lineitem").count()
+    val inputMetricsListener = new SparkListener {
+      override def onStageCompleted(stageCompleted: SparkListenerStageCompleted): Unit = {
+        inputRecords += stageCompleted.stageInfo.taskMetrics.inputMetrics.recordsRead
+      }
+    }
+
+    TestUtils.withListener(spark.sparkContext, inputMetricsListener) { _ =>
+      val df = spark.sql(
+        """
+          |select /*+ BROADCAST(part) */ * from part join lineitem
+          |on l_partkey = p_partkey
+          |""".stripMargin)
+      df.count()
+    }
+
+    assert(inputRecords == (partTableRecords + itemTableRecords))
   }
 }
