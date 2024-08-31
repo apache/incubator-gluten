@@ -193,7 +193,8 @@ case class BroadCastHashJoinContext(
     hasMixedFiltCondition: Boolean,
     isExistenceJoin: Boolean,
     buildSideStructure: Seq[Attribute],
-    buildHashTableId: String)
+    buildHashTableId: String,
+    isNullAwareAntiJoin: Boolean = false)
 
 case class CHBroadcastHashJoinExecTransformer(
     leftKeys: Seq[Expression],
@@ -230,9 +231,6 @@ case class CHBroadcastHashJoinExecTransformer(
     if (shouldFallback) {
       return ValidationResult.failed("ch join validate fail")
     }
-    if (isNullAwareAntiJoin) {
-      return ValidationResult.failed("ch does not support NAAJ")
-    }
     super.doValidateInternal()
   }
 
@@ -256,7 +254,9 @@ case class CHBroadcastHashJoinExecTransformer(
         isMixedCondition(condition),
         joinType.isInstanceOf[ExistenceJoin],
         buildPlan.output,
-        buildHashTableId)
+        buildHashTableId,
+        isNullAwareAntiJoin
+      )
     val broadcastRDD = CHBroadcastBuildSideRDD(sparkContext, broadcast, context)
     // FIXME: Do we have to make build side a RDD?
     streamedRDD :+ broadcastRDD

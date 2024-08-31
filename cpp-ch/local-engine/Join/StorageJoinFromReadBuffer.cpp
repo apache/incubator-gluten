@@ -21,6 +21,7 @@
 #include <Interpreters/TableJoin.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
+#include <Columns/ColumnsCommon.h>
 
 #include <Common/logger_useful.h>
 
@@ -72,8 +73,9 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     const ColumnsDescription & columns,
     const ConstraintsDescription & constraints,
     const String & comment,
-    const bool overwrite_)
-    : key_names(key_names_), use_nulls(use_nulls_), row_count(row_count_), overwrite(overwrite_)
+    const bool overwrite_,
+    bool is_null_aware_anti_join_)
+    : key_names(key_names_), use_nulls(use_nulls_), row_count(row_count_), overwrite(overwrite_), is_null_aware_anti_join(is_null_aware_anti_join_)
 {
     storage_metadata.setColumns(columns);
     storage_metadata.setConstraints(constraints);
@@ -104,8 +106,36 @@ void StorageJoinFromReadBuffer::buildJoin(Blocks & data, const Block header, std
     auto build_join = [&]
     {
         join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
-        for (Block block : data)
-            join->addBlockToJoin(std::move(block), true);
+        // only when is_null_aware_anti_join is true, it needs to check whether is null key value exists
+        if (is_null_aware_anti_join)
+        {
+            is_empty_hash_table = data.empty();
+            size_t total_size = 0;
+            for (Block block : data)
+            {
+                for (size_t i = 0; i < block.columns(); ++i)
+                {
+                    const auto & column = block.getByPosition(i);
+                    if (column.name == key_names.at(0))
+                    {
+                        if (const auto * nullable = checkAndGetColumn<ColumnNullable>(column.column.get()))
+                        {
+                            const auto & null_map_data = nullable->getNullMapData();
+                            // check whether there is null key value
+                            has_null_key_value = !DB::memoryIsZero(null_map_data.data(), 0, null_map_data.size());
+                        }
+                    }
+                }
+                total_size += block.rows();
+                join->addBlockToJoin(std::move(block), true);
+            }
+            is_empty_hash_table = (total_size < 1);
+        }
+        else
+        {
+            for (Block block : data)
+                join->addBlockToJoin(std::move(block), true);
+        }
     };
     /// Record memory usage in Total Memory Tracker
     ThreadFromGlobalPoolNoTracingContextPropagation thread(build_join);

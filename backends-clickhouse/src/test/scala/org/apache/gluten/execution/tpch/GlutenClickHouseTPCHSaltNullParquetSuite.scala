@@ -311,7 +311,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
 
   // see issue https://github.com/Kyligence/ClickHouse/issues/93
   test("TPCH Q16") {
-    runTPCHQuery(16, noFallBack = false) { df => }
+    runTPCHQuery(16) { df => }
   }
 
   test("TPCH Q17") {
@@ -2796,6 +2796,145 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
                 |) group by n_regionkey, x;
                 |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-341: Support BHJ + isNullAwareAntiJoin for the CH backend") {
+    def checkBHJWithIsNullAwareAntiJoin(df: DataFrame): Unit = {
+      val bhjs = df.queryExecution.executedPlan.collect {
+        case bhj: CHBroadcastHashJoinExecTransformer if bhj.isNullAwareAntiJoin => true
+      }
+      assert(bhjs.size == 1)
+    }
+
+    val sql =
+      s"""
+         |SELECT
+         |    p_brand,
+         |    p_type,
+         |    p_size,
+         |    count(DISTINCT ps_suppkey) AS supplier_cnt
+         |FROM
+         |    partsupp,
+         |    part
+         |WHERE
+         |    p_partkey = ps_partkey
+         |    AND p_brand <> 'Brand#45'
+         |    AND p_type NOT LIKE 'MEDIUM POLISHED%'
+         |    AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)
+         |    AND ps_suppkey NOT IN (
+         |        SELECT
+         |            s_suppkey
+         |        FROM
+         |            supplier
+         |        WHERE
+         |            s_comment is null)
+         |GROUP BY
+         |    p_brand,
+         |    p_type,
+         |    p_size
+         |ORDER BY
+         |    supplier_cnt DESC,
+         |    p_brand,
+         |    p_type,
+         |    p_size;
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        checkBHJWithIsNullAwareAntiJoin(df)
+      })
+
+    val sql1 =
+      s"""
+         |SELECT
+         |    p_brand,
+         |    p_type,
+         |    p_size,
+         |    count(DISTINCT ps_suppkey) AS supplier_cnt
+         |FROM
+         |    partsupp,
+         |    part
+         |WHERE
+         |    p_partkey = ps_partkey
+         |    AND p_brand <> 'Brand#45'
+         |    AND p_type NOT LIKE 'MEDIUM POLISHED%'
+         |    AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)
+         |    AND ps_suppkey NOT IN (
+         |        SELECT
+         |            s_suppkey
+         |        FROM
+         |            supplier
+         |        WHERE
+         |            s_comment LIKE '%Customer%Complaints11%')
+         |GROUP BY
+         |    p_brand,
+         |    p_type,
+         |    p_size
+         |ORDER BY
+         |    supplier_cnt DESC,
+         |    p_brand,
+         |    p_type,
+         |    p_size;
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql1,
+      true,
+      df => {
+        checkBHJWithIsNullAwareAntiJoin(df)
+      })
+
+    val sql2 =
+      s"""
+         |select * from partsupp
+         |where
+         |ps_suppkey NOT IN (SELECT suppkey FROM VALUES (50), (null) sub(suppkey))
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql2,
+      true,
+      df => {
+        checkBHJWithIsNullAwareAntiJoin(df)
+      })
+
+    val sql3 =
+      s"""
+         |select * from partsupp
+         |where
+         |ps_suppkey NOT IN (SELECT suppkey FROM VALUES (50) sub(suppkey) WHERE suppkey > 100)
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql3,
+      true,
+      df => {
+        checkBHJWithIsNullAwareAntiJoin(df)
+      })
+
+    val sql4 =
+      s"""
+         |select * from partsupp
+         |where
+         |ps_suppkey NOT IN (SELECT suppkey FROM VALUES (50), (60) sub(suppkey))
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql4,
+      true,
+      df => {
+        checkBHJWithIsNullAwareAntiJoin(df)
+      })
+
+    val sql5 =
+      s"""
+         |select * from partsupp
+         |where
+         |ps_suppkey NOT IN (SELECT suppkey FROM VALUES (null) sub(suppkey))
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql5,
+      true,
+      df => {
+        checkBHJWithIsNullAwareAntiJoin(df)
+      })
   }
 }
 // scalastyle:on line.size.limit

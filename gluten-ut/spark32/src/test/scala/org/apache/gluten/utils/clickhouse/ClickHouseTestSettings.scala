@@ -1161,6 +1161,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-31220, SPARK-32056: repartition by expression with AQE")
     .exclude("SPARK-31220, SPARK-32056: repartition by range with AQE")
     .exclude("SPARK-31220, SPARK-32056: repartition using sql and hint with AQE")
+    .exclude("SPARK-32573: Eliminate NAAJ when BuildSide is HashedRelationWithAllNullKeys")
     .exclude("SPARK-32753: Only copy tags to node with no tags")
     .exclude("Logging plan changes for AQE")
     .exclude("SPARK-33551: Do not use AQE shuffle read for repartition")
