@@ -1071,7 +1071,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
     jint join_type_,
     jboolean has_mixed_join_condition,
     jboolean is_existence_join,
-    jbyteArray named_struct)
+    jbyteArray named_struct,
+    jboolean is_null_aware_anti_join)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     const auto hash_table_id = jstring2string(env, key);
@@ -1084,7 +1085,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
     DB::CompressedReadBuffer input(read_buffer_from_java_array);
     local_engine::configureCompressedReadBuffer(input);
     const auto * obj = make_wrapper(local_engine::BroadCastJoinBuilder::buildJoin(
-        hash_table_id, input, row_count_, join_key, join_type_, has_mixed_join_condition, is_existence_join, struct_string));
+        hash_table_id, input, row_count_, join_key, join_type_, has_mixed_join_condition, is_existence_join, struct_string, is_null_aware_anti_join));
     return obj->instance();
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }

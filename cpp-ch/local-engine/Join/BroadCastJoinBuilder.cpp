@@ -115,7 +115,8 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     jint join_type,
     bool has_mixed_join_condition,
     bool is_existence_join,
-    const std::string & named_struct)
+    const std::string & named_struct,
+    bool is_null_aware_anti_join)
 {
     auto join_key_list = Poco::StringTokenizer(join_keys, ",");
     Names key_names;
@@ -191,7 +192,8 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
         columns_description,
         ConstraintsDescription(),
         key,
-        true);
+        true,
+        is_null_aware_anti_join);
 }
 
 void init(JNIEnv * env)

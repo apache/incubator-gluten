@@ -47,7 +47,8 @@ public class StorageJoinBuilder {
       int joinType,
       boolean hasMixedFiltCondition,
       boolean isExistenceJoin,
-      byte[] namedStruct);
+      byte[] namedStruct,
+      boolean isNullAwareAntiJoin);
 
   private StorageJoinBuilder() {}
 
@@ -94,7 +95,8 @@ public class StorageJoinBuilder {
         joinType,
         broadCastContext.hasMixedFiltCondition(),
         broadCastContext.isExistenceJoin(),
-        toNameStruct(output).toByteArray());
+        toNameStruct(output).toByteArray(),
+        broadCastContext.isNullAwareAntiJoin());
   }
 
   /** create table named struct */
