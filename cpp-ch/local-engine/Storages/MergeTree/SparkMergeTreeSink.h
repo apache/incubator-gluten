@@ -17,9 +17,17 @@
 #pragma once
 #include <Processors/Sinks/SinkToStorage.h>
 #include <Storages/MergeTree/CustomStorageMergeTree.h>
+#include <Common/GlutenSettings.h>
 
 namespace local_engine
 {
+
+#define MERGE_TREE_WRITE_RELATED_SETTINGS(M, ALIAS, UNIQ) \
+    M(String, part_name_prefix, , "The part name prefix for writing data", UNIQ) \
+    M(String, partition_dir, , "The parition directory for writing data", UNIQ) \
+    M(String, bucket_dir, , "The bucket directory for writing data", UNIQ)
+
+DECLARE_GLUTEN_SETTINGS(GlutenMergeTreeWriteSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
 
 class SparkMergeTreeDataWriter
 {
@@ -37,7 +45,8 @@ public:
         DB::BlockWithPartition & block_with_partition,
         const DB::StorageMetadataPtr & metadata_snapshot,
         const ContextPtr & context,
-        const PartitionInfo & partition_info) const;
+        const GlutenMergeTreeWriteSettings & write_settings,
+        int part_num) const;
 
 private:
     MergeTreeData & data;
@@ -86,10 +95,14 @@ class SparkMergeTreeSink : public DB::SinkToStorage
 public:
     explicit SparkMergeTreeSink(
         SparkStorageMergeTree & storage_, const StorageMetadataPtr & metadata_snapshot_, const ContextPtr & context_)
-        : SinkToStorage(metadata_snapshot_->getSampleBlock()), storage(storage_), metadata_snapshot(metadata_snapshot_), context(context_)
+        : SinkToStorage(metadata_snapshot_->getSampleBlock())
+        , storage(storage_)
+        , metadata_snapshot(metadata_snapshot_)
+        , context(context_)
+        , write_settings(GlutenMergeTreeWriteSettings::get(context_))
     {
     }
-    ~SparkMergeTreeSink() override;
+    ~SparkMergeTreeSink() override = default;
 
     String getName() const override { return "SparkMergeTreeSink"; }
     void consume(Chunk & chunk) override;
@@ -100,6 +113,7 @@ private:
     SparkStorageMergeTree & storage;
     StorageMetadataPtr metadata_snapshot;
     ContextPtr context;
+    GlutenMergeTreeWriteSettings write_settings;
     int part_num = 1;
     std::vector<DB::MergeTreeDataPartPtr> new_parts{};
 };

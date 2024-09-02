@@ -287,8 +287,8 @@ DB::MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPartAndFin
         block_with_partition,
         metadata_snapshot,
         context,
-        SparkMergeTreeDataWriter::PartitionInfo{
-            .part_name_prefix = part_name_prefix, .partition_dir = partition_dir, .bucket_dir = bucket_dir, .part_num = part_num});
+        GlutenMergeTreeWriteSettings{.part_name_prefix = part_name_prefix, .partition_dir = partition_dir, .bucket_dir = bucket_dir},
+        part_num);
 }
 
 std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo()

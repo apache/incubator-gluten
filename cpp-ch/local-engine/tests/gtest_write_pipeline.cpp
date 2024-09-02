@@ -37,6 +37,7 @@
 #include <Processors/Transforms/PlanSquashingTransform.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
 #include <Storages/MergeTree/MergeTreeSink.h>
+#include <Storages/MergeTree/SparkMergeTreeSink.h>
 #include <Storages/MergeTree/SparkMergeTreeWriter.h>
 #include <Storages/ObjectStorage/HDFS/Configuration.h>
 #include <Storages/ObjectStorage/StorageObjectStorageSink.h>
@@ -118,10 +119,11 @@ INCBIN(native_write, SOURCE_DIR "/utils/extern-local-engine/tests/json/native_wr
 TEST(WritePipeline, SubstraitFileSink)
 {
     const auto context = DB::Context::createCopy(SerializedPlanParser::global_context);
-    const auto tmpdir = std::string{"file:///tmp/test_table/test"};
-    const auto filename = std::string{"data.parquet"};
-    context->setSetting(local_engine::SPARK_TASK_WRITE_TMEP_DIR, tmpdir);
-    context->setSetting(local_engine::SPARK_TASK_WRITE_FILENAME, filename);
+    GlutenWriteSettings settings{
+        .task_write_tmp_dir = "file:///tmp/test_table/test",
+        .task_write_filename = "data.parquet",
+    };
+    settings.set(context);
 
     constexpr std::string_view split_template
         = R"({"items":[{"uriFile":"{replace_local_files}","length":"1399183","text":{"fieldDelimiter":"|","maxBlockSize":"8192"},"schema":{"names":["s_suppkey","s_name","s_address","s_nationkey","s_phone","s_acctbal","s_comment"],"struct":{"types":[{"i64":{"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}},{"i64":{"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}},{"decimal":{"scale":2,"precision":15,"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}}]}},"metadataColumns":[{}]}]})";
@@ -161,7 +163,7 @@ TEST(WritePipeline, SubstraitFileSink)
     debug::headBlock(x);
     EXPECT_EQ(1, x.rows());
     const auto & col_a = *(x.getColumns()[0]);
-    EXPECT_EQ(filename, col_a.getDataAt(0));
+    EXPECT_EQ(settings.task_write_filename, col_a.getDataAt(0));
     const auto & col_b = *(x.getColumns()[1]);
     EXPECT_EQ(SubstraitFileSink::NO_PARTITION_ID, col_b.getDataAt(0));
     const auto & col_c = *(x.getColumns()[2]);
@@ -173,8 +175,11 @@ INCBIN(native_write_one_partition, SOURCE_DIR "/utils/extern-local-engine/tests/
 TEST(WritePipeline, SubstraitPartitionedFileSink)
 {
     const auto context = DB::Context::createCopy(SerializedPlanParser::global_context);
-    context->setSetting(local_engine::SPARK_TASK_WRITE_TMEP_DIR, std::string{"file:///tmp/test_table/test_partition"});
-    context->setSetting(local_engine::SPARK_TASK_WRITE_FILENAME, std::string{"data.parquet"});
+    GlutenWriteSettings settings{
+        .task_write_tmp_dir = "file:///tmp/test_table/test_partition",
+        .task_write_filename = "data.parquet",
+    };
+    settings.set(context);
 
     constexpr std::string_view split_template
         = R"({"items":[{"uriFile":"{replace_local_files}","length":"1399183","text":{"fieldDelimiter":"|","maxBlockSize":"8192"},"schema":{"names":["s_suppkey","s_name","s_address","s_nationkey","s_phone","s_acctbal","s_comment"],"struct":{"types":[{"i64":{"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}},{"i64":{"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}},{"decimal":{"scale":2,"precision":15,"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}}]}},"metadataColumns":[{}]}]})";
@@ -419,6 +424,11 @@ TEST(WritePipeline, SparkMergeTree)
         "",
         merging_params,
         std::move(storage_settings));*/
+
+    GlutenMergeTreeWriteSettings gm_write_settings{
+        .part_name_prefix{"this_is_prefix"},
+    };
+    gm_write_settings.set(context);
 
     ASTPtr none;
     Chain chain;
