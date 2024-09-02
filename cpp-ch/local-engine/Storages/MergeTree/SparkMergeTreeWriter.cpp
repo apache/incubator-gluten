@@ -93,11 +93,6 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
         extractPartitionValues(write_settings.partition_settings.partition_dir, partition_values);
 }
 
-bool SparkMergeTreeWriter::useLocalStorage() const
-{
-    return dataWrapper->useLocalStorage();
-}
-
 void SparkMergeTreeWriter::write(const DB::Block & block)
 {
     auto new_block = removeColumnSuffix(block);
@@ -155,17 +150,17 @@ void SparkMergeTreeWriter::finalize()
         finalizeMerge();
 
     dataWrapper->commitPartToRemoteStorageIfNeeded(new_parts.unsafeGet(), context->getReadSettings(), context->getWriteSettings());
-    saveMetadata();
+    dataWrapper->saveMetadata(new_parts.unsafeGet(), context);
 }
 
-void SparkMergeTreeWriter::saveMetadata()
+void StorageMergeTreeWrapper::saveMetadata(const std::deque<DB::MergeTreeDataPartPtr> & parts, const DB::ContextPtr & context)
 {
-    if (!dataWrapper->isRemoteStorage)
+    if (!isRemoteStorage)
         return;
 
-    for (const auto & merge_tree_data_part : new_parts.unsafeGet())
+    for (const auto & merge_tree_data_part : parts)
     {
-        auto part = dataWrapper->dest_storage().loadDataPartsWithNames({merge_tree_data_part->name});
+        auto part = dest_storage().loadDataPartsWithNames({merge_tree_data_part->name});
         if (part.empty())
         {
             LOG_WARNING(
@@ -176,10 +171,7 @@ void SparkMergeTreeWriter::saveMetadata()
         }
 
         saveFileStatus(
-            dataWrapper->dest_storage(),
-            context,
-            merge_tree_data_part->name,
-            const_cast<IDataPartStorage &>(part.at(0)->getDataPartStorage()));
+            dest_storage(), context, merge_tree_data_part->name, const_cast<IDataPartStorage &>(part.at(0)->getDataPartStorage()));
     }
 }
 

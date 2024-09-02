@@ -59,24 +59,20 @@ class StorageMergeTreeWrapper
 protected:
     CustomStorageMergeTreePtr merge_tree = nullptr;
     bool isRemoteStorage;
-    bool localStorageFirst;
     DB::StorageMetadataPtr metadata_snapshot;
     DB::Block header;
 
 public:
     virtual ~StorageMergeTreeWrapper() = default;
-    explicit StorageMergeTreeWrapper(const CustomStorageMergeTreePtr & data_, bool isRemoteStorage_, bool useLocalStorage)
+    explicit StorageMergeTreeWrapper(const CustomStorageMergeTreePtr & data_, bool isRemoteStorage_)
         : merge_tree(data_)
         , isRemoteStorage(isRemoteStorage_)
-        , localStorageFirst(useLocalStorage)
         , metadata_snapshot(merge_tree->getInMemoryMetadataPtr())
         , header(metadata_snapshot->getSampleBlock())
     {
     }
     static StorageMergeTreeWrapperPtr
     create(const MergeTreeTable & merge_tree_table, bool insert_with_local_storage, const DB::ContextMutablePtr & context);
-
-    bool useLocalStorage() const { return localStorageFirst; };
 
     virtual CustomStorageMergeTree & dest_storage() { return *merge_tree; }
     virtual CustomStorageMergeTreePtr temp_storage() { return nullptr; }
@@ -87,13 +83,14 @@ public:
         const std::deque<DB::MergeTreeDataPartPtr> & parts, const ReadSettings & read_settings, const WriteSettings & write_settings)
     {
     }
+    void saveMetadata(const std::deque<DB::MergeTreeDataPartPtr> & parts, const DB::ContextPtr & context);
 };
 
 class DirectStorageMergeTreeWrapper : public StorageMergeTreeWrapper
 {
 public:
     explicit DirectStorageMergeTreeWrapper(const CustomStorageMergeTreePtr & data_, bool isRemoteStorage_)
-        : StorageMergeTreeWrapper(data_, isRemoteStorage_, false)
+        : StorageMergeTreeWrapper(data_, isRemoteStorage_)
     {
     }
 };
@@ -104,7 +101,7 @@ class CopyToRemoteStorageMergeTreeWrapper : public StorageMergeTreeWrapper
 
 public:
     explicit CopyToRemoteStorageMergeTreeWrapper(const CustomStorageMergeTreePtr & data_, const CustomStorageMergeTreePtr & org_)
-        : StorageMergeTreeWrapper(data_, true, true), org_storage(org_)
+        : StorageMergeTreeWrapper(data_, true), org_storage(org_)
     {
         assert(merge_tree != org_storage);
     }
@@ -135,11 +132,9 @@ private:
     void checkAndMerge(bool force = false);
     void safeEmplaceBackPart(DB::MergeTreeDataPartPtr);
     void safeAddPart(DB::MergeTreeDataPartPtr);
-    void saveMetadata();
     void finalizeMerge();
     bool chunkToPart(Chunk && plan_chunk);
     bool blockToPart(Block & block);
-    bool useLocalStorage() const;
 
     const GlutenMergeTreeWriteSettings write_settings;
     DB::ContextPtr context;
