@@ -216,13 +216,13 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       }
     }
 
-    TestUtils.withListener(spark.sparkContext, inputMetricsListener) { _ =>
-      val df = spark.sql(
-        """
-          |select /*+ BROADCAST(part) */ * from part join lineitem
-          |on l_partkey = p_partkey
-          |""".stripMargin)
-      df.count()
+    TestUtils.withListener(spark.sparkContext, inputMetricsListener) {
+      _ =>
+        val df = spark.sql("""
+                             |select /*+ BROADCAST(part) */ * from part join lineitem
+                             |on l_partkey = p_partkey
+                             |""".stripMargin)
+        df.count()
     }
 
     assert(inputRecords == (partTableRecords + itemTableRecords))
