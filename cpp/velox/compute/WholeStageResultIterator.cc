@@ -96,7 +96,7 @@ WholeStageResultIterator::WholeStageResultIterator(
       0,
       std::move(queryCtx),
       velox::exec::Task::ExecutionMode::kSerial);
-  if (!task_->supportsSingleThreadedExecution()) {
+  if (!task_->supportSerialExecutionMode()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
   }
   auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
@@ -444,10 +444,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     }
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
-
-    // To align with Spark's behavior, allow decimal precision loss or not.
-    configs[velox::core::QueryConfig::kSparkDecimalOperationsAllowPrecisionLoss] =
-        veloxCfg_->get<std::string>(kAllowPrecisionLoss, "true");
 
     {
       // partial aggregation memory config
