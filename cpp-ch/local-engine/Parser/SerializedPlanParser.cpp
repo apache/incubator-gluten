@@ -1307,7 +1307,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     const substrait::PlanRel & root_rel = s_plan.relations().at(0);
     assert(root_rel.has_root());
     if (root_rel.root().input().has_write())
-        addSinkTransfrom(context, root_rel.root().input().write(), builder);
+        addSinkTransform(context, root_rel.root().input().write(), builder);
     ///
     QueryPipeline pipeline = QueryPipelineBuilder::getPipeline(std::move(*builder));
 
