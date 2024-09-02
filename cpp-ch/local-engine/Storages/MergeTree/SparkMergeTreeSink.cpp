@@ -12,26 +12,29 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.
+ * limitations under the License.~
  */
 #include "SparkMergeTreeSink.h"
-
+#include <Core/Settings.h>
 #include <Interpreters/MergeTreeTransaction.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
 
 namespace local_engine
 {
 
+IMPLEMENT_GLUTEN_SETTINGS(GlutenMergeTreeWriteSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
+
 MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     BlockWithPartition & block_with_partition,
     const StorageMetadataPtr & metadata_snapshot,
     const ContextPtr & context,
-    const PartitionInfo & partition_info) const
+    const GlutenMergeTreeWriteSettings & write_settings,
+    int part_num) const
 {
-    const std::string & part_name_prefix = partition_info.part_name_prefix;
-    const std::string & partition_dir = partition_info.partition_dir;
-    const std::string & bucket_dir = partition_info.bucket_dir;
-    const int part_num = partition_info.part_num;
+    const std::string & part_name_prefix = write_settings.part_name_prefix;
+    const std::string & partition_dir = write_settings.partition_dir;
+    const std::string & bucket_dir = write_settings.bucket_dir;
+
 
     MergeTreeDataWriter::TemporaryPart temp_part;
 
@@ -60,7 +63,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     else
         part_dir = fmt::format("{}_{:03d}", part_name_prefix, part_num);
 
-    assert(part_num > 0 && !part_name_prefix.empty());
+    // assert(part_num > 0 && !part_name_prefix.empty());
 
     String part_name = part_dir;
 
@@ -178,10 +181,6 @@ SinkToStoragePtr SparkStorageMergeTree::write(
     return std::make_shared<SparkMergeTreeSink>(*this, storage_in_memory_metadata, context);
 }
 
-SparkMergeTreeSink::~SparkMergeTreeSink()
-{
-}
-
 void SparkMergeTreeSink::consume(Chunk & chunk)
 {
     assert(!metadata_snapshot->hasPartitionKey());
@@ -198,7 +197,7 @@ void SparkMergeTreeSink::consume(Chunk & chunk)
         }
 
         MergeTreeDataWriter::TemporaryPart temp_part
-            = storage.writer.writeTempPart(item, metadata_snapshot, context, SparkMergeTreeDataWriter::PartitionInfo{});
+            = storage.writer.writeTempPart(item, metadata_snapshot, context, write_settings, part_num);
         new_parts.emplace_back(temp_part.part);
         part_num++;
         /// Reset earlier to free memory
@@ -211,6 +210,7 @@ void SparkMergeTreeSink::onStart()
 {
     // DO NOTHING
 }
+
 void SparkMergeTreeSink::onFinish()
 {
     // DO NOTHING
