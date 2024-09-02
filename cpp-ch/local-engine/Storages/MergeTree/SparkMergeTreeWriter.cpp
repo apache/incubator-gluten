@@ -154,7 +154,7 @@ void SparkMergeTreeWriter::finalize()
     if (write_settings.merge_after_insert)
         finalizeMerge();
 
-    commitPartToRemoteStorageIfNeeded();
+    dataWrapper->commitPartToRemoteStorageIfNeeded(new_parts.unsafeGet(), context->getReadSettings(), context->getWriteSettings());
     saveMetadata();
 }
 
@@ -183,28 +183,22 @@ void SparkMergeTreeWriter::saveMetadata()
     }
 }
 
-void SparkMergeTreeWriter::commitPartToRemoteStorageIfNeeded()
+void CopyToRemoteStorageMergeTreeWrapper::commitPartToRemoteStorageIfNeeded(
+    const std::deque<DB::MergeTreeDataPartPtr> & parts, const ReadSettings & read_settings, const WriteSettings & write_settings)
 {
-    if (!useLocalStorage())
-        return;
-
     LOG_DEBUG(
-        &Poco::Logger::get("SparkMergeTreeWriter"),
-        "Begin upload to disk {}.",
-        dataWrapper->dest_storage().getStoragePolicy()->getAnyDisk()->getName());
+        &Poco::Logger::get("SparkMergeTreeWriter"), "Begin upload to disk {}.", dest_storage().getStoragePolicy()->getAnyDisk()->getName());
 
-    auto read_settings = context->getReadSettings();
-    auto write_settings = context->getWriteSettings();
     Stopwatch watch;
-    for (const auto & merge_tree_data_part : new_parts.unsafeGet())
+    for (const auto & merge_tree_data_part : parts)
     {
-        String local_relative_path = dataWrapper->dataRef().getRelativeDataPath() + "/" + merge_tree_data_part->name;
-        String remote_relative_path = dataWrapper->dest_storage().getRelativeDataPath() + "/" + merge_tree_data_part->name;
+        String local_relative_path = dataRef().getRelativeDataPath() + "/" + merge_tree_data_part->name;
+        String remote_relative_path = dest_storage().getRelativeDataPath() + "/" + merge_tree_data_part->name;
 
         std::vector<String> files;
-        dataWrapper->dataRef().getStoragePolicy()->getAnyDisk()->listFiles(local_relative_path, files);
-        auto src_disk = dataWrapper->dataRef().getStoragePolicy()->getAnyDisk();
-        auto dest_disk = dataWrapper->dest_storage().getStoragePolicy()->getAnyDisk();
+        dataRef().getStoragePolicy()->getAnyDisk()->listFiles(local_relative_path, files);
+        auto src_disk = dataRef().getStoragePolicy()->getAnyDisk();
+        auto dest_disk = dest_storage().getStoragePolicy()->getAnyDisk();
         auto tx = dest_disk->createTransaction();
         for (const auto & file : files)
         {
@@ -219,20 +213,18 @@ void SparkMergeTreeWriter::commitPartToRemoteStorageIfNeeded()
             &Poco::Logger::get("SparkMergeTreeWriter"),
             "Upload part {} to disk {} success.",
             merge_tree_data_part->name,
-            dataWrapper->dest_storage().getStoragePolicy()->getAnyDisk()->getName());
+            dest_storage().getStoragePolicy()->getAnyDisk()->getName());
     }
     watch.stop();
     LOG_INFO(
         &Poco::Logger::get("SparkMergeTreeWriter"),
         "Upload to disk {} finished, total elapsed {} ms",
-        dataWrapper->dest_storage().getStoragePolicy()->getAnyDisk()->getName(),
+        dest_storage().getStoragePolicy()->getAnyDisk()->getName(),
         watch.elapsedMilliseconds());
-    StorageMergeTreeFactory::freeStorage(dataWrapper->temp_storage()->getStorageID());
-    dataWrapper->temp_storage()->dropAllData();
+    StorageMergeTreeFactory::freeStorage(temp_storage()->getStorageID());
+    temp_storage()->dropAllData();
     LOG_DEBUG(
-        &Poco::Logger::get("SparkMergeTreeWriter"),
-        "Clean temp table {} success.",
-        dataWrapper->temp_storage()->getStorageID().getFullNameNotQuoted());
+        &Poco::Logger::get("SparkMergeTreeWriter"), "Clean temp table {} success.", temp_storage()->getStorageID().getFullNameNotQuoted());
 }
 
 void SparkMergeTreeWriter::finalizeMerge()
@@ -298,7 +290,6 @@ std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo()
     }
     return res;
 }
-
 
 String SparkMergeTreeWriter::partInfosToJson(const std::vector<PartInfo> & part_infos)
 {

@@ -82,6 +82,11 @@ public:
     virtual CustomStorageMergeTreePtr temp_storage() { return nullptr; }
     CustomStorageMergeTreePtr data() const { return merge_tree; }
     CustomStorageMergeTree & dataRef() const { return *merge_tree; }
+
+    virtual void commitPartToRemoteStorageIfNeeded(
+        const std::deque<DB::MergeTreeDataPartPtr> & parts, const ReadSettings & read_settings, const WriteSettings & write_settings)
+    {
+    }
 };
 
 class DirectStorageMergeTreeWrapper : public StorageMergeTreeWrapper
@@ -106,6 +111,11 @@ public:
 
     CustomStorageMergeTree & dest_storage() override { return *org_storage; }
     CustomStorageMergeTreePtr temp_storage() override { return merge_tree; }
+
+    void commitPartToRemoteStorageIfNeeded(
+        const std::deque<DB::MergeTreeDataPartPtr> & parts,
+        const ReadSettings & read_settings,
+        const WriteSettings & write_settings) override;
 };
 
 class SparkMergeTreeWriter
@@ -126,7 +136,6 @@ private:
     void safeEmplaceBackPart(DB::MergeTreeDataPartPtr);
     void safeAddPart(DB::MergeTreeDataPartPtr);
     void saveMetadata();
-    void commitPartToRemoteStorageIfNeeded();
     void finalizeMerge();
     bool chunkToPart(Chunk && plan_chunk);
     bool blockToPart(Block & block);
