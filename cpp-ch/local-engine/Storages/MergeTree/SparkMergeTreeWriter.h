@@ -48,6 +48,66 @@ struct PartInfo
     bool operator<(const PartInfo & rhs) const { return disk_size < rhs.disk_size; }
 };
 
+class SparkMergeTreeWriter;
+
+class StorageMergeTreeWrapper;
+using StorageMergeTreeWrapperPtr = std::shared_ptr<StorageMergeTreeWrapper>;
+class StorageMergeTreeWrapper
+{
+    friend class SparkMergeTreeWriter;
+
+protected:
+    CustomStorageMergeTreePtr merge_tree = nullptr;
+    bool isRemoteStorage;
+    bool localStorageFirst;
+    DB::StorageMetadataPtr metadata_snapshot;
+    DB::Block header;
+
+public:
+    virtual ~StorageMergeTreeWrapper() = default;
+    explicit StorageMergeTreeWrapper(const CustomStorageMergeTreePtr & data_, bool isRemoteStorage_, bool useLocalStorage)
+        : merge_tree(data_)
+        , isRemoteStorage(isRemoteStorage_)
+        , localStorageFirst(useLocalStorage)
+        , metadata_snapshot(merge_tree->getInMemoryMetadataPtr())
+        , header(metadata_snapshot->getSampleBlock())
+    {
+    }
+    static StorageMergeTreeWrapperPtr
+    create(const MergeTreeTable & merge_tree_table, bool insert_with_local_storage, const DB::ContextMutablePtr & context);
+
+    bool useLocalStorage() const { return localStorageFirst; };
+
+    virtual CustomStorageMergeTree & dest_storage() { return *merge_tree; }
+    virtual CustomStorageMergeTreePtr temp_storage() { return nullptr; }
+    CustomStorageMergeTreePtr data() const { return merge_tree; }
+    CustomStorageMergeTree & dataRef() const { return *merge_tree; }
+};
+
+class DirectStorageMergeTreeWrapper : public StorageMergeTreeWrapper
+{
+public:
+    explicit DirectStorageMergeTreeWrapper(const CustomStorageMergeTreePtr & data_, bool isRemoteStorage_)
+        : StorageMergeTreeWrapper(data_, isRemoteStorage_, false)
+    {
+    }
+};
+
+class CopyToRemoteStorageMergeTreeWrapper : public StorageMergeTreeWrapper
+{
+    CustomStorageMergeTreePtr org_storage;
+
+public:
+    explicit CopyToRemoteStorageMergeTreeWrapper(const CustomStorageMergeTreePtr & data_, const CustomStorageMergeTreePtr & org_)
+        : StorageMergeTreeWrapper(data_, true, true), org_storage(org_)
+    {
+        assert(merge_tree != org_storage);
+    }
+
+    CustomStorageMergeTree & dest_storage() override { return *org_storage; }
+    CustomStorageMergeTreePtr temp_storage() override { return merge_tree; }
+};
+
 class SparkMergeTreeWriter
 {
 public:
@@ -72,23 +132,20 @@ private:
     bool blockToPart(Block & block);
     bool useLocalStorage() const;
 
-    CustomStorageMergeTreePtr data = nullptr;
-    CustomStorageMergeTreePtr dest_storage = nullptr;
-    CustomStorageMergeTreePtr temp_storage = nullptr;
-    DB::StorageMetadataPtr metadata_snapshot = nullptr;
-
     const GlutenMergeTreeWriteSettings write_settings;
-
     DB::ContextPtr context;
+
+
+    StorageMergeTreeWrapperPtr dataWrapper = nullptr;
+
     std::unique_ptr<DB::Squashing> squashing;
     int part_num = 1;
     ConcurrentDeque<DB::MergeTreeDataPartPtr> new_parts;
     std::unordered_map<String, String> partition_values;
     std::unordered_set<String> tmp_parts;
-    DB::Block header;
+
     ThreadPool thread_pool;
 
     std::mutex memory_mutex;
-    bool isRemoteStorage = false;
 };
 }
