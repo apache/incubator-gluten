@@ -61,14 +61,10 @@ namespace local_engine
 
 SparkMergeTreeWriter::SparkMergeTreeWriter(
     const MergeTreeTable & merge_tree_table,
-    const DB::ContextPtr & context_,
-    const String & part_name_prefix_,
-    const String & partition_dir_,
-    const String & bucket_dir_)
-    : context(context_)
-    , part_name_prefix(part_name_prefix_)
-    , partition_dir(partition_dir_)
-    , bucket_dir(bucket_dir_)
+    const GlutenMergeTreeWriteSettings & write_settings_,
+    const DB::ContextPtr & context_)
+    : write_settings(write_settings_)
+    , context(context_)
     , thread_pool(CurrentMetrics::LocalThread, CurrentMetrics::LocalThreadActive, CurrentMetrics::LocalThreadScheduled, 1, 1, 100000)
 {
     const DB::Settings & settings = context->getSettingsRef();
@@ -101,8 +97,8 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
     metadata_snapshot = data->getInMemoryMetadataPtr();
     header = metadata_snapshot->getSampleBlock();
     squashing = std::make_unique<DB::Squashing>(header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
-    if (!partition_dir.empty())
-        extractPartitionValues(partition_dir, partition_values);
+    if (!write_settings.partition_dir.empty())
+        extractPartitionValues(write_settings.partition_dir, partition_values);
 }
 
 bool SparkMergeTreeWriter::useLocalStorage() const
@@ -282,12 +278,12 @@ void SparkMergeTreeWriter::finalizeMerge()
 DB::MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPartAndFinalize(
     DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot) const
 {
-    SparkMergeTreeDataWriter writer(*data);
+    const SparkMergeTreeDataWriter writer(*data);
     return writer.writeTempPart(
         block_with_partition,
         metadata_snapshot,
         context,
-        GlutenMergeTreeWriteSettings{.part_name_prefix = part_name_prefix, .partition_dir = partition_dir, .bucket_dir = bucket_dir},
+        write_settings,
         part_num);
 }
 
@@ -299,7 +295,7 @@ std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo()
     for (const auto & part : new_parts.unsafeGet())
     {
         res.emplace_back(
-            PartInfo{part->name, part->getMarksCount(), part->getBytesOnDisk(), part->rows_count, partition_values, bucket_dir});
+            PartInfo{part->name, part->getMarksCount(), part->getBytesOnDisk(), part->rows_count, partition_values, write_settings.bucket_dir});
     }
     return res;
 }
@@ -361,7 +357,7 @@ void SparkMergeTreeWriter::checkAndMerge(bool force)
 
                 std::unordered_map<String, String> partition_values;
                 const auto merged_parts = mergeParts(
-                    prepare_merge_parts, partition_values, toString(UUIDHelpers::generateV4()), data, partition_dir, bucket_dir);
+                    prepare_merge_parts, partition_values, toString(UUIDHelpers::generateV4()), data, write_settings.partition_dir, write_settings.bucket_dir);
                 for (const auto & merge_tree_data_part : merged_parts)
                     after_size += merge_tree_data_part->getBytesOnDisk();
 

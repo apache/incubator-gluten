@@ -21,6 +21,7 @@
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
 #include <Storages/MergeTree/MergeTreeDataWriter.h>
 #include <Storages/MergeTree/MergeTreeTool.h>
+#include <Storages/MergeTree/SparkMergeTreeSink.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Common/CHUtil.h>
 
@@ -53,10 +54,8 @@ public:
     static String partInfosToJson(const std::vector<PartInfo> & part_infos);
     SparkMergeTreeWriter(
         const MergeTreeTable & merge_tree_table,
-        const DB::ContextPtr & context_,
-        const String & part_name_prefix_,
-        const String & partition_dir_ = "",
-        const String & bucket_dir_ = "");
+        const GlutenMergeTreeWriteSettings & write_settings_,
+        const DB::ContextPtr & context_);
 
     void write(const DB::Block & block);
     void finalize();
@@ -80,9 +79,7 @@ private:
     CustomStorageMergeTreePtr temp_storage = nullptr;
     DB::StorageMetadataPtr metadata_snapshot = nullptr;
 
-    String part_name_prefix;
-    String partition_dir;
-    String bucket_dir;
+    GlutenMergeTreeWriteSettings write_settings;
 
     DB::ContextPtr context;
     std::unique_ptr<DB::Squashing> squashing;

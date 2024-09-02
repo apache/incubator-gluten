@@ -80,15 +80,15 @@ static std::string jstring2string(JNIEnv * env, jstring jStr)
 
     const jclass string_class = env->GetObjectClass(jStr);
     const jmethodID get_bytes = env->GetMethodID(string_class, "getBytes", "(Ljava/lang/String;)[B");
-    const auto string_jbytes
+    auto *const string_jbytes
         = static_cast<jbyteArray>(local_engine::safeCallObjectMethod(env, jStr, get_bytes, env->NewStringUTF("UTF-8")));
+    SCOPE_EXIT({
+        env->DeleteLocalRef(string_jbytes);
+        env->DeleteLocalRef(string_class);
+    });
 
     const auto string_jbytes_a = local_engine::getByteArrayElementsSafe(env, string_jbytes);
-    std::string ret{reinterpret_cast<char *>(string_jbytes_a.elems()), static_cast<size_t>(string_jbytes_a.length())};
-
-    env->DeleteLocalRef(string_jbytes);
-    env->DeleteLocalRef(string_class);
-    return ret;
+    return {reinterpret_cast<char *>(string_jbytes_a.elems()), static_cast<size_t>(string_jbytes_a.length())};
 }
 
 extern "C" {
@@ -892,14 +892,19 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     const auto task_id = jstring2string(env, task_id_);
     const auto partition_dir = jstring2string(env, partition_dir_);
     const auto bucket_dir = jstring2string(env, bucket_dir_);
+    auto uuid = uuid_str + "_" + task_id;
+    local_engine::GlutenMergeTreeWriteSettings settings{
+        .part_name_prefix{uuid},
+        .partition_dir {partition_dir},
+        .bucket_dir { bucket_dir},
+    };
 
     const auto split_info_a = local_engine::getByteArrayElementsSafe(env, split_info_);
     auto extension_table = local_engine::BinaryToMessage<substrait::ReadRel::ExtensionTable>(
         {reinterpret_cast<const char *>(split_info_a.elems()), static_cast<size_t>(split_info_a.length())});
-
     auto merge_tree_table = local_engine::MergeTreeRelParser::parseMergeTreeTable(extension_table);
-    auto uuid = uuid_str + "_" + task_id;
-    auto * writer = new local_engine::SparkMergeTreeWriter(merge_tree_table, query_context, uuid, partition_dir, bucket_dir);
+
+    auto * writer = new local_engine::SparkMergeTreeWriter(merge_tree_table, settings, query_context);
 
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
