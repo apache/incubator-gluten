@@ -24,7 +24,6 @@
 #include <Storages/MergeTree/MergeTreeTool.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 
-
 namespace DB
 {
 namespace ErrorCodes
@@ -44,7 +43,7 @@ public:
         const MergeTreeTable & merge_tree_table, ContextMutablePtr context, bool restore = false);
 
     // Create random table name and table path and use default storage policy.
-    // In insert case, mergetree data can be upload after merges in default storage(Local Disk).
+    // In insert case, mergetree data can be uploaded after merges in default storage(Local Disk).
     static CustomStorageMergeTreePtr
     copyToDefaultPolicyStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context);
 
