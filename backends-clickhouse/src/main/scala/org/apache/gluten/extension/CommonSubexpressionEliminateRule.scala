@@ -121,7 +121,12 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
         if (expr.find(_.isInstanceOf[AggregateExpression]).isDefined) {
           addToEquivalentExpressions(expr, equivalentExpressions)
         } else {
-          equivalentExpressions.addExprTree(expr)
+          expr match {
+            case alias: Alias =>
+              equivalentExpressions.addExprTree(alias.child)
+            case _ =>
+              equivalentExpressions.addExprTree(expr)
+          }
         }
       })
 
