@@ -53,9 +53,7 @@ class SparkMergeTreeWriter
 public:
     static String partInfosToJson(const std::vector<PartInfo> & part_infos);
     SparkMergeTreeWriter(
-        const MergeTreeTable & merge_tree_table,
-        const GlutenMergeTreeWriteSettings & write_settings_,
-        const DB::ContextPtr & context_);
+        const MergeTreeTable & merge_tree_table, const GlutenMergeTreeWriteSettings & write_settings_, const DB::ContextPtr & context_);
 
     void write(const DB::Block & block);
     void finalize();
@@ -79,7 +77,7 @@ private:
     CustomStorageMergeTreePtr temp_storage = nullptr;
     DB::StorageMetadataPtr metadata_snapshot = nullptr;
 
-    GlutenMergeTreeWriteSettings write_settings;
+    const GlutenMergeTreeWriteSettings write_settings;
 
     DB::ContextPtr context;
     std::unique_ptr<DB::Squashing> squashing;
@@ -88,11 +86,8 @@ private:
     std::unordered_map<String, String> partition_values;
     std::unordered_set<String> tmp_parts;
     DB::Block header;
-    bool merge_after_insert;
-    bool insert_without_local_storage;
     ThreadPool thread_pool;
-    size_t merge_min_size = 1024 * 1024 * 1024;
-    size_t merge_limit_parts = 10;
+
     std::mutex memory_mutex;
     bool isRemoteStorage = false;
 };

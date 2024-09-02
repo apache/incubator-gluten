@@ -17,6 +17,7 @@
 #pragma once
 #include <Processors/Sinks/SinkToStorage.h>
 #include <Storages/MergeTree/CustomStorageMergeTree.h>
+#include <Common/CHUtil.h>
 #include <Common/GlutenSettings.h>
 
 namespace local_engine
@@ -27,25 +28,39 @@ namespace local_engine
     M(String, partition_dir, , "The parition directory for writing data", UNIQ) \
     M(String, bucket_dir, , "The bucket directory for writing data", UNIQ)
 
-DECLARE_GLUTEN_SETTINGS(GlutenMergeTreeWriteSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
+DECLARE_GLUTEN_SETTINGS(MergeTreePartitionWriteSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
+
+struct GlutenMergeTreeWriteSettings
+{
+    MergeTreePartitionWriteSettings partition_settings;
+    bool merge_after_insert{true};
+    bool insert_without_local_storage{false};
+    size_t merge_min_size = 1024 * 1024 * 1024;
+    size_t merge_limit_parts = 10;
+
+    void load(const DB::ContextPtr & context)
+    {
+        const DB::Settings & settings = context->getSettingsRef();
+        merge_after_insert = settings.get(MERGETREE_MERGE_AFTER_INSERT).safeGet<bool>();
+        insert_without_local_storage = settings.get(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE).safeGet<bool>();
+
+        if (Field limit_size_field; settings.tryGet("optimize.minFileSize", limit_size_field))
+            merge_min_size = limit_size_field.safeGet<Int64>() <= 0 ? merge_min_size : limit_size_field.safeGet<Int64>();
+
+        if (Field limit_cnt_field; settings.tryGet("mergetree.max_num_part_per_merge_task", limit_cnt_field))
+            merge_limit_parts = limit_cnt_field.safeGet<Int64>() <= 0 ? merge_limit_parts : limit_cnt_field.safeGet<Int64>();
+    }
+};
 
 class SparkMergeTreeDataWriter
 {
 public:
-    struct PartitionInfo
-    {
-        std::string part_name_prefix;
-        std::string partition_dir;
-        std::string bucket_dir;
-        int part_num;
-    };
-
     explicit SparkMergeTreeDataWriter(MergeTreeData & data_) : data(data_), log(getLogger(data.getLogName() + " (Writer)")) { }
     MergeTreeDataWriter::TemporaryPart writeTempPart(
         DB::BlockWithPartition & block_with_partition,
         const DB::StorageMetadataPtr & metadata_snapshot,
         const ContextPtr & context,
-        const GlutenMergeTreeWriteSettings & write_settings,
+        const MergeTreePartitionWriteSettings & write_settings,
         int part_num) const;
 
 private:
@@ -99,7 +114,7 @@ public:
         , storage(storage_)
         , metadata_snapshot(metadata_snapshot_)
         , context(context_)
-        , write_settings(GlutenMergeTreeWriteSettings::get(context_))
+        , write_settings(MergeTreePartitionWriteSettings::get(context_))
     {
     }
     ~SparkMergeTreeSink() override = default;
@@ -113,7 +128,7 @@ private:
     SparkStorageMergeTree & storage;
     StorageMetadataPtr metadata_snapshot;
     ContextPtr context;
-    GlutenMergeTreeWriteSettings write_settings;
+    MergeTreePartitionWriteSettings write_settings;
     int part_num = 1;
     std::vector<DB::MergeTreeDataPartPtr> new_parts{};
 };

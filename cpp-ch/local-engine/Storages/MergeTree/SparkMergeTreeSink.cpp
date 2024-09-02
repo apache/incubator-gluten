@@ -22,13 +22,13 @@
 namespace local_engine
 {
 
-IMPLEMENT_GLUTEN_SETTINGS(GlutenMergeTreeWriteSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
+IMPLEMENT_GLUTEN_SETTINGS(MergeTreePartitionWriteSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
 
 MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     BlockWithPartition & block_with_partition,
     const StorageMetadataPtr & metadata_snapshot,
     const ContextPtr & context,
-    const GlutenMergeTreeWriteSettings & write_settings,
+    const MergeTreePartitionWriteSettings & write_settings,
     int part_num) const
 {
     const std::string & part_name_prefix = write_settings.part_name_prefix;

@@ -80,7 +80,7 @@ static std::string jstring2string(JNIEnv * env, jstring jStr)
 
     const jclass string_class = env->GetObjectClass(jStr);
     const jmethodID get_bytes = env->GetMethodID(string_class, "getBytes", "(Ljava/lang/String;)[B");
-    auto *const string_jbytes
+    auto * const string_jbytes
         = static_cast<jbyteArray>(local_engine::safeCallObjectMethod(env, jStr, get_bytes, env->NewStringUTF("UTF-8")));
     SCOPE_EXIT({
         env->DeleteLocalRef(string_jbytes);
@@ -894,10 +894,8 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     const auto bucket_dir = jstring2string(env, bucket_dir_);
     auto uuid = uuid_str + "_" + task_id;
     local_engine::GlutenMergeTreeWriteSettings settings{
-        .part_name_prefix{uuid},
-        .partition_dir {partition_dir},
-        .bucket_dir { bucket_dir},
-    };
+        .partition_settings{.part_name_prefix{uuid}, .partition_dir{partition_dir}, .bucket_dir{bucket_dir}}};
+    settings.load(query_context);
 
     const auto split_info_a = local_engine::getByteArrayElementsSafe(env, split_info_);
     auto extension_table = local_engine::BinaryToMessage<substrait::ReadRel::ExtensionTable>(
