@@ -103,11 +103,9 @@ private:
     mutable std::mutex mtx;
 };
 
-class SparkMergeTreeWriter;
-
-class StorageMergeTreeWrapper;
-using StorageMergeTreeWrapperPtr = std::shared_ptr<StorageMergeTreeWrapper>;
-class StorageMergeTreeWrapper
+class SinkHelper;
+using SinkHelperPtr = std::shared_ptr<SinkHelper>;
+class SinkHelper
 {
 protected:
     const GlutenMergeTreeWriteSettings write_settings;
@@ -133,10 +131,10 @@ public:
     void checkAndMerge(bool force = false);
     void finalizeMerge();
 
-    virtual ~StorageMergeTreeWrapper() = default;
-    explicit StorageMergeTreeWrapper(
+    virtual ~SinkHelper() = default;
+    explicit SinkHelper(
         const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_);
-    static StorageMergeTreeWrapperPtr create(
+    static SinkHelperPtr create(
         const MergeTreeTable & merge_tree_table,
         const GlutenMergeTreeWriteSettings & write_settings_,
         const DB::ContextMutablePtr & context);
@@ -148,29 +146,29 @@ public:
     void saveMetadata(const DB::ContextPtr & context);
 };
 
-class DirectStorageMergeTreeWrapper : public StorageMergeTreeWrapper
+class DirectSinkHelper : public SinkHelper
 {
 protected:
     void cleanup() override;
 
 public:
-    explicit DirectStorageMergeTreeWrapper(
+    explicit DirectSinkHelper(
         const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
-        : StorageMergeTreeWrapper(data_, write_settings_, isRemoteStorage_)
+        : SinkHelper(data_, write_settings_, isRemoteStorage_)
     {
     }
 };
 
-class CopyToRemoteStorageMergeTreeWrapper : public StorageMergeTreeWrapper
+class CopyToRemoteSinkHelper : public SinkHelper
 {
     CustomStorageMergeTreePtr dest;
 
 public:
-    explicit CopyToRemoteStorageMergeTreeWrapper(
+    explicit CopyToRemoteSinkHelper(
         const CustomStorageMergeTreePtr & temp,
         const CustomStorageMergeTreePtr & dest_,
         const GlutenMergeTreeWriteSettings & write_settings_)
-        : StorageMergeTreeWrapper(temp, write_settings_, true), dest(dest_)
+        : SinkHelper(temp, write_settings_, true), dest(dest_)
     {
         assert(data != dest);
     }
@@ -199,7 +197,7 @@ private:
     bool blockToPart(Block & block);
 
     const GlutenMergeTreeWriteSettings write_settings;
-    StorageMergeTreeWrapperPtr dataWrapper;
+    SinkHelperPtr dataWrapper;
     DB::ContextPtr context;
     std::unordered_map<String, String> partition_values;
 

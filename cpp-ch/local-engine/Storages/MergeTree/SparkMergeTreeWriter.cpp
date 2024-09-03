@@ -61,7 +61,7 @@ namespace local_engine
 SparkMergeTreeWriter::SparkMergeTreeWriter(
     const MergeTreeTable & merge_tree_table, const GlutenMergeTreeWriteSettings & write_settings_, const DB::ContextPtr & context_)
     : write_settings(write_settings_)
-    , dataWrapper(StorageMergeTreeWrapper::create(merge_tree_table, write_settings, SerializedPlanParser::global_context))
+    , dataWrapper(SinkHelper::create(merge_tree_table, write_settings, SerializedPlanParser::global_context))
     , context(context_)
 {
     const DB::Settings & settings = context->getSettingsRef();
@@ -189,7 +189,7 @@ String SparkMergeTreeWriter::partInfosToJson(const std::vector<PartInfo> & part_
     return result.GetString();
 }
 
-StorageMergeTreeWrapperPtr StorageMergeTreeWrapper::create(
+SinkHelperPtr SinkHelper::create(
     const MergeTreeTable & merge_tree_table, const GlutenMergeTreeWriteSettings & write_settings_, const DB::ContextMutablePtr & context)
 {
     auto dest_storage = MergeTreeRelParser::parseStorage(merge_tree_table, context);
@@ -202,14 +202,13 @@ StorageMergeTreeWrapperPtr StorageMergeTreeWrapper::create(
             &Poco::Logger::get("SparkMergeTreeWriter"),
             "Create temp table {} for local merge.",
             temp->getStorageID().getFullNameNotQuoted());
-        return std::make_shared<CopyToRemoteStorageMergeTreeWrapper>(temp, dest_storage, write_settings_);
+        return std::make_shared<CopyToRemoteSinkHelper>(temp, dest_storage, write_settings_);
     }
 
-    return std::make_shared<DirectStorageMergeTreeWrapper>(dest_storage, write_settings_, isRemoteStorage);
+    return std::make_shared<DirectSinkHelper>(dest_storage, write_settings_, isRemoteStorage);
 }
 
-StorageMergeTreeWrapper::StorageMergeTreeWrapper(
-    const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
+SinkHelper::SinkHelper(const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
     : write_settings(write_settings_)
     , data(data_)
     , isRemoteStorage(isRemoteStorage_)
@@ -219,7 +218,7 @@ StorageMergeTreeWrapper::StorageMergeTreeWrapper(
 {
 }
 
-void StorageMergeTreeWrapper::saveMetadata(const DB::ContextPtr & context)
+void SinkHelper::saveMetadata(const DB::ContextPtr & context)
 {
     if (!isRemoteStorage)
         return;
@@ -242,7 +241,7 @@ void StorageMergeTreeWrapper::saveMetadata(const DB::ContextPtr & context)
     }
 }
 
-void StorageMergeTreeWrapper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> & prepare_merge_parts)
+void SinkHelper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> & prepare_merge_parts)
 {
     for (const auto & selected_part : prepare_merge_parts)
         tmp_parts.emplace(selected_part->name);
@@ -285,7 +284,7 @@ void StorageMergeTreeWrapper::doMergePartsAsync(const std::vector<DB::MergeTreeD
         });
 }
 
-void StorageMergeTreeWrapper::checkAndMerge(bool force)
+void SinkHelper::checkAndMerge(bool force)
 {
     // Only finalize should force merge.
     if (!force && new_parts.size() < write_settings.merge_limit_parts)
@@ -326,7 +325,7 @@ void StorageMergeTreeWrapper::checkAndMerge(bool force)
     new_parts.emplace_back(skip_parts);
 }
 
-void StorageMergeTreeWrapper::finalizeMerge()
+void SinkHelper::finalizeMerge()
 {
     LOG_DEBUG(&Poco::Logger::get("SparkMergeTreeWriter"), "Waiting all merge task end and do final merge");
     // waiting all merge task end and do final merge
@@ -342,7 +341,7 @@ void StorageMergeTreeWrapper::finalizeMerge()
     cleanup();
 }
 
-void CopyToRemoteStorageMergeTreeWrapper::commit(const ReadSettings & read_settings, const WriteSettings & write_settings)
+void CopyToRemoteSinkHelper::commit(const ReadSettings & read_settings, const WriteSettings & write_settings)
 {
     LOG_DEBUG(
         &Poco::Logger::get("SparkMergeTreeWriter"), "Begin upload to disk {}.", dest_storage().getStoragePolicy()->getAnyDisk()->getName());
@@ -387,7 +386,7 @@ void CopyToRemoteStorageMergeTreeWrapper::commit(const ReadSettings & read_setti
         &Poco::Logger::get("SparkMergeTreeWriter"), "Clean temp table {} success.", temp_storage()->getStorageID().getFullNameNotQuoted());
 }
 
-void DirectStorageMergeTreeWrapper::cleanup()
+void DirectSinkHelper::cleanup()
 {
     // default storage need clean temp.
 
