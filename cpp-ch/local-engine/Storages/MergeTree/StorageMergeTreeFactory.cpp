@@ -67,7 +67,7 @@ CustomStorageMergeTreePtr StorageMergeTreeFactory::getStorage(
     std::lock_guard lock(storage_map_mutex);
 
     // merge_tree_table.parts.clear();
-    if (storage_map->has(table_name) && !storage_map->get(table_name)->second.sameStructWith(merge_tree_table))
+    if (storage_map->has(table_name) && !storage_map->get(table_name)->second.sameTable(merge_tree_table))
     {
         freeStorage(id);
         std::lock_guard lock_datapart(datapart_mutex);

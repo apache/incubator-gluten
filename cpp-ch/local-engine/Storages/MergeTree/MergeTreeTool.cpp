@@ -251,7 +251,7 @@ bool sameColumns(const substrait::NamedStruct & left, const substrait::NamedStru
     return true;
 }
 
-bool MergeTreeTable::sameStructWith(const MergeTreeTable & other) const
+bool MergeTreeTable::sameTable(const MergeTreeTable & other) const
 {
     return database == other.database && table == other.table && snapshot_id == other.snapshot_id && sameColumns(schema, other.schema)
         && order_by_key == other.order_by_key && low_card_key == other.low_card_key && minmax_index_key == other.minmax_index_key

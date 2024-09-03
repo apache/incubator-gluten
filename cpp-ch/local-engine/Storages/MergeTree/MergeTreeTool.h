@@ -63,7 +63,7 @@ struct MergeTreeTable
     std::string absolute_path;
     MergeTreeTableSettings table_configs;
 
-    bool sameStructWith(const MergeTreeTable & other) const;
+    bool sameTable(const MergeTreeTable & other) const;
 };
 
 struct MergeTreeTableInstance : MergeTreeTable
