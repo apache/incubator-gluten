@@ -27,7 +27,7 @@ namespace DB::ErrorCodes
 extern const int BAD_ARGUMENTS;
 }
 
-const static String FUNCTION_ROW_NUM = "row_number";
+const static String FUNCTION_ROW_NUM = "top_row_number";
 const static String FUNCTION_RANK = "top_rank";
 const static String FUNCTION_DENSE_RANK = "top_dense_rank";
 
@@ -68,22 +68,18 @@ WindowGroupLimitRelParser::parse(DB::QueryPlanPtr current_plan_, const substrait
     current_plan->addStep(std::move(post_project_step));
 
     LOG_ERROR(getLogger("WindowGroupLimitRelParser"), "xxx output header: {}", current_plan->getCurrentDataStream().header.dumpStructure());
-    bool x = true;
-    if (x)
-    {
-        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalide rel");
-    }
     return std::move(current_plan);
 }
 
 DB::WindowFrame WindowGroupLimitRelParser::buildWindowFrame(const String & function_name)
 {
+    // We only need first rows, so let the begin type is unbounded is OK
     DB::WindowFrame frame;
     if (function_name == FUNCTION_ROW_NUM)
     {
         frame.type = DB::WindowFrame::FrameType::ROWS;
-        frame.begin_type = DB::WindowFrame::BoundaryType::Offset;
-        frame.begin_offset = 1;
+        frame.begin_type = DB::WindowFrame::BoundaryType::Unbounded;
+        frame.begin_offset = 0;
         frame.begin_preceding = true;
         frame.end_type = DB::WindowFrame::BoundaryType::Current;
         frame.end_offset = 0;
@@ -123,7 +119,7 @@ DB::WindowDescription WindowGroupLimitRelParser::buildWindowDescription(const su
     ss << win_desc.frame.toString();
     win_desc.window_name = ss.str();
 
-    win_desc.window_functions.emplace_back(buildWindowFunctionDescription(window_function_name));
+    win_desc.window_functions.emplace_back(buildWindowFunctionDescription(window_function_name, static_cast<size_t>(win_rel_def.limit())));
 
     return win_desc;
 }
@@ -153,7 +149,7 @@ WindowGroupLimitRelParser::parsePartitionBy(const google::protobuf::RepeatedPtrF
     return sort_desc;
 }
 
-DB::WindowFunctionDescription WindowGroupLimitRelParser::buildWindowFunctionDescription(const String & function_name)
+DB::WindowFunctionDescription WindowGroupLimitRelParser::buildWindowFunctionDescription(const String & function_name, size_t limit)
 {
     DB::WindowFunctionDescription desc;
     desc.column_name = function_name;
@@ -162,6 +158,7 @@ DB::WindowFunctionDescription WindowGroupLimitRelParser::buildWindowFunctionDesc
     DB::Names func_args;
     DB::DataTypes func_args_types;
     DB::Array func_params;
+    func_params.push_back(limit);
     auto func_ptr = RelParser::getAggregateFunction(function_name, func_args_types, func_properties, func_params);
     desc.argument_names = func_args;
     desc.argument_types = func_args_types;

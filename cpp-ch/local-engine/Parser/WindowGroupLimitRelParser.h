@@ -52,6 +52,6 @@ private:
 
     DB::SortDescription parsePartitionBy(const google::protobuf::RepeatedPtrField<substrait::Expression> & expressions);
 
-    static DB::WindowFunctionDescription buildWindowFunctionDescription(const String & function_name);
+    static DB::WindowFunctionDescription buildWindowFunctionDescription(const String & function_name, size_t limit);
 };
 }
