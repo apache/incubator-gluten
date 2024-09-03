@@ -39,7 +39,7 @@ endif()
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 
 set(GLUTEN_PROTO_SRC_DIR
-        ${GLUTEN_HOME}/gluten-core/src/main/resources/org/apache/gluten/proto)
+    ${GLUTEN_HOME}/gluten-core/src/main/resources/org/apache/gluten/proto)
 message(STATUS "Set Gluten Proto Directory in ${GLUTEN_PROTO_SRC_DIR}")
 
 set(SUBSTRAIT_PROTO_SRC_DIR
