@@ -18,7 +18,7 @@ package org.apache.gluten.metrics
 
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkMetricsUtil
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 
 class SortMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
 

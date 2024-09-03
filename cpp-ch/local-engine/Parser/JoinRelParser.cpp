@@ -30,6 +30,7 @@
 #include <Parser/AdvancedParametersParseUtil.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parsers/ASTIdentifier.h>
+#include <Operator/EarlyStopStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/JoinStep.h>
@@ -268,6 +269,30 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
     if (storage_join)
     {
+        if (join_opt_info.is_null_aware_anti_join && join.type() == substrait::JoinRel_JoinType_JOIN_TYPE_ANTI)
+        {
+            if (storage_join->has_null_key_value)
+            {
+                // if there is a null key value on the build side, it will return the empty result
+                auto empty_step = std::make_unique<EarlyStopStep>(left->getCurrentDataStream());
+                left->addStep(std::move(empty_step));
+            }
+            else if (!storage_join->is_empty_hash_table)
+            {
+                auto input_header = left->getCurrentDataStream().header;
+                DB::ActionsDAG filter_is_not_null_dag{input_header.getColumnsWithTypeAndName()};
+                // when is_null_aware_anti_join is true, there is only one join key
+                const auto * key_field = filter_is_not_null_dag.getInputs()[join.expression().scalar_function().arguments().at(0).value().selection().direct_reference().struct_field().field()];
+
+                auto result_node = filter_is_not_null_dag.tryFindInOutputs(key_field->result_name);
+                // add a function isNotNull to filter the null key on the left side
+                const auto * cond_node = plan_parser->toFunctionNode(filter_is_not_null_dag, "isNotNull", {result_node});
+                filter_is_not_null_dag.addOrReplaceInOutputs(*cond_node);
+                auto filter_step = std::make_unique<FilterStep>(left->getCurrentDataStream(), std::move(filter_is_not_null_dag), cond_node->result_name, true);
+                left->addStep(std::move(filter_step));
+            }
+            // other case: is_empty_hash_table, don't need to handle
+        }
         applyJoinFilter(*table_join, join, *left, *right, true);
         auto broadcast_hash_join = storage_join->getJoinLocked(table_join, context);
 

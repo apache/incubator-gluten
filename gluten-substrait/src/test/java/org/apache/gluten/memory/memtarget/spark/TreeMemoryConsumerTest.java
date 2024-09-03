@@ -24,7 +24,7 @@ import org.apache.gluten.memory.memtarget.TreeMemoryTarget;
 
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.internal.SQLConf;
-import org.apache.spark.util.TaskResources$;
+import org.apache.spark.task.TaskResources$;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

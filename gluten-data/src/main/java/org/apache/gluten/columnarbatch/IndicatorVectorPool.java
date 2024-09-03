@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.columnarbatch;
 
-import org.apache.spark.util.TaskResource;
+import org.apache.spark.task.TaskResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

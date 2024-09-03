@@ -33,7 +33,8 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{SerializableConfiguration, TaskResources}
+import org.apache.spark.task.TaskResources
+import org.apache.spark.util.SerializableConfiguration
 
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.vector.types.pojo.Schema

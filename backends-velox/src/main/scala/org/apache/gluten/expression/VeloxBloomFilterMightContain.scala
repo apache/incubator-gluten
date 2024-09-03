@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.{BinaryExpression, Expression}
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block.BlockHelper
 import org.apache.spark.sql.types.DataType
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 
 /**
  * Velox's bloom-filter implementation uses different algorithms internally comparing to vanilla
