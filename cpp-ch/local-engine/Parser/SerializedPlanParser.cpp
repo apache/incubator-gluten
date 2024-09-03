@@ -389,9 +389,9 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         }
         if (need_final_project)
         {
-            ActionsDAG final_project
-                = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
-            QueryPlanStepPtr final_project_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(final_project));
+            ActionsDAG final_project = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
+            QueryPlanStepPtr final_project_step
+                = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(final_project));
             final_project_step->setStepDescription("Project for output schema");
             query_plan->addStep(std::move(final_project_step));
         }
@@ -499,6 +499,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
         case substrait::Rel::RelTypeCase::kWindow:
         case substrait::Rel::RelTypeCase::kJoin:
         case substrait::Rel::RelTypeCase::kCross:
+        case substrait::Rel::RelTypeCase::kWindowGroupLimit:
         case substrait::Rel::RelTypeCase::kExpand: {
             auto op_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(this);
             query_plan = op_parser->parseOp(rel, rel_stack);
@@ -601,7 +602,7 @@ void SerializedPlanParser::parseArrayJoinArguments(
 }
 
 ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
-    const substrait::Expression & rel, std::vector<String> & result_names, ActionsDAG& actions_dag, bool keep_result, bool position)
+    const substrait::Expression & rel, std::vector<String> & result_names, ActionsDAG & actions_dag, bool keep_result, bool position)
 {
     if (!rel.has_scalar_function())
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "The root of expression should be a scalar function:\n {}", rel.DebugString());
@@ -718,7 +719,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
 }
 
 const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
-    const substrait::Expression & rel, std::string & result_name, ActionsDAG& actions_dag, bool keep_result)
+    const substrait::Expression & rel, std::string & result_name, ActionsDAG & actions_dag, bool keep_result)
 {
     if (!rel.has_scalar_function())
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "the root of expression should be a scalar function:\n {}", rel.DebugString());
@@ -780,9 +781,8 @@ bool SerializedPlanParser::isFunction(substrait::Expression_ScalarFunction rel, 
 }
 
 void SerializedPlanParser::parseFunctionOrExpression(
-    const substrait::Expression & rel, std::string & result_name, ActionsDAG& actions_dag, bool keep_result)
+    const substrait::Expression & rel, std::string & result_name, ActionsDAG & actions_dag, bool keep_result)
 {
-
     if (rel.has_scalar_function())
         parseFunctionWithDAG(rel, result_name, actions_dag, keep_result);
     else
@@ -793,11 +793,7 @@ void SerializedPlanParser::parseFunctionOrExpression(
 }
 
 void SerializedPlanParser::parseJsonTuple(
-    const substrait::Expression & rel,
-    std::vector<String> & result_names,
-    ActionsDAG& actions_dag,
-    bool keep_result,
-    bool)
+    const substrait::Expression & rel, std::vector<String> & result_names, ActionsDAG & actions_dag, bool keep_result, bool)
 {
     const auto & scalar_function = rel.scalar_function();
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
@@ -856,7 +852,7 @@ void SerializedPlanParser::parseJsonTuple(
 }
 
 const ActionsDAG::Node *
-SerializedPlanParser::toFunctionNode(ActionsDAG& actions_dag, const String & function, const ActionsDAG::NodeRawConstPtrs & args)
+SerializedPlanParser::toFunctionNode(ActionsDAG & actions_dag, const String & function, const ActionsDAG::NodeRawConstPtrs & args)
 {
     auto function_builder = FunctionFactory::instance().get(function, context);
     std::string args_name = join(args, ',');
@@ -1068,7 +1064,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
     return std::make_pair(std::move(type), std::move(field));
 }
 
-const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG& actions_dag, const substrait::Expression & rel)
+const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG & actions_dag, const substrait::Expression & rel)
 {
     switch (rel.rex_type_case())
     {
@@ -1533,8 +1529,7 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
     }
 }
 
-void SerializedPlanParser::removeNullableForRequiredColumns(
-    const std::set<String> & require_columns, ActionsDAG & actions_dag) const
+void SerializedPlanParser::removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAG & actions_dag) const
 {
     for (const auto & item : require_columns)
     {
@@ -1549,7 +1544,7 @@ void SerializedPlanParser::removeNullableForRequiredColumns(
 }
 
 void SerializedPlanParser::wrapNullable(
-    const std::vector<String> & columns, ActionsDAG& actions_dag, std::map<std::string, std::string> & nullable_measure_names)
+    const std::vector<String> & columns, ActionsDAG & actions_dag, std::map<std::string, std::string> & nullable_measure_names)
 {
     for (const auto & item : columns)
     {

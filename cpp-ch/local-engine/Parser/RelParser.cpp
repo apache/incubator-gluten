@@ -30,8 +30,8 @@ namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int BAD_ARGUMENTS;
-    extern const int LOGICAL_ERROR;
+extern const int BAD_ARGUMENTS;
+extern const int LOGICAL_ERROR;
 }
 }
 
@@ -89,14 +89,15 @@ DB::QueryPlanPtr RelParser::parseOp(const substrait::Rel & rel, std::list<const 
     return parse(std::move(query_plan), rel, rel_stack);
 }
 
-std::map<std::string, std::string> RelParser::parseFormattedRelAdvancedOptimization(const substrait::extensions::AdvancedExtension &advanced_extension)
+std::map<std::string, std::string>
+RelParser::parseFormattedRelAdvancedOptimization(const substrait::extensions::AdvancedExtension & advanced_extension)
 {
     std::map<std::string, std::string> configs;
     if (advanced_extension.has_optimization())
     {
         google::protobuf::StringValue msg;
         advanced_extension.optimization().UnpackTo(&msg);
-        Poco::StringTokenizer kvs( msg.value(), "\n");
+        Poco::StringTokenizer kvs(msg.value(), "\n");
         for (auto & kv : kvs)
         {
             if (kv.empty())
@@ -114,7 +115,8 @@ std::map<std::string, std::string> RelParser::parseFormattedRelAdvancedOptimizat
     return configs;
 }
 
-std::string RelParser::getStringConfig(const std::map<std::string, std::string> & configs, const std::string & key, const std::string & default_value)
+std::string
+RelParser::getStringConfig(const std::map<std::string, std::string> & configs, const std::string & key, const std::string & default_value)
 {
     auto it = configs.find(key);
     if (it == configs.end())
@@ -150,6 +152,7 @@ RelParserFactory::RelParserBuilder RelParserFactory::getBuilder(UInt32 k)
 }
 
 void registerWindowRelParser(RelParserFactory & factory);
+void registerWindowGroupLimitRelParser(RelParserFactory & factory);
 void registerSortRelParser(RelParserFactory & factory);
 void registerExpandRelParser(RelParserFactory & factory);
 void registerAggregateParser(RelParserFactory & factory);
@@ -162,6 +165,7 @@ void registerRelParsers()
 {
     auto & factory = RelParserFactory::instance();
     registerWindowRelParser(factory);
+    registerWindowGroupLimitRelParser(factory);
     registerSortRelParser(factory);
     registerExpandRelParser(factory);
     registerAggregateParser(factory);
