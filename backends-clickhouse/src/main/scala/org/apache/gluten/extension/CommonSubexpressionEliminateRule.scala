@@ -28,6 +28,11 @@ import org.apache.spark.sql.internal.SQLConf
 
 import scala.collection.mutable
 
+// If you want to debug CommonSubexpressionEliminateRule, you can:
+// 1. replace all `logTrace` to `logError`
+// 2. append two options to spark config
+//    --conf spark.sql.planChangeLog.level=error
+//    --conf spark.sql.planChangeLog.batches=all
 class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
   extends Rule[LogicalPlan]
   with Logging {
