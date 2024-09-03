@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.utils.iterator
+package org.apache.spark.iterator
 
-import org.apache.gluten.utils.iterator.Iterators
-import org.apache.gluten.utils.iterator.Iterators.V1
+import org.apache.gluten.iterator.Iterators
+import org.apache.gluten.iterator.Iterators.V1
 
 import org.apache.spark.benchmark.{Benchmark, BenchmarkBase}
 import org.apache.spark.task.TaskResources

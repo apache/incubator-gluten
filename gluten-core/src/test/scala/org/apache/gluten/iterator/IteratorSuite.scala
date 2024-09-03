@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils.iterator
+package org.apache.gluten.iterator
 
-import org.apache.gluten.utils.iterator.Iterators.{V1, WrapperBuilder}
+import org.apache.gluten.iterator.Iterators.{V1, WrapperBuilder}
 
 import org.apache.spark.task.TaskResources
 

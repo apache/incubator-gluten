@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils.iterator
-
-import org.apache.gluten.utils.iterator.IteratorsV1.WrapperBuilderV1
+package org.apache.gluten.iterator
 
 import org.apache.spark.TaskContext
+
+import IteratorsV1.WrapperBuilderV1
 
 /**
  * Utility class to provide iterator wrappers for non-trivial use cases. E.g. iterators that manage
