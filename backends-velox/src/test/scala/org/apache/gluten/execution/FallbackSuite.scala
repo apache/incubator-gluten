@@ -106,9 +106,8 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     }
   }
 
-  test("fallback with bhj") {
+  test("offload BroadcastExchange and fall back BHJ") {
     withSQLConf(
-      "spark.gluten.sql.columnar.filescan" -> "false",
       "spark.gluten.sql.columnar.broadcastJoin" -> "false"
     ) {
       runQueryAndCompare(
@@ -119,9 +118,6 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
       ) {
         df =>
           val plan = df.queryExecution.executedPlan
-          // scalastyle:off println
-          System.out.println("###########: " + plan)
-          // scalastyle:on println
           val columnarBhj = find(plan) {
             case _: BroadcastHashJoinExecTransformerBase => true
             case _ => false
