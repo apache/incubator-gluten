@@ -14,15 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.util
+package org.apache.spark.task
+
+import org.apache.gluten.task.TaskListener
 
 import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException, UnknownReason}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.util.{TaskCompletionListener, TaskFailureListener}
 
 import _root_.org.apache.gluten.memory.SimpleMemoryUsageRecorder
 import _root_.org.apache.gluten.sql.shims.SparkShimLoader
-import _root_.org.apache.gluten.utils.TaskListener
 
 import java.util
 import java.util.{Collections, Properties, UUID}
@@ -288,7 +290,7 @@ class TaskResourceRegistry extends Logging {
   }
 
   /** Release all managed resources according to priority and reversed order */
-  private[util] def releaseAll(): Unit = lock {
+  private[task] def releaseAll(): Unit = lock {
     val table = new util.ArrayList(priorityToResourcesMapping.entrySet())
     Collections.sort(
       table,
@@ -310,7 +312,7 @@ class TaskResourceRegistry extends Logging {
   }
 
   /** Release single resource by ID */
-  private[util] def releaseResource(id: String): Unit = lock {
+  private[task] def releaseResource(id: String): Unit = lock {
     if (!resources.containsKey(id)) {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is not registered", id))
@@ -328,7 +330,7 @@ class TaskResourceRegistry extends Logging {
     resources.remove(id)
   }
 
-  private[util] def addResourceIfNotRegistered[T <: TaskResource](id: String, factory: () => T): T =
+  private[task] def addResourceIfNotRegistered[T <: TaskResource](id: String, factory: () => T): T =
     lock {
       if (resources.containsKey(id)) {
         return resources.get(id).asInstanceOf[T]
@@ -338,7 +340,7 @@ class TaskResourceRegistry extends Logging {
       resource
     }
 
-  private[util] def addResource[T <: TaskResource](id: String, resource: T): T = lock {
+  private[task] def addResource[T <: TaskResource](id: String, resource: T): T = lock {
     if (resources.containsKey(id)) {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is already registered", id))
@@ -347,11 +349,11 @@ class TaskResourceRegistry extends Logging {
     resource
   }
 
-  private[util] def isResourceRegistered(id: String): Boolean = lock {
+  private[task] def isResourceRegistered(id: String): Boolean = lock {
     resources.containsKey(id)
   }
 
-  private[util] def getResource[T <: TaskResource](id: String): T = lock {
+  private[task] def getResource[T <: TaskResource](id: String): T = lock {
     if (!resources.containsKey(id)) {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is not registered", id))
@@ -359,7 +361,7 @@ class TaskResourceRegistry extends Logging {
     resources.get(id).asInstanceOf[T]
   }
 
-  private[util] def getSharedUsage(): SimpleMemoryUsageRecorder = lock {
+  private[task] def getSharedUsage(): SimpleMemoryUsageRecorder = lock {
     sharedUsage
   }
 }

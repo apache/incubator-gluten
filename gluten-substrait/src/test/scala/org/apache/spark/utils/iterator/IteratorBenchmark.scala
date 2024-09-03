@@ -20,7 +20,7 @@ import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.utils.iterator.Iterators.V1
 
 import org.apache.spark.benchmark.{Benchmark, BenchmarkBase}
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 
 object IteratorBenchmark extends BenchmarkBase {
 

@@ -17,8 +17,8 @@
 package org.apache.gluten.memory;
 
 import org.apache.spark.TaskContext;
-import org.apache.spark.util.TaskResource;
-import org.apache.spark.util.TaskResources;
+import org.apache.spark.task.TaskResource;
+import org.apache.spark.task.TaskResources;
 
 public class CHThreadGroup implements TaskResource {
 

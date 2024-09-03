@@ -22,7 +22,7 @@ import org.apache.gluten.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.test.SharedSparkSession
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 
 import java.util.concurrent.{Callable, Executors, TimeUnit}
 import java.util.concurrent.atomic.AtomicLong

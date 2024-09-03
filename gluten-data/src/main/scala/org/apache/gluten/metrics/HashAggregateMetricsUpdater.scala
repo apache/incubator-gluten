@@ -20,7 +20,7 @@ import org.apache.gluten.substrait.AggregationParams
 
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkMetricsUtil
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 
 trait HashAggregateMetricsUpdater extends MetricsUpdater {
   def updateAggregationMetrics(

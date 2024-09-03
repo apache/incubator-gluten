@@ -21,8 +21,8 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.events.GlutenBuildInfoEvent
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenSessionExtensions.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
+import org.apache.gluten.task.TaskListener
 import org.apache.gluten.test.TestStats
-import org.apache.gluten.utils.TaskListener
 
 import org.apache.spark.{HdfsConfGenerator, SparkConf, SparkContext, TaskFailedReason}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
@@ -31,7 +31,8 @@ import org.apache.spark.listener.GlutenListenerFactory
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.sql.execution.ui.GlutenEventUtils
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.util.{SparkResourceUtil, TaskResources}
+import org.apache.spark.task.TaskResources
+import org.apache.spark.util.SparkResourceUtil
 
 import java.util
 import java.util.Collections

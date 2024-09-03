@@ -21,7 +21,7 @@ import org.apache.gluten.substrait.JoinParams
 
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkMetricsUtil
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 
 import java.util
 

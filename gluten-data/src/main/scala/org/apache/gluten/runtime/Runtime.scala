@@ -27,7 +27,7 @@ import org.apache.gluten.proto.MemoryUsageStats
 
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf}
-import org.apache.spark.util.TaskResource
+import org.apache.spark.task.TaskResource
 
 import org.slf4j.LoggerFactory
 

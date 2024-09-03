@@ -19,7 +19,7 @@ package org.apache.gluten.utils.iterator
 import org.apache.gluten.utils.iterator.Iterators.WrapperBuilder
 
 import org.apache.spark.{InterruptibleIterator, TaskContext}
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean

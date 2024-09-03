@@ -19,7 +19,7 @@ package org.apache.gluten.vectorized;
 import org.apache.spark.sql.execution.vectorized.MutableColumnarRow;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.types.StructType;
-import org.apache.spark.util.TaskResources$;
+import org.apache.spark.task.TaskResources$;
 import org.junit.Assert;
 import org.junit.Test;
 

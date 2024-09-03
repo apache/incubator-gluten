@@ -18,7 +18,7 @@ package org.apache.gluten.utils.iterator
 
 import org.apache.gluten.utils.iterator.Iterators.{V1, WrapperBuilder}
 
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 
 import org.scalatest.funsuite.AnyFunSuite
 
