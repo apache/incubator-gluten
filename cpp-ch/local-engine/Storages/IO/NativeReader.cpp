@@ -161,8 +161,6 @@ DB::Block NativeReader::prepareByFirstBlock()
     size_t rows = 0;
     readVarUInt(columns, istr);
     readVarUInt(rows, istr);
-    if (columns == 0)
-        throw Exception(ErrorCodes::LOGICAL_ERROR, "Bug!!! Should not read block with zero columns.");
 
     if (columns > 1'000'000uz)
         throw Exception(ErrorCodes::TOO_LARGE_ARRAY_SIZE, "Suspiciously many columns in Native format: {}", columns);

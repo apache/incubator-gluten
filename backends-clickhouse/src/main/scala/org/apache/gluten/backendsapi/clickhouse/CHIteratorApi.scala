@@ -323,9 +323,11 @@ class CollectMetricIterator(
   private var outputRowCount = 0L
   private var outputVectorCount = 0L
   private var metricsUpdated = false
+  // Whether the stage is executed completely using ClickHouse pipeline.
   private var wholeStagePipeline = true
 
   override def hasNext: Boolean = {
+    // The hasNext call is triggered only when there is a fallback.
     wholeStagePipeline = false
     nativeIterator.hasNext
   }

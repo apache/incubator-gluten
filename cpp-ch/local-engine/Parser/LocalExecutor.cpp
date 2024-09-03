@@ -21,8 +21,7 @@
 #include <QueryPipeline/printPipeline.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Core/Settings.h>
-
-#include "SerializedPlanParser.h"
+#include <Parser/SerializedPlanParser.h>
 
 using namespace DB;
 namespace local_engine

@@ -1306,18 +1306,16 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     const Settings & settings = context->getSettingsRef();
     auto builder = buildQueryPipeline(*query_plan);
 
-    ///
+
     assert(s_plan.relations_size() == 1);
     const substrait::PlanRel & root_rel = s_plan.relations().at(0);
     assert(root_rel.has_root());
     if (root_rel.root().input().has_write())
         addSinkTransform(context, root_rel.root().input().write(), builder);
-    ///
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
     LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
     LOG_DEBUG(
         logger, "clickhouse plan [optimization={}]:\n{}", settings.query_plan_enable_optimizations, PlanUtil::explainPlan(*query_plan));
-    // LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(pipeline));
 
     auto config = ExecutorConfig::loadFromContext(context);
     return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(builder), config.dump_pipeline);

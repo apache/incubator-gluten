@@ -59,7 +59,6 @@
 #include <Common/ErrorCodes.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Storages/Cache/CacheManager.h>
-#include <Common/DebugUtils.h>
 
 #ifdef __cplusplus
 namespace DB

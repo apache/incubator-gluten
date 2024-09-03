@@ -190,26 +190,31 @@ class CHColumnarShuffleWriter[K, V](
 }
 
 object CHColumnarShuffleWriter {
+  private val TOTAL_OUTPUT_ROWS = "total_output_rows"
+
+  private val TOTAL_OUTPUT_BATCHES = "total_output_batches"
+
+  // Pass the statistics of the last operator before shuffle to CollectMetricIterator.
   def setOutputMetrics(splitResult: CHSplitResult): Unit = {
     TaskContext
       .get()
       .getLocalProperties
-      .setProperty("total_output_rows", splitResult.getTotalRows.toString)
+      .setProperty(TOTAL_OUTPUT_ROWS, splitResult.getTotalRows.toString)
     TaskContext
       .get()
       .getLocalProperties
-      .setProperty("total_output_batches", splitResult.getTotalBatches.toString)
+      .setProperty(TOTAL_OUTPUT_BATCHES, splitResult.getTotalBatches.toString)
   }
 
   def getTotalOutputRows(): Long = {
-    val output_rows = TaskContext.get().getLocalProperty("total_output_rows")
+    val output_rows = TaskContext.get().getLocalProperty(TOTAL_OUTPUT_ROWS)
     var output_rows_value = 0L
     if (output_rows != null && output_rows.nonEmpty) output_rows_value = output_rows.toLong
     output_rows_value
   }
 
   def getTotalOutputBatches(): Long = {
-    val output_batches = TaskContext.get().getLocalProperty("total_output_batches")
+    val output_batches = TaskContext.get().getLocalProperty(TOTAL_OUTPUT_BATCHES)
     var output_batches_value = 0L
     if (output_batches != null) output_batches_value = output_batches.toLong
     output_batches_value
