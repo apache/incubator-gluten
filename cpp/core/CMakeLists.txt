@@ -38,13 +38,13 @@ endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 
+set(GLUTEN_PROTO_SRC_DIR
+        ${GLUTEN_HOME}/gluten-core/src/main/resources/org/apache/gluten/proto)
+message(STATUS "Set Gluten Proto Directory in ${GLUTEN_PROTO_SRC_DIR}")
+
 set(SUBSTRAIT_PROTO_SRC_DIR
     ${GLUTEN_HOME}/gluten-substrait/src/main/resources/substrait/proto)
 message(STATUS "Set Substrait Proto Directory in ${SUBSTRAIT_PROTO_SRC_DIR}")
-
-set(GLUTEN_PROTO_SRC_DIR
-    ${GLUTEN_HOME}/gluten-substrait/src/main/resources/org/apache/gluten/proto)
-message(STATUS "Set Gluten Proto Directory in ${GLUTEN_PROTO_SRC_DIR}")
 
 find_program(CCACHE_FOUND ccache)
 if(CCACHE_FOUND)
