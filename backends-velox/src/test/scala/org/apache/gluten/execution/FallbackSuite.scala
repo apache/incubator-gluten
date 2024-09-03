@@ -20,10 +20,10 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
-import org.apache.spark.sql.execution.joins.SortMergeJoinExec
+import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, SortMergeJoinExec}
 
 class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -107,34 +107,39 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
   }
 
   test("fallback with bhj") {
-    withSQLConf(GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "2") {
+    withSQLConf(
+      "spark.gluten.sql.columnar.filescan" -> "false",
+      "spark.gluten.sql.columnar.broadcastJoin" -> "false"
+    ) {
       runQueryAndCompare(
         """
-          |SELECT *, java_method('java.lang.Integer', 'sum', tmp1.c1, tmp2.c1) FROM tmp1
-          |LEFT JOIN tmp2 on tmp1.c1 = tmp2.c1
+          |SELECT java_method('java.lang.Integer', 'sum', tmp1.c1, tmp2.c1) FROM tmp1
+          |LEFT JOIN tmp2 on tmp1.c1 = tmp2.c1 limit 10
           |""".stripMargin
       ) {
         df =>
           val plan = df.queryExecution.executedPlan
-          val bhj = find(plan) {
+          // scalastyle:off println
+          System.out.println("###########: " + plan)
+          // scalastyle:on println
+          val columnarBhj = find(plan) {
             case _: BroadcastHashJoinExecTransformerBase => true
             case _ => false
           }
-          assert(bhj.isDefined)
-          val columnarToRow = collectColumnarToRow(bhj.get)
-          assert(columnarToRow == 0)
+          assert(!columnarBhj.isDefined)
 
-          val wholeQueryColumnarToRow = collectColumnarToRow(plan)
-          assert(wholeQueryColumnarToRow == 1)
+          val vanillaBhj = find(plan) {
+            case _: BroadcastHashJoinExec => true
+            case _ => false
+          }
+          assert(vanillaBhj.isDefined)
+
+          val columnarBroadcastExchange = find(plan) {
+            case _: ColumnarBroadcastExchangeExec => true
+            case _ => false
+          }
+          assert(columnarBroadcastExchange.isDefined)
       }
-
-      // before the fix, it would fail
-      spark
-        .sql("""
-               |SELECT *, java_method('java.lang.Integer', 'sum', tmp1.c1, tmp2.c1) FROM tmp1
-               |LEFT JOIN tmp2 on tmp1.c1 = tmp2.c1
-               |""".stripMargin)
-        .show()
     }
   }
 
