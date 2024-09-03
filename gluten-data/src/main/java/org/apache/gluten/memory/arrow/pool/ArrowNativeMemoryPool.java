@@ -17,8 +17,8 @@
 package org.apache.gluten.memory.arrow.pool;
 
 import org.apache.arrow.dataset.jni.NativeMemoryPool;
-import org.apache.spark.util.TaskResource;
-import org.apache.spark.util.TaskResources;
+import org.apache.spark.task.TaskResource;
+import org.apache.spark.task.TaskResources;
 import org.apache.spark.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -23,7 +23,7 @@ import org.apache.gluten.vectorized.GeneralInIterator
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.InputIteratorTransformer
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 
 import scala.collection.JavaConverters._
 

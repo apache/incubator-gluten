@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.columnarbatch;
 
-import org.apache.spark.util.TaskResources;
+import org.apache.spark.task.TaskResources;
 
 import java.util.concurrent.atomic.AtomicLong;
 

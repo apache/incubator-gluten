@@ -26,7 +26,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggreg
 import org.apache.spark.sql.catalyst.trees.TernaryLike
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 import org.apache.spark.util.sketch.BloomFilter
 
 /**

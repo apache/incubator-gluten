@@ -28,7 +28,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types._
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 import org.apache.spark.util.collection.BitSet
 
 import com.google.protobuf.{Any, Message}

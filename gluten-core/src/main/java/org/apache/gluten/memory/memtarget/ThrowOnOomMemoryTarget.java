@@ -20,7 +20,7 @@ import org.apache.gluten.GlutenConfig$;
 
 import org.apache.spark.memory.SparkMemoryUtil;
 import org.apache.spark.sql.internal.SQLConf;
-import org.apache.spark.util.TaskResources;
+import org.apache.spark.task.TaskResources;
 import org.apache.spark.util.Utils;
 
 public class ThrowOnOomMemoryTarget implements MemoryTarget {

@@ -22,7 +22,7 @@ import org.apache.gluten.memory.SimpleMemoryUsageRecorder;
 import org.apache.gluten.memory.memtarget.*;
 
 import org.apache.spark.memory.TaskMemoryManager;
-import org.apache.spark.util.TaskResources;
+import org.apache.spark.task.TaskResources;
 
 import java.util.Collections;
 import java.util.Map;
