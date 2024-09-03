@@ -234,7 +234,7 @@ void SparkMergeTreeSink::onFinish()
 SinkHelperPtr SinkHelper::create(
     const MergeTreeTable & merge_tree_table, const GlutenMergeTreeWriteSettings & write_settings_, const DB::ContextMutablePtr & context)
 {
-    auto dest_storage = MergeTreeRelParser::parseStorage(merge_tree_table, context);
+    auto dest_storage = MergeTreeRelParser::getStorage(merge_tree_table, context);
     bool isRemoteStorage = dest_storage->getStoragePolicy()->getAnyDisk()->isRemote();
     bool insert_with_local_storage = !write_settings_.insert_without_local_storage;
     if (insert_with_local_storage && isRemoteStorage)

@@ -39,9 +39,8 @@ using namespace DB;
 class MergeTreeRelParser : public RelParser
 {
 public:
-    static CustomStorageMergeTreePtr parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context);
-    static CustomStorageMergeTreePtr
-    parseStorageAndRestore(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context);
+    static CustomStorageMergeTreePtr getStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context);
+    static CustomStorageMergeTreePtr restoreStorage(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context);
 
     // Create random table name and table path and use default storage policy.
     // In insert case, mergetree data can be uploaded after merges in default storage(Local Disk).

@@ -400,7 +400,7 @@ TEST(WritePipeline, SparkMergeTree)
 
     do_remove(merge_tree_table.relative_path);
 
-    const auto dest_storage = MergeTreeRelParser::parseStorage(merge_tree_table, SerializedPlanParser::global_context);
+    const auto dest_storage = MergeTreeRelParser::getStorage(merge_tree_table, SerializedPlanParser::global_context);
     EXPECT_TRUE(dest_storage);
     EXPECT_FALSE(dest_storage->getStoragePolicy()->getAnyDisk()->isRemote());
     DB::StorageMetadataPtr metadata_snapshot = dest_storage->getInMemoryMetadataPtr();
@@ -473,7 +473,7 @@ TEST(WritePipeline, SparkMergeTree)
         EXPECT_EQ(merge_tree_table_hdfs.relative_path, "3.5/test/lineitem_mergetree_hdfs");
         EXPECT_EQ(merge_tree_table_hdfs.table_configs.storage_policy, "__hdfs_main");
 
-        const auto dest_storage_hdfs = MergeTreeRelParser::parseStorage(merge_tree_table_hdfs, SerializedPlanParser::global_context);
+        const auto dest_storage_hdfs = MergeTreeRelParser::getStorage(merge_tree_table_hdfs, SerializedPlanParser::global_context);
         EXPECT_TRUE(dest_storage_hdfs);
         EXPECT_TRUE(dest_storage_hdfs->getStoragePolicy()->getAnyDisk()->isRemote());
     }

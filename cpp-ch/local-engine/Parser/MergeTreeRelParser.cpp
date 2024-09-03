@@ -63,7 +63,7 @@ MergeTreeTableInstance MergeTreeRelParser::parseMergeTreeTable(const substrait::
     return parseMergeTreeTableString(table.value());
 }
 
-CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context)
+CustomStorageMergeTreePtr MergeTreeRelParser::getStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context)
 {
     const DB::Block header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema, merge_tree_table.low_card_key);
     const auto metadata = buildMetaData(header, context, merge_tree_table);
@@ -88,9 +88,9 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(const MergeTreeTable 
 }
 
 CustomStorageMergeTreePtr
-MergeTreeRelParser::parseStorageAndRestore(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context)
+MergeTreeRelParser::restoreStorage(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context)
 {
-    auto result = parseStorage(merge_tree_table, context);
+    auto result = getStorage(merge_tree_table, context);
     restoreMetaData(result, merge_tree_table, *context);
     return result;
 }
@@ -104,7 +104,7 @@ CustomStorageMergeTreePtr MergeTreeRelParser::copyToDefaultPolicyStorage(const M
     merge_tree_table.snapshot_id = "";
     merge_tree_table.table_configs.storage_policy = "";
     merge_tree_table.relative_path = merge_tree_table.relative_path + "_" + temp_uuid_str;
-    return parseStorage(merge_tree_table, context);
+    return getStorage(merge_tree_table, context);
 }
 
 CustomStorageMergeTreePtr MergeTreeRelParser::copyToVirtualStorage(const MergeTreeTable & table, const ContextMutablePtr & context)
@@ -114,7 +114,7 @@ CustomStorageMergeTreePtr MergeTreeRelParser::copyToVirtualStorage(const MergeTr
     String temp_uuid_str = toString(temp_uuid);
     merge_tree_table.table = merge_tree_table.table + "_" + temp_uuid_str;
     merge_tree_table.snapshot_id = "";
-    return parseStorage(merge_tree_table, context);
+    return getStorage(merge_tree_table, context);
 }
 
 DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
@@ -123,7 +123,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     auto merge_tree_table = parseMergeTreeTable(extension_table);
     // ignore snapshot id for query
     merge_tree_table.snapshot_id = "";
-    auto storage = parseStorageAndRestore(merge_tree_table, global_context);
+    auto storage = restoreStorage(merge_tree_table, global_context);
 
     DB::Block input;
     if (rel.has_base_schema() && rel.base_schema().names_size())
@@ -391,7 +391,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
     auto merge_tree_table = xparseMergeTreeTable(read_rel.advanced_extension());
     // ignore snapshot id for query
     merge_tree_table.snapshot_id = "";
-    auto custom_storage_mergetree = parseStorageAndRestore(merge_tree_table, global_context);
+    auto custom_storage_mergetree = restoreStorage(merge_tree_table, global_context);
 
     auto input = TypeParser::buildBlockFromNamedStruct(read_rel.base_schema());
     auto names_and_types_list = input.getNamesAndTypesList();
