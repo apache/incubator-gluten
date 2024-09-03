@@ -54,7 +54,7 @@ std::unordered_map<String, String> extractPartMetaData(ReadBuffer & in)
     return result;
 }
 
-void restoreMetaData(const CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, const Context & context)
+void restoreMetaData(const CustomStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context)
 {
     const auto data_disk = storage->getStoragePolicy()->getAnyDisk();
     if (!data_disk->isRemote())

@@ -39,19 +39,18 @@ using namespace DB;
 class MergeTreeRelParser : public RelParser
 {
 public:
-    static CustomStorageMergeTreePtr parseStorage(
-        const MergeTreeTable & merge_tree_table, ContextMutablePtr context, bool restore = false);
+    static CustomStorageMergeTreePtr parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context);
+    static CustomStorageMergeTreePtr
+    parseStorageAndRestore(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context);
 
     // Create random table name and table path and use default storage policy.
     // In insert case, mergetree data can be uploaded after merges in default storage(Local Disk).
-    static CustomStorageMergeTreePtr
-    copyToDefaultPolicyStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context);
+    static CustomStorageMergeTreePtr copyToDefaultPolicyStorage(const MergeTreeTable & table, ContextMutablePtr context);
 
-    // Use same table path and data path as the originial table.
-    static CustomStorageMergeTreePtr
-    copyToVirtualStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context);
+    // Use same table path and data path as the original table.
+    static CustomStorageMergeTreePtr copyToVirtualStorage(const MergeTreeTable & table, const ContextMutablePtr & context);
 
-    static MergeTreeTable parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table);
+    static MergeTreeTableInstance parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table);
 
     explicit MergeTreeRelParser(SerializedPlanParser * plan_paser_, const ContextPtr & context_)
         : RelParser(plan_paser_), context(context_), global_context(plan_paser_->global_context)
@@ -100,8 +99,8 @@ private:
     void parseToAction(ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name);
     PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input);
     ActionsDAG optimizePrewhereAction(const substrait::Expression & rel, std::string & filter_name, Block & block);
-    String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func);
-    void collectColumns(const substrait::Expression & rel, NameSet & columns, Block & block);
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const;
+    static void collectColumns(const substrait::Expression & rel, NameSet & columns, Block & block);
     UInt64 getColumnsSize(const NameSet & columns);
 
     const ContextPtr & context;

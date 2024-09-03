@@ -55,7 +55,7 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
     return min_position;
 }
 
-MergeTreeTable MergeTreeRelParser::parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table)
+MergeTreeTableInstance MergeTreeRelParser::parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table)
 {
     logDebugMessage(extension_table, "merge_tree_table");
     google::protobuf::StringValue table;
@@ -63,14 +63,12 @@ MergeTreeTable MergeTreeRelParser::parseMergeTreeTable(const substrait::ReadRel:
     return parseMergeTreeTableString(table.value());
 }
 
-CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context, bool restore)
+CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context)
 {
     const DB::Block header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema, merge_tree_table.low_card_key);
     const auto metadata = buildMetaData(header, context, merge_tree_table);
 
-    // use instance global table (without uuid) to restore metadata folder on current instance
-    // we need its lock
-    auto global_storage = StorageMergeTreeFactory::getStorage(
+    return StorageMergeTreeFactory::getStorage(
         StorageID(merge_tree_table.database, merge_tree_table.table),
         merge_tree_table.snapshot_id,
         merge_tree_table,
@@ -87,15 +85,19 @@ CustomStorageMergeTreePtr MergeTreeRelParser::parseStorage(const MergeTreeTable 
                 buildMergeTreeSettings(merge_tree_table.table_configs));
             return custom_storage_merge_tree;
         });
-
-    if (restore)
-        restoreMetaData(global_storage, merge_tree_table, *context);
-
-    return global_storage;
 }
 
-CustomStorageMergeTreePtr MergeTreeRelParser::copyToDefaultPolicyStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context)
+CustomStorageMergeTreePtr
+MergeTreeRelParser::parseStorageAndRestore(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context)
 {
+    auto result = parseStorage(merge_tree_table, context);
+    restoreMetaData(result, merge_tree_table, *context);
+    return result;
+}
+
+CustomStorageMergeTreePtr MergeTreeRelParser::copyToDefaultPolicyStorage(const MergeTreeTable & table, ContextMutablePtr context)
+{
+    MergeTreeTable merge_tree_table{table};
     auto temp_uuid = UUIDHelpers::generateV4();
     String temp_uuid_str = toString(temp_uuid);
     merge_tree_table.table = merge_tree_table.table + "_" + temp_uuid_str;
@@ -105,8 +107,9 @@ CustomStorageMergeTreePtr MergeTreeRelParser::copyToDefaultPolicyStorage(MergeTr
     return parseStorage(merge_tree_table, context);
 }
 
-CustomStorageMergeTreePtr MergeTreeRelParser::copyToVirtualStorage(MergeTreeTable merge_tree_table, ContextMutablePtr context)
+CustomStorageMergeTreePtr MergeTreeRelParser::copyToVirtualStorage(const MergeTreeTable & table, const ContextMutablePtr & context)
 {
+    MergeTreeTable merge_tree_table{table};
     auto temp_uuid = UUIDHelpers::generateV4();
     String temp_uuid_str = toString(temp_uuid);
     merge_tree_table.table = merge_tree_table.table + "_" + temp_uuid_str;
@@ -120,7 +123,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     auto merge_tree_table = parseMergeTreeTable(extension_table);
     // ignore snapshot id for query
     merge_tree_table.snapshot_id = "";
-    auto storage = parseStorage(merge_tree_table, global_context, true);
+    auto storage = parseStorageAndRestore(merge_tree_table, global_context);
 
     DB::Block input;
     if (rel.has_base_schema() && rel.base_schema().names_size())
@@ -368,22 +371,27 @@ void MergeTreeRelParser::collectColumns(const substrait::Expression & rel, NameS
     }
 }
 
-
-String MergeTreeRelParser::getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func)
+String MergeTreeRelParser::getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const
 {
     auto func_signature = getPlanParser()->function_mapping.at(std::to_string(substrait_func.function_reference()));
     return getPlanParser()->getFunctionName(func_signature, substrait_func);
 }
 
+MergeTreeTableInstance xparseMergeTreeTable(const substrait::extensions::AdvancedExtension & extension)
+{
+    logDebugMessage(extension, "merge_tree_table");
+
+    google::protobuf::StringValue table;
+    table.ParseFromString(extension.enhancement().value());
+    return parseMergeTreeTableString(table.value());
+}
 
 String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_rel)
 {
-    google::protobuf::StringValue table;
-    table.ParseFromString(read_rel.advanced_extension().enhancement().value());
-    auto merge_tree_table = parseMergeTreeTableString(table.value());
+    auto merge_tree_table = xparseMergeTreeTable(read_rel.advanced_extension());
     // ignore snapshot id for query
     merge_tree_table.snapshot_id = "";
-    auto custom_storage_mergetree = parseStorage(merge_tree_table, global_context, true);
+    auto custom_storage_mergetree = parseStorageAndRestore(merge_tree_table, global_context);
 
     auto input = TypeParser::buildBlockFromNamedStruct(read_rel.base_schema());
     auto names_and_types_list = input.getNamesAndTypesList();

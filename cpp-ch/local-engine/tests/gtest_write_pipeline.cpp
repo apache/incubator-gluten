@@ -425,7 +425,7 @@ TEST(WritePipeline, SparkMergeTree)
         merging_params,
         std::move(storage_settings));*/
 
-    GlutenMergeTreeWriteSettings gm_write_settings{
+    MergeTreePartitionWriteSettings gm_write_settings{
         .part_name_prefix{"this_is_prefix"},
     };
     gm_write_settings.set(context);

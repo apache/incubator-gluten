@@ -66,7 +66,7 @@ CustomStorageMergeTreePtr StorageMergeTreeFactory::getStorage(
     const auto table_name = getTableName(id, snapshot_id);
     std::lock_guard lock(storage_map_mutex);
 
-    merge_tree_table.parts.clear();
+    // merge_tree_table.parts.clear();
     if (storage_map->has(table_name) && !storage_map->get(table_name)->second.sameStructWith(merge_tree_table))
     {
         freeStorage(id);

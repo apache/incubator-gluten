@@ -1296,7 +1296,8 @@ Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * 
     std::unordered_set<String> column_set;
     for (const auto & col : tokenizer)
         column_set.insert(col);
-    auto id = local_engine::CacheManager::instance().cacheParts(table_def, column_set);
+    auto table = local_engine::parseMergeTreeTableString(table_def);
+    auto id = local_engine::CacheManager::instance().cacheParts(table, column_set);
     return local_engine::charTojstring(env, id.c_str());
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr);
 }

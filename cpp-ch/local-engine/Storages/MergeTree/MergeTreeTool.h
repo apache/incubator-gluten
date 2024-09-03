@@ -26,6 +26,10 @@
 #include <Storages/StorageInMemoryMetadata.h>
 #include <substrait/plan.pb.h>
 
+namespace DB
+{
+class ReadBufferFromString;
+}
 namespace local_engine
 {
 using namespace DB;
@@ -44,7 +48,7 @@ struct MergeTreeTableSettings
 
 struct MergeTreeTable
 {
-    inline static const std::string TUPLE = "tuple()";
+    static constexpr std::string_view TUPLE = "tuple()";
     std::string database;
     std::string table;
     std::string snapshot_id;
@@ -58,10 +62,15 @@ struct MergeTreeTable
     std::string relative_path;
     std::string absolute_path;
     MergeTreeTableSettings table_configs;
+
+    bool sameStructWith(const MergeTreeTable & other) const;
+};
+
+struct MergeTreeTableInstance : MergeTreeTable
+{
     std::vector<MergeTreePart> parts;
     std::unordered_set<std::string> getPartNames() const;
     RangesInDataParts extractRange(DataPartsVector parts_vector) const;
-    bool sameStructWith(const MergeTreeTable & other) const;
 };
 
 std::shared_ptr<DB::StorageInMemoryMetadata>
@@ -71,6 +80,5 @@ std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSe
 
 std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_types_list);
 
-MergeTreeTable parseMergeTreeTableString(const std::string & info);
-
+MergeTreeTableInstance parseMergeTreeTableString(const std::string & info);
 }

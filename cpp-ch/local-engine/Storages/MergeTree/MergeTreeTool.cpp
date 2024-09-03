@@ -150,12 +150,9 @@ std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_ty
     return query_info;
 }
 
-
-MergeTreeTable parseMergeTreeTableString(const std::string & info)
+void parseMergeTreeTableString(MergeTreeTable & table, ReadBufferFromString & in)
 {
-    ReadBufferFromString in(info);
     assertString("MergeTree;", in);
-    MergeTreeTable table;
     readString(table.database, in);
     assertChar('\n', in);
     readString(table.table, in);
@@ -189,6 +186,14 @@ MergeTreeTable parseMergeTreeTableString(const std::string & info)
     readString(json, in);
     parseTableConfig(table.table_configs, json);
     assertChar('\n', in);
+}
+
+MergeTreeTableInstance parseMergeTreeTableString(const std::string & info)
+{
+    MergeTreeTableInstance result;
+    ReadBufferFromString in(info);
+    parseMergeTreeTableString(result, in);
+
     while (!in.eof())
     {
         MergeTreePart part;
@@ -198,12 +203,13 @@ MergeTreeTable parseMergeTreeTableString(const std::string & info)
         assertChar('\n', in);
         readIntText(part.end, in);
         assertChar('\n', in);
-        table.parts.emplace_back(part);
+        result.parts.emplace_back(part);
     }
-    return table;
+
+    return result;
 }
 
-std::unordered_set<String> MergeTreeTable::getPartNames() const
+std::unordered_set<String> MergeTreeTableInstance::getPartNames() const
 {
     std::unordered_set<String> names;
     for (const auto & part : parts)
@@ -211,7 +217,7 @@ std::unordered_set<String> MergeTreeTable::getPartNames() const
     return names;
 }
 
-RangesInDataParts MergeTreeTable::extractRange(DataPartsVector parts_vector) const
+RangesInDataParts MergeTreeTableInstance::extractRange(DataPartsVector parts_vector) const
 {
     std::unordered_map<String, DataPartPtr> name_index;
     std::ranges::for_each(parts_vector, [&](const DataPartPtr & part) { name_index.emplace(part->name, part); });

@@ -18,37 +18,37 @@
 
 #include <substrait/plan.pb.h>
 
+#include <jni.h>
 #include <Disks/IDisk.h>
 #include <Storages/Cache/JobScheduler.h>
-#include <jni.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 
 namespace local_engine
 {
 struct MergeTreePart;
-struct MergeTreeTable;
-
-
+struct MergeTreeTableInstance;
 
 /***
  * Manage the cache of the MergeTree, mainly including meta.bin, data.bin, metadata.gluten
  */
-class CacheManager {
+class CacheManager
+{
 public:
     static jclass cache_result_class;
     static jmethodID cache_result_constructor;
-    static void initJNI(JNIEnv* env);
+    static void initJNI(JNIEnv * env);
 
     static CacheManager & instance();
     static void initialize(DB::ContextMutablePtr context);
-    Task cachePart(const MergeTreeTable& table, const MergeTreePart& part, const std::unordered_set<String>& columns);
-    JobId cacheParts(const String& table_def, const std::unordered_set<String>& columns);
-    static jobject getCacheStatus(JNIEnv * env, const String& jobId);
+    JobId cacheParts(const MergeTreeTableInstance & table, const std::unordered_set<String> & columns);
+    static jobject getCacheStatus(JNIEnv * env, const String & jobId);
 
     Task cacheFile(const substrait::ReadRel::LocalFiles::FileOrFiles & file, ReadBufferBuilderPtr read_buffer_builder);
     JobId cacheFiles(substrait::ReadRel::LocalFiles file_infos);
     static void removeFiles(String file, String cache_name);
+
 private:
+    Task cachePart(const MergeTreeTableInstance & table, const MergeTreePart & part, const std::unordered_set<String> & columns);
     CacheManager() = default;
     DB::ContextMutablePtr context;
 };
