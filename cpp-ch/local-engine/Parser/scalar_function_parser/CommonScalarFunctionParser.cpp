@@ -156,6 +156,8 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Floor, floor, sparkFloor);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MothsBetween, months_between, sparkMonthsBetween);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(UnixSeconds, unix_seconds, toUnixTimestamp);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(UnixDate, unix_date, toInt32);
+REGISTER_COMMON_SCALAR_FUNCTION_PARSER(UnixMillis, unix_millis, toUnixTimestamp64Milli);
+REGISTER_COMMON_SCALAR_FUNCTION_PARSER(UnixMicros, unix_micros, toUnixTimestamp64Micro);
 
 // array functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Array, array, array);
