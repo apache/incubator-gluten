@@ -8,7 +8,6 @@
     <version>1.3.0-SNAPSHOT</version>
   </parent>
   <artifactId>gluten-it-package</artifactId>
-  <name>Archetype - assembly</name>
   <url>http://maven.apache.org</url>
   <packaging>pom</packaging>
 
