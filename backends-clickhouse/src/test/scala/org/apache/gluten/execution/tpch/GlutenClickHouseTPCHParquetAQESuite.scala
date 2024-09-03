@@ -185,7 +185,7 @@ class GlutenClickHouseTPCHParquetAQESuite
   }
 
   test("TPCH Q16") {
-    runTPCHQuery(16, noFallBack = false) { df => }
+    runTPCHQuery(16) { df => }
   }
 
   test("TPCH Q17") {

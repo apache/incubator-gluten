@@ -489,11 +489,11 @@ This benchmark is tested on AWS EC2 cluster, there are 7 EC2 instances:
 
   Refer to [Deploy Spark 3.2.2](#deploy-spark-322)
 
-- Deploy gluten-core-XXXXX-jar-with-dependencies.jar
+- Deploy gluten-substrait-XXXXX-jar-with-dependencies.jar
 
 ```
-    #deploy 'gluten-core-XXXXX-jar-with-dependencies.jar' to every node, and then
-    cp gluten-core-XXXXX-jar-with-dependencies.jar /path_to_spark/jars/
+    #deploy 'gluten-substrait-XXXXX-jar-with-dependencies.jar' to every node, and then
+    cp gluten-substrait-XXXXX-jar-with-dependencies.jar /path_to_spark/jars/
 ```
 
 - Deploy ClickHouse library

@@ -1,10 +1,6 @@
 FROM centos:7
 
-RUN sed -e 's|^mirrorlist=|#mirrorlist=|g' \
-         -e 's|^#baseurl=http://mirror.centos.org/centos|baseurl=http://mirrors.edge.kernel.org/centos/|g' \
-         -i.bak \
-         /etc/yum.repos.d/CentOS-Base.repo
-RUN sed -i "s/enabled=1/enabled=0/" /etc/yum/pluginconf.d/fastestmirror.conf 
+RUN sed -i "s/enabled=1/enabled=0/" /etc/yum/pluginconf.d/fastestmirror.conf
 
 WORKDIR /tmp/vcpkg
 COPY setup-build-depends.sh setup-build-depends.sh
@@ -15,8 +11,12 @@ RUN rm -rf /tmp/vcpkg
 
 ARG BUILDER_UID
 ARG BUILDER_GID
-RUN groupadd -g ${BUILDER_GID} build
-RUN useradd -mu ${BUILDER_UID} -g build -G wheel build
+RUN if ["$BUILDER_GID" != "0"]; then \
+    groupadd -g ${BUILDER_GID} build; \
+    fi
+RUN if ["$BUILDER_UID" != "0"]; then \
+    useradd -mu ${BUILDER_UID} -g ${BUILDER_GID} -G wheel build; \
+    fi
 USER ${BUILDER_UID}:${BUILDER_GID}
 
 ENV VCPKG_BINARY_SOURCES=default

@@ -24,6 +24,7 @@ class WriteFilesMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metr
     if (opMetrics != null) {
       val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
       metrics("physicalWrittenBytes") += operatorMetrics.physicalWrittenBytes
+      metrics("writeIONanos") += operatorMetrics.writeIOTime
       metrics("wallNanos") += operatorMetrics.wallNanos
       metrics("numWrittenFiles") += operatorMetrics.numWrittenFiles
     }

@@ -151,7 +151,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("TPCH Q16") {
-    runTPCHQuery(16, noFallBack = false) { df => }
+    runTPCHQuery(16) { df => }
   }
 
   test("TPCH Q17") {
@@ -530,6 +530,22 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
     spark.sql("drop table t1")
     spark.sql("drop table t2")
+  }
+
+  test("gluten-7077 bug in cross broad cast join") {
+    spark.sql("create table cross_join_t(a bigint, b string, c string) using parquet");
+    var sql = """
+                | insert into cross_join_t
+                | select id as a, cast(id as string) as b,
+                |   concat('1231231232323232322', cast(id as string)) as c
+                | from range(0, 100000)
+                |""".stripMargin
+    spark.sql(sql)
+    sql = """
+            | select * from cross_join_t as t1 full join cross_join_t as t2 limit 10
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    spark.sql("drop table cross_join_t")
   }
 }
 // scalastyle:off line.size.limit

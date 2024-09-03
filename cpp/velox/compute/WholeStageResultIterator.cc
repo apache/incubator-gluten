@@ -46,6 +46,7 @@ const std::string kRemainingFilterTime = "totalRemainingFilterTime";
 const std::string kIoWaitTime = "ioWaitNanos";
 const std::string kPreloadSplits = "readyPreloadedSplits";
 const std::string kNumWrittenFiles = "numWrittenFiles";
+const std::string kWriteIOTime = "writeIOTime";
 
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
@@ -95,7 +96,7 @@ WholeStageResultIterator::WholeStageResultIterator(
       0,
       std::move(queryCtx),
       velox::exec::Task::ExecutionMode::kSerial);
-  if (!task_->supportsSingleThreadedExecution()) {
+  if (!task_->supportSerialExecutionMode()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
   }
   auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
@@ -301,16 +302,22 @@ void WholeStageResultIterator::collectMetrics() {
     return;
   }
 
+  const auto& taskStats = task_->taskStats();
+  if (taskStats.executionStartTimeMs == 0) {
+    LOG(INFO) << "Skip collect task metrics since task did not call next().";
+    return;
+  }
+
   if (veloxCfg_->get<bool>(kDebugModeEnabled, false) ||
       veloxCfg_->get<bool>(kShowTaskMetricsWhenFinished, kShowTaskMetricsWhenFinishedDefault)) {
-    auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), task_->taskStats(), true);
+    auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), taskStats, true);
     std::ostringstream oss;
     oss << "Native Plan with stats for: " << taskInfo_;
     oss << "\n" << planWithStats << std::endl;
     LOG(INFO) << oss.str();
   }
 
-  auto planStats = velox::exec::toPlanStats(task_->taskStats());
+  auto planStats = velox::exec::toPlanStats(taskStats);
   // Calculate the total number of metrics.
   int statsNum = 0;
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
@@ -391,6 +398,7 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kNumWrittenFiles)[metricIndex] =
           runtimeMetric("sum", entry.second->customStats, kNumWrittenFiles);
       metrics_->get(Metrics::kPhysicalWrittenBytes)[metricIndex] = second->physicalWrittenBytes;
+      metrics_->get(Metrics::kWriteIOTime)[metricIndex] = runtimeMetric("sum", second->customStats, kWriteIOTime);
 
       metricIndex += 1;
     }
@@ -436,10 +444,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     }
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
-
-    // To align with Spark's behavior, allow decimal precision loss or not.
-    configs[velox::core::QueryConfig::kSparkDecimalOperationsAllowPrecisionLoss] =
-        veloxCfg_->get<std::string>(kAllowPrecisionLoss, "true");
 
     {
       // partial aggregation memory config

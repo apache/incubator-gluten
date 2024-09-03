@@ -52,7 +52,8 @@
         "benchmark",
         "jemalloc",
         "icu",
-        "thrift"
+        "thrift",
+        "libstemmer"
       ]
     },
     "velox-s3": {

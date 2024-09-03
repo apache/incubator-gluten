@@ -30,7 +30,7 @@ import com.google.common.base.Preconditions;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
-import org.apache.spark.util.TaskResources;
+import org.apache.spark.task.TaskResources;
 
 import java.util.Map;
 import java.util.stream.Collectors;

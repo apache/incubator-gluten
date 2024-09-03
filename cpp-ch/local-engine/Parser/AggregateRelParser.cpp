@@ -305,9 +305,12 @@ void AggregateRelParser::addMergingAggregatedStep()
     }
     else
     {
+        /// We don't use the grouping set feature in CH, so grouping_sets_params_list should always be empty.
+        DB::GroupingSetsParamsList grouping_sets_params_list;
         auto merging_step = std::make_unique<DB::MergingAggregatedStep>(
             plan->getCurrentDataStream(),
             params,
+            grouping_sets_params_list,
             true,
             false,
             1,

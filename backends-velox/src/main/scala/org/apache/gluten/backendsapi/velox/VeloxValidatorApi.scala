@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 
 class VeloxValidatorApi extends ValidatorApi {
 

@@ -48,6 +48,7 @@ CORE:
   - changed-files:
     - any-glob-to-any-file: [
       'gluten-core/**/*',
+      'gluten-substrait/**/*',
       'shims/**/*',
       'gluten-ras/**/*',
       'gluten-ui/**/*',

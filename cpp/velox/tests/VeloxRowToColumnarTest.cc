@@ -87,9 +87,57 @@ TEST_F(VeloxRowToColumnarTest, allTypes) {
       makeNullableFlatVector<bool>(
           {std::nullopt, true, false, std::nullopt, true, true, false, true, std::nullopt, std::nullopt}),
       makeFlatVector<velox::StringView>(
-          {"alice0", "bob1", "alice2", "bob3", "Alice4", "Bob5", "AlicE6", "boB7", "ALICE8", "BOB9"}),
+          {"alice0",
+           "bob1",
+           "alice2",
+           "bob3",
+           "Alice4",
+           "Bob5123456789098766notinline",
+           "AlicE6",
+           "boB7",
+           "ALICE8",
+           "BOB9"}),
       makeNullableFlatVector<velox::StringView>(
           {"alice", "bob", std::nullopt, std::nullopt, "Alice", "Bob", std::nullopt, "alicE", std::nullopt, "boB"}),
+  });
+  testRowVectorEqual(vector);
+}
+
+TEST_F(VeloxRowToColumnarTest, bigint) {
+  auto vector = makeRowVector({
+      makeNullableFlatVector<int64_t>({1, 2, 3, std::nullopt, 4, std::nullopt, 5, 6, std::nullopt, 7}),
+  });
+  testRowVectorEqual(vector);
+}
+
+TEST_F(VeloxRowToColumnarTest, decimal) {
+  auto vector = makeRowVector({
+      makeNullableFlatVector<int128_t>(
+          {123456, HugeInt::build(1045, 1789), 3678, std::nullopt, 4, std::nullopt, 5, 687987, std::nullopt, 7},
+          DECIMAL(38, 2)),
+      makeNullableFlatVector<int64_t>(
+          {178987, 2, 3, std::nullopt, 4, std::nullopt, 5, 6, std::nullopt, 7}, DECIMAL(12, 3)),
+  });
+  testRowVectorEqual(vector);
+}
+
+TEST_F(VeloxRowToColumnarTest, timestamp) {
+  auto vector = makeRowVector({
+      makeNullableFlatVector<Timestamp>(
+          {Timestamp(-946684800, 0),
+           Timestamp(-7266, 0),
+           Timestamp(0, 0),
+           Timestamp(946684800, 0),
+           Timestamp(9466848000, 0),
+           Timestamp(94668480000, 0),
+           Timestamp(946729316, 0),
+           Timestamp(946729316, 0),
+           Timestamp(946729316, 0),
+           Timestamp(7266, 0),
+           Timestamp(-50049331200, 0),
+           Timestamp(253405036800, 0),
+           Timestamp(-62480037600, 0),
+           std::nullopt}),
   });
   testRowVectorEqual(vector);
 }

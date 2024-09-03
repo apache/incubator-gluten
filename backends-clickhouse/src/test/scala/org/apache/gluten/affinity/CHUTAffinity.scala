@@ -33,8 +33,8 @@ object CHUTSoftAffinityManager extends AffinityManager {
   override lazy val minOnTargetHosts: Int =
     GlutenConfig.GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE
 
-  override lazy val detectDuplicateReading = true
+  override lazy val detectDuplicateReading: Boolean = true
 
-  override lazy val maxDuplicateReadingRecords =
-    GlutenConfig.GLUTEN_SOFT_AFFINITY_MAX_DUPLICATE_READING_RECORDS_DEFAULT_VALUE
+  override lazy val duplicateReadingMaxCacheItems: Int =
+    GlutenConfig.GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE
 }

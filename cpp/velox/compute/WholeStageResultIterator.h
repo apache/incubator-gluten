@@ -55,7 +55,9 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
 
   Metrics* getMetrics(int64_t exportNanos) {
     collectMetrics();
-    metrics_->veloxToArrow = exportNanos;
+    if (metrics_) {
+      metrics_->veloxToArrow = exportNanos;
+    }
     return metrics_.get();
   }
 

@@ -23,8 +23,8 @@ import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.spark.memory.TaskMemoryManager;
-import org.apache.spark.util.TaskResource;
-import org.apache.spark.util.TaskResources;
+import org.apache.spark.task.TaskResource;
+import org.apache.spark.task.TaskResources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

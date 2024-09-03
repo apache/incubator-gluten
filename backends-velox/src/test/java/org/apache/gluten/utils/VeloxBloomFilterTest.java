@@ -18,7 +18,7 @@ package org.apache.gluten.utils;
 
 import org.apache.gluten.test.VeloxBackendTestBase;
 
-import org.apache.spark.util.TaskResources$;
+import org.apache.spark.task.TaskResources$;
 import org.apache.spark.util.sketch.BloomFilter;
 import org.apache.spark.util.sketch.IncompatibleMergeException;
 import org.junit.Assert;
