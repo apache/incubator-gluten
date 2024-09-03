@@ -357,15 +357,13 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   }
 
   private def leafInputMetricsUpdater(): InputMetricsWrapper => Unit = {
-    def collectLeaves(
-        plan: SparkPlan,
-        buffer: ArrayBuffer[TransformSupport]): Unit = {
+    def collectLeaves(plan: SparkPlan, buffer: ArrayBuffer[TransformSupport]): Unit = {
       plan match {
         case node: TransformSupport if node.children.forall(!_.isInstanceOf[TransformSupport]) =>
-            buffer.append(node)
+          buffer.append(node)
         case node: TransformSupport =>
-            node.children
-              .foreach(collectLeaves(_, buffer))
+          node.children
+            .foreach(collectLeaves(_, buffer))
         case _ =>
       }
     }
