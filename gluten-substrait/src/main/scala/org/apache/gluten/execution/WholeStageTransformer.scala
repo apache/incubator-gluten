@@ -361,14 +361,11 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         plan: SparkPlan,
         buffer: ArrayBuffer[TransformSupport]): Unit = {
       plan match {
-        case node: TransformSupport =>
-          if (plan.children.forall(!_.isInstanceOf[TransformSupport])) {
+        case node: TransformSupport if node.children.forall(!_.isInstanceOf[TransformSupport]) =>
             buffer.append(node)
-          } else {
-            plan.children
-              .filter(_.isInstanceOf[TransformSupport])
+        case node: TransformSupport =>
+            node.children
               .foreach(collectTransformSupportLeaves(_, buffer))
-          }
         case _ =>
       }
     }
