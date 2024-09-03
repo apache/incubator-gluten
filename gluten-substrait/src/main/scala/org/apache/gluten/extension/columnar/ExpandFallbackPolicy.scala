@@ -179,21 +179,6 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     stageFallbackTransitionCost
   }
 
-  private def hasColumnarBroadcastExchangeWithJoin(plan: SparkPlan): Boolean = {
-    def isColumnarBroadcastExchange(p: SparkPlan): Boolean = p match {
-      case BroadcastQueryStageExec(_, _: ColumnarBroadcastExchangeExec, _) => true
-      case _ => false
-    }
-
-    plan.find {
-      case j: BroadcastHashJoinExecTransformerBase
-          if isColumnarBroadcastExchange(j.left) ||
-            isColumnarBroadcastExchange(j.right) =>
-        true
-      case _ => false
-    }.isDefined
-  }
-
   private def fallback(plan: SparkPlan): FallbackInfo = {
     val fallbackThreshold = if (isAdaptiveContext) {
       GlutenConfig.getConf.wholeStageFallbackThreshold
@@ -207,11 +192,6 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
       GlutenConfig.getConf.queryFallbackThreshold
     }
     if (fallbackThreshold < 0) {
-      return FallbackInfo.DO_NOT_FALLBACK()
-    }
-
-    // not safe to fallback row-based BHJ as the broadcast exchange is already columnar
-    if (hasColumnarBroadcastExchangeWithJoin(plan)) {
       return FallbackInfo.DO_NOT_FALLBACK()
     }
 
