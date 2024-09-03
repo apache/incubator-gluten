@@ -1271,7 +1271,7 @@ class GlutenClickHouseHiveTableSuite
                            |  event STRUCT<
                            |    event_info: MAP<STRING, STRING>
                            |  >
-                           |);
+                           |) STORED AS PARQUET;
                            |""".stripMargin
 
     val insertDataSql = """
@@ -1321,7 +1321,7 @@ class GlutenClickHouseHiveTableSuite
 
     spark.sql(createTableSql)
     spark.sql(insertDataSql)
-    runQueryAndCompare(selectSql)(df => checkOperatorCount[ProjectExecTransformer](2)(df))
+    runQueryAndCompare(selectSql)(df => checkOperatorCount[ProjectExecTransformer](3)(df))
     spark.sql("DROP TABLE test_tbl_7054")
   }
 }
