@@ -357,7 +357,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   }
 
   private def leafInputMetricsUpdater(): InputMetricsWrapper => Unit = {
-    def collectTransformSupportLeaves(
+    def collectLeaves(
         plan: SparkPlan,
         buffer: ArrayBuffer[TransformSupport]): Unit = {
       plan match {
@@ -365,17 +365,17 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
             buffer.append(node)
         case node: TransformSupport =>
             node.children
-              .foreach(collectTransformSupportLeaves(_, buffer))
+              .foreach(collectLeaves(_, buffer))
         case _ =>
       }
     }
 
-    val leavesBuffer = new ArrayBuffer[TransformSupport]()
-    collectTransformSupportLeaves(child, leavesBuffer)
-    val leavesMetricsUpdater = leavesBuffer.map(_.metricsUpdater())
+    val leafBuffer = new ArrayBuffer[TransformSupport]()
+    collectLeaves(child, leafBuffer)
+    val leafMetricsUpdater = leafBuffer.map(_.metricsUpdater())
 
     (inputMetrics: InputMetricsWrapper) => {
-      leavesMetricsUpdater.foreach(_.updateInputMetrics(inputMetrics))
+      leafMetricsUpdater.foreach(_.updateInputMetrics(inputMetrics))
     }
   }
 
