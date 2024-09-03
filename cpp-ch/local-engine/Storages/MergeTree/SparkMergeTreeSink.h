@@ -16,6 +16,9 @@
  */
 #pragma once
 
+#include "MergeTreeTool.h"
+
+
 #include <Processors/Sinks/SinkToStorage.h>
 #include <Storages/MergeTree/CustomStorageMergeTree.h>
 #include <Common/CHUtil.h>
@@ -78,25 +81,18 @@ class SparkStorageMergeTree final : public CustomStorageMergeTree
     friend class SparkMergeTreeSink;
 
 public:
-    SparkStorageMergeTree(
-        const StorageID & table_id_,
-        const String & relative_data_path_,
-        const StorageInMemoryMetadata & metadata,
-        bool attach,
-        const ContextMutablePtr & context_,
-        const String & date_column_name,
-        const MergingParams & merging_params_,
-        std::unique_ptr<MergeTreeSettings> settings_)
+    SparkStorageMergeTree(const MergeTreeTable & table_, const StorageInMemoryMetadata & metadata, const ContextMutablePtr & context_)
         : CustomStorageMergeTree(
-              table_id_,
-              relative_data_path_,
+              StorageID(table_.database, table_.table),
+              table_.relative_path,
               metadata,
-              attach,
+              false,
               context_,
-              date_column_name,
-              merging_params_,
-              std::move(settings_),
+              "",
+              MergingParams(),
+              buildMergeTreeSettings(table_.table_configs),
               false /*has_force_restore_data_flag*/)
+        , table(table_)
         , writer(*this)
     {
     }
@@ -105,6 +101,7 @@ public:
     write(const ASTPtr & query, const StorageMetadataPtr & /*metadata_snapshot*/, ContextPtr context, bool async_insert) override;
 
 private:
+    MergeTreeTable table;
     SparkMergeTreeDataWriter writer;
 };
 

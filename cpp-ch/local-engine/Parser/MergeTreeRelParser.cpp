@@ -36,11 +36,21 @@ extern const int UNKNOWN_TYPE;
 }
 }
 
+namespace
+{
+local_engine::MergeTreeTableInstance parseFromAny(const google::protobuf::Any & any)
+{
+    google::protobuf::StringValue table;
+    table.ParseFromString(any.value());
+    return local_engine::parseMergeTreeTableString(table.value());
+}
+}
+
 namespace local_engine
 {
 using namespace DB;
 
-/// Find minimal position of any of the column in primary key.
+/// Find minimal position of the column in primary key.
 static Int64 findMinPosition(const NameSet & condition_table_columns, const NameToIndexMap & primary_key_positions)
 {
     Int64 min_position = std::numeric_limits<Int64>::max() - 1;
@@ -58,9 +68,7 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
 MergeTreeTableInstance MergeTreeRelParser::parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table)
 {
     logDebugMessage(extension_table, "merge_tree_table");
-    google::protobuf::StringValue table;
-    table.ParseFromString(extension_table.detail().value());
-    return parseMergeTreeTableString(table.value());
+    return parseFromAny(extension_table.detail());
 }
 
 CustomStorageMergeTreePtr MergeTreeRelParser::getStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context)
@@ -74,15 +82,7 @@ CustomStorageMergeTreePtr MergeTreeRelParser::getStorage(const MergeTreeTable & 
         merge_tree_table,
         [&]() -> CustomStorageMergeTreePtr
         {
-            auto custom_storage_merge_tree = std::make_shared<SparkStorageMergeTree>(
-                StorageID(merge_tree_table.database, merge_tree_table.table),
-                merge_tree_table.relative_path,
-                *metadata,
-                false,
-                context,
-                "",
-                MergeTreeData::MergingParams(),
-                buildMergeTreeSettings(merge_tree_table.table_configs));
+            auto custom_storage_merge_tree = std::make_shared<SparkStorageMergeTree>(merge_tree_table, *metadata, context);
             return custom_storage_merge_tree;
         });
 }
@@ -377,18 +377,9 @@ String MergeTreeRelParser::getCHFunctionName(const substrait::Expression_ScalarF
     return getPlanParser()->getFunctionName(func_signature, substrait_func);
 }
 
-MergeTreeTableInstance xparseMergeTreeTable(const substrait::extensions::AdvancedExtension & extension)
-{
-    logDebugMessage(extension, "merge_tree_table");
-
-    google::protobuf::StringValue table;
-    table.ParseFromString(extension.enhancement().value());
-    return parseMergeTreeTableString(table.value());
-}
-
 String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_rel)
 {
-    auto merge_tree_table = xparseMergeTreeTable(read_rel.advanced_extension());
+    auto merge_tree_table = parseFromAny(read_rel.advanced_extension().enhancement());
     // ignore snapshot id for query
     merge_tree_table.snapshot_id = "";
     auto custom_storage_mergetree = restoreStorage(merge_tree_table, global_context);
