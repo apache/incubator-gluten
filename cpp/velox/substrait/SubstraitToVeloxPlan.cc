@@ -1024,6 +1024,14 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
     }
   }
   const std::optional<std::string> rowNumberColumnName = std::nullopt;
+
+  if (sortingKeys.empty()) {
+    // Handle if all sorting keys are also used as partition keys.
+
+    return std::make_shared<core::RowNumberNode>(
+        nextPlanNodeId(), partitionKeys, rowNumberColumnName, (int32_t)windowGroupLimitRel.limit(), childNode);
+  }
+
   return std::make_shared<core::TopNRowNumberNode>(
       nextPlanNodeId(),
       partitionKeys,
