@@ -48,71 +48,137 @@ struct PartInfo
     bool operator<(const PartInfo & rhs) const { return disk_size < rhs.disk_size; }
 };
 
+// TODO: Remove ConcurrentDeque
+template <typename T>
+class ConcurrentDeque
+{
+public:
+    std::optional<T> pop_front()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+
+        if (deq.empty())
+            return {};
+
+        T t = deq.front();
+        deq.pop_front();
+        return t;
+    }
+
+    void emplace_back(T value)
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        deq.emplace_back(value);
+    }
+
+    void emplace_back(std::vector<T> values)
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        deq.insert(deq.end(), values.begin(), values.end());
+    }
+
+    void emplace_front(T value)
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        deq.emplace_front(value);
+    }
+
+    size_t size()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        return deq.size();
+    }
+
+    bool empty()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        return deq.empty();
+    }
+
+    /// !!! unsafe get, only called when background tasks are finished
+    const std::deque<T> & unsafeGet() const { return deq; }
+
+private:
+    std::deque<T> deq;
+    mutable std::mutex mtx;
+};
+
 class SparkMergeTreeWriter;
 
 class StorageMergeTreeWrapper;
 using StorageMergeTreeWrapperPtr = std::shared_ptr<StorageMergeTreeWrapper>;
 class StorageMergeTreeWrapper
 {
-    friend class SparkMergeTreeWriter;
-
 protected:
-    CustomStorageMergeTreePtr merge_tree = nullptr;
+    const GlutenMergeTreeWriteSettings write_settings;
+    CustomStorageMergeTreePtr data;
     bool isRemoteStorage;
-    DB::StorageMetadataPtr metadata_snapshot;
-    DB::Block header;
+
+    ConcurrentDeque<DB::MergeTreeDataPartPtr> new_parts;
+    std::unordered_set<String> tmp_parts{};
+    ThreadPool thread_pool;
 
 public:
+    const DB::StorageMetadataPtr metadata_snapshot;
+    const DB::Block header;
+
+protected:
+    void doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> & prepare_merge_parts);
+    virtual void cleanup() { }
+
+public:
+    void emplacePart(const DB::MergeTreeDataPartPtr & part) { new_parts.emplace_back(part); }
+
+    const std::deque<DB::MergeTreeDataPartPtr> & unsafeGet() const { return new_parts.unsafeGet(); }
+    void checkAndMerge(bool force = false);
+    void finalizeMerge();
+
     virtual ~StorageMergeTreeWrapper() = default;
-    explicit StorageMergeTreeWrapper(const CustomStorageMergeTreePtr & data_, bool isRemoteStorage_)
-        : merge_tree(data_)
-        , isRemoteStorage(isRemoteStorage_)
-        , metadata_snapshot(merge_tree->getInMemoryMetadataPtr())
-        , header(metadata_snapshot->getSampleBlock())
-    {
-    }
-    static StorageMergeTreeWrapperPtr
-    create(const MergeTreeTable & merge_tree_table, bool insert_with_local_storage, const DB::ContextMutablePtr & context);
+    explicit StorageMergeTreeWrapper(
+        const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_);
+    static StorageMergeTreeWrapperPtr create(
+        const MergeTreeTable & merge_tree_table,
+        const GlutenMergeTreeWriteSettings & write_settings_,
+        const DB::ContextMutablePtr & context);
 
-    virtual CustomStorageMergeTree & dest_storage() { return *merge_tree; }
-    virtual CustomStorageMergeTreePtr temp_storage() { return nullptr; }
-    CustomStorageMergeTreePtr data() const { return merge_tree; }
-    CustomStorageMergeTree & dataRef() const { return *merge_tree; }
+    virtual CustomStorageMergeTree & dest_storage() { return *data; }
+    CustomStorageMergeTree & dataRef() const { return *data; }
 
-    virtual void commitPartToRemoteStorageIfNeeded(
-        const std::deque<DB::MergeTreeDataPartPtr> & parts, const ReadSettings & read_settings, const WriteSettings & write_settings)
-    {
-    }
-    void saveMetadata(const std::deque<DB::MergeTreeDataPartPtr> & parts, const DB::ContextPtr & context);
+    virtual void commit(const ReadSettings & read_settings, const WriteSettings & write_settings) { }
+    void saveMetadata(const DB::ContextPtr & context);
 };
 
 class DirectStorageMergeTreeWrapper : public StorageMergeTreeWrapper
 {
+protected:
+    void cleanup() override;
+
 public:
-    explicit DirectStorageMergeTreeWrapper(const CustomStorageMergeTreePtr & data_, bool isRemoteStorage_)
-        : StorageMergeTreeWrapper(data_, isRemoteStorage_)
+    explicit DirectStorageMergeTreeWrapper(
+        const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
+        : StorageMergeTreeWrapper(data_, write_settings_, isRemoteStorage_)
     {
     }
 };
 
 class CopyToRemoteStorageMergeTreeWrapper : public StorageMergeTreeWrapper
 {
-    CustomStorageMergeTreePtr org_storage;
+    CustomStorageMergeTreePtr dest;
 
 public:
-    explicit CopyToRemoteStorageMergeTreeWrapper(const CustomStorageMergeTreePtr & data_, const CustomStorageMergeTreePtr & org_)
-        : StorageMergeTreeWrapper(data_, true), org_storage(org_)
+    explicit CopyToRemoteStorageMergeTreeWrapper(
+        const CustomStorageMergeTreePtr & temp,
+        const CustomStorageMergeTreePtr & dest_,
+        const GlutenMergeTreeWriteSettings & write_settings_)
+        : StorageMergeTreeWrapper(temp, write_settings_, true), dest(dest_)
     {
-        assert(merge_tree != org_storage);
+        assert(data != dest);
     }
 
-    CustomStorageMergeTree & dest_storage() override { return *org_storage; }
-    CustomStorageMergeTreePtr temp_storage() override { return merge_tree; }
+    CustomStorageMergeTree & dest_storage() override { return *dest; }
+    const CustomStorageMergeTreePtr & temp_storage() const { return data; }
 
-    void commitPartToRemoteStorageIfNeeded(
-        const std::deque<DB::MergeTreeDataPartPtr> & parts,
-        const ReadSettings & read_settings,
-        const WriteSettings & write_settings) override;
+    void commit(const ReadSettings & read_settings, const WriteSettings & write_settings) override;
 };
 
 class SparkMergeTreeWriter
@@ -124,32 +190,22 @@ public:
 
     void write(const DB::Block & block);
     void finalize();
-    std::vector<PartInfo> getAllPartInfo();
+    std::vector<PartInfo> getAllPartInfo() const;
 
 private:
     DB::MergeTreeDataWriter::TemporaryPart
     writeTempPartAndFinalize(DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot) const;
-    void checkAndMerge(bool force = false);
-    void safeEmplaceBackPart(DB::MergeTreeDataPartPtr);
-    void safeAddPart(DB::MergeTreeDataPartPtr);
-    void finalizeMerge();
     bool chunkToPart(Chunk && plan_chunk);
     bool blockToPart(Block & block);
 
     const GlutenMergeTreeWriteSettings write_settings;
+    StorageMergeTreeWrapperPtr dataWrapper;
     DB::ContextPtr context;
+    std::unordered_map<String, String> partition_values;
 
-
-    StorageMergeTreeWrapperPtr dataWrapper = nullptr;
 
     std::unique_ptr<DB::Squashing> squashing;
+
     int part_num = 1;
-    ConcurrentDeque<DB::MergeTreeDataPartPtr> new_parts;
-    std::unordered_map<String, String> partition_values;
-    std::unordered_set<String> tmp_parts;
-
-    ThreadPool thread_pool;
-
-    std::mutex memory_mutex;
 };
 }

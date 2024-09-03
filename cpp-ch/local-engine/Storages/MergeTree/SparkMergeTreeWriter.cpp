@@ -58,35 +58,13 @@ Block removeColumnSuffix(const Block & block)
 
 namespace local_engine
 {
-StorageMergeTreeWrapperPtr StorageMergeTreeWrapper::create(
-    const MergeTreeTable & merge_tree_table, bool insert_with_local_storage, const DB::ContextMutablePtr & context)
-{
-    auto dest_storage = MergeTreeRelParser::parseStorage(merge_tree_table, context);
-    bool isRemoteStorage = dest_storage->getStoragePolicy()->getAnyDisk()->isRemote();
-    if (insert_with_local_storage && isRemoteStorage)
-    {
-        auto temp = MergeTreeRelParser::copyToDefaultPolicyStorage(merge_tree_table, context);
-        LOG_DEBUG(
-            &Poco::Logger::get("SparkMergeTreeWriter"),
-            "Create temp table {} for local merge.",
-            temp->getStorageID().getFullNameNotQuoted());
-        return std::make_shared<CopyToRemoteStorageMergeTreeWrapper>(temp, dest_storage);
-    }
-
-    return std::make_shared<DirectStorageMergeTreeWrapper>(dest_storage, isRemoteStorage);
-}
-
 SparkMergeTreeWriter::SparkMergeTreeWriter(
     const MergeTreeTable & merge_tree_table, const GlutenMergeTreeWriteSettings & write_settings_, const DB::ContextPtr & context_)
     : write_settings(write_settings_)
+    , dataWrapper(StorageMergeTreeWrapper::create(merge_tree_table, write_settings, SerializedPlanParser::global_context))
     , context(context_)
-    , thread_pool(CurrentMetrics::LocalThread, CurrentMetrics::LocalThreadActive, CurrentMetrics::LocalThreadScheduled, 1, 1, 100000)
 {
     const DB::Settings & settings = context->getSettingsRef();
-
-    dataWrapper = StorageMergeTreeWrapper::create(
-        merge_tree_table, !write_settings.insert_without_local_storage, SerializedPlanParser::global_context);
-
     squashing
         = std::make_unique<DB::Squashing>(dataWrapper->header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
     if (!write_settings.partition_settings.partition_dir.empty())
@@ -104,7 +82,7 @@ void SparkMergeTreeWriter::write(const DB::Block & block)
     bool has_part = chunkToPart(squashing->add({new_block.getColumns(), new_block.rows()}));
 
     if (has_part && write_settings.merge_after_insert)
-        checkAndMerge();
+        dataWrapper->checkAndMerge();
 }
 
 bool SparkMergeTreeWriter::chunkToPart(Chunk && plan_chunk)
@@ -133,7 +111,7 @@ bool SparkMergeTreeWriter::blockToPart(Block & block)
             before_write_memory = memory_tracker->get();
         }
 
-        new_parts.emplace_back(writeTempPartAndFinalize(item, dataWrapper->metadata_snapshot).part);
+        dataWrapper->emplacePart(writeTempPartAndFinalize(item, dataWrapper->metadata_snapshot).part);
         part_num++;
         /// Reset earlier to free memory
         item.block.clear();
@@ -147,17 +125,48 @@ void SparkMergeTreeWriter::finalize()
 {
     chunkToPart(squashing->flush());
     if (write_settings.merge_after_insert)
-        finalizeMerge();
+        dataWrapper->finalizeMerge();
 
-    dataWrapper->commitPartToRemoteStorageIfNeeded(new_parts.unsafeGet(), context->getReadSettings(), context->getWriteSettings());
-    dataWrapper->saveMetadata(new_parts.unsafeGet(), context);
+    dataWrapper->commit(context->getReadSettings(), context->getWriteSettings());
+    dataWrapper->saveMetadata(context);
 }
 
-void StorageMergeTreeWrapper::saveMetadata(const std::deque<DB::MergeTreeDataPartPtr> & parts, const DB::ContextPtr & context)
+StorageMergeTreeWrapperPtr StorageMergeTreeWrapper::create(
+    const MergeTreeTable & merge_tree_table, const GlutenMergeTreeWriteSettings & write_settings_, const DB::ContextMutablePtr & context)
+{
+    auto dest_storage = MergeTreeRelParser::parseStorage(merge_tree_table, context);
+    bool isRemoteStorage = dest_storage->getStoragePolicy()->getAnyDisk()->isRemote();
+    bool insert_with_local_storage = !write_settings_.insert_without_local_storage;
+    if (insert_with_local_storage && isRemoteStorage)
+    {
+        auto temp = MergeTreeRelParser::copyToDefaultPolicyStorage(merge_tree_table, context);
+        LOG_DEBUG(
+            &Poco::Logger::get("SparkMergeTreeWriter"),
+            "Create temp table {} for local merge.",
+            temp->getStorageID().getFullNameNotQuoted());
+        return std::make_shared<CopyToRemoteStorageMergeTreeWrapper>(temp, dest_storage, write_settings_);
+    }
+
+    return std::make_shared<DirectStorageMergeTreeWrapper>(dest_storage, write_settings_, isRemoteStorage);
+}
+
+StorageMergeTreeWrapper::StorageMergeTreeWrapper(
+    const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
+    : write_settings(write_settings_)
+    , data(data_)
+    , isRemoteStorage(isRemoteStorage_)
+    , metadata_snapshot(data->getInMemoryMetadataPtr())
+    , header(metadata_snapshot->getSampleBlock())
+    , thread_pool(CurrentMetrics::LocalThread, CurrentMetrics::LocalThreadActive, CurrentMetrics::LocalThreadScheduled, 1, 1, 100000)
+{
+}
+
+void StorageMergeTreeWrapper::saveMetadata(const DB::ContextPtr & context)
 {
     if (!isRemoteStorage)
         return;
 
+    const std::deque<DB::MergeTreeDataPartPtr> & parts = new_parts.unsafeGet();
     for (const auto & merge_tree_data_part : parts)
     {
         auto part = dest_storage().loadDataPartsWithNames({merge_tree_data_part->name});
@@ -175,11 +184,12 @@ void StorageMergeTreeWrapper::saveMetadata(const std::deque<DB::MergeTreeDataPar
     }
 }
 
-void CopyToRemoteStorageMergeTreeWrapper::commitPartToRemoteStorageIfNeeded(
-    const std::deque<DB::MergeTreeDataPartPtr> & parts, const ReadSettings & read_settings, const WriteSettings & write_settings)
+void CopyToRemoteStorageMergeTreeWrapper::commit(const ReadSettings & read_settings, const WriteSettings & write_settings)
 {
     LOG_DEBUG(
         &Poco::Logger::get("SparkMergeTreeWriter"), "Begin upload to disk {}.", dest_storage().getStoragePolicy()->getAnyDisk()->getName());
+
+    const std::deque<DB::MergeTreeDataPartPtr> & parts = new_parts.unsafeGet();
 
     Stopwatch watch;
     for (const auto & merge_tree_data_part : parts)
@@ -219,7 +229,7 @@ void CopyToRemoteStorageMergeTreeWrapper::commitPartToRemoteStorageIfNeeded(
         &Poco::Logger::get("SparkMergeTreeWriter"), "Clean temp table {} success.", temp_storage()->getStorageID().getFullNameNotQuoted());
 }
 
-void SparkMergeTreeWriter::finalizeMerge()
+void StorageMergeTreeWrapper::finalizeMerge()
 {
     LOG_DEBUG(&Poco::Logger::get("SparkMergeTreeWriter"), "Waiting all merge task end and do final merge");
     // waiting all merge task end and do final merge
@@ -232,31 +242,33 @@ void SparkMergeTreeWriter::finalizeMerge()
         checkAndMerge(true);
         thread_pool.wait();
     } while (before_merge_size != new_parts.size());
+    cleanup();
+}
+void DirectStorageMergeTreeWrapper::cleanup()
+{
+    // default storage need clean temp.
 
     std::unordered_set<String> final_parts;
     for (const auto & merge_tree_data_part : new_parts.unsafeGet())
         final_parts.emplace(merge_tree_data_part->name);
 
-    // default storage need clean temp.
-    if (!dataWrapper->temp_storage())
+    for (const auto & tmp_part : tmp_parts)
     {
-        for (const auto & tmp_part : tmp_parts)
-        {
-            if (final_parts.contains(tmp_part))
-                continue;
+        if (final_parts.contains(tmp_part))
+            continue;
 
-            GlobalThreadPool::instance().scheduleOrThrow(
-                [storage_ = dataWrapper->data(), tmp = tmp_part]() -> void
+        GlobalThreadPool::instance().scheduleOrThrow(
+            [storage_ = data, tmp = tmp_part]() -> void
+            {
+                for (const auto & disk : storage_->getDisks())
                 {
-                    for (const auto & disk : storage_->getDisks())
-                    {
-                        auto rel_path = storage_->getRelativeDataPath() + "/" + tmp;
-                        disk->removeRecursive(rel_path);
-                    }
-                });
-        }
+                    auto rel_path = storage_->getRelativeDataPath() + "/" + tmp;
+                    disk->removeRecursive(rel_path);
+                }
+            });
     }
 }
+
 
 DB::MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPartAndFinalize(
     DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot) const
@@ -265,12 +277,13 @@ DB::MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPartAndFin
     return writer.writeTempPart(block_with_partition, metadata_snapshot, context, write_settings.partition_settings, part_num);
 }
 
-std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo()
+std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo() const
 {
     std::vector<PartInfo> res;
-    res.reserve(new_parts.size());
+    auto parts = dataWrapper->unsafeGet();
+    res.reserve(parts.size());
 
-    for (const auto & part : new_parts.unsafeGet())
+    for (const auto & part : parts)
     {
         res.emplace_back(PartInfo{
             part->name,
@@ -315,57 +328,58 @@ String SparkMergeTreeWriter::partInfosToJson(const std::vector<PartInfo> & part_
     return result.GetString();
 }
 
-void SparkMergeTreeWriter::checkAndMerge(bool force)
+void StorageMergeTreeWrapper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> & prepare_merge_parts)
+{
+    for (const auto & selected_part : prepare_merge_parts)
+        tmp_parts.emplace(selected_part->name);
+
+    // check thread group initialized in task thread
+    currentThreadGroupMemoryUsage();
+    thread_pool.scheduleOrThrow(
+        [this, prepare_merge_parts, thread_group = CurrentThread::getGroup()]() -> void
+        {
+            Stopwatch watch;
+            CurrentThread::detachFromGroupIfNotDetached();
+            CurrentThread::attachToGroup(thread_group);
+            size_t before_size = 0;
+            size_t after_size = 0;
+            for (const auto & prepare_merge_part : prepare_merge_parts)
+                before_size += prepare_merge_part->getBytesOnDisk();
+
+            std::unordered_map<String, String> partition_values;
+            const auto merged_parts = mergeParts(
+                prepare_merge_parts,
+                partition_values,
+                toString(UUIDHelpers::generateV4()),
+                dataRef(),
+                write_settings.partition_settings.partition_dir,
+                write_settings.partition_settings.bucket_dir);
+            for (const auto & merge_tree_data_part : merged_parts)
+                after_size += merge_tree_data_part->getBytesOnDisk();
+
+            new_parts.emplace_back(merged_parts);
+            watch.stop();
+            LOG_INFO(
+                &Poco::Logger::get("SparkMergeTreeWriter"),
+                "Merge success. Before merge part size {}, part count {}, after part size {}, part count {}, "
+                "total elapsed {} ms",
+                before_size,
+                prepare_merge_parts.size(),
+                after_size,
+                merged_parts.size(),
+                watch.elapsedMilliseconds());
+        });
+}
+
+void StorageMergeTreeWrapper::checkAndMerge(bool force)
 {
     // Only finalize should force merge.
     if (!force && new_parts.size() < write_settings.merge_limit_parts)
         return;
 
-    auto doMergeTask = [this](const std::vector<MergeTreeDataPartPtr> & prepare_merge_parts)
-    {
-        for (const auto & selected_part : prepare_merge_parts)
-            tmp_parts.emplace(selected_part->name);
-        // check thread group initialized in task thread
-        currentThreadGroupMemoryUsage();
-        thread_pool.scheduleOrThrow(
-            [this, prepare_merge_parts, thread_group = CurrentThread::getGroup()]() -> void
-            {
-                Stopwatch watch;
-                CurrentThread::detachFromGroupIfNotDetached();
-                CurrentThread::attachToGroup(thread_group);
-                size_t before_size = 0;
-                size_t after_size = 0;
-                for (const auto & prepare_merge_part : prepare_merge_parts)
-                    before_size += prepare_merge_part->getBytesOnDisk();
-
-                std::unordered_map<String, String> partition_values;
-                const auto merged_parts = mergeParts(
-                    prepare_merge_parts,
-                    partition_values,
-                    toString(UUIDHelpers::generateV4()),
-                    dataWrapper->data(),
-                    write_settings.partition_settings.partition_dir,
-                    write_settings.partition_settings.bucket_dir);
-                for (const auto & merge_tree_data_part : merged_parts)
-                    after_size += merge_tree_data_part->getBytesOnDisk();
-
-                new_parts.emplace_back(merged_parts);
-                watch.stop();
-                LOG_INFO(
-                    &Poco::Logger::get("SparkMergeTreeWriter"),
-                    "Merge success. Before merge part size {}, part count {}, after part size {}, part count {}, "
-                    "total elapsed {} ms",
-                    before_size,
-                    prepare_merge_parts.size(),
-                    after_size,
-                    merged_parts.size(),
-                    watch.elapsedMilliseconds());
-            });
-    };
-
     std::vector<MergeTreeDataPartPtr> selected_parts;
     selected_parts.reserve(write_settings.merge_limit_parts);
-    size_t totol_size = 0;
+    size_t total_size = 0;
     std::vector<MergeTreeDataPartPtr> skip_parts;
 
     while (const auto merge_tree_data_part_option = new_parts.pop_front())
@@ -378,19 +392,19 @@ void SparkMergeTreeWriter::checkAndMerge(bool force)
         }
 
         selected_parts.emplace_back(merge_tree_data_part);
-        totol_size += merge_tree_data_part->getBytesOnDisk();
-        if (write_settings.merge_min_size > totol_size && write_settings.merge_limit_parts > selected_parts.size())
+        total_size += merge_tree_data_part->getBytesOnDisk();
+        if (write_settings.merge_min_size > total_size && write_settings.merge_limit_parts > selected_parts.size())
             continue;
 
-        doMergeTask(selected_parts);
+        doMergePartsAsync(selected_parts);
         selected_parts.clear();
-        totol_size = 0;
+        total_size = 0;
     }
 
     if (!selected_parts.empty())
     {
         if (force && selected_parts.size() > 1)
-            doMergeTask(selected_parts);
+            doMergePartsAsync(selected_parts);
         else
             new_parts.emplace_back(selected_parts);
     }

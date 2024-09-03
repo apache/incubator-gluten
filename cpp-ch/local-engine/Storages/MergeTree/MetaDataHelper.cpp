@@ -152,7 +152,7 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     std::vector<DB::DataPartPtr> selected_parts,
     std::unordered_map<String, String> & partition_values,
     const String & new_part_uuid,
-    CustomStorageMergeTreePtr storage,
+    CustomStorageMergeTree & storage,
     const String  & partition_dir,
     const String & bucket_dir)
 {
@@ -179,7 +179,7 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     // Copying a vector of columns `deduplicate by columns.
     DB::IExecutableTask::TaskResultCallback f = [](bool) {};
     auto task = std::make_shared<local_engine::MergeSparkMergeTreeTask>(
-        *storage, storage->getInMemoryMetadataPtr(), false,  std::vector<std::string>{}, false, entry,
+        storage, storage.getInMemoryMetadataPtr(), false,  std::vector<std::string>{}, false, entry,
         DB::TableLockHolder{}, f);
 
     task->setCurrentTransaction(DB::MergeTreeTransactionHolder{}, DB::MergeTreeTransactionPtr{});
@@ -187,7 +187,7 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     executeHere(task);
 
     std::unordered_set<std::string> to_load{future_part->name};
-    std::vector<MergeTreeDataPartPtr> merged = storage->loadDataPartsWithNames(to_load);
+    std::vector<MergeTreeDataPartPtr> merged = storage.loadDataPartsWithNames(to_load);
     return merged;
 }
 
