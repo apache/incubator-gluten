@@ -199,6 +199,7 @@ object ExpressionMappings {
     Sig[UnixSeconds](UNIX_SECONDS),
     Sig[UnixMillis](UNIX_MILLIS),
     Sig[UnixMicros](UNIX_MICROS),
+    Sig[SecondsToTimestamp](TIMESTAMP_SECONDS),
     Sig[MillisToTimestamp](TIMESTAMP_MILLIS),
     Sig[MicrosToTimestamp](TIMESTAMP_MICROS),
     Sig[PreciseTimestampConversion](PRECYSE_TIMESTAMP_CONVERSION),
