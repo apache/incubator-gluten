@@ -14,13 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils
+package org.apache.gluten.task
 
 import org.apache.spark.memory.{MemoryConsumer, MemoryMode}
 import org.apache.spark.sql.catalyst.plans.SQLHelper
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.task.{TaskResource, TaskResources}
-import org.apache.spark.util.SparkTaskUtil
+import org.apache.spark.task.{SparkTaskUtil, TaskResource, TaskResources}
 
 import org.scalatest.funsuite.AnyFunSuite
 

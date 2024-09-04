@@ -18,10 +18,10 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
-import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized._
 
 import org.apache.spark.broadcast.Broadcast

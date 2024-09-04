@@ -19,10 +19,10 @@ package org.apache.gluten.datasource
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.SchemaMismatchException
 import org.apache.gluten.execution.RowToVeloxColumnarExec
+import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.arrow.pool.ArrowNativeMemoryPool
 import org.apache.gluten.utils.ArrowUtil
-import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.TaskContext

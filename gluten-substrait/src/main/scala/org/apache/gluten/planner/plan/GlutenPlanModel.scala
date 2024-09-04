@@ -28,8 +28,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{ColumnarToRowExec, LeafExecNode, SparkPlan}
-import org.apache.spark.task.TaskResources
-import org.apache.spark.util.SparkTaskUtil
+import org.apache.spark.task.{SparkTaskUtil, TaskResources}
 
 import java.util.{Objects, Properties}
 

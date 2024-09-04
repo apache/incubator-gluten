@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils.iterator
-
-import org.apache.gluten.utils.iterator.Iterators.WrapperBuilder
+package org.apache.gluten.iterator
 
 import org.apache.spark.{InterruptibleIterator, TaskContext}
 import org.apache.spark.task.TaskResources
+
+import Iterators.WrapperBuilder
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
