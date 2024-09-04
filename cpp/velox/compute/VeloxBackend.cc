@@ -33,7 +33,6 @@
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
-#include "operators/functions/SparkTokenizer.h"
 #include "udf/UdfLoader.h"
 #include "utils/exception.h"
 #include "velox/common/caching/SsdCache.h"
@@ -124,7 +123,6 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 
   initUdf();
-  registerSparkTokenizer();
 
   // Initialize the global memory manager for current process.
   auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
