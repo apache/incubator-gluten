@@ -24,7 +24,7 @@ import org.apache.spark.executor.OutputMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, CommandResultExec, QueryExecution}
+import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, CommandResultExec, GlutenImplicits, QueryExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -70,8 +70,9 @@ class GlutenInsertSuite
   }
 
   testGluten("insert partition table") {
-    withTable("pt") {
+    withTable("pt", "pt2") {
       spark.sql("CREATE TABLE pt (c1 int, c2 string) USING PARQUET PARTITIONED BY (pt string)")
+      spark.sql("CREATE TABLE pt2 (c1 int, c2 string) USING PARQUET PARTITIONED BY (pt string)")
 
       var taskMetrics: OutputMetrics = null
       val taskListener = new SparkListener {
@@ -111,6 +112,13 @@ class GlutenInsertSuite
         spark.sparkContext.removeSparkListener(taskListener)
         spark.listenerManager.unregister(queryListener)
       }
+
+      // check no fallback nodes
+      val df2 = spark.sql("INSERT INTO TABLE pt2 SELECT * FROM pt")
+      checkAndGetWriteFiles(df2)
+      val fallbackSummary = GlutenImplicits
+        .collectQueryExecutionFallbackSummary(spark, df2.queryExecution)
+      assert(fallbackSummary.numFallbackNodes == 0)
     }
   }
 
