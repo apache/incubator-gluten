@@ -49,8 +49,8 @@ public:
 
         const auto * arg = parsed_args[0];
         const auto * precision_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt8>(), 6);
-        const auto * toDateTime64_node = toFunctionNode(actions_dag, "toDateTime64", {arg, precision_node});
-        return convertNodeTypeIfNeeded(substrait_func, toDateTime64_node, actions_dag);
+        const auto * to_datetime64_node = toFunctionNode(actions_dag, "toDateTime64", {arg, precision_node});
+        return convertNodeTypeIfNeeded(substrait_func, to_datetime64_node, actions_dag);
     }
 };
 
