@@ -75,10 +75,13 @@ private:
 };
 
 class SparkMergeTreeSink;
+class SinkHelper;
+using SinkHelperPtr = std::shared_ptr<SinkHelper>;
 
 class SparkStorageMergeTree final : public CustomStorageMergeTree
 {
     friend class SparkMergeTreeSink;
+    friend class SinkHelper;
 
 public:
     SparkStorageMergeTree(const MergeTreeTable & table_, const StorageInMemoryMetadata & metadata, const ContextMutablePtr & context_)
@@ -161,8 +164,6 @@ private:
     mutable std::mutex mtx;
 };
 
-class SinkHelper;
-using SinkHelperPtr = std::shared_ptr<SinkHelper>;
 class SinkHelper
 {
 protected:
@@ -181,9 +182,15 @@ public:
 protected:
     void doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> & prepare_merge_parts);
     virtual void cleanup() { }
+    SparkStorageMergeTree & dataRef() const { return assert_cast<SparkStorageMergeTree &>(*data); }
 
 public:
-    void emplacePart(const DB::MergeTreeDataPartPtr & part) { new_parts.emplace_back(part); }
+    void writeTempPart(
+        DB::BlockWithPartition & block_with_partition,
+        const DB::StorageMetadataPtr & metadata_snapshot,
+        const ContextPtr & context,
+        const MergeTreePartitionWriteSettings & write_settings,
+        int part_num);
 
     const std::deque<DB::MergeTreeDataPartPtr> & unsafeGet() const { return new_parts.unsafeGet(); }
     void checkAndMerge(bool force = false);
@@ -198,7 +205,6 @@ public:
         const DB::ContextMutablePtr & context);
 
     virtual CustomStorageMergeTree & dest_storage() { return *data; }
-    CustomStorageMergeTree & dataRef() const { return *data; }
 
     virtual void commit(const ReadSettings & read_settings, const WriteSettings & write_settings) { }
     void saveMetadata(const DB::ContextPtr & context);

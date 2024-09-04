@@ -59,8 +59,6 @@ public:
     std::vector<PartInfo> getAllPartInfo() const;
 
 private:
-    DB::MergeTreeDataWriter::TemporaryPart
-    writeTempPartAndFinalize(DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot) const;
     bool chunkToPart(Chunk && plan_chunk);
     bool blockToPart(Block & block);
 

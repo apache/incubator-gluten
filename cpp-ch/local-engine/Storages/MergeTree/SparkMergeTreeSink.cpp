@@ -192,6 +192,14 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
 SinkToStoragePtr SparkStorageMergeTree::write(
     const ASTPtr &, const StorageMetadataPtr & storage_in_memory_metadata, ContextPtr context, bool /*async_insert*/)
 {
+    GlutenMergeTreeWriteSettings settings{.partition_settings{MergeTreePartitionWriteSettings::get(context)}};
+    settings.load(context);
+    SinkHelperPtr sink_helper = SinkHelper::create(table, settings, getContext());
+#ifndef NDEBUG
+    auto dest_storage = MergeTreeRelParser::getStorage(table, getContext());
+    assert(dest_storage.get() == this);
+#endif
+
     return std::make_shared<SparkMergeTreeSink>(*this, storage_in_memory_metadata, context);
 }
 
@@ -254,9 +262,9 @@ SinkHelper::SinkHelper(const CustomStorageMergeTreePtr & data_, const GlutenMerg
     : write_settings(write_settings_)
     , data(data_)
     , isRemoteStorage(isRemoteStorage_)
+    , thread_pool(CurrentMetrics::LocalThread, CurrentMetrics::LocalThreadActive, CurrentMetrics::LocalThreadScheduled, 1, 1, 100000)
     , metadata_snapshot(data->getInMemoryMetadataPtr())
     , header(metadata_snapshot->getSampleBlock())
-    , thread_pool(CurrentMetrics::LocalThread, CurrentMetrics::LocalThreadActive, CurrentMetrics::LocalThreadScheduled, 1, 1, 100000)
 {
 }
 
@@ -324,6 +332,16 @@ void SinkHelper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> &
                 merged_parts.size(),
                 watch.elapsedMilliseconds());
         });
+}
+void SinkHelper::writeTempPart(
+    DB::BlockWithPartition & block_with_partition,
+    const DB::StorageMetadataPtr & metadata_snapshot,
+    const ContextPtr & context,
+    const MergeTreePartitionWriteSettings & write_settings,
+    int part_num)
+{
+    auto tmp = dataRef().writer.writeTempPart(block_with_partition, metadata_snapshot, context, write_settings, part_num);
+    new_parts.emplace_back(tmp.part);
 }
 
 void SinkHelper::checkAndMerge(bool force)

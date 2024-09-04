@@ -99,8 +99,7 @@ bool SparkMergeTreeWriter::blockToPart(Block & block)
             CurrentThread::flushUntrackedMemory();
             before_write_memory = memory_tracker->get();
         }
-
-        dataWrapper->emplacePart(writeTempPartAndFinalize(item, dataWrapper->metadata_snapshot).part);
+        dataWrapper->writeTempPart(item, dataWrapper->metadata_snapshot, context, write_settings.partition_settings, part_num);
         part_num++;
         /// Reset earlier to free memory
         item.block.clear();
@@ -118,13 +117,6 @@ void SparkMergeTreeWriter::finalize()
 
     dataWrapper->commit(context->getReadSettings(), context->getWriteSettings());
     dataWrapper->saveMetadata(context);
-}
-
-DB::MergeTreeDataWriter::TemporaryPart SparkMergeTreeWriter::writeTempPartAndFinalize(
-    DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot) const
-{
-    const SparkMergeTreeDataWriter writer(dataWrapper->dataRef());
-    return writer.writeTempPart(block_with_partition, metadata_snapshot, context, write_settings.partition_settings, part_num);
 }
 
 std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo() const
