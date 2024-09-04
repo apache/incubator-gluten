@@ -136,8 +136,8 @@ class VeloxListenerApi extends ListenerApi with Logging {
       JniLibLoader.loadFromPath(libPath, false)
     } else {
       val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
-      loader.mapAndLoad(s"$baseLibPackage/${System.mapLibraryName(baseLibName)}", false)
-      loader.mapAndLoad(
+      loader.load(s"$baseLibPackage/${System.mapLibraryName(baseLibName)}", false)
+      loader.load(
         s"$baseLibPackage/${System.mapLibraryName(VeloxBackend.BACKEND_NAME)}",
         false)
     }

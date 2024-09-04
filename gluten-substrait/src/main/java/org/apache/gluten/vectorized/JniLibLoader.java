@@ -158,27 +158,17 @@ public class JniLibLoader {
     }
   }
 
-  public void mapAndLoad(String unmappedLibPath, boolean requireUnload) {
+  public void load(String libPath, boolean requireUnload) {
     synchronized (loadedLibraries) {
       try {
-        load(unmappedLibPath, requireUnload);
-      } catch (Exception e) {
-        throw new GlutenException(e);
-      }
-    }
-  }
-
-  public void load(String libName, boolean requireUnload) {
-    synchronized (loadedLibraries) {
-      try {
-        if (loadedLibraries.contains(libName)) {
-          LOG.debug("Library {} has already been loaded, skipping", libName);
+        if (loadedLibraries.contains(libPath)) {
+          LOG.debug("Library {} has already been loaded, skipping", libPath);
           return;
         }
-        File file = moveToWorkDir(workDir, libName);
+        File file = moveToWorkDir(workDir, libPath);
         loadWithLink(file.getAbsolutePath(), null, requireUnload);
-        loadedLibraries.add(libName);
-        LOG.info("Successfully loaded library {}", libName);
+        loadedLibraries.add(libPath);
+        LOG.info("Successfully loaded library {}", libPath);
       } catch (IOException e) {
         throw new GlutenException(e);
       }
