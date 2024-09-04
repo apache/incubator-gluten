@@ -29,8 +29,10 @@ import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.delta.metric.IncrementMetric
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -43,9 +45,11 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   with PredicateHelper
   with Logging {
 
+  private var extraMetric: Map[String, SQLMetric] = Map.empty
+
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
-    BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
+    BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext, extraMetric)
 
   // Split out all the IsNotNulls from condition.
   private val (notNullPreds, otherPreds) = splitConjunctivePredicates(cond).partition {
@@ -73,9 +77,17 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
       validation: Boolean): RelNode = {
     assert(condExpr != null)
     val args = context.registeredFunction
-    val condExprNode = ExpressionConverter
-      .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
-      .doTransform(args)
+    val condExprNode = condExpr match {
+      case IncrementMetric(child, metric) =>
+        extraMetric ++= Map("incrementMetric" -> metric)
+        ExpressionConverter
+          .replaceWithExpressionTransformer(child, attributeSeq = originalInputAttributes)
+          .doTransform(args)
+      case _ =>
+        ExpressionConverter
+          .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
+          .doTransform(args)
+    }
 
     if (!validation) {
       RelBuilder.makeFilterRel(input, condExprNode, context, operatorId)

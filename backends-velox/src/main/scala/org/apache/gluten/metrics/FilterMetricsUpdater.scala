@@ -30,6 +30,9 @@ class FilterMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsU
       metrics("wallNanos") += operatorMetrics.wallNanos
       metrics("peakMemoryBytes") += operatorMetrics.peakMemoryBytes
       metrics("numMemoryAllocations") += operatorMetrics.numMemoryAllocations
+      if (metrics.contains("incrementMetric")) {
+        metrics("incrementMetric") += operatorMetrics.outputRows
+      }
     }
   }
 }
