@@ -162,7 +162,9 @@ class VeloxMetricsApi extends MetricsApi with Logging {
   override def genFileSourceScanTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new FileSourceScanMetricsUpdater(metrics)
 
-  override def genFilterTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+  override def genFilterTransformerMetrics(
+      sparkContext: SparkContext,
+      extraMetric: Map[String, SQLMetric] = Map.empty): Map[String, SQLMetric] =
     Map(
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
@@ -173,7 +175,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
         "number of memory allocations")
-    )
+    ) ++ extraMetric
 
   override def genFilterTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
     new FilterMetricsUpdater(metrics)

@@ -152,7 +152,9 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
   override def genFileSourceScanTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new FileSourceScanMetricsUpdater(metrics)
 
-  override def genFilterTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+  override def genFilterTransformerMetrics(
+      sparkContext: SparkContext,
+      extraMetric: Map[String, SQLMetric] = Map.empty): Map[String, SQLMetric] =
     Map(
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
@@ -163,7 +165,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
       "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
       "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "time")
-    )
+    ) ++ extraMetric
 
   override def genFilterTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
     new FilterMetricsUpdater(metrics)
