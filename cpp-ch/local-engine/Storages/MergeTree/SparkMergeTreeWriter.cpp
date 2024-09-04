@@ -49,15 +49,13 @@ namespace local_engine
 {
 SparkMergeTreeWriter::SparkMergeTreeWriter(
     const MergeTreeTable & merge_tree_table, const GlutenMergeTreeWriteSettings & write_settings_, const DB::ContextPtr & context_)
-    : write_settings(write_settings_)
-    , dataWrapper(SinkHelper::create(merge_tree_table, write_settings, SerializedPlanParser::global_context))
-    , context(context_)
+    : dataWrapper(SinkHelper::create(merge_tree_table, write_settings_, SerializedPlanParser::global_context)), context(context_)
 {
     const DB::Settings & settings = context->getSettingsRef();
     squashing
         = std::make_unique<DB::Squashing>(dataWrapper->header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
-    if (!write_settings.partition_settings.partition_dir.empty())
-        extractPartitionValues(write_settings.partition_settings.partition_dir, partition_values);
+    if (!write_settings_.partition_settings.partition_dir.empty())
+        extractPartitionValues(write_settings_.partition_settings.partition_dir, partition_values);
 }
 
 void SparkMergeTreeWriter::write(const DB::Block & block)
@@ -68,9 +66,7 @@ void SparkMergeTreeWriter::write(const DB::Block & block)
     const ExpressionActions expression_actions{std::move(converter)};
     expression_actions.execute(new_block);
 
-    bool has_part = chunkToPart(squashing->add({new_block.getColumns(), new_block.rows()}));
-
-    if (has_part && write_settings.merge_after_insert)
+    if (chunkToPart(squashing->add({new_block.getColumns(), new_block.rows()})))
         dataWrapper->checkAndMerge();
 }
 
@@ -112,11 +108,7 @@ bool SparkMergeTreeWriter::blockToPart(Block & block)
 void SparkMergeTreeWriter::finalize()
 {
     chunkToPart(squashing->flush());
-    if (write_settings.merge_after_insert)
-        dataWrapper->finalizeMerge();
-
-    dataWrapper->commit(context->getReadSettings(), context->getWriteSettings());
-    dataWrapper->saveMetadata(context);
+    dataWrapper->finish(context);
 }
 
 std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo() const
@@ -133,7 +125,7 @@ std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo() const
             part->getBytesOnDisk(),
             part->rows_count,
             partition_values,
-            write_settings.partition_settings.bucket_dir});
+            dataWrapper->write_settings.partition_settings.bucket_dir});
     }
     return res;
 }

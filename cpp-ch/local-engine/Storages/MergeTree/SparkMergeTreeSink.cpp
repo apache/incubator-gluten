@@ -259,10 +259,10 @@ SinkHelperPtr SinkHelper::create(
 }
 
 SinkHelper::SinkHelper(const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
-    : write_settings(write_settings_)
-    , data(data_)
+    : data(data_)
     , isRemoteStorage(isRemoteStorage_)
     , thread_pool(CurrentMetrics::LocalThread, CurrentMetrics::LocalThreadActive, CurrentMetrics::LocalThreadScheduled, 1, 1, 100000)
+    , write_settings(write_settings_)
     , metadata_snapshot(data->getInMemoryMetadataPtr())
     , header(metadata_snapshot->getSampleBlock())
 {
@@ -342,6 +342,8 @@ void SinkHelper::writeTempPart(DB::BlockWithPartition & block_with_partition, co
 
 void SinkHelper::checkAndMerge(bool force)
 {
+    if (!write_settings.merge_after_insert)
+        return;
     // Only finalize should force merge.
     if (!force && new_parts.size() < write_settings.merge_limit_parts)
         return;
@@ -379,6 +381,13 @@ void SinkHelper::checkAndMerge(bool force)
     }
 
     new_parts.emplace_back(skip_parts);
+}
+void SinkHelper::finish(const DB::ContextPtr & context)
+{
+    if (write_settings.merge_after_insert)
+        finalizeMerge();
+    commit(context->getReadSettings(), context->getWriteSettings());
+    saveMetadata(context);
 }
 
 void SinkHelper::finalizeMerge()

@@ -62,7 +62,6 @@ private:
     bool chunkToPart(Chunk && plan_chunk);
     bool blockToPart(Block & block);
 
-    const GlutenMergeTreeWriteSettings write_settings;
     SinkHelperPtr dataWrapper;
     DB::ContextPtr context;
     std::unordered_map<String, String> partition_values;

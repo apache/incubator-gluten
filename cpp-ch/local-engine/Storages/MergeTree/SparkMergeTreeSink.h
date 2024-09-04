@@ -167,7 +167,6 @@ private:
 class SinkHelper
 {
 protected:
-    const GlutenMergeTreeWriteSettings write_settings;
     CustomStorageMergeTreePtr data;
     bool isRemoteStorage;
 
@@ -176,11 +175,13 @@ protected:
     ThreadPool thread_pool;
 
 public:
+    const GlutenMergeTreeWriteSettings write_settings;
     const DB::StorageMetadataPtr metadata_snapshot;
     const DB::Block header;
 
 protected:
     void doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> & prepare_merge_parts);
+    void finalizeMerge();
     virtual void cleanup() { }
     SparkStorageMergeTree & dataRef() const { return assert_cast<SparkStorageMergeTree &>(*data); }
 
@@ -189,11 +190,10 @@ public:
 
     const std::deque<DB::MergeTreeDataPartPtr> & unsafeGet() const { return new_parts.unsafeGet(); }
     void checkAndMerge(bool force = false);
-    void finalizeMerge();
+    void finish(const DB::ContextPtr & context);
 
     virtual ~SinkHelper() = default;
-    explicit SinkHelper(
-        const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_);
+    SinkHelper(const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_);
     static SinkHelperPtr create(
         const MergeTreeTable & merge_tree_table,
         const GlutenMergeTreeWriteSettings & write_settings_,
