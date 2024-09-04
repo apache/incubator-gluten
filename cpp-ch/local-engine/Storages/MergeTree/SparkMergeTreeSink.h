@@ -185,12 +185,7 @@ protected:
     SparkStorageMergeTree & dataRef() const { return assert_cast<SparkStorageMergeTree &>(*data); }
 
 public:
-    void writeTempPart(
-        DB::BlockWithPartition & block_with_partition,
-        const DB::StorageMetadataPtr & metadata_snapshot,
-        const ContextPtr & context,
-        const MergeTreePartitionWriteSettings & write_settings,
-        int part_num);
+    void writeTempPart(DB::BlockWithPartition & block_with_partition, const ContextPtr & context, int part_num);
 
     const std::deque<DB::MergeTreeDataPartPtr> & unsafeGet() const { return new_parts.unsafeGet(); }
     void checkAndMerge(bool force = false);

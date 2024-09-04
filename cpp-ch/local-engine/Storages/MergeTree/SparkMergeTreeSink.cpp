@@ -333,14 +333,10 @@ void SinkHelper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> &
                 watch.elapsedMilliseconds());
         });
 }
-void SinkHelper::writeTempPart(
-    DB::BlockWithPartition & block_with_partition,
-    const DB::StorageMetadataPtr & metadata_snapshot,
-    const ContextPtr & context,
-    const MergeTreePartitionWriteSettings & write_settings,
-    int part_num)
+void SinkHelper::writeTempPart(DB::BlockWithPartition & block_with_partition, const ContextPtr & context, int part_num)
 {
-    auto tmp = dataRef().writer.writeTempPart(block_with_partition, metadata_snapshot, context, write_settings, part_num);
+    auto tmp
+        = dataRef().writer.writeTempPart(block_with_partition, metadata_snapshot, context, write_settings.partition_settings, part_num);
     new_parts.emplace_back(tmp.part);
 }
 

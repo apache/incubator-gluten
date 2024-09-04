@@ -99,7 +99,7 @@ bool SparkMergeTreeWriter::blockToPart(Block & block)
             CurrentThread::flushUntrackedMemory();
             before_write_memory = memory_tracker->get();
         }
-        dataWrapper->writeTempPart(item, dataWrapper->metadata_snapshot, context, write_settings.partition_settings, part_num);
+        dataWrapper->writeTempPart(item, context, part_num);
         part_num++;
         /// Reset earlier to free memory
         item.block.clear();
