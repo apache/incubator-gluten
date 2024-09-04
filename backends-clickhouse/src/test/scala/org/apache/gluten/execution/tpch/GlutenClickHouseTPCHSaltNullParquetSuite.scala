@@ -2936,5 +2936,11 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         checkBHJWithIsNullAwareAntiJoin(df)
       })
   }
+
+  test("soundex") {
+    runQueryAndCompare("select soundex(c_comment) from customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
 }
 // scalastyle:on line.size.limit
