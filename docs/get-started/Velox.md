@@ -7,19 +7,19 @@ parent: Getting-Started
 
 # Supported Version
 
-| Type  | Version                         |
-|-------|---------------------------------|
-| Spark | 3.2.2, 3.3.1, 3.4.2, 3.5.1      |
-| OS    | Ubuntu20.04/22.04, Centos7/8    |
-| jdk   | openjdk8/jdk17                  |
-| scala | 2.12                            |
+| Type  | Version                      |
+|-------|------------------------------|
+| Spark | 3.2.2, 3.3.1, 3.4.3, 3.5.1   |
+| OS    | Ubuntu20.04/22.04, Centos7/8 |
+| jdk   | openjdk8/jdk17               |
+| scala | 2.12                         |
 
 # Prerequisite
 
 Currently, Gluten+Velox backend is only tested on **Ubuntu20.04/Ubuntu22.04/Centos7/Centos8**.
 Other kinds of OS support are still in progress. The long term goal is to support several common OS and conda env deployment.
 
-Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.2 and 3.5.1.
+Currently, the officially supported Spark versions are 3.2.2, 3.3.1, 3.4.3 and 3.5.1.
 
 We need to set up the `JAVA_HOME` env. Currently, Gluten supports **java 8** and **java 17**.
 
@@ -428,7 +428,7 @@ After the set-up, you can now build Gluten with HBM. Below command is used to en
 ```bash
 cd /path/to/gluten
 
-## The script builds four jars for spark 3.2.2, 3.3.1, 3.4.2 and 3.5.1.
+## The script builds four jars for spark 3.2.2, 3.3.1, 3.4.3 and 3.5.1.
 ./dev/buildbundle-veloxbe.sh --enable_hbm=ON
 ```
 
@@ -514,7 +514,7 @@ exit
 ```bash
 cd /path/to/gluten
 
-## The script builds four jars for spark 3.2.2, 3.3.1, 3.4.2 and 3.5.1.
+## The script builds four jars for spark 3.2.2, 3.3.1, 3.4.3 and 3.5.1.
 ./dev/buildbundle-veloxbe.sh --enable_qat=ON
 ```
 
@@ -610,7 +610,7 @@ After the set-up, you can now build Gluten with QAT. Below command is used to en
 ```bash
 cd /path/to/gluten
 
-## The script builds four jars for spark 3.2.2, 3.3.1, 3.4.2 and 3.5.1.
+## The script builds four jars for spark 3.2.2, 3.3.1, 3.4.3 and 3.5.1.
 ./dev/buildbundle-veloxbe.sh --enable_iaa=ON
 ```
 
