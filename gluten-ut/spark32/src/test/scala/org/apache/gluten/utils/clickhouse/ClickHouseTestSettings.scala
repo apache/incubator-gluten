@@ -911,7 +911,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("ParseUrl")
     .exclude("SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url")
     .exclude("FORMAT") // refer https://github.com/apache/incubator-gluten/issues/6765
-    .exclude("soundex unit test") // CH and spark returns different results when input non-ASCII characters
+    .exclude(
+      "soundex unit test"
+    ) // CH and spark returns different results when input non-ASCII characters
     .excludeGlutenTest("SPARK-40213: ascii for Latin-1 Supplement characters")
   enableSuite[GlutenTryCastSuite]
     .exclude("null cast")
