@@ -893,17 +893,15 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     const auto partition_dir = jstring2string(env, partition_dir_);
     const auto bucket_dir = jstring2string(env, bucket_dir_);
     auto uuid = uuid_str + "_" + task_id;
-    local_engine::GlutenMergeTreeWriteSettings settings{
-        .partition_settings{.part_name_prefix{uuid}, .partition_dir{partition_dir}, .bucket_dir{bucket_dir}}};
-    settings.load(query_context);
+    local_engine::MergeTreePartitionWriteSettings settings{.part_name_prefix{uuid}, .partition_dir{partition_dir}, .bucket_dir{bucket_dir}};
+    settings.set(query_context);
 
     const auto split_info_a = local_engine::getByteArrayElementsSafe(env, split_info_);
     auto extension_table = local_engine::BinaryToMessage<substrait::ReadRel::ExtensionTable>(
         {reinterpret_cast<const char *>(split_info_a.elems()), static_cast<size_t>(split_info_a.length())});
     auto merge_tree_table = local_engine::MergeTreeRelParser::parseMergeTreeTable(extension_table);
 
-    auto * writer = new local_engine::SparkMergeTreeWriter(merge_tree_table, settings, query_context);
-
+    auto * writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, settings, query_context).release();
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }

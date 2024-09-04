@@ -18,6 +18,8 @@
 
 #include <Interpreters/ActionsDAG.h>
 #include <Parser/MergeTreeRelParser.h>
+#include <Processors/Transforms/ApplySquashingTransform.h>
+#include <Processors/Transforms/PlanSquashingTransform.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
 #include <Storages/MergeTree/SparkMergeTreeSink.h>
@@ -47,74 +49,58 @@ Block removeColumnSuffix(const Block & block)
 
 namespace local_engine
 {
-SparkMergeTreeWriter::SparkMergeTreeWriter(
-    const MergeTreeTable & merge_tree_table, const GlutenMergeTreeWriteSettings & write_settings_, const DB::ContextPtr & context_)
-    : dataWrapper(SinkHelper::create(merge_tree_table, write_settings_, SerializedPlanParser::global_context)), context(context_)
+
+std::unique_ptr<SparkMergeTreeWriter> SparkMergeTreeWriter::create(
+    const MergeTreeTable & merge_tree_table, const MergeTreePartitionWriteSettings & write_settings_, const DB::ContextMutablePtr & context)
 {
     const DB::Settings & settings = context->getSettingsRef();
-    squashing
-        = std::make_unique<DB::Squashing>(dataWrapper->header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
-    if (!write_settings_.partition_settings.partition_dir.empty())
-        extractPartitionValues(write_settings_.partition_settings.partition_dir, partition_values);
+    const auto dest_storage = MergeTreeRelParser::getStorage(merge_tree_table, context);
+    StorageMetadataPtr metadata_snapshot = dest_storage->getInMemoryMetadataPtr();
+    Block header = metadata_snapshot->getSampleBlock();
+    ASTPtr none;
+    Chain chain;
+    auto sink = dest_storage->write(none, metadata_snapshot, context, false);
+    chain.addSink(sink);
+    chain.addSource(
+        std::make_shared<ApplySquashingTransform>(header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes));
+    chain.addSource(
+        std::make_shared<PlanSquashingTransform>(header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes));
+
+    std::unordered_map<String, String> partition_values;
+    if (!write_settings_.partition_dir.empty())
+        extractPartitionValues(write_settings_.partition_dir, partition_values);
+    return std::make_unique<SparkMergeTreeWriter>(
+        header, assert_cast<const SparkMergeTreeSink &>(*sink).sinkHelper(), QueryPipeline{std::move(chain)}, std::move(partition_values));
+}
+
+SparkMergeTreeWriter::SparkMergeTreeWriter(
+    const DB::Block & header_,
+    const SinkHelper & sink_helper_,
+    DB::QueryPipeline && pipeline_,
+    std::unordered_map<String, String> && partition_values_)
+    : header{header_}, sink_helper{sink_helper_}, pipeline{std::move(pipeline_)}, executor{pipeline}, partition_values{partition_values_}
+{
 }
 
 void SparkMergeTreeWriter::write(const DB::Block & block)
 {
     auto new_block = removeColumnSuffix(block);
     auto converter = ActionsDAG::makeConvertingActions(
-        new_block.getColumnsWithTypeAndName(), dataWrapper->header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Position);
+        new_block.getColumnsWithTypeAndName(), header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Position);
     const ExpressionActions expression_actions{std::move(converter)};
     expression_actions.execute(new_block);
-
-    if (chunkToPart(squashing->add({new_block.getColumns(), new_block.rows()})))
-        dataWrapper->checkAndMerge();
-}
-
-bool SparkMergeTreeWriter::chunkToPart(Chunk && plan_chunk)
-{
-    if (Chunk result_chunk = DB::Squashing::squash(std::move(plan_chunk)))
-    {
-        auto result = squashing->getHeader().cloneWithColumns(result_chunk.detachColumns());
-        return blockToPart(result);
-    }
-    return false;
-}
-
-bool SparkMergeTreeWriter::blockToPart(Block & block)
-{
-    auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, dataWrapper->metadata_snapshot, context);
-
-    if (blocks_with_partition.empty())
-        return false;
-
-    for (auto & item : blocks_with_partition)
-    {
-        size_t before_write_memory = 0;
-        if (auto * memory_tracker = CurrentThread::getMemoryTracker())
-        {
-            CurrentThread::flushUntrackedMemory();
-            before_write_memory = memory_tracker->get();
-        }
-        dataWrapper->writeTempPart(item, context, part_num);
-        part_num++;
-        /// Reset earlier to free memory
-        item.block.clear();
-        item.partition.clear();
-    }
-
-    return true;
+    executor.push(new_block);
 }
 
 void SparkMergeTreeWriter::finalize()
 {
-    chunkToPart(squashing->flush());
-    dataWrapper->finish(context);
+    executor.finish();
 }
 
 std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo() const
 {
     std::vector<PartInfo> res;
-    auto parts = dataWrapper->unsafeGet();
+    auto parts = sink_helper.unsafeGet();
     res.reserve(parts.size());
 
     for (const auto & part : parts)
@@ -125,7 +111,7 @@ std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo() const
             part->getBytesOnDisk(),
             part->rows_count,
             partition_values,
-            dataWrapper->write_settings.partition_settings.bucket_dir});
+            sink_helper.write_settings.partition_settings.bucket_dir});
     }
     return res;
 }
@@ -161,4 +147,5 @@ String SparkMergeTreeWriter::partInfosToJson(const std::vector<PartInfo> & part_
     writer.EndArray();
     return result.GetString();
 }
+
 }

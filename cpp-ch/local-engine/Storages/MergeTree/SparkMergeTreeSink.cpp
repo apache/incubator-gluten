@@ -190,24 +190,25 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
 
 
 SinkToStoragePtr SparkStorageMergeTree::write(
-    const ASTPtr &, const StorageMetadataPtr & storage_in_memory_metadata, ContextPtr context, bool /*async_insert*/)
+    const ASTPtr &, const StorageMetadataPtr & /*storage_in_memory_metadata*/, ContextPtr context, bool /*async_insert*/)
 {
     GlutenMergeTreeWriteSettings settings{.partition_settings{MergeTreePartitionWriteSettings::get(context)}};
     settings.load(context);
-    SinkHelperPtr sink_helper = SinkHelper::create(table, settings, getContext());
+    SinkHelperPtr sink_helper = SparkMergeTreeSink::create(table, settings, getContext());
 #ifndef NDEBUG
     auto dest_storage = MergeTreeRelParser::getStorage(table, getContext());
     assert(dest_storage.get() == this);
 #endif
 
-    return std::make_shared<SparkMergeTreeSink>(*this, storage_in_memory_metadata, context);
+    return std::make_shared<SparkMergeTreeSink>(sink_helper, context);
 }
 
 void SparkMergeTreeSink::consume(Chunk & chunk)
 {
-    assert(!metadata_snapshot->hasPartitionKey());
+    assert(!sink_helper->metadata_snapshot->hasPartitionKey());
+
     auto block = getHeader().cloneWithColumns(chunk.getColumns());
-    auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, metadata_snapshot, context);
+    auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, sink_helper->metadata_snapshot, context);
 
     for (auto & item : blocks_with_partition)
     {
@@ -217,15 +218,13 @@ void SparkMergeTreeSink::consume(Chunk & chunk)
             CurrentThread::flushUntrackedMemory();
             before_write_memory = memory_tracker->get();
         }
-
-        MergeTreeDataWriter::TemporaryPart temp_part
-            = storage.writer.writeTempPart(item, metadata_snapshot, context, write_settings, part_num);
-        new_parts.emplace_back(temp_part.part);
+        sink_helper->writeTempPart(item, context, part_num);
         part_num++;
         /// Reset earlier to free memory
         item.block.clear();
         item.partition.clear();
     }
+    sink_helper->checkAndMerge();
 }
 
 void SparkMergeTreeSink::onStart()
@@ -235,11 +234,11 @@ void SparkMergeTreeSink::onStart()
 
 void SparkMergeTreeSink::onFinish()
 {
-    // DO NOTHING
+    sink_helper->finish(context);
 }
 
 /////
-SinkHelperPtr SinkHelper::create(
+SinkHelperPtr SparkMergeTreeSink::create(
     const MergeTreeTable & merge_tree_table, const GlutenMergeTreeWriteSettings & write_settings_, const DB::ContextMutablePtr & context)
 {
     auto dest_storage = MergeTreeRelParser::getStorage(merge_tree_table, context);
@@ -264,7 +263,6 @@ SinkHelper::SinkHelper(const CustomStorageMergeTreePtr & data_, const GlutenMerg
     , thread_pool(CurrentMetrics::LocalThread, CurrentMetrics::LocalThreadActive, CurrentMetrics::LocalThreadScheduled, 1, 1, 100000)
     , write_settings(write_settings_)
     , metadata_snapshot(data->getInMemoryMetadataPtr())
-    , header(metadata_snapshot->getSampleBlock())
 {
 }
 
@@ -335,8 +333,8 @@ void SinkHelper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> &
 }
 void SinkHelper::writeTempPart(DB::BlockWithPartition & block_with_partition, const ContextPtr & context, int part_num)
 {
-    auto tmp
-        = dataRef().writer.writeTempPart(block_with_partition, metadata_snapshot, context, write_settings.partition_settings, part_num);
+    auto tmp = dataRef().getWriter().writeTempPart(
+        block_with_partition, metadata_snapshot, context, write_settings.partition_settings, part_num);
     new_parts.emplace_back(tmp.part);
 }
 
@@ -454,7 +452,6 @@ void CopyToRemoteSinkHelper::commit(const ReadSettings & read_settings, const Wr
 void DirectSinkHelper::cleanup()
 {
     // default storage need clean temp.
-
     std::unordered_set<String> final_parts;
     for (const auto & merge_tree_data_part : new_parts.unsafeGet())
         final_parts.emplace(merge_tree_data_part->name);

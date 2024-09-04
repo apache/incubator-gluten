@@ -74,15 +74,8 @@ private:
     LoggerPtr log;
 };
 
-class SparkMergeTreeSink;
-class SinkHelper;
-using SinkHelperPtr = std::shared_ptr<SinkHelper>;
-
 class SparkStorageMergeTree final : public CustomStorageMergeTree
 {
-    friend class SparkMergeTreeSink;
-    friend class SinkHelper;
-
 public:
     SparkStorageMergeTree(const MergeTreeTable & table_, const StorageInMemoryMetadata & metadata, const ContextMutablePtr & context_)
         : CustomStorageMergeTree(
@@ -102,6 +95,8 @@ public:
 
     SinkToStoragePtr
     write(const ASTPtr & query, const StorageMetadataPtr & /*metadata_snapshot*/, ContextPtr context, bool async_insert) override;
+
+    SparkMergeTreeDataWriter & getWriter() { return writer; }
 
 private:
     MergeTreeTable table;
@@ -177,32 +172,26 @@ protected:
 public:
     const GlutenMergeTreeWriteSettings write_settings;
     const DB::StorageMetadataPtr metadata_snapshot;
-    const DB::Block header;
 
 protected:
+    virtual CustomStorageMergeTree & dest_storage() { return *data; }
+
     void doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> & prepare_merge_parts);
     void finalizeMerge();
     virtual void cleanup() { }
+    virtual void commit(const ReadSettings & read_settings, const WriteSettings & write_settings) { }
+    void saveMetadata(const DB::ContextPtr & context);
     SparkStorageMergeTree & dataRef() const { return assert_cast<SparkStorageMergeTree &>(*data); }
 
 public:
-    void writeTempPart(DB::BlockWithPartition & block_with_partition, const ContextPtr & context, int part_num);
-
     const std::deque<DB::MergeTreeDataPartPtr> & unsafeGet() const { return new_parts.unsafeGet(); }
+
+    void writeTempPart(DB::BlockWithPartition & block_with_partition, const ContextPtr & context, int part_num);
     void checkAndMerge(bool force = false);
     void finish(const DB::ContextPtr & context);
 
     virtual ~SinkHelper() = default;
     SinkHelper(const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_);
-    static SinkHelperPtr create(
-        const MergeTreeTable & merge_tree_table,
-        const GlutenMergeTreeWriteSettings & write_settings_,
-        const DB::ContextMutablePtr & context);
-
-    virtual CustomStorageMergeTree & dest_storage() { return *data; }
-
-    virtual void commit(const ReadSettings & read_settings, const WriteSettings & write_settings) { }
-    void saveMetadata(const DB::ContextPtr & context);
 };
 
 class DirectSinkHelper : public SinkHelper
@@ -222,6 +211,11 @@ class CopyToRemoteSinkHelper : public SinkHelper
 {
     CustomStorageMergeTreePtr dest;
 
+protected:
+    void commit(const ReadSettings & read_settings, const WriteSettings & write_settings) override;
+    CustomStorageMergeTree & dest_storage() override { return *dest; }
+    const CustomStorageMergeTreePtr & temp_storage() const { return data; }
+
 public:
     explicit CopyToRemoteSinkHelper(
         const CustomStorageMergeTreePtr & temp,
@@ -231,23 +225,20 @@ public:
     {
         assert(data != dest);
     }
-
-    CustomStorageMergeTree & dest_storage() override { return *dest; }
-    const CustomStorageMergeTreePtr & temp_storage() const { return data; }
-
-    void commit(const ReadSettings & read_settings, const WriteSettings & write_settings) override;
 };
+
+using SinkHelperPtr = std::shared_ptr<SinkHelper>;
 
 class SparkMergeTreeSink : public DB::SinkToStorage
 {
 public:
-    explicit SparkMergeTreeSink(
-        SparkStorageMergeTree & storage_, const StorageMetadataPtr & metadata_snapshot_, const ContextPtr & context_)
-        : SinkToStorage(metadata_snapshot_->getSampleBlock())
-        , storage(storage_)
-        , metadata_snapshot(metadata_snapshot_)
-        , context(context_)
-        , write_settings(MergeTreePartitionWriteSettings::get(context_))
+    static SinkHelperPtr create(
+        const MergeTreeTable & merge_tree_table,
+        const GlutenMergeTreeWriteSettings & write_settings_,
+        const DB::ContextMutablePtr & context);
+
+    explicit SparkMergeTreeSink(const SinkHelperPtr & sink_helper_, const ContextPtr & context_)
+        : SinkToStorage(sink_helper_->metadata_snapshot->getSampleBlock()), context(context_), sink_helper(sink_helper_)
     {
     }
     ~SparkMergeTreeSink() override = default;
@@ -257,13 +248,13 @@ public:
     void onStart() override;
     void onFinish() override;
 
+    const SinkHelper & sinkHelper() const { return *sink_helper; }
+
 private:
-    SparkStorageMergeTree & storage;
-    StorageMetadataPtr metadata_snapshot;
     ContextPtr context;
-    MergeTreePartitionWriteSettings write_settings;
+    SinkHelperPtr sink_helper;
+
     int part_num = 1;
-    std::vector<DB::MergeTreeDataPartPtr> new_parts{};
 };
 
 }

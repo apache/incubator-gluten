@@ -17,9 +17,8 @@
 #pragma once
 
 #include <Interpreters/Context.h>
-#include <Interpreters/Squashing.h>
+#include <Processors/Executors/PushingPipelineExecutor.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
-#include <Storages/MergeTree/MergeTreeDataWriter.h>
 #include <Storages/MergeTree/MergeTreeTool.h>
 #include <Storages/MergeTree/SparkMergeTreeSink.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
@@ -51,24 +50,26 @@ class SparkMergeTreeWriter
 {
 public:
     static String partInfosToJson(const std::vector<PartInfo> & part_infos);
+    static std::unique_ptr<SparkMergeTreeWriter> create(
+        const MergeTreeTable & merge_tree_table,
+        const MergeTreePartitionWriteSettings & write_settings_,
+        const DB::ContextMutablePtr & context);
+
     SparkMergeTreeWriter(
-        const MergeTreeTable & merge_tree_table, const GlutenMergeTreeWriteSettings & write_settings_, const DB::ContextPtr & context_);
+        const DB::Block & header_,
+        const SinkHelper & sink_helper_,
+        DB::QueryPipeline && pipeline_,
+        std::unordered_map<String, String> && partition_values_);
 
     void write(const DB::Block & block);
     void finalize();
     std::vector<PartInfo> getAllPartInfo() const;
 
 private:
-    bool chunkToPart(Chunk && plan_chunk);
-    bool blockToPart(Block & block);
-
-    SinkHelperPtr dataWrapper;
-    DB::ContextPtr context;
+    DB::Block header;
+    const SinkHelper & sink_helper;
+    DB::QueryPipeline pipeline;
+    DB::PushingPipelineExecutor executor;
     std::unordered_map<String, String> partition_values;
-
-
-    std::unique_ptr<DB::Squashing> squashing;
-
-    int part_num = 1;
 };
 }

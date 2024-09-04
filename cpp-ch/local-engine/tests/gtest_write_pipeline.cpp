@@ -410,58 +410,26 @@ TEST(WritePipeline, SparkMergeTree)
         = R"({"items":[{"uriFile":"{replace_local_files}","length":"19230111","parquet":{},"schema":{},"metadataColumns":[{}],"properties":{"fileSize":"19230111","modificationTime":"1722330598029"}}]})";
     constexpr std::string_view file{GLUTEN_SOURCE_TPCH_DIR("lineitem/part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet")};
 
-    /*auto metadata = buildMetaData(header, context, merge_tree_table);
-    MergeTreeData::MergingParams merging_params;
-    merging_params.mode = MergeTreeData::MergingParams::Ordinary;
-    std::unique_ptr<MergeTreeSettings> storage_settings = std::make_unique<MergeTreeSettings>(context->getMergeTreeSettings());
-
-    auto merge_tree = std::make_shared<StorageMergeTree>(
-        StorageID(merge_tree_table.database, merge_tree_table.table),
-        merge_tree_table.relative_path,
-        *metadata,
-        LoadingStrictnessLevel::CREATE,
-        context,
-        "",
-        merging_params,
-        std::move(storage_settings));*/
-
     MergeTreePartitionWriteSettings gm_write_settings{
         .part_name_prefix{"this_is_prefix"},
     };
     gm_write_settings.set(context);
 
-    ASTPtr none;
-    Chain chain;
-    auto sink = dest_storage->write(none, metadata_snapshot, context, false);
-    chain.addSink(sink);
-
-
-    // chain.addSource(std::make_shared<DeduplicationToken::AddTokenInfoTransform>(header));
-    chain.addSource(
-        std::make_shared<ApplySquashingTransform>(header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes));
-    chain.addSource(
-        std::make_shared<PlanSquashingTransform>(header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes));
-    DB::QueryPipeline pipeline{std::move(chain)};
-
-    DB::PushingPipelineExecutor executor{pipeline};
-
+    auto writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, gm_write_settings, context);
+    SparkMergeTreeWriter & spark_merge_tree_writer = *writer;
 
     auto [_, local_executor] = test::create_plan_and_executor(EMBEDDED_PLAN(_1_read_), split_template, file);
     EXPECT_TRUE(local_executor->hasNext());
 
     do
     {
-        // *local_executor->nextColumnar();
-        //spark_merge_tree_writer.write(*local_executor->nextColumnar());
-        executor.push(*local_executor->nextColumnar());
+        spark_merge_tree_writer.write(*local_executor->nextColumnar());
     } while (local_executor->hasNext());
 
-    executor.finish();
-
-    /*spark_merge_tree_writer.finalize();
+    spark_merge_tree_writer.finalize();
     auto part_infos = spark_merge_tree_writer.getAllPartInfo();
     auto json_info = local_engine::SparkMergeTreeWriter::partInfosToJson(part_infos);
-    std::cerr << json_info << std::endl;*/
+    std::cerr << json_info << std::endl;
 
     ///
     {
