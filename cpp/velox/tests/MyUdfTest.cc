@@ -34,12 +34,17 @@ class MyUdfTest : public FunctionBaseTest {
   }
 };
 
-TEST_F(MyUdfTest, myudf1) {
-  const auto myudf1 = [&](const int64_t& number) {
-    return evaluateOnce<int64_t>("myudf1(c0)", BIGINT(), std::make_optional(number));
-  };
-
-  EXPECT_EQ(5, myudf1(0));
-  EXPECT_EQ(105, myudf1(100));
-  EXPECT_EQ(3147483652, myudf1(3147483647)); // int64
+TEST_F(MyUdfTest, hivestringstring) {
+  auto map = facebook::velox::exec::vectorFunctionFactories();
+  const std::string candidate = {"org.apache.spark.sql.hive.execution.UDFStringString"};
+  ASSERT(map.withRLock([&candidate](auto& self) -> bool {
+    auto iter = self.find(candidate);
+    std::unordered_map<std::string, std::string> values;
+    const facebook::velox::core::QueryConfig config(std::move(values));
+    iter->second.factory(
+        candidate,
+        {facebook::velox::exec::VectorFunctionArg{facebook::velox::VARCHAR()},
+         facebook::velox::exec::VectorFunctionArg{facebook::velox::VARCHAR()}},
+        config) != nullptr;
+  });)
 }

@@ -30,7 +30,6 @@ import org.apache.gluten.extension.injector.GlutenInjector.{LegacyInjector, RasI
 import org.apache.gluten.sql.shims.SparkShimLoader
 
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter}
-import org.apache.spark.sql.expression.UDFResolver
 
 class VeloxRuleApi extends RuleApi {
   import VeloxRuleApi._
@@ -47,7 +46,6 @@ private object VeloxRuleApi {
     // Regular Spark rules.
     injector.injectOptimizerRule(CollectRewriteRule.apply)
     injector.injectOptimizerRule(HLLRewriteRule.apply)
-    UDFResolver.getFunctionSignatures().foreach(injector.injectFunction)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
   }
 

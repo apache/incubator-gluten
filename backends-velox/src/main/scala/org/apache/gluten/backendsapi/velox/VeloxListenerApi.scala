@@ -21,6 +21,7 @@ import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.init.NativeBackendInitializer
+import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.utils._
 import org.apache.gluten.vectorized.{JniLibLoader, JniWorkspace}
 
@@ -81,6 +82,7 @@ class VeloxListenerApi extends ListenerApi with Logging {
     SparkDirectoryUtil.init(conf)
     UDFResolver.resolveUdfConf(conf, isDriver = true)
     initialize(conf)
+    UdfJniWrapper.registerFunctionSignatures()
   }
 
   override def onDriverShutdown(): Unit = shutdown()

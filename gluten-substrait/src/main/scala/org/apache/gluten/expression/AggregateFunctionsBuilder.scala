@@ -56,7 +56,7 @@ object AggregateFunctionsBuilder {
       case _ =>
         val nameOpt = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
         if (nameOpt.isEmpty) {
-          throw new UnsupportedOperationException(
+          throw new GlutenNotSupportException(
             s"Could not find a valid substrait mapping name for $aggregateFunc.")
         }
         nameOpt.get match {

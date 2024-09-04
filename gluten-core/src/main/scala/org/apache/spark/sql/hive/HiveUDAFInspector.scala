@@ -14,19 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.sql.hive
 
-#pragma once
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.execution.aggregate.ScalaUDAF
 
-#include <jni.h>
-#include <string>
-#include <unordered_map>
-
-namespace gluten {
-
-void initVeloxJniUDF(JNIEnv* env);
-
-void finalizeVeloxJniUDF(JNIEnv* env);
-
-void jniRegisterFunctionSignatures(JNIEnv* env);
-
-} // namespace gluten
+object HiveUDAFInspector {
+  def getUDAFClassName(expr: Expression): Option[String] = {
+    expr match {
+      case func: HiveUDAFFunction => Some(func.funcWrapper.functionClassName)
+      case scalaUDAF: ScalaUDAF => Some(scalaUDAF.udaf.getClass.getName)
+      case _ => None
+    }
+  }
+}

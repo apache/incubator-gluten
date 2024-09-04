@@ -1162,11 +1162,11 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "regr_sxy",
       "regr_replacement"};
 
-  auto udfFuncs = UdfLoader::getInstance()->getRegisteredUdafNames();
+  auto udafFuncs = UdfLoader::getInstance()->getRegisteredUdafNames();
 
   for (const auto& funcSpec : funcSpecs) {
     auto funcName = SubstraitParser::getNameBeforeDelimiter(funcSpec);
-    if (supportedAggFuncs.find(funcName) == supportedAggFuncs.end() && udfFuncs.find(funcName) == udfFuncs.end()) {
+    if (supportedAggFuncs.find(funcName) == supportedAggFuncs.end() && udafFuncs.find(funcName) == udafFuncs.end()) {
       LOG_VALIDATION_MSG(funcName + " was not supported in AggregateRel.");
       return false;
     }

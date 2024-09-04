@@ -18,16 +18,14 @@ package org.apache.spark.sql.expression
 
 import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
-import org.apache.gluten.expression.{ConverterUtils, ExpressionTransformer, ExpressionType, GenericExpressionTransformer, Transformable}
-import org.apache.gluten.udf.UdfJniWrapper
+import org.apache.gluten.expression._
 import org.apache.gluten.vectorized.JniWorkspace
 
-import org.apache.spark.{SparkConf, SparkContext, SparkFiles}
+import org.apache.spark.{SparkConf, SparkFiles}
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.{FunctionIdentifier, InternalRow}
-import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Cast, Expression, ExpressionInfo, Unevaluable}
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Cast, Expression, Unevaluable}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.types.DataTypeUtils
@@ -332,32 +330,6 @@ object UDFResolver extends Logging {
           }
       }
       .mkString(",")
-  }
-
-  def getFunctionSignatures(): Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
-    val sparkContext = SparkContext.getActive.get
-    val sparkConf = sparkContext.conf
-    val udfLibPaths = sparkConf.getOption(VeloxBackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
-
-    udfLibPaths match {
-      case None =>
-        Seq.empty
-      case Some(_) =>
-        UdfJniWrapper.getFunctionSignatures()
-        UDFNames.map {
-          name =>
-            (
-              new FunctionIdentifier(name),
-              new ExpressionInfo(classOf[UDFExpression].getName, name),
-              (e: Seq[Expression]) => getUdfExpression(name, name)(e))
-        }.toSeq ++ UDAFNames.map {
-          name =>
-            (
-              new FunctionIdentifier(name),
-              new ExpressionInfo(classOf[UserDefinedAggregateFunction].getName, name),
-              (e: Seq[Expression]) => getUdafExpression(name)(e))
-        }.toSeq
-    }
   }
 
   private def checkAllowTypeConversion: Boolean = {

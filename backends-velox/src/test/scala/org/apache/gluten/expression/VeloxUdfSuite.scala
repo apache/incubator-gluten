@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.tags.{SkipTestTags, UDFTest}
 
 import org.apache.spark.SparkConf
@@ -25,7 +24,6 @@ import org.apache.spark.sql.catalyst.plans.SQLHelper
 import org.apache.spark.sql.expression.UDFResolver
 
 import java.nio.file.Paths
-import java.sql.Date
 
 abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
 
@@ -92,64 +90,55 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
       .set("spark.memory.offHeap.size", "1024MB")
   }
 
-  test("test udf") {
-    val df = spark.sql("""select
-                         |  myudf1(100L),
-                         |  myudf2(1),
-                         |  myudf2(1L),
-                         |  myudf3(),
-                         |  myudf3(1),
-                         |  myudf3(1, 2, 3),
-                         |  myudf3(1L),
-                         |  myudf3(1L, 2L, 3L),
-                         |  mydate(cast('2024-03-25' as date), 5)
-                         |""".stripMargin)
-    assert(
-      df.collect()
-        .sameElements(Array(Row(105L, 6, 6L, 5, 6, 11, 6L, 11L, Date.valueOf("2024-03-30")))))
-  }
+  // Aggregate result can be flaky.
+  ignore("test native hive udaf") {
+    val tbl = "test_hive_udaf_replacement"
+    withTempPath {
+      dir =>
+        try {
+          // Check native hive udaf has been registered.
+          val udafClass = "test.org.apache.spark.sql.MyDoubleAvg"
+          assert(UDFResolver.UDAFNames.contains(udafClass))
 
-  test("test udf allow type conversion") {
-    withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "true") {
-      val df = spark.sql("""select myudf1("100"), myudf1(1), mydate('2024-03-25', 5)""")
-      assert(
-        df.collect()
-          .sameElements(Array(Row(105L, 6L, Date.valueOf("2024-03-30")))))
-    }
+          spark.sql(s"""
+                       |CREATE TEMPORARY FUNCTION my_double_avg
+                       |AS '$udafClass'
+                       |""".stripMargin)
+          spark.sql(s"""
+                       |CREATE EXTERNAL TABLE $tbl
+                       |LOCATION 'file://$dir'
+                       |AS select * from values (1, '1'), (2, '2'), (3, '3')
+                       |""".stripMargin)
+          val df = spark.sql(s"""select
+                                |  my_double_avg(cast(col1 as double)),
+                                |  my_double_avg(cast(col2 as double))
+                                |  from $tbl
+                                |""".stripMargin)
+          val nativeImplicitConversionDF = spark.sql(s"""select
+                                                        |  my_double_avg(col1),
+                                                        |  my_double_avg(col2)
+                                                        |  from $tbl
+                                                        |""".stripMargin)
+          val nativeResult = df.collect()
+          val nativeImplicitConversionResult = nativeImplicitConversionDF.collect()
 
-    withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "false") {
-      assert(
-        spark
-          .sql("select mydate2('2024-03-25', 5)")
-          .collect()
-          .sameElements(Array(Row(Date.valueOf("2024-03-30")))))
-    }
-  }
-
-  test("test udaf") {
-    val df = spark.sql("""select
-                         |  myavg(1),
-                         |  myavg(1L),
-                         |  myavg(cast(1.0 as float)),
-                         |  myavg(cast(1.0 as double)),
-                         |  mycount_if(true)
-                         |""".stripMargin)
-    df.collect()
-    assert(
-      df.collect()
-        .sameElements(Array(Row(1.0, 1.0, 1.0, 1.0, 1L))))
-  }
-
-  test("test udaf allow type conversion") {
-    withSQLConf(VeloxBackendSettings.GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION -> "true") {
-      val df = spark.sql("""select myavg("1"), myavg("1.0"), mycount_if("true")""")
-      assert(
-        df.collect()
-          .sameElements(Array(Row(1.0, 1.0, 1L))))
+          UDFResolver.UDAFNames.remove(udafClass)
+          val fallbackDF = spark.sql(s"""select
+                                        |  my_double_avg(cast(col1 as double)),
+                                        |  my_double_avg(cast(col2 as double))
+                                        |  from $tbl
+                                        |""".stripMargin)
+          val fallbackResult = fallbackDF.collect()
+          assert(nativeResult.sameElements(fallbackResult))
+          assert(nativeImplicitConversionResult.sameElements(fallbackResult))
+        } finally {
+          spark.sql(s"DROP TABLE IF EXISTS $tbl")
+          spark.sql(s"DROP TEMPORARY FUNCTION IF EXISTS my_double_avg")
+        }
     }
   }
 
-  test("test hive udf replacement") {
+  test("test native hive udf") {
     val tbl = "test_hive_udf_replacement"
     withTempPath {
       dir =>
@@ -169,12 +158,15 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
                       |AS 'org.apache.spark.sql.hive.execution.UDFStringString'
                       |""".stripMargin)
 
+          val nativeResultWithImplicitConversion =
+            spark.sql(s"""SELECT hive_string_string(col1, 'a') FROM $tbl""").collect()
           val nativeResult =
             spark.sql(s"""SELECT hive_string_string(col2, 'a') FROM $tbl""").collect()
           // Unregister native hive udf to fallback.
           UDFResolver.UDFNames.remove("org.apache.spark.sql.hive.execution.UDFStringString")
           val fallbackResult =
             spark.sql(s"""SELECT hive_string_string(col2, 'a') FROM $tbl""").collect()
+          assert(nativeResultWithImplicitConversion.sameElements(fallbackResult))
           assert(nativeResult.sameElements(fallbackResult))
 
           // Add an unimplemented udf to the map to test fallback of registered native hive udf.
@@ -237,6 +229,7 @@ class VeloxUdfSuiteLocal extends VeloxUdfSuite {
     super.sparkConf
       .set("spark.files", udfLibPath)
       .set("spark.gluten.sql.columnar.backend.velox.udfLibraryPaths", udfLibRelativePath)
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
   }
 }
 
