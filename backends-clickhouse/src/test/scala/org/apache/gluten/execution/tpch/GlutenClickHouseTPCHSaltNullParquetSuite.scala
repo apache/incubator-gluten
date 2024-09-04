@@ -2938,7 +2938,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("soundex") {
-    runQueryAndCompare("select soundex(c_comment) from customer limit 50") {
+    runQueryAndCompare("select soundex(c_mktsegment) from customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
