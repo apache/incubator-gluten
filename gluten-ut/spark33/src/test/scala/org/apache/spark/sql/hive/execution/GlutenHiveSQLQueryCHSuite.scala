@@ -130,13 +130,13 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
     sql("insert into test_7096 values ('2024-09-02', 567, 'user2', 'owner2')")
     val query =
       """
-        |select days, rtime, uid, uid, day1
+        |select days, rtime, uid, owner, day1
         |from (
-        | select day1 as days, rtime, uid, uid, day1
+        | select day1 as days, rtime, uid, owner, day1
         | from (
         |   select distinct coalesce(day, "today") as day1, rtime, uid, owner
         |   from test_7096 where day = '2024-09-01'
-        | )) group by days, rtime, guest_uid, owner_uid, day1
+        | )) group by days, rtime, uid, owner, day1
         |""".stripMargin
     val df = sql(query)
     checkAnswer(df, Seq(Row("2024-09-01", 123, "user1", "owner1", "2024-09-01")))
@@ -153,13 +153,13 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
     sql("insert into test_7096 values ('2024-09-02', 567, 'user2', 'owner2')")
     val query =
       """
-        |select days, rtime, uid, uid, day1
+        |select days, rtime, uid, owner, day1
         |from (
-        | select day1 as days, rtime, uid, uid, day1
+        | select day1 as days, rtime, uid, owner, day1
         | from (
         |   select distinct coalesce(day, "today") as day1, rtime, uid, owner
         |   from test_7096 where day = '2024-09-01'
-        | ) t1 ) t2 group by days, rtime, guest_uid, owner_uid, day1
+        | ) t1 ) t2 group by days, rtime, uid, owner, day1
         |""".stripMargin
     val df = sql(query)
     checkAnswer(df, Seq(Row("2024-09-01", 123, "user1", "owner1", "2024-09-01")))
