@@ -72,11 +72,14 @@ class GlutenClickHouseHiveTableSuite
   }
 
   private val txt_table_name = "hive_txt_test"
+  private val txt_upper_table_name = "hive_txt_upper_test"
   private val txt_user_define_input = "hive_txt_user_define_input"
   private val json_table_name = "hive_json_test"
   private val parquet_table_name = "hive_parquet_test"
 
   private val txt_table_create_sql = genTableCreateSql(txt_table_name, "textfile")
+  private val txt_upper_create_sql = genTableCreateUpperSql(txt_upper_table_name, "textfile")
+
   private val parquet_table_create_sql = genTableCreateSql(parquet_table_name, "parquet")
   private val json_table_create_sql = "create table if not exists %s (".format(json_table_name) +
     "string_field string," +
@@ -136,6 +139,24 @@ class GlutenClickHouseHiveTableSuite
       "map_field map<int, long>," +
       "map_field_with_null map<int, long>) stored as %s".format(fileFormat)
 
+  def genTableCreateUpperSql(tableName: String, fileFormat: String): String =
+    "create table if not exists %s (".format(tableName) +
+      "STRING_FIELD string," +
+      "INT_FIELD int," +
+      "LONG_FIELD long," +
+      "FLOAT_FIELD float," +
+      "DOUBLE_FIELD double," +
+      "SHORT_FIELD short," +
+      "BYTE_FIELD byte," +
+      "BOOL_FIELD boolean," +
+      "DECIMAL_FIELD decimal(23, 12)," +
+      "DATE_FIELD date," +
+      "TIMESTAMP_FIELD timestamp," +
+      "ARRAY_FIELD array<int>," +
+      "ARRAY_FIELD_WITH_NULL array<int>," +
+      "MAP_FIELD map<int, long>," +
+      "MAP_FIELD_WITH_NULL map<int, long>) stored as %s".format(fileFormat)
+
   protected def initializeTable(
       table_name: String,
       table_create_sql: String,
@@ -161,6 +182,7 @@ class GlutenClickHouseHiveTableSuite
   override def beforeAll(): Unit = {
     super.beforeAll()
     initializeTable(txt_table_name, txt_table_create_sql, null)
+    initializeTable(txt_upper_table_name, txt_upper_create_sql, null)
     initializeTable(txt_user_define_input, txt_table_user_define_create_sql, null)
     initializeTable(
       json_table_name,
@@ -1214,8 +1236,9 @@ class GlutenClickHouseHiveTableSuite
                                 |select
                                 |  string_field,
                                 |  int_field,
-                                |  long_field
-                                | from $txt_user_define_input
+                                |  long_field,
+                                |  date_field
+                                | from $txt_table_name
                                 |""".stripMargin)
 
     sourceDF.write
@@ -1224,6 +1247,50 @@ class GlutenClickHouseHiveTableSuite
       .option("clickhouse.bucketColumnNames", "STRING_FIELD")
       .mode(SaveMode.Overwrite)
       .save(dataPath)
+
+    assert(new File(dataPath).listFiles().nonEmpty)
+
+    val dataPath2 = s"$basePath/lineitem_mergetree_bucket2"
+    val df2 = spark.sql(s"""
+                           |select
+                           |  string_field STRING_FIELD,
+                           |  int_field INT_FIELD,
+                           |  long_field LONG_FIELD,
+                           |  date_field DATE_FIELD
+                           | from $txt_table_name
+                           |""".stripMargin)
+
+    df2.write
+      .format("clickhouse")
+      .partitionBy("DATE_FIELD")
+      .option("clickhouse.numBuckets", "1")
+      .option("clickhouse.bucketColumnNames", "STRING_FIELD")
+      .option("clickhouse.orderByKey", "INT_FIELD,LONG_FIELD")
+      .option("clickhouse.primaryKey", "INT_FIELD")
+      .mode(SaveMode.Overwrite)
+      .save(dataPath2)
+    assert(new File(dataPath2).listFiles().nonEmpty)
+
+    val dataPath3 = s"$basePath/lineitem_mergetree_bucket3"
+    val df3 = spark.sql(s"""
+                           |select
+                           |  string_field,
+                           |  int_field,
+                           |  long_field,
+                           |  date_field
+                           | from $txt_upper_table_name
+                           |""".stripMargin)
+
+    df3.write
+      .format("clickhouse")
+      .partitionBy("date_field")
+      .option("clickhouse.numBuckets", "1")
+      .option("clickhouse.bucketColumnNames", "string_field")
+      .option("clickhouse.orderByKey", "int_field,LONG_FIELD")
+      .option("clickhouse.primaryKey", "INT_FIELD")
+      .mode(SaveMode.Overwrite)
+      .save(dataPath3)
+    assert(new File(dataPath3).listFiles().nonEmpty)
   }
 
   test("GLUTEN-6506: Orc read time zone") {
