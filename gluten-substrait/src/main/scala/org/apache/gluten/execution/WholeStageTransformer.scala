@@ -38,11 +38,13 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 case class TransformContext(
     inputAttributes: Seq[Attribute],
@@ -300,7 +302,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         inputPartitions,
         inputRDDs,
         pipelineTime,
-        leafMetricsUpdater().updateInputMetrics,
+        leafInputMetricsUpdater(),
         BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
           child,
           wsCtx.substraitContext.registeredRelMap,
@@ -354,14 +356,25 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     }
   }
 
-  private def leafMetricsUpdater(): MetricsUpdater = {
-    child
-      .find {
-        case t: TransformSupport if t.children.forall(!_.isInstanceOf[TransformSupport]) => true
-        case _ => false
+  private def leafInputMetricsUpdater(): InputMetricsWrapper => Unit = {
+    def collectLeaves(plan: SparkPlan, buffer: ArrayBuffer[TransformSupport]): Unit = {
+      plan match {
+        case node: TransformSupport if node.children.forall(!_.isInstanceOf[TransformSupport]) =>
+          buffer.append(node)
+        case node: TransformSupport =>
+          node.children
+            .foreach(collectLeaves(_, buffer))
+        case _ =>
       }
-      .map(_.asInstanceOf[TransformSupport].metricsUpdater())
-      .getOrElse(MetricsUpdater.None)
+    }
+
+    val leafBuffer = new ArrayBuffer[TransformSupport]()
+    collectLeaves(child, leafBuffer)
+    val leafMetricsUpdater = leafBuffer.map(_.metricsUpdater())
+
+    (inputMetrics: InputMetricsWrapper) => {
+      leafMetricsUpdater.foreach(_.updateInputMetrics(inputMetrics))
+    }
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): WholeStageTransformer =
