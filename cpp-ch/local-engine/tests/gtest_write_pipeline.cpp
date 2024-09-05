@@ -32,12 +32,10 @@
 #include <Parsers/ParserCreateQuery.h>
 #include <Parsers/ParserQuery.h>
 #include <Parsers/parseQuery.h>
-#include <Processors/Transforms/ApplySquashingTransform.h>
 #include <Processors/Transforms/DeduplicationTokenTransforms.h>
-#include <Processors/Transforms/PlanSquashingTransform.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
 #include <Storages/MergeTree/MergeTreeSink.h>
-#include <Storages/MergeTree/SparkMergeTreeSink.h>
+#include <Storages/MergeTree/SparkMergeTreeWriteSettings.h>
 #include <Storages/MergeTree/SparkMergeTreeWriter.h>
 #include <Storages/ObjectStorage/HDFS/Configuration.h>
 #include <Storages/ObjectStorage/StorageObjectStorageSink.h>

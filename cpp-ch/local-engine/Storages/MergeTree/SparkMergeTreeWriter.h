@@ -20,7 +20,6 @@
 #include <Processors/Executors/PushingPipelineExecutor.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
 #include <Storages/MergeTree/MergeTreeTool.h>
-#include <Storages/MergeTree/SparkMergeTreeSink.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 
 namespace DB
@@ -33,6 +32,7 @@ using StorageSnapshotPtr = std::shared_ptr<StorageSnapshot>;
 
 namespace local_engine
 {
+class SinkHelper;
 
 struct PartInfo
 {

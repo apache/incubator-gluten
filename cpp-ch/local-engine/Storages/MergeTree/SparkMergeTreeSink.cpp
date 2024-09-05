@@ -19,7 +19,6 @@
 #include <Core/Settings.h>
 #include <Interpreters/MergeTreeTransaction.h>
 #include <Parser/MergeTreeRelParser.h>
-
 #include <Storages/MergeTree/MetaDataHelper.h>
 #include <Common/QueryContext.h>
 

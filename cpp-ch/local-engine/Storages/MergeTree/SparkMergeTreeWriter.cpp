@@ -23,7 +23,6 @@
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
 #include <Storages/MergeTree/SparkMergeTreeSink.h>
-#include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <rapidjson/prettywriter.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>

@@ -20,7 +20,6 @@
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
-#include <Storages/MergeTree/SparkMergeTreeSink.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>

@@ -40,6 +40,7 @@
 #include <Shuffle/WriteBufferFromJavaOutputStream.h>
 #include <Storages/Cache/CacheManager.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
+#include <Storages/MergeTree/SparkMergeTreeWriteSettings.h>
 #include <Storages/MergeTree/SparkMergeTreeWriter.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Storages/Output/BlockStripeSplitter.h>
