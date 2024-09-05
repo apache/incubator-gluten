@@ -60,11 +60,6 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>io.delta</groupId>
-      <artifactId>${delta.package.name}_${scala.binary.version}</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.binary.version}</artifactId>
       <type>test-jar</type>
