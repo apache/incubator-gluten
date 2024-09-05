@@ -22,14 +22,19 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class VeloxListenerApiSuite extends AnyFunSuite {
   test("Unsupported arch") {
+    val arch = System.getProperty("os.arch")
     System.setProperty("os.arch", "unknown-arch")
-    val api = new VeloxListenerApi()
-    val error = intercept[RuntimeException] {
-      api.onDriverStart(
-        VeloxBackendTestBase.mockSparkContext(),
-        VeloxBackendTestBase.mockPluginContext())
+    try {
+      val api = new VeloxListenerApi()
+      val error = intercept[RuntimeException] {
+        api.onDriverStart(
+          VeloxBackendTestBase.mockSparkContext(),
+          VeloxBackendTestBase.mockPluginContext())
+      }
+      assert(error.getMessage.contains("FileNotFoundException"))
+      assert(error.getMessage.contains("unknown-arch/libgluten.so"))
+    } finally {
+      System.setProperty("os.arch", arch)
     }
-    assert(error.getMessage.contains("FileNotFoundException"))
-    assert(error.getMessage.contains("unknown-arch/libgluten.so"))
   }
 }
