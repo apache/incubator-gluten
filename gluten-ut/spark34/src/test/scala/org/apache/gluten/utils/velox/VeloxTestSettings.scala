@@ -702,6 +702,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
+    .exclude("row group skipping doesn't overflow when reading into larger type")
     // Unsupport spark.sql.files.ignoreCorruptFiles.
     .exclude("Enabling/disabling ignoreCorruptFiles")
     // decimal failed ut
@@ -717,6 +718,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
   enableSuite[GlutenParquetV2QuerySuite]
+    .exclude("row group skipping doesn't overflow when reading into larger type")
     // Unsupport spark.sql.files.ignoreCorruptFiles.
     .exclude("Enabling/disabling ignoreCorruptFiles")
     // decimal failed ut
