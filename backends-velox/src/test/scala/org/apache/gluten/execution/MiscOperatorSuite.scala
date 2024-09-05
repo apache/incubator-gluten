@@ -1713,7 +1713,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
 
       sql("CREATE TABLE t2(id INT, l ARRAY<STRUCT<k: INT, v: INT>>) USING PARQUET")
       sql("INSERT INTO t2 VALUES(1, ARRAY(STRUCT(1, 100))), (2, ARRAY(STRUCT(2, 200)))")
-      runQueryAndCompare("SELECT first(l) FROM t2")(df => checkFallbackOperators(df, 1))
+      runQueryAndCompare("SELECT first(l) FROM t2")(df => checkFallbackOperators(df, 0))
     }
   }
 

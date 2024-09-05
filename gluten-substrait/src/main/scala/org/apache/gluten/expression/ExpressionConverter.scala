@@ -33,6 +33,8 @@ import org.apache.spark.sql.hive.HiveUDFTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
+import scala.collection.mutable.ArrayBuffer
+
 trait Transformable {
   def getTransformer(childrenTransformers: Seq[ExpressionTransformer]): ExpressionTransformer
 }
@@ -345,12 +347,23 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             expr => replaceWithExpressionTransformer0(expr, attributeSeq, expressionsMap)),
           m)
       case getStructField: GetStructField =>
-        // Different backends may have different result.
-        BackendsApiManager.getSparkPlanExecApiInstance.genGetStructFieldTransformer(
-          substraitExprName,
-          replaceWithExpressionTransformer0(getStructField.child, attributeSeq, expressionsMap),
-          getStructField.ordinal,
-          getStructField)
+        try {
+          val bindRef =
+            bindGetStructField(getStructField, attributeSeq)
+          // Different backends may have different result.
+          BackendsApiManager.getSparkPlanExecApiInstance.genGetStructFieldTransformer(
+            substraitExprName,
+            replaceWithExpressionTransformer0(getStructField.child, attributeSeq, expressionsMap),
+            bindRef.ordinal,
+            getStructField)
+        } catch {
+          case e: IllegalStateException =>
+            // This situation may need developers to fix, although we just throw the below
+            // exception to let the corresponding operator fall back.
+            throw new UnsupportedOperationException(
+              s"Failed to bind reference for $getStructField: ${e.getMessage}")
+        }
+
       case getArrayStructFields: GetArrayStructFields =>
         GenericExpressionTransformer(
           substraitExprName,
@@ -692,5 +705,50 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       throw new GlutenNotSupportException(s"Not supported: $expr.")
     }
     substraitExprName
+  }
+
+  private def bindGetStructField(
+      structField: GetStructField,
+      input: AttributeSeq): BoundReference = {
+    // get the new ordinal base input
+    var newOrdinal: Int = -1
+    val names = new ArrayBuffer[String]
+    var root: Expression = structField
+    while (root.isInstanceOf[GetStructField]) {
+      val curField = root.asInstanceOf[GetStructField]
+      val name = curField.childSchema.fields(curField.ordinal).name
+      names += name
+      root = root.asInstanceOf[GetStructField].child
+    }
+    // For map/array type, the reference is correct no matter NESTED_SCHEMA_PRUNING_ENABLED or not
+    if (!root.isInstanceOf[AttributeReference]) {
+      return BoundReference(structField.ordinal, structField.dataType, structField.nullable)
+    }
+    names += root.asInstanceOf[AttributeReference].name
+    input.attrs.foreach(
+      attribute => {
+        var level = names.size - 1
+        if (names(level) == attribute.name) {
+          var candidateFields: Array[StructField] = null
+          var dtType = attribute.dataType
+          while (dtType.isInstanceOf[StructType] && level >= 1) {
+            candidateFields = dtType.asInstanceOf[StructType].fields
+            level -= 1
+            val curName = names(level)
+            for (i <- 0 until candidateFields.length) {
+              if (candidateFields(i).name == curName) {
+                dtType = candidateFields(i).dataType
+                newOrdinal = i
+              }
+            }
+          }
+        }
+      })
+    if (newOrdinal == -1) {
+      throw new IllegalStateException(
+        s"Couldn't find $structField in ${input.attrs.mkString("[", ",", "]")}")
+    } else {
+      BoundReference(newOrdinal, structField.dataType, structField.nullable)
+    }
   }
 }
