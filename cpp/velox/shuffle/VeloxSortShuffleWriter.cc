@@ -273,7 +273,7 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
 }
 
 arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_t begin, size_t end) {
-  VELOX_CHECK(begin < end);
+  VELOX_DCHECK(begin < end);
   // Count copy row time into sortTime_.
   Timer sortTime{};
   // Serialize [begin, end)

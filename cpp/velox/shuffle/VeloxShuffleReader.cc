@@ -416,11 +416,12 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
       cachedInputs_.emplace_back(numRows, wrapInBufferViewAsOwner(buffer->data(), buffer->size(), buffer));
       cachedRows_ += numRows;
     } else {
-      // For a large row, read all segments.
+      // numRows = 0 indicates a segment of a large row.
       std::vector<std::shared_ptr<arrow::Buffer>> buffers;
       auto rowSize = *reinterpret_cast<RowSizeType*>(const_cast<uint8_t*>(arrowBuffers[0]->data()));
       RowSizeType bufferSize = arrowBuffers[0]->size();
       buffers.emplace_back(std::move(arrowBuffers[0]));
+      // Read remaining segments.
       while (bufferSize < rowSize) {
         GLUTEN_ASSIGN_OR_THROW(
             arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, arrowPool_, numRows, decompressTime_));
