@@ -336,7 +336,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def shuffleSupportedCodec(): Set[String] = GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
   override def needOutputSchemaForPlan(): Boolean = true
 
-  override def transformCheckOverflow: Boolean = false
+  override def transformCheckOverflow: Boolean = false // true
 
   override def requiredInputFilePaths(): Boolean = true
 

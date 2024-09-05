@@ -65,6 +65,18 @@ object DecimalArithmeticUtil {
           resultPrecision = intDig + decDig
           resultScale = decDig
         }
+      case _: Pmod | _: Remainder =>
+        if (allowPrecisionLoss) {
+          resultPrecision = Math.min(
+            type1.precision - type1.scale,
+            type2.precision - type2.scale) + Math.max(type1.scale, type2.scale)
+          resultScale = Math.max(type1.scale, type2.scale)
+        } else {
+          resultPrecision = Math.min(
+            type1.precision - type1.scale,
+            type2.precision - type2.scale) + Math.max(type1.scale, type2.scale)
+          resultScale = Math.max(type1.scale, type2.scale)
+        }
       case other =>
         throw new GlutenNotSupportException(s"$other is not supported.")
     }

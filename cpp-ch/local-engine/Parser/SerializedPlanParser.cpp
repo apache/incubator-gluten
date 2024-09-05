@@ -770,6 +770,8 @@ SerializedPlanParser::toFunctionNode(ActionsDAG & actions_dag, const String & fu
     std::string args_name = join(args, ',');
     auto result_name = function + "(" + args_name + ")";
     const auto * function_node = &actions_dag.addFunction(function_builder, args, result_name);
+
+    std::cout << "arg_name:" << args_name << ", result_name:" << result_name << ", rel_output:" << function_node->result_type->getName() << std::endl;
     return function_node;
 }
 
@@ -1006,10 +1008,11 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG & acti
 
             const auto & substrait_type = rel.cast().type();
             const auto & input_type = args[0]->result_type;
+            std::cout << input_type->getName() << std::endl;
             DataTypePtr non_nullable_input_type = removeNullable(input_type);
             DataTypePtr output_type = TypeParser::parseType(substrait_type);
             DataTypePtr non_nullable_output_type = removeNullable(output_type);
-
+            std::cout << output_type->getName() << std::endl;
             const ActionsDAG::Node * function_node = nullptr;
             if (substrait_type.has_binary())
             {
