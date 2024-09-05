@@ -512,6 +512,60 @@
         </plugins>
       </build>
     </profile>
+
+    <!-- Profiles for different platforms -->
+    <profile>
+      <id>Darwin-x86</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>x86</arch>
+        </os>
+      </activation>
+      <properties>
+        <platform>darwin</platform>
+        <arch>x86_64</arch>
+      </properties>
+    </profile>
+    <profile>
+      <id>Darwin-aarch64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <platform>darwin</platform>
+        <arch>aarch64</arch>
+      </properties>
+    </profile>
+    <profile>
+      <id>Linux-amd64</id>
+      <activation>
+        <os>
+          <family>Linux</family>
+          <arch>amd64</arch>
+        </os>
+      </activation>
+      <properties>
+        <platform>linux</platform>
+        <arch>amd64</arch>
+      </properties>
+    </profile>
+    <profile>
+      <id>Linux-aarch64</id>
+      <activation>
+        <os>
+          <family>Linux</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <platform>linux</platform>
+        <arch>aarch64</arch>
+      </properties>
+    </profile>
   </profiles>
 
   <dependencyManagement>
