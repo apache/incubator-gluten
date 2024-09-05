@@ -23,12 +23,12 @@
 
 namespace local_engine
 {
-using CustomStorageMergeTreePtr = std::shared_ptr<CustomStorageMergeTree>;
+using SparkStorageMergeTreePtr = std::shared_ptr<SparkStorageMergeTree>;
 
 class DataPartStorageHolder
 {
 public:
-    DataPartStorageHolder(const DataPartPtr& data_part, const CustomStorageMergeTreePtr& storage)
+    DataPartStorageHolder(const DataPartPtr& data_part, const SparkStorageMergeTreePtr& storage)
         : data_part_(data_part),
           storage_(storage)
     {
@@ -39,7 +39,7 @@ public:
         return data_part_;
     }
 
-    [[nodiscard]] CustomStorageMergeTreePtr storage() const
+    [[nodiscard]] SparkStorageMergeTreePtr storage() const
     {
         return storage_;
     }
@@ -52,11 +52,11 @@ public:
 
 private:
     DataPartPtr data_part_;
-    CustomStorageMergeTreePtr storage_;
+    SparkStorageMergeTreePtr storage_;
 };
 
 using DataPartStorageHolderPtr = std::shared_ptr<DataPartStorageHolder>;
-using storage_map_cache = Poco::LRUCache<std::string, std::pair<CustomStorageMergeTreePtr, MergeTreeTable>>;
+using storage_map_cache = Poco::LRUCache<std::string, std::pair<SparkStorageMergeTreePtr, MergeTreeTable>>;
 using datapart_map_cache = Poco::LRUCache<std::string, std::shared_ptr<Poco::LRUCache<std::string, DataPartStorageHolderPtr>>>;
 
 class StorageMergeTreeFactory
@@ -64,9 +64,9 @@ class StorageMergeTreeFactory
 public:
     static StorageMergeTreeFactory & instance();
     static void freeStorage(const StorageID & id, const String & snapshot_id = "");
-    static CustomStorageMergeTreePtr
+    static SparkStorageMergeTreePtr
     getStorage(const StorageID& id, const String & snapshot_id, MergeTreeTable merge_tree_table,
-        const std::function<CustomStorageMergeTreePtr()> & creator);
+        const std::function<SparkStorageMergeTreePtr()> & creator);
     static DataPartsVector getDataPartsByNames(const StorageID & id, const String & snapshot_id, std::unordered_set<String> part_name);
     static void init_cache_map()
     {

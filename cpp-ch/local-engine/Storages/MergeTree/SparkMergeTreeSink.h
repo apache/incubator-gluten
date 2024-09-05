@@ -27,7 +27,7 @@ namespace local_engine
 {
 
 struct MergeTreeTable;
-using CustomStorageMergeTreePtr = std::shared_ptr<CustomStorageMergeTree>;
+using SparkStorageMergeTreePtr = std::shared_ptr<SparkStorageMergeTree>;
 class SinkHelper;
 using SinkHelperPtr = std::shared_ptr<SinkHelper>;
 
@@ -89,7 +89,7 @@ private:
 class SinkHelper
 {
 protected:
-    CustomStorageMergeTreePtr data;
+    SparkStorageMergeTreePtr data;
     bool isRemoteStorage;
 
     ConcurrentDeque<DB::MergeTreeDataPartPtr> new_parts;
@@ -101,14 +101,14 @@ public:
     const DB::StorageMetadataPtr metadata_snapshot;
 
 protected:
-    virtual CustomStorageMergeTree & dest_storage() { return *data; }
+    virtual SparkStorageMergeTree & dest_storage() { return *data; }
 
     void doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> & prepare_merge_parts);
     void finalizeMerge();
     virtual void cleanup() { }
     virtual void commit(const ReadSettings & read_settings, const WriteSettings & write_settings) { }
     void saveMetadata(const DB::ContextPtr & context);
-    SparkStorageMergeTree & dataRef() const { return assert_cast<SparkStorageMergeTree &>(*data); }
+    SparkWriteStorageMergeTree & dataRef() const { return assert_cast<SparkWriteStorageMergeTree &>(*data); }
 
 public:
     const std::deque<DB::MergeTreeDataPartPtr> & unsafeGet() const { return new_parts.unsafeGet(); }
@@ -118,7 +118,7 @@ public:
     void finish(const DB::ContextPtr & context);
 
     virtual ~SinkHelper() = default;
-    SinkHelper(const CustomStorageMergeTreePtr & data_, const SparkMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_);
+    SinkHelper(const SparkStorageMergeTreePtr & data_, const SparkMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_);
 };
 
 class DirectSinkHelper : public SinkHelper
@@ -128,7 +128,7 @@ protected:
 
 public:
     explicit DirectSinkHelper(
-        const CustomStorageMergeTreePtr & data_, const SparkMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
+        const SparkStorageMergeTreePtr & data_, const SparkMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
         : SinkHelper(data_, write_settings_, isRemoteStorage_)
     {
     }
@@ -136,18 +136,16 @@ public:
 
 class CopyToRemoteSinkHelper : public SinkHelper
 {
-    CustomStorageMergeTreePtr dest;
+    SparkStorageMergeTreePtr dest;
 
 protected:
     void commit(const ReadSettings & read_settings, const WriteSettings & write_settings) override;
-    CustomStorageMergeTree & dest_storage() override { return *dest; }
-    const CustomStorageMergeTreePtr & temp_storage() const { return data; }
+    SparkStorageMergeTree & dest_storage() override { return *dest; }
+    const SparkStorageMergeTreePtr & temp_storage() const { return data; }
 
 public:
     explicit CopyToRemoteSinkHelper(
-        const CustomStorageMergeTreePtr & temp,
-        const CustomStorageMergeTreePtr & dest_,
-        const SparkMergeTreeWriteSettings & write_settings_)
+        const SparkStorageMergeTreePtr & temp, const SparkStorageMergeTreePtr & dest_, const SparkMergeTreeWriteSettings & write_settings_)
         : SinkHelper(temp, write_settings_, true), dest(dest_)
     {
         assert(data != dest);

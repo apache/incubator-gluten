@@ -17,6 +17,7 @@
 #include "SparkStorageMergeTree.h"
 
 #include <Interpreters/MergeTreeTransaction.h>
+#include <Parser/MergeTreeRelParser.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
 #include <Storages/MergeTree/SparkMergeTreeSink.h>
@@ -35,7 +36,7 @@ extern const int NO_SUCH_DATA_PART;
 namespace local_engine
 {
 
-void CustomStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges_in_data_parts)
+void SparkStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges_in_data_parts)
 {
     ReadFromMergeTree::AnalysisResult result;
     result.column_names_to_read = source.getAllColumnNames();
@@ -82,7 +83,7 @@ void CustomStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & sourc
     source.setAnalyzedResult(std::make_shared<ReadFromMergeTree::AnalysisResult>(std::move(result)));
 }
 
-void CustomStorageMergeTree::wrapRangesInDataParts(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges)
+void SparkStorageMergeTree::wrapRangesInDataParts(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges)
 {
     auto result = source.getAnalysisResult();
     std::unordered_map<String, std::tuple<size_t, size_t>> range_index;
@@ -118,7 +119,7 @@ void CustomStorageMergeTree::wrapRangesInDataParts(DB::ReadFromMergeTree & sourc
     source.setAnalyzedResult(std::make_shared<ReadFromMergeTree::AnalysisResult>(result));
 }
 
-CustomStorageMergeTree::CustomStorageMergeTree(
+SparkStorageMergeTree::SparkStorageMergeTree(
     const StorageID & table_id_,
     const String & relative_data_path_,
     const StorageInMemoryMetadata & metadata_,
@@ -144,9 +145,9 @@ CustomStorageMergeTree::CustomStorageMergeTree(
     format_version = 1;
 }
 
-std::atomic<int> CustomStorageMergeTree::part_num;
+std::atomic<int> SparkStorageMergeTree::part_num;
 
-void CustomStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string> parts) const
+void SparkStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string> parts) const
 {
     auto disk = getDisks().front();
     if (!disk->isRemote())
@@ -163,7 +164,7 @@ void CustomStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string
     }
 }
 
-std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames(const std::unordered_set<std::string> & parts)
+std::vector<MergeTreeDataPartPtr> SparkStorageMergeTree::loadDataPartsWithNames(const std::unordered_set<std::string> & parts)
 {
     prefetchMetaDataFile(parts);
     std::vector<MergeTreeDataPartPtr> data_parts;
@@ -179,7 +180,7 @@ std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames
     return data_parts;
 }
 
-MergeTreeData::LoadPartResult CustomStorageMergeTree::loadDataPart(
+MergeTreeData::LoadPartResult SparkStorageMergeTree::loadDataPart(
     const MergeTreePartInfo & part_info, const String & part_name, const DiskPtr & part_disk_ptr, MergeTreeDataPartState to_state)
 {
     LOG_TRACE(log, "Loading {} part {} from disk {}", magic_enum::enum_name(to_state), part_name, part_disk_ptr->getName());
@@ -257,7 +258,7 @@ MergeTreeData::LoadPartResult CustomStorageMergeTree::loadDataPart(
     return res;
 }
 
-void CustomStorageMergeTree::removePartFromMemory(const MergeTreeData::DataPart & part_to_detach)
+void SparkStorageMergeTree::removePartFromMemory(const MergeTreeData::DataPart & part_to_detach)
 {
     auto lock = lockParts();
     bool removed_active_part = false;
@@ -289,57 +290,57 @@ void CustomStorageMergeTree::removePartFromMemory(const MergeTreeData::DataPart 
         resetObjectColumnsFromActiveParts(lock);
 }
 
-void CustomStorageMergeTree::dropPartNoWaitNoThrow(const String & /*part_name*/)
+void SparkStorageMergeTree::dropPartNoWaitNoThrow(const String & /*part_name*/)
 {
     throw std::runtime_error("not implement");
 }
-void CustomStorageMergeTree::dropPart(const String & /*part_name*/, bool /*detach*/, ContextPtr /*context*/)
+void SparkStorageMergeTree::dropPart(const String & /*part_name*/, bool /*detach*/, ContextPtr /*context*/)
 {
     throw std::runtime_error("not implement");
 }
-void CustomStorageMergeTree::dropPartition(const ASTPtr & /*partition*/, bool /*detach*/, ContextPtr /*context*/)
+void SparkStorageMergeTree::dropPartition(const ASTPtr & /*partition*/, bool /*detach*/, ContextPtr /*context*/)
 {
 }
-PartitionCommandsResultInfo CustomStorageMergeTree::attachPartition(
+PartitionCommandsResultInfo SparkStorageMergeTree::attachPartition(
     const ASTPtr & /*partition*/, const StorageMetadataPtr & /*metadata_snapshot*/, bool /*part*/, ContextPtr /*context*/)
 {
     throw std::runtime_error("not implement");
 }
-void CustomStorageMergeTree::replacePartitionFrom(
+void SparkStorageMergeTree::replacePartitionFrom(
     const StoragePtr & /*source_table*/, const ASTPtr & /*partition*/, bool /*replace*/, ContextPtr /*context*/)
 {
     throw std::runtime_error("not implement");
 }
-void CustomStorageMergeTree::movePartitionToTable(const StoragePtr & /*dest_table*/, const ASTPtr & /*partition*/, ContextPtr /*context*/)
+void SparkStorageMergeTree::movePartitionToTable(const StoragePtr & /*dest_table*/, const ASTPtr & /*partition*/, ContextPtr /*context*/)
 {
     throw std::runtime_error("not implement");
 }
-bool CustomStorageMergeTree::partIsAssignedToBackgroundOperation(const MergeTreeData::DataPartPtr & /*part*/) const
+bool SparkStorageMergeTree::partIsAssignedToBackgroundOperation(const MergeTreeData::DataPartPtr & /*part*/) const
 {
     throw std::runtime_error("not implement");
 }
 
-std::string CustomStorageMergeTree::getName() const
+std::string SparkStorageMergeTree::getName() const
 {
     throw std::runtime_error("not implement");
 }
-std::vector<MergeTreeMutationStatus> CustomStorageMergeTree::getMutationsStatus() const
+std::vector<MergeTreeMutationStatus> SparkStorageMergeTree::getMutationsStatus() const
 {
     throw std::runtime_error("not implement");
 }
-bool CustomStorageMergeTree::scheduleDataProcessingJob(BackgroundJobsAssignee & /*executor*/)
+bool SparkStorageMergeTree::scheduleDataProcessingJob(BackgroundJobsAssignee & /*executor*/)
 {
     throw std::runtime_error("not implement");
 }
-void CustomStorageMergeTree::startBackgroundMovesIfNeeded()
+void SparkStorageMergeTree::startBackgroundMovesIfNeeded()
 {
     throw std::runtime_error("not implement");
 }
-std::unique_ptr<MergeTreeSettings> CustomStorageMergeTree::getDefaultSettings() const
+std::unique_ptr<MergeTreeSettings> SparkStorageMergeTree::getDefaultSettings() const
 {
     throw std::runtime_error("not implement");
 }
-std::map<std::string, MutationCommands> CustomStorageMergeTree::getUnfinishedMutationCommands() const
+std::map<std::string, MutationCommands> SparkStorageMergeTree::getUnfinishedMutationCommands() const
 {
     throw std::runtime_error("not implement");
 }
@@ -491,6 +492,20 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     temp_part.finalize();
     data_part_storage->commitTransaction();
     return temp_part;
+}
+
+SinkToStoragePtr SparkWriteStorageMergeTree::write(
+    const ASTPtr &, const StorageMetadataPtr & /*storage_in_memory_metadata*/, ContextPtr context, bool /*async_insert*/)
+{
+    SparkMergeTreeWriteSettings settings{.partition_settings{SparkMergeTreeWritePartitionSettings::get(context)}};
+    settings.load(context);
+    SinkHelperPtr sink_helper = SparkMergeTreeSink::create(table, settings, getContext());
+#ifndef NDEBUG
+    auto dest_storage = MergeTreeRelParser::getStorage(table, getContext());
+    assert(dest_storage.get() == this);
+#endif
+
+    return std::make_shared<SparkMergeTreeSink>(sink_helper, context);
 }
 
 }

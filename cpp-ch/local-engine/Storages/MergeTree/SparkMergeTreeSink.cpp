@@ -35,20 +35,6 @@ extern const Metric GlobalThreadScheduled;
 namespace local_engine
 {
 
-SinkToStoragePtr SparkStorageMergeTree::write(
-    const ASTPtr &, const StorageMetadataPtr & /*storage_in_memory_metadata*/, ContextPtr context, bool /*async_insert*/)
-{
-    SparkMergeTreeWriteSettings settings{.partition_settings{SparkMergeTreeWritePartitionSettings::get(context)}};
-    settings.load(context);
-    SinkHelperPtr sink_helper = SparkMergeTreeSink::create(table, settings, getContext());
-#ifndef NDEBUG
-    auto dest_storage = MergeTreeRelParser::getStorage(table, getContext());
-    assert(dest_storage.get() == this);
-#endif
-
-    return std::make_shared<SparkMergeTreeSink>(sink_helper, context);
-}
-
 void SparkMergeTreeSink::consume(Chunk & chunk)
 {
     assert(!sink_helper->metadata_snapshot->hasPartitionKey());
@@ -103,7 +89,7 @@ SinkHelperPtr SparkMergeTreeSink::create(
     return std::make_shared<DirectSinkHelper>(dest_storage, write_settings_, isRemoteStorage);
 }
 
-SinkHelper::SinkHelper(const CustomStorageMergeTreePtr & data_, const SparkMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
+SinkHelper::SinkHelper(const SparkStorageMergeTreePtr & data_, const SparkMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
     : data(data_)
     , isRemoteStorage(isRemoteStorage_)
     , thread_pool(CurrentMetrics::LocalThread, CurrentMetrics::LocalThreadActive, CurrentMetrics::LocalThreadScheduled, 1, 1, 100000)

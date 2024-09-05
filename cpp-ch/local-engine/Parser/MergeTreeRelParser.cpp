@@ -70,7 +70,7 @@ MergeTreeTableInstance MergeTreeRelParser::parseMergeTreeTable(const substrait::
     return parseFromAny(extension_table.detail());
 }
 
-CustomStorageMergeTreePtr MergeTreeRelParser::getStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context)
+SparkStorageMergeTreePtr MergeTreeRelParser::getStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context)
 {
     const DB::Block header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema, merge_tree_table.low_card_key);
     const auto metadata = buildMetaData(header, context, merge_tree_table);
@@ -79,14 +79,14 @@ CustomStorageMergeTreePtr MergeTreeRelParser::getStorage(const MergeTreeTable & 
         StorageID(merge_tree_table.database, merge_tree_table.table),
         merge_tree_table.snapshot_id,
         merge_tree_table,
-        [&]() -> CustomStorageMergeTreePtr
+        [&]() -> SparkStorageMergeTreePtr
         {
-            auto custom_storage_merge_tree = std::make_shared<SparkStorageMergeTree>(merge_tree_table, *metadata, context);
+            auto custom_storage_merge_tree = std::make_shared<SparkWriteStorageMergeTree>(merge_tree_table, *metadata, context);
             return custom_storage_merge_tree;
         });
 }
 
-CustomStorageMergeTreePtr
+SparkStorageMergeTreePtr
 MergeTreeRelParser::restoreStorage(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context)
 {
     auto result = getStorage(merge_tree_table, context);
@@ -94,7 +94,7 @@ MergeTreeRelParser::restoreStorage(const MergeTreeTableInstance & merge_tree_tab
     return result;
 }
 
-CustomStorageMergeTreePtr MergeTreeRelParser::copyToDefaultPolicyStorage(const MergeTreeTable & table, ContextMutablePtr context)
+SparkStorageMergeTreePtr MergeTreeRelParser::copyToDefaultPolicyStorage(const MergeTreeTable & table, ContextMutablePtr context)
 {
     MergeTreeTable merge_tree_table{table};
     auto temp_uuid = UUIDHelpers::generateV4();
@@ -106,7 +106,7 @@ CustomStorageMergeTreePtr MergeTreeRelParser::copyToDefaultPolicyStorage(const M
     return getStorage(merge_tree_table, context);
 }
 
-CustomStorageMergeTreePtr MergeTreeRelParser::copyToVirtualStorage(const MergeTreeTable & table, const ContextMutablePtr & context)
+SparkStorageMergeTreePtr MergeTreeRelParser::copyToVirtualStorage(const MergeTreeTable & table, const ContextMutablePtr & context)
 {
     MergeTreeTable merge_tree_table{table};
     auto temp_uuid = UUIDHelpers::generateV4();
@@ -177,9 +177,9 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     auto ranges = merge_tree_table.extractRange(selected_parts);
     std::string ret;
     if (context->getSettingsRef().tryGetString("enabled_driver_filter_mergetree_index", ret) && ret == "'true'")
-        CustomStorageMergeTree::analysisPartsByRanges(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
+        SparkStorageMergeTree::analysisPartsByRanges(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
     else
-        CustomStorageMergeTree::wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
+        SparkStorageMergeTree::wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
 
     steps.emplace_back(read_step.get());
     query_plan->addStep(std::move(read_step));

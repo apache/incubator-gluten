@@ -16,9 +16,9 @@
  */
 #include "StorageMergeTreeFactory.h"
 
-#include <Common/GlutenConfig.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
+#include <Common/GlutenConfig.h>
 
 namespace local_engine
 {
@@ -58,9 +58,9 @@ void StorageMergeTreeFactory::freeStorage(const StorageID & id, const String & s
 }
 
 
-CustomStorageMergeTreePtr StorageMergeTreeFactory::getStorage(
+SparkStorageMergeTreePtr StorageMergeTreeFactory::getStorage(
     const StorageID & id, const String & snapshot_id, MergeTreeTable merge_tree_table,
-    const std::function<CustomStorageMergeTreePtr()> & creator)
+    const std::function<SparkStorageMergeTreePtr()> & creator)
 {
     const auto table_name = getTableName(id, snapshot_id);
     std::lock_guard lock(storage_map_mutex);
@@ -107,7 +107,7 @@ StorageMergeTreeFactory::getDataPartsByNames(const StorageID & id, const String 
 
     if (!missing_names.empty())
     {
-        CustomStorageMergeTreePtr storage_merge_tree;
+        SparkStorageMergeTreePtr storage_merge_tree;
         {
             std::lock_guard storage_lock(storage_map_mutex);
             storage_merge_tree = storage_map->get(table_name)->first;

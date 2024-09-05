@@ -39,15 +39,15 @@ using namespace DB;
 class MergeTreeRelParser : public RelParser
 {
 public:
-    static CustomStorageMergeTreePtr getStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context);
-    static CustomStorageMergeTreePtr restoreStorage(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context);
+    static SparkStorageMergeTreePtr getStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context);
+    static SparkStorageMergeTreePtr restoreStorage(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context);
 
     // Create random table name and table path and use default storage policy.
     // In insert case, mergetree data can be uploaded after merges in default storage(Local Disk).
-    static CustomStorageMergeTreePtr copyToDefaultPolicyStorage(const MergeTreeTable & table, ContextMutablePtr context);
+    static SparkStorageMergeTreePtr copyToDefaultPolicyStorage(const MergeTreeTable & table, ContextMutablePtr context);
 
     // Use same table path and data path as the original table.
-    static CustomStorageMergeTreePtr copyToVirtualStorage(const MergeTreeTable & table, const ContextMutablePtr & context);
+    static SparkStorageMergeTreePtr copyToVirtualStorage(const MergeTreeTable & table, const ContextMutablePtr & context);
 
     static MergeTreeTableInstance parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table);
 

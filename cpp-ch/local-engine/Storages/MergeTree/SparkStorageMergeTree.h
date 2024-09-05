@@ -46,7 +46,7 @@ private:
     LoggerPtr log;
 };
 
-class CustomStorageMergeTree : public MergeTreeData
+class SparkStorageMergeTree : public MergeTreeData
 {
     friend class MergeSparkMergeTreeTask;
 
@@ -64,7 +64,7 @@ public:
     MergeTreeDataMergerMutator merger_mutator;
 
 protected:
-    CustomStorageMergeTree(
+    SparkStorageMergeTree(
         const StorageID & table_id_,
         const String & relative_data_path_,
         const StorageInMemoryMetadata & metadata,
@@ -98,11 +98,11 @@ protected:
     void attachRestoredParts(MutableDataPartsVector && /*parts*/) override { throw std::runtime_error("not implement"); }
 };
 
-class SparkStorageMergeTree final : public CustomStorageMergeTree
+class SparkWriteStorageMergeTree final : public SparkStorageMergeTree
 {
 public:
-    SparkStorageMergeTree(const MergeTreeTable & table_, const StorageInMemoryMetadata & metadata, const ContextMutablePtr & context_)
-        : CustomStorageMergeTree(
+    SparkWriteStorageMergeTree(const MergeTreeTable & table_, const StorageInMemoryMetadata & metadata, const ContextMutablePtr & context_)
+        : SparkStorageMergeTree(
               StorageID(table_.database, table_.table),
               table_.relative_path,
               metadata,

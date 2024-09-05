@@ -23,7 +23,7 @@
 namespace local_engine
 {
 
-void restoreMetaData(const CustomStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context);
+void restoreMetaData(const SparkStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context);
 
 void saveFileStatus(
     const DB::MergeTreeData & storage, const DB::ContextPtr & context, const String & part_name, IDataPartStorage & data_part_storage);
@@ -32,7 +32,7 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     std::vector<DB::DataPartPtr> selected_parts,
     std::unordered_map<String, String> & partition_values,
     const String & new_part_uuid,
-    CustomStorageMergeTree & storage,
+    SparkStorageMergeTree & storage,
     const String & partition_dir,
     const String & bucket_dir);
 

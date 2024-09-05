@@ -787,7 +787,7 @@ public:
 
 struct MergeTreeWithSnapshot
 {
-    std::shared_ptr<local_engine::CustomStorageMergeTree> merge_tree;
+    std::shared_ptr<local_engine::SparkStorageMergeTree> merge_tree;
     std::shared_ptr<StorageSnapshot> snapshot;
     NamesAndTypesList columns;
 };
