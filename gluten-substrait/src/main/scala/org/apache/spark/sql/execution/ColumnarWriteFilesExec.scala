@@ -150,7 +150,7 @@ object ColumnarWriteFilesExec {
       staticPartitions)
   }
 
-  private case class NoopLeaf() extends LeafExecNode {
+  case class NoopLeaf() extends LeafExecNode {
     override protected def doExecute(): RDD[InternalRow] =
       throw new GlutenException(s"$nodeName does not support doExecute")
     override def output: Seq[Attribute] = Seq.empty

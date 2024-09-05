@@ -24,10 +24,12 @@ import org.apache.spark.sql.{AnalysisException, Dataset, SparkSession}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.{CommandResult, LogicalPlan}
 import org.apache.spark.sql.catalyst.util.StringUtils.PlanStringConcat
+import org.apache.spark.sql.execution.ColumnarWriteFilesExec.NoopLeaf
 import org.apache.spark.sql.execution.GlutenExplainUtils._
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, QueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
+import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.internal.SQLConf
@@ -112,6 +114,8 @@ object GlutenImplicits {
         case _: ColumnarToRowTransition =>
         case _: RowToColumnarTransition =>
         case p: ReusedExchangeExec =>
+        case _: NoopLeaf =>
+        case w: WriteFilesExec if w.child.isInstanceOf[NoopLeaf] =>
         case p: AdaptiveSparkPlanExec if isFinalAdaptivePlan(p) =>
           collect(p.executedPlan)
         case p: AdaptiveSparkPlanExec =>
