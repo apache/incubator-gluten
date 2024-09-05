@@ -20,7 +20,7 @@ import org.apache.gluten.execution.{BatchScanExecTransformer, FileSourceScanExec
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ProjectExec, SparkPlan, UnionExec}
+import org.apache.spark.sql.execution.{DeserializeToObjectExec, LeafExecNode, ProjectExec, SerializeFromObjectExec, SparkPlan, UnionExec}
 
 import scala.collection.mutable
 import scala.collection.mutable.Map
@@ -79,7 +79,11 @@ object PushDownInputFileExpressionBeforeLeaf extends Rule[SparkPlan] {
   }
 
   def addMetadataCol(plan: SparkPlan, replacedExprs: Map[String, Alias]): SparkPlan = plan match {
-    case p if p.children.isEmpty =>
+    case p: LeafExecNode =>
+      ProjectExec(p.output ++ replacedExprs.values, p)
+    // Output of SerializeFromObjectExec's child and output of DeserializeToObjectExec must be a
+    // single-field row.
+    case p @ (_: SerializeFromObjectExec | _: DeserializeToObjectExec) =>
       ProjectExec(p.output ++ replacedExprs.values, p)
     case p: ProjectExec =>
       p.copy(
