@@ -70,6 +70,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
+  def shuffledHashJoinOptimizeBuildSide: Boolean = conf.getConf(COLUMNAR_SHUFFLED_HASH_JOIN_OPTIMIZE_BUILD_SIDE)
+
   def enableNativeColumnarToRow: Boolean = conf.getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
 
   def forceShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED)
@@ -925,6 +927,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.shuffledHashJoin")
       .internal()
       .doc("Enable or disable columnar shuffledHashJoin.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_SHUFFLED_HASH_JOIN_OPTIMIZE_BUILD_SIDE =
+    buildConf("spark.gluten.sql.columnar.shuffledHashJoin.optimizeBuildSide")
+      .internal()
+      .doc("Whether to allow Gluten choose an optimal build side for shuffled hash join.")
       .booleanConf
       .createWithDefault(true)
 
