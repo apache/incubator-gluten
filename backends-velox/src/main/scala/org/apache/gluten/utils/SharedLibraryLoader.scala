@@ -18,7 +18,7 @@ package org.apache.gluten.utils
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.vectorized.JniLibLoader
+import org.apache.gluten.jni.JniLibLoader
 
 import org.apache.spark.SparkConf
 

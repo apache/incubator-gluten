@@ -17,8 +17,8 @@
 package org.apache.spark.sql.execution.benchmarks
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.jni.JniLibLoader
 import org.apache.gluten.utils.UTSystemParameters
-import org.apache.gluten.vectorized.JniLibLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.DeltaLog
