@@ -16,93 +16,20 @@
  */
 #pragma once
 
-#include "MergeTreeTool.h"
-
-
 #include <Processors/Sinks/SinkToStorage.h>
 #include <Storages/MergeTree/CustomStorageMergeTree.h>
+#include <Storages/MergeTree/MergeTreeTool.h>
+#include <Storages/MergeTree/SparkMergeTreeWriteSettings.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenSettings.h>
 
 namespace local_engine
 {
+
 struct MergeTreeTable;
 using CustomStorageMergeTreePtr = std::shared_ptr<CustomStorageMergeTree>;
-
-#define MERGE_TREE_WRITE_RELATED_SETTINGS(M, ALIAS, UNIQ) \
-    M(String, part_name_prefix, , "The part name prefix for writing data", UNIQ) \
-    M(String, partition_dir, , "The parition directory for writing data", UNIQ) \
-    M(String, bucket_dir, , "The bucket directory for writing data", UNIQ)
-
-DECLARE_GLUTEN_SETTINGS(MergeTreePartitionWriteSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
-
-struct GlutenMergeTreeWriteSettings
-{
-    MergeTreePartitionWriteSettings partition_settings;
-    bool merge_after_insert{true};
-    bool insert_without_local_storage{false};
-    size_t merge_min_size = 1024 * 1024 * 1024;
-    size_t merge_limit_parts = 10;
-
-    void load(const DB::ContextPtr & context)
-    {
-        const DB::Settings & settings = context->getSettingsRef();
-        merge_after_insert = settings.get(MERGETREE_MERGE_AFTER_INSERT).safeGet<bool>();
-        insert_without_local_storage = settings.get(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE).safeGet<bool>();
-
-        if (Field limit_size_field; settings.tryGet("optimize.minFileSize", limit_size_field))
-            merge_min_size = limit_size_field.safeGet<Int64>() <= 0 ? merge_min_size : limit_size_field.safeGet<Int64>();
-
-        if (Field limit_cnt_field; settings.tryGet("mergetree.max_num_part_per_merge_task", limit_cnt_field))
-            merge_limit_parts = limit_cnt_field.safeGet<Int64>() <= 0 ? merge_limit_parts : limit_cnt_field.safeGet<Int64>();
-    }
-};
-
-class SparkMergeTreeDataWriter
-{
-public:
-    explicit SparkMergeTreeDataWriter(MergeTreeData & data_) : data(data_), log(getLogger(data.getLogName() + " (Writer)")) { }
-    MergeTreeDataWriter::TemporaryPart writeTempPart(
-        DB::BlockWithPartition & block_with_partition,
-        const DB::StorageMetadataPtr & metadata_snapshot,
-        const ContextPtr & context,
-        const MergeTreePartitionWriteSettings & write_settings,
-        int part_num) const;
-
-private:
-    MergeTreeData & data;
-    LoggerPtr log;
-};
-
-class SparkStorageMergeTree final : public CustomStorageMergeTree
-{
-public:
-    SparkStorageMergeTree(const MergeTreeTable & table_, const StorageInMemoryMetadata & metadata, const ContextMutablePtr & context_)
-        : CustomStorageMergeTree(
-              StorageID(table_.database, table_.table),
-              table_.relative_path,
-              metadata,
-              false,
-              context_,
-              "",
-              MergingParams(),
-              buildMergeTreeSettings(table_.table_configs),
-              false /*has_force_restore_data_flag*/)
-        , table(table_)
-        , writer(*this)
-    {
-    }
-
-    SinkToStoragePtr
-    write(const ASTPtr & query, const StorageMetadataPtr & /*metadata_snapshot*/, ContextPtr context, bool async_insert) override;
-
-    SparkMergeTreeDataWriter & getWriter() { return writer; }
-
-private:
-    MergeTreeTable table;
-    SparkMergeTreeDataWriter writer;
-};
-
+class SinkHelper;
+using SinkHelperPtr = std::shared_ptr<SinkHelper>;
 
 // TODO: Remove ConcurrentDeque
 template <typename T>
@@ -226,8 +153,6 @@ public:
         assert(data != dest);
     }
 };
-
-using SinkHelperPtr = std::shared_ptr<SinkHelper>;
 
 class SparkMergeTreeSink : public DB::SinkToStorage
 {

@@ -16,6 +16,9 @@
  */
 #pragma once
 
+#include "MergeTreeTool.h"
+
+
 #include <Processors/QueryPlan/ReadFromMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/MergeTreeDataSelectExecutor.h>
@@ -26,6 +29,7 @@
 
 namespace local_engine
 {
+struct MergeTreePartitionWriteSettings;
 using namespace DB;
 
 class CustomStorageMergeTree : public MergeTreeData
@@ -77,6 +81,52 @@ protected:
     bool partIsAssignedToBackgroundOperation(const DataPartPtr & part) const override;
     MutationCommands getAlterMutationCommandsForPart(const DataPartPtr & /*part*/) const override { return {}; }
     void attachRestoredParts(MutableDataPartsVector && /*parts*/) override { throw std::runtime_error("not implement"); }
+};
+
+
+class SparkMergeTreeDataWriter
+{
+public:
+    explicit SparkMergeTreeDataWriter(MergeTreeData & data_) : data(data_), log(getLogger(data.getLogName() + " (Writer)")) { }
+    MergeTreeDataWriter::TemporaryPart writeTempPart(
+        DB::BlockWithPartition & block_with_partition,
+        const DB::StorageMetadataPtr & metadata_snapshot,
+        const ContextPtr & context,
+        const MergeTreePartitionWriteSettings & write_settings,
+        int part_num) const;
+
+private:
+    MergeTreeData & data;
+    LoggerPtr log;
+};
+
+class SparkStorageMergeTree final : public CustomStorageMergeTree
+{
+public:
+    SparkStorageMergeTree(const MergeTreeTable & table_, const StorageInMemoryMetadata & metadata, const ContextMutablePtr & context_)
+        : CustomStorageMergeTree(
+              StorageID(table_.database, table_.table),
+              table_.relative_path,
+              metadata,
+              false,
+              context_,
+              "",
+              MergingParams(),
+              buildMergeTreeSettings(table_.table_configs),
+              false /*has_force_restore_data_flag*/)
+        , table(table_)
+        , writer(*this)
+    {
+    }
+
+    SinkToStoragePtr
+    write(const ASTPtr & query, const StorageMetadataPtr & /*metadata_snapshot*/, ContextPtr context, bool async_insert) override;
+
+    SparkMergeTreeDataWriter & getWriter() { return writer; }
+
+private:
+    MergeTreeTable table;
+    SparkMergeTreeDataWriter writer;
 };
 
 }
