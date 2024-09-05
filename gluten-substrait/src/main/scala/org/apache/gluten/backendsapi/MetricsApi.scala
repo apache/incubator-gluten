@@ -57,7 +57,7 @@ trait MetricsApi extends Serializable {
 
   def genFilterTransformerMetrics(
       sparkContext: SparkContext,
-      extraMetric: Map[String, SQLMetric]): Map[String, SQLMetric]
+      extraMetric: Map[String, SQLMetric] = Map.empty): Map[String, SQLMetric]
 
   def genFilterTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 
