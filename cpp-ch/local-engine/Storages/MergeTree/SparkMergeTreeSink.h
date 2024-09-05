@@ -97,7 +97,7 @@ protected:
     ThreadPool thread_pool;
 
 public:
-    const GlutenMergeTreeWriteSettings write_settings;
+    const SparkMergeTreeWriteSettings write_settings;
     const DB::StorageMetadataPtr metadata_snapshot;
 
 protected:
@@ -118,7 +118,7 @@ public:
     void finish(const DB::ContextPtr & context);
 
     virtual ~SinkHelper() = default;
-    SinkHelper(const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_);
+    SinkHelper(const CustomStorageMergeTreePtr & data_, const SparkMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_);
 };
 
 class DirectSinkHelper : public SinkHelper
@@ -128,7 +128,7 @@ protected:
 
 public:
     explicit DirectSinkHelper(
-        const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
+        const CustomStorageMergeTreePtr & data_, const SparkMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
         : SinkHelper(data_, write_settings_, isRemoteStorage_)
     {
     }
@@ -147,7 +147,7 @@ public:
     explicit CopyToRemoteSinkHelper(
         const CustomStorageMergeTreePtr & temp,
         const CustomStorageMergeTreePtr & dest_,
-        const GlutenMergeTreeWriteSettings & write_settings_)
+        const SparkMergeTreeWriteSettings & write_settings_)
         : SinkHelper(temp, write_settings_, true), dest(dest_)
     {
         assert(data != dest);
@@ -159,7 +159,7 @@ class SparkMergeTreeSink : public DB::SinkToStorage
 public:
     static SinkHelperPtr create(
         const MergeTreeTable & merge_tree_table,
-        const GlutenMergeTreeWriteSettings & write_settings_,
+        const SparkMergeTreeWriteSettings & write_settings_,
         const DB::ContextMutablePtr & context);
 
     explicit SparkMergeTreeSink(const SinkHelperPtr & sink_helper_, const ContextPtr & context_)

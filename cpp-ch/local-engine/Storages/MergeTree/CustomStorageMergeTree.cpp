@@ -348,7 +348,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     BlockWithPartition & block_with_partition,
     const StorageMetadataPtr & metadata_snapshot,
     const ContextPtr & context,
-    const MergeTreePartitionWriteSettings & write_settings,
+    const SparkMergeTreeWritePartitionSettings & write_settings,
     int part_num) const
 {
     const std::string & part_name_prefix = write_settings.part_name_prefix;

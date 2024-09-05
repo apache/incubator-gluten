@@ -894,7 +894,8 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     const auto partition_dir = jstring2string(env, partition_dir_);
     const auto bucket_dir = jstring2string(env, bucket_dir_);
     auto uuid = uuid_str + "_" + task_id;
-    local_engine::MergeTreePartitionWriteSettings settings{.part_name_prefix{uuid}, .partition_dir{partition_dir}, .bucket_dir{bucket_dir}};
+    local_engine::SparkMergeTreeWritePartitionSettings settings{
+        .part_name_prefix{uuid}, .partition_dir{partition_dir}, .bucket_dir{bucket_dir}};
     settings.set(query_context);
 
     const auto split_info_a = local_engine::getByteArrayElementsSafe(env, split_info_);

@@ -50,7 +50,9 @@ namespace local_engine
 {
 
 std::unique_ptr<SparkMergeTreeWriter> SparkMergeTreeWriter::create(
-    const MergeTreeTable & merge_tree_table, const MergeTreePartitionWriteSettings & write_settings_, const DB::ContextMutablePtr & context)
+    const MergeTreeTable & merge_tree_table,
+    const SparkMergeTreeWritePartitionSettings & write_settings_,
+    const DB::ContextMutablePtr & context)
 {
     const DB::Settings & settings = context->getSettingsRef();
     const auto dest_storage = MergeTreeRelParser::getStorage(merge_tree_table, context);

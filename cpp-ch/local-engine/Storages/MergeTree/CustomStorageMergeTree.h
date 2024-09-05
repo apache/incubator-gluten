@@ -29,7 +29,7 @@
 
 namespace local_engine
 {
-struct MergeTreePartitionWriteSettings;
+struct SparkMergeTreeWritePartitionSettings;
 using namespace DB;
 
 class CustomStorageMergeTree : public MergeTreeData
@@ -92,7 +92,7 @@ public:
         DB::BlockWithPartition & block_with_partition,
         const DB::StorageMetadataPtr & metadata_snapshot,
         const ContextPtr & context,
-        const MergeTreePartitionWriteSettings & write_settings,
+        const SparkMergeTreeWritePartitionSettings & write_settings,
         int part_num) const;
 
 private:

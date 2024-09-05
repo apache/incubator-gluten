@@ -25,11 +25,11 @@ namespace local_engine
     M(String, partition_dir, , "The parition directory for writing data", UNIQ) \
     M(String, bucket_dir, , "The bucket directory for writing data", UNIQ)
 
-DECLARE_GLUTEN_SETTINGS(MergeTreePartitionWriteSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
+DECLARE_GLUTEN_SETTINGS(SparkMergeTreeWritePartitionSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
 
-struct GlutenMergeTreeWriteSettings
+struct SparkMergeTreeWriteSettings
 {
-    MergeTreePartitionWriteSettings partition_settings;
+    SparkMergeTreeWritePartitionSettings partition_settings;
     bool merge_after_insert{true};
     bool insert_without_local_storage{false};
     size_t merge_min_size = 1024 * 1024 * 1024;

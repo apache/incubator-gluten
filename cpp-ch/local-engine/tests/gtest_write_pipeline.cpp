@@ -408,7 +408,7 @@ TEST(WritePipeline, SparkMergeTree)
         = R"({"items":[{"uriFile":"{replace_local_files}","length":"19230111","parquet":{},"schema":{},"metadataColumns":[{}],"properties":{"fileSize":"19230111","modificationTime":"1722330598029"}}]})";
     constexpr std::string_view file{GLUTEN_SOURCE_TPCH_DIR("lineitem/part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet")};
 
-    MergeTreePartitionWriteSettings gm_write_settings{
+    SparkMergeTreeWritePartitionSettings gm_write_settings{
         .part_name_prefix{"this_is_prefix"},
     };
     gm_write_settings.set(context);

@@ -38,7 +38,7 @@ namespace local_engine
 SinkToStoragePtr SparkStorageMergeTree::write(
     const ASTPtr &, const StorageMetadataPtr & /*storage_in_memory_metadata*/, ContextPtr context, bool /*async_insert*/)
 {
-    GlutenMergeTreeWriteSettings settings{.partition_settings{MergeTreePartitionWriteSettings::get(context)}};
+    SparkMergeTreeWriteSettings settings{.partition_settings{SparkMergeTreeWritePartitionSettings::get(context)}};
     settings.load(context);
     SinkHelperPtr sink_helper = SparkMergeTreeSink::create(table, settings, getContext());
 #ifndef NDEBUG
@@ -85,7 +85,7 @@ void SparkMergeTreeSink::onFinish()
 
 /////
 SinkHelperPtr SparkMergeTreeSink::create(
-    const MergeTreeTable & merge_tree_table, const GlutenMergeTreeWriteSettings & write_settings_, const DB::ContextMutablePtr & context)
+    const MergeTreeTable & merge_tree_table, const SparkMergeTreeWriteSettings & write_settings_, const DB::ContextMutablePtr & context)
 {
     auto dest_storage = MergeTreeRelParser::getStorage(merge_tree_table, context);
     bool isRemoteStorage = dest_storage->getStoragePolicy()->getAnyDisk()->isRemote();
@@ -103,7 +103,7 @@ SinkHelperPtr SparkMergeTreeSink::create(
     return std::make_shared<DirectSinkHelper>(dest_storage, write_settings_, isRemoteStorage);
 }
 
-SinkHelper::SinkHelper(const CustomStorageMergeTreePtr & data_, const GlutenMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
+SinkHelper::SinkHelper(const CustomStorageMergeTreePtr & data_, const SparkMergeTreeWriteSettings & write_settings_, bool isRemoteStorage_)
     : data(data_)
     , isRemoteStorage(isRemoteStorage_)
     , thread_pool(CurrentMetrics::LocalThread, CurrentMetrics::LocalThreadActive, CurrentMetrics::LocalThreadScheduled, 1, 1, 100000)

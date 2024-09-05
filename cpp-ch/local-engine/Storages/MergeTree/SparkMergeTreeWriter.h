@@ -52,7 +52,7 @@ public:
     static String partInfosToJson(const std::vector<PartInfo> & part_infos);
     static std::unique_ptr<SparkMergeTreeWriter> create(
         const MergeTreeTable & merge_tree_table,
-        const MergeTreePartitionWriteSettings & write_settings_,
+        const SparkMergeTreeWritePartitionSettings & write_settings_,
         const DB::ContextMutablePtr & context);
 
     SparkMergeTreeWriter(
