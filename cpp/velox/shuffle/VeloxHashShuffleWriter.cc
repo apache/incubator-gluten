@@ -954,7 +954,7 @@ arrow::Status VeloxHashShuffleWriter::evictBuffers(
   if (!buffers.empty()) {
     auto payload = std::make_unique<InMemoryPayload>(numRows, &isValidityBuffer_, std::move(buffers));
     RETURN_NOT_OK(
-        partitionWriter_->evict(partitionId, std::move(payload), Evict::kCache, reuseBuffers, hasComplexType_, false));
+        partitionWriter_->hashEvict(partitionId, std::move(payload), Evict::kCache, reuseBuffers, hasComplexType_));
   }
   return arrow::Status::OK();
 }
@@ -1114,8 +1114,9 @@ arrow::Status VeloxHashShuffleWriter::reclaimFixedSize(int64_t size, int64_t* ac
 
   int64_t reclaimed = 0;
   if (reclaimed < size) {
+    auto before = partitionBufferPool_->bytes_allocated();
     ARROW_ASSIGN_OR_RAISE(auto cached, evictCachedPayload(size - reclaimed));
-    reclaimed += cached;
+    reclaimed += cached + (before - partitionBufferPool_->bytes_allocated());
   }
   if (reclaimed < size && shrinkPartitionBuffersAfterSpill()) {
     ARROW_ASSIGN_OR_RAISE(auto shrunken, shrinkPartitionBuffersMinSize(size - reclaimed));
@@ -1365,7 +1366,7 @@ arrow::Result<int64_t> VeloxHashShuffleWriter::evictPartitionBuffersMinSize(int6
       ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(pid, false));
       auto payload = std::make_unique<InMemoryPayload>(item.second, &isValidityBuffer_, std::move(buffers));
       metrics_.totalBytesToEvict += payload->rawSize();
-      RETURN_NOT_OK(partitionWriter_->evict(pid, std::move(payload), Evict::kSpill, false, hasComplexType_, false));
+      RETURN_NOT_OK(partitionWriter_->hashEvict(pid, std::move(payload), Evict::kSpill, false, hasComplexType_));
       evicted = beforeEvict - partitionBufferPool_->bytes_allocated();
       if (evicted >= size) {
         break;

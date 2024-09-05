@@ -118,6 +118,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
       nativeBufferSize,
       customizedCompressionCodec,
       compressionLevel,
+      compressionBufferSize,
       bufferCompressThreshold,
       GlutenConfig.getConf.columnarShuffleCompressionMode,
       conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,

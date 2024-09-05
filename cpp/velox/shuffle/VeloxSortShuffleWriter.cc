@@ -32,8 +32,6 @@ constexpr uint64_t kMaskLower40Bits = (1UL << 40) - 1;
 constexpr uint32_t kPartitionIdStartByteIndex = 5;
 constexpr uint32_t kPartitionIdEndByteIndex = 7;
 
-constexpr uint32_t kSortedBufferSize = 1 * 1024 * 1024;
-
 uint64_t toCompactRowId(uint32_t partitionId, uint32_t pageNumber, uint32_t offsetInPage) {
   // |63 partitionId(24) |39 inputIndex(13) |26 rowIndex(27) |
   return (uint64_t)partitionId << 40 | (uint64_t)pageNumber << 27 | offsetInPage;
@@ -106,8 +104,17 @@ arrow::Status VeloxSortShuffleWriter::init() {
       options_.partitioning == Partitioning::kSingle,
       arrow::Status::Invalid("VeloxSortShuffleWriter doesn't support single partition."));
   allocateMinimalArray();
-  sortedBuffer_ = facebook::velox::AlignedBuffer::allocate<char>(kSortedBufferSize, veloxPool_.get());
-  rawBuffer_ = sortedBuffer_->asMutable<uint8_t>();
+  // In Spark, sortedBuffer_ memory and compressionBuffer_ memory are pre-allocated and counted into executor
+  // memory overhead. To align with Spark, we use arrow::default_memory_pool() to avoid counting these memory in Gluten.
+  ARROW_ASSIGN_OR_RAISE(
+      sortedBuffer_, arrow::AllocateBuffer(options_.compressionBufferSize, arrow::default_memory_pool()));
+  rawBuffer_ = sortedBuffer_->mutable_data();
+  auto compressedBufferLength = partitionWriter_->getCompressedBufferLength(
+      {std::make_shared<arrow::Buffer>(rawBuffer_, options_.compressionBufferSize)});
+  if (compressedBufferLength.has_value()) {
+    ARROW_ASSIGN_OR_RAISE(
+        compressionBuffer_, arrow::AllocateBuffer(*compressedBufferLength, arrow::default_memory_pool()));
+  }
   return arrow::Status::OK();
 }
 
@@ -266,6 +273,7 @@ arrow::Status VeloxSortShuffleWriter::evictAllPartitions() {
 }
 
 arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_t begin, size_t end) {
+  VELOX_DCHECK(begin < end);
   // Count copy row time into sortTime_.
   Timer sortTime{};
   // Serialize [begin, end)
@@ -278,33 +286,51 @@ arrow::Status VeloxSortShuffleWriter::evictPartition(uint32_t partitionId, size_
     auto pageIndex = extractPageNumberAndOffset(arrayPtr_[index]);
     addr = pageAddresses_[pageIndex.first] + pageIndex.second;
     size = *(RowSizeType*)addr;
-    if (offset + size > kSortedBufferSize) {
+    if (offset + size > options_.compressionBufferSize && offset > 0) {
       sortTime.stop();
-      RETURN_NOT_OK(evictPartition0(partitionId, index - begin, offset));
+      RETURN_NOT_OK(evictPartition0(partitionId, index - begin, rawBuffer_, offset));
       sortTime.start();
       begin = index;
       offset = 0;
     }
-    gluten::fastCopy(rawBuffer_ + offset, addr, size);
-    offset += size;
+    if (size > options_.compressionBufferSize) {
+      // Split large rows.
+      sortTime.stop();
+      RowSizeType bytes = 0;
+      auto* buffer = reinterpret_cast<uint8_t*>(addr);
+      while (bytes < size) {
+        auto rawLength = std::min<RowSizeType>((uint32_t)options_.compressionBufferSize, size - bytes);
+        // Use numRows = 0 to represent a part of row.
+        RETURN_NOT_OK(evictPartition0(partitionId, 0, buffer + bytes, rawLength));
+        bytes += rawLength;
+      }
+      begin++;
+      sortTime.start();
+    } else {
+      // Copy small rows.
+      gluten::fastCopy(rawBuffer_ + offset, addr, size);
+      offset += size;
+    }
     index++;
   }
   sortTime.stop();
-  RETURN_NOT_OK(evictPartition0(partitionId, index - begin, offset));
-
+  if (offset > 0) {
+    VELOX_CHECK(index > begin);
+    RETURN_NOT_OK(evictPartition0(partitionId, index - begin, rawBuffer_, offset));
+  }
   sortTime_ += sortTime.realTimeUsed();
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxSortShuffleWriter::evictPartition0(uint32_t partitionId, uint32_t numRows, int64_t rawLength) {
+arrow::Status
+VeloxSortShuffleWriter::evictPartition0(uint32_t partitionId, int32_t numRows, uint8_t* buffer, int64_t rawLength) {
   VELOX_CHECK(rawLength > 0);
   auto payload = std::make_unique<InMemoryPayload>(
       numRows,
       nullptr,
-      std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(rawBuffer_, rawLength)});
+      std::vector<std::shared_ptr<arrow::Buffer>>{std::make_shared<arrow::Buffer>(buffer, rawLength)});
   updateSpillMetrics(payload);
-  RETURN_NOT_OK(
-      partitionWriter_->evict(partitionId, std::move(payload), Evict::type::kSortSpill, false, false, stopped_));
+  RETURN_NOT_OK(partitionWriter_->sortEvict(partitionId, std::move(payload), compressionBuffer_, stopped_));
   return arrow::Status::OK();
 }
 

@@ -70,12 +70,17 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
   std::vector<int32_t> mergeBufferSizes = {0, 3, 4, 10, 4096};
 
   for (const auto& compression : compressions) {
-    for (auto useRadixSort : {true, false}) {
-      params.push_back(ShuffleTestParams{
-          ShuffleWriterType::kSortShuffle, PartitionWriterType::kLocal, compression, 0, 0, useRadixSort});
+    for (const auto compressionBufferSize : {4, 56, 32 * 1024}) {
+      for (auto useRadixSort : {true, false}) {
+        params.push_back(ShuffleTestParams{
+            .shuffleWriterType = ShuffleWriterType::kSortShuffle,
+            .partitionWriterType = PartitionWriterType::kLocal,
+            .compressionType = compression,
+            .compressionBufferSize = compressionBufferSize,
+            .useRadixSort = useRadixSort});
+      }
     }
-    params.push_back(
-        ShuffleTestParams{ShuffleWriterType::kRssSortShuffle, PartitionWriterType::kRss, compression, 0, 0, false});
+    params.push_back(ShuffleTestParams{ShuffleWriterType::kRssSortShuffle, PartitionWriterType::kRss, compression});
     for (const auto compressionThreshold : compressionThresholds) {
       for (const auto mergeBufferSize : mergeBufferSizes) {
         params.push_back(ShuffleTestParams{
@@ -83,11 +88,10 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
             PartitionWriterType::kLocal,
             compression,
             compressionThreshold,
-            mergeBufferSize,
-            false /* unused */});
+            mergeBufferSize});
       }
       params.push_back(ShuffleTestParams{
-          ShuffleWriterType::kHashShuffle, PartitionWriterType::kRss, compression, compressionThreshold, 0});
+          ShuffleWriterType::kHashShuffle, PartitionWriterType::kRss, compression, compressionThreshold});
     }
   }
 
@@ -588,8 +592,10 @@ TEST_F(VeloxHashShuffleWriterMemoryTest, kSplitSingle) {
 TEST_F(VeloxHashShuffleWriterMemoryTest, kStop) {
   for (const auto partitioning : {Partitioning::kSingle, Partitioning::kRoundRobin}) {
     ASSERT_NOT_OK(initShuffleWriterOptions());
-    shuffleWriterOptions_.partitioning = partitioning;
-    shuffleWriterOptions_.bufferSize = 4;
+    shuffleWriterOptions_.bufferSize = 4096;
+    // Force compression.
+    partitionWriterOptions_.compressionThreshold = 0;
+    partitionWriterOptions_.mergeThreshold = 0;
     auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get(), false);
     auto shuffleWriter = createShuffleWriter(&pool);
 
@@ -597,19 +603,23 @@ TEST_F(VeloxHashShuffleWriterMemoryTest, kStop) {
 
     for (int i = 0; i < 10; ++i) {
       ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
-      ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector2_));
-      ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
     }
+    // Reclaim bytes to shrink partition buffer.
+    int64_t reclaimed = 0;
+    ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(2000, &reclaimed));
+    ASSERT(reclaimed >= 2000);
 
     // Trigger spill during stop.
-    // For single partitioning, spill is triggered by allocating buffered output stream.
     ASSERT_TRUE(pool.checkEvict(pool.bytes_allocated(), [&] { ASSERT_NOT_OK(shuffleWriter->stop()); }));
   }
 }
 
 TEST_F(VeloxHashShuffleWriterMemoryTest, kStopComplex) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
-  shuffleWriterOptions_.bufferSize = 4;
+  shuffleWriterOptions_.bufferSize = 4096;
+  // Force compression.
+  partitionWriterOptions_.compressionThreshold = 0;
+  partitionWriterOptions_.mergeThreshold = 0;
   auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get(), false);
   auto shuffleWriter = createShuffleWriter(&pool);
 
@@ -617,6 +627,10 @@ TEST_F(VeloxHashShuffleWriterMemoryTest, kStopComplex) {
   for (int i = 0; i < 3; ++i) {
     ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVectorComplex_));
   }
+  // Reclaim bytes to shrink partition buffer.
+  int64_t reclaimed = 0;
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(2000, &reclaimed));
+  ASSERT(reclaimed >= 2000);
 
   // Reclaim from PartitionWriter to free cached bytes.
   auto payloadSize = shuffleWriter->cachedPayloadSize();

@@ -84,7 +84,8 @@ class BlockPayload final : public Payload {
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       const std::vector<bool>* isValidityBuffer,
       arrow::MemoryPool* pool,
-      arrow::util::Codec* codec);
+      arrow::util::Codec* codec,
+      std::shared_ptr<arrow::Buffer> compressed);
 
   static arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> deserialize(
       arrow::io::InputStream* inputStream,
@@ -92,6 +93,10 @@ class BlockPayload final : public Payload {
       arrow::MemoryPool* pool,
       uint32_t& numRows,
       int64_t& decompressTime);
+
+  static int64_t maxCompressedLength(
+      const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+      arrow::util::Codec* codec);
 
   arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
 
@@ -131,8 +136,11 @@ class InMemoryPayload final : public Payload {
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index) override;
 
-  arrow::Result<std::unique_ptr<BlockPayload>>
-  toBlockPayload(Payload::Type payloadType, arrow::MemoryPool* pool, arrow::util::Codec* codec);
+  arrow::Result<std::unique_ptr<BlockPayload>> toBlockPayload(
+      Payload::Type payloadType,
+      arrow::MemoryPool* pool,
+      arrow::util::Codec* codec,
+      std::shared_ptr<arrow::Buffer> compressed = nullptr);
 
   arrow::Status copyBuffers(arrow::MemoryPool* pool);
 

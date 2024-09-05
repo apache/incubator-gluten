@@ -186,29 +186,30 @@ arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
     std::vector<std::shared_ptr<arrow::Buffer>> buffers,
     const std::vector<bool>* isValidityBuffer,
     arrow::MemoryPool* pool,
-    arrow::util::Codec* codec) {
+    arrow::util::Codec* codec,
+    std::shared_ptr<arrow::Buffer> compressed) {
   if (payloadType == Payload::Type::kCompressed) {
     Timer compressionTime;
     compressionTime.start();
     // Compress.
-    // Compressed buffer layout: | buffer1 compressedLength | buffer1 uncompressedLength | buffer1 | ...
-    const auto metadataLength = sizeof(int64_t) * 2 * buffers.size();
-    int64_t totalCompressedLength =
-        std::accumulate(buffers.begin(), buffers.end(), 0LL, [&](auto sum, const auto& buffer) {
-          if (!buffer) {
-            return sum;
-          }
-          return sum + codec->MaxCompressedLen(buffer->size(), buffer->data());
-        });
-    const auto maxCompressedLength = metadataLength + totalCompressedLength;
-    ARROW_ASSIGN_OR_RAISE(
-        std::shared_ptr<arrow::ResizableBuffer> compressed, arrow::AllocateResizableBuffer(maxCompressedLength, pool));
+    auto maxLength = maxCompressedLength(buffers, codec);
+    std::shared_ptr<arrow::Buffer> compressedBuffer;
+    uint8_t* output;
+    if (compressed) {
+      ARROW_RETURN_IF(
+          compressed->size() < maxLength,
+          arrow::Status::Invalid(
+              "Compressed buffer length < maxCompressedLength. (", compressed->size(), " vs ", maxLength, ")"));
+      output = const_cast<uint8_t*>(compressed->data());
+    } else {
+      ARROW_ASSIGN_OR_RAISE(compressedBuffer, arrow::AllocateResizableBuffer(maxLength, pool));
+      output = compressedBuffer->mutable_data();
+    }
 
-    auto output = compressed->mutable_data();
     int64_t actualLength = 0;
     // Compress buffers one by one.
     for (auto& buffer : buffers) {
-      auto availableLength = maxCompressedLength - actualLength;
+      auto availableLength = maxLength - actualLength;
       // Release buffer after compression.
       ARROW_ASSIGN_OR_RAISE(auto compressedSize, compressBuffer(std::move(buffer), output, availableLength, codec));
       output += compressedSize;
@@ -216,15 +217,14 @@ arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
     }
 
     ARROW_RETURN_IF(actualLength < 0, arrow::Status::Invalid("Writing compressed buffer out of bound."));
-    RETURN_NOT_OK(compressed->Resize(actualLength));
+    if (compressed) {
+      compressedBuffer = std::make_shared<arrow::Buffer>(compressed->data(), actualLength);
+    } else {
+      RETURN_NOT_OK(std::dynamic_pointer_cast<arrow::ResizableBuffer>(compressedBuffer)->Resize(actualLength));
+    }
     compressionTime.stop();
-    auto payload = std::unique_ptr<BlockPayload>(new BlockPayload(
-        Type::kCompressed,
-        numRows,
-        std::vector<std::shared_ptr<arrow::Buffer>>{compressed},
-        isValidityBuffer,
-        pool,
-        codec));
+    auto payload = std::unique_ptr<BlockPayload>(
+        new BlockPayload(Type::kCompressed, numRows, {compressedBuffer}, isValidityBuffer, pool, codec));
     payload->setCompressionTime(compressionTime.realTimeUsed());
     return payload;
   }
@@ -329,6 +329,21 @@ int64_t BlockPayload::rawSize() {
   return getBufferSize(buffers_);
 }
 
+int64_t BlockPayload::maxCompressedLength(
+    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    arrow::util::Codec* codec) {
+  // Compressed buffer layout: | buffer1 compressedLength | buffer1 uncompressedLength | buffer1 | ...
+  const auto metadataLength = sizeof(int64_t) * 2 * buffers.size();
+  int64_t totalCompressedLength =
+      std::accumulate(buffers.begin(), buffers.end(), 0LL, [&](auto sum, const auto& buffer) {
+        if (!buffer) {
+          return sum;
+        }
+        return sum + codec->MaxCompressedLen(buffer->size(), buffer->data());
+      });
+  return metadataLength + totalCompressedLength;
+}
+
 arrow::Result<std::unique_ptr<InMemoryPayload>> InMemoryPayload::merge(
     std::unique_ptr<InMemoryPayload> source,
     std::unique_ptr<InMemoryPayload> append,
@@ -404,9 +419,13 @@ arrow::Result<std::unique_ptr<InMemoryPayload>> InMemoryPayload::merge(
   return std::make_unique<InMemoryPayload>(mergedRows, isValidityBuffer, std::move(merged));
 }
 
-arrow::Result<std::unique_ptr<BlockPayload>>
-InMemoryPayload::toBlockPayload(Payload::Type payloadType, arrow::MemoryPool* pool, arrow::util::Codec* codec) {
-  return BlockPayload::fromBuffers(payloadType, numRows_, std::move(buffers_), isValidityBuffer_, pool, codec);
+arrow::Result<std::unique_ptr<BlockPayload>> InMemoryPayload::toBlockPayload(
+    Payload::Type payloadType,
+    arrow::MemoryPool* pool,
+    arrow::util::Codec* codec,
+    std::shared_ptr<arrow::Buffer> compressed) {
+  return BlockPayload::fromBuffers(
+      payloadType, numRows_, std::move(buffers_), isValidityBuffer_, pool, codec, std::move(compressed));
 }
 
 arrow::Status InMemoryPayload::serialize(arrow::io::OutputStream* outputStream) {
