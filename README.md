@@ -10,13 +10,16 @@
 
 ## 1.1 Problem Statement
 
-Apache Spark is a stable, mature project that has been developed for many years. It is one of the best frameworks to scale out for processing petabyte-scale datasets. However, the Spark community has had to address performance challenges that require various optimizations over time. As a key optimization in Spark 2.0, Whole Stage Code Generation is introduced to replace Volcano Model, which achieves 2x speedup. Henceforth, most optimizations are at query plan level. Single operator's performance almost stops growing.
+Apache Spark is a stable, mature project that has been developed for many years. It is one of the best frameworks to scale out for processing petabyte-scale datasets. However, the Spark community has had to address
+performance challenges that require various optimizations over time. As a key optimization in Spark 2.0, Whole Stage Code Generation is introduced to replace Volcano Model, which achieves 2x speedup. Henceforth, most
+optimizations are at query plan level. Single operator's performance almost stops growing.
 
 <p align="center">
 <img src="https://user-images.githubusercontent.com/47296334/199853029-b6d0ea19-f8e4-4f62-9562-2838f7f159a7.png" width="800">
 </p>
 
-On the other side, SQL engines have been researched for many years. There are a few libraries like Clickhouse, Arrow and Velox, etc. By using features like native implementation, columnar data format and vectorized data processing, these libraries can outperform Spark's JVM based SQL engine. However, these libraries only support single node execution.
+On the other side, SQL engines have been researched for many years. There are a few libraries like Clickhouse, Arrow and Velox, etc. By using features like native implementation, columnar data format and vectorized
+data processing, these libraries can outperform Spark's JVM based SQL engine. However, these libraries only support single node execution.
 
 ## 1.2 Gluten's Solution
 
@@ -33,7 +36,7 @@ The basic rule of Gluten's design is that we would reuse spark's whole control f
 
 ## 1.3 Target User
 
-Gluten's target user is anyone who wants to accelerate SparkSQL fundamentally. As a plugin to Spark, Gluten doesn't require any change for dataframe API or SQL query, but only requires user to make correct configuration.
+Gluten's target user is anyone who aspires to accelerate SparkSQL fundamentally. As a plugin to Spark, Gluten doesn't require any change for dataframe API or SQL query, but only requires user to make correct configuration.
 See Gluten configuration properties [here](https://github.com/apache/incubator-gluten/blob/main/docs/Configuration.md).
 
 ## 1.4 References
@@ -63,58 +66,42 @@ There are several key components in Gluten:
 
 # 3 How to Use
 
-There are two ways to use Gluten.
-
-# 3.1 Use Released Jar
-
-One way is to use released jar. Here is a simple example. Currently, only centos7/8 and ubuntu20.04/22.04 are well supported.
+Here is a basic configuration to enable Gluten in Spark.
 
 ```
-spark-shell \
- --master yarn --deploy-mode client \
- --conf spark.plugins=org.apache.gluten.GlutenPlugin \
- --conf spark.memory.offHeap.enabled=true \
- --conf spark.memory.offHeap.size=20g \
- --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
- --jars https://github.com/apache/incubator-gluten/releases/download/v1.1.1/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04_x86_64-1.1.1.jar
-```
-
-# 3.2 Custom Build
-
-Alternatively, you can build gluten from source, then do some configurations to enable Gluten plugin for Spark. Here is a simple example. Please refer to the corresponding backend part below for more details.
-
-```
-export gluten_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
+export GLUTEN_JAR=/PATH/TO/GLUTEN_JAR
 spark-shell \
   --master yarn --deploy-mode client \
   --conf spark.plugins=org.apache.gluten.GlutenPlugin \
   --conf spark.memory.offHeap.enabled=true \
   --conf spark.memory.offHeap.size=20g \
-  --conf spark.driver.extraClassPath=${gluten_jar} \
-  --conf spark.executor.extraClassPath=${gluten_jar} \
+  --conf spark.driver.extraClassPath=${GLUTEN_JAR} \
+  --conf spark.executor.extraClassPath=${GLUTEN_JAR} \
   --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager
   ...
 ```
 
-### 3.2.1 Build and install Gluten with Velox backend
+There are two ways to acquire Gluten jar.
 
-If you want to use Gluten **Velox** backend, see [Build with Velox](./docs/get-started/Velox.md) to build and install the necessary libraries.
+# 3.1 Use Released Jar (only applicable to Velox backend)
 
-### 3.2.2 Build and install Gluten with ClickHouse backend
+Please download a tar package [here](https://downloads.apache.org/incubator/gluten/), then extract out Gluten jar from it.
 
-If you want to use Gluten **ClickHouse** backend, see [Build with ClickHouse Backend](./docs/get-started/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
+# 3.2 Custom Build
 
-### 3.2.3 Build options
+For **Velox** backend, please refer to [Velox.md](./docs/get-started/Velox.md) and [build-guide.md](./docs/get-started/build-guide.md).
 
-See [Gluten build guide](./docs/get-started/build-guide.md).
+For **ClickHouse** backend, please refer to [ClickHouse.md](./docs/get-started/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more information.
+
+Gluten jar will be generated under `/PATH/TO/GLUTEN/package/target/` after build.
 
 # 4 Contribution
 
-Welcome to contribute to Gluten project! See [contributing guide](CONTRIBUTING.md) about how to make contributions.
+Welcome to contribute to Gluten project! See [CONTRIBUTING.md](CONTRIBUTING.md) about how to make contributions.
 
 ## 4.1 Community
 
-Gluten successfully joined Apache Incubator since March'24. We welcome developers and users who are interested in Gluten project. Here are several ways to contact us:
+Gluten successfully became Apache incubator project in March'24. We welcome all developers and users who are interested in this project. Here are several ways to contact us:
 
 ### Gluten website
 https://gluten.apache.org/
@@ -154,14 +141,9 @@ The below testing environment: a 8-nodes AWS cluster with 1TB data; Spark-3.1.1 
 
 Gluten is licensed under [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0).
 
-# 7 Contact
+# 7 Acknowledgements
 
-Gluten was initiated by Intel and Kyligence in 2022. Several companies are also actively participating in the development, such as BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft, etc. If you are interested in Gluten project, please contact and subscribe below mailing lists for further discussion.
-
-* For community activity: dev@gluten.apache.org
-* For code repository activity: commits@gluten.apache.org
-
-# 8 Thanks to our contributors
+Gluten was initiated by Intel and Kyligence in 2022. Several companies are also actively participating in the development, such as BIGO, Meituan, Alibaba Cloud, NetEase, Baidu, Microsoft, etc.
 
 <a href="https://github.com/apache/incubator-gluten/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=apache/incubator-gluten&columns=25" />
