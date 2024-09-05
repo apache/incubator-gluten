@@ -38,12 +38,12 @@ public abstract class VeloxBackendTestBase {
     api.onDriverStart(mockSparkContext(), mockPluginContext());
   }
 
-  public static SparkContext mockSparkContext() {
+  private static SparkContext mockSparkContext() {
     // Not yet implemented.
     return null;
   }
 
-  public static PluginContext mockPluginContext() {
+  private static PluginContext mockPluginContext() {
     return new PluginContext() {
       @Override
       public MetricRegistry metricRegistry() {
