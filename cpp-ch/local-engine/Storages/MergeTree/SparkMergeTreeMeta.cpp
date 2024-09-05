@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "MergeTreeTool.h"
+#include "SparkMergeTreeMeta.h"
 
 #include <google/protobuf/util/json_util.h>
 #include <rapidjson/document.h>

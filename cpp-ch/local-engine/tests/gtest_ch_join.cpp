@@ -26,7 +26,7 @@
 #include <Processors/Sources/SourceFromSingleChunk.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 
-#include <Storages/MergeTree/MergeTreeTool.h>
+#include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <gtest/gtest.h>
 #include <Common/DebugUtils.h>

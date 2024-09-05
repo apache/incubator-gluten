@@ -19,7 +19,7 @@
 #include <Common/GlutenConfig.h>
 
 #include <Storages/MergeTree/CustomStorageMergeTree.h>
-#include <Storages/MergeTree/MergeTreeTool.h>
+#include <Storages/MergeTree/SparkMergeTreeMeta.h>
 
 namespace local_engine
 {

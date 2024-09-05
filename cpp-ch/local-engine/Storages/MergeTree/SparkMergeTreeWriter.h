@@ -19,7 +19,7 @@
 #include <Interpreters/Context.h>
 #include <Processors/Executors/PushingPipelineExecutor.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
-#include <Storages/MergeTree/MergeTreeTool.h>
+#include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 
 namespace DB

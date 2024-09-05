@@ -20,8 +20,8 @@
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/MergeTreeDataSelectExecutor.h>
 #include <Storages/MergeTree/MergeTreeDataWriter.h>
-#include <Storages/MergeTree/MergeTreeTool.h>
 #include <Storages/MergeTree/RangesInDataPart.h>
+#include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MutationCommands.h>
 #include <Storages/StorageMergeTree.h>
 

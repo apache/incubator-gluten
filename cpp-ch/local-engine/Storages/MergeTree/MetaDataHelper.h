@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include <Storages/MergeTree/MergeTreeTool.h>
+#include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 
 namespace local_engine

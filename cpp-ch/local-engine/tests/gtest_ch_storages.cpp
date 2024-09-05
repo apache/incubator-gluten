@@ -20,7 +20,7 @@
 #include <Parsers/ASTFunction.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Storages/MergeTree/MergeTreeTool.h>
+#include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>

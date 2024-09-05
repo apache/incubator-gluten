@@ -21,7 +21,7 @@
 
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Storages/MergeTree/MergeTreeTool.h>
+#include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 
 namespace DB

@@ -18,7 +18,7 @@
 
 #include <Processors/Sinks/SinkToStorage.h>
 #include <Storages/MergeTree/CustomStorageMergeTree.h>
-#include <Storages/MergeTree/MergeTreeTool.h>
+#include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/SparkMergeTreeWriteSettings.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenSettings.h>
