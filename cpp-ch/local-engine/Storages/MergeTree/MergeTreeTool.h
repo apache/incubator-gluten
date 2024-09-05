@@ -43,7 +43,7 @@ struct MergeTreePart
 
 struct MergeTreeTableSettings
 {
-    std::string storage_policy = "";
+    std::string storage_policy{};
 };
 
 struct MergeTreeTable
@@ -58,7 +58,7 @@ struct MergeTreeTable
     std::string minmax_index_key;
     std::string bf_index_key;
     std::string set_index_key;
-    std::string primary_key = "";
+    std::string primary_key{};
     std::string relative_path;
     std::string absolute_path;
     MergeTreeTableSettings table_configs;

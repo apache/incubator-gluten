@@ -16,13 +16,11 @@
  */
 #pragma once
 
-#include "MergeTreeTool.h"
-
-
 #include <Processors/QueryPlan/ReadFromMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/MergeTreeDataSelectExecutor.h>
 #include <Storages/MergeTree/MergeTreeDataWriter.h>
+#include <Storages/MergeTree/MergeTreeTool.h>
 #include <Storages/MergeTree/RangesInDataPart.h>
 #include <Storages/MutationCommands.h>
 #include <Storages/StorageMergeTree.h>
@@ -32,6 +30,22 @@ namespace local_engine
 struct SparkMergeTreeWritePartitionSettings;
 using namespace DB;
 
+class SparkMergeTreeDataWriter
+{
+public:
+    explicit SparkMergeTreeDataWriter(MergeTreeData & data_) : data(data_), log(getLogger(data.getLogName() + " (Writer)")) { }
+    MergeTreeDataWriter::TemporaryPart writeTempPart(
+        DB::BlockWithPartition & block_with_partition,
+        const DB::StorageMetadataPtr & metadata_snapshot,
+        const ContextPtr & context,
+        const SparkMergeTreeWritePartitionSettings & write_settings,
+        int part_num) const;
+
+private:
+    MergeTreeData & data;
+    LoggerPtr log;
+};
+
 class CustomStorageMergeTree : public MergeTreeData
 {
     friend class MergeSparkMergeTreeTask;
@@ -39,16 +53,6 @@ class CustomStorageMergeTree : public MergeTreeData
 public:
     static void wrapRangesInDataParts(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges);
     static void analysisPartsByRanges(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges_in_data_parts);
-    CustomStorageMergeTree(
-        const StorageID & table_id_,
-        const String & relative_data_path_,
-        const StorageInMemoryMetadata & metadata,
-        bool attach,
-        const ContextMutablePtr & context_,
-        const String & date_column_name,
-        const MergingParams & merging_params_,
-        std::unique_ptr<MergeTreeSettings> settings_,
-        bool has_force_restore_data_flag = false);
     std::string getName() const override;
     std::vector<MergeTreeMutationStatus> getMutationsStatus() const override;
     bool scheduleDataProcessingJob(BackgroundJobsAssignee & executor) override;
@@ -59,9 +63,20 @@ public:
     MergeTreeDataSelectExecutor reader;
     MergeTreeDataMergerMutator merger_mutator;
 
-    static std::atomic<int> part_num;
+protected:
+    CustomStorageMergeTree(
+        const StorageID & table_id_,
+        const String & relative_data_path_,
+        const StorageInMemoryMetadata & metadata,
+        bool attach,
+        const ContextMutablePtr & context_,
+        const String & date_column_name,
+        const MergingParams & merging_params_,
+        std::unique_ptr<MergeTreeSettings> settings_,
+        bool has_force_restore_data_flag = false);
 
 private:
+    static std::atomic<int> part_num;
     SimpleIncrement increment;
 
     void prefetchMetaDataFile(std::unordered_set<std::string> parts) const;
@@ -81,23 +96,6 @@ protected:
     bool partIsAssignedToBackgroundOperation(const DataPartPtr & part) const override;
     MutationCommands getAlterMutationCommandsForPart(const DataPartPtr & /*part*/) const override { return {}; }
     void attachRestoredParts(MutableDataPartsVector && /*parts*/) override { throw std::runtime_error("not implement"); }
-};
-
-
-class SparkMergeTreeDataWriter
-{
-public:
-    explicit SparkMergeTreeDataWriter(MergeTreeData & data_) : data(data_), log(getLogger(data.getLogName() + " (Writer)")) { }
-    MergeTreeDataWriter::TemporaryPart writeTempPart(
-        DB::BlockWithPartition & block_with_partition,
-        const DB::StorageMetadataPtr & metadata_snapshot,
-        const ContextPtr & context,
-        const SparkMergeTreeWritePartitionSettings & write_settings,
-        int part_num) const;
-
-private:
-    MergeTreeData & data;
-    LoggerPtr log;
 };
 
 class SparkStorageMergeTree final : public CustomStorageMergeTree
