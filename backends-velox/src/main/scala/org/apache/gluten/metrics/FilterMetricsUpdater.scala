@@ -18,7 +18,10 @@ package org.apache.gluten.metrics
 
 import org.apache.spark.sql.execution.metric.SQLMetric
 
-class FilterMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+class FilterMetricsUpdater(
+    val metrics: Map[String, SQLMetric],
+    val extraMetrics: Seq[(String, SQLMetric)])
+  extends MetricsUpdater {
 
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
     if (opMetrics != null) {
@@ -30,8 +33,12 @@ class FilterMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsU
       metrics("wallNanos") += operatorMetrics.wallNanos
       metrics("peakMemoryBytes") += operatorMetrics.peakMemoryBytes
       metrics("numMemoryAllocations") += operatorMetrics.numMemoryAllocations
-      if (metrics.contains("incrementMetric")) {
-        metrics("incrementMetric") += operatorMetrics.outputRows
+      extraMetrics.foreach {
+        case (name, metric) =>
+          name match {
+            case "increment_metric" => metric += operatorMetrics.outputRows
+            case _ => // do nothing
+          }
       }
     }
   }

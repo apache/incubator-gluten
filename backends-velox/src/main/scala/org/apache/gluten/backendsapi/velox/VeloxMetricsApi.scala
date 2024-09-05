@@ -162,9 +162,7 @@ class VeloxMetricsApi extends MetricsApi with Logging {
   override def genFileSourceScanTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new FileSourceScanMetricsUpdater(metrics)
 
-  override def genFilterTransformerMetrics(
-      sparkContext: SparkContext,
-      extraMetric: Map[String, SQLMetric] = Map.empty): Map[String, SQLMetric] =
+  override def genFilterTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
@@ -175,10 +173,12 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
         "number of memory allocations")
-    ) ++ extraMetric
+    )
 
-  override def genFilterTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
-    new FilterMetricsUpdater(metrics)
+  override def genFilterTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric],
+      extraMetrics: Seq[(String, SQLMetric)] = Seq.empty): MetricsUpdater =
+    new FilterMetricsUpdater(metrics, extraMetrics)
 
   override def genProjectTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
@@ -194,7 +194,9 @@ class VeloxMetricsApi extends MetricsApi with Logging {
     )
 
   override def genProjectTransformerMetricsUpdater(
-      metrics: Map[String, SQLMetric]): MetricsUpdater = new ProjectMetricsUpdater(metrics)
+      metrics: Map[String, SQLMetric],
+      extraMetrics: Seq[(String, SQLMetric)] = Seq.empty): MetricsUpdater =
+    new ProjectMetricsUpdater(metrics, extraMetrics)
 
   override def genHashAggregateTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =

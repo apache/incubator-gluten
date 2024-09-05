@@ -34,14 +34,16 @@ import scala.collection.JavaConverters._
 case class DeltaFilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecTransformerBase(condition, child) {
 
-  private var extraMetric: Map[String, SQLMetric] = Map.empty
+  private var extraMetrics: Seq[(String, SQLMetric)] = Seq.empty
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
-    BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext, extraMetric)
+    BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
 
   override def metricsUpdater(): MetricsUpdater =
-    BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
+    BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(
+      metrics,
+      extraMetrics)
 
   override def getRelNode(
       context: SubstraitContext,
@@ -54,7 +56,7 @@ case class DeltaFilterExecTransformer(condition: Expression, child: SparkPlan)
     val args = context.registeredFunction
     val condExprNode = condExpr match {
       case IncrementMetric(child, metric) =>
-        extraMetric ++= Map(metric.id.toString -> metric)
+        extraMetrics :+= (condExpr.prettyName, metric)
         ExpressionConverter
           .replaceWithExpressionTransformer(child, attributeSeq = originalInputAttributes)
           .doTransform(args)
