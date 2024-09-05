@@ -34,7 +34,7 @@ class SparkDirectoryUtil private (val roots: Array[String]) extends Logging {
     rootDir =>
       try {
         val localDir = Utils.createDirectory(rootDir, "gluten")
-        GlutenShutdownManager.addHookForTempDirRemoval(
+        SparkShutdownManagerUtil.addHookForTempDirRemoval(
           () => {
             try FileUtils.forceDelete(localDir)
             catch {

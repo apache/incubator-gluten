@@ -18,7 +18,7 @@ package org.apache.gluten.jni;
 
 import org.apache.gluten.exception.GlutenException;
 
-import org.apache.spark.util.GlutenShutdownManager;
+import org.apache.spark.util.SparkShutdownManagerUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +51,7 @@ public class JniLibLoader {
       Collections.synchronizedSet(new LinkedHashSet<>());
 
   static {
-    GlutenShutdownManager.addHookForLibUnloading(
+    SparkShutdownManagerUtil.addHookForLibUnloading(
         () -> {
           forceUnloadAll();
           return BoxedUnit.UNIT;
