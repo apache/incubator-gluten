@@ -23,7 +23,6 @@
 #include <Disks/ObjectStorages/HDFS/HDFSObjectStorage.h>
 #include <Interpreters/InterpreterCreateQuery.h>
 #include <Interpreters/Squashing.h>
-#include <Parser/MergeTreeRelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
@@ -43,7 +42,6 @@
 #include <gtest/gtest.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
-
 
 using namespace local_engine;
 using namespace DB;
@@ -389,7 +387,7 @@ TEST(WritePipeline, SparkMergeTree)
     const Settings & settings = context->getSettingsRef();
 
     const auto extension_table = local_engine::JsonStringToMessage<substrait::ReadRel::ExtensionTable>(EMBEDDED_PLAN(_1_mergetree_));
-    const auto merge_tree_table = MergeTreeRelParser::parseMergeTreeTable(extension_table);
+    const auto merge_tree_table = MergeTreeTableInstance::parseMergeTreeTable(extension_table);
 
     EXPECT_EQ(merge_tree_table.database, "default");
     EXPECT_EQ(merge_tree_table.table, "lineitem_mergetree");
@@ -398,7 +396,7 @@ TEST(WritePipeline, SparkMergeTree)
 
     do_remove(merge_tree_table.relative_path);
 
-    const auto dest_storage = MergeTreeRelParser::getStorage(merge_tree_table, SerializedPlanParser::global_context);
+    const auto dest_storage = MergeTreeTable::getStorage(merge_tree_table, SerializedPlanParser::global_context);
     EXPECT_TRUE(dest_storage);
     EXPECT_FALSE(dest_storage->getStoragePolicy()->getAnyDisk()->isRemote());
     DB::StorageMetadataPtr metadata_snapshot = dest_storage->getInMemoryMetadataPtr();
@@ -433,13 +431,13 @@ TEST(WritePipeline, SparkMergeTree)
     {
         const auto extension_table_hdfs
             = local_engine::JsonStringToMessage<substrait::ReadRel::ExtensionTable>(EMBEDDED_PLAN(_1_mergetree_hdfs_));
-        const auto merge_tree_table_hdfs = MergeTreeRelParser::parseMergeTreeTable(extension_table_hdfs);
+        const auto merge_tree_table_hdfs = MergeTreeTableInstance::parseMergeTreeTable(extension_table_hdfs);
         EXPECT_EQ(merge_tree_table_hdfs.database, "default");
         EXPECT_EQ(merge_tree_table_hdfs.table, "lineitem_mergetree_hdfs");
         EXPECT_EQ(merge_tree_table_hdfs.relative_path, "3.5/test/lineitem_mergetree_hdfs");
         EXPECT_EQ(merge_tree_table_hdfs.table_configs.storage_policy, "__hdfs_main");
 
-        const auto dest_storage_hdfs = MergeTreeRelParser::getStorage(merge_tree_table_hdfs, SerializedPlanParser::global_context);
+        const auto dest_storage_hdfs = MergeTreeTable::getStorage(merge_tree_table_hdfs, SerializedPlanParser::global_context);
         EXPECT_TRUE(dest_storage_hdfs);
         EXPECT_TRUE(dest_storage_hdfs->getStoragePolicy()->getAnyDisk()->isRemote());
     }

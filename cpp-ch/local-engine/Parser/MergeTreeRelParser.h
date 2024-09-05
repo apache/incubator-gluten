@@ -21,8 +21,6 @@
 
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Storages/MergeTree/SparkMergeTreeMeta.h>
-#include <Storages/MergeTree/StorageMergeTreeFactory.h>
 
 namespace DB
 {
@@ -39,18 +37,6 @@ using namespace DB;
 class MergeTreeRelParser : public RelParser
 {
 public:
-    static SparkStorageMergeTreePtr getStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context);
-    static SparkStorageMergeTreePtr restoreStorage(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context);
-
-    // Create random table name and table path and use default storage policy.
-    // In insert case, mergetree data can be uploaded after merges in default storage(Local Disk).
-    static SparkStorageMergeTreePtr copyToDefaultPolicyStorage(const MergeTreeTable & table, ContextMutablePtr context);
-
-    // Use same table path and data path as the original table.
-    static SparkStorageMergeTreePtr copyToVirtualStorage(const MergeTreeTable & table, const ContextMutablePtr & context);
-
-    static MergeTreeTableInstance parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table);
-
     explicit MergeTreeRelParser(SerializedPlanParser * plan_paser_, const ContextPtr & context_)
         : RelParser(plan_paser_), context(context_), global_context(plan_paser_->global_context)
     {

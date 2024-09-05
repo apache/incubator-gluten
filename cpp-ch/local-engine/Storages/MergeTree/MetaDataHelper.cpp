@@ -19,7 +19,6 @@
 #include <filesystem>
 #include <Core/Settings.h>
 #include <Disks/ObjectStorages/MetadataStorageFromDisk.h>
-#include <Parser/MergeTreeRelParser.h>
 #include <Storages/MergeTree/MergeSparkMergeTreeTask.h>
 #include <Poco/StringTokenizer.h>
 

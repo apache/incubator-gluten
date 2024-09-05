@@ -17,7 +17,6 @@
 #include "SparkStorageMergeTree.h"
 
 #include <Interpreters/MergeTreeTransaction.h>
-#include <Parser/MergeTreeRelParser.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
 #include <Storages/MergeTree/SparkMergeTreeSink.h>
@@ -501,7 +500,7 @@ SinkToStoragePtr SparkWriteStorageMergeTree::write(
     settings.load(context);
     SinkHelperPtr sink_helper = SparkMergeTreeSink::create(table, settings, getContext());
 #ifndef NDEBUG
-    auto dest_storage = MergeTreeRelParser::getStorage(table, getContext());
+    auto dest_storage = MergeTreeTable::getStorage(table, getContext());
     assert(dest_storage.get() == this);
 #endif
 

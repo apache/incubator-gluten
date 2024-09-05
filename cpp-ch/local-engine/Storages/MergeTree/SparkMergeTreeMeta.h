@@ -32,6 +32,8 @@ class ReadBufferFromString;
 }
 namespace local_engine
 {
+class SparkStorageMergeTree;
+using SparkStorageMergeTreePtr = std::shared_ptr<SparkStorageMergeTree>;
 using namespace DB;
 
 struct MergeTreePart
@@ -64,6 +66,15 @@ struct MergeTreeTable
     MergeTreeTableSettings table_configs;
 
     bool sameTable(const MergeTreeTable & other) const;
+
+    static SparkStorageMergeTreePtr getStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context);
+
+    // Create random table name and table path and use default storage policy.
+    // In insert case, mergetree data can be uploaded after merges in default storage(Local Disk).
+    static SparkStorageMergeTreePtr copyToDefaultPolicyStorage(const MergeTreeTable & table, ContextMutablePtr context);
+
+    // Use same table path and data path as the original table.
+    static SparkStorageMergeTreePtr copyToVirtualStorage(const MergeTreeTable & table, const ContextMutablePtr & context);
 };
 
 struct MergeTreeTableInstance : MergeTreeTable
@@ -71,6 +82,11 @@ struct MergeTreeTableInstance : MergeTreeTable
     std::vector<MergeTreePart> parts;
     std::unordered_set<std::string> getPartNames() const;
     RangesInDataParts extractRange(DataPartsVector parts_vector) const;
+
+    static SparkStorageMergeTreePtr restoreStorage(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context);
+    static MergeTreeTableInstance parseFromAny(const google::protobuf::Any & any);
+    static MergeTreeTableInstance parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table);
+    static MergeTreeTableInstance parseMergeTreeTableString(const std::string & info);
 };
 
 std::shared_ptr<DB::StorageInMemoryMetadata>
@@ -79,6 +95,4 @@ buildMetaData(const DB::Block & header, const ContextPtr & context, const MergeT
 std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config);
 
 std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_types_list);
-
-MergeTreeTableInstance parseMergeTreeTableString(const std::string & info);
 }

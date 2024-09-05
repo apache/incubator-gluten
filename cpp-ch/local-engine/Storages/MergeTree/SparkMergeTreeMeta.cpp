@@ -17,13 +17,18 @@
 #include "SparkMergeTreeMeta.h"
 
 #include <google/protobuf/util/json_util.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <rapidjson/document.h>
 
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
+#include <Parser/SubstraitParserUtils.h>
+#include <Parser/TypeParser.h>
 #include <Parsers/ASTExpressionList.h>
 #include <Parsers/ASTSelectQuery.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
+#include <Storages/MergeTree/MetaDataHelper.h>
+#include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Poco/StringTokenizer.h>
 
 using namespace DB;
@@ -125,32 +130,46 @@ doBuildMetadata(const DB::NamesAndTypesList & columns, const ContextPtr & contex
 namespace local_engine
 {
 
-std::shared_ptr<DB::StorageInMemoryMetadata>
-buildMetaData(const DB::Block & header, const ContextPtr & context, const MergeTreeTable & table)
+
+SparkStorageMergeTreePtr MergeTreeTable::getStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context)
 {
-    return doBuildMetadata(header.getNamesAndTypesList(), context, table);
+    const DB::Block header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema, merge_tree_table.low_card_key);
+    const auto metadata = buildMetaData(header, context, merge_tree_table);
+
+    return StorageMergeTreeFactory::getStorage(
+        StorageID(merge_tree_table.database, merge_tree_table.table),
+        merge_tree_table.snapshot_id,
+        merge_tree_table,
+        [&]() -> SparkStorageMergeTreePtr
+        {
+            auto custom_storage_merge_tree = std::make_shared<SparkWriteStorageMergeTree>(merge_tree_table, *metadata, context);
+            return custom_storage_merge_tree;
+        });
 }
 
-std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config)
+SparkStorageMergeTreePtr MergeTreeTable::copyToDefaultPolicyStorage(const MergeTreeTable & table, ContextMutablePtr context)
 {
-    auto settings = std::make_unique<DB::MergeTreeSettings>();
-    settings->set("allow_nullable_key", Field(1));
-    if (!config.storage_policy.empty())
-        settings->set("storage_policy", Field(config.storage_policy));
-    return settings;
+    MergeTreeTable merge_tree_table{table};
+    auto temp_uuid = UUIDHelpers::generateV4();
+    String temp_uuid_str = toString(temp_uuid);
+    merge_tree_table.table = merge_tree_table.table + "_" + temp_uuid_str;
+    merge_tree_table.snapshot_id = "";
+    merge_tree_table.table_configs.storage_policy = "";
+    merge_tree_table.relative_path = merge_tree_table.relative_path + "_" + temp_uuid_str;
+    return getStorage(merge_tree_table, context);
 }
 
-std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_types_list)
+SparkStorageMergeTreePtr MergeTreeTable::copyToVirtualStorage(const MergeTreeTable & table, const ContextMutablePtr & context)
 {
-    std::unique_ptr<SelectQueryInfo> query_info = std::make_unique<SelectQueryInfo>();
-    query_info->query = std::make_shared<ASTSelectQuery>();
-    auto syntax_analyzer_result = std::make_shared<TreeRewriterResult>(names_and_types_list);
-    syntax_analyzer_result->analyzed_join = std::make_shared<TableJoin>();
-    query_info->syntax_analyzer_result = syntax_analyzer_result;
-    return query_info;
+    MergeTreeTable merge_tree_table{table};
+    auto temp_uuid = UUIDHelpers::generateV4();
+    String temp_uuid_str = toString(temp_uuid);
+    merge_tree_table.table = merge_tree_table.table + "_" + temp_uuid_str;
+    merge_tree_table.snapshot_id = "";
+    return getStorage(merge_tree_table, context);
 }
 
-void parseMergeTreeTableString(MergeTreeTable & table, ReadBufferFromString & in)
+void doParseMergeTreeTableString(MergeTreeTable & table, ReadBufferFromString & in)
 {
     assertString("MergeTree;", in);
     readString(table.database, in);
@@ -188,11 +207,11 @@ void parseMergeTreeTableString(MergeTreeTable & table, ReadBufferFromString & in
     assertChar('\n', in);
 }
 
-MergeTreeTableInstance parseMergeTreeTableString(const std::string & info)
+MergeTreeTableInstance MergeTreeTableInstance::parseMergeTreeTableString(const std::string & info)
 {
     MergeTreeTableInstance result;
     ReadBufferFromString in(info);
-    parseMergeTreeTableString(result, in);
+    doParseMergeTreeTableString(result, in);
 
     while (!in.eof())
     {
@@ -207,6 +226,52 @@ MergeTreeTableInstance parseMergeTreeTableString(const std::string & info)
     }
 
     return result;
+}
+
+MergeTreeTableInstance MergeTreeTableInstance::parseFromAny(const google::protobuf::Any & any)
+{
+    google::protobuf::StringValue table;
+    table.ParseFromString(any.value());
+    return parseMergeTreeTableString(table.value());
+}
+
+MergeTreeTableInstance MergeTreeTableInstance::parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table)
+{
+    logDebugMessage(extension_table, "merge_tree_table");
+    return parseFromAny(extension_table.detail());
+}
+
+SparkStorageMergeTreePtr
+MergeTreeTableInstance::restoreStorage(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context)
+{
+    auto result = getStorage(merge_tree_table, context);
+    restoreMetaData(result, merge_tree_table, *context);
+    return result;
+}
+
+std::shared_ptr<DB::StorageInMemoryMetadata>
+buildMetaData(const DB::Block & header, const ContextPtr & context, const MergeTreeTable & table)
+{
+    return doBuildMetadata(header.getNamesAndTypesList(), context, table);
+}
+
+std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config)
+{
+    auto settings = std::make_unique<DB::MergeTreeSettings>();
+    settings->set("allow_nullable_key", Field(1));
+    if (!config.storage_policy.empty())
+        settings->set("storage_policy", Field(config.storage_policy));
+    return settings;
+}
+
+std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_types_list)
+{
+    std::unique_ptr<SelectQueryInfo> query_info = std::make_unique<SelectQueryInfo>();
+    query_info->query = std::make_shared<ASTSelectQuery>();
+    auto syntax_analyzer_result = std::make_shared<TreeRewriterResult>(names_and_types_list);
+    syntax_analyzer_result->analyzed_join = std::make_shared<TableJoin>();
+    query_info->syntax_analyzer_result = syntax_analyzer_result;
+    return query_info;
 }
 
 std::unordered_set<String> MergeTreeTableInstance::getPartNames() const

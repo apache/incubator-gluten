@@ -17,7 +17,6 @@
 #include "SparkMergeTreeWriter.h"
 
 #include <Interpreters/ActionsDAG.h>
-#include <Parser/MergeTreeRelParser.h>
 #include <Processors/Transforms/ApplySquashingTransform.h>
 #include <Processors/Transforms/PlanSquashingTransform.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
@@ -55,7 +54,7 @@ std::unique_ptr<SparkMergeTreeWriter> SparkMergeTreeWriter::create(
     const DB::ContextMutablePtr & context)
 {
     const DB::Settings & settings = context->getSettingsRef();
-    const auto dest_storage = MergeTreeRelParser::getStorage(merge_tree_table, context);
+    const auto dest_storage = MergeTreeTable::getStorage(merge_tree_table, context);
     StorageMetadataPtr metadata_snapshot = dest_storage->getInMemoryMetadataPtr();
     Block header = metadata_snapshot->getSampleBlock();
     ASTPtr none;

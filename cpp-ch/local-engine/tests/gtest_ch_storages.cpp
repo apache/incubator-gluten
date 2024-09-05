@@ -17,7 +17,6 @@
 #include <Functions/FunctionFactory.h>
 #include <Parser/MergeTreeRelParser.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Parsers/ASTFunction.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>

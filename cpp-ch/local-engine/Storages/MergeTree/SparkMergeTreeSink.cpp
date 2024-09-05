@@ -18,7 +18,6 @@
 
 #include <Core/Settings.h>
 #include <Interpreters/MergeTreeTransaction.h>
-#include <Parser/MergeTreeRelParser.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
 #include <Common/QueryContext.h>
 
@@ -73,12 +72,12 @@ void SparkMergeTreeSink::onFinish()
 SinkHelperPtr SparkMergeTreeSink::create(
     const MergeTreeTable & merge_tree_table, const SparkMergeTreeWriteSettings & write_settings_, const DB::ContextMutablePtr & context)
 {
-    auto dest_storage = MergeTreeRelParser::getStorage(merge_tree_table, context);
+    auto dest_storage = MergeTreeTable::getStorage(merge_tree_table, context);
     bool isRemoteStorage = dest_storage->getStoragePolicy()->getAnyDisk()->isRemote();
     bool insert_with_local_storage = !write_settings_.insert_without_local_storage;
     if (insert_with_local_storage && isRemoteStorage)
     {
-        auto temp = MergeTreeRelParser::copyToDefaultPolicyStorage(merge_tree_table, context);
+        auto temp = MergeTreeTable::copyToDefaultPolicyStorage(merge_tree_table, context);
         LOG_DEBUG(
             &Poco::Logger::get("SparkMergeTreeWriter"),
             "Create temp table {} for local merge.",
