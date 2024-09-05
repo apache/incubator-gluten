@@ -416,30 +416,8 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
       cachedInputs_.emplace_back(numRows, wrapInBufferViewAsOwner(buffer->data(), buffer->size(), buffer));
       cachedRows_ += numRows;
     } else {
-      // numRows = 0 indicates a segment of a large row.
-      std::vector<std::shared_ptr<arrow::Buffer>> buffers;
-      auto rowSize = *reinterpret_cast<RowSizeType*>(const_cast<uint8_t*>(arrowBuffers[0]->data()));
-      RowSizeType bufferSize = arrowBuffers[0]->size();
-      buffers.emplace_back(std::move(arrowBuffers[0]));
-      // Read remaining segments.
-      while (bufferSize < rowSize) {
-        GLUTEN_ASSIGN_OR_THROW(
-            arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, arrowPool_, numRows, decompressTime_));
-        bufferSize += arrowBuffers[0]->size();
-        buffers.emplace_back(std::move(arrowBuffers[0]));
-      }
-      VELOX_CHECK_EQ(bufferSize, rowSize);
-      // Merge all segments.
-      GLUTEN_ASSIGN_OR_THROW(std::shared_ptr<arrow::Buffer> rowBuffer, arrow::AllocateBuffer(rowSize, arrowPool_));
-      RowSizeType bytes = 0;
-      auto* dst = rowBuffer->mutable_data();
-      for (const auto& buffer : buffers) {
-        VELOX_CHECK_NOT_NULL(buffer);
-        gluten::fastCopy(dst + bytes, buffer->data(), buffer->size());
-        bytes += buffer->size();
-      }
-      cachedInputs_.emplace_back(1, wrapInBufferViewAsOwner(rowBuffer->data(), rowSize, rowBuffer));
-      cachedRows_++;
+      // numRows = 0 indicates that we read a segment of a large row.
+      readLargeRow(arrowBuffers);
     }
   }
   return deserializeToBatch();
@@ -477,6 +455,35 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::deserializeTo
     cachedInputs_.pop_front();
   }
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+}
+
+void VeloxSortShuffleReaderDeserializer::readLargeRow(std::vector<std::shared_ptr<arrow::Buffer>>& arrowBuffers) {
+  // Cache the read segment.
+  std::vector<std::shared_ptr<arrow::Buffer>> buffers;
+  auto rowSize = *reinterpret_cast<RowSizeType*>(const_cast<uint8_t*>(arrowBuffers[0]->data()));
+  RowSizeType bufferSize = arrowBuffers[0]->size();
+  buffers.emplace_back(std::move(arrowBuffers[0]));
+  // Read and cache the remaining segments.
+  uint32_t numRows;
+  while (bufferSize < rowSize) {
+    GLUTEN_ASSIGN_OR_THROW(
+        arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, arrowPool_, numRows, decompressTime_));
+    VELOX_DCHECK_EQ(numRows, 0);
+    bufferSize += arrowBuffers[0]->size();
+    buffers.emplace_back(std::move(arrowBuffers[0]));
+  }
+  VELOX_CHECK_EQ(bufferSize, rowSize);
+  // Merge all segments.
+  GLUTEN_ASSIGN_OR_THROW(std::shared_ptr<arrow::Buffer> rowBuffer, arrow::AllocateBuffer(rowSize, arrowPool_));
+  RowSizeType bytes = 0;
+  auto* dst = rowBuffer->mutable_data();
+  for (const auto& buffer : buffers) {
+    VELOX_DCHECK_NOT_NULL(buffer);
+    gluten::fastCopy(dst + bytes, buffer->data(), buffer->size());
+    bytes += buffer->size();
+  }
+  cachedInputs_.emplace_back(1, wrapInBufferViewAsOwner(rowBuffer->data(), rowSize, rowBuffer));
+  cachedRows_++;
 }
 
 class VeloxRssSortShuffleReaderDeserializer::VeloxInputStream : public facebook::velox::GlutenByteInputStream {

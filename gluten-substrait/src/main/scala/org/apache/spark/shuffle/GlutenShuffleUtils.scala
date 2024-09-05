@@ -92,16 +92,19 @@ object GlutenShuffleUtils {
   }
 
   def getCompressionBufferSize(conf: SparkConf, codec: String): Int = {
+    def checkAndGetBufferSize(entry: ConfigEntry[Long]): Int = {
+      val bufferSize = conf.get(entry).toInt
+      if (bufferSize < 4) {
+        throw new IllegalArgumentException(s"${entry.key} must be >= 4, got $bufferSize")
+      }
+      bufferSize
+    }
     if ("lz4" == codec) {
-      Math.max(
-        conf.get(IO_COMPRESSION_LZ4_BLOCKSIZE).toInt,
-        GlutenConfig.GLUTEN_SHUFFLE_COMPRESSION_BUFFER_MIN_SIZE)
+      checkAndGetBufferSize(IO_COMPRESSION_LZ4_BLOCKSIZE)
     } else if ("zstd" == codec) {
-      Math.max(
-        conf.get(IO_COMPRESSION_ZSTD_BUFFERSIZE).toInt,
-        GlutenConfig.GLUTEN_SHUFFLE_COMPRESSION_BUFFER_MIN_SIZE)
+      checkAndGetBufferSize(IO_COMPRESSION_ZSTD_BUFFERSIZE)
     } else {
-      32 * 1024
+      GlutenConfig.GLUTEN_SHUFFLE_DEFUALT_COMPRESSION_BUFFER_SIZE
     }
   }
 
