@@ -82,7 +82,8 @@ class Spark34Shims extends SparkShims {
       Sig[RoundFloor](ExpressionNames.FLOOR),
       Sig[RoundCeil](ExpressionNames.CEIL),
       Sig[Mask](ExpressionNames.MASK),
-      Sig[ArrayInsert](ExpressionNames.ARRAY_INSERT)
+      Sig[ArrayInsert](ExpressionNames.ARRAY_INSERT),
+      Sig[CheckOverflowInTableInsert](ExpressionNames.CHECK_OVERFLOW_IN_TABLE_INSERT)
     )
   }
 

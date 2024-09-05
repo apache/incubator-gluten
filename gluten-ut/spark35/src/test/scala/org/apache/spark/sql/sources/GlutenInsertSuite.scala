@@ -17,15 +17,16 @@
 package org.apache.spark.sql.sources
 
 import org.apache.gluten.GlutenColumnarWriteTestSupport
-import org.apache.gluten.execution.SortExecTransformer
+import org.apache.gluten.execution.{ProjectExecTransformer, SortExecTransformer}
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.FallbackTags
 
 import org.apache.spark.SparkConf
 import org.apache.spark.executor.OutputMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.execution.{CommandResultExec, GlutenImplicits, QueryExecution, SparkPlan}
+import org.apache.spark.sql.execution.{CommandResultExec, GlutenImplicits, ProjectExec, QueryExecution, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -593,6 +594,21 @@ class GlutenInsertSuite
             }.getMessage.contains(incompatibleDefault))
           }
       }
+    }
+  }
+
+  testGluten("GLUTEN-7213: Check fallback reason with CheckOverflowInTableInsert") {
+    withTable("t1", "t2") {
+      sql("create table t1 (a float) using parquet")
+      sql("insert into t1 values(1.1)")
+      sql("create table t2 (b decimal(10,4)) using parquet")
+
+      val msg = "CheckOverflowInTableInsert is used in ansi mode, but gluten does not support ANSI mode."
+      val df = sql("insert overwrite t2 select * from t1")
+      val (_, child) = checkWriteFilesAndGetChild(df)
+      val project = find(child)(_.isInstanceOf[ProjectExec])
+      assert(project.isDefined)
+      assert(FallbackTags.get(project.get.logicalLink.get).reason().contains(msg))
     }
   }
 }
