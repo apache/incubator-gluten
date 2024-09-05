@@ -39,14 +39,7 @@ class HeuristicApplier(session: SparkSession)
   extends ColumnarRuleApplier
   with Logging
   with LogLevelUtil {
-  // This is an empirical value, may need to be changed for supporting other versions of spark.
-  private val aqeStackTraceIndex =
-    if (scala.util.Properties.releaseVersion.exists(_.startsWith("2.12"))) {
-      19
-    } else {
-      17
-    }
-  private val adaptiveContext = AdaptiveContext(session, aqeStackTraceIndex)
+  private val adaptiveContext = AdaptiveContext(session)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
     withTransformRules(transformRules(outputsColumnar)).apply(plan)

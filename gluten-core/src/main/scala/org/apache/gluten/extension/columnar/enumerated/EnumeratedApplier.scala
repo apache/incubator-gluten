@@ -44,14 +44,7 @@ class EnumeratedApplier(session: SparkSession)
   extends ColumnarRuleApplier
   with Logging
   with LogLevelUtil {
-  // An empirical value.
-  private val aqeStackTraceIndex =
-    if (scala.util.Properties.releaseVersion.exists(_.startsWith("2.12"))) {
-      16
-    } else {
-      14
-    }
-  private val adaptiveContext = AdaptiveContext(session, aqeStackTraceIndex)
+  private val adaptiveContext = AdaptiveContext(session)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan =
     PhysicalPlanSelector.maybe(session, plan) {
