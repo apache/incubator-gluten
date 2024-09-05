@@ -20,30 +20,32 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
-import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.`type`.TypeBuilder
+import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, CaseWhen, Expression, NamedExpression, NullIntolerant, PredicateHelper, SortOrder}
 import org.apache.spark.sql.delta.metric.IncrementMetric
-import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.{ExplainUtils, OrderPreservingNodeShim, PartitioningPreservingNodeShim, SparkPlan}
+import org.apache.spark.sql.execution.metric.SQLMetric
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 case class DeltaProjectExecTransformer private (projectList: Seq[NamedExpression], child: SparkPlan)
   extends UnaryTransformSupport
-    with OrderPreservingNodeShim
-    with PartitioningPreservingNodeShim
-    with PredicateHelper
-    with Logging {
+  with OrderPreservingNodeShim
+  with PartitioningPreservingNodeShim
+  with PredicateHelper
+  with Logging {
 
-  private var extraMetric: Map[String, SQLMetric] = Map.empty
+  private var extraMetrics = mutable.Seq.empty[(String, SQLMetric)]
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
-  BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetrics(sparkContext)
+    BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetrics(sparkContext)
 
   override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
@@ -61,7 +63,9 @@ case class DeltaProjectExecTransformer private (projectList: Seq[NamedExpression
   }
 
   override def metricsUpdater(): MetricsUpdater =
-    BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(metrics)
+    BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(
+      metrics,
+      extraMetrics)
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
@@ -135,24 +139,21 @@ case class DeltaProjectExecTransformer private (projectList: Seq[NamedExpression
       case alias: Alias =>
         alias.child match {
           case IncrementMetric(child, metric) =>
-            extraMetric ++= Map(metric.id.toString -> metric)
+            extraMetrics :+= (alias.child.prettyName, metric)
             Alias(child = child, name = alias.name)()
 
           case CaseWhen(branches, elseValue) =>
             val newBranches = branches.map {
               case (expr1, expr2: IncrementMetric) =>
-                val incrementMetric = expr2
-                extraMetric ++= Map(incrementMetric.metric.id.toString -> incrementMetric.metric)
-                (expr1, incrementMetric.child)
+                extraMetrics :+= (expr2.prettyName, expr2.metric)
+                (expr1, expr2.child)
               case other => other
             }
 
             val newElseValue = elseValue match {
               case Some(IncrementMetric(child: IncrementMetric, metric)) =>
-                extraMetric ++= Map(
-                  metric.id.toString -> metric,
-                  child.metric.id.toString -> child.metric
-                )
+                extraMetrics :+= (child.prettyName, metric)
+                extraMetrics :+= (child.prettyName, child.metric)
                 Some(child.child)
               case _ => elseValue
             }

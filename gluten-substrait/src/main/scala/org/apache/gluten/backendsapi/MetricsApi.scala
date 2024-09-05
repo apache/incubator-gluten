@@ -55,15 +55,17 @@ trait MetricsApi extends Serializable {
 
   def genFileSourceScanTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 
-  def genFilterTransformerMetrics(
-      sparkContext: SparkContext,
-      extraMetric: Map[String, SQLMetric] = Map.empty): Map[String, SQLMetric]
+  def genFilterTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
-  def genFilterTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
+  def genFilterTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric],
+      extraMetrics: Seq[(String, SQLMetric)] = Seq.empty): MetricsUpdater
 
   def genProjectTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
-  def genProjectTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
+  def genProjectTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric],
+      extraMetrics: Seq[(String, SQLMetric)] = Seq.empty): MetricsUpdater
 
   def genHashAggregateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
