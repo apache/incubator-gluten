@@ -130,6 +130,19 @@
       <plugin>
         <groupId>com.diffplug.spotless</groupId>
         <artifactId>spotless-maven-plugin</artifactId>
+        <configuration>
+          <scala>
+            <scalafmt>
+              <file>${project.basedir}/../.scalafmt.conf</file>
+            </scalafmt>
+            <includes>
+              <include>src/main/scala/**/*.scala</include>
+              <include>src/test/scala/**/*.scala</include>
+              <include>src/main/delta-${delta.binary.version}/**/*.scala</include>
+              <include>src/test/delta-${delta.binary.version}/**/*.scala</include>
+            </includes>
+          </scala>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.scalatest</groupId>
@@ -154,6 +167,24 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>add-sources</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>src/main/delta-${delta.binary.version}</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
