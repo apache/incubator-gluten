@@ -770,13 +770,13 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("DATE_FROM_UNIX_DATE")
     .exclude("UNIX_SECONDS")
     .exclude("TIMESTAMP_SECONDS") // refer to https://github.com/ClickHouse/ClickHouse/issues/69280
+    .exclude("TIMESTAMP_MICROS") // refer to https://github.com/apache/incubator-gluten/issues/7127
     .exclude("SPARK-33498: GetTimestamp,UnixTimestamp,ToUnixTimestamp with parseError")
     .exclude("SPARK-34739,SPARK-35889: add a year-month interval to a timestamp")
     .exclude("SPARK-34761,SPARK-35889: add a day-time interval to a timestamp")
     .exclude("SPARK-37552: convert a timestamp_ntz to another time zone")
     .exclude("SPARK-38195: add a quantity of interval units to a timestamp")
     .exclude("SPARK-38284: difference between two timestamps in units")
-    .excludeGlutenTest("TIMESTAMP_MICROS")
     .excludeGlutenTest("unix_timestamp")
     .excludeGlutenTest("to_unix_timestamp")
     .excludeGlutenTest("Hour")
