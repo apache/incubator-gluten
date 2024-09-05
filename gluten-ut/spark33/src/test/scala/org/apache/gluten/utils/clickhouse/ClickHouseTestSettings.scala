@@ -769,6 +769,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-31896: Handle am-pm timestamp parsing when hour is missing")
     .exclude("DATE_FROM_UNIX_DATE")
     .exclude("UNIX_SECONDS")
+    .exclude("TIMESTAMP_SECONDS") // refer to https://github.com/ClickHouse/ClickHouse/issues/69280
     .exclude("SPARK-33498: GetTimestamp,UnixTimestamp,ToUnixTimestamp with parseError")
     .exclude("SPARK-34739,SPARK-35889: add a year-month interval to a timestamp")
     .exclude("SPARK-34761,SPARK-35889: add a day-time interval to a timestamp")
