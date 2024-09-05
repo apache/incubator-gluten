@@ -17,7 +17,6 @@
 #pragma once
 #include <Interpreters/MergeTreeTransaction.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Storages/MergeTree/CustomStorageMergeTree.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Poco/LRUCache.h>
 #include <Common/GlutenConfig.h>

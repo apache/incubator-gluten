@@ -35,9 +35,9 @@
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Shuffle/ShuffleReader.h>
-#include <Storages/MergeTree/CustomStorageMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
+#include <Storages/MergeTree/SparkStorageMergeTree.h>
 #include <Storages/SelectQueryInfo.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 #include "MergeSparkMergeTreeTask.h"
-#include <Storages/MergeTree/CustomStorageMergeTree.h>
+#include <Storages/MergeTree/SparkStorageMergeTree.h>
 
 #include <Interpreters/TransactionLog.h>
 #include <Storages/MergeTree/MergeTreeData.h>

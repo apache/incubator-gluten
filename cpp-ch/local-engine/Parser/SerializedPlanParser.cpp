@@ -69,7 +69,6 @@
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
-#include <Storages/MergeTree/CustomStorageMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/Output/FileWriterWrappers.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
