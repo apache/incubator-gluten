@@ -266,4 +266,8 @@ trait SparkShims {
       DecimalType(math.min(integralLeastNumDigits + newScale, 38), newScale)
     }
   }
+
+  def extractExpressionArrayInsert(arrayInsert: Expression): Seq[Expression] = {
+    throw new UnsupportedOperationException("ArrayInsert not supported.")
+  }
 }
