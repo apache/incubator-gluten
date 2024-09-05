@@ -481,6 +481,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           replaceWithExpressionTransformer0(c.child, attributeSeq, expressionsMap),
           c)
+      case c if c.getClass.getSimpleName.equals("CheckOverflowInTableInsert") =>
+        ChildTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(expr.children.head, attributeSeq, expressionsMap),
+          expr
+        )
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         DecimalArithmeticUtil.checkAllowDecimalArithmetic()
         if (!BackendsApiManager.getSettings.transformCheckOverflow) {
