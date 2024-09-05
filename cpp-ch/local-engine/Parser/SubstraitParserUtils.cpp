@@ -17,7 +17,7 @@
 
 
 #include "SubstraitParserUtils.h"
-#include <Common/Exception.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <Common/logger_useful.h>
 
 using namespace DB;
@@ -37,5 +37,11 @@ void logDebugMessage(const google::protobuf::Message & message, const char * typ
             throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert {} to Json", type);
         LOG_DEBUG(logger, "{}:\n{}", type, json);
     }
+}
+std::string toString(const google::protobuf::Any & any)
+{
+    google::protobuf::StringValue sv;
+    sv.ParseFromString(any.value());
+    return sv.value();
 }
 }

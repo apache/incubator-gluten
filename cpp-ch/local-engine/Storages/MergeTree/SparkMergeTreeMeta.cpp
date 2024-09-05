@@ -16,10 +16,6 @@
  */
 #include "SparkMergeTreeMeta.h"
 
-#include <google/protobuf/util/json_util.h>
-#include <google/protobuf/wrappers.pb.h>
-#include <rapidjson/document.h>
-
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
 #include <Parser/SubstraitParserUtils.h>
@@ -29,6 +25,8 @@
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
+#include <google/protobuf/util/json_util.h>
+#include <rapidjson/document.h>
 #include <Poco/StringTokenizer.h>
 
 using namespace DB;
@@ -126,49 +124,6 @@ doBuildMetadata(const DB::NamesAndTypesList & columns, const ContextPtr & contex
     return metadata;
 }
 
-}
-namespace local_engine
-{
-
-
-SparkStorageMergeTreePtr MergeTreeTable::getStorage(const MergeTreeTable & merge_tree_table, ContextMutablePtr context)
-{
-    const DB::Block header = TypeParser::buildBlockFromNamedStruct(merge_tree_table.schema, merge_tree_table.low_card_key);
-    const auto metadata = buildMetaData(header, context, merge_tree_table);
-
-    return StorageMergeTreeFactory::getStorage(
-        StorageID(merge_tree_table.database, merge_tree_table.table),
-        merge_tree_table.snapshot_id,
-        merge_tree_table,
-        [&]() -> SparkStorageMergeTreePtr
-        {
-            auto custom_storage_merge_tree = std::make_shared<SparkWriteStorageMergeTree>(merge_tree_table, *metadata, context);
-            return custom_storage_merge_tree;
-        });
-}
-
-SparkStorageMergeTreePtr MergeTreeTable::copyToDefaultPolicyStorage(const MergeTreeTable & table, ContextMutablePtr context)
-{
-    MergeTreeTable merge_tree_table{table};
-    auto temp_uuid = UUIDHelpers::generateV4();
-    String temp_uuid_str = toString(temp_uuid);
-    merge_tree_table.table = merge_tree_table.table + "_" + temp_uuid_str;
-    merge_tree_table.snapshot_id = "";
-    merge_tree_table.table_configs.storage_policy = "";
-    merge_tree_table.relative_path = merge_tree_table.relative_path + "_" + temp_uuid_str;
-    return getStorage(merge_tree_table, context);
-}
-
-SparkStorageMergeTreePtr MergeTreeTable::copyToVirtualStorage(const MergeTreeTable & table, const ContextMutablePtr & context)
-{
-    MergeTreeTable merge_tree_table{table};
-    auto temp_uuid = UUIDHelpers::generateV4();
-    String temp_uuid_str = toString(temp_uuid);
-    merge_tree_table.table = merge_tree_table.table + "_" + temp_uuid_str;
-    merge_tree_table.snapshot_id = "";
-    return getStorage(merge_tree_table, context);
-}
-
 void doParseMergeTreeTableString(MergeTreeTable & table, ReadBufferFromString & in)
 {
     assertString("MergeTree;", in);
@@ -207,11 +162,52 @@ void doParseMergeTreeTableString(MergeTreeTable & table, ReadBufferFromString & 
     assertChar('\n', in);
 }
 
-MergeTreeTableInstance MergeTreeTableInstance::parseMergeTreeTableString(const std::string & info)
+}
+namespace local_engine
 {
-    MergeTreeTableInstance result;
+
+SparkStorageMergeTreePtr MergeTreeTable::getStorage(ContextMutablePtr context) const
+{
+    const DB::Block header = TypeParser::buildBlockFromNamedStruct(schema, low_card_key);
+    const auto metadata = buildMetaData(header, context);
+
+    return StorageMergeTreeFactory::getStorage(
+        StorageID(database, table),
+        snapshot_id,
+        *this,
+        [&]() -> SparkStorageMergeTreePtr
+        {
+            auto custom_storage_merge_tree = std::make_shared<SparkWriteStorageMergeTree>(*this, *metadata, context);
+            return custom_storage_merge_tree;
+        });
+}
+
+SparkStorageMergeTreePtr MergeTreeTable::copyToDefaultPolicyStorage(const ContextMutablePtr & context) const
+{
+    MergeTreeTable merge_tree_table{*this};
+    auto temp_uuid = UUIDHelpers::generateV4();
+    String temp_uuid_str = toString(temp_uuid);
+    merge_tree_table.table = merge_tree_table.table + "_" + temp_uuid_str;
+    merge_tree_table.snapshot_id = "";
+    merge_tree_table.table_configs.storage_policy = "";
+    merge_tree_table.relative_path = merge_tree_table.relative_path + "_" + temp_uuid_str;
+    return merge_tree_table.getStorage(context);
+}
+
+SparkStorageMergeTreePtr MergeTreeTable::copyToVirtualStorage(const ContextMutablePtr & context) const
+{
+    MergeTreeTable merge_tree_table{*this};
+    auto temp_uuid = UUIDHelpers::generateV4();
+    String temp_uuid_str = toString(temp_uuid);
+    merge_tree_table.table = merge_tree_table.table + "_" + temp_uuid_str;
+    merge_tree_table.snapshot_id = "";
+    return merge_tree_table.getStorage(context);
+}
+
+MergeTreeTableInstance::MergeTreeTableInstance(const std::string & info)
+{
     ReadBufferFromString in(info);
-    doParseMergeTreeTableString(result, in);
+    doParseMergeTreeTableString(*this, in);
 
     while (!in.eof())
     {
@@ -222,37 +218,30 @@ MergeTreeTableInstance MergeTreeTableInstance::parseMergeTreeTableString(const s
         assertChar('\n', in);
         readIntText(part.end, in);
         assertChar('\n', in);
-        result.parts.emplace_back(part);
+        parts.emplace_back(part);
     }
-
-    return result;
 }
 
-MergeTreeTableInstance MergeTreeTableInstance::parseFromAny(const google::protobuf::Any & any)
+MergeTreeTableInstance::MergeTreeTableInstance(const google::protobuf::Any & any) : MergeTreeTableInstance(toString(any))
 {
-    google::protobuf::StringValue table;
-    table.ParseFromString(any.value());
-    return parseMergeTreeTableString(table.value());
 }
 
-MergeTreeTableInstance MergeTreeTableInstance::parseMergeTreeTable(const substrait::ReadRel::ExtensionTable & extension_table)
+MergeTreeTableInstance::MergeTreeTableInstance(const substrait::ReadRel::ExtensionTable & extension_table)
+    : MergeTreeTableInstance(extension_table.detail())
 {
     logDebugMessage(extension_table, "merge_tree_table");
-    return parseFromAny(extension_table.detail());
 }
 
-SparkStorageMergeTreePtr
-MergeTreeTableInstance::restoreStorage(const MergeTreeTableInstance & merge_tree_table, const ContextMutablePtr & context)
+SparkStorageMergeTreePtr MergeTreeTableInstance::restoreStorage(const ContextMutablePtr & context) const
 {
-    auto result = getStorage(merge_tree_table, context);
-    restoreMetaData(result, merge_tree_table, *context);
+    auto result = getStorage(context);
+    restoreMetaData(result, *this, *context);
     return result;
 }
 
-std::shared_ptr<DB::StorageInMemoryMetadata>
-buildMetaData(const DB::Block & header, const ContextPtr & context, const MergeTreeTable & table)
+std::shared_ptr<DB::StorageInMemoryMetadata> MergeTreeTable::buildMetaData(const DB::Block & header, const ContextPtr & context) const
 {
-    return doBuildMetadata(header.getNamesAndTypesList(), context, table);
+    return doBuildMetadata(header.getNamesAndTypesList(), context, *this);
 }
 
 std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config)

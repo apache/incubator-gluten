@@ -901,9 +901,9 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     const auto split_info_a = local_engine::getByteArrayElementsSafe(env, split_info_);
     auto extension_table = local_engine::BinaryToMessage<substrait::ReadRel::ExtensionTable>(
         {reinterpret_cast<const char *>(split_info_a.elems()), static_cast<size_t>(split_info_a.length())});
-    auto merge_tree_table = local_engine::MergeTreeTableInstance::parseMergeTreeTable(extension_table);
-
+    local_engine::MergeTreeTableInstance merge_tree_table(extension_table);
     auto * writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, settings, query_context).release();
+
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
@@ -995,13 +995,10 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     auto extension_table = local_engine::BinaryToMessage<substrait::ReadRel::ExtensionTable>(
         {reinterpret_cast<const char *>(split_info_a.elems()), static_cast<size_t>(split_info_a.length())});
 
-    google::protobuf::StringValue table;
-    table.ParseFromString(extension_table.detail().value());
-    auto merge_tree_table = local_engine::MergeTreeTableInstance::parseMergeTreeTableString(table.value());
-
+    local_engine::MergeTreeTableInstance merge_tree_table(extension_table);
     auto context = local_engine::QueryContextManager::instance().currentQueryContext();
     // each task using its own CustomStorageMergeTree, don't reuse
-    auto temp_storage = local_engine::MergeTreeTable::copyToVirtualStorage(merge_tree_table, context);
+    auto temp_storage = merge_tree_table.copyToVirtualStorage(context);
     // prefetch all needed parts metadata before merge
     local_engine::restoreMetaData(temp_storage, merge_tree_table, *context);
 
@@ -1296,7 +1293,7 @@ Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * 
     std::unordered_set<String> column_set;
     for (const auto & col : tokenizer)
         column_set.insert(col);
-    auto table = local_engine::MergeTreeTableInstance::parseMergeTreeTableString(table_def);
+    local_engine::MergeTreeTableInstance table(table_def);
     auto id = local_engine::CacheManager::instance().cacheParts(table, column_set);
     return local_engine::charTojstring(env, id.c_str());
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr);

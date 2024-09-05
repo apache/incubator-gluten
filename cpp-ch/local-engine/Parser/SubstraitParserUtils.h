@@ -69,4 +69,5 @@ Message BinaryToMessage(const std::string_view binary)
 
 void logDebugMessage(const google::protobuf::Message & message, const char * type);
 
+std::string toString(const google::protobuf::Any & any);
 } // namespace local_engine

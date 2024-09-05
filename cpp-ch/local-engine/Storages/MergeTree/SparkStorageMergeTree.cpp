@@ -500,7 +500,7 @@ SinkToStoragePtr SparkWriteStorageMergeTree::write(
     settings.load(context);
     SinkHelperPtr sink_helper = SparkMergeTreeSink::create(table, settings, getContext());
 #ifndef NDEBUG
-    auto dest_storage = MergeTreeTable::getStorage(table, getContext());
+    auto dest_storage = table.getStorage(getContext());
     assert(dest_storage.get() == this);
 #endif
 

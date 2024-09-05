@@ -57,10 +57,10 @@ static Int64 findMinPosition(const NameSet & condition_table_columns, const Name
 DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     DB::QueryPlanPtr query_plan, const substrait::ReadRel & rel, const substrait::ReadRel::ExtensionTable & extension_table)
 {
-    auto merge_tree_table = MergeTreeTableInstance::parseMergeTreeTable(extension_table);
+    MergeTreeTableInstance merge_tree_table(extension_table);
     // ignore snapshot id for query
     merge_tree_table.snapshot_id = "";
-    auto storage = MergeTreeTableInstance::restoreStorage(merge_tree_table, global_context);
+    auto storage = merge_tree_table.restoreStorage(global_context);
 
     DB::Block input;
     if (rel.has_base_schema() && rel.base_schema().names_size())
@@ -316,10 +316,10 @@ String MergeTreeRelParser::getCHFunctionName(const substrait::Expression_ScalarF
 
 String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_rel)
 {
-    auto merge_tree_table = MergeTreeTableInstance::parseFromAny(read_rel.advanced_extension().enhancement());
+    MergeTreeTableInstance merge_tree_table(read_rel.advanced_extension().enhancement());
     // ignore snapshot id for query
     merge_tree_table.snapshot_id = "";
-    auto custom_storage_mergetree = MergeTreeTableInstance::restoreStorage(merge_tree_table, global_context);
+    auto storage = merge_tree_table.restoreStorage(global_context);
 
     auto input = TypeParser::buildBlockFromNamedStruct(read_rel.base_schema());
     auto names_and_types_list = input.getNamesAndTypesList();
@@ -330,11 +330,10 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
     std::vector<DataPartPtr> selected_parts = StorageMergeTreeFactory::getDataPartsByNames(
         StorageID(merge_tree_table.database, merge_tree_table.table), merge_tree_table.snapshot_id, merge_tree_table.getPartNames());
 
-    auto storage_snapshot
-        = std::make_shared<StorageSnapshot>(*custom_storage_mergetree, custom_storage_mergetree->getInMemoryMetadataPtr());
+    auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, storage->getInMemoryMetadataPtr());
     if (selected_parts.empty())
         throw Exception(ErrorCodes::NO_SUCH_DATA_PART, "no data part found.");
-    auto read_step = custom_storage_mergetree->reader.readFromParts(
+    auto read_step = storage->reader.readFromParts(
         selected_parts,
         /* alter_conversions = */
         {},

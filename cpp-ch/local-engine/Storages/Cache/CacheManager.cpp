@@ -86,7 +86,7 @@ Task CacheManager::cachePart(const MergeTreeTableInstance & table, const MergeTr
     {
         try
         {
-            auto storage = MergeTreeTableInstance::restoreStorage(job_detail.table, context);
+            auto storage = job_detail.table.restoreStorage(context);
 
             auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, storage->getInMemoryMetadataPtr());
             NamesAndTypesList names_and_types_list;

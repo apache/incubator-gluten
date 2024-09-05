@@ -54,7 +54,7 @@ std::unique_ptr<SparkMergeTreeWriter> SparkMergeTreeWriter::create(
     const DB::ContextMutablePtr & context)
 {
     const DB::Settings & settings = context->getSettingsRef();
-    const auto dest_storage = MergeTreeTable::getStorage(merge_tree_table, context);
+    const auto dest_storage = merge_tree_table.getStorage(context);
     StorageMetadataPtr metadata_snapshot = dest_storage->getInMemoryMetadataPtr();
     Block header = metadata_snapshot->getSampleBlock();
     ASTPtr none;
