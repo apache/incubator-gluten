@@ -138,8 +138,8 @@ class VeloxListenerApi extends ListenerApi with Logging {
       JniLibLoader.loadFromPath(libPath, false)
     } else {
       val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
-      loader.load(s"$baseLibPackage/${System.mapLibraryName(baseLibName)}", false)
-      loader.load(s"$baseLibPackage/${System.mapLibraryName(VeloxBackend.BACKEND_NAME)}", false)
+      loader.load(s"$platformLibDir/${System.mapLibraryName(baseLibName)}", false)
+      loader.load(s"$platformLibDir/${System.mapLibraryName(VeloxBackend.BACKEND_NAME)}", false)
     }
 
     // Initial native backend with configurations.
@@ -152,18 +152,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
     GlutenRowSplitter.setInstance(new VeloxRowSplitter())
   }
 
-  private lazy val baseLibPackage: String = {
-    val osName = System.getProperty("os.name") match {
-      case n if n.contains("Linux") => "linux"
-      case n if n.contains("Mac") => "darwin"
-      case _ =>
-        // Default to linux
-        "linux"
-    }
-    val arch = System.getProperty("os.arch")
-    s"org/apache/gluten/$osName/$arch"
-  }
-
   private def shutdown(): Unit = {
     // TODO shutdown implementation in velox to release resources
   }
@@ -174,6 +162,17 @@ object VeloxListenerApi {
   //  As spark conf may change when active Spark session is recreated.
   private val driverInitialized: AtomicBoolean = new AtomicBoolean(false)
   private val executorInitialized: AtomicBoolean = new AtomicBoolean(false)
+  private val platformLibDir: String = {
+    val osName = System.getProperty("os.name") match {
+      case n if n.contains("Linux") => "linux"
+      case n if n.contains("Mac") => "darwin"
+      case _ =>
+        // Default to linux
+        "linux"
+    }
+    val arch = System.getProperty("os.arch")
+    s"$osName/$arch"
+  }
 
   private def inLocalMode(conf: SparkConf): Boolean = {
     SparkResourceUtil.isLocalMaster(conf)

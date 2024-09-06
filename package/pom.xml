@@ -98,7 +98,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.gluten</groupId>
-	  <artifactId>gluten-delta</artifactId>
+          <artifactId>gluten-delta</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -196,12 +196,12 @@
                   <excludes>
                     <exclude>META-INF/*.SF</exclude>
                     <exclude>META-INF/*.DSA</exclude>
-		    <exclude>META-INF/*.RSA</exclude>
-		    <exclude>META-INF/DEPENDENCIES</exclude>
-		    <exclude>META-INF/LICENSE.txt</exclude>
-		    <exclude>META-INF/NOTICE.txt</exclude>
-		    <exclude>LICENSE.txt</exclude>
-	            <exclude>NOTICE.txt</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>META-INF/DEPENDENCIES</exclude>
+                    <exclude>META-INF/LICENSE.txt</exclude>
+                    <exclude>META-INF/NOTICE.txt</exclude>
+                    <exclude>LICENSE.txt</exclude>
+                    <exclude>NOTICE.txt</exclude>
                   </excludes>
                 </filter>
               </filters>

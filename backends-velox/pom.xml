@@ -187,7 +187,7 @@
     <resources>
       <resource>
         <directory>${cpp.releases.dir}</directory>
-        <targetPath>org/apache/gluten/${platform}/${arch}</targetPath>
+        <targetPath>${platform}/${arch}</targetPath>
       </resource>
       <resource>
         <directory>${resource.dir}</directory>
