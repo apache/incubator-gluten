@@ -928,15 +928,15 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           mkdir -p '${{ env.CCACHE_DIR }}'
-      - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.5.1 cython && \
+          pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.1 (other tests)
+      - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -985,15 +985,15 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           mkdir -p '${{ env.CCACHE_DIR }}'
-      - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5-scala2.13
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.5.1 cython && \
+          pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.1 with scala-2.13 (other tests)
+      - name: Build and Run unit test for Spark 3.5.2 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.13
@@ -1042,10 +1042,10 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           mkdir -p '${{ env.CCACHE_DIR }}'
-      - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
-      - name: Build and Run unit test for Spark 3.5.1 (slow tests)
+      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
