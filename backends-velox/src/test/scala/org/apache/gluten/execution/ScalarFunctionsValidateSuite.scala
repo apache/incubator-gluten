@@ -1365,4 +1365,30 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  testWithSpecifiedSparkVersion("array insert", Some("3.4")) {
+    withTempPath {
+      path =>
+        Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
+          .toDF("value")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        Seq("true", "false").foreach {
+          legacyNegativeIndex =>
+            withSQLConf("spark.sql.legacy.negativeIndexInArrayInsert" -> legacyNegativeIndex) {
+              runQueryAndCompare("""
+                                   |select
+                                   |  array_insert(value, 1, 0), array_insert(value, 10, 0),
+                                   |  array_insert(value, -1, 0), array_insert(value, -10, 0)
+                                   |from array_tbl
+                                   |""".stripMargin) {
+                checkGlutenOperatorMatch[ProjectExecTransformer]
+              }
+            }
+        }
+    }
+  }
 }

@@ -81,7 +81,8 @@ class Spark34Shims extends SparkShims {
       Sig[TimestampAdd](ExpressionNames.TIMESTAMP_ADD),
       Sig[RoundFloor](ExpressionNames.FLOOR),
       Sig[RoundCeil](ExpressionNames.CEIL),
-      Sig[Mask](ExpressionNames.MASK)
+      Sig[Mask](ExpressionNames.MASK),
+      Sig[ArrayInsert](ExpressionNames.ARRAY_INSERT)
     )
   }
 
@@ -491,5 +492,10 @@ class Spark34Shims extends SparkShims {
       caseSensitive.getOrElse(conf.caseSensitiveAnalysis),
       RebaseSpec(LegacyBehaviorPolicy.CORRECTED)
     )
+  }
+
+  override def extractExpressionArrayInsert(arrayInsert: Expression): Seq[Expression] = {
+    val expr = arrayInsert.asInstanceOf[ArrayInsert]
+    Seq(expr.srcArrayExpr, expr.posExpr, expr.itemExpr, Literal(expr.legacyNegativeIndex))
   }
 }
