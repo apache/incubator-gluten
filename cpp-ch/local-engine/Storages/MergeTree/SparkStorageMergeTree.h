@@ -50,14 +50,14 @@ class SparkStorageMergeTree : public MergeTreeData
 {
     friend class MergeSparkMergeTreeTask;
 
-    struct CustomMutationsSnapshot : public IMutationsSnapshot
+    struct SparkMutationsSnapshot : public IMutationsSnapshot
     {
-        CustomMutationsSnapshot() = default;
+        SparkMutationsSnapshot() = default;
 
         MutationCommands getAlterMutationCommandsForPart(const MergeTreeData::DataPartPtr & part) const override { return {}; }
         std::shared_ptr<MergeTreeData::IMutationsSnapshot> cloneEmpty() const override
         {
-            return std::make_shared<CustomMutationsSnapshot>();
+            return std::make_shared<SparkMutationsSnapshot>();
         }
 
         NameSet getAllUpdatedColumns() const override { return {}; }
@@ -112,7 +112,7 @@ protected:
 public:
     MutationsSnapshotPtr getMutationsSnapshot(const IMutationsSnapshot::Params & /*params*/) const override
     {
-        return std::make_shared<CustomMutationsSnapshot>();
+        return std::make_shared<SparkMutationsSnapshot>();
     };
 };
 
