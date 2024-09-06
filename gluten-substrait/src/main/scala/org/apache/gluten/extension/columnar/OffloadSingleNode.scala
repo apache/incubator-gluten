@@ -197,25 +197,29 @@ object OffloadJoin {
     val rightBuildable =
       BackendsApiManager.getSettings.supportHashBuildJoinTypeOnRight(shj.joinType)
     if (!leftBuildable) {
-      BuildRight
-    } else if (!rightBuildable) {
-      BuildLeft
-    } else {
-      shj.logicalLink match {
-        case Some(join: Join) =>
-          val leftSize = join.left.stats.sizeInBytes
-          val rightSize = join.right.stats.sizeInBytes
-          val leftRowCount = join.left.stats.rowCount
-          val rightRowCount = join.right.stats.rowCount
-          if (rightSize == leftSize && rightRowCount.isDefined && leftRowCount.isDefined) {
-            if (rightRowCount.get <= leftRowCount.get) BuildRight
-            else BuildLeft
-          } else if (rightSize <= leftSize) BuildRight
+      return BuildRight
+    }
+    if (!rightBuildable) {
+      return BuildLeft
+    }
+    // Both left and right are buildable. Find out the better one.
+    if (!GlutenConfig.getConf.shuffledHashJoinOptimizeBuildSide) {
+      return shj.buildSide
+    }
+    shj.logicalLink match {
+      case Some(join: Join) =>
+        val leftSize = join.left.stats.sizeInBytes
+        val rightSize = join.right.stats.sizeInBytes
+        val leftRowCount = join.left.stats.rowCount
+        val rightRowCount = join.right.stats.rowCount
+        if (rightSize == leftSize && rightRowCount.isDefined && leftRowCount.isDefined) {
+          if (rightRowCount.get <= leftRowCount.get) BuildRight
           else BuildLeft
-        // Only the ShuffledHashJoinExec generated directly in some spark tests is not link
-        // logical plan, such as OuterJoinSuite.
-        case _ => shj.buildSide
-      }
+        } else if (rightSize <= leftSize) BuildRight
+        else BuildLeft
+      // Only the ShuffledHashJoinExec generated directly in some spark tests is not link
+      // logical plan, such as OuterJoinSuite.
+      case _ => shj.buildSide
     }
   }
 }
