@@ -1,7 +1,7 @@
 #!/bin/bash
 
 BASEDIR=$(dirname $0)
-sudo -E dev/vcpkg/vcpkg.json
+sudo -E /dev/vcpkg/setup-build-depends.sh
 source "$BASEDIR/builddeps-veloxbe.sh"
 
 function build_for_spark {
