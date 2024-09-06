@@ -50,6 +50,19 @@ class SparkStorageMergeTree : public MergeTreeData
 {
     friend class MergeSparkMergeTreeTask;
 
+    struct CustomMutationsSnapshot : public IMutationsSnapshot
+    {
+        CustomMutationsSnapshot() = default;
+
+        MutationCommands getAlterMutationCommandsForPart(const MergeTreeData::DataPartPtr & part) const override { return {}; }
+        std::shared_ptr<MergeTreeData::IMutationsSnapshot> cloneEmpty() const override
+        {
+            return std::make_shared<CustomMutationsSnapshot>();
+        }
+
+        NameSet getAllUpdatedColumns() const override { return {}; }
+    };
+
 public:
     static void wrapRangesInDataParts(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges);
     static void analysisPartsByRanges(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges_in_data_parts);
@@ -95,11 +108,12 @@ protected:
     void movePartitionToTable(const StoragePtr & dest_table, const ASTPtr & partition, ContextPtr context) override;
     bool partIsAssignedToBackgroundOperation(const DataPartPtr & part) const override;
     void attachRestoredParts(MutableDataPartsVector && /*parts*/) override { throw std::runtime_error("not implement"); }
+
 public:
-    MutationsSnapshotPtr getMutationsSnapshot(const IMutationsSnapshot::Params & params) const override
+    MutationsSnapshotPtr getMutationsSnapshot(const IMutationsSnapshot::Params & /*params*/) const override
     {
-        throw std::runtime_error("not implement");
-    };    
+        return std::make_shared<CustomMutationsSnapshot>();
+    };
 };
 
 class SparkWriteStorageMergeTree final : public SparkStorageMergeTree
