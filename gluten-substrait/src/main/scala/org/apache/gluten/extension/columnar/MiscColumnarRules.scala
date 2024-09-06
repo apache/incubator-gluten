@@ -23,7 +23,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftSemi}
-import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike, ShuffleExchangeLike}
@@ -51,14 +51,12 @@ object MiscColumnarRules {
       bottomUpRules: Seq[OffloadSingleNode])
     extends Rule[SparkPlan]
     with LogLevelUtil {
-    @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
     def apply(plan: SparkPlan): SparkPlan = {
       val plan0 =
         topDownRules.foldLeft(plan)((p, rule) => p.transformDown { case p => rule.offload(p) })
       val plan1 =
         bottomUpRules.foldLeft(plan0)((p, rule) => p.transformUp { case p => rule.offload(p) })
-      planChangeLogger.logRule(ruleName, plan, plan1)
       plan1
     }
   }
