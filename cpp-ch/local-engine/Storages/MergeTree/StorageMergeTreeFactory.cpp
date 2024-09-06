@@ -83,7 +83,7 @@ StorageMergeTreeFactory::getDataPartsByNames(const StorageID & id, const String 
 {
     DataPartsVector res;
     auto table_name = getTableName(id, snapshot_id);
-    auto config = MergeTreeConfig::loadFromContext(SerializedPlanParser::global_context);
+    auto config = MergeTreeConfig::loadFromContext(QueryContext::globalContext());
     std::lock_guard lock(datapart_mutex);
     std::unordered_set<String> missing_names;
     if (!datapart_map->has(table_name)) [[unlikely]]

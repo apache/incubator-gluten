@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 #pragma once
-#include <base/types.h>
-#include <Common/ThreadPool_fwd.h>
 #include <Interpreters/Context_fwd.h>
+#include <base/types.h>
 #include <Common/Stopwatch.h>
+#include <Common/ThreadPool_fwd.h>
 
 namespace local_engine
 {
@@ -108,7 +108,7 @@ public:
         return global_job_scheduler;
     }
 
-    static void initialize(DB::ContextPtr context);
+    static void initialize(const DB::ContextPtr & context);
 
     JobId scheduleJob(Job&& job);
 

@@ -16,7 +16,7 @@
  */
 #pragma once
 #include <list>
-#include <optional>
+
 #include <unordered_map>
 #include <Core/Block.h>
 #include <DataTypes/IDataType.h>

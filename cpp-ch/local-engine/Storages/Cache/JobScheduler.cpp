@@ -18,9 +18,9 @@
 
 #include "JobScheduler.h"
 
+#include <Interpreters/Context.h>
 #include <Common/GlutenConfig.h>
 #include <Common/ThreadPool.h>
-#include <Interpreters/Context.h>
 #include <Common/logger_useful.h>
 
 namespace DB
@@ -42,7 +42,7 @@ namespace local_engine
 {
 std::shared_ptr<JobScheduler> global_job_scheduler = nullptr;
 
-void JobScheduler::initialize(DB::ContextPtr context)
+void JobScheduler::initialize(const DB::ContextPtr & context)
 {
     auto config = GlutenJobSchedulerConfig::loadFromContext(context);
     instance().thread_pool = std::make_unique<ThreadPool>(

@@ -14,6 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <string>
+#include <vector>
 #include <Core/Block.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <IO/ReadBufferFromFile.h>
@@ -26,9 +28,6 @@
 #include <base/types.h>
 #include <benchmark/benchmark.h>
 #include <parquet/arrow/reader.h>
-
-#include <string>
-#include <vector>
 
 using namespace DB;
 using namespace local_engine;

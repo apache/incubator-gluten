@@ -1324,10 +1324,6 @@ SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_) : contex
 {
 }
 
-ContextMutablePtr SerializedPlanParser::global_context = nullptr;
-
-Context::ConfigurationPtr SerializedPlanParser::config = nullptr;
-
 void SerializedPlanParser::collectJoinKeys(
     const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start)
 {
@@ -1564,8 +1560,6 @@ void SerializedPlanParser::wrapNullable(
         nullable_measure_names[item] = node->result_name;
     }
 }
-
-SharedContextHolder SerializedPlanParser::shared_context;
 
 LocalExecutor::~LocalExecutor()
 {

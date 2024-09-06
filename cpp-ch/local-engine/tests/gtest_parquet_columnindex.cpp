@@ -18,17 +18,16 @@
 
 #include "config.h"
 #if USE_PARQUET
+#include <charconv>
 #include <ranges>
 #include <string>
-#include <charconv>
+#include <Columns/ColumnString.h>
 #include <DataTypes/DataTypeString.h>
 #include <Interpreters/ActionsVisitor.h>
+#include <Interpreters/Context.h>
 #include <Interpreters/ExpressionActions.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parsers/ExpressionListParsers.h>
-
-#include <Core/Settings.h>
-#include <Common/BlockTypeUtils.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ColumnIndexFilter.h>
@@ -40,6 +39,8 @@
 #include <parquet/schema.h>
 #include <parquet/statistics.h>
 #include <tests/gluten_test_util.h>
+#include <Common/BlockTypeUtils.h>
+#include <Common/QueryContext.h>
 
 namespace DB::ErrorCodes
 {
@@ -359,7 +360,7 @@ void testCondition(const std::string & exp, const std::vector<size_t> & expected
     static const AnotherRowType name_and_types = buildTestRowType();
     static const local_engine::ColumnIndexStore column_index_store = buildTestColumnIndexStore();
     const local_engine::ColumnIndexFilter filter(
-        local_engine::test::parseFilter(exp, name_and_types).value(), local_engine::SerializedPlanParser::global_context);
+        local_engine::test::parseFilter(exp, name_and_types).value(), local_engine::QueryContext::globalContext());
     assertRows(filter.calculateRowRanges(column_index_store, TOTALSIZE), expectedRows);
 }
 
@@ -470,7 +471,6 @@ TEST(ColumnIndex, FilteringWithAllNullPages)
 }
 TEST(ColumnIndex, FilteringWithNotFoundColumnName)
 {
-
     using namespace test_utils;
     using namespace local_engine;
     const local_engine::ColumnIndexStore column_index_store = buildTestColumnIndexStore();
@@ -480,7 +480,7 @@ TEST(ColumnIndex, FilteringWithNotFoundColumnName)
         const AnotherRowType upper_name_and_types{{"COLUMN5", BIGINT()}};
         const local_engine::ColumnIndexFilter filter_upper(
             local_engine::test::parseFilter("COLUMN5 in (7, 20)", upper_name_and_types).value(),
-            local_engine::SerializedPlanParser::global_context);
+            local_engine::QueryContext::globalContext());
         assertRows(
             filter_upper.calculateRowRanges(column_index_store, TOTALSIZE),
             std::vector(boost::counting_iterator<size_t>(0), boost::counting_iterator<size_t>(TOTALSIZE)));
@@ -490,7 +490,7 @@ TEST(ColumnIndex, FilteringWithNotFoundColumnName)
         const AnotherRowType lower_name_and_types{{"column5", BIGINT()}};
         const local_engine::ColumnIndexFilter filter_lower(
             local_engine::test::parseFilter("column5 in (7, 20)", lower_name_and_types).value(),
-            local_engine::SerializedPlanParser::global_context);
+            local_engine::QueryContext::globalContext());
         assertRows(filter_lower.calculateRowRanges(column_index_store, TOTALSIZE), {});
     }
 }
@@ -1053,7 +1053,7 @@ TEST(ColumnIndex, VectorizedParquetRecordReader)
     static const AnotherRowType name_and_types{{"11", BIGINT()}};
     const auto filterAction = local_engine::test::parseFilter("`11` = 10 or `11` = 50", name_and_types);
     auto column_index_filter
-        = std::make_shared<local_engine::ColumnIndexFilter>(filterAction.value(), local_engine::SerializedPlanParser::global_context);
+        = std::make_shared<local_engine::ColumnIndexFilter>(filterAction.value(), local_engine::QueryContext::globalContext());
 
     Block blockHeader({{BIGINT(), "11"}, {STRING(), "18"}});
 

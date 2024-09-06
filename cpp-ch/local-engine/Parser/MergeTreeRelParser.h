@@ -20,7 +20,6 @@
 #include <substrait/algebra.pb.h>
 
 #include <Parser/RelParser.h>
-#include <Parser/SerializedPlanParser.h>
 
 namespace DB
 {
@@ -37,8 +36,7 @@ using namespace DB;
 class MergeTreeRelParser : public RelParser
 {
 public:
-    explicit MergeTreeRelParser(SerializedPlanParser * plan_paser_, const ContextPtr & context_)
-        : RelParser(plan_paser_), context(context_), global_context(plan_paser_->global_context)
+    explicit MergeTreeRelParser(SerializedPlanParser * plan_paser_, const ContextPtr & context_) : RelParser(plan_paser_), context(context_)
     {
     }
 
@@ -88,8 +86,7 @@ private:
     static void collectColumns(const substrait::Expression & rel, NameSet & columns, Block & block);
     UInt64 getColumnsSize(const NameSet & columns);
 
-    const ContextPtr & context;
-    ContextMutablePtr & global_context;
+    ContextPtr context;
 };
 
 }

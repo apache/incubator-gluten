@@ -15,17 +15,18 @@
  * limitations under the License.
  */
 #include <iostream>
+#include <DataTypes/DataTypeNullable.h>
 #include <Parser/FunctionExecutor.h>
 #include <Parser/FunctionParser.h>
 #include <gtest/gtest.h>
-#include <DataTypes/DataTypeNullable.h>
+#include <Common/QueryContext.h>
 
 using namespace DB;
 using namespace local_engine;
 
 TEST(MyMd5, Common)
 {
-    auto context = local_engine::SerializedPlanParser::global_context;
+    auto context = local_engine::QueryContext::globalContext();
     auto type = std::make_shared<DataTypeNullable>(std::make_shared<DataTypeString>());
     FunctionExecutor executor("my_md5", {type}, type, context);
 

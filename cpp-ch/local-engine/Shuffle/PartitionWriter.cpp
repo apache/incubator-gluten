@@ -22,18 +22,16 @@
 #include <IO/ReadBufferFromFile.h>
 #include <IO/WriteBufferFromFile.h>
 #include <IO/WriteBufferFromString.h>
+#include <Interpreters/sortBlock.h>
 #include <Processors/Merges/Algorithms/MergingSortedAlgorithm.h>
+#include <Processors/Transforms/SortingTransform.h>
 #include <Shuffle/CachedShuffleWriter.h>
-#include <Storages/IO/AggregateSerializationUtils.h>
 #include <Storages/IO/CompressedWriteBuffer.h>
+#include <Storages/IO/NativeWriter.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Common/CHUtil.h>
 #include <Common/Stopwatch.h>
 #include <Common/ThreadPool.h>
-#include <Common/QueryContext.h>
-
-#include <Processors/Transforms/SortingTransform.h>
-#include <Storages/IO/NativeWriter.h>
 
 
 namespace DB
@@ -324,7 +322,7 @@ PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_, LoggerPt
         partition_block_buffer[partition_id] = std::make_shared<ColumnsBuffer>(options->split_size);
         partition_buffer[partition_id] = std::make_shared<Partition>();
     }
-    settings = MemoryConfig::loadFromContext(SerializedPlanParser::global_context);
+    settings = MemoryConfig::loadFromContext(QueryContext::globalContext());
 }
 
 size_t PartitionWriter::bytes() const

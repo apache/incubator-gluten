@@ -15,18 +15,19 @@
  * limitations under the License.
  */
 #include <Columns/ColumnSet.h>
+#include <DataTypes/DataTypeFactory.h>
 #include <DataTypes/DataTypeSet.h>
 #include <Functions/FunctionFactory.h>
 #include <Interpreters/Set.h>
-#include <Parser/SerializedPlanParser.h>
 #include <gtest/gtest.h>
 #include <Common/DebugUtils.h>
+#include <Common/QueryContext.h>
 
 TEST(TestFuntion, Hash)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    auto function = factory.get("murmurHash2_64", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("murmurHash2_64", local_engine::QueryContext::globalContext());
     auto type0 = DataTypeFactory::instance().get("String");
     auto column0 = type0->createColumn();
     column0->insert("A");
@@ -56,7 +57,7 @@ TEST(TestFunction, In)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    auto function = factory.get("in", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("in", local_engine::QueryContext::globalContext());
     auto type0 = DataTypeFactory::instance().get("String");
     auto type_set = std::make_shared<DataTypeSet>();
 
@@ -83,8 +84,7 @@ TEST(TestFunction, In)
     auto arg = ColumnSet::create(4, future_set);
 
     ColumnsWithTypeAndName columns
-        = {ColumnWithTypeAndName(std::move(column1), type0, "string0"),
-           ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
+        = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
     Block block(columns);
     std::cerr << "input:\n";
     debug::headBlock(block);
@@ -100,7 +100,7 @@ TEST(TestFunction, NotIn1)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    auto function = factory.get("notIn", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("notIn", local_engine::QueryContext::globalContext());
     auto type0 = DataTypeFactory::instance().get("String");
     auto type_set = std::make_shared<DataTypeSet>();
 
@@ -125,7 +125,7 @@ TEST(TestFunction, NotIn1)
     auto future_set = std::make_shared<FutureSetFromStorage>(std::move(set));
 
     //TODO: WHY? after https://github.com/ClickHouse/ClickHouse/pull/63723 we need pass 4 instead of 1
-    auto arg = ColumnSet::create(4,future_set);
+    auto arg = ColumnSet::create(4, future_set);
 
     ColumnsWithTypeAndName columns
         = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
@@ -143,7 +143,7 @@ TEST(TestFunction, NotIn2)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    auto function = factory.get("in", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("in", local_engine::QueryContext::globalContext());
     auto type0 = DataTypeFactory::instance().get("String");
     auto type_set = std::make_shared<DataTypeSet>();
 
@@ -168,7 +168,7 @@ TEST(TestFunction, NotIn2)
     auto future_set = std::make_shared<FutureSetFromStorage>(std::move(set));
 
     //TODO: WHY? after https://github.com/ClickHouse/ClickHouse/pull/63723 we need pass 4 instead of 1
-    auto arg = ColumnSet::create(4,future_set);
+    auto arg = ColumnSet::create(4, future_set);
 
     ColumnsWithTypeAndName columns
         = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
@@ -178,7 +178,7 @@ TEST(TestFunction, NotIn2)
     auto executable = function->build(block.getColumnsWithTypeAndName());
     auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows());
 
-    auto function_not = factory.get("not", local_engine::SerializedPlanParser::global_context);
+    auto function_not = factory.get("not", local_engine::QueryContext::globalContext());
     auto type_bool = DataTypeFactory::instance().get("UInt8");
     ColumnsWithTypeAndName columns2 = {ColumnWithTypeAndName(result, type_bool, "string0")};
     Block block2(columns2);

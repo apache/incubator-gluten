@@ -49,7 +49,7 @@ namespace local_engine
 
 static void writeCacheHits(Writer<StringBuffer> & writer)
 {
-    const auto thread_group = QueryContextManager::currentThreadGroup();
+    const auto thread_group = QueryContext::currentThreadGroup();
     auto & counters = thread_group->performance_counters;
     auto read_cache_hits = counters[ProfileEvents::CachedReadBufferReadFromCacheHits].load();
     auto miss_cache_hits = counters[ProfileEvents::CachedReadBufferReadFromCacheMisses].load();
@@ -109,7 +109,7 @@ RelMetricTimes RelMetric::getTotalTime() const
             {
                 for (const auto & processor : step->getProcessors())
                 {
-                    timeMetrics.time += processor->getElapsedNs() / 1000U ;
+                    timeMetrics.time += processor->getElapsedNs() / 1000U;
                     timeMetrics.input_wait_elapsed_us += processor->getInputWaitElapsedNs() / 1000U;
                     timeMetrics.output_wait_elapsed_us += processor->getInputWaitElapsedNs() / 1000U;
                 }
@@ -209,9 +209,7 @@ std::string RelMetricSerializer::serializeRelMetric(const RelMetricPtr & rel_met
             auto metric = metrics.top();
             metrics.pop();
             for (const auto & item : metric->getInputs())
-            {
                 metrics.push(item);
-            }
             metric->serialize(writer);
         }
         writer.EndArray();

@@ -14,37 +14,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <Core/Settings.h>
+#include <DataTypes/DataTypeFactory.h>
 #include <Functions/FunctionFactory.h>
+#include <Interpreters/HashJoin/HashJoin.h>
+#include <Interpreters/TableJoin.h>
 #include <Join/StorageJoinFromReadBuffer.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/Executors/PipelineExecutor.h>
+#include <Processors/Executors/PullingPipelineExecutor.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/JoinStep.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
+#include <Processors/QueryPlan/QueryPlan.h>
 #include <Processors/QueryPlan/ReadFromPreparedSource.h>
 #include <Processors/Sources/SourceFromSingleChunk.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <gtest/gtest.h>
 #include <Common/DebugUtils.h>
-
-#include <Core/Settings.h>
-#include <Interpreters/HashJoin/HashJoin.h>
-#include <Interpreters/TableJoin.h>
-#include <substrait/plan.pb.h>
+#include <Common/QueryContext.h>
 
 using namespace DB;
 using namespace local_engine;
 
 TEST(TestJoin, simple)
 {
-    auto global_context = SerializedPlanParser::global_context;
-    local_engine::SerializedPlanParser::global_context->setSetting("join_use_nulls", true);
+    auto global_context = local_engine::QueryContext::globalContext();
+    local_engine::QueryContext::globalMutableContext()->setSetting("join_use_nulls", true);
     auto & factory = DB::FunctionFactory::instance();
-    auto function = factory.get("murmurHash2_64", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("murmurHash2_64", global_context);
     auto int_type = DataTypeFactory::instance().get("Int32");
     auto column0 = int_type->createColumn();
     column0->insert(1);

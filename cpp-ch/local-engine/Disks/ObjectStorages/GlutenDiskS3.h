@@ -19,8 +19,7 @@
 
 
 #include <Disks/ObjectStorages/DiskObjectStorage.h>
-#include <Parser/SerializedPlanParser.h>
-#include "CompactObjectStorageDiskTransaction.h"
+
 
 #if USE_AWS_S3
 namespace local_engine
@@ -41,13 +40,11 @@ public:
 
     DB::DiskTransactionPtr createTransaction() override;
 
-    std::unique_ptr<ReadBufferFromFileBase> readFile(
-        const String & path,
-        const ReadSettings & settings,
-        std::optional<size_t> read_hint,
-        std::optional<size_t> file_size) const override;
+    std::unique_ptr<DB::ReadBufferFromFileBase>
+    readFile(const String & path, const DB::ReadSettings & settings, std::optional<size_t> read_hint, std::optional<size_t> file_size)
+        const override;
 
-    DiskObjectStoragePtr createDiskObjectStorage() override;
+    DB::DiskObjectStoragePtr createDiskObjectStorage() override;
 
 private:
     std::function<DB::ObjectStoragePtr(const Poco::Util::AbstractConfiguration & conf, DB::ContextPtr context)> object_storage_creator;

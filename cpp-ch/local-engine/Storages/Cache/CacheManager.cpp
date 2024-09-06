@@ -25,6 +25,7 @@
 #include <Interpreters/Context.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
+#include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
 #include <jni/jni_common.h>
@@ -65,7 +66,7 @@ CacheManager & CacheManager::instance()
     return cache_manager;
 }
 
-void CacheManager::initialize(DB::ContextMutablePtr context_)
+void CacheManager::initialize(const DB::ContextMutablePtr & context_)
 {
     auto & manager = instance();
     manager.context = context_;

@@ -17,7 +17,6 @@
 #include "gluten_test_util.h"
 #include <filesystem>
 #include <sstream>
-
 #include <Formats/FormatSettings.h>
 #include <IO/ReadBuffer.h>
 #include <IO/ReadBufferFromFile.h>
@@ -31,6 +30,7 @@
 #include <substrait/plan.pb.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/Exception.h>
+#include <Common/QueryContext.h>
 
 namespace fs = std::filesystem;
 
@@ -60,7 +60,7 @@ std::optional<ActionsDAG> parseFilter(const std::string & filter, const AnotherR
     const ASTPtr ast_exp = parseQuery(parser2, filter.data(), filter.data() + filter.size(), "", 0, 0, 0);
     const auto prepared_sets = std::make_shared<PreparedSets>();
     ActionsMatcher::Data visitor_data(
-        SerializedPlanParser::global_context,
+        QueryContext::globalContext(),
         size_limits_for_set,
         static_cast<size_t>(0),
         name_and_types,
@@ -78,7 +78,7 @@ std::pair<substrait::Plan, std::unique_ptr<LocalExecutor>> create_plan_and_execu
     std::string_view json_plan, std::string_view split_template, std::string_view file, const std::optional<DB::ContextPtr> & context)
 {
     const std::string split = replaceLocalFilesWildcards(split_template, file);
-    SerializedPlanParser parser(context.value_or(SerializedPlanParser::global_context));
+    SerializedPlanParser parser(context.value_or(QueryContext::globalContext()));
     parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
     const auto plan = local_engine::JsonStringToMessage<substrait::Plan>(json_plan);
     return {plan, parser.createExecutor(plan)};

@@ -17,7 +17,6 @@
 #include "SelectorBuilder.h"
 #include <limits>
 #include <memory>
-#include <Columns/ColumnArray.h>
 #include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
 #include <DataTypes/DataTypeArray.h>
@@ -30,6 +29,7 @@
 #include <Poco/MemoryStream.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
+#include <Common/QueryContext.h>
 
 namespace DB
 {
@@ -101,7 +101,7 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
     if (!hash_function) [[unlikely]]
     {
         auto & factory = DB::FunctionFactory::instance();
-        auto function = factory.get(hash_function_name, local_engine::SerializedPlanParser::global_context);
+        auto function = factory.get(hash_function_name, QueryContext::globalContext());
 
         hash_function = function->build(args);
     }
@@ -328,7 +328,7 @@ void RangeSelectorBuilder::initActionsDAG(const DB::Block & block)
     std::lock_guard lock(actions_dag_mutex);
     if (has_init_actions_dag)
         return;
-    SerializedPlanParser plan_parser(local_engine::SerializedPlanParser::global_context);
+    SerializedPlanParser plan_parser(QueryContext::globalContext());
     plan_parser.parseExtensions(projection_plan_pb->extensions());
 
     const auto & expressions = projection_plan_pb->relations().at(0).root().input().project().expressions();

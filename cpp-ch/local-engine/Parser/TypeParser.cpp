@@ -19,14 +19,12 @@
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDate32.h>
-#include <DataTypes/DataTypeDateTime.h>
 #include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeFactory.h>
 #include <DataTypes/DataTypeFixedString.h>
 #include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeNothing.h>
 #include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypeSet.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
@@ -38,6 +36,7 @@
 #include <Parser/TypeParser.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/Exception.h>
+#include <Common/QueryContext.h>
 
 namespace DB
 {
@@ -274,7 +273,7 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
 
             auto args_types = tuple_type->getElements();
             AggregateFunctionProperties properties;
-            auto tmp_ctx = DB::Context::createCopy(SerializedPlanParser::global_context);
+            auto tmp_ctx = DB::Context::createCopy(QueryContext::globalContext());
             SerializedPlanParser tmp_plan_parser(tmp_ctx);
             auto function_parser = AggregateFunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
             /// This may remove elements from args_types, because some of them are used to determine CH function name, but not needed for the following
