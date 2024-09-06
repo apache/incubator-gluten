@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.vectorized;
+package org.apache.gluten.jni;
 
 import org.apache.gluten.exception.GlutenException;
 
@@ -46,7 +46,6 @@ public class JniWorkspace {
 
   private final String workDir;
   private final JniLibLoader jniLibLoader;
-  private final JniResourceHelper jniResourceHelper;
 
   private JniWorkspace(String rootDir) {
     try {
@@ -55,7 +54,6 @@ public class JniWorkspace {
       Path created = Files.createTempDirectory(root, "gluten-");
       this.workDir = created.toAbsolutePath().toString();
       this.jniLibLoader = new JniLibLoader(workDir);
-      this.jniResourceHelper = new JniResourceHelper(workDir);
       LOG.info("JNI workspace {} created in root directory {}", workDir, rootDir);
     } catch (Exception e) {
       throw new GlutenException(e);
@@ -101,22 +99,6 @@ public class JniWorkspace {
     }
   }
 
-  // For testing
-  private static boolean isDebugEnabled() {
-    synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
-      return DEFAULT_INSTANCE != null
-          && DEBUG_INSTANCE != null
-          && DEFAULT_INSTANCE == DEBUG_INSTANCE;
-    }
-  }
-
-  // For testing
-  private static void resetDefaultInstance() {
-    synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
-      DEFAULT_INSTANCE = null;
-    }
-  }
-
   public static JniWorkspace getDefault() {
     synchronized (DEFAULT_INSTANCE_INIT_LOCK) {
       if (DEFAULT_INSTANCE == null) {
@@ -137,9 +119,5 @@ public class JniWorkspace {
 
   public JniLibLoader libLoader() {
     return jniLibLoader;
-  }
-
-  public JniResourceHelper resourceHelper() {
-    return jniResourceHelper;
   }
 }

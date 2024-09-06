@@ -19,7 +19,7 @@ package org.apache.gluten.init;
 import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 
-import org.apache.spark.util.GlutenShutdownManager;
+import org.apache.spark.util.SparkShutdownManagerUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +46,7 @@ public final class NativeBackendInitializer {
       return;
     }
     initialize0(conf);
-    GlutenShutdownManager.addHook(
+    SparkShutdownManagerUtil.addHook(
         () -> {
           shutdown();
           return BoxedUnit.UNIT;

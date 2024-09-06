@@ -16,8 +16,7 @@
  */
 package org.apache.spark.util
 
-object GlutenShutdownManager {
-
+object SparkShutdownManagerUtil {
   def addHook(hook: () => Unit): AnyRef = {
     ShutdownHookManager.addShutdownHook(ShutdownHookManager.DEFAULT_SHUTDOWN_PRIORITY)(hook)
   }

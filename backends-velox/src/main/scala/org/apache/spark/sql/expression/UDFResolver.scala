@@ -19,7 +19,7 @@ package org.apache.spark.sql.expression
 import org.apache.gluten.backendsapi.velox.VeloxBackendSettings
 import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.gluten.expression._
-import org.apache.gluten.vectorized.JniWorkspace
+import org.apache.gluten.jni.JniWorkspace
 
 import org.apache.spark.{SparkConf, SparkFiles}
 import org.apache.spark.deploy.SparkHadoopUtil

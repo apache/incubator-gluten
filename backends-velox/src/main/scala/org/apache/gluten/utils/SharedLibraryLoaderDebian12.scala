@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.gluten.vectorized.JniLibLoader
+import org.apache.gluten.jni.JniLibLoader
 
 class SharedLibraryLoaderDebian12 extends SharedLibraryLoader {
   override def loadLib(loader: JniLibLoader): Unit = {

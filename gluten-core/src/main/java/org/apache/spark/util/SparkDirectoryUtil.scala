@@ -16,12 +16,11 @@
  */
 package org.apache.spark.util
 
-import org.apache.spark.SparkConf
-import org.apache.spark.internal.Logging
-
 import _root_.org.apache.gluten.exception.GlutenException
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
+import org.apache.spark.SparkConf
+import org.apache.spark.internal.Logging
 
 import java.io.{File, IOException}
 import java.nio.file.Paths
@@ -35,7 +34,7 @@ class SparkDirectoryUtil private (val roots: Array[String]) extends Logging {
     rootDir =>
       try {
         val localDir = Utils.createDirectory(rootDir, "gluten")
-        GlutenShutdownManager.addHookForTempDirRemoval(
+        SparkShutdownManagerUtil.addHookForTempDirRemoval(
           () => {
             try FileUtils.forceDelete(localDir)
             catch {

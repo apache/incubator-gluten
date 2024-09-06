@@ -22,7 +22,8 @@ import org.apache.gluten.execution.CHBroadcastBuildSideCache
 import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.extension.ExpressionExtensionTrait
-import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
+import org.apache.gluten.jni.JniLibLoader
+import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext

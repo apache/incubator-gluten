@@ -21,9 +21,9 @@ import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.init.NativeBackendInitializer
+import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
 import org.apache.gluten.udf.UdfJniWrapper
 import org.apache.gluten.utils._
-import org.apache.gluten.vectorized.{JniLibLoader, JniWorkspace}
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext

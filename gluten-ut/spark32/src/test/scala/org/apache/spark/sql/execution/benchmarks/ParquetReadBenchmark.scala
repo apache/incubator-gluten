@@ -19,8 +19,8 @@ package org.apache.spark.sql.execution.benchmarks
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, WholeStageTransformer}
 import org.apache.gluten.extension.columnar.transition.Transitions
+import org.apache.gluten.jni.JniLibLoader
 import org.apache.gluten.utils.{BackendTestUtils, SystemParameters}
-import org.apache.gluten.vectorized.JniLibLoader
 
 import org.apache.spark.SparkConf
 import org.apache.spark.benchmark.Benchmark
