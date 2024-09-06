@@ -346,16 +346,16 @@ jobs:
             -d=FLUSH_MODE:DISABLED,spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
             -d=FLUSH_MODE:ABANDONED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
             -d=FLUSH_MODE:FLUSHED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=0.05,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=0.1,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0
-      # - name: TPC-DS SF30.0 Parquet local spark3.2 Q97 low memory
-      #   run: |
-      #     cd tools/gluten-it \
-      #     && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
-      #       --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q97 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-      #       --data-gen=skip -m=OffHeapExecutionMemory \
-      #       -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
-      #       -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
-      #       -d=OFFHEAP_SIZE:2g,spark.memory.offHeap.size=2g \
-      #       -d=OFFHEAP_SIZE:1g,spark.memory.offHeap.size=1g || true
+      - name: (To be fixed) TPC-DS SF30.0 Parquet local spark3.2 Q97 low memory
+        run: |
+          cd tools/gluten-it \
+          && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q97 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
+            --data-gen=skip -m=OffHeapExecutionMemory \
+            -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
+            -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
+            -d=OFFHEAP_SIZE:2g,spark.memory.offHeap.size=2g \
+            -d=OFFHEAP_SIZE:1g,spark.memory.offHeap.size=1g || true
 
   run-tpc-test-ubuntu-randomkill:
     needs: build-native-lib-centos-7
