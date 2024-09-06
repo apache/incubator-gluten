@@ -547,5 +547,21 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
     spark.sql("drop table cross_join_t")
   }
+
+  test("Pushdown aggregation pre-projection ahead expand") {
+    spark.sql("create table t1(a bigint, b bigint, c bigint, d bigint) using parquet")
+    spark.sql("insert into t1 values(1,2,3,4), (1,2,4,5), (1,3,4,5), (2,3,4,5)")
+    var sql = """
+                | select a, b , sum(d+c) from t1 group by a,b with cube
+                | order by a,b
+                |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    sql = """
+            | select a, b , sum(a+c), sum(b+d) from t1 group by a,b with cube
+            | order by a,b
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    spark.sql("drop table t1")
+  }
 }
 // scalastyle:off line.size.limit

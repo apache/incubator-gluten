@@ -76,6 +76,7 @@ private object CHRuleApi {
     injector.injectTransform(_ => EliminateLocalSort)
     injector.injectTransform(_ => CollapseProjectExecTransformer)
     injector.injectTransform(c => RewriteSortMergeJoinToHashJoinRule.apply(c.session))
+    injector.injectTransform(c => PushdownAggregatePreProjectionAheadExpand.apply(c.session))
     injector.injectTransform(
       c => SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarTransformRules)(c.session))
     injector.injectTransform(c => InsertTransitions(c.outputsColumnar))
