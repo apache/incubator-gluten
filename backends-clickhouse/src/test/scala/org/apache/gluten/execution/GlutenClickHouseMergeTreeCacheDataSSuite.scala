@@ -58,6 +58,7 @@ class GlutenClickHouseMergeTreeCacheDataSSuite
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
         "false")
+    // .set("spark.gluten.sql.columnar.backend.ch.runtime_config.path", "/data") // for local test
   }
 
   override protected def beforeEach(): Unit = {
