@@ -1,0 +1,246 @@
+{
+  "relations": [
+    {
+      "root": {
+        "input": {
+          "read": {
+            "common": {
+              "direct": {}
+            },
+            "baseSchema": {
+              "names": [
+                "l_orderkey",
+                "l_partkey",
+                "l_suppkey",
+                "l_linenumber",
+                "l_quantity",
+                "l_extendedprice",
+                "l_discount",
+                "l_tax",
+                "l_returnflag",
+                "l_linestatus",
+                "l_shipdate",
+                "l_commitdate",
+                "l_receiptdate",
+                "l_shipinstruct",
+                "l_shipmode",
+                "l_comment"
+              ],
+              "struct": {
+                "types": [
+                  {
+                    "i64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "i64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "i64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "i64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "string": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "string": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "date": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "date": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "date": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "string": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "string": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  {
+                    "string": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  }
+                ]
+              },
+              "columnTypes": [
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL",
+                "NORMAL_COL"
+              ]
+            },
+            "advancedExtension": {
+              "optimization": {
+                "@type": "type.googleapis.com/google.protobuf.StringValue",
+                "value": "isMergeTree=0\n"
+              }
+            }
+          }
+        },
+        "names": [
+          "l_orderkey#84",
+          "l_partkey#85",
+          "l_suppkey#86",
+          "l_linenumber#87",
+          "l_quantity#88",
+          "l_extendedprice#89",
+          "l_discount#90",
+          "l_tax#91",
+          "l_returnflag#92",
+          "l_linestatus#93",
+          "l_shipdate#94",
+          "l_commitdate#95",
+          "l_receiptdate#96",
+          "l_shipinstruct#97",
+          "l_shipmode#98",
+          "l_comment#99"
+        ],
+        "outputSchema": {
+          "types": [
+            {
+              "i64": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "i64": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "i64": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "i64": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "fp64": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "fp64": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "fp64": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "fp64": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "string": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "string": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "date": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "date": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "date": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "string": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "string": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            },
+            {
+              "string": {
+                "nullability": "NULLABILITY_NULLABLE"
+              }
+            }
+          ],
+          "nullability": "NULLABILITY_REQUIRED"
+        }
+      }
+    }
+  ]
+}

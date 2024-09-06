@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "CustomStorageMergeTree.h"
+#include "SparkStorageMergeTree.h"
 
 #include <Interpreters/MergeTreeTransaction.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
+#include <Storages/MergeTree/SparkMergeTreeSink.h>
 #include <Storages/MergeTree/checkDataPart.h>
 
 namespace DB
@@ -34,8 +35,7 @@ extern const int NO_SUCH_DATA_PART;
 namespace local_engine
 {
 
-
-void CustomStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & source, DB::RangesInDataParts ranges_in_data_parts)
+void SparkStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges_in_data_parts)
 {
     ReadFromMergeTree::AnalysisResult result;
     result.column_names_to_read = source.getAllColumnNames();
@@ -76,14 +76,13 @@ void CustomStorageMergeTree::analysisPartsByRanges(DB::ReadFromMergeTree & sourc
     result.selected_rows = sum_rows;
 
     if (source.getQueryInfo().input_order_info)
-        result.read_type = (source.getQueryInfo().input_order_info->direction > 0)
-            ? MergeTreeReadType::InOrder
-            : MergeTreeReadType::InReverseOrder;
+        result.read_type
+            = (source.getQueryInfo().input_order_info->direction > 0) ? MergeTreeReadType::InOrder : MergeTreeReadType::InReverseOrder;
 
     source.setAnalyzedResult(std::make_shared<ReadFromMergeTree::AnalysisResult>(std::move(result)));
 }
 
-void CustomStorageMergeTree::wrapRangesInDataParts(DB::ReadFromMergeTree & source, DB::RangesInDataParts ranges)
+void SparkStorageMergeTree::wrapRangesInDataParts(DB::ReadFromMergeTree & source, const DB::RangesInDataParts & ranges)
 {
     auto result = source.getAnalysisResult();
     std::unordered_map<String, std::tuple<size_t, size_t>> range_index;
@@ -107,7 +106,7 @@ void CustomStorageMergeTree::wrapRangesInDataParts(DB::ReadFromMergeTree & sourc
             const size_t end = std::min(range.end, std::get<1>(expected_range));
             // [1, 1) or [5, 2) are invalid.
             if (begin >= end)
-                continue ;
+                continue;
             MarkRange final_range(begin, end);
             final_ranges.emplace_back(final_range);
         }
@@ -119,12 +118,12 @@ void CustomStorageMergeTree::wrapRangesInDataParts(DB::ReadFromMergeTree & sourc
     source.setAnalyzedResult(std::make_shared<ReadFromMergeTree::AnalysisResult>(result));
 }
 
-CustomStorageMergeTree::CustomStorageMergeTree(
+SparkStorageMergeTree::SparkStorageMergeTree(
     const StorageID & table_id_,
     const String & relative_data_path_,
     const StorageInMemoryMetadata & metadata_,
     bool attach,
-    ContextMutablePtr context_,
+    const ContextMutablePtr & context_,
     const String & date_column_name,
     const MergingParams & merging_params_,
     std::unique_ptr<MergeTreeSettings> storage_settings_,
@@ -138,7 +137,6 @@ CustomStorageMergeTree::CustomStorageMergeTree(
           std::move(storage_settings_),
           false, /// require_part_metadata
           attach ? LoadingStrictnessLevel::ATTACH : LoadingStrictnessLevel::FORCE_RESTORE)
-    , writer(*this)
     , reader(*this)
     , merger_mutator(*this)
 {
@@ -146,31 +144,31 @@ CustomStorageMergeTree::CustomStorageMergeTree(
     format_version = 1;
 }
 
-std::atomic<int> CustomStorageMergeTree::part_num;
+std::atomic<int> SparkStorageMergeTree::part_num;
 
-
-
-void CustomStorageMergeTree::prefectchMetaDataFile(std::unordered_set<std::string> parts)
+void SparkStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string> parts) const
 {
     auto disk = getDisks().front();
-    if (!disk->isRemote()) return;
+    if (!disk->isRemote())
+        return;
     std::vector<String> meta_paths;
     std::ranges::for_each(parts, [&](const String & name) { meta_paths.emplace_back(fs::path(relative_data_path) / name / "meta.bin"); });
-    for (const auto & meta_path: meta_paths)
+    for (const auto & meta_path : meta_paths)
     {
-        if (!disk->exists(meta_path)) continue;
+        if (!disk->exists(meta_path))
+            continue;
         auto in = disk->readFile(meta_path);
         String ignore_data;
         readStringUntilEOF(ignore_data, *in);
     }
 }
 
-std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames(std::unordered_set<std::string> parts)
+std::vector<MergeTreeDataPartPtr> SparkStorageMergeTree::loadDataPartsWithNames(const std::unordered_set<std::string> & parts)
 {
-    prefectchMetaDataFile(parts);
+    prefetchMetaDataFile(parts);
     std::vector<MergeTreeDataPartPtr> data_parts;
     const auto disk = getStoragePolicy()->getDisks().at(0);
-    for (const auto& name : parts)
+    for (const auto & name : parts)
     {
         const auto num = part_num.fetch_add(1);
         MergeTreePartInfo part_info = {"all", num, num, 0};
@@ -181,11 +179,8 @@ std::vector<MergeTreeDataPartPtr> CustomStorageMergeTree::loadDataPartsWithNames
     return data_parts;
 }
 
-MergeTreeData::LoadPartResult CustomStorageMergeTree::loadDataPart(
-    const MergeTreePartInfo & part_info,
-    const String & part_name,
-    const DiskPtr & part_disk_ptr,
-    MergeTreeDataPartState to_state)
+MergeTreeData::LoadPartResult SparkStorageMergeTree::loadDataPart(
+    const MergeTreePartInfo & part_info, const String & part_name, const DiskPtr & part_disk_ptr, MergeTreeDataPartState to_state)
 {
     LOG_TRACE(log, "Loading {} part {} from disk {}", magic_enum::enum_name(to_state), part_name, part_disk_ptr->getName());
 
@@ -262,7 +257,7 @@ MergeTreeData::LoadPartResult CustomStorageMergeTree::loadDataPart(
     return res;
 }
 
-void CustomStorageMergeTree::removePartFromMemory(const MergeTreeData::DataPart & part_to_detach)
+void SparkStorageMergeTree::removePartFromMemory(const MergeTreeData::DataPart & part_to_detach)
 {
     auto lock = lockParts();
     bool removed_active_part = false;
@@ -294,58 +289,222 @@ void CustomStorageMergeTree::removePartFromMemory(const MergeTreeData::DataPart 
         resetObjectColumnsFromActiveParts(lock);
 }
 
-void CustomStorageMergeTree::dropPartNoWaitNoThrow(const String & /*part_name*/)
+void SparkStorageMergeTree::dropPartNoWaitNoThrow(const String & /*part_name*/)
 {
     throw std::runtime_error("not implement");
 }
-void CustomStorageMergeTree::dropPart(const String & /*part_name*/, bool /*detach*/, ContextPtr /*context*/)
+void SparkStorageMergeTree::dropPart(const String & /*part_name*/, bool /*detach*/, ContextPtr /*context*/)
 {
     throw std::runtime_error("not implement");
 }
-void CustomStorageMergeTree::dropPartition(const ASTPtr & /*partition*/, bool /*detach*/, ContextPtr /*context*/)
+void SparkStorageMergeTree::dropPartition(const ASTPtr & /*partition*/, bool /*detach*/, ContextPtr /*context*/)
 {
 }
-PartitionCommandsResultInfo CustomStorageMergeTree::attachPartition(
+PartitionCommandsResultInfo SparkStorageMergeTree::attachPartition(
     const ASTPtr & /*partition*/, const StorageMetadataPtr & /*metadata_snapshot*/, bool /*part*/, ContextPtr /*context*/)
 {
     throw std::runtime_error("not implement");
 }
-void CustomStorageMergeTree::replacePartitionFrom(
+void SparkStorageMergeTree::replacePartitionFrom(
     const StoragePtr & /*source_table*/, const ASTPtr & /*partition*/, bool /*replace*/, ContextPtr /*context*/)
 {
     throw std::runtime_error("not implement");
 }
-void CustomStorageMergeTree::movePartitionToTable(const StoragePtr & /*dest_table*/, const ASTPtr & /*partition*/, ContextPtr /*context*/)
+void SparkStorageMergeTree::movePartitionToTable(const StoragePtr & /*dest_table*/, const ASTPtr & /*partition*/, ContextPtr /*context*/)
 {
     throw std::runtime_error("not implement");
 }
-bool CustomStorageMergeTree::partIsAssignedToBackgroundOperation(const MergeTreeData::DataPartPtr & /*part*/) const
+bool SparkStorageMergeTree::partIsAssignedToBackgroundOperation(const MergeTreeData::DataPartPtr & /*part*/) const
 {
     throw std::runtime_error("not implement");
 }
 
-std::string CustomStorageMergeTree::getName() const
+std::string SparkStorageMergeTree::getName() const
 {
     throw std::runtime_error("not implement");
 }
-std::vector<MergeTreeMutationStatus> CustomStorageMergeTree::getMutationsStatus() const
+std::vector<MergeTreeMutationStatus> SparkStorageMergeTree::getMutationsStatus() const
 {
     throw std::runtime_error("not implement");
 }
-bool CustomStorageMergeTree::scheduleDataProcessingJob(BackgroundJobsAssignee & /*executor*/)
+bool SparkStorageMergeTree::scheduleDataProcessingJob(BackgroundJobsAssignee & /*executor*/)
 {
     throw std::runtime_error("not implement");
 }
-void CustomStorageMergeTree::startBackgroundMovesIfNeeded()
+void SparkStorageMergeTree::startBackgroundMovesIfNeeded()
 {
     throw std::runtime_error("not implement");
 }
-std::unique_ptr<MergeTreeSettings> CustomStorageMergeTree::getDefaultSettings() const
+std::unique_ptr<MergeTreeSettings> SparkStorageMergeTree::getDefaultSettings() const
 {
     throw std::runtime_error("not implement");
 }
-std::map<std::string, MutationCommands> CustomStorageMergeTree::getUnfinishedMutationCommands() const
+std::map<std::string, MutationCommands> SparkStorageMergeTree::getUnfinishedMutationCommands() const
 {
     throw std::runtime_error("not implement");
 }
+
+MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
+    BlockWithPartition & block_with_partition,
+    const StorageMetadataPtr & metadata_snapshot,
+    const ContextPtr & context,
+    const SparkMergeTreeWritePartitionSettings & write_settings,
+    int part_num) const
+{
+    const std::string & part_name_prefix = write_settings.part_name_prefix;
+    const std::string & partition_dir = write_settings.partition_dir;
+    const std::string & bucket_dir = write_settings.bucket_dir;
+
+    MergeTreeDataWriter::TemporaryPart temp_part;
+
+    Block & block = block_with_partition.block;
+
+    auto columns = metadata_snapshot->getColumns().getAllPhysical().filter(block.getNames());
+
+    for (auto & column : columns)
+        if (column.type->hasDynamicSubcolumns())
+            column.type = block.getByName(column.name).type;
+
+    auto minmax_idx = std::make_shared<IMergeTreeDataPart::MinMaxIndex>();
+    minmax_idx->update(block, MergeTreeData::getMinMaxColumnsNames(metadata_snapshot->getPartitionKey()));
+
+    MergeTreePartition partition(block_with_partition.partition);
+
+    MergeTreePartInfo new_part_info(partition.getID(metadata_snapshot->getPartitionKey().sample_block), 1, 1, 0);
+
+    std::string part_dir;
+    if (!partition_dir.empty() && !bucket_dir.empty())
+        part_dir = fmt::format("{}/{}/{}_{:03d}", partition_dir, bucket_dir, part_name_prefix, part_num);
+    else if (!partition_dir.empty())
+        part_dir = fmt::format("{}/{}_{:03d}", partition_dir, part_name_prefix, part_num);
+    else if (!bucket_dir.empty())
+        part_dir = fmt::format("{}/{}_{:03d}", bucket_dir, part_name_prefix, part_num);
+    else
+        part_dir = fmt::format("{}_{:03d}", part_name_prefix, part_num);
+
+    // assert(part_num > 0 && !part_name_prefix.empty());
+
+    String part_name = part_dir;
+
+    temp_part.temporary_directory_lock = data.getTemporaryPartDirectoryHolder(part_dir);
+
+    auto indices = MergeTreeIndexFactory::instance().getMany(metadata_snapshot->getSecondaryIndices());
+
+    /// If we need to calculate some columns to sort.
+    if (metadata_snapshot->hasSortingKey() || metadata_snapshot->hasSecondaryIndices())
+        data.getSortingKeyAndSkipIndicesExpression(metadata_snapshot, indices)->execute(block);
+
+    Names sort_columns = metadata_snapshot->getSortingKeyColumns();
+    SortDescription sort_description;
+    size_t sort_columns_size = sort_columns.size();
+    sort_description.reserve(sort_columns_size);
+
+    for (size_t i = 0; i < sort_columns_size; ++i)
+        sort_description.emplace_back(sort_columns[i], 1, 1);
+
+    /// Sort
+    IColumn::Permutation * perm_ptr = nullptr;
+    IColumn::Permutation perm;
+    if (!sort_description.empty())
+    {
+        if (!isAlreadySorted(block, sort_description))
+        {
+            stableGetPermutation(block, sort_description, perm);
+            perm_ptr = &perm;
+        }
+    }
+
+    Names partition_key_columns = metadata_snapshot->getPartitionKey().column_names;
+
+    /// Size of part would not be greater than block.bytes() + epsilon
+    size_t expected_size = block.bytes();
+
+    /// If optimize_on_insert is true, block may become empty after merge.
+    /// There is no need to create empty part.
+    if (expected_size == 0)
+        return temp_part;
+
+    VolumePtr volume = data.getStoragePolicy()->getVolume(0);
+    VolumePtr data_part_volume = std::make_shared<SingleDiskVolume>(volume->getName(), volume->getDisk(), volume->max_data_part_size);
+    auto new_data_part = data.getDataPartBuilder(part_name, data_part_volume, part_dir)
+                             .withPartFormat(data.choosePartFormat(expected_size, block.rows()))
+                             .withPartInfo(new_part_info)
+                             .build();
+
+    auto data_part_storage = new_data_part->getDataPartStoragePtr();
+
+
+    const auto & data_settings = data.getSettings();
+
+    SerializationInfo::Settings settings{data_settings->ratio_of_defaults_for_sparse_serialization, true};
+    SerializationInfoByName infos(columns, settings);
+    infos.add(block);
+
+    new_data_part->setColumns(columns, infos, metadata_snapshot->getMetadataVersion());
+    new_data_part->rows_count = block.rows();
+    new_data_part->partition = std::move(partition);
+    new_data_part->minmax_idx = std::move(minmax_idx);
+
+    data_part_storage->beginTransaction();
+    SyncGuardPtr sync_guard;
+    if (new_data_part->isStoredOnDisk())
+    {
+        /// The name could be non-unique in case of stale files from previous runs.
+        String full_path = new_data_part->getDataPartStorage().getFullPath();
+
+        if (new_data_part->getDataPartStorage().exists())
+        {
+            // LOG_WARNING(log, "Removing old temporary directory {}", full_path);
+            data_part_storage->removeRecursive();
+        }
+
+        data_part_storage->createDirectories();
+
+        if (data.getSettings()->fsync_part_directory)
+        {
+            const auto disk = data_part_volume->getDisk();
+            sync_guard = disk->getDirectorySyncGuard(full_path);
+        }
+    }
+
+    /// This effectively chooses minimal compression method:
+    ///  either default lz4 or compression method with zero thresholds on absolute and relative part size.
+    auto compression_codec = data.getContext()->chooseCompressionCodec(0, 0);
+    auto txn = context->getCurrentTransaction();
+    auto out = std::make_unique<MergedBlockOutputStream>(
+        new_data_part,
+        metadata_snapshot,
+        columns,
+        indices,
+        MergeTreeStatisticsFactory::instance().getMany(metadata_snapshot->getColumns()),
+        compression_codec,
+        txn ? txn->tid : Tx::PrehistoricTID,
+        false,
+        false,
+        context->getWriteSettings());
+
+    out->writeWithPermutation(block, perm_ptr);
+    auto finalizer = out->finalizePartAsync(new_data_part, data_settings->fsync_after_insert, nullptr, nullptr);
+
+    temp_part.part = new_data_part;
+    temp_part.streams.emplace_back(MergeTreeDataWriter::TemporaryPart::Stream{.stream = std::move(out), .finalizer = std::move(finalizer)});
+    temp_part.finalize();
+    data_part_storage->commitTransaction();
+    return temp_part;
+}
+
+SinkToStoragePtr SparkWriteStorageMergeTree::write(
+    const ASTPtr &, const StorageMetadataPtr & /*storage_in_memory_metadata*/, ContextPtr context, bool /*async_insert*/)
+{
+    SparkMergeTreeWriteSettings settings{.partition_settings{SparkMergeTreeWritePartitionSettings::get(context)}};
+    settings.load(context);
+    SinkHelperPtr sink_helper = SparkMergeTreeSink::create(table, settings, getContext());
+#ifndef NDEBUG
+    auto dest_storage = table.getStorage(getContext());
+    assert(dest_storage.get() == this);
+#endif
+
+    return std::make_shared<SparkMergeTreeSink>(sink_helper, context);
+}
+
 }

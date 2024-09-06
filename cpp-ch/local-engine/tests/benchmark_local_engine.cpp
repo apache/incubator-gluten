@@ -35,8 +35,9 @@
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Shuffle/ShuffleReader.h>
-#include <Storages/CustomStorageMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
+#include <Storages/MergeTree/SparkMergeTreeMeta.h>
+#include <Storages/MergeTree/SparkStorageMergeTree.h>
 #include <Storages/SelectQueryInfo.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
@@ -45,7 +46,6 @@
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
-#include <Common/MergeTreeTool.h>
 #include <Common/PODArray_fwd.h>
 #include <Common/Stopwatch.h>
 #include <Common/logger_useful.h>
@@ -787,7 +787,7 @@ public:
 
 struct MergeTreeWithSnapshot
 {
-    std::shared_ptr<local_engine::CustomStorageMergeTree> merge_tree;
+    std::shared_ptr<local_engine::SparkStorageMergeTree> merge_tree;
     std::shared_ptr<StorageSnapshot> snapshot;
     NamesAndTypesList columns;
 };

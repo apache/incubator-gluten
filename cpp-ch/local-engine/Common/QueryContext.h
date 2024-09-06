@@ -16,10 +16,13 @@
  */
 #pragma once
 #include <Interpreters/Context_fwd.h>
+#include <Common/ConcurrentMap.h>
 #include <Common/ThreadStatus.h>
 
 namespace local_engine
 {
+struct QueryContext;
+
 class QueryContextManager
 {
 public:
@@ -31,13 +34,14 @@ public:
     int64_t initializeQuery();
     DB::ContextMutablePtr currentQueryContext();
     static std::shared_ptr<DB::ThreadGroup> currentThreadGroup();
-    void logCurrentPerformanceCounters(ProfileEvents::Counters& counters);
+    void logCurrentPerformanceCounters(ProfileEvents::Counters & counters) const;
     size_t currentPeakMemory(int64_t id);
     void finalizeQuery(int64_t id);
 
 private:
     QueryContextManager() = default;
-    LoggerPtr logger = getLogger("QueryContextManager");
+    LoggerPtr logger_ = getLogger("QueryContextManager");
+    ConcurrentMap<int64_t, std::shared_ptr<QueryContext>> query_map_{};
 };
 
 size_t currentThreadGroupMemoryUsage();

@@ -15,42 +15,42 @@
  * limitations under the License.
  */
 #pragma once
-#include <IO/ReadBufferFromString.h>
-#include <IO/ReadHelpers.h>
-#include <IO/WriteBufferFromString.h>
-#include <IO/WriteHelpers.h>
+
 #include <Interpreters/TableJoin.h>
 #include <Interpreters/TreeRewriter.h>
-#include <Parsers/ASTExpressionList.h>
-#include <Parsers/ASTFunction.h>
-#include <Parsers/ASTSelectQuery.h>
+
+#include <Interpreters/MergeTreeTransaction.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
 #include <Storages/MergeTree/RangesInDataPart.h>
 #include <Storages/SelectQueryInfo.h>
 #include <Storages/StorageInMemoryMetadata.h>
-#include <Interpreters/MergeTreeTransaction.h>
 #include <substrait/plan.pb.h>
 
+namespace DB
+{
+class ReadBufferFromString;
+}
 namespace local_engine
 {
+class SparkStorageMergeTree;
+using SparkStorageMergeTreePtr = std::shared_ptr<SparkStorageMergeTree>;
 using namespace DB;
-
 
 struct MergeTreePart
 {
-    String name;
+    std::string name;
     size_t begin;
     size_t end;
 };
 
 struct MergeTreeTableSettings
 {
-    String storage_policy = "";
+    std::string storage_policy{};
 };
 
 struct MergeTreeTable
 {
-    inline static const String TUPLE = "tuple()";
+    static constexpr std::string_view TUPLE = "tuple()";
     std::string database;
     std::string table;
     std::string snapshot_id;
@@ -60,22 +60,39 @@ struct MergeTreeTable
     std::string minmax_index_key;
     std::string bf_index_key;
     std::string set_index_key;
-    std::string primary_key = "";
+    std::string primary_key{};
     std::string relative_path;
     std::string absolute_path;
     MergeTreeTableSettings table_configs;
-    std::vector<MergeTreePart> parts;
-    std::unordered_set<String> getPartNames() const;
-    RangesInDataParts extractRange(DataPartsVector parts_vector) const;
-    bool sameStructWith(const MergeTreeTable& other);
+
+    bool sameTable(const MergeTreeTable & other) const;
+
+    SparkStorageMergeTreePtr getStorage(ContextMutablePtr context) const;
+
+    /// Create random table name and table path and use default storage policy.
+    /// In insert case, mergetree data can be uploaded after merges in default storage(Local Disk).
+    SparkStorageMergeTreePtr copyToDefaultPolicyStorage(const ContextMutablePtr & context) const;
+
+    /// Use same table path and data path as the original table.
+    SparkStorageMergeTreePtr copyToVirtualStorage(const ContextMutablePtr & context) const;
+
+    std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(const DB::Block & header, const ContextPtr & context) const;
 };
 
-std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(const DB::NamesAndTypesList &columns, ContextPtr context, const MergeTreeTable &);
+struct MergeTreeTableInstance : MergeTreeTable
+{
+    std::vector<MergeTreePart> parts;
+    std::unordered_set<std::string> getPartNames() const;
+    RangesInDataParts extractRange(DataPartsVector parts_vector) const;
+
+    SparkStorageMergeTreePtr restoreStorage(const ContextMutablePtr & context) const;
+
+    explicit MergeTreeTableInstance(const google::protobuf::Any & any);
+    explicit MergeTreeTableInstance(const substrait::ReadRel::ExtensionTable & extension_table);
+    explicit MergeTreeTableInstance(const std::string & info);
+};
 
 std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config);
 
 std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_types_list);
-
-MergeTreeTable parseMergeTreeTableString(const std::string & info);
-
 }

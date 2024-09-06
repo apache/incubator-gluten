@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 #include "MergeSparkMergeTreeTask.h"
-#include <Storages/CustomStorageMergeTree.h>
+#include <Storages/MergeTree/SparkStorageMergeTree.h>
 
+#include <Interpreters/TransactionLog.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/MergeTreeDataMergerMutator.h>
-#include <Interpreters/TransactionLog.h>
-#include <Common/ProfileEventsScope.h>
 #include <Common/ProfileEvents.h>
+#include <Common/ProfileEventsScope.h>
 #include <Common/ThreadFuzzer.h>
 using namespace DB;
 

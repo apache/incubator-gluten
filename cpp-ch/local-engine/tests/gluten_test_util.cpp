@@ -21,13 +21,14 @@
 #include <Formats/FormatSettings.h>
 #include <IO/ReadBuffer.h>
 #include <IO/ReadBufferFromFile.h>
-
 #include <Interpreters/ActionsVisitor.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Parsers/parseQuery.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
+#include <substrait/plan.pb.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/Exception.h>
 
@@ -71,6 +72,16 @@ std::optional<ActionsDAG> parseFilter(const std::string & filter, const AnotherR
         info);
     ActionsVisitor(visitor_data).visit(ast_exp);
     return ActionsDAG::buildFilterActionsDAG({visitor_data.getActions().getOutputs().back()}, node_name_to_input_column);
+}
+
+std::pair<substrait::Plan, std::unique_ptr<LocalExecutor>> create_plan_and_executor(
+    std::string_view json_plan, std::string_view split_template, std::string_view file, const std::optional<DB::ContextPtr> & context)
+{
+    const std::string split = replaceLocalFilesWildcards(split_template, file);
+    SerializedPlanParser parser(context.value_or(SerializedPlanParser::global_context));
+    parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
+    const auto plan = local_engine::JsonStringToMessage<substrait::Plan>(json_plan);
+    return {plan, parser.createExecutor(plan)};
 }
 
 const char * get_data_dir()

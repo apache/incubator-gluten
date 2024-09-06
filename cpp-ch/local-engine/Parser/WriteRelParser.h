@@ -21,6 +21,7 @@
 #include <Core/Block.h>
 #include <Core/Names.h>
 #include <Interpreters/Context_fwd.h>
+#include <Common/GlutenSettings.h>
 
 namespace substrait
 {
@@ -37,10 +38,16 @@ using QueryPipelineBuilderPtr = std::unique_ptr<QueryPipelineBuilder>;
 namespace local_engine
 {
 
-void addSinkTransfrom(const DB::ContextPtr & context, const substrait::WriteRel & write_rel, const DB::QueryPipelineBuilderPtr & builder);
+void addSinkTransform(const DB::ContextPtr & context, const substrait::WriteRel & write_rel, const DB::QueryPipelineBuilderPtr & builder);
 
 /// Visible for UTs
 std::map<std::string, std::string> parse_write_parameter(const std::string & input);
 DB::Names collect_partition_cols(const DB::Block & header, const substrait::NamedStruct & struct_);
+
+#define WRITE_RELATED_SETTINGS(M, ALIAS, UNIQ) \
+    M(String, task_write_tmp_dir, , "The temporary directory for writing data", UNIQ) \
+    M(String, task_write_filename, , "The filename for writing data", UNIQ)
+
+DECLARE_GLUTEN_SETTINGS(GlutenWriteSettings, WRITE_RELATED_SETTINGS)
 
 }

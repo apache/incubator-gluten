@@ -51,6 +51,7 @@
 #include <Interpreters/JIT/CompiledExpressionCache.h>
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Planner/PlannerActionsVisitor.h>
 #include <Processors/Chunk.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
@@ -58,8 +59,8 @@
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
 #include <Storages/Cache/CacheManager.h>
+#include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Storages/Output/WriteBufferBuilder.h>
-#include <Storages/StorageMergeTreeFactory.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
@@ -519,16 +520,9 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std
         if (!success)
             break;
 
-        if (logger && logger->debug())
-        {
-            namespace pb_util = google::protobuf::util;
-            pb_util::JsonOptions options;
-            std::string json;
-            auto s = pb_util::MessageToJsonString(sPlan, &json, options);
-            if (!s.ok())
-                throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert Substrait Plan to Json");
-            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Update Config Map Plan:\n{}", json);
-        }
+        /// see initLoggers, logger == nullptr which meanas initLoggers is not called.
+        if (logger != nullptr)
+            logDebugMessage(sPlan, "Update Config Map Plan");
 
         if (!sPlan.has_advanced_extensions() || !sPlan.advanced_extensions().has_enhancement())
             break;

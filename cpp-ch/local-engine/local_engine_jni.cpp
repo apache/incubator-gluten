@@ -28,20 +28,23 @@
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parser/SubstraitParserUtils.h>
+#include <Parser/WriteRelParser.h>
 #include <Shuffle/CachedShuffleWriter.h>
 #include <Shuffle/NativeSplitter.h>
 #include <Shuffle/NativeWriterInMemory.h>
 #include <Shuffle/PartitionWriter.h>
-#include <Shuffle/ShuffleReader.h>
 #include <Shuffle/ShuffleCommon.h>
+#include <Shuffle/ShuffleReader.h>
 #include <Shuffle/ShuffleWriter.h>
 #include <Shuffle/ShuffleWriterBase.h>
 #include <Shuffle/WriteBufferFromJavaOutputStream.h>
-#include <Storages/Mergetree/MetaDataHelper.h>
-#include <Storages/Mergetree/SparkMergeTreeWriter.h>
+#include <Storages/Cache/CacheManager.h>
+#include <Storages/MergeTree/MetaDataHelper.h>
+#include <Storages/MergeTree/SparkMergeTreeWriteSettings.h>
+#include <Storages/MergeTree/SparkMergeTreeWriter.h>
+#include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Storages/Output/BlockStripeSplitter.h>
 #include <Storages/Output/FileWriterWrappers.h>
-#include <Storages/StorageMergeTreeFactory.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <jni/SharedPointerWrapper.h>
@@ -50,12 +53,10 @@
 #include <Poco/Logger.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
-#include <Common/CurrentThread.h>
+#include <Common/ErrorCodes.h>
 #include <Common/ExceptionUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
-#include <Common/ErrorCodes.h>
-#include <Storages/Cache/CacheManager.h>
 
 
 #ifdef __cplusplus
@@ -80,15 +81,15 @@ static std::string jstring2string(JNIEnv * env, jstring jStr)
 
     const jclass string_class = env->GetObjectClass(jStr);
     const jmethodID get_bytes = env->GetMethodID(string_class, "getBytes", "(Ljava/lang/String;)[B");
-    const auto string_jbytes
+    auto * const string_jbytes
         = static_cast<jbyteArray>(local_engine::safeCallObjectMethod(env, jStr, get_bytes, env->NewStringUTF("UTF-8")));
+    SCOPE_EXIT({
+        env->DeleteLocalRef(string_jbytes);
+        env->DeleteLocalRef(string_class);
+    });
 
     const auto string_jbytes_a = local_engine::getByteArrayElementsSafe(env, string_jbytes);
-    std::string ret{reinterpret_cast<char *>(string_jbytes_a.elems()), static_cast<size_t>(string_jbytes_a.length())};
-
-    env->DeleteLocalRef(string_jbytes);
-    env->DeleteLocalRef(string_class);
-    return ret;
+    return {reinterpret_cast<char *>(string_jbytes_a.elems()), static_cast<size_t>(string_jbytes_a.length())};
 }
 
 extern "C" {
@@ -213,19 +214,20 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_i
     const auto query_context = local_engine::QueryContextManager::instance().currentQueryContext();
 
     const auto path_array = local_engine::getByteArrayElementsSafe(env, temp_path);
-    const std::string c_path{reinterpret_cast<const char *>(path_array.elems()), static_cast<size_t>(path_array.length())};
-    query_context->setSetting(local_engine::SPARK_TASK_WRITE_TMEP_DIR, c_path);
-
     const auto filename_array = local_engine::getByteArrayElementsSafe(env, filename);
-    const std::string c_filename{reinterpret_cast<const char *>(filename_array.elems()), static_cast<size_t>(filename_array.length())};
-    query_context->setSetting(local_engine::SPARK_TASK_WRITE_FILENAME, c_filename);
+
+    local_engine::GlutenWriteSettings settings{
+        .task_write_tmp_dir = {reinterpret_cast<const char *>(path_array.elems()), static_cast<size_t>(path_array.length())},
+        .task_write_filename = {reinterpret_cast<const char *>(filename_array.elems()), static_cast<size_t>(filename_array.length())},
+    };
+    settings.set(query_context);
 
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
     JNIEnv * env,
-    jclass ,
+    jclass,
     jbyteArray plan,
     jobjectArray split_infos,
     jobjectArray iter_arr,
@@ -593,7 +595,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .max_sort_buffer_size = static_cast<size_t>(max_sort_buffer_size),
         .force_memory_sort = static_cast<bool>(force_memory_sort)};
     auto name = jstring2string(env, short_name);
-    local_engine::SplitterHolder * splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options)};
+    local_engine::SplitterHolder * splitter
+        = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options)};
     return reinterpret_cast<jlong>(splitter);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
@@ -890,18 +893,16 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     const auto task_id = jstring2string(env, task_id_);
     const auto partition_dir = jstring2string(env, partition_dir_);
     const auto bucket_dir = jstring2string(env, bucket_dir_);
-
-    const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan_);
-    auto plan_ptr = local_engine::BinaryToMessage<substrait::Plan>(
-        {reinterpret_cast<const char *>(plan_a.elems()), static_cast<size_t>(plan_a.length())});
+    auto uuid = uuid_str + "_" + task_id;
+    local_engine::SparkMergeTreeWritePartitionSettings settings{
+        .part_name_prefix{uuid}, .partition_dir{partition_dir}, .bucket_dir{bucket_dir}};
+    settings.set(query_context);
 
     const auto split_info_a = local_engine::getByteArrayElementsSafe(env, split_info_);
     auto extension_table = local_engine::BinaryToMessage<substrait::ReadRel::ExtensionTable>(
         {reinterpret_cast<const char *>(split_info_a.elems()), static_cast<size_t>(split_info_a.length())});
-
-    auto merge_tree_table = local_engine::MergeTreeRelParser::parseMergeTreeTable(extension_table);
-    auto uuid = uuid_str + "_" + task_id;
-    auto * writer = new local_engine::SparkMergeTreeWriter(merge_tree_table, query_context, uuid, partition_dir, bucket_dir);
+    local_engine::MergeTreeTableInstance merge_tree_table(extension_table);
+    auto * writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, settings, query_context).release();
 
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
@@ -944,8 +945,8 @@ JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWr
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * writer = reinterpret_cast<local_engine::NormalFileWriter *>(instanceId);
+    SCOPE_EXIT({ delete writer; });
     writer->close();
-    delete writer;
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
@@ -954,7 +955,7 @@ JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWr
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * writer = reinterpret_cast<local_engine::SparkMergeTreeWriter *>(instanceId);
-    auto * block = reinterpret_cast<DB::Block *>(block_address);
+    const auto * block = reinterpret_cast<DB::Block *>(block_address);
     writer->write(*block);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
@@ -964,10 +965,11 @@ Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_closeMerg
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * writer = reinterpret_cast<local_engine::SparkMergeTreeWriter *>(instanceId);
+    SCOPE_EXIT({ delete writer; });
+
     writer->finalize();
-    auto part_infos = writer->getAllPartInfo();
-    auto json_info = local_engine::SparkMergeTreeWriter::partInfosToJson(part_infos);
-    delete writer;
+    const auto part_infos = writer->getAllPartInfo();
+    const auto json_info = local_engine::SparkMergeTreeWriter::partInfosToJson(part_infos);
     return local_engine::charTojstring(env, json_info.c_str());
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }
@@ -985,45 +987,36 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     LOCAL_ENGINE_JNI_METHOD_START
 
     const auto uuid_str = jstring2string(env, uuid_);
-    const auto task_id = jstring2string(env, task_id_);
+
     const auto partition_dir = jstring2string(env, partition_dir_);
     const auto bucket_dir = jstring2string(env, bucket_dir_);
-
-    const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan_);
-    auto plan_ptr = local_engine::BinaryToMessage<substrait::Plan>(
-        {reinterpret_cast<const char *>(plan_a.elems()), static_cast<size_t>(plan_a.length())});
 
     const auto split_info_a = local_engine::getByteArrayElementsSafe(env, split_info_);
     auto extension_table = local_engine::BinaryToMessage<substrait::ReadRel::ExtensionTable>(
         {reinterpret_cast<const char *>(split_info_a.elems()), static_cast<size_t>(split_info_a.length())});
 
-    google::protobuf::StringValue table;
-    table.ParseFromString(extension_table.detail().value());
-    auto merge_tree_table = local_engine::parseMergeTreeTableString(table.value());
-
+    local_engine::MergeTreeTableInstance merge_tree_table(extension_table);
     auto context = local_engine::QueryContextManager::instance().currentQueryContext();
     // each task using its own CustomStorageMergeTree, don't reuse
-    auto temp_storage
-        = local_engine::MergeTreeRelParser::copyToVirtualStorage(merge_tree_table, context);
+    auto temp_storage = merge_tree_table.copyToVirtualStorage(context);
     // prefetch all needed parts metadata before merge
     local_engine::restoreMetaData(temp_storage, merge_tree_table, *context);
 
-    local_engine::TempStorageFreer freer{temp_storage->getStorageID()}; // to release temp CustomStorageMergeTree with RAII
+    // to release temp CustomStorageMergeTree with RAII
+    DB::StorageID storage_id = temp_storage->getStorageID();
+    SCOPE_EXIT({ local_engine::StorageMergeTreeFactory::freeStorage(storage_id); });
+
     std::vector<DB::DataPartPtr> selected_parts = local_engine::StorageMergeTreeFactory::instance().getDataPartsByNames(
         temp_storage->getStorageID(), "", merge_tree_table.getPartNames());
 
     std::unordered_map<String, String> partition_values;
     std::vector<DB::MergeTreeDataPartPtr> loaded
-        = local_engine::mergeParts(selected_parts, partition_values, uuid_str, temp_storage, partition_dir, bucket_dir);
+        = local_engine::mergeParts(selected_parts, partition_values, uuid_str, *temp_storage, partition_dir, bucket_dir);
 
     std::vector<local_engine::PartInfo> res;
     for (auto & partPtr : loaded)
     {
-        saveFileStatus(
-            *temp_storage,
-            context,
-            partPtr->name,
-            const_cast<DB::IDataPartStorage &>(partPtr->getDataPartStorage()));
+        saveFileStatus(*temp_storage, context, partPtr->name, const_cast<DB::IDataPartStorage &>(partPtr->getDataPartStorage()));
         res.emplace_back(local_engine::PartInfo{
             partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count, partition_values, bucket_dir});
     }
@@ -1085,7 +1078,15 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
     DB::CompressedReadBuffer input(read_buffer_from_java_array);
     local_engine::configureCompressedReadBuffer(input);
     const auto * obj = make_wrapper(local_engine::BroadCastJoinBuilder::buildJoin(
-        hash_table_id, input, row_count_, join_key, join_type_, has_mixed_join_condition, is_existence_join, struct_string, is_null_aware_anti_join));
+        hash_table_id,
+        input,
+        row_count_,
+        join_key,
+        join_type_,
+        has_mixed_join_condition,
+        is_existence_join,
+        struct_string,
+        is_null_aware_anti_join));
     return obj->instance();
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
@@ -1171,7 +1172,14 @@ JNIEXPORT jint Java_org_apache_gluten_vectorized_BlockSplitIterator_nativeNextPa
 }
 
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_BlockOutputStream_nativeCreate(
-    JNIEnv * env, jobject, jobject output_stream, jbyteArray buffer, jstring codec, jint level, jboolean compressed, jint customize_buffer_size)
+    JNIEnv * env,
+    jobject,
+    jobject output_stream,
+    jbyteArray buffer,
+    jstring codec,
+    jint level,
+    jboolean compressed,
+    jint customize_buffer_size)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::ShuffleWriter * writer
@@ -1275,8 +1283,8 @@ JNIEXPORT void Java_org_apache_gluten_utils_TestExceptionUtils_generateNativeExc
 }
 
 
-
-JNIEXPORT jstring Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * env, jobject, jstring table_, jstring columns_)
+JNIEXPORT jstring
+Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * env, jobject, jstring table_, jstring columns_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto table_def = jstring2string(env, table_);
@@ -1284,10 +1292,9 @@ JNIEXPORT jstring Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCa
     Poco::StringTokenizer tokenizer(columns, ",");
     std::unordered_set<String> column_set;
     for (const auto & col : tokenizer)
-    {
         column_set.insert(col);
-    }
-    auto id = local_engine::CacheManager::instance().cacheParts(table_def, column_set);
+    local_engine::MergeTreeTableInstance table(table_def);
+    auto id = local_engine::CacheManager::instance().cacheParts(table, column_set);
     return local_engine::charTojstring(env, id.c_str());
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr);
 }

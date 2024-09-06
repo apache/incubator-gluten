@@ -28,27 +28,19 @@ using namespace local_engine;
 
 using namespace DB;
 
-INCBIN(resource_embedded_pr_18_2_json, SOURCE_DIR "/utils/extern-local-engine/tests/decmial_filter_push_down/18_2.json");
-TEST(ColumnIndex, Deciaml182)
+INCBIN(_pr_18_2, SOURCE_DIR "/utils/extern-local-engine/tests/decimal_filter_push_down/18_2.json");
+TEST(ColumnIndex, Decimal182)
 {
     // [precision,scale] = [18,2]
     const auto context1 = DB::Context::createCopy(SerializedPlanParser::global_context);
-
-    auto config = ExecutorConfig::loadFromContext(context1);
+    const auto config = ExecutorConfig::loadFromContext(context1);
     EXPECT_TRUE(config.use_local_format) << "gtest need set use_local_format to true";
 
-    const std::string split_template
+    constexpr std::string_view split_template
         = R"({"items":[{"uriFile":"{replace_local_files}","partitionIndex":"0","length":"488","parquet":{},"schema":{},"metadataColumns":[{}]}]})";
-    const std::string split = replaceLocalFilesWildcards(
-        split_template, GLUTEN_DATA_DIR("/utils/extern-local-engine/tests/decmial_filter_push_down/18_2_flba.snappy.parquet"));
+    constexpr std::string_view file{GLUTEN_DATA_DIR("/utils/extern-local-engine/tests/decimal_filter_push_down/18_2_flba.snappy.parquet")};
+    auto [_, local_executor] = test::create_plan_and_executor(EMBEDDED_PLAN(_pr_18_2), split_template, file, context1);
 
-    SerializedPlanParser parser(context1);
-    parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
-
-    const auto plan = local_engine::JsonStringToMessage<substrait::Plan>(
-        {reinterpret_cast<const char *>(gresource_embedded_pr_18_2_jsonData), gresource_embedded_pr_18_2_jsonSize});
-
-    auto local_executor = parser.createExecutor(plan);
     EXPECT_TRUE(local_executor->hasNext());
     const Block & x = *local_executor->nextColumnar();
     debug::headBlock(x);

@@ -23,6 +23,7 @@
 namespace DB::ErrorCodes
 {
 extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
+extern const int LOGICAL_ERROR;
 }
 
 namespace local_engine
@@ -66,4 +67,7 @@ Message BinaryToMessage(const std::string_view binary)
     return message;
 }
 
+void logDebugMessage(const google::protobuf::Message & message, const char * type);
+
+std::string toString(const google::protobuf::Any & any);
 } // namespace local_engine
