@@ -101,8 +101,7 @@ Task CacheManager::cachePart(const MergeTreeTableInstance & table, const MergeTr
                 = StorageMergeTreeFactory::getDataPartsByNames(storage->getStorageID(), "", {job_detail.table.parts.front().name});
             auto read_step = storage->reader.readFromParts(
                 selected_parts,
-                /* alter_conversions = */
-                {},
+                storage->getMutationsSnapshot({}),
                 names_and_types_list.getNames(),
                 storage_snapshot,
                 *query_info,
