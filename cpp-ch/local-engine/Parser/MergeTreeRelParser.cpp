@@ -96,8 +96,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
 
     auto read_step = storage->reader.readFromParts(
         selected_parts,
-        /* alter_conversions = */
-        {},
+        storage->getMutationsSnapshot({}),
         names_and_types_list.getNames(),
         storage_snapshot,
         *query_info,
