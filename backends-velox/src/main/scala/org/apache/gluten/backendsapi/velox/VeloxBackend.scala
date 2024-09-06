@@ -282,8 +282,6 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
   override def supportNativeRowIndexColumn(): Boolean = true
 
-  override def supportNativeInputFileRelatedExpr(): Boolean = true
-
   override def supportExpandExec(): Boolean = true
 
   override def supportSortExec(): Boolean = true
