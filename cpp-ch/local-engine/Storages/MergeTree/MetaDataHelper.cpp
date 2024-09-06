@@ -29,6 +29,14 @@ extern const Metric LocalThreadActive;
 extern const Metric LocalThreadScheduled;
 }
 
+namespace DB
+{
+namespace ErrorCodes
+{
+extern const int NOT_IMPLEMENTED;
+}
+}
+
 using namespace DB;
 
 namespace local_engine
@@ -53,12 +61,72 @@ std::unordered_map<String, String> extractPartMetaData(ReadBuffer & in)
     return result;
 }
 
-void restoreMetaData(const SparkStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context)
+enum SupportedMetaDataStorageType
+{
+    UNKNOWN =0,
+    ROCKSDB,
+    LOCAL
+};
+
+template <SupportedMetaDataStorageType type>
+static void restoreMetaData(const SparkStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context)
+{
+    UNREACHABLE();
+}
+
+template <>
+void restoreMetaData<ROCKSDB>(const SparkStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context)
+{
+    auto data_disk = storage->getStoragePolicy()->getAnyDisk();
+    std::unordered_set<String> not_exists_part;
+    auto metadata_storage = data_disk->getMetadataStorage();
+    auto table_path = std::filesystem::path(mergeTreeTable.relative_path);
+    for (const auto & part : mergeTreeTable.getPartNames())
+    {
+        auto part_path = table_path / part;
+        if (!metadata_storage->exists(part_path))
+            not_exists_part.emplace(part);
+    }
+
+    if (auto lock = storage->lockForAlter(context.getSettingsRef().lock_acquire_timeout))
+    {
+        // put this return clause in lockForAlter
+        // so that it will not return until other thread finishes restoring
+        if (not_exists_part.empty())
+            return;
+
+        auto s3 = data_disk->getObjectStorage();
+        auto transaction = metadata_storage->createTransaction();
+
+        if (!metadata_storage->exists(table_path))
+            transaction->createDirectoryRecursive(table_path.generic_string());
+
+        for (const auto & part : not_exists_part)
+        {
+                auto part_path = table_path / part;
+                auto metadata_file_path = part_path / "metadata.gluten";
+
+                if (metadata_storage->exists(part_path))
+                    return;
+                else
+                    transaction->createDirectoryRecursive(part_path);
+                auto key = s3->generateObjectKeyForPath(metadata_file_path.generic_string(), std::nullopt);
+                StoredObject metadata_object(key.serialize());
+                auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object));
+                for (const auto & item : part_metadata)
+                {
+                    auto item_path = part_path / item.first;
+                    transaction->writeStringToFile(item_path, item.second);
+                }
+        }
+        transaction->commit();
+    }
+}
+
+template <>
+void restoreMetaData<LOCAL>(const SparkStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context)
 {
     const auto data_disk = storage->getStoragePolicy()->getAnyDisk();
-    if (!data_disk->isRemote())
-        return;
-
     std::unordered_set<String> not_exists_part;
     const DB::MetadataStorageFromDisk * metadata_storage = static_cast<MetadataStorageFromDisk *>(data_disk->getMetadataStorage().get());
     const auto metadata_disk = metadata_storage->getDisk();
@@ -119,6 +187,27 @@ void restoreMetaData(const SparkStorageMergeTreePtr & storage, const MergeTreeTa
     }
 }
 
+void restoreMetaData(const SparkStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context)
+{
+    const auto data_disk = storage->getStoragePolicy()->getAnyDisk();
+    if (!data_disk->isRemote())
+        return;
+    auto metadata_storage = data_disk->getMetadataStorage();
+    if (metadata_storage->getType() == MetadataStorageType::Local)
+    {
+        restoreMetaData<LOCAL>(storage, mergeTreeTable, context);
+    }
+    // None is RocksDB
+    else if (metadata_storage->getType() == MetadataStorageType::None)
+    {
+        restoreMetaData<ROCKSDB>(storage, mergeTreeTable, context);
+    }
+    else
+    {
+        throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Unsupported metadata storage type {}.", metadata_storage->getType());
+    }
+}
+
 void saveFileStatus(
     const DB::MergeTreeData & storage,
     const DB::ContextPtr& context,
@@ -128,20 +217,18 @@ void saveFileStatus(
     const DiskPtr disk = storage.getStoragePolicy()->getAnyDisk();
     if (!disk->isRemote())
         return;
-    if (auto * const disk_metadata = dynamic_cast<MetadataStorageFromDisk *>(disk->getMetadataStorage().get()))
+    auto meta_storage = disk->getMetadataStorage();
+    const auto out = data_part_storage.writeFile("metadata.gluten", DBMS_DEFAULT_BUFFER_SIZE, context->getWriteSettings());
+    for (const auto it = data_part_storage.iterate(); it->isValid(); it->next())
     {
-        const auto out = data_part_storage.writeFile("metadata.gluten", DBMS_DEFAULT_BUFFER_SIZE, context->getWriteSettings());
-        for (const auto it = data_part_storage.iterate(); it->isValid(); it->next())
-        {
-            auto content = disk_metadata->readFileToString(it->path());
-            writeString(it->name(), *out);
-            writeChar('\t', *out);
-            writeIntText(content.length(), *out);
-            writeChar('\n', *out);
-            writeString(content, *out);
-        }
-        out->finalize();
+        auto content = meta_storage->readFileToString(it->path());
+        writeString(it->name(), *out);
+        writeChar('\t', *out);
+        writeIntText(content.length(), *out);
+        writeChar('\n', *out);
+        writeString(content, *out);
     }
+    out->finalize();
 
     LOG_DEBUG(&Poco::Logger::get("MetaDataHelper"), "Save part {} metadata success.", part_name);
 }

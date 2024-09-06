@@ -29,6 +29,10 @@
 #include <Disks/ObjectStorages/GlutenDiskS3.h>
 #endif
 
+#if USE_ROCKSDB
+#include <Disks/ObjectStorages/MetadataStorageFromRocksDB.h>
+#endif
+
 #include "registerGlutenDisks.h"
 
 namespace local_engine
@@ -60,7 +64,18 @@ void registerGlutenDisks(bool global_skip_access_check)
                                           const Poco::Util::AbstractConfiguration & conf, DB::ContextPtr ctx) -> DB::ObjectStoragePtr
         { return DB::ObjectStorageFactory::instance().create(name, conf, config_prefix, ctx, skip_access_check); };
         auto object_storage = DB::ObjectStorageFactory::instance().create(name, config, config_prefix, context, skip_access_check);
-        auto metadata_storage = DB::MetadataStorageFactory::instance().create(name, config, config_prefix, object_storage, "local");
+        MetadataStoragePtr metadata_storage;
+        auto metadata_type = MetadataStorageFactory::getMetadataType(config, config_prefix, "local");
+        if (metadata_type == "rocksdb")
+        {
+#if USE_ROCKSDB
+            metadata_storage = MetadataStorageFromRocksDB::create(name, config, config_prefix, object_storage);
+#else
+            throw Exception(ErrorCodes::NOT_IMPLEMENTED, "RocksDB metadata storage is not enabled in the build");
+#endif
+        }
+        else
+            metadata_storage = DB::MetadataStorageFactory::instance().create(name, config, config_prefix, object_storage, "local");
 
         DB::DiskObjectStoragePtr disk = std::make_shared<local_engine::GlutenDiskS3>(
             name,
@@ -96,7 +111,18 @@ void registerGlutenDisks(bool global_skip_access_check)
                                           const Poco::Util::AbstractConfiguration & conf, DB::ContextPtr ctx) -> DB::ObjectStoragePtr
         { return DB::ObjectStorageFactory::instance().create(name, conf, config_prefix, ctx, skip_access_check); };
         auto object_storage = object_storage_creator(config, context);
-        auto metadata_storage = DB::MetadataStorageFactory::instance().create(name, config, config_prefix, object_storage, "local");
+        MetadataStoragePtr metadata_storage;
+        auto metadata_type = MetadataStorageFactory::getMetadataType(config, config_prefix,  "local");
+        if (metadata_type == "rocksdb")
+        {
+#if USE_ROCKSDB
+            metadata_storage = MetadataStorageFromRocksDB::create(name, config, config_prefix, object_storage);
+#else
+            throw Exception(ErrorCodes::NOT_IMPLEMENTED, "RocksDB metadata storage is not enabled in the build");
+#endif
+        }
+        else
+            metadata_storage = DB::MetadataStorageFactory::instance().create(name, config, config_prefix, object_storage, "local");
 
         DB::DiskObjectStoragePtr disk = std::make_shared<local_engine::GlutenDiskHDFS>(
             name,
