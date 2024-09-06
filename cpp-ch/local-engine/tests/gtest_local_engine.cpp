@@ -29,8 +29,8 @@
 #include <Parser/SubstraitParserUtils.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
-#include <Storages/CustomStorageMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
+#include <Storages/MergeTree/SparkStorageMergeTree.h>
 #include <gtest/gtest.h>
 #include <substrait/plan.pb.h>
 #include <Common/CHUtil.h>

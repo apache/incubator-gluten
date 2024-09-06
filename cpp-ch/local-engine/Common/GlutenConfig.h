@@ -34,7 +34,7 @@ struct MemoryConfig
     size_t off_heap_per_task = 0;
     double spill_mem_ratio = 0.9;
 
-    static MemoryConfig loadFromContext(DB::ContextPtr context)
+    static MemoryConfig loadFromContext(const DB::ContextPtr & context)
     {
         MemoryConfig config;
         config.extra_memory_hard_limit = context->getConfigRef().getUInt64(EXTRA_MEMORY_HARD_LIMIT, 0);
@@ -58,7 +58,7 @@ struct GraceMergingAggregateConfig
     size_t max_pending_flush_blocks_per_grace_aggregate_merging_bucket = 1_MiB;
     double max_allowed_memory_usage_ratio_for_aggregate_merging = 0.9;
 
-    static GraceMergingAggregateConfig loadFromContext(DB::ContextPtr context)
+    static GraceMergingAggregateConfig loadFromContext(const DB::ContextPtr & context)
     {
         GraceMergingAggregateConfig config;
         config.max_grace_aggregate_merging_buckets = context->getConfigRef().getUInt64(MAX_GRACE_AGGREGATE_MERGING_BUCKETS, 32);
@@ -82,7 +82,7 @@ struct StreamingAggregateConfig
     double high_cardinality_threshold_for_streaming_aggregating = 0.8;
     bool enable_streaming_aggregating = true;
 
-    static StreamingAggregateConfig loadFromContext(DB::ContextPtr context)
+    static StreamingAggregateConfig loadFromContext(const DB::ContextPtr & context)
     {
         StreamingAggregateConfig config;
         config.aggregated_keys_before_streaming_aggregating_evict = context->getConfigRef().getUInt64(AGGREGATED_KEYS_BEFORE_STREAMING_AGGREGATING_EVICT, 1024);
@@ -122,7 +122,7 @@ struct ExecutorConfig
     bool dump_pipeline = false;
     bool use_local_format = false;
 
-    static ExecutorConfig loadFromContext(DB::ContextPtr context)
+    static ExecutorConfig loadFromContext(const DB::ContextPtr & context)
     {
         ExecutorConfig config;
         config.dump_pipeline = context->getConfigRef().getBool(DUMP_PIPELINE, false);
@@ -161,7 +161,7 @@ struct S3Config
     String s3_local_cache_cache_path = "";
     bool s3_gcs_issue_compose_request = false;
 
-    static S3Config loadFromContext(DB::ContextPtr context)
+    static S3Config loadFromContext(const DB::ContextPtr & context)
     {
         S3Config config;
 
@@ -187,7 +187,7 @@ struct MergeTreeConfig
     size_t table_part_metadata_cache_max_count = 5000;
     size_t table_metadata_cache_max_count = 500;
 
-    static MergeTreeConfig loadFromContext(DB::ContextPtr context)
+    static MergeTreeConfig loadFromContext(const DB::ContextPtr & context)
     {
         MergeTreeConfig config;
         config.table_part_metadata_cache_max_count = context->getConfigRef().getUInt64(TABLE_PART_METADATA_CACHE_MAX_COUNT, 5000);
@@ -202,7 +202,7 @@ struct GlutenJobSchedulerConfig
 
     size_t job_scheduler_max_threads = 10;
 
-    static GlutenJobSchedulerConfig loadFromContext(DB::ContextPtr context)
+    static GlutenJobSchedulerConfig loadFromContext(const DB::ContextPtr & context)
     {
         GlutenJobSchedulerConfig config;
         config.job_scheduler_max_threads = context->getConfigRef().getUInt64(JOB_SCHEDULER_MAX_THREADS, 10);

@@ -19,8 +19,7 @@
 #include <filesystem>
 #include <Core/Settings.h>
 #include <Disks/ObjectStorages/MetadataStorageFromDisk.h>
-#include <Parser/MergeTreeRelParser.h>
-#include <Storages/Mergetree/MergeSparkMergeTreeTask.h>
+#include <Storages/MergeTree/MergeSparkMergeTreeTask.h>
 #include <Poco/StringTokenizer.h>
 
 namespace CurrentMetrics
@@ -54,23 +53,22 @@ std::unordered_map<String, String> extractPartMetaData(ReadBuffer & in)
     return result;
 }
 
-void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable & mergeTreeTable, const Context & context)
+void restoreMetaData(const SparkStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context)
 {
-    auto data_disk = storage->getStoragePolicy()->getAnyDisk();
+    const auto data_disk = storage->getStoragePolicy()->getAnyDisk();
     if (!data_disk->isRemote())
         return;
 
     std::unordered_set<String> not_exists_part;
-    DB::MetadataStorageFromDisk * metadata_storage = static_cast<MetadataStorageFromDisk *>(data_disk->getMetadataStorage().get());
-    auto metadata_disk = metadata_storage->getDisk();
-    auto table_path = std::filesystem::path(mergeTreeTable.relative_path);
+    const DB::MetadataStorageFromDisk * metadata_storage = static_cast<MetadataStorageFromDisk *>(data_disk->getMetadataStorage().get());
+    const auto metadata_disk = metadata_storage->getDisk();
+    const auto table_path = std::filesystem::path(mergeTreeTable.relative_path);
     for (const auto & part : mergeTreeTable.getPartNames())
     {
         auto part_path = table_path / part;
         if (!metadata_disk->exists(part_path))
             not_exists_part.emplace(part);
     }
-
 
     if (auto lock = storage->lockForAlter(context.getSettingsRef().lock_acquire_timeout))
     {
@@ -121,7 +119,6 @@ void restoreMetaData(CustomStorageMergeTreePtr & storage, const MergeTreeTable &
     }
 }
 
-
 void saveFileStatus(
     const DB::MergeTreeData & storage,
     const DB::ContextPtr& context,
@@ -154,7 +151,7 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     std::vector<DB::DataPartPtr> selected_parts,
     std::unordered_map<String, String> & partition_values,
     const String & new_part_uuid,
-    CustomStorageMergeTreePtr storage,
+    SparkStorageMergeTree & storage,
     const String  & partition_dir,
     const String & bucket_dir)
 {
@@ -181,7 +178,7 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     // Copying a vector of columns `deduplicate by columns.
     DB::IExecutableTask::TaskResultCallback f = [](bool) {};
     auto task = std::make_shared<local_engine::MergeSparkMergeTreeTask>(
-        *storage, storage->getInMemoryMetadataPtr(), false,  std::vector<std::string>{}, false, entry,
+        storage, storage.getInMemoryMetadataPtr(), false,  std::vector<std::string>{}, false, entry,
         DB::TableLockHolder{}, f);
 
     task->setCurrentTransaction(DB::MergeTreeTransactionHolder{}, DB::MergeTreeTransactionPtr{});
@@ -189,7 +186,7 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     executeHere(task);
 
     std::unordered_set<std::string> to_load{future_part->name};
-    std::vector<MergeTreeDataPartPtr> merged = storage->loadDataPartsWithNames(to_load);
+    std::vector<MergeTreeDataPartPtr> merged = storage.loadDataPartsWithNames(to_load);
     return merged;
 }
 

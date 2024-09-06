@@ -23,16 +23,14 @@
 #include <Interpreters/Cache/FileCache.h>
 #include <Interpreters/Cache/FileCacheFactory.h>
 #include <Interpreters/Context.h>
-#include <Parser/MergeTreeRelParser.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Storages/Mergetree/MetaDataHelper.h>
+#include <Storages/MergeTree/MetaDataHelper.h>
+#include <jni/jni_common.h>
 #include <Common/Logger.h>
 #include <Common/ThreadPool.h>
 #include <Common/logger_useful.h>
-
-#include <jni/jni_common.h>
 
 namespace DB
 {
@@ -75,10 +73,10 @@ void CacheManager::initialize(DB::ContextMutablePtr context_)
 
 struct CacheJobContext
 {
-    MergeTreeTable table;
+    MergeTreeTableInstance table;
 };
 
-Task CacheManager::cachePart(const MergeTreeTable& table, const MergeTreePart& part, const std::unordered_set<String> & columns)
+Task CacheManager::cachePart(const MergeTreeTableInstance & table, const MergeTreePart & part, const std::unordered_set<String> & columns)
 {
     CacheJobContext job_context{table};
     job_context.table.parts.clear();
@@ -88,7 +86,8 @@ Task CacheManager::cachePart(const MergeTreeTable& table, const MergeTreePart& p
     {
         try
         {
-            auto storage = MergeTreeRelParser::parseStorage(job_detail.table, context, true);
+            auto storage = job_detail.table.restoreStorage(context);
+
             auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, storage->getInMemoryMetadataPtr());
             NamesAndTypesList names_and_types_list;
             auto meta_columns = storage->getInMemoryMetadata().getColumns();
@@ -132,9 +131,8 @@ Task CacheManager::cachePart(const MergeTreeTable& table, const MergeTreePart& p
     return std::move(task);
 }
 
-JobId CacheManager::cacheParts(const String& table_def, const std::unordered_set<String>& columns)
+JobId CacheManager::cacheParts(const MergeTreeTableInstance & table, const std::unordered_set<String>& columns)
 {
-    auto table = parseMergeTreeTableString(table_def);
     JobId id = toString(UUIDHelpers::generateV4());
     Job job(id);
     for (const auto & part : table.parts)
@@ -148,7 +146,7 @@ JobId CacheManager::cacheParts(const String& table_def, const std::unordered_set
 
 jobject CacheManager::getCacheStatus(JNIEnv * env, const String & jobId)
 {
-    auto& scheduler = JobScheduler::instance();
+    auto & scheduler = JobScheduler::instance();
     auto job_status = scheduler.getJobSatus(jobId);
     int status = 0;
     String message;

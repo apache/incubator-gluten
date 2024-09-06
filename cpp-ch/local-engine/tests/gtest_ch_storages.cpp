@@ -17,16 +17,15 @@
 #include <Functions/FunctionFactory.h>
 #include <Parser/MergeTreeRelParser.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Parsers/ASTFunction.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <gtest/gtest.h>
 #include <substrait/plan.pb.h>
 #include <Common/DebugUtils.h>
-#include <Common/MergeTreeTool.h>
 
 using namespace DB;
 using namespace local_engine;

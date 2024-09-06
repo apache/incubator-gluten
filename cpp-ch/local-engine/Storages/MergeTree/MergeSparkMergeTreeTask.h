@@ -16,25 +16,24 @@
  */
 #pragma once
 
-#include <Storages/MergeTree/IExecutableTask.h>
-#include <Storages/MergeTree/MergeTask.h>
-#include <Storages/MutationCommands.h>
-#include <Storages/MergeTree/MergeMutateSelectedEntry.h>
 #include <Interpreters/MergeTreeTransactionHolder.h>
+#include <Storages/MergeTree/IExecutableTask.h>
+#include <Storages/MergeTree/MergeMutateSelectedEntry.h>
+#include <Storages/MergeTree/MergeTask.h>
 
 using namespace DB;
 
 
 namespace local_engine
 {
-class CustomStorageMergeTree;
+class SparkStorageMergeTree;
 
 
 class MergeSparkMergeTreeTask : public IExecutableTask
 {
 public:
     MergeSparkMergeTreeTask(
-        CustomStorageMergeTree & storage_,
+        SparkStorageMergeTree & storage_,
         StorageMetadataPtr metadata_snapshot_,
         bool deduplicate_,
         Names deduplicate_by_columns_,
@@ -82,7 +81,7 @@ private:
 
     State state{State::NEED_PREPARE};
 
-    CustomStorageMergeTree & storage;
+    SparkStorageMergeTree & storage;
 
     StorageMetadataPtr metadata_snapshot;
     bool deduplicate;

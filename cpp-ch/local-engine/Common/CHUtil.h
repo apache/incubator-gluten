@@ -42,8 +42,6 @@ namespace local_engine
 static const String MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE = "mergetree.insert_without_local_storage";
 static const String MERGETREE_MERGE_AFTER_INSERT = "mergetree.merge_after_insert";
 static const std::string DECIMAL_OPERATIONS_ALLOW_PREC_LOSS = "spark.sql.decimalOperations.allowPrecisionLoss";
-static const std::string SPARK_TASK_WRITE_TMEP_DIR = "gluten.write.temp.dir";
-static const std::string SPARK_TASK_WRITE_FILENAME = "gluten.write.file.name";
 
 static const std::unordered_set<String> BOOL_VALUE_SETTINGS{
     MERGETREE_MERGE_AFTER_INSERT, MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, DECIMAL_OPERATIONS_ALLOW_PREC_LOSS};
@@ -84,7 +82,8 @@ public:
 
     /// The column names may be different in two blocks.
     /// and the nullability also could be different, with TPCDS-Q1 as an example.
-    static DB::ColumnWithTypeAndName convertColumnAsNecessary(const DB::ColumnWithTypeAndName & column, const DB::ColumnWithTypeAndName & sample_column);
+    static DB::ColumnWithTypeAndName
+    convertColumnAsNecessary(const DB::ColumnWithTypeAndName & column, const DB::ColumnWithTypeAndName & sample_column);
 };
 
 class PODArrayUtil
@@ -216,7 +215,8 @@ private:
     static void registerAllFactories();
     static void applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr, DB::Settings &);
     static void updateNewSettings(const DB::ContextMutablePtr &, const DB::Settings &);
-    static std::vector<String> wrapDiskPathConfig(const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config);
+    static std::vector<String>
+    wrapDiskPathConfig(const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config);
 
 
     static std::map<std::string, std::string> getBackendConfMap(std::string_view plan);
@@ -262,64 +262,12 @@ public:
     static UInt64 getMemoryRSS();
 };
 
-template <typename T>
-class ConcurrentDeque
-{
-public:
-    std::optional<T> pop_front()
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-
-        if (deq.empty())
-            return {};
-
-        T t = deq.front();
-        deq.pop_front();
-        return t;
-    }
-
-    void emplace_back(T value)
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        deq.emplace_back(value);
-    }
-
-    void emplace_back(std::vector<T> values)
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        deq.insert(deq.end(), values.begin(), values.end());
-    }
-
-    void emplace_front(T value)
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        deq.emplace_front(value);
-    }
-
-    size_t size()
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        return deq.size();
-    }
-
-    bool empty()
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        return deq.empty();
-    }
-
-    std::deque<T> unsafeGet() { return deq; }
-
-private:
-    std::deque<T> deq;
-    mutable std::mutex mtx;
-};
-
 class JoinUtil
 {
 public:
     static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
-    static std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type, bool is_existence_join);
+    static std::pair<DB::JoinKind, DB::JoinStrictness>
+    getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type, bool is_existence_join);
     static std::pair<DB::JoinKind, DB::JoinStrictness> getCrossJoinKindAndStrictness(substrait::CrossRel_JoinType join_type);
 };
 

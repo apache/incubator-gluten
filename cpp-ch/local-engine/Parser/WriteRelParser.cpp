@@ -27,10 +27,11 @@
 #include <substrait/type.pb.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
+#include <Common/GlutenSettings.h>
 
 using namespace local_engine;
 
-DB::ProcessorPtr makeSink(
+DB::ProcessorPtr make_sink(
     const DB::ContextPtr & context,
     const DB::Names & partition_by,
     const DB::Block & input_header,
@@ -53,7 +54,7 @@ DB::ProcessorPtr makeSink(
     return file_sink;
 }
 
-bool need_fix_tuple(const DB::DataTypePtr& input, const DB::DataTypePtr& output)
+bool need_fix_tuple(const DB::DataTypePtr & input, const DB::DataTypePtr & output)
 {
     const auto orgial = typeid_cast<const DataTypeTuple *>(input.get());
     const auto output_type = typeid_cast<const DataTypeTuple *>(output.get());
@@ -75,74 +76,80 @@ DB::ExpressionActionsPtr create_project_action(const DB::Block & input, const DB
 {
     DB::ColumnsWithTypeAndName final_cols;
     std::ranges::transform(
-        output, std::back_inserter(final_cols), [](const DB::ColumnWithTypeAndName& out_ocl) {
-          const auto out_type = out_ocl.type;
-          return DB::ColumnWithTypeAndName(out_type->createColumn(), out_type, out_ocl.name);
-      });
+        output,
+        std::back_inserter(final_cols),
+        [](const DB::ColumnWithTypeAndName & out_ocl)
+        {
+            const auto out_type = out_ocl.type;
+            return DB::ColumnWithTypeAndName(out_type->createColumn(), out_type, out_ocl.name);
+        });
     assert(final_cols.size() == output.columns());
 
     const auto & original_cols = input.getColumnsWithTypeAndName();
     ActionsDAG final_project = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
-    return  std::make_shared<DB::ExpressionActions>(std::move(final_project));
+    return std::make_shared<DB::ExpressionActions>(std::move(final_project));
 }
 
-void adjust_output(const DB::QueryPipelineBuilderPtr & builder, const DB::Block& output)
+void adjust_output(const DB::QueryPipelineBuilderPtr & builder, const DB::Block & output)
 {
     const auto input = builder->getHeader();
     if (input.columns() != output.columns())
     {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR,
-            "Missmatch result columns size, input size is {}, but output size is {}", input.columns(), output.columns());
+        throw DB::Exception(
+            DB::ErrorCodes::LOGICAL_ERROR,
+            "Missmatch result columns size, input size is {}, but output size is {}",
+            input.columns(),
+            output.columns());
     }
 
-    auto mismatch_pair =
-        std::mismatch(input.begin(), input.end(), output.begin(),
-            [](const DB::ColumnWithTypeAndName& lhs, const DB::ColumnWithTypeAndName& rhs) {return lhs.name == rhs.name;});
-    bool name_is_diffient = mismatch_pair.first != input.end();
+    auto mismatch_pair = std::mismatch(
+        input.begin(),
+        input.end(),
+        output.begin(),
+        [](const DB::ColumnWithTypeAndName & lhs, const DB::ColumnWithTypeAndName & rhs) { return lhs.name == rhs.name; });
+    bool name_is_different = mismatch_pair.first != input.end();
 
-    mismatch_pair = std::mismatch(input.begin(), input.end(), output.begin(),
-            [](const DB::ColumnWithTypeAndName& lhs, const DB::ColumnWithTypeAndName& rhs)
-            {
-                return lhs.type->equals(*rhs.type);
-            });
-    bool type_is_diffient = mismatch_pair.first != input.end();
+    mismatch_pair = std::mismatch(
+        input.begin(),
+        input.end(),
+        output.begin(),
+        [](const DB::ColumnWithTypeAndName & lhs, const DB::ColumnWithTypeAndName & rhs) { return lhs.type->equals(*rhs.type); });
+    bool type_is_different = mismatch_pair.first != input.end();
 
     DB::ExpressionActionsPtr convert_action;
 
-    if (type_is_diffient)
+    if (type_is_different)
         convert_action = create_project_action(input, output);
 
-    if(name_is_diffient && !convert_action)
+    if (name_is_different && !convert_action)
         convert_action = create_rename_action(input, output);
 
     if (!convert_action)
         return;
 
     builder->addSimpleTransform(
-    [&](const DB::Block & cur_header, const DB::QueryPipelineBuilder::StreamType stream_type) -> DB::ProcessorPtr
-    {
-        if (stream_type != DB::QueryPipelineBuilder::StreamType::Main)
-            return nullptr;
-        return std::make_shared<DB::ConvertingTransform>(cur_header, convert_action);
-    });
+        [&](const DB::Block & cur_header, const DB::QueryPipelineBuilder::StreamType stream_type) -> DB::ProcessorPtr
+        {
+            if (stream_type != DB::QueryPipelineBuilder::StreamType::Main)
+                return nullptr;
+            return std::make_shared<DB::ConvertingTransform>(cur_header, convert_action);
+        });
 }
 
 namespace local_engine
 {
 
-void addSinkTransfrom(const DB::ContextPtr & context, const substrait::WriteRel & write_rel, const DB::QueryPipelineBuilderPtr & builder)
+IMPLEMENT_GLUTEN_SETTINGS(GlutenWriteSettings, WRITE_RELATED_SETTINGS)
+
+void addSinkTransform(const DB::ContextPtr & context, const substrait::WriteRel & write_rel, const DB::QueryPipelineBuilderPtr & builder)
 {
-    const DB::Settings & settings = context->getSettingsRef();
+    GlutenWriteSettings write_settings = GlutenWriteSettings::get(context);
 
-    DB::Field field_tmp_dir;
-    if (!settings.tryGet(SPARK_TASK_WRITE_TMEP_DIR, field_tmp_dir))
+    if (write_settings.task_write_tmp_dir.empty())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Write Pipeline need inject temp directory.");
-    const auto & tmp_dir = field_tmp_dir.safeGet<std::string>();
 
-    DB::Field field_filename;
-    if (!settings.tryGet(SPARK_TASK_WRITE_FILENAME, field_filename))
+    if (write_settings.task_write_filename.empty())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Write Pipeline need inject file name.");
-    const auto & filename = field_filename.safeGet<std::string>();
 
     assert(write_rel.has_named_table());
     const substrait::NamedObjectWrite & named_table = write_rel.named_table();
@@ -168,7 +175,15 @@ void addSinkTransfrom(const DB::ContextPtr & context, const substrait::WriteRel 
         {
             if (stream_type != QueryPipelineBuilder::StreamType::Main)
                 return nullptr;
-            return makeSink(context, partitionCols, cur_header, blockHeader, tmp_dir, filename, config["format"], stats);
+            return make_sink(
+                context,
+                partitionCols,
+                cur_header,
+                blockHeader,
+                write_settings.task_write_tmp_dir,
+                write_settings.task_write_filename,
+                config["format"],
+                stats);
         });
     builder->addSimpleTransform(
         [&](const Block &, QueryPipelineBuilder::StreamType stream_type) -> ProcessorPtr

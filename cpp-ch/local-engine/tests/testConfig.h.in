@@ -6,3 +6,4 @@
 
 #define GLUTEN_SOURCE_DIR_ "file://@GLUTEN_REAL_PATH@"
 #define GLUTEN_SOURCE_DIR(file) GLUTEN_SOURCE_DIR_ file
+#define GLUTEN_SOURCE_TPCH_DIR(file) GLUTEN_SOURCE_DIR("/gluten-core/src/test/resources/tpch-data/" file)
