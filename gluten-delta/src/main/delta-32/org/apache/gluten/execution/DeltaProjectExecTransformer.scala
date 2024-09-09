@@ -65,7 +65,7 @@ case class DeltaProjectExecTransformer private (projectList: Seq[NamedExpression
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(
       metrics,
-      extraMetrics)
+      extraMetrics.toSeq)
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)

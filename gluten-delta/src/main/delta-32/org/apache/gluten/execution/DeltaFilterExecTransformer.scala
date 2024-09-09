@@ -43,7 +43,7 @@ case class DeltaFilterExecTransformer(condition: Expression, child: SparkPlan)
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(
       metrics,
-      extraMetrics)
+      extraMetrics.toSeq)
 
   override def getRelNode(
       context: SubstraitContext,
