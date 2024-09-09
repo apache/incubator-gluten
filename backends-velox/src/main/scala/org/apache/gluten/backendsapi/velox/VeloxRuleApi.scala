@@ -92,6 +92,7 @@ private object VeloxRuleApi {
   def injectRas(injector: RasInjector): Unit = {
     // Gluten RAS: Pre rules.
     injector.inject(_ => RemoveTransitions)
+    injector.inject(_ => PushDownInputFileExpression.PreOffload)
     injector.inject(c => FallbackOnANSIMode.apply(c.session))
     injector.inject(c => PlanOneRowRelation.apply(c.session))
     injector.inject(_ => FallbackEmptySchemaRelation())
@@ -106,6 +107,7 @@ private object VeloxRuleApi {
     injector.inject(_ => RemoveTransitions)
     injector.inject(_ => RemoveNativeWriteFilesSortAndProject())
     injector.inject(c => RewriteTransformer.apply(c.session))
+    injector.inject(_ => PushDownInputFileExpression.PostOffload)
     injector.inject(_ => EnsureLocalSortRequirements)
     injector.inject(_ => EliminateLocalSort)
     injector.inject(_ => CollapseProjectExecTransformer)

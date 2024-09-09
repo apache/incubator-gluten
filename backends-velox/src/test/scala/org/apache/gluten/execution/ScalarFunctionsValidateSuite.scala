@@ -28,57 +28,12 @@ class ScalarFunctionsValidateSuiteRasOff extends ScalarFunctionsValidateSuite {
     super.sparkConf
       .set("spark.gluten.ras.enabled", "false")
   }
-  import testImplicits._
-  // Since https://github.com/apache/incubator-gluten/pull/6200.
-  test("Test input_file_name function") {
-    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from lineitem limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-
-    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from
-                         | (select l_orderkey from lineitem
-                         | union all
-                         | select o_orderkey as l_orderkey from orders)
-                         | limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-    withTempPath {
-      path =>
-        Seq(1, 2, 3).toDF("a").write.json(path.getCanonicalPath)
-        spark.read.json(path.getCanonicalPath).createOrReplaceTempView("json_table")
-        val sql =
-          """
-            |SELECT input_file_name(), a
-            |FROM
-            |(SELECT a FROM json_table
-            |UNION ALL
-            |SELECT l_orderkey as a FROM lineitem)
-            |LIMIT 100
-            |""".stripMargin
-        compareResultsAgainstVanillaSpark(sql, true, { _ => })
-    }
-  }
 }
 
 class ScalarFunctionsValidateSuiteRasOn extends ScalarFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.gluten.ras.enabled", "true")
-  }
-
-  // TODO: input_file_name is not yet supported in RAS
-  ignore("Test input_file_name function") {
-    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from lineitem limit 100""".stripMargin) { _ => }
-
-    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from
-                         | (select l_orderkey from lineitem
-                         | union all
-                         | select o_orderkey as l_orderkey from orders)
-                         | limit 100""".stripMargin) { _ => }
   }
 }
 
@@ -1378,6 +1333,38 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   test("repeat") {
     runQueryAndCompare("select repeat(c_comment, 5) from customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test input_file_name function") {
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from
+                         | (select l_orderkey from lineitem
+                         | union all
+                         | select o_orderkey as l_orderkey from orders)
+                         | limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    withTempPath {
+      path =>
+        Seq(1, 2, 3).toDF("a").write.json(path.getCanonicalPath)
+        spark.read.json(path.getCanonicalPath).createOrReplaceTempView("json_table")
+        val sql =
+          """
+            |SELECT input_file_name(), a
+            |FROM
+            |(SELECT a FROM json_table
+            |UNION ALL
+            |SELECT l_orderkey as a FROM lineitem)
+            |LIMIT 100
+            |""".stripMargin
+        compareResultsAgainstVanillaSpark(sql, true, { _ => })
     }
   }
 
