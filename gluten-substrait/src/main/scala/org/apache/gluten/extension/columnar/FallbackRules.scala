@@ -293,8 +293,7 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
           val transformer = ProjectExecTransformer(plan.projectList, plan.child)
           transformer.doValidate().tagOnFallback(plan)
         case plan: FilterExec =>
-          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
-            .genFilterExecTransformer(plan.condition, plan.child)
+          val transformer = FilterTransformerFactory.createFilterTransformer(plan)
           transformer.doValidate().tagOnFallback(plan)
         case plan: HashAggregateExec =>
           val transformer = HashAggregateExecBaseTransformer.from(plan)
