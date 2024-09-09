@@ -1,7 +1,11 @@
 #!/bin/bash
 
 BASEDIR=$(dirname $0)
-sudo -E /dev/vcpkg/setup-build-depends.sh
+
+if [ `uname -m` = "x86_64" ]; then
+  sudo -E ${BASEDIR}/setup-build-depends.sh
+fi
+
 source "$BASEDIR/builddeps-veloxbe.sh"
 
 function build_for_spark {
