@@ -1291,6 +1291,30 @@ class GlutenClickHouseHiveTableSuite
       .mode(SaveMode.Overwrite)
       .save(dataPath3)
     assert(new File(dataPath3).listFiles().nonEmpty)
+
+    val dataPath4 = s"$basePath/lineitem_mergetree_bucket2"
+    val df4 = spark
+      .sql(s"""
+              |select
+              |  INT_FIELD ,
+              |  STRING_FIELD,
+              |  LONG_FIELD ,
+              |  DATE_FIELD
+              | from $txt_table_name
+              | order by INT_FIELD
+              |""".stripMargin)
+      .toDF("INT_FIELD", "STRING_FIELD", "LONG_FIELD", "DATE_FIELD")
+
+    df4.write
+      .format("clickhouse")
+      .partitionBy("DATE_FIELD")
+      .option("clickhouse.numBuckets", "3")
+      .option("clickhouse.bucketColumnNames", "STRING_FIELD")
+      .option("clickhouse.orderByKey", "INT_FIELD,LONG_FIELD")
+      .option("clickhouse.primaryKey", "INT_FIELD")
+      .mode(SaveMode.Append)
+      .save(dataPath4)
+    assert(new File(dataPath4).listFiles().nonEmpty)
   }
 
   test("GLUTEN-6506: Orc read time zone") {

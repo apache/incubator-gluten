@@ -165,13 +165,14 @@ object MergeTreeFileFormatWriter extends Logging {
       if (writerBucketSpec.isDefined) {
         // We need to add the bucket id expression to the output of the sort plan,
         // so that we can use backend to calculate the bucket id for each row.
-        wrapped = ProjectExec(
-          wrapped.output :+ Alias(writerBucketSpec.get.bucketIdExpression, "__bucket_value__")(),
-          wrapped)
+        val bucketValueExpr = bindReferences(
+          Seq(writerBucketSpec.get.bucketIdExpression),
+          finalOutputSpec.outputColumns)
+        wrapped =
+          ProjectExec(wrapped.output :+ Alias(bucketValueExpr.head, "__bucket_value__")(), wrapped)
         // TODO: to optimize, bucket value is computed twice here
       }
 
-      val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
       (GlutenMergeTreeWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
     }
 
