@@ -776,6 +776,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                 |     cast(id as string)) as timestamp)),
                 |  unix_micros(cast(concat('2024-09-03 17:23:10.12345',
                 |     cast(id as string)) as timestamp))
+                |FROM range(10)
                 |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
