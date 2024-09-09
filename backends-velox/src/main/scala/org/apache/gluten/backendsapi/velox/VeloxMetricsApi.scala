@@ -22,7 +22,9 @@ import org.apache.gluten.substrait.{AggregationParams, JoinParams}
 
 import org.apache.spark.SparkContext
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ColumnarInputAdapter, SparkPlan}
+import org.apache.spark.sql.execution.adaptive.BroadcastQueryStageExec
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
 import java.lang.{Long => JLong}
@@ -48,8 +50,14 @@ class VeloxMetricsApi extends MetricsApi with Logging {
   }
 
   override def genInputIteratorTransformerMetricsUpdater(
+      child: SparkPlan,
       metrics: Map[String, SQLMetric]): MetricsUpdater = {
-    InputIteratorMetricsUpdater(metrics)
+    val forBroadcast = child match {
+      case ColumnarInputAdapter(c) if c.isInstanceOf[BroadcastQueryStageExec] => true
+      case ColumnarInputAdapter(c) if c.isInstanceOf[BroadcastExchangeLike] => true
+      case _ => false
+    }
+    InputIteratorMetricsUpdater(metrics, forBroadcast = forBroadcast)
   }
 
   override def genBatchScanTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =

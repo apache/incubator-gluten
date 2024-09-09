@@ -56,7 +56,8 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
   }
 
   override def metricsUpdater(): MetricsUpdater =
-    BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetricsUpdater(metrics)
+    BackendsApiManager.getMetricsApiInstance
+      .genInputIteratorTransformerMetricsUpdater(child, metrics)
 
   override def output: Seq[Attribute] = child.output
   override def outputPartitioning: Partitioning = child.outputPartitioning

@@ -53,7 +53,9 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
   }
 
   override def genInputIteratorTransformerMetricsUpdater(
+      child: SparkPlan,
       metrics: Map[String, SQLMetric]): MetricsUpdater = {
+    // todo: check the metrics for broadcast exchange
     InputIteratorMetricsUpdater(metrics)
   }
 
