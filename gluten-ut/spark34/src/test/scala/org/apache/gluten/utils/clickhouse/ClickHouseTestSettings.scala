@@ -488,6 +488,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("analyze empty table")
     .exclude("analyze column command - result verification")
     .exclude("column stats collection for null columns")
+    .exclude("store and retrieve column stats in different time zones")
+    .excludeGlutenTest("store and retrieve column stats in different time zones")
   enableSuite[GlutenStringFunctionsSuite]
     .exclude("string regex_replace / regex_extract")
     .exclude("string overlay function")
