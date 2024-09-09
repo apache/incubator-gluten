@@ -14,25 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <base/find_symbols.h>
+#include "AdvancedParametersParseUtil.h"
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
-#include <Common/Exception.h>
-#include <Parser/AdvancedParametersParseUtil.h>
+#include <base/find_symbols.h>
 #include <Poco/Logger.h>
+#include <Common/Exception.h>
 #include <Common/logger_useful.h>
+
 namespace DB::ErrorCodes
 {
-    extern const int BAD_ARGUMENTS;
+extern const int BAD_ARGUMENTS;
 }
 
 namespace local_engine
 {
 
-template<typename T>
+template <typename T>
 void tryAssign(const std::unordered_map<String, String> & kvs, const String & key, T & v);
 
-template<>
+template <>
 void tryAssign<String>(const std::unordered_map<String, String> & kvs, const String & key, String & v)
 {
     auto it = kvs.find(key);
@@ -40,7 +41,7 @@ void tryAssign<String>(const std::unordered_map<String, String> & kvs, const Str
         v = it->second;
 }
 
-template<>
+template <>
 void tryAssign<bool>(const std::unordered_map<String, String> & kvs, const String & key, bool & v)
 {
     auto it = kvs.find(key);
@@ -57,7 +58,7 @@ void tryAssign<bool>(const std::unordered_map<String, String> & kvs, const Strin
     }
 }
 
-template<>
+template <>
 void tryAssign<Int64>(const std::unordered_map<String, String> & kvs, const String & key, Int64 & v)
 {
     auto it = kvs.find(key);
@@ -94,9 +95,9 @@ void readStringUntilCharsInto(String & s, DB::ReadBuffer & buf)
 std::unordered_map<String, std::unordered_map<String, String>> convertToKVs(const String & advance)
 {
     std::unordered_map<String, std::unordered_map<String, String>> res;
-    std::unordered_map<String, String> *kvs;
+    std::unordered_map<String, String> * kvs;
     DB::ReadBufferFromString in(advance);
-    while(!in.eof())
+    while (!in.eof())
     {
         String key;
         readStringUntilCharsInto<'=', '\n', ':'>(key, in);
@@ -146,5 +147,13 @@ JoinOptimizationInfo JoinOptimizationInfo::parse(const String & advance)
     tryAssign(kvs, "numPartitions", info.partitions_num);
     return info;
 }
-}
 
+WindowGroupOptimizationInfo WindowGroupOptimizationInfo::parse(const String & advance)
+{
+    WindowGroupOptimizationInfo info;
+    auto kkvs = convertToKVs(advance);
+    auto & kvs = kkvs["WindowGroupLimitParameters"];
+    tryAssign(kvs, "window_function", info.window_function);
+    return info;
+}
+}

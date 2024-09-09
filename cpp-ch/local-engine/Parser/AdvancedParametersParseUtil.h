@@ -16,10 +16,10 @@
  */
 #pragma once
 #include <unordered_map>
+#include <base/types.h>
 
 namespace local_engine
 {
-
 std::unordered_map<String, std::unordered_map<String, String>> convertToKVs(const String & advance);
 
 
@@ -38,5 +38,10 @@ struct JoinOptimizationInfo
 
     static JoinOptimizationInfo parse(const String & advance);
 };
-}
 
+struct WindowGroupOptimizationInfo
+{
+    String window_function;
+    static WindowGroupOptimizationInfo parse(const String & advnace);
+};
+}

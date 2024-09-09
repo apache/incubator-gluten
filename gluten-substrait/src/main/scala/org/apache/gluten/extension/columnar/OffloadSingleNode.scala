@@ -358,7 +358,7 @@ object OffloadOthers {
           val windowGroupLimitPlan = SparkShimLoader.getSparkShims
             .getWindowGroupLimitExecShim(plan)
             .asInstanceOf[WindowGroupLimitExecShim]
-          WindowGroupLimitExecTransformer(
+          BackendsApiManager.getSparkPlanExecApiInstance.genWindowGroupLimitTransformer(
             windowGroupLimitPlan.partitionSpec,
             windowGroupLimitPlan.orderSpec,
             windowGroupLimitPlan.rankLikeFunction,

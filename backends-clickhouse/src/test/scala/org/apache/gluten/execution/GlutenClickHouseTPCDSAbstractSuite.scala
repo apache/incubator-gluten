@@ -62,7 +62,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
         })
 
   protected def fallbackSets(isAqe: Boolean): Set[Int] = {
-    if (isSparkVersionGE("3.5")) Set(44, 67, 70) else Set.empty[Int]
+    Set.empty[Int]
   }
   protected def excludedTpcdsQueries: Set[String] = Set(
     "q66" // inconsistent results

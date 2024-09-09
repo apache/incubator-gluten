@@ -41,6 +41,7 @@ import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.python.ArrowEvalPythonExec
+import org.apache.spark.sql.execution.window._
 import org.apache.spark.sql.hive.{HiveTableScanExecTransformer, HiveUDFTransformer}
 import org.apache.spark.sql.types.{DecimalType, LongType, NullType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -677,6 +678,15 @@ trait SparkPlanExecApi {
       DecimalType(math.min(integralLeastNumDigits + newScale, 38), newScale)
     }
   }
+
+  def genWindowGroupLimitTransformer(
+      partitionSpec: Seq[Expression],
+      orderSpec: Seq[SortOrder],
+      rankLikeFunction: Expression,
+      limit: Int,
+      mode: WindowGroupLimitMode,
+      child: SparkPlan): SparkPlan =
+    WindowGroupLimitExecTransformer(partitionSpec, orderSpec, rankLikeFunction, limit, mode, child)
 
   def genHiveUDFTransformer(
       expr: Expression,

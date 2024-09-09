@@ -15,127 +15,61 @@
  * limitations under the License.
  */
 
+#include "WindowGroupLimitRelParser.h"
 #include <Interpreters/ActionsDAG.h>
+#include <Operator/WindowGroupLimitStep.h>
+#include <Parser/AdvancedParametersParseUtil.h>
 #include <Parser/SortRelParser.h>
 #include <Parser/WindowGroupLimitRelParser.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
-#include <Processors/QueryPlan/WindowStep.h>
 #include <google/protobuf/repeated_field.h>
+#include <google/protobuf/wrappers.pb.h>
+#include "AdvancedParametersParseUtil.h"
 
 namespace DB::ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
 }
 
-const static String FUNCTION_ROW_NUM = "top_row_number";
-const static String FUNCTION_RANK = "top_rank";
-const static String FUNCTION_DENSE_RANK = "top_dense_rank";
-
 namespace local_engine
 {
 WindowGroupLimitRelParser::WindowGroupLimitRelParser(SerializedPlanParser * plan_parser_) : RelParser(plan_parser_)
 {
-    LOG_ERROR(getLogger("WindowGroupLimitRelParser"), "xxx new parrser");
 }
+
 DB::QueryPlanPtr
 WindowGroupLimitRelParser::parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
 {
     const auto win_rel_def = rel.windowgrouplimit();
+    google::protobuf::StringValue optimize_info_str;
+    optimize_info_str.ParseFromString(win_rel_def.advanced_extension().optimization().value());
+    auto optimization_info = WindowGroupOptimizationInfo::parse(optimize_info_str.value());
+    window_function_name = optimization_info.window_function;
+
     current_plan = std::move(current_plan_);
 
-    DB::Block output_header = current_plan->getCurrentDataStream().header;
+    auto partition_fields = parsePartitoinFields(win_rel_def.partition_expressions());
+    auto sort_fields = parseSortFields(win_rel_def.sorts());
+    size_t limit = static_cast<size_t>(win_rel_def.limit());
 
-    window_function_name = FUNCTION_ROW_NUM;
-    LOG_ERROR(getLogger("WindowGroupLimitRelParser"), "xxx input header: {}", current_plan->getCurrentDataStream().header.dumpStructure());
+    auto window_group_limit_step = std::make_unique<WindowGroupLimitStep>(
+        current_plan->getCurrentDataStream(), window_function_name, partition_fields, sort_fields, limit);
+    window_group_limit_step->setStepDescription("Window group limit");
+    steps.emplace_back(window_group_limit_step.get());
+    current_plan->addStep(std::move(window_group_limit_step));
 
-    /// Only one window function in one window group limit
-    auto win_desc = buildWindowDescription(win_rel_def);
-
-    auto win_step = std::make_unique<DB::WindowStep>(current_plan->getCurrentDataStream(), win_desc, win_desc.window_functions, false);
-    win_step->setStepDescription("Window Group Limit " + win_desc.window_name);
-    steps.emplace_back(win_step.get());
-    current_plan->addStep(std::move(win_step));
-
-    /// remove the window function result column which is not needed in later steps
-    DB::ActionsDAG post_project_actions_dag = DB::ActionsDAG::makeConvertingActions(
-        current_plan->getCurrentDataStream().header.getColumnsWithTypeAndName(),
-        output_header.getColumnsWithTypeAndName(),
-        DB::ActionsDAG::MatchColumnsMode::Name);
-    auto post_project_step
-        = std::make_unique<DB::ExpressionStep>(current_plan->getCurrentDataStream(), std::move(post_project_actions_dag));
-    post_project_step->setStepDescription("Window group limit: drop window function result column");
-    steps.emplace_back(post_project_step.get());
-    current_plan->addStep(std::move(post_project_step));
-
-    LOG_ERROR(getLogger("WindowGroupLimitRelParser"), "xxx output header: {}", current_plan->getCurrentDataStream().header.dumpStructure());
     return std::move(current_plan);
 }
 
-DB::WindowFrame WindowGroupLimitRelParser::buildWindowFrame(const String & function_name)
+std::vector<size_t>
+WindowGroupLimitRelParser::parsePartitoinFields(const google::protobuf::RepeatedPtrField<substrait::Expression> & expressions)
 {
-    // We only need first rows, so let the begin type is unbounded is OK
-    DB::WindowFrame frame;
-    if (function_name == FUNCTION_ROW_NUM)
-    {
-        frame.type = DB::WindowFrame::FrameType::ROWS;
-        frame.begin_type = DB::WindowFrame::BoundaryType::Unbounded;
-        frame.begin_offset = 0;
-        frame.begin_preceding = true;
-        frame.end_type = DB::WindowFrame::BoundaryType::Current;
-        frame.end_offset = 0;
-        frame.end_preceding = true;
-    }
-    else if (function_name == FUNCTION_RANK || function_name == FUNCTION_DENSE_RANK)
-    {
-        // rank and dense_rank can only work on range mode
-        frame.type = DB::WindowFrame::FrameType::RANGE;
-        frame.begin_type = DB::WindowFrame::BoundaryType::Unbounded;
-        frame.begin_offset = 0;
-        frame.begin_preceding = true;
-        frame.end_type = DB::WindowFrame::BoundaryType::Current;
-        frame.end_offset = 0;
-        frame.end_preceding = true;
-    }
-    else
-    {
-        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknown function {} for window group limit", function_name);
-    }
-
-    return frame;
-}
-
-DB::WindowDescription WindowGroupLimitRelParser::buildWindowDescription(const substrait::WindowGroupLimitRel & win_rel_def)
-{
-    DB::WindowDescription win_desc;
-    win_desc.frame = buildWindowFrame(window_function_name);
-    win_desc.partition_by = parsePartitionBy(win_rel_def.partition_expressions());
-    win_desc.order_by = SortRelParser::parseSortDescription(win_rel_def.sorts(), current_plan->getCurrentDataStream().header);
-    win_desc.full_sort_description = win_desc.partition_by;
-    win_desc.full_sort_description.insert(win_desc.full_sort_description.end(), win_desc.order_by.begin(), win_desc.order_by.end());
-
-    DB::WriteBufferFromOwnString ss;
-    ss << "partition by " << DB::dumpSortDescription(win_desc.partition_by);
-    ss << "order by " << DB::dumpSortDescription(win_desc.order_by);
-    ss << win_desc.frame.toString();
-    win_desc.window_name = ss.str();
-
-    win_desc.window_functions.emplace_back(buildWindowFunctionDescription(window_function_name, static_cast<size_t>(win_rel_def.limit())));
-
-    return win_desc;
-}
-
-DB::SortDescription
-WindowGroupLimitRelParser::parsePartitionBy(const google::protobuf::RepeatedPtrField<substrait::Expression> & expressions)
-{
-    DB::Block header = current_plan->getCurrentDataStream().header;
-    DB::SortDescription sort_desc;
+    std::vector<size_t> fields;
     for (const auto & expr : expressions)
     {
         if (expr.has_selection())
         {
-            auto pos = expr.selection().direct_reference().struct_field().field();
-            auto col_name = header.getByPosition(pos).name;
-            sort_desc.push_back(DB::SortColumnDescription(col_name, 1, 1));
+            fields.push_back(static_cast<size_t>(expr.selection().direct_reference().struct_field().field()));
         }
         else if (expr.has_literal())
         {
@@ -143,28 +77,33 @@ WindowGroupLimitRelParser::parsePartitionBy(const google::protobuf::RepeatedPtrF
         }
         else
         {
-            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow partition argument: {}", expr.DebugString());
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow expression: {}", expr.DebugString());
         }
     }
-    return sort_desc;
+    return fields;
 }
 
-DB::WindowFunctionDescription WindowGroupLimitRelParser::buildWindowFunctionDescription(const String & function_name, size_t limit)
+std::vector<size_t> WindowGroupLimitRelParser::parseSortFields(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields)
 {
-    DB::WindowFunctionDescription desc;
-    desc.column_name = function_name;
-    desc.function_node = nullptr;
-    DB::AggregateFunctionProperties func_properties;
-    DB::Names func_args;
-    DB::DataTypes func_args_types;
-    DB::Array func_params;
-    func_params.push_back(limit);
-    auto func_ptr = RelParser::getAggregateFunction(function_name, func_args_types, func_properties, func_params);
-    desc.argument_names = func_args;
-    desc.argument_types = func_args_types;
-    desc.aggregate_function = func_ptr;
-    return desc;
+    std::vector<size_t> fields;
+    for (const auto sort_field : sort_fields)
+    {
+        if (sort_field.expr().has_literal())
+        {
+            continue;
+        }
+        else if (sort_field.expr().has_selection())
+        {
+            fields.push_back(static_cast<size_t>(sort_field.expr().selection().direct_reference().struct_field().field()));
+        }
+        else
+        {
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknown expression: {}", sort_field.expr().DebugString());
+        }
+    }
+    return fields;
 }
+
 void registerWindowGroupLimitRelParser(RelParserFactory & factory)
 {
     auto builder = [](SerializedPlanParser * plan_parser) { return std::make_shared<WindowGroupLimitRelParser>(plan_parser); };

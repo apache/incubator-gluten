@@ -46,12 +46,7 @@ private:
     DB::QueryPlanPtr current_plan;
     String window_function_name;
 
-    DB::WindowDescription buildWindowDescription(const substrait::WindowGroupLimitRel & win_rel_def);
-    /// There is only one type of window frame at present.
-    static DB::WindowFrame buildWindowFrame(const String & function_name);
-
-    DB::SortDescription parsePartitionBy(const google::protobuf::RepeatedPtrField<substrait::Expression> & expressions);
-
-    static DB::WindowFunctionDescription buildWindowFunctionDescription(const String & function_name, size_t limit);
+    std::vector<size_t> parsePartitoinFields(const google::protobuf::RepeatedPtrField<substrait::Expression> & expressions);
+    std::vector<size_t> parseSortFields(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields);
 };
 }
