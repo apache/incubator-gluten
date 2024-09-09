@@ -49,7 +49,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   override def rightKeys: Seq[Expression] = Nil
 
   private lazy val substraitJoinType: CrossRel.JoinType =
-    SubstraitUtil.toCrossRelSubstrait(joinType)
+    SubstraitUtil.toCrossRelSubstrait(joinType, buildSide)
 
   // Unique ID for builded table
   lazy val buildBroadcastTableId: String = "BuiltBNLJBroadcastTable-" + buildPlan.id
