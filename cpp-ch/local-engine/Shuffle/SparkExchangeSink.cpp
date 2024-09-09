@@ -130,7 +130,7 @@ SparkExchangeManager::SparkExchangeManager(const Block& header, const String & s
     split_result.raw_partition_lengths.resize(options.partition_num, 0);
 }
 
-std::shared_ptr<PartitionWriter> createPartitionWriter(const SplitOptions& options, bool use_sort_shuffle, std::unique_ptr<CelebornClient> celeborn_client)
+static std::shared_ptr<PartitionWriter> createPartitionWriter(const SplitOptions& options, bool use_sort_shuffle, std::unique_ptr<CelebornClient> celeborn_client)
 {
     if (celeborn_client)
     {
@@ -161,7 +161,7 @@ void SparkExchangeManager::initSinks(size_t num)
 void SparkExchangeManager::setSinksToPipeline(DB::QueryPipelineBuilder & pipeline) const
 {
     size_t count = 0;
-    Pipe::ProcessorGetterWithStreamKind getter = [&](const Block & header, Pipe::StreamType stream_type) -> ProcessorPtr
+    DB::Pipe::ProcessorGetterWithStreamKind getter = [&](const Block & header, Pipe::StreamType stream_type) -> ProcessorPtr
     {
         if (stream_type == Pipe::StreamType::Main)
         {
@@ -255,7 +255,7 @@ void SparkExchangeManager::mergeSplitResult()
     for (const auto & sink : sinks)
     {
         sink->onFinish();
-        auto split_result = sink->getSplitResultCopy();
+        auto split_result = sink->getSplitResult();
         this->split_result.total_bytes_written += split_result.total_bytes_written;
         this->split_result.total_bytes_spilled += split_result.total_bytes_spilled;
         this->split_result.total_compress_time += split_result.total_compress_time;
@@ -301,7 +301,7 @@ std::vector<UInt64> SparkExchangeManager::mergeSpills(DB::WriteBuffer & data_fil
     auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(options.compress_method), options.compress_level);
 
     CompressedWriteBuffer compressed_output(data_file, codec, options.io_buffer_size);
-    NativeWriter writer(compressed_output, sinks.front()->getOutputHeaderCopy());
+    NativeWriter writer(compressed_output, sinks.front()->getOutputHeader());
 
     std::vector<UInt64> partition_length(options.partition_num, 0);
 

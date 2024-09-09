@@ -54,14 +54,14 @@ public:
         return "SparkExchangeSink";
     }
 
-    SplitResult getSplitResultCopy() const
+    const SplitResult& getSplitResult() const
     {
         return split_result;
     }
 
-    DB::Block getOutputHeaderCopy() const
+    const DB::Block& getOutputHeader() const
     {
-        return output_header.cloneEmpty();
+        return output_header;
     }
 
 protected:

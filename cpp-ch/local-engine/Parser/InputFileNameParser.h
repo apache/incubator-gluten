@@ -24,47 +24,39 @@ namespace DB
 
 namespace local_engine
 {
-    class InputFileNameParser
-    {
-    public:
-        static inline const String& INPUT_FILE_NAME = "input_file_name";
-        static inline const String& INPUT_FILE_BLOCK_START = "input_file_block_start";
-        static inline const String& INPUT_FILE_BLOCK_LENGTH = "input_file_block_length";
-        static inline std::unordered_set INPUT_FILE_COLUMNS_SET = {
-            INPUT_FILE_NAME, INPUT_FILE_BLOCK_START, INPUT_FILE_BLOCK_LENGTH
-        };
+class InputFileNameParser
+{
+public:
+    static inline const String & INPUT_FILE_NAME = "input_file_name";
+    static inline const String & INPUT_FILE_BLOCK_START = "input_file_block_start";
+    static inline const String & INPUT_FILE_BLOCK_LENGTH = "input_file_block_length";
+    static inline std::unordered_set INPUT_FILE_COLUMNS_SET = {INPUT_FILE_NAME, INPUT_FILE_BLOCK_START, INPUT_FILE_BLOCK_LENGTH};
 
-        static bool hasInputFileNameColumn(const DB::Block& block);
-        static bool hasInputFileBlockStartColumn(const DB::Block& block);
-        static bool hasInputFileBlockLengthColumn(const DB::Block& block);
-        static bool containsInputFileColumns(const DB::Block& block);
-        static DB::Block removeInputFileColumn(const DB::Block& block);
-        static void addInputFileColumnsToChunk(const DB::Block& header, DB::Chunk& chunk,
-                                        const std::optional<String>& file_name,
-                                        const std::optional<Int64>& block_start,
-                                        const std::optional<Int64>& block_length);
+    static bool hasInputFileNameColumn(const DB::Block & block);
+    static bool hasInputFileBlockStartColumn(const DB::Block & block);
+    static bool hasInputFileBlockLengthColumn(const DB::Block & block);
+    static bool containsInputFileColumns(const DB::Block & block);
+    static DB::Block removeInputFileColumn(const DB::Block & block);
+    static void addInputFileColumnsToChunk(
+        const DB::Block & header,
+        DB::Chunk & chunk,
+        const std::optional<String> & file_name,
+        const std::optional<Int64> & block_start,
+        const std::optional<Int64> & block_length);
 
 
-        void setFileName(const String& file_name)
-        {
-            this->file_name = file_name;
-        }
+    void setFileName(const String & file_name) { this->file_name = file_name; }
 
-        void setBlockStart(const Int64 block_start)
-        {
-            this->block_start = block_start;
-        }
+    void setBlockStart(const Int64 block_start) { this->block_start = block_start; }
 
-        void setBlockLength(const Int64 block_length)
-        {
-            this->block_length = block_length;
-        }
+    void setBlockLength(const Int64 block_length) { this->block_length = block_length; }
 
-        void addInputFileProjectStep(DB::QueryPlan& plan);
-        void addInputFileColumnsToChunk(const DB::Block & header, DB::Chunk & chunk);
-    private:
-        std::optional<String> file_name;
-        std::optional<Int64> block_start;
-        std::optional<Int64> block_length;
-    };
+    [[nodiscard]] std::optional<DB::IQueryPlanStep *> addInputFileProjectStep(DB::QueryPlan & plan);
+    void addInputFileColumnsToChunk(const DB::Block & header, DB::Chunk & chunk);
+
+private:
+    std::optional<String> file_name;
+    std::optional<Int64> block_start;
+    std::optional<Int64> block_length;
+};
 } // local_engine

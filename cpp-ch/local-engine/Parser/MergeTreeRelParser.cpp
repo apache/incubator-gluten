@@ -21,7 +21,6 @@
 #include <Parser/TypeParser.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <google/protobuf/wrappers.pb.h>
-#include <Storages/Mergetree/MetaDataHelper.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
 #include <Parser/InputFileNameParser.h>
@@ -154,7 +153,9 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
         if (remove_null_step)
             steps.emplace_back(remove_null_step);
     }
-    input_file_name_parser.addInputFileProjectStep(*query_plan);
+    auto step = input_file_name_parser.addInputFileProjectStep(*query_plan);
+    if (step.has_value())
+        steps.emplace_back(step.value());
     return query_plan;
 }
 

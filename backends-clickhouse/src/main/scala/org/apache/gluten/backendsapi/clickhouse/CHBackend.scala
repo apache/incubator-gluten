@@ -405,6 +405,4 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         }
       }
   }
-
-  override def supportNativeInputFileRelatedExpr(): Boolean = true
 }

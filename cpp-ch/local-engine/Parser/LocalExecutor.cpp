@@ -17,11 +17,11 @@
 
 #include "LocalExecutor.h"
 
-#include <Common/QueryContext.h>
-#include <QueryPipeline/printPipeline.h>
-#include <Processors/Executors/PipelineExecutor.h>
 #include <Core/Settings.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Processors/Executors/PipelineExecutor.h>
+#include <QueryPipeline/printPipeline.h>
+#include <Common/QueryContext.h>
 
 using namespace DB;
 namespace local_engine
@@ -123,7 +123,7 @@ void LocalExecutor::execute()
 {
     chassert(query_pipeline_builder);
     push_executor = query_pipeline_builder->execute();
-    push_executor->execute(local_engine::QueryContextManager::instance().currentQueryContext()->getSettingsRef().max_threads, false);
+    push_executor->execute(local_engine::QueryContext::instance().currentQueryContext()->getSettingsRef().max_threads, false);
 }
 
 Block LocalExecutor::getHeader()
@@ -139,9 +139,7 @@ LocalExecutor::LocalExecutor(QueryPlanPtr query_plan, QueryPipelineBuilderPtr pi
     , current_query_plan(std::move(query_plan))
 {
     if (current_executor)
-    {
         fallback_mode = true;
-    }
     // only need record last executor
     current_executor = this;
 }

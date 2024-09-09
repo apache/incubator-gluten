@@ -17,49 +17,44 @@
 
 #include "InputFileNameParser.h"
 
-#include <iostream>
 #include <ranges>
 
-#include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/DataTypeString.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <Processors/ISimpleTransform.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 
-namespace local_engine {
-
+namespace local_engine
+{
 static DB::ITransformingStep::Traits getTraits()
 {
-    return DB::ITransformingStep::Traits
-    {
-            {
-                .returns_single_stream = false,
-                .preserves_number_of_streams = true,
-                .preserves_sorting = true,
-            },
-            {
-                .preserves_number_of_rows = true,
-            }
-    };
+    return DB::ITransformingStep::Traits{
+        {
+            .returns_single_stream = false,
+            .preserves_number_of_streams = true,
+            .preserves_sorting = true,
+        },
+        {
+            .preserves_number_of_rows = true,
+        }};
 }
 
-static DB::Block getOutputHeader(const DB::DataStream& input_stream,
-        const std::optional<String>& file_name,
-        const std::optional<Int64>& block_start,
-        const std::optional<Int64>& block_length)
+static DB::Block getOutputHeader(
+    const DB::DataStream & input_stream,
+    const std::optional<String> & file_name,
+    const std::optional<Int64> & block_start,
+    const std::optional<Int64> & block_length)
 {
     DB::Block output_header = input_stream.header;
     if (file_name.has_value())
-    {
         output_header.insert(DB::ColumnWithTypeAndName{std::make_shared<DB::DataTypeString>(), InputFileNameParser::INPUT_FILE_NAME});
-    }
     if (block_start.has_value())
-    {
         output_header.insert(DB::ColumnWithTypeAndName{std::make_shared<DB::DataTypeInt64>(), InputFileNameParser::INPUT_FILE_BLOCK_START});
-    }
     if (block_length.has_value())
     {
-        output_header.insert(DB::ColumnWithTypeAndName{std::make_shared<DB::DataTypeInt64>(), InputFileNameParser::INPUT_FILE_BLOCK_LENGTH});
+        output_header.insert(
+            DB::ColumnWithTypeAndName{std::make_shared<DB::DataTypeInt64>(), InputFileNameParser::INPUT_FILE_BLOCK_LENGTH});
     }
     return output_header;
 }
@@ -68,22 +63,20 @@ class InputFileExprProjectTransform : public DB::ISimpleTransform
 {
 public:
     InputFileExprProjectTransform(
-        const DB::Block& input_header_,
-        const DB::Block& output_header_,
-        const std::optional<String>& file_name,
-        const std::optional<Int64>& block_start,
-        const std::optional<Int64>& block_length)
-        : ISimpleTransform(input_header_, output_header_, true)
-        , file_name(file_name)
-        , block_start(block_start)
-        , block_length(block_length)
+        const DB::Block & input_header_,
+        const DB::Block & output_header_,
+        const std::optional<String> & file_name,
+        const std::optional<Int64> & block_start,
+        const std::optional<Int64> & block_length)
+        : ISimpleTransform(input_header_, output_header_, true), file_name(file_name), block_start(block_start), block_length(block_length)
     {
     }
 
     String getName() const override { return "InputFileExprProjectTransform"; }
+
     void transform(DB::Chunk & chunk) override
     {
-       InputFileNameParser::addInputFileColumnsToChunk(output.getHeader(), chunk, file_name, block_start, block_length);
+        InputFileNameParser::addInputFileColumnsToChunk(output.getHeader(), chunk, file_name, block_start, block_length);
     }
 
 private:
@@ -96,10 +89,10 @@ class InputFileExprProjectStep : public DB::ITransformingStep
 {
 public:
     InputFileExprProjectStep(
-        const DB::DataStream& input_stream,
-        const std::optional<String>& file_name,
-        const std::optional<Int64>& block_start,
-        const std::optional<Int64>& block_length)
+        const DB::DataStream & input_stream,
+        const std::optional<String> & file_name,
+        const std::optional<Int64> & block_start,
+        const std::optional<Int64> & block_length)
         : ITransformingStep(input_stream, getOutputHeader(input_stream, file_name, block_start, block_length), getTraits(), true)
         , file_name(file_name)
         , block_start(block_start)
@@ -108,11 +101,11 @@ public:
     }
 
     String getName() const override { return "InputFileExprProjectStep"; }
-    void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings &  /*settings*/) override
+
+    void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & /*settings*/) override
     {
         pipeline.addSimpleTransform(
-            [&](const DB::Block & header)
-            {
+            [&](const DB::Block & header) {
                 return std::make_shared<InputFileExprProjectTransform>(header, output_stream->header, file_name, block_start, block_length);
             });
     }
@@ -163,8 +156,7 @@ void InputFileNameParser::addInputFileColumnsToChunk(
             if (!file_name.has_value())
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Input file name is not set");
             auto type_string = std::make_shared<DB::DataTypeString>();
-            auto file_name_column = type_string->createColumn();
-            file_name_column->insertMany(file_name.value(), chunk.getNumRows());
+            auto file_name_column = type_string->createColumnConst(chunk.getNumRows(), file_name.value());
             output_columns.insert(output_columns.begin() + i, std::move(file_name_column));
         }
         else if (column.name == INPUT_FILE_BLOCK_START)
@@ -172,8 +164,7 @@ void InputFileNameParser::addInputFileColumnsToChunk(
             if (!block_start.has_value())
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "block_start is not set");
             auto type_int64 = std::make_shared<DB::DataTypeInt64>();
-            auto block_start_column = type_int64->createColumn();
-            block_start_column->insertMany(block_start.value(), chunk.getNumRows());
+            auto block_start_column = type_int64->createColumnConst(chunk.getNumRows(), block_start.value());
             output_columns.insert(output_columns.begin() + i, std::move(block_start_column));
         }
         else if (column.name == INPUT_FILE_BLOCK_LENGTH)
@@ -181,8 +172,7 @@ void InputFileNameParser::addInputFileColumnsToChunk(
             if (!block_length.has_value())
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "block_length is not set");
             auto type_int64 = std::make_shared<DB::DataTypeInt64>();
-            auto block_length_column = type_int64->createColumn();
-            block_length_column->insertMany(block_length.value(), chunk.getNumRows());
+            auto block_length_column = type_int64->createColumnConst(chunk.getNumRows(), block_length.value());
             output_columns.insert(output_columns.begin() + i, std::move(block_length_column));
         }
     }
@@ -198,27 +188,25 @@ DB::Block InputFileNameParser::removeInputFileColumn(const DB::Block & block)
 {
     const auto & columns = block.getColumnsWithTypeAndName();
     DB::ColumnsWithTypeAndName result_columns;
-    for (const auto & column : columns) {
+    for (const auto & column : columns)
         if (!INPUT_FILE_COLUMNS_SET.contains(column.name))
-        {
             result_columns.push_back(column);
-        }
-    }
     return result_columns;
 }
 
-void InputFileNameParser::addInputFileProjectStep(DB::QueryPlan & plan)
+std::optional<DB::IQueryPlanStep *> InputFileNameParser::addInputFileProjectStep(DB::QueryPlan & plan)
 {
-    if (!file_name.has_value() && !block_start.has_value() && !block_length.has_value()) return;
+    if (!file_name.has_value() && !block_start.has_value() && !block_length.has_value())
+        return std::nullopt;
     auto step = std::make_unique<InputFileExprProjectStep>(plan.getCurrentDataStream(), file_name, block_start, block_length);
     step->setStepDescription("Input file expression project");
+    std::optional<DB::IQueryPlanStep *> result = step.get();
     plan.addStep(std::move(step));
+    return result;
 }
 
 void InputFileNameParser::addInputFileColumnsToChunk(const DB::Block & header, DB::Chunk & chunk)
 {
     addInputFileColumnsToChunk(header, chunk, file_name, block_start, block_length);
 }
-
-
 }

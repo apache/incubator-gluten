@@ -62,6 +62,7 @@ private object CHRuleApi {
   def injectLegacy(injector: LegacyInjector): Unit = {
     // Gluten columnar: Transform rules.
     injector.injectTransform(_ => RemoveTransitions)
+    injector.injectTransform(_ => PushDownInputFileExpression.PreOffload)
     injector.injectTransform(c => FallbackOnANSIMode.apply(c.session))
     injector.injectTransform(c => FallbackMultiCodegens.apply(c.session))
     injector.injectTransform(_ => RewriteSubqueryBroadcast())
@@ -72,6 +73,7 @@ private object CHRuleApi {
     injector.injectTransform(_ => TransformPreOverrides())
     injector.injectTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectTransform(c => RewriteTransformer.apply(c.session))
+    injector.injectTransform(_ => PushDownInputFileExpression.PostOffload)
     injector.injectTransform(_ => EnsureLocalSortRequirements)
     injector.injectTransform(_ => EliminateLocalSort)
     injector.injectTransform(_ => CollapseProjectExecTransformer)

@@ -105,11 +105,9 @@ DB::Chunk SourceFromJavaIter::generate()
     SCOPE_EXIT({CLEAN_JNIENV});
 
     DB::Block * input_block = nullptr;
-    bool clean_first_block = false;
     if (first_block.has_value()) [[unlikely]]
     {
         input_block = &first_block.value();
-        clean_first_block = true;
     }
     else if (jboolean has_next = safeCallBooleanMethod(env, java_iter, serialized_record_batch_iterator_hasNext))
     {
@@ -150,7 +148,7 @@ DB::Chunk SourceFromJavaIter::generate()
         auto info = std::make_shared<DB::AggregatedChunkInfo>();
         result.getChunkInfos().add(std::move(info));
     }
-    if (clean_first_block) first_block = std::nullopt;
+    first_block = std::nullopt;
     return result;
 }
 

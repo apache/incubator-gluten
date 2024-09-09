@@ -16,12 +16,12 @@
  */
 
 #pragma once
-#include <Common/BlockIterator.h>
-#include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Processors/Executors/PullingPipelineExecutor.h>
-#include <Processors/QueryPlan/QueryPlan.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/RelMetric.h>
+#include <Processors/Executors/PullingPipelineExecutor.h>
+#include <Processors/QueryPlan/QueryPlan.h>
+#include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/BlockIterator.h>
 
 namespace local_engine
 {
@@ -56,6 +56,8 @@ public:
     void setExtraPlanHolder(std::vector<DB::QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
 
 private:
+    // In the case of fallback, there may be multiple native pipelines in one stage. Can determine whether a fallback has occurred by whether a LocalExecutor already exists.
+    // Updated when the LocalExecutor is created and reset when the task ends
     static thread_local LocalExecutor * current_executor;
     std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(const DB::Block & block) const;
     void initPullingPipelineExecutor();
@@ -78,5 +80,3 @@ private:
     bool fallback_mode = false;
 };
 }
-
-
