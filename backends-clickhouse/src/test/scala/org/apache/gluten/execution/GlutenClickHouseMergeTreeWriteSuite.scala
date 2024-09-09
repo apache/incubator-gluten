@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.utils.Arm
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
@@ -43,6 +45,8 @@ class GlutenClickHouseMergeTreeWriteSuite
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
 
+  import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -52,15 +56,9 @@ class GlutenClickHouseMergeTreeWriteSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.min_insert_block_size_rows",
-        "100000")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
-        "false")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
-        "8192")
+      .setCHSettings("min_insert_block_size_rows", 100000)
+      .setCHSettings("mergetree.merge_after_insert", false)
+      .setCHSettings("input_format_parquet_max_block_size", 8192)
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -152,7 +150,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         val planNodeJson = wholeStageTransformer.substraitPlanJson
         assert(
           !planNodeJson
-            .replaceAll("\\\n", "")
+            .replaceAll("\n", "")
             .replaceAll(" ", "")
             .contains("\"input\":{\"filter\":{"))
     }
@@ -1201,7 +1199,7 @@ class GlutenClickHouseMergeTreeWriteSuite
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
     val partDir = directory.listFiles().filter(f => f.getName.length > 20).head
     val columnsFile = new File(partDir, "columns.txt")
-    val columns = Source.fromFile(columnsFile).getLines().mkString
+    val columns = Arm.withResource(Source.fromFile(columnsFile))(_.getLines().mkString)
     assert(columns.contains("`l_returnflag` LowCardinality(Nullable(String))"))
     assert(columns.contains("`l_linestatus` LowCardinality(Nullable(String))"))
 

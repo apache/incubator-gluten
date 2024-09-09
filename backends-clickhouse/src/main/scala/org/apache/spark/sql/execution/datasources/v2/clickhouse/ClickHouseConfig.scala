@@ -28,9 +28,9 @@ object ClickHouseConfig {
   val NAME = "clickhouse"
   val ALT_NAME = "clickhouse"
   val METADATA_DIR = "_delta_log"
-  val FORMAT_ENGINE = "engine"
-  val DEFAULT_ENGINE = "mergetree"
-  val OPT_NAME_PREFIX = "clickhouse."
+  private val FORMAT_ENGINE = "engine"
+  private val DEFAULT_ENGINE = "mergetree"
+  private val OPT_NAME_PREFIX = "clickhouse."
 
   @deprecated
   // Whether to use MergeTree DataSource V2 API, default is false, fall back to V1.
@@ -53,8 +53,11 @@ object ClickHouseConfig {
     if (!configurations.contains(FORMAT_ENGINE)) {
       configurations += (FORMAT_ENGINE -> DEFAULT_ENGINE)
     } else {
-      val engineValue = configurations.get(FORMAT_ENGINE)
-      if (!engineValue.equals(DEFAULT_ENGINE) && !engineValue.equals("parquet")) {
+      if (
+        !configurations
+          .get(FORMAT_ENGINE)
+          .exists(s => s.equals(DEFAULT_ENGINE) || s.equals("parquet"))
+      ) {
         configurations += (FORMAT_ENGINE -> DEFAULT_ENGINE)
       }
     }
@@ -80,8 +83,7 @@ object ClickHouseConfig {
   }
 
   def isMergeTreeFormatEngine(configuration: Map[String, String]): Boolean = {
-    configuration.contains(FORMAT_ENGINE) &&
-    configuration.get(FORMAT_ENGINE).get.equals(DEFAULT_ENGINE)
+    configuration.get(FORMAT_ENGINE).exists(_.equals(DEFAULT_ENGINE))
   }
 
   /** Get the related clickhouse option when using DataFrameWriter / DataFrameReader */

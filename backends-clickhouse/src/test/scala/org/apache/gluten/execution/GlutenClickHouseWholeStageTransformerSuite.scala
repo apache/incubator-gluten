@@ -53,7 +53,7 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
 
   val HDFS_METADATA_PATH = s"/tmp/metadata/hdfs/$sparkVersion/"
   val HDFS_CACHE_PATH = s"/tmp/hdfs_cache/$sparkVersion/"
-  val HDFS_URL_ENDPOINT = s"hdfs://127.0.0.1:8020"
+  val HDFS_URL_ENDPOINT = "hdfs://127.0.0.1:8020"
   val HDFS_URL = s"$HDFS_URL_ENDPOINT/$sparkVersion"
 
   val S3_ACCESS_KEY = "BypTYzcXOlfr03FFIvt4"
@@ -74,16 +74,13 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   }
 
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
     val conf = super.sparkConf
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.use.v2",
-        ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2)
+      .set(ClickHouseConfig.USE_DATASOURCE_V2, ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2)
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.sql.warehouse.dir", warehouse)
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.user_defined_path",
-        "/tmp/user_defined")
+      .setCHConfig("user_defined_path", "/tmp/user_defined")
     if (UTSystemParameters.testMergeTreeOnObjectStorage) {
       conf
         .set("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
@@ -92,66 +89,32 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
         .set("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT)
         .set("spark.hadoop.fs.s3a.path.style.access", "true")
         .set("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3.type",
-          "s3_gluten")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3.endpoint",
-          WHOLE_PATH)
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3.access_key_id",
-          S3_ACCESS_KEY)
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3.secret_access_key",
-          S3_SECRET_KEY)
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3.metadata_path",
-          S3_METADATA_PATH)
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3_cache.type",
-          "cache")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3_cache.disk",
-          "s3")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3_cache.path",
-          S3_CACHE_PATH)
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.s3_cache.max_size",
-          "10Gi")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__s3_main.volumes",
-          "main")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__s3_main.volumes.main.disk",
-          "s3_cache")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.type",
-          "hdfs_gluten")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.endpoint",
-          HDFS_URL_ENDPOINT + "/")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.metadata_path",
-          HDFS_METADATA_PATH)
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.type",
-          "cache")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.disk",
-          "hdfs")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.path",
-          HDFS_CACHE_PATH)
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.max_size",
-          "10Gi")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes",
-          "main")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes.main.disk",
-          "hdfs_cache")
+        .setCHConfig(
+          "storage_configuration.disks.s3.type" -> "s3_gluten",
+          "storage_configuration.disks.s3.endpoint" -> WHOLE_PATH,
+          "storage_configuration.disks.s3.access_key_id" -> S3_ACCESS_KEY,
+          "storage_configuration.disks.s3.secret_access_key" -> S3_SECRET_KEY,
+          "storage_configuration.disks.s3.metadata_path" -> S3_METADATA_PATH,
+          "storage_configuration.disks.s3_cache.type" -> "cache",
+          "storage_configuration.disks.s3_cache.disk" -> "s3",
+          "storage_configuration.disks.s3_cache.path" -> S3_CACHE_PATH,
+          "storage_configuration.disks.s3_cache.max_size" -> "10Gi",
+          "storage_configuration.policies.__s3_main.volumes" -> "main",
+          "storage_configuration.policies.__s3_main.volumes.main.disk" -> "s3_cache"
+        )
+        .setCHConfig(
+          "storage_configuration.disks.hdfs.type" -> "hdfs_gluten",
+          "storage_configuration.disks.hdfs.endpoint" -> s"$HDFS_URL_ENDPOINT/",
+          "storage_configuration.disks.hdfs.metadata_path" -> HDFS_METADATA_PATH,
+          "storage_configuration.disks.hdfs_cache.type" -> "cache",
+          "storage_configuration.disks.hdfs_cache.disk" -> "hdfs",
+          "storage_configuration.disks.hdfs_cache.path" -> HDFS_CACHE_PATH,
+          "storage_configuration.disks.hdfs_cache.max_size" -> "10Gi",
+          "storage_configuration.policies.__hdfs_main.volumes" -> "main",
+          "storage_configuration.policies.__hdfs_main.volumes.main.disk" -> "hdfs_cache",
+          "hdfs.dfs_client_read_shortcircuit" -> "false",
+          "hdfs.dfs_default_replica" -> "1"
+        )
         .set(
           "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs2.type",
           "hdfs_gluten")
@@ -182,10 +145,6 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
         .set(
           "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main_rocksdb.volumes.main.disk",
           "hdfs_cache2")
-        .set(
-          "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_client_read_shortcircuit",
-          "false")
-        .set("spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_default_replica", "1")
     } else {
       conf
     }

@@ -91,7 +91,7 @@ object ClickhouseTable {
     val badOptions = hadoopConf.filterKeys {
       k => !DeltaTableUtils.validDeltaTableHadoopPrefixes.exists(k.startsWith)
     }.toMap
-    if (!badOptions.isEmpty) {
+    if (badOptions.nonEmpty) {
       throw DeltaErrors.unsupportedDeltaTableForPathHadoopConf(badOptions)
     }
     val fileSystemOptions: Map[String, String] = hadoopConf.toMap

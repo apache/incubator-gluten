@@ -81,13 +81,10 @@ class CHListenerApi extends ListenerApi with Logging {
       JniLibLoader.loadFromPath(executorLibPath, true)
     }
     // Add configs
-    conf.set(
-      s"${CHBackend.CONF_PREFIX}.runtime_config.timezone",
-      conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
-    conf.set(
-      s"${CHBackend.CONF_PREFIX}.runtime_config" +
-        s".local_engine.settings.log_processors_profiles",
-      "true")
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+    conf.setCHConfig(
+      "timezone" -> conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID),
+      "local_engine.settings.log_processors_profiles" -> "true")
 
     // add memory limit for external sort
     val externalSortKey = s"${CHBackend.CONF_PREFIX}.runtime_settings" +

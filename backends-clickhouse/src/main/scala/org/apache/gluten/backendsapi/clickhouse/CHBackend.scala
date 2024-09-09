@@ -122,21 +122,21 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     }
   }
 
-  val GLUTEN_CLICKHOUSE_AFFINITY_MODE: String =
+  private val GLUTEN_CLICKHOUSE_AFFINITY_MODE: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME + ".affinity.mode"
   val SOFT: String = "soft"
   val FORCE: String = "force"
   private val GLUTEN_CLICKHOUSE_AFFINITY_MODE_DEFAULT = SOFT
 
-  val GLUTEN_MAX_BLOCK_SIZE: String =
+  private val GLUTEN_MAX_BLOCK_SIZE: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".runtime_settings.max_block_size"
   // Same as default value in clickhouse
-  val GLUTEN_MAX_BLOCK_SIZE_DEFAULT = 65409
-  val GLUTEN_MAX_SHUFFLE_READ_BYTES: String =
+  private val GLUTEN_MAX_BLOCK_SIZE_DEFAULT = 65409
+  private val GLUTEN_MAX_SHUFFLE_READ_BYTES: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".runtime_config.max_source_concatenate_bytes"
-  val GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT = GLUTEN_MAX_BLOCK_SIZE_DEFAULT * 256
+  private val GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT = GLUTEN_MAX_BLOCK_SIZE_DEFAULT * 256
 
   val GLUTEN_AQE_PROPAGATEEMPTY: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
@@ -369,7 +369,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   def enableReorderHashJoinTables(): Boolean = {
     SparkEnv.get.conf.getBoolean(
       "spark.gluten.sql.columnar.backend.ch.enable_reorder_hash_join_tables",
-      true
+      defaultValue = true
     )
   }
   // The threshold to reorder hash join tables, if The result of dividing two tables' size is
