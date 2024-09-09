@@ -43,7 +43,7 @@ object SubstraitUtil {
     case LeftSemi =>
       JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
     case LeftAnti =>
-      JoinRel.JoinType.JOIN_TYPE_ANTI
+      JoinRel.JoinType.JOIN_TYPE_LEFT_ANTI
     case _ =>
       // TODO: Support existence join
       JoinRel.JoinType.UNRECOGNIZED

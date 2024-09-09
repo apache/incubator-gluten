@@ -234,11 +234,11 @@ message JoinRel {
     JOIN_TYPE_LEFT = 3;
     JOIN_TYPE_RIGHT = 4;
     JOIN_TYPE_LEFT_SEMI = 5;
-    JOIN_TYPE_RIGHT_SEMI = 6;
-    JOIN_TYPE_ANTI = 7;
-    // This join is useful for nested sub-queries where we need exactly one tuple in output (or throw exception)
-    // See Section 3.2 of https://15721.courses.cs.cmu.edu/spring2018/papers/16-optimizer2/hyperjoins-btw2017.pdf
-    JOIN_TYPE_SINGLE = 8;
+    JOIN_TYPE_LEFT_ANTI = 6;
+    JOIN_TYPE_LEFT_SINGLE = 7;
+    JOIN_TYPE_RIGHT_SEMI = 8;
+    JOIN_TYPE_RIGHT_ANTI = 9;
+    JOIN_TYPE_RIGHT_SINGLE = 10;
   }
 
   substrait.extensions.AdvancedExtension advanced_extension = 10;
@@ -253,6 +253,7 @@ message CrossRel {
 
   JoinType type = 5;
 
+  // TODO -- Remove this unnecessary type.
   enum JoinType {
     JOIN_TYPE_UNSPECIFIED = 0;
     JOIN_TYPE_INNER = 1;
@@ -260,6 +261,11 @@ message CrossRel {
     JOIN_TYPE_LEFT = 3;
     JOIN_TYPE_RIGHT = 4;
     JOIN_TYPE_LEFT_SEMI = 5;
+    JOIN_TYPE_LEFT_ANTI = 6;
+    JOIN_TYPE_LEFT_SINGLE = 7;
+    JOIN_TYPE_RIGHT_SEMI = 8;
+    JOIN_TYPE_RIGHT_ANTI = 9;
+    JOIN_TYPE_RIGHT_SINGLE = 10;
   }
 
   substrait.extensions.AdvancedExtension advanced_extension = 10;
@@ -649,6 +655,8 @@ message HashJoinRel {
     JOIN_TYPE_RIGHT_SEMI = 6;
     JOIN_TYPE_LEFT_ANTI = 7;
     JOIN_TYPE_RIGHT_ANTI = 8;
+    JOIN_TYPE_LEFT_SINGLE = 9;
+    JOIN_TYPE_RIGHT_SINGLE = 10;
   }
 
   substrait.extensions.AdvancedExtension advanced_extension = 10;

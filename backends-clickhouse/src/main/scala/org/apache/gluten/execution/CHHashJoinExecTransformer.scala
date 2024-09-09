@@ -67,7 +67,7 @@ object JoinTypeTransform {
         if (!buildRight) {
           throw new IllegalArgumentException("LeftAnti join should not switch children")
         }
-        JoinRel.JoinType.JOIN_TYPE_ANTI
+        JoinRel.JoinType.JOIN_TYPE_LEFT_ANTI
       case _ =>
         // TODO: Support cross join with Cross Rel
         JoinRel.JoinType.UNRECOGNIZED
