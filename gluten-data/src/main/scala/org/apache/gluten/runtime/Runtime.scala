@@ -117,7 +117,7 @@ object Runtime {
         LOGGER.warn(
           String.format(
             "%s Reservation listener %s still reserved non-zero bytes, which may cause memory" +
-              " leak, size: %s",
+              " leak, size: %s.",
             name,
             rl.toString,
             SparkMemoryUtil.bytesToString(rl.getUsedBytes)
