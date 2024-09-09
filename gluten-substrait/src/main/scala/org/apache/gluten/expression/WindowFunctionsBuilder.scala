@@ -31,7 +31,7 @@ object WindowFunctionsBuilder {
     val substraitFunc = windowFunc match {
       // Handle lag with negative inputOffset, e.g., converts lag(c1, -1) to lead(c1, 1).
       // Spark uses `-inputOffset` as `offset` for Lag function.
-      case lag: Lag if lag.offset.eval(EmptyRow).asInstanceOf[Int] < 0 =>
+      case lag: Lag if lag.offset.eval(EmptyRow).asInstanceOf[Int] > 0 =>
         Some(LEAD)
       // Handle lead with negative offset, e.g., converts lead(c1, -1) to lag(c1, 1).
       case lead: Lead if lead.offset.eval(EmptyRow).asInstanceOf[Int] < 0 =>
