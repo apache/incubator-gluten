@@ -12,7 +12,7 @@ cd "$GLUTEN_DIR"
 
 # build gluten with velox backend, prompt always respond y
 export PROMPT_ALWAYS_RESPOND=y
-./dev/buildbundle-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON "$@"
+./dev/buildbundle-veloxbe.sh --enable_vcpkg=OFF --build_tests=ON --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON "$@"
 
 # make thirdparty package
 ./dev/build-thirdparty.sh
