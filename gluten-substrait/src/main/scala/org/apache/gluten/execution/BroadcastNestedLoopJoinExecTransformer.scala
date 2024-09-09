@@ -96,6 +96,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       joinType match {
         case _: InnerLike => right.outputPartitioning
         case RightOuter => right.outputPartitioning
+        case LeftOuter => left.outputPartitioning
         case x =>
           throw new IllegalArgumentException(
             s"BroadcastNestedLoopJoin should not take $x as the JoinType with building left side")
@@ -104,6 +105,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
       joinType match {
         case _: InnerLike => left.outputPartitioning
         case LeftOuter => left.outputPartitioning
+        case RightOuter => right.outputPartitioning
         case x =>
           throw new IllegalArgumentException(
             s"BroadcastNestedLoopJoin should not take $x as the JoinType with building right side")
@@ -123,9 +125,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
 
     val operatorId = context.nextOperatorId(this.nodeName)
     val joinParams = new JoinParams
-    if (condition.isDefined) {
-      joinParams.isWithCondition = true
-    }
+    joinParams.isWithCondition = condition.isDefined
 
     val crossRel = JoinUtils.createCrossRel(
       substraitJoinType,
