@@ -20,13 +20,25 @@ class WindowFunctionsValidateSuite extends FunctionsValidateSuite {
 
   test("lag/lead window function with negative input offset") {
     runQueryAndCompare(
+      "select l_suppkey,lag(l_orderkey, -2) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
+
+    runQueryAndCompare(
+      "select l_suppkey, lead(l_orderkey, -2) over" +
+        " (partition by l_suppkey order by l_orderkey) from lineitem") {
+      checkGlutenOperatorMatch[WindowExecTransformer]
+    }
+
+    runQueryAndCompare(
       "select lag(l_orderkey, -2) over" +
         " (partition by l_suppkey order by l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[WindowExecTransformer]
     }
 
     runQueryAndCompare(
-      "select lead(l_orderkey, -2) over" +
+      "select lag(l_orderkey, 2) over" +
         " (partition by l_suppkey order by l_orderkey) from lineitem") {
       checkGlutenOperatorMatch[WindowExecTransformer]
     }
