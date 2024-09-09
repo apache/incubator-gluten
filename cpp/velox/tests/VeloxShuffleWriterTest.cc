@@ -607,7 +607,7 @@ TEST_F(VeloxHashShuffleWriterMemoryTest, kStop) {
     // Reclaim bytes to shrink partition buffer.
     int64_t reclaimed = 0;
     ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(2000, &reclaimed));
-    ASSERT(reclaimed >= 2000);
+    ASSERT_TRUE(reclaimed >= 2000);
 
     // Trigger spill during stop.
     ASSERT_TRUE(pool.checkEvict(pool.bytes_allocated(), [&] { ASSERT_NOT_OK(shuffleWriter->stop()); }));
@@ -630,7 +630,7 @@ TEST_F(VeloxHashShuffleWriterMemoryTest, kStopComplex) {
   // Reclaim bytes to shrink partition buffer.
   int64_t reclaimed = 0;
   ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(2000, &reclaimed));
-  ASSERT(reclaimed >= 2000);
+  ASSERT_TRUE(reclaimed >= 2000);
 
   // Reclaim from PartitionWriter to free cached bytes.
   auto payloadSize = shuffleWriter->cachedPayloadSize();
