@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 #include "MetaDataHelper.h"
-
 #include <filesystem>
 #include <Core/Settings.h>
 #include <Disks/ObjectStorages/MetadataStorageFromDisk.h>
 #include <Storages/MergeTree/MergeSparkMergeTreeTask.h>
 #include <Poco/StringTokenizer.h>
+#include <Common/QueryContext.h>
 
 namespace CurrentMetrics
 {
@@ -78,7 +78,7 @@ void restoreMetaData(const SparkStorageMergeTreePtr & storage, const MergeTreeTa
             return;
 
         // Increase the speed of metadata recovery
-        auto max_concurrency = std::max(10UL, SerializedPlanParser::global_context->getSettingsRef().max_threads.value);
+        auto max_concurrency = std::max(10UL, QueryContext::globalContext()->getSettingsRef().max_threads.value);
         auto max_threads = std::min(max_concurrency, not_exists_part.size());
         FreeThreadPool thread_pool(
             CurrentMetrics::LocalThread,

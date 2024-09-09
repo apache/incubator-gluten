@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-#include <Core/Block.h>
 #include <Columns/IColumn.h>
-#include <DataTypes/IDataType.h>
+#include <Core/Block.h>
 #include <DataTypes/DataTypeFactory.h>
+#include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parser/FunctionParser.h>
 #include <benchmark/benchmark.h>
+#include <Common/QueryContext.h>
 
 using namespace DB;
 
@@ -31,9 +31,7 @@ static Block createDataBlock(size_t rows)
     auto type = DataTypeFactory::instance().get("String");
     auto column = type->createColumn();
     for (size_t i = 0; i < rows; ++i)
-    {
         column->insert("2024-01-05 12:12:12");
-    }
     Block block;
     block.insert(ColumnWithTypeAndName(std::move(column), type, "d"));
     return std::move(block);
@@ -43,10 +41,10 @@ static void BM_CHParseDateTime64(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    auto function = factory.get("toDateTime64OrNull", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("toDateTime64OrNull", local_engine::QueryContext::globalContext());
     Block block = createDataBlock(30000000);
     auto executable = function->build(block.getColumnsWithTypeAndName());
-    for (auto _ : state)[[maybe_unused]]
+    for (auto _ : state) [[maybe_unused]]
         auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows());
 }
 
@@ -55,11 +53,11 @@ static void BM_SparkParseDateTime64(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    auto function = factory.get("sparkToDateTime", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("sparkToDateTime", local_engine::QueryContext::globalContext());
     Block block = createDataBlock(30000000);
     auto executable = function->build(block.getColumnsWithTypeAndName());
-    for (auto _ : state)[[maybe_unused]]
-         auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows());
+    for (auto _ : state) [[maybe_unused]]
+        auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows());
 }
 
 BENCHMARK(BM_CHParseDateTime64)->Unit(benchmark::kMillisecond)->Iterations(50);

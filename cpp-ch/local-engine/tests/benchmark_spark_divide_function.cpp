@@ -21,10 +21,11 @@
 #include <Functions/FunctionFactory.h>
 #include <Functions/SparkFunctionDivide.h>
 #include <Interpreters/ActionsDAG.h>
-#include <Parser/SerializedPlanParser.h>
+#include <Interpreters/ExpressionActions.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/Sources/BlocksSource.h>
 #include <benchmark/benchmark.h>
+#include <Common/QueryContext.h>
 
 using namespace DB;
 
@@ -63,7 +64,7 @@ static std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
 static const ActionsDAG::Node *
 addFunction(ActionsDAG & actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
 {
-    auto function_builder = FunctionFactory::instance().get(function, local_engine::SerializedPlanParser::global_context);
+    auto function_builder = FunctionFactory::instance().get(function, local_engine::QueryContext::globalContext());
     std::string args_name = join(args, ',');
     auto result_name = function + "(" + args_name + ")";
     return &actions_dag.addFunction(function_builder, args, result_name);

@@ -19,16 +19,25 @@
 #include <Common/ConcurrentMap.h>
 #include <Common/ThreadStatus.h>
 
+namespace DB
+{
+struct ContextSharedPart;
+}
 namespace local_engine
 {
-struct QueryContext;
 
-class QueryContextManager
+class QueryContext
 {
+    struct Data;
+
 public:
-    static QueryContextManager & instance()
+    static DB::ContextMutablePtr createGlobal();
+    static void resetGlobal();
+    static DB::ContextMutablePtr globalMutableContext();
+    static DB::ContextPtr globalContext();
+    static QueryContext & instance()
     {
-        static QueryContextManager instance;
+        static QueryContext instance;
         return instance;
     }
     int64_t initializeQuery();
@@ -39,9 +48,9 @@ public:
     void finalizeQuery(int64_t id);
 
 private:
-    QueryContextManager() = default;
+    QueryContext() = default;
     LoggerPtr logger_ = getLogger("QueryContextManager");
-    ConcurrentMap<int64_t, std::shared_ptr<QueryContext>> query_map_{};
+    ConcurrentMap<int64_t, std::shared_ptr<Data>> query_map_{};
 };
 
 size_t currentThreadGroupMemoryUsage();

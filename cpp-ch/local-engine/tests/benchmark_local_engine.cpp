@@ -23,33 +23,25 @@
 #include <Interpreters/Context.h>
 #include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
-#include <Interpreters/TreeRewriter.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
-#include <Processors/Formats/IOutputFormat.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/JoinStep.h>
-#include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Shuffle/ShuffleReader.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
-#include <Storages/SelectQueryInfo.h>
-#include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <benchmark/benchmark.h>
 #include <substrait/plan.pb.h>
-#include <Poco/Util/MapConfiguration.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
 #include <Common/PODArray_fwd.h>
-#include <Common/Stopwatch.h>
-#include <Common/logger_useful.h>
-#include "testConfig.h"
+#include <Common/QueryContext.h>
 
 #if defined(__SSE2__)
 #include <emmintrin.h>
@@ -90,7 +82,7 @@ DB::ContextMutablePtr global_context;
         substrait::ReadRel::LocalFiles::FileOrFiles::ParquetReadOptions parquet_format;
         file->mutable_parquet()->CopyFrom(parquet_format);
         auto builder = std::make_unique<QueryPipelineBuilder>();
-        builder->init(Pipe(std::make_shared<SubstraitFileSource>(SerializedPlanParser::global_context, header, files)));
+        builder->init(Pipe(std::make_shared<SubstraitFileSource>(QueryContext::globalContext(), header, files)));
 
         auto pipeline = QueryPipelineBuilder::getPipeline(std::move(*builder));
         auto executor = PullingPipelineExecutor(pipeline);
@@ -206,7 +198,7 @@ DB::ContextMutablePtr global_context;
                       "/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
                       std::move(schema))
                   .build();
-        local_engine::SerializedPlanParser parser(SerializedPlanParser::global_context);
+        local_engine::SerializedPlanParser parser(QueryContext::globalContext());
         auto local_executor = parser.createExecutor(*plan);
         state.ResumeTiming();
 
@@ -220,8 +212,8 @@ DB::ContextMutablePtr global_context;
 
 [[maybe_unused]] static void BM_MERGE_TREE_TPCH_Q6_FROM_TEXT(benchmark::State & state)
 {
-    SerializedPlanParser::global_context = global_context;
-    local_engine::SerializedPlanParser parser(SerializedPlanParser::global_context);
+    QueryContext::globalContext() = global_context;
+    local_engine::SerializedPlanParser parser(QueryContext::globalContext());
     for (auto _ : state)
     {
         state.PauseTiming();
@@ -270,7 +262,7 @@ DB::ContextMutablePtr global_context;
                       "/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
                       std::move(schema))
                   .build();
-        local_engine::SerializedPlanParser parser(SerializedPlanParser::global_context);
+        local_engine::SerializedPlanParser parser(QueryContext::globalContext());
 
         auto local_executor = parser.createExecutor(*plan);
         state.ResumeTiming();
@@ -306,7 +298,7 @@ DB::ContextMutablePtr global_context;
                       std::move(schema))
                   .build();
 
-        local_engine::SerializedPlanParser parser(SerializedPlanParser::global_context);
+        local_engine::SerializedPlanParser parser(QueryContext::globalContext());
         auto local_executor = parser.createExecutor(*plan);
         local_engine::SparkRowToCHColumn converter;
         while (local_executor->hasNext())
@@ -351,7 +343,7 @@ DB::ContextMutablePtr global_context;
                       "/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
                       std::move(schema))
                   .build();
-        local_engine::SerializedPlanParser parser(SerializedPlanParser::global_context);
+        local_engine::SerializedPlanParser parser(QueryContext::globalContext());
         auto local_executor = parser.createExecutor(*plan);
         local_engine::SparkRowToCHColumn converter;
         while (local_executor->hasNext())

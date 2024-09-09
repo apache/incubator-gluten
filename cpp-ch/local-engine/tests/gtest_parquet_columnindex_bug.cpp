@@ -17,12 +17,13 @@
 #include <gluten_test_util.h>
 #include <incbin.h>
 #include <Core/Settings.h>
+#include <Interpreters/Context.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <gtest/gtest.h>
 #include <Common/DebugUtils.h>
 #include <Common/GlutenConfig.h>
-
+#include <Common/QueryContext.h>
 
 using namespace local_engine;
 
@@ -32,7 +33,7 @@ INCBIN(_pr_18_2, SOURCE_DIR "/utils/extern-local-engine/tests/decimal_filter_pus
 TEST(ColumnIndex, Decimal182)
 {
     // [precision,scale] = [18,2]
-    const auto context1 = DB::Context::createCopy(SerializedPlanParser::global_context);
+    const auto context1 = DB::Context::createCopy(QueryContext::globalMutableContext());
     const auto config = ExecutorConfig::loadFromContext(context1);
     EXPECT_TRUE(config.use_local_format) << "gtest need set use_local_format to true";
 

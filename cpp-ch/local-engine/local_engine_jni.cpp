@@ -211,7 +211,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_i
     JNIEnv * env, jclass, jbyteArray temp_path, jbyteArray filename)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    const auto query_context = local_engine::QueryContextManager::instance().currentQueryContext();
+    const auto query_context = local_engine::QueryContext::instance().currentQueryContext();
 
     const auto path_array = local_engine::getByteArrayElementsSafe(env, temp_path);
     const auto filename_array = local_engine::getByteArrayElementsSafe(env, filename);
@@ -235,7 +235,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     jboolean materialize_input)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    auto query_context = local_engine::QueryContextManager::instance().currentQueryContext();
+    auto query_context = local_engine::QueryContext::instance().currentQueryContext();
 
     // by task update new configs ( in case of dynamic config update )
     const auto conf_plan_a = local_engine::getByteArrayElementsSafe(env, conf_plan);
@@ -864,7 +864,7 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     const auto file_uri = jstring2string(env, file_uri_);
     // for HiveFileFormat, the file url may not end with .parquet, so we pass in the format as a hint
     const auto format_hint = jstring2string(env, format_hint_);
-    const auto context = local_engine::QueryContextManager::instance().currentQueryContext();
+    const auto context = local_engine::QueryContext::instance().currentQueryContext();
     auto * writer = local_engine::createFileWriterWrapper(context, file_uri, preferred_schema, format_hint).release();
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
@@ -882,7 +882,7 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     jbyteArray conf_plan)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    auto query_context = local_engine::QueryContextManager::instance().currentQueryContext();
+    auto query_context = local_engine::QueryContext::instance().currentQueryContext();
     // by task update new configs ( in case of dynamic config update )
     const auto conf_plan_a = local_engine::getByteArrayElementsSafe(env, conf_plan);
     const std::string::size_type conf_plan_size = conf_plan_a.length();
@@ -921,9 +921,9 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     auto read_ptr = local_engine::BinaryToMessage<substrait::Rel>(
         {reinterpret_cast<const char *>(read_a.elems()), static_cast<size_t>(read_a.length())});
 
-    local_engine::SerializedPlanParser parser(local_engine::SerializedPlanParser::global_context);
+    local_engine::SerializedPlanParser parser(local_engine::QueryContext::globalContext());
     parser.parseExtensions(plan_ptr.extensions());
-    local_engine::MergeTreeRelParser mergeTreeParser(&parser, local_engine::SerializedPlanParser::global_context);
+    local_engine::MergeTreeRelParser mergeTreeParser(&parser, local_engine::QueryContext::globalContext());
     auto res = mergeTreeParser.filterRangesOnDriver(read_ptr.read());
 
     return local_engine::charTojstring(env, res.c_str());
@@ -996,7 +996,7 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
         {reinterpret_cast<const char *>(split_info_a.elems()), static_cast<size_t>(split_info_a.length())});
 
     local_engine::MergeTreeTableInstance merge_tree_table(extension_table);
-    auto context = local_engine::QueryContextManager::instance().currentQueryContext();
+    auto context = local_engine::QueryContext::instance().currentQueryContext();
     // each task using its own CustomStorageMergeTree, don't reuse
     auto temp_storage = merge_tree_table.copyToVirtualStorage(context);
     // prefetch all needed parts metadata before merge
@@ -1218,7 +1218,7 @@ JNIEXPORT jlong
 Java_org_apache_gluten_vectorized_SimpleExpressionEval_createNativeInstance(JNIEnv * env, jclass, jobject input, jbyteArray plan)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    const auto context = DB::Context::createCopy(local_engine::SerializedPlanParser::global_context);
+    const auto context = DB::Context::createCopy(local_engine::QueryContext::globalContext());
     local_engine::SerializedPlanParser parser(context);
     const jobject iter = env->NewGlobalRef(input);
     parser.addInputIter(iter, false);
@@ -1256,21 +1256,21 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_SimpleExpressionEval_nativeNex
 JNIEXPORT jlong Java_org_apache_gluten_memory_CHThreadGroup_createThreadGroup(JNIEnv * env, jclass)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    return local_engine::QueryContextManager::instance().initializeQuery();
+    return local_engine::QueryContext::instance().initializeQuery();
     LOCAL_ENGINE_JNI_METHOD_END(env, 0l)
 }
 
 JNIEXPORT jlong Java_org_apache_gluten_memory_CHThreadGroup_threadGroupPeakMemory(JNIEnv * env, jclass, jlong id)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    return local_engine::QueryContextManager::instance().currentPeakMemory(id);
+    return local_engine::QueryContext::instance().currentPeakMemory(id);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0l)
 }
 
 JNIEXPORT void Java_org_apache_gluten_memory_CHThreadGroup_releaseThreadGroup(JNIEnv * env, jclass, jlong id)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    local_engine::QueryContextManager::instance().finalizeQuery(id);
+    local_engine::QueryContext::instance().finalizeQuery(id);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 

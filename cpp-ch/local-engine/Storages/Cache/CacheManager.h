@@ -39,7 +39,7 @@ public:
     static void initJNI(JNIEnv * env);
 
     static CacheManager & instance();
-    static void initialize(DB::ContextMutablePtr context);
+    static void initialize(const DB::ContextMutablePtr & context);
     JobId cacheParts(const MergeTreeTableInstance & table, const std::unordered_set<String> & columns);
     static jobject getCacheStatus(JNIEnv * env, const String & jobId);
 

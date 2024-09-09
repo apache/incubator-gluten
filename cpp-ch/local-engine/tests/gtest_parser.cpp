@@ -18,6 +18,7 @@
 #include <incbin.h>
 #include <testConfig.h>
 #include <Core/Settings.h>
+#include <Interpreters/Context.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
@@ -26,7 +27,7 @@
 #include <gtest/gtest.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
-
+#include <Common/QueryContext.h>
 
 using namespace local_engine;
 using namespace DB;
@@ -39,7 +40,7 @@ TEST(LocalExecutor, ReadCSV)
         = R"({"items":[{"uriFile":"{replace_local_files}","length":"56","text":{"fieldDelimiter":",","maxBlockSize":"8192","header":"1"},"schema":{"names":["id","name","language"],"struct":{"types":[{"string":{"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}}]}},"metadataColumns":[{}]}]})";
     const std::string split = replaceLocalFilesWildcards(
         split_template, GLUTEN_SOURCE_DIR("/backends-velox/src/test/resources/datasource/csv/student_option_schema.csv"));
-    SerializedPlanParser parser(SerializedPlanParser::global_context);
+    SerializedPlanParser parser(QueryContext::globalContext());
     parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
     auto plan = local_engine::JsonStringToMessage<substrait::Plan>(EMBEDDED_PLAN(_readcsv_plan));
 

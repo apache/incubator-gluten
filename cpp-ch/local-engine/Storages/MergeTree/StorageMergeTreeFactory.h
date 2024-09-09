@@ -16,10 +16,11 @@
  */
 #pragma once
 #include <Interpreters/MergeTreeTransaction.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
+#include <Storages/MergeTree/SparkStorageMergeTree.h>
 #include <Poco/LRUCache.h>
 #include <Common/GlutenConfig.h>
+#include <Common/QueryContext.h>
 
 namespace local_engine
 {
@@ -70,7 +71,7 @@ public:
     static DataPartsVector getDataPartsByNames(const StorageID & id, const String & snapshot_id, std::unordered_set<String> part_name);
     static void init_cache_map()
     {
-        auto config = MergeTreeConfig::loadFromContext(SerializedPlanParser::global_context);
+        auto config = MergeTreeConfig::loadFromContext(QueryContext::globalContext());
         auto & storage_map_v = storage_map;
         if (!storage_map_v)
         {

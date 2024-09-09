@@ -46,7 +46,6 @@
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Functions/registerFunctions.h>
-#include <IO/ReadBufferFromFile.h>
 #include <IO/SharedThreadPools.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
 #include <Parser/RelParser.h>
@@ -73,6 +72,7 @@
 #include <Common/CurrentThread.h>
 #include <Common/GlutenSignalHandler.h>
 #include <Common/LoggerExtend.h>
+#include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
 
@@ -815,14 +815,9 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
 void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
 {
     /// Make sure global_context and shared_context are constructed only once.
-    auto & shared_context = SerializedPlanParser::shared_context;
-    if (!shared_context.get())
-        shared_context = SharedContextHolder(Context::createShared());
-
-    auto & global_context = SerializedPlanParser::global_context;
-    if (!global_context)
+    if (auto global_context = QueryContext::globalMutableContext(); !global_context)
     {
-        global_context = Context::createGlobal(shared_context.get());
+        global_context = QueryContext::createGlobal();
         global_context->makeGlobalContext();
         global_context->setConfig(config);
 
@@ -878,9 +873,9 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
     }
 }
 
-void BackendInitializerUtil::applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr config, DB::Settings & settings)
+void BackendInitializerUtil::applyGlobalConfigAndSettings(const DB::Context::ConfigurationPtr & config, const DB::Settings & settings)
 {
-    auto & global_context = SerializedPlanParser::global_context;
+    const auto global_context = QueryContext::globalMutableContext();
     global_context->setConfig(config);
     global_context->setSettings(settings);
 }
@@ -974,8 +969,8 @@ void BackendInitializerUtil::init(const std::string_view plan)
     // Init the table metadata cache map
     StorageMergeTreeFactory::init_cache_map();
 
-    JobScheduler::initialize(SerializedPlanParser::global_context);
-    CacheManager::initialize(SerializedPlanParser::global_context);
+    JobScheduler::initialize(QueryContext::globalContext());
+    CacheManager::initialize(QueryContext::globalMutableContext());
 
     std::call_once(
         init_flag,
@@ -1025,14 +1020,7 @@ void BackendFinalizerUtil::finalizeGlobally()
     // Make sure client caches release before ClientCacheRegistry
     ReadBufferBuilderFactory::instance().clean();
     StorageMergeTreeFactory::clear();
-    auto & global_context = SerializedPlanParser::global_context;
-    auto & shared_context = SerializedPlanParser::shared_context;
-    if (global_context)
-    {
-        global_context->shutdown();
-        global_context.reset();
-        shared_context.reset();
-    }
+    QueryContext::resetGlobal();
     std::lock_guard lock(paths_mutex);
     std::ranges::for_each(paths_need_to_clean, [](const auto & path)
     {

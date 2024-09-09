@@ -17,10 +17,10 @@
 
 #include <gluten_test_util.h>
 #include <incbin.h>
-
 #include <testConfig.h>
 #include <Core/Settings.h>
 #include <Disks/ObjectStorages/HDFS/HDFSObjectStorage.h>
+#include <Interpreters/Context.h>
 #include <Interpreters/InterpreterCreateQuery.h>
 #include <Interpreters/Squashing.h>
 #include <Parser/SerializedPlanParser.h>
@@ -42,6 +42,7 @@
 #include <gtest/gtest.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
+#include <Common/QueryContext.h>
 
 using namespace local_engine;
 using namespace DB;
@@ -66,7 +67,7 @@ Chunk testChunk()
 TEST(LocalExecutor, StorageObjectStorageSink)
 {
     /// 0. Create ObjectStorage for HDFS
-    auto settings = SerializedPlanParser::global_context->getSettingsRef();
+    auto settings = QueryContext::globalContext()->getSettingsRef();
     const std::string query
         = R"(CREATE TABLE hdfs_engine_xxxx (name String, value UInt32) ENGINE=HDFS('hdfs://localhost:8020/clickhouse/test2', 'Parquet'))";
     DB::ParserCreateQuery parser;
@@ -90,10 +91,10 @@ TEST(LocalExecutor, StorageObjectStorageSink)
     EXPECT_TRUE(func && func->name == "HDFS");
 
     DB::StorageHDFSConfiguration config;
-    StorageObjectStorage::Configuration::initialize(config, arg->children[0]->children, SerializedPlanParser::global_context, false);
+    StorageObjectStorage::Configuration::initialize(config, arg->children[0]->children, QueryContext::globalContext(), false);
 
     const std::shared_ptr<DB::HDFSObjectStorage> object_storage
-        = std::dynamic_pointer_cast<DB::HDFSObjectStorage>(config.createObjectStorage(SerializedPlanParser::global_context, false));
+        = std::dynamic_pointer_cast<DB::HDFSObjectStorage>(config.createObjectStorage(QueryContext::globalContext(), false));
     EXPECT_TRUE(object_storage != nullptr);
 
     RelativePathsWithMetadata files_with_metadata;
@@ -101,7 +102,7 @@ TEST(LocalExecutor, StorageObjectStorageSink)
 
     /// 1. Create ObjectStorageSink
     DB::StorageObjectStorageSink sink{
-        object_storage, config.clone(), {}, {{STRING(), "name"}, {UINT(), "value"}}, SerializedPlanParser::global_context, ""};
+        object_storage, config.clone(), {}, {{STRING(), "name"}, {UINT(), "value"}}, QueryContext::globalContext(), ""};
 
     /// 2. Create Chunk
     auto chunk = testChunk();
@@ -114,7 +115,7 @@ TEST(LocalExecutor, StorageObjectStorageSink)
 INCBIN(native_write, SOURCE_DIR "/utils/extern-local-engine/tests/json/native_write_plan.json");
 TEST(WritePipeline, SubstraitFileSink)
 {
-    const auto context = DB::Context::createCopy(SerializedPlanParser::global_context);
+    const auto context = DB::Context::createCopy(QueryContext::globalContext());
     GlutenWriteSettings settings{
         .task_write_tmp_dir = "file:///tmp/test_table/test",
         .task_write_filename = "data.parquet",
@@ -170,7 +171,7 @@ INCBIN(native_write_one_partition, SOURCE_DIR "/utils/extern-local-engine/tests/
 
 TEST(WritePipeline, SubstraitPartitionedFileSink)
 {
-    const auto context = DB::Context::createCopy(SerializedPlanParser::global_context);
+    const auto context = DB::Context::createCopy(QueryContext::globalContext());
     GlutenWriteSettings settings{
         .task_write_tmp_dir = "file:///tmp/test_table/test_partition",
         .task_write_filename = "data.parquet",
@@ -221,7 +222,7 @@ TEST(WritePipeline, SubstraitPartitionedFileSink)
 
 TEST(WritePipeline, ComputePartitionedExpression)
 {
-    const auto context = DB::Context::createCopy(SerializedPlanParser::global_context);
+    const auto context = DB::Context::createCopy(QueryContext::globalContext());
 
     auto partition_by = SubstraitPartitionedFileSink::make_partition_expression({"s_nationkey", "name"});
 
@@ -299,7 +300,7 @@ TEST(WritePipeline, MergeTree)
 {
     ThreadStatus thread_status;
 
-    const auto context = DB::Context::createCopy(SerializedPlanParser::global_context);
+    const auto context = DB::Context::createCopy(QueryContext::globalContext());
     context->setPath("./");
     const Settings & settings = context->getSettingsRef();
 
@@ -382,7 +383,7 @@ TEST(WritePipeline, SparkMergeTree)
 {
     ThreadStatus thread_status;
 
-    const auto context = DB::Context::createCopy(SerializedPlanParser::global_context);
+    const auto context = DB::Context::createCopy(QueryContext::globalContext());
     context->setPath("./");
     const Settings & settings = context->getSettingsRef();
 
@@ -396,7 +397,7 @@ TEST(WritePipeline, SparkMergeTree)
 
     do_remove(merge_tree_table.relative_path);
 
-    const auto dest_storage = merge_tree_table.getStorage(SerializedPlanParser::global_context);
+    const auto dest_storage = merge_tree_table.getStorage(QueryContext::globalMutableContext());
     EXPECT_TRUE(dest_storage);
     EXPECT_FALSE(dest_storage->getStoragePolicy()->getAnyDisk()->isRemote());
     DB::StorageMetadataPtr metadata_snapshot = dest_storage->getInMemoryMetadataPtr();
@@ -437,7 +438,7 @@ TEST(WritePipeline, SparkMergeTree)
         EXPECT_EQ(merge_tree_table_hdfs.relative_path, "3.5/test/lineitem_mergetree_hdfs");
         EXPECT_EQ(merge_tree_table_hdfs.table_configs.storage_policy, "__hdfs_main");
 
-        const auto dest_storage_hdfs = merge_tree_table_hdfs.getStorage(SerializedPlanParser::global_context);
+        const auto dest_storage_hdfs = merge_tree_table_hdfs.getStorage(QueryContext::globalMutableContext());
         EXPECT_TRUE(dest_storage_hdfs);
         EXPECT_TRUE(dest_storage_hdfs->getStoragePolicy()->getAnyDisk()->isRemote());
     }

@@ -30,6 +30,7 @@
 #include <Common/GlutenSettings.h>
 
 using namespace local_engine;
+using namespace DB;
 
 DB::ProcessorPtr make_sink(
     const DB::ContextPtr & context,

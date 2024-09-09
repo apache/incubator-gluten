@@ -17,11 +17,13 @@
 
 #pragma once
 
-
 #include "GlutenDiskS3.h"
+#include <Disks/ObjectStorages/CompactObjectStorageDiskTransaction.h>
 #include <Disks/ObjectStorages/DiskObjectStorage.h>
-#include <Parser/SerializedPlanParser.h>
-#include "CompactObjectStorageDiskTransaction.h"
+#include <Interpreters/Context.h>
+#include <Common/QueryContext.h>
+
+using namespace DB;
 
 #if USE_AWS_S3
 namespace local_engine
@@ -29,10 +31,10 @@ namespace local_engine
 
     DB::DiskTransactionPtr GlutenDiskS3::createTransaction()
     {
-        return std::make_shared<CompactObjectStorageDiskTransaction>(*this, SerializedPlanParser::global_context->getTempDataOnDisk()->getVolume()->getDisk());
+        return std::make_shared<CompactObjectStorageDiskTransaction>(*this, QueryContext::globalContext()->getTempDataOnDisk()->getVolume()->getDisk());
     }
 
-    std::unique_ptr<ReadBufferFromFileBase> GlutenDiskS3::readFile(
+    std::unique_ptr<DB::ReadBufferFromFileBase> GlutenDiskS3::readFile(
         const String & path,
         const ReadSettings & settings,
         std::optional<size_t> read_hint,
@@ -52,7 +54,7 @@ namespace local_engine
             object_key_prefix,
             getMetadataStorage(),
             getObjectStorage(),
-            SerializedPlanParser::global_context->getConfigRef(),
+            QueryContext::globalContext()->getConfigRef(),
             config_prefix,
             object_storage_creator);
     }

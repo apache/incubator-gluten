@@ -16,10 +16,11 @@
  */
 #pragma once
 #include <Parser/RelParser.h>
-#include <Parser/SerializedPlanParser.h>
+
 
 namespace local_engine
 {
+class SerializedPlanParser;
 class ExpandRelParser : public RelParser
 {
 public:

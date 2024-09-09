@@ -60,7 +60,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     MergeTreeTableInstance merge_tree_table(extension_table);
     // ignore snapshot id for query
     merge_tree_table.snapshot_id = "";
-    auto storage = merge_tree_table.restoreStorage(global_context);
+    auto storage = merge_tree_table.restoreStorage(QueryContext::globalMutableContext());
 
     DB::Block input;
     if (rel.has_base_schema() && rel.base_schema().names_size())
@@ -318,7 +318,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
     MergeTreeTableInstance merge_tree_table(read_rel.advanced_extension().enhancement());
     // ignore snapshot id for query
     merge_tree_table.snapshot_id = "";
-    auto storage = merge_tree_table.restoreStorage(global_context);
+    auto storage = merge_tree_table.restoreStorage(QueryContext::globalMutableContext());
 
     auto input = TypeParser::buildBlockFromNamedStruct(read_rel.base_schema());
     auto names_and_types_list = input.getNamesAndTypesList();

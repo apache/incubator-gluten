@@ -23,10 +23,13 @@
 #include <Core/NamesAndTypes.h>
 
 #include <Interpreters/ActionsDAG.h>
-#include <Parser/SerializedPlanParser.h>
 #include <boost/algorithm/string/replace.hpp>
 #include <parquet/schema.h>
 
+namespace substrait
+{
+class Plan;
+}
 namespace local_engine
 {
 class LocalExecutor;

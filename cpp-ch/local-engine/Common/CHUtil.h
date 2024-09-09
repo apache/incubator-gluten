@@ -213,7 +213,7 @@ private:
     static void initContexts(DB::Context::ConfigurationPtr config);
     static void initCompiledExpressionCache(DB::Context::ConfigurationPtr config);
     static void registerAllFactories();
-    static void applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr, DB::Settings &);
+    static void applyGlobalConfigAndSettings(const DB::Context::ConfigurationPtr & config, const DB::Settings & settings);
     static void updateNewSettings(const DB::ContextMutablePtr &, const DB::Settings &);
     static std::vector<String>
     wrapDiskPathConfig(const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config);

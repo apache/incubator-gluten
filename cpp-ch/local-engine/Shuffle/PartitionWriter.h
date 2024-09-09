@@ -18,15 +18,14 @@
 #include <cstddef>
 #include <memory>
 #include <vector>
-#include <Common/GlutenConfig.h>
 #include <Core/Block.h>
 #include <Core/Settings.h>
 #include <Interpreters/TemporaryDataOnDisk.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Shuffle/CachedShuffleWriter.h>
 #include <Shuffle/ShuffleCommon.h>
 #include <jni/CelebornClient.h>
-
+#include <Common/GlutenConfig.h>
+#include <Common/QueryContext.h>
 
 namespace DB
 {
@@ -113,7 +112,7 @@ public:
 
 protected:
     String getNextSpillFile();
-    std::vector<UInt64> mergeSpills(CachedShuffleWriter * shuffle_writer, WriteBuffer & data_file, ExtraData extra_data = {});
+    std::vector<UInt64> mergeSpills(CachedShuffleWriter * shuffle_writer, DB::WriteBuffer & data_file, ExtraData extra_data = {});
     std::vector<SpillInfo> spill_infos;
 
 private:
@@ -140,7 +139,7 @@ protected:
     {
         max_merge_block_size = options->split_size;
         max_sort_buffer_size = options->max_sort_buffer_size;
-        max_merge_block_bytes = SerializedPlanParser::global_context->getSettingsRef().prefer_external_sort_block_bytes;
+        max_merge_block_bytes = QueryContext::globalContext()->getSettingsRef().prefer_external_sort_block_bytes;
     }
 public:
     String getName() const override { return "SortBasedPartitionWriter"; }
@@ -161,10 +160,10 @@ protected:
     size_t max_merge_block_bytes = 0;
     size_t current_accumulated_bytes = 0;
     size_t current_accumulated_rows = 0;
-    Chunks accumulated_blocks;
-    Block output_header;
-    Block sort_header;
-    SortDescription sort_description;
+    DB::Chunks accumulated_blocks;
+    DB::Block output_header;
+    DB::Block sort_header;
+    DB::SortDescription sort_description;
 };
 
 class MemorySortLocalPartitionWriter : public SortBasedPartitionWriter, public Spillable

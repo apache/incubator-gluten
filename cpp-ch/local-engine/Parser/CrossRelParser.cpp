@@ -16,45 +16,40 @@
  */
 #include "CrossRelParser.h"
 
-#include <IO/ReadBufferFromString.h>
-#include <IO/ReadHelpers.h>
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
 #include <Interpreters/GraceHashJoin.h>
 #include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
 #include <Join/BroadCastJoinBuilder.h>
 #include <Join/StorageJoinFromReadBuffer.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parser/AdvancedParametersParseUtil.h>
+#include <Parser/SerializedPlanParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/JoinStep.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/CHUtil.h>
+#include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
-
 
 namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
-    extern const int UNKNOWN_TYPE;
-    extern const int BAD_ARGUMENTS;
+extern const int LOGICAL_ERROR;
+extern const int UNKNOWN_TYPE;
+extern const int BAD_ARGUMENTS;
 }
 }
 
 using namespace DB;
 
-
-
-
 namespace local_engine
 {
 std::shared_ptr<DB::TableJoin> createCrossTableJoin(substrait::CrossRel_JoinType join_type)
 {
-    auto & global_context = SerializedPlanParser::global_context;
+    auto global_context = QueryContext::globalContext();
     auto table_join = std::make_shared<TableJoin>(
         global_context->getSettingsRef(), global_context->getGlobalTemporaryVolume(), global_context->getTempDataOnDisk());
 
