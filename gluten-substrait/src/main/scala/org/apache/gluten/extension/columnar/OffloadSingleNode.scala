@@ -27,8 +27,10 @@ import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.SortOrder
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.logical.Join
+import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
@@ -314,14 +316,7 @@ object OffloadOthers {
           SortExecTransformer(plan.sortOrder, plan.global, child, plan.testSpillFrequency)
         case plan: TakeOrderedAndProjectExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          val child = plan.child
-          val (limit, offset) = SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
-          TakeOrderedAndProjectExecTransformer(
-            limit,
-            plan.sortOrder,
-            plan.projectList,
-            child,
-            offset)
+          rewriteTakeOrderedAndProject(plan)
         case plan: WindowExec =>
           WindowExecTransformer(
             plan.windowExpression,
@@ -427,6 +422,41 @@ object OffloadOthers {
         plan
       case other =>
         throw new GlutenNotSupportException(s"${other.getClass.toString} is not supported.")
+    }
+
+    private def rewriteTakeOrderedAndProject(plan: TakeOrderedAndProjectExec): SparkPlan = {
+      val (limit, offset) = SparkShimLoader.getSparkShims.getLimitAndOffsetFromTopK(plan)
+      val child = plan.child
+      val sortOrder = plan.sortOrder
+      val projectList = plan.projectList
+
+      val orderingSatisfies = SortOrder.orderingSatisfies(child.outputOrdering, sortOrder)
+      val localSorted = if (orderingSatisfies) {
+        child
+      } else {
+        SortExecTransformer(sortOrder, global = false, child)
+      }
+
+      val singlePartition = child.outputPartitioning.numPartitions == 1
+      val finalLimitPlan = if (singlePartition) {
+        // Local limit does not need offset
+        LimitTransformer(localSorted, 0, limit)
+      } else {
+        val limitBeforeShuffle = LimitTransformer(localSorted, offset, limit)
+        val shuffleExec = ShuffleExchangeExec(SinglePartition, limitBeforeShuffle)
+        val transformedShuffleExec =
+          ColumnarShuffleExchangeExec(shuffleExec, limitBeforeShuffle, shuffleExec.child.output)
+        val sorted = SortExecTransformer(sortOrder, global = false, transformedShuffleExec)
+        LimitTransformer(sorted, offset, limit)
+      }
+
+      val projectPlan = if (projectList != child.output) {
+        ProjectExecTransformer(projectList, finalLimitPlan)
+      } else {
+        finalLimitPlan
+      }
+
+      BackendsApiManager.getSparkPlanExecApiInstance.maybeCollapseTakeOrderedAndProject(projectPlan)
     }
   }
 }
