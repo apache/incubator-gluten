@@ -432,7 +432,11 @@ case class CHHashAggregateExecPullOutHelper(
 
   override def allAggregateResultAttributes(
       groupingExpressions: Seq[NamedExpression]): List[Attribute] = {
-    super.allAggregateResultAttributes(CHAggUtil.distinctIgnoreQualifier(groupingExpressions))
+    if (aggregateExpressions.nonEmpty) {
+      super.allAggregateResultAttributes(groupingExpressions)
+    } else {
+      super.allAggregateResultAttributes(CHAggUtil.distinctIgnoreQualifier(groupingExpressions))
+    }
   }
 
   protected def getAttrForAggregateExpr(
