@@ -44,6 +44,7 @@ private object CHRuleApi {
   def injectSpark(injector: SparkInjector): Unit = {
     // Regular Spark rules.
     injector.injectQueryStagePrepRule(FallbackBroadcastHashJoinPrepQueryStage.apply)
+    injector.injectQueryStagePrepRule(spark => CHAQEPropagateEmptyRelation(spark))
     injector.injectParser(
       (spark, parserInterface) => new GlutenCacheFilesSqlParser(spark, parserInterface))
     injector.injectParser(

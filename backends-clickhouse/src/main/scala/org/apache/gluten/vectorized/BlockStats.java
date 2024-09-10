@@ -14,38 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <memory>
-#include <jni.h>
-#include <substrait/algebra.pb.h>
+package org.apache.gluten.vectorized;
 
-namespace DB
-{
-class ReadBuffer;
-}
+public class BlockStats {
+  private final long blockRecordCount;
+  private final boolean hasNullKeyValues;
 
-namespace local_engine
-{
-class StorageJoinFromReadBuffer;
-namespace BroadCastJoinBuilder
-{
+  public BlockStats(long blockRecordCount, boolean hasNullKeyValues) {
+    this.blockRecordCount = blockRecordCount;
+    this.hasNullKeyValues = hasNullKeyValues;
+  }
 
-std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
-    const std::string & key,
-    DB::ReadBuffer & input,
-    jlong row_count,
-    const std::string & join_keys,
-    jint join_type,
-    bool has_mixed_join_condition,
-    bool is_existence_join,
-    const std::string & named_struct,
-    bool is_null_aware_anti_join,
-    bool has_null_key_values);
-void cleanBuildHashTable(const std::string & hash_table_id, jlong instance);
-std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const std::string & hash_table_id);
+  public long getBlockRecordCount() {
+    return blockRecordCount;
+  }
 
-
-void init(JNIEnv *);
-void destroy(JNIEnv *);
-}
+  public boolean isHasNullKeyValues() {
+    return hasNullKeyValues;
+  }
 }
