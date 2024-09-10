@@ -25,8 +25,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.{ShuffledHashJoinExec, SortMergeJoinExec}
 
 /**
- * If force ShuffledHashJoin, convert [[SortMergeJoinExec]] to [[ShuffledHashJoinExec]]. There is
- * no need to select a smaller table as buildSide here, it will be reselected when offloading.
+ * If force ShuffledHashJoin, convert [[SortMergeJoinExec]] to [[ShuffledHashJoinExec]].
  */
 object RewriteJoin extends RewriteSingleNode with JoinSelectionHelper {
   private def getSmjBuildSide(join: SortMergeJoinExec): Option[BuildSide] = {
