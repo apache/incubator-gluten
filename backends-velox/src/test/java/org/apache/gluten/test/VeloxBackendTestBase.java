@@ -53,7 +53,6 @@ public abstract class VeloxBackendTestBase {
       @Override
       public SparkConf conf() {
         final SparkConf conf = new SparkConf();
-        conf.set(GlutenConfig.COLUMNAR_VELOX_CONNECTOR_IO_THREADS().key(), "0");
         conf.set(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY(), "1g");
         return conf;
       }

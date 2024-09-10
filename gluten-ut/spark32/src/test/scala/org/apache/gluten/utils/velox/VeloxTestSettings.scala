@@ -871,6 +871,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
+    // https://github.com/apache/incubator-gluten/issues/7174
+    .excludeGlutenTest("Filter applied on merged Parquet schema with new column should work")
   enableSuite[GlutenParquetV2FilterSuite]
     // Rewrite.
     .exclude("Filter applied on merged Parquet schema with new column should work")
@@ -887,6 +889,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-17091: Convert IN predicate to Parquet filter push-down")
     .exclude("Support Parquet column index")
     .exclude("SPARK-34562: Bloom filter push down")
+    // https://github.com/apache/incubator-gluten/issues/7174
+    .excludeGlutenTest("Filter applied on merged Parquet schema with new column should work")
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
