@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.softaffinity.scheduler
+package org.apache.spark.softaffinity
 
 import org.apache.gluten.softaffinity.SoftAffinityManager
-
+import org.apache.spark.SparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler._
 
 class SoftAffinityListener extends SparkListener with Logging {
-
   override def onStageSubmitted(event: SparkListenerStageSubmitted): Unit = {
     SoftAffinityManager.updateStageMap(event)
   }
@@ -44,5 +43,11 @@ class SoftAffinityListener extends SparkListener with Logging {
   override def onExecutorRemoved(executorRemoved: SparkListenerExecutorRemoved): Unit = {
     val execId = executorRemoved.executorId
     SoftAffinityManager.handleExecutorRemoved(execId)
+  }
+}
+
+object SoftAffinityListener {
+  def register(sc: SparkContext): Unit = {
+    sc.listenerBus.addToStatusQueue(new SoftAffinityListener())
   }
 }

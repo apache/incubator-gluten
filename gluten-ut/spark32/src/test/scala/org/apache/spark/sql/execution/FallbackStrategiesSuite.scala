@@ -24,7 +24,7 @@ import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleBuil
 import org.apache.gluten.extension.columnar.MiscColumnarRules.RemoveTopmostColumnarToRow
 import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
 import org.apache.gluten.extension.columnar.transition.InsertTransitions
-import org.apache.gluten.utils.QueryPlanSelector
+import org.apache.gluten.utils.{PhysicalPlanSelector, QueryPlanSelector}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{GlutenSQLTestsTrait, SparkSession}
@@ -165,6 +165,7 @@ private object FallbackStrategiesSuite {
       transformBuilders: Seq[ColumnarRuleBuilder]): HeuristicApplier = {
     new HeuristicApplier(
       spark,
+      Seq(PhysicalPlanSelector.skipCond),
       transformBuilders,
       List(c => ExpandFallbackPolicy(c.ac.isAdaptiveContext(), c.ac.originalPlan())),
       List(

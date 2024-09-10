@@ -19,7 +19,6 @@ package org.apache.gluten.backendsapi
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 
@@ -51,16 +50,6 @@ import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 import scala.collection.JavaConverters._
 
 trait SparkPlanExecApi {
-
-  /** The columnar-batch type this backend is using. */
-  def batchType: Convention.BatchType
-
-  /**
-   * Overrides [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using to
-   * determine the convention (its row-based processing / columnar-batch processing support) of a
-   * plan with a user-defined function that accepts a plan then returns batch type it outputs.
-   */
-  def batchTypeFunc(): ConventionFunc.BatchOverride = PartialFunction.empty
 
   /**
    * Generate FilterExecTransformer.

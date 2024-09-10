@@ -406,6 +406,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def debug: Boolean = conf.getConf(DEBUG_ENABLED)
   def debugKeepJniWorkspace: Boolean = conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
+  def collectUtStats: Boolean = conf.getConf(UT_STATISTIC)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
   def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
@@ -835,7 +836,7 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val VANILLA_VECTORIZED_READERS_ENABLED =
-    buildConf("spark.gluten.sql.columnar.enableVanillaVectorizedReaders")
+    buildStaticConf("spark.gluten.sql.columnar.enableVanillaVectorizedReaders")
       .internal()
       .doc("Enable or disable vanilla vectorized scan.")
       .booleanConf
@@ -1622,6 +1623,12 @@ object GlutenConfig {
       .stringConf
       .createWithDefault("/tmp")
 
+  val UT_STATISTIC =
+    buildStaticConf("spark.gluten.sql.ut.statistic")
+      .internal()
+      .booleanConf
+      .createWithDefault(false)
+
   val BENCHMARK_TASK_STAGEID =
     buildConf("spark.gluten.sql.benchmark_task.stageId")
       .internal()
@@ -1679,12 +1686,6 @@ object GlutenConfig {
         "for velox backend.")
       .booleanConf
       .createWithDefault(true)
-
-  val UT_STATISTIC =
-    buildConf("spark.gluten.sql.ut.statistic")
-      .internal()
-      .booleanConf
-      .createWithDefault(false)
 
   // FIXME: This only works with CH backend.
   val EXTENDED_COLUMNAR_TRANSFORM_RULES =

@@ -18,6 +18,7 @@ package org.apache.gluten.utils
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.extension.columnar.ColumnarRuleApplier.SkipCondition
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -26,6 +27,9 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
 
 object PhysicalPlanSelector extends QueryPlanSelector[SparkPlan] {
+  val skipCond: SkipCondition = (session: SparkSession, plan: SparkPlan) =>
+    !shouldUseGluten(session, plan)
+
   override protected def validate(plan: SparkPlan): Boolean = {
     BackendsApiManager.getValidatorApiInstance.doSparkPlanValidate(plan)
   }
@@ -55,7 +59,7 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
 
   protected def validate(plan: T): Boolean
 
-  private[this] def shouldUseGluten(session: SparkSession, plan: T): Boolean = {
+  def shouldUseGluten(session: SparkSession, plan: T): Boolean = {
     val glutenEnabled = session.conf
       .get(GlutenConfig.GLUTEN_ENABLE_KEY, GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT.toString)
       .toBoolean && isGlutenEnabledForCurrentThread(session)

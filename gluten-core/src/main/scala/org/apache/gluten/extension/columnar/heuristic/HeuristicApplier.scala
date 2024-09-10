@@ -17,9 +17,9 @@
 package org.apache.gluten.extension.columnar.heuristic
 
 import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.ColumnarRuleApplier.{ColumnarRuleBuilder, ColumnarRuleCall}
-import org.apache.gluten.extension.columnar.util.AdaptiveContext
-import org.apache.gluten.utils.{LogLevelUtil, PhysicalPlanSelector}
+import org.apache.gluten.extension.columnar.ColumnarRuleApplier.{ColumnarRuleBuilder, ColumnarRuleCall, SkipCondition}
+import org.apache.gluten.extension.util.AdaptiveContext
+import org.apache.gluten.logging.LogLevelUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -32,6 +32,7 @@ import org.apache.spark.sql.execution.SparkPlan
  */
 class HeuristicApplier(
     session: SparkSession,
+    skipConditions: Seq[SkipCondition],
     transformBuilders: Seq[ColumnarRuleBuilder],
     fallbackPolicyBuilders: Seq[ColumnarRuleBuilder],
     postBuilders: Seq[ColumnarRuleBuilder],
@@ -42,28 +43,30 @@ class HeuristicApplier(
   private val adaptiveContext = AdaptiveContext(session)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
+    if (skipConditions.exists(_.skip(session, plan))) {
+      return plan
+    }
     val call = new ColumnarRuleCall(session, adaptiveContext, outputsColumnar)
     makeRule(call).apply(plan)
   }
 
-  private def makeRule(call: ColumnarRuleCall): Rule[SparkPlan] =
+  private def makeRule(call: ColumnarRuleCall): Rule[SparkPlan] = {
     plan =>
-      PhysicalPlanSelector.maybe(session, plan) {
-        val finalPlan = prepareFallback(plan) {
-          p =>
-            val suggestedPlan = transformPlan("transform", transformRules(call), p)
-            transformPlan("fallback", fallbackPolicies(call), suggestedPlan) match {
-              case FallbackNode(fallbackPlan) =>
-                // we should use vanilla c2r rather than native c2r,
-                // and there should be no `GlutenPlan` any more,
-                // so skip the `postRules()`.
-                fallbackPlan
-              case plan =>
-                transformPlan("post", postRules(call), plan)
-            }
-        }
-        transformPlan("final", finalRules(call), finalPlan)
+      val finalPlan = prepareFallback(plan) {
+        p =>
+          val suggestedPlan = transformPlan("transform", transformRules(call), p)
+          transformPlan("fallback", fallbackPolicies(call), suggestedPlan) match {
+            case FallbackNode(fallbackPlan) =>
+              // we should use vanilla c2r rather than native c2r,
+              // and there should be no `GlutenPlan` any more,
+              // so skip the `postRules()`.
+              fallbackPlan
+            case plan =>
+              transformPlan("post", postRules(call), plan)
+          }
       }
+      transformPlan("final", finalRules(call), finalPlan)
+  }
 
   private def transformPlan(
       phase: String,

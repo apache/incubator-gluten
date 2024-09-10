@@ -14,22 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.listener
+package org.apache.gluten.extension.columnar.heuristic
 
-import org.apache.gluten.GlutenConfig
-import org.apache.gluten.softaffinity.scheduler.SoftAffinityListener
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.execution.{LeafExecNode, SparkPlan}
 
-import org.apache.spark.SparkContext
-
-object GlutenListenerFactory {
-  def addToSparkListenerBus(sc: SparkContext): Unit = {
-    if (
-      sc.getConf.getBoolean(
-        GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED,
-        GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE
-      )
-    ) {
-      sc.listenerBus.addToStatusQueue(new SoftAffinityListener())
-    }
-  }
+/** A wrapper to specify the plan is fallback plan, the caller side should unwrap it. */
+case class FallbackNode(fallbackPlan: SparkPlan) extends LeafExecNode {
+  override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
+  override def output: Seq[Attribute] = fallbackPlan.output
 }

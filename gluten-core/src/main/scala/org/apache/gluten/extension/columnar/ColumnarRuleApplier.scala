@@ -17,9 +17,9 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.extension.columnar.util.AdaptiveContext
+import org.apache.gluten.extension.util.AdaptiveContext
+import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.metrics.GlutenTimeMetric
-import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
@@ -74,6 +74,11 @@ object ColumnarRuleApplier {
       logOnLevel(transformPlanLogLevel, message(plan, out, millisTime))
       out
     }
+  }
 
+  // A temporary workaround for applying toggle `spark.gluten.enabled`, to be removed.
+  trait SkipCondition {
+    // True if the rule execution should be skipped.
+    def skip(session: SparkSession, plan: SparkPlan): Boolean
   }
 }

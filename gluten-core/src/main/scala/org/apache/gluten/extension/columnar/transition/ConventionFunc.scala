@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.backend.Backend
 import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildrenConventions
 import org.apache.gluten.sql.shims.SparkShimLoader
 
@@ -60,7 +60,7 @@ object ConventionFunc {
         return PartialFunction.empty
       }
     }
-    BackendsApiManager.getSparkPlanExecApiInstance.batchTypeFunc()
+    Backend.get().batchTypeFunc()
   }
 
   private class BuiltinFunc(o: BatchOverride) extends ConventionFunc {
@@ -86,7 +86,7 @@ object ConventionFunc {
         val batchType = if (a.supportsColumnar) {
           // By default, we execute columnar AQE with backend batch output.
           // See org.apache.gluten.extension.columnar.transition.InsertTransitions.apply
-          BackendsApiManager.getSparkPlanExecApiInstance.batchType
+          Backend.get().batchType
         } else {
           Convention.BatchType.None
         }

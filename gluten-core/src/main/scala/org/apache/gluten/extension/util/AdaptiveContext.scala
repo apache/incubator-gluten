@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.columnar.util
+package org.apache.gluten.extension.util
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.SparkPlan

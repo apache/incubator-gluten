@@ -24,7 +24,6 @@ import org.apache.gluten.expression._
 import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
-import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
@@ -65,9 +64,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
-
-  /** The columnar-batch type this backend is using. */
-  override def batchType: Convention.BatchType = CHBatch
 
   /** Transform GetArrayItem to Substrait. */
   override def genGetArrayItemTransformer(

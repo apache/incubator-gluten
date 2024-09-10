@@ -65,10 +65,10 @@ public class LowCopyNettyShuffleInputStream implements ShuffleInputStream {
 
   @Override
   public void close() {
-    GlutenException.wrap(
-        () -> {
-          in.close();
-          return null;
-        });
+    try {
+      in.close();
+    } catch (Exception e) {
+      throw new GlutenException(e);
+    }
   }
 }

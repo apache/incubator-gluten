@@ -20,13 +20,13 @@ import org.apache.gluten.GlutenNumaBindingInfo
 import org.apache.gluten.backendsapi.IteratorApi
 import org.apache.gluten.execution._
 import org.apache.gluten.expression.ConverterUtils
+import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.metrics.{IMetrics, NativeMetrics}
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel._
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
-import org.apache.gluten.utils.LogLevelUtil
 import org.apache.gluten.vectorized.{BatchIterator, CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator}
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
