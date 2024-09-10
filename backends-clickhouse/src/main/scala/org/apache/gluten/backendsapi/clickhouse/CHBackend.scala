@@ -376,6 +376,15 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  // Move the pre-prejection for a aggregation ahead of the expand node
+  // for example, select a, b, sum(c+d) from t group by a, b with cube
+  def enablePushdownPreProjectionAheadExpand(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      "spark.gluten.sql.columnar.backend.ch.enable_pushdown_preprojection_ahead_expand",
+      true
+    )
+  }
+
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
   }
