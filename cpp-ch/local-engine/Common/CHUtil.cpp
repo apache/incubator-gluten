@@ -722,6 +722,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set(MERGETREE_MERGE_AFTER_INSERT, true);
     settings.set(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, false);
     settings.set(DECIMAL_OPERATIONS_ALLOW_PREC_LOSS, true);
+    settings.set("remote_filesystem_read_prefetch", false);
 
     for (const auto & [key, value] : backend_conf_map)
     {
