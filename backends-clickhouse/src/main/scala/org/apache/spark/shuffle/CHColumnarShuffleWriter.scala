@@ -22,7 +22,7 @@ import org.apache.gluten.execution.ColumnarNativeIterator
 import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.vectorized._
 
-import org.apache.spark.{SparkEnv, TaskContext}
+import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -189,34 +189,30 @@ class CHColumnarShuffleWriter[K, V](
 
 }
 
-object CHColumnarShuffleWriter {
-  private val TOTAL_OUTPUT_ROWS = "total_output_rows"
+case class OutputMetrics(totalRows: Long, totalBatches: Long)
 
-  private val TOTAL_OUTPUT_BATCHES = "total_output_batches"
+object CHColumnarShuffleWriter {
+
+  private var metric = new ThreadLocal[OutputMetrics]()
 
   // Pass the statistics of the last operator before shuffle to CollectMetricIterator.
   def setOutputMetrics(splitResult: CHSplitResult): Unit = {
-    TaskContext
-      .get()
-      .getLocalProperties
-      .setProperty(TOTAL_OUTPUT_ROWS, splitResult.getTotalRows.toString)
-    TaskContext
-      .get()
-      .getLocalProperties
-      .setProperty(TOTAL_OUTPUT_BATCHES, splitResult.getTotalBatches.toString)
+    metric.set(OutputMetrics(splitResult.getTotalRows, splitResult.getTotalBatches))
   }
 
-  def getTotalOutputRows(): Long = {
-    val output_rows = TaskContext.get().getLocalProperty(TOTAL_OUTPUT_ROWS)
-    var output_rows_value = 0L
-    if (output_rows != null && output_rows.nonEmpty) output_rows_value = output_rows.toLong
-    output_rows_value
+  def getTotalOutputRows: Long = {
+    if (metric.get() == null) {
+      0
+    } else {
+      metric.get().totalRows
+    }
   }
 
-  def getTotalOutputBatches(): Long = {
-    val output_batches = TaskContext.get().getLocalProperty(TOTAL_OUTPUT_BATCHES)
-    var output_batches_value = 0L
-    if (output_batches != null) output_batches_value = output_batches.toLong
-    output_batches_value
+  def getTotalOutputBatches: Long = {
+    if (metric.get() == null) {
+      0
+    } else {
+      metric.get().totalBatches
+    }
   }
 }

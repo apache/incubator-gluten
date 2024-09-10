@@ -544,11 +544,12 @@ local_engine::SplitterHolder * buildAndExecuteShuffle(JNIEnv * env,
         jobject rss_pusher = nullptr
         )
 {
-    auto * current_executor = local_engine::LocalExecutor::getCurrentExecutor();
-    chassert(current_executor);
+    auto current_executor = local_engine::LocalExecutor::getCurrentExecutor();
     local_engine::SplitterHolder * splitter = nullptr;
-    // handle fallback, whole stage fallback or partial fallback
-    if (!current_executor || current_executor->fallbackMode())
+    // There are two modes of fallback, one is full fallback but uses columnar shuffle,
+    // and the other is partial fallback that creates one or more LocalExecutor.
+    // In full fallback, the current executor does not exist.
+    if (!current_executor.has_value() || current_executor.value()->fallbackMode())
     {
         auto first_block = local_engine::SourceFromJavaIter::peekBlock(env, iter);
         if (first_block.has_value())
@@ -571,12 +572,12 @@ local_engine::SplitterHolder * buildAndExecuteShuffle(JNIEnv * env,
     }
     else
     {
-        splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(current_executor->getHeader().cloneEmpty(), name, options, rss_pusher)};
+        splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(current_executor.value()->getHeader().cloneEmpty(), name, options, rss_pusher)};
         // TODO support multiple sinks
         splitter->exchange_manager->initSinks(1);
-        current_executor->setSinks([&](auto & pipeline_builder) { splitter->exchange_manager->setSinksToPipeline(pipeline_builder);});
+        current_executor.value()->setSinks([&](auto & pipeline_builder) { splitter->exchange_manager->setSinksToPipeline(pipeline_builder);});
         // execute pipeline
-        current_executor->execute();
+        current_executor.value()->execute();
     }
     return splitter;
 }

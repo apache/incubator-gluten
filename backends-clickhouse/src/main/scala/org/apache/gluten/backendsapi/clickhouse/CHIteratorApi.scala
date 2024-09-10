@@ -353,9 +353,9 @@ class CollectMetricIterator(
     if (!metricsUpdated) {
       val nativeMetrics = nativeIterator.getMetrics.asInstanceOf[NativeMetrics]
       if (wholeStagePipeline) {
-        outputRowCount = Math.max(outputRowCount, CHColumnarShuffleWriter.getTotalOutputRows())
+        outputRowCount = Math.max(outputRowCount, CHColumnarShuffleWriter.getTotalOutputRows)
         outputVectorCount =
-          Math.max(outputVectorCount, CHColumnarShuffleWriter.getTotalOutputBatches())
+          Math.max(outputVectorCount, CHColumnarShuffleWriter.getTotalOutputBatches)
       }
       nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
       updateNativeMetrics(nativeMetrics)

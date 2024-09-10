@@ -35,7 +35,12 @@ struct SparkBuffer
 class LocalExecutor : public BlockIterator
 {
 public:
-    static LocalExecutor * getCurrentExecutor() { return current_executor; }
+    static std::optional<LocalExecutor *> getCurrentExecutor()
+    {
+        if (current_executor)
+            return std::optional(current_executor);
+        return std::nullopt;
+    }
     static void resetCurrentExecutor() { current_executor = nullptr; }
     LocalExecutor(DB::QueryPlanPtr query_plan, DB::QueryPipelineBuilderPtr pipeline, bool dump_pipeline_ = false);
     ~LocalExecutor();
