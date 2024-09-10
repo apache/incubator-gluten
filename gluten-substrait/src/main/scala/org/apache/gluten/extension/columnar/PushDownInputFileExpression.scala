@@ -16,9 +16,10 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer}
+import org.apache.gluten.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, ProjectExecTransformer}
 
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, NamedExpression}
+import org.apache.spark.sql.catalyst.optimizer.CollapseProjectShim
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{DeserializeToObjectExec, LeafExecNode, ProjectExec, SerializeFromObjectExec, SparkPlan, UnionExec}
 
@@ -34,8 +35,8 @@ import scala.collection.mutable
  * Two rules are involved:
  *   - Before offload, add new project before leaf node and push down input file expression to the
  *     new project
- *   - After offload, if scan be offloaded, push down input file expression into scan and remove
- *     project
+ *   - After offload, push down input file expression into scan and remove project if scan be
+ *     offloaded, collapse project if scan is fallback and the outer project is cheap or fallback
  */
 object PushDownInputFileExpression {
   def containsInputFileRelatedExpr(expr: Expression): Boolean = {
@@ -113,6 +114,28 @@ object PushDownInputFileExpression {
       case p @ ProjectExec(projectList, child: BatchScanExecTransformer)
           if projectList.exists(containsInputFileRelatedExpr) =>
         child.copy(output = p.output.asInstanceOf[Seq[AttributeReference]])
+      case p1 @ ProjectExec(_, p2: ProjectExec) if canCollapseProject(p2) =>
+        p2.copy(projectList =
+          CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList))
+      case p1 @ ProjectExecTransformer(_, p2: ProjectExec) if canCollapseProject(p1, p2) =>
+        p2.copy(projectList =
+          CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList))
+    }
+
+    private def canCollapseProject(project: ProjectExec): Boolean = {
+      project.projectList.forall {
+        case Alias(_: InputFileName | _: InputFileBlockStart | _: InputFileBlockLength, _) => true
+        case _: Attribute => true
+        case _ => false
+      }
+    }
+
+    private def canCollapseProject(p1: ProjectExecTransformer, p2: ProjectExec): Boolean = {
+      canCollapseProject(p2) && p1.projectList.forall {
+        case Alias(_: Attribute, _) => true
+        case _: Attribute => true
+        case _ => false
+      }
     }
   }
 }

@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
+
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.catalyst.optimizer.NullPropagation
 import org.apache.spark.sql.execution.ProjectExec
@@ -1365,6 +1367,21 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
             |LIMIT 100
             |""".stripMargin
         compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+
+    // Collapse project if scan is fallback and the outer project is cheap or fallback.
+    Seq("true", "false").foreach {
+      flag =>
+        withSQLConf(
+          GlutenConfig.COLUMNAR_PROJECT_ENABLED.key -> flag,
+          GlutenConfig.COLUMNAR_BATCHSCAN_ENABLED.key -> "false") {
+          runQueryAndCompare("SELECT l_orderkey, input_file_name() as name FROM lineitem") {
+            df =>
+              val plan = df.queryExecution.executedPlan
+              assert(collect(plan) { case f: ProjectExecTransformer => f }.size == 0)
+              assert(collect(plan) { case f: ProjectExec => f }.size == 1)
+          }
+        }
     }
   }
 
