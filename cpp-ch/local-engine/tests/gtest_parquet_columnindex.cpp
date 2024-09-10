@@ -42,6 +42,24 @@
 #include <Common/BlockTypeUtils.h>
 #include <Common/QueryContext.h>
 
+
+#    define ASSERT_DURATION_LE(secs, stmt) \
+        { \
+            std::promise<bool> completed; \
+            auto stmt_future = completed.get_future(); \
+            std::thread( \
+                [&](std::promise<bool> & completed) \
+                { \
+                    stmt; \
+                    completed.set_value(true); \
+                }, \
+                std::ref(completed)) \
+                .detach(); \
+            if (stmt_future.wait_for(std::chrono::seconds(secs)) == std::future_status::timeout) \
+                GTEST_FATAL_FAILURE_("       timed out (> " #secs " seconds). Check code for infinite loops"); \
+        }
+
+
 namespace DB::ErrorCodes
 {
 extern const int LOGICAL_ERROR;
@@ -163,6 +181,13 @@ public:
         return *this;
     }
 
+    CIBuilder & addSamePages(size_t num, int64_t nullCount, const std::string & min, const std::string & max)
+    {
+        for (size_t i = 0; i < num; ++i)
+            addPage(nullCount, min, max);
+        return *this;
+    }
+
     parquet::ColumnIndexPtr build() const
     {
         const parquet::ColumnDescriptor descr(node_, /*max_definition_level=*/1, 0);
@@ -185,6 +210,13 @@ public:
     {
         row_index_.push_back(previouse_count_);
         previouse_count_ += row_count;
+        return *this;
+    }
+
+    OIBuilder & addSamePages(size_t num, size_t row_count)
+    {
+        for (size_t i = 0; i < num; ++i)
+            addPage(row_count);
         return *this;
     }
 
@@ -298,6 +330,13 @@ static const CIBuilder c5 = CIBuilder(PNB::optional(parquet::Type::INT64).named(
 static const OIBuilder o5 = OIBuilder().addPage(1).addPage(29);
 static const parquet::ColumnDescriptor d5 = c5.descr();
 
+// GLUTEN-7179 - test customer.c_mktsegment = 'BUILDING'
+static const CIBuilder c6 = CIBuilder(PNB::optional(parquet::Type::BYTE_ARRAY).as(parquet::ConvertedType::UTF8).named("c_mktsegment"))
+                                .addSamePages(75, 0, "AUTOMOBILE", "MACHINERY")
+                                .addPage(0, "AUTOMOBILE", "FURNITURE");
+static const OIBuilder o6 = OIBuilder().addSamePages(77, 10);
+static const parquet::ColumnDescriptor d6 = c6.descr();
+
 local_engine::ColumnIndexStore buildTestColumnIndexStore()
 {
     local_engine::ColumnIndexStore result;
@@ -306,6 +345,7 @@ local_engine::ColumnIndexStore buildTestColumnIndexStore()
     result[d3.name()] = std::move(local_engine::ColumnIndex::create(&d3, c3.build(), o3.build()));
     result[d4.name()] = std::move(local_engine::ColumnIndex::create(&d4, nullptr, o3.build()));
     result[d5.name()] = std::move(local_engine::ColumnIndex::create(&d5, c5.build(), o5.build()));
+    result[d6.name()] = std::move(local_engine::ColumnIndex::create(&d6, c6.build(), o6.build()));
     return result;
 }
 
@@ -317,6 +357,7 @@ AnotherRowType buildTestRowType()
     result.emplace_back(toAnotherFieldType(d3));
     result.emplace_back(toAnotherFieldType(d4));
     result.emplace_back(toAnotherFieldType(d5));
+    result.emplace_back(toAnotherFieldType(d6));
     return result;
 }
 
@@ -469,6 +510,13 @@ TEST(ColumnIndex, FilteringWithAllNullPages)
     // testCondition("column5 == 1234567", TOTALSIZE);
     // testCondition("column5 >= 1234567", TOTALSIZE);
 }
+
+TEST(ColumnIndex, GLUTEN_7179_INFINTE_LOOP)
+{
+    using namespace test_utils;
+    ASSERT_DURATION_LE(10, { testCondition("c_mktsegment = 'BUILDING'", 760); })
+}
+
 TEST(ColumnIndex, FilteringWithNotFoundColumnName)
 {
     using namespace test_utils;
