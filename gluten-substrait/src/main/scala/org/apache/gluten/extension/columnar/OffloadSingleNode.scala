@@ -23,7 +23,6 @@ import org.apache.gluten.execution._
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
-
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
@@ -39,11 +38,11 @@ import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecSh
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 /**
- * Converts a vanilla Spark plan node into Gluten plan node. Gluten plan is supposed to be executed
- * in native, and the internals of execution is subject by backend's implementation.
+ * Converts a vanilla Spark plan node into Gluten plan node. Gluten plan is supposed to be
+ * executed in native, and the internals of execution is subject by backend's implementation.
  *
- * Note: Only the current plan node is supposed to be open to modification. Do not access or modify
- * the children node. Tree-walking is done by caller of this trait.
+ * Note: Only the current plan node is supposed to be open to modification. Do not access or
+ * modify the children node. Tree-walking is done by caller of this trait.
  */
 sealed trait OffloadSingleNode extends Logging {
   def offload(plan: SparkPlan): SparkPlan
@@ -75,10 +74,8 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
     val aggChild = plan.child
 
     // If child's output is empty, fallback or offload both the child and aggregation.
-    if (
-      aggChild.output.isEmpty && BackendsApiManager.getSettings
-        .fallbackAggregateWithEmptyOutputChild()
-    ) {
+    if (aggChild.output.isEmpty && BackendsApiManager.getSettings
+        .fallbackAggregateWithEmptyOutputChild()) {
       aggChild match {
         case _: TransformSupport =>
           // If the child is transformable, transform aggregation as well.
@@ -186,37 +183,53 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
 }
 
 object OffloadJoin {
-
-  def getBuildSide(shj: ShuffledHashJoinExec): BuildSide = {
+  private def getBuildSide(shj: ShuffledHashJoinExec): BuildSide = {
     val leftBuildable =
       BackendsApiManager.getSettings.supportHashBuildJoinTypeOnLeft(shj.joinType)
     val rightBuildable =
       BackendsApiManager.getSettings.supportHashBuildJoinTypeOnRight(shj.joinType)
+
+    assert(leftBuildable || rightBuildable)
+
     if (!leftBuildable) {
       return BuildRight
     }
     if (!rightBuildable) {
       return BuildLeft
     }
+
     // Both left and right are buildable. Find out the better one.
     if (!GlutenConfig.getConf.shuffledHashJoinOptimizeBuildSide) {
+      // User disabled build side re-optimization. Return original build side from vanilla Spark.
       return shj.buildSide
     }
-    shj.logicalLink match {
-      case Some(join: Join) =>
-        val leftSize = join.left.stats.sizeInBytes
-        val rightSize = join.right.stats.sizeInBytes
-        val leftRowCount = join.left.stats.rowCount
-        val rightRowCount = join.right.stats.rowCount
-        if (rightSize == leftSize && rightRowCount.isDefined && leftRowCount.isDefined) {
-          if (rightRowCount.get <= leftRowCount.get) BuildRight
-          else BuildLeft
-        } else if (rightSize <= leftSize) BuildRight
-        else BuildLeft
-      // Only the ShuffledHashJoinExec generated directly in some spark tests is not link
-      // logical plan, such as OuterJoinSuite.
-      case _ => shj.buildSide
+    shj.logicalLink
+      .flatMap {
+        case join: Join => Some(getOptimalBuildSide(join))
+        case _ => None
+      }
+      .getOrElse {
+        // Some shj operators generated in certain Spark tests such as OuterJoinSuite,
+        // could possibly have no logical link set.
+        shj.buildSide
+      }
+  }
+
+  def getOptimalBuildSide(join: Join): BuildSide = {
+    val leftSize = join.left.stats.sizeInBytes
+    val rightSize = join.right.stats.sizeInBytes
+    val leftRowCount = join.left.stats.rowCount
+    val rightRowCount = join.right.stats.rowCount
+    if (leftSize == rightSize && rightRowCount.isDefined && leftRowCount.isDefined) {
+      if (rightRowCount.get <= leftRowCount.get) {
+        return BuildRight
+      }
+      return BuildLeft
     }
+    if (rightSize <= leftSize) {
+      return BuildRight
+    }
+    BuildLeft
   }
 }
 
@@ -332,8 +345,7 @@ object OffloadOthers {
             plan.partitionColumns,
             plan.bucketSpec,
             plan.options,
-            plan.staticPartitions
-          )
+            plan.staticPartitions)
         case plan: SortExec =>
           val child = plan.child
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -364,8 +376,7 @@ object OffloadOthers {
             windowGroupLimitPlan.rankLikeFunction,
             windowGroupLimitPlan.limit,
             windowGroupLimitPlan.mode,
-            windowGroupLimitPlan.child
-          )
+            windowGroupLimitPlan.child)
         case plan: GlobalLimitExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val child = plan.child
