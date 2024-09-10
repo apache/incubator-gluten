@@ -49,9 +49,9 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   override def rightKeys: Seq[Expression] = Nil
 
   private lazy val substraitJoinType: CrossRel.JoinType =
-    SubstraitUtil.toCrossRelSubstrait(joinType, buildSide)
+    SubstraitUtil.toCrossRelSubstrait(joinType, needSwitchChildren)
 
-  // Unique ID for builded table
+  // Unique ID for built table.
   lazy val buildBroadcastTableId: String = "BuiltBNLJBroadcastTable-" + buildPlan.id
 
   // Hint substrait to switch the left and right,

@@ -23,7 +23,6 @@ import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.ExpressionNode
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.{FullOuter, InnerLike, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
 
 import io.substrait.proto.{CrossRel, JoinRel}
@@ -50,7 +49,7 @@ object SubstraitUtil {
       JoinRel.JoinType.UNRECOGNIZED
   }
 
-  def toCrossRelSubstrait(sparkJoin: JoinType, buildSide: BuildSide): CrossRel.JoinType =
+  def toCrossRelSubstrait(sparkJoin: JoinType, needSwitchChildren: Boolean): CrossRel.JoinType =
     sparkJoin match {
       case _: InnerLike =>
         CrossRel.JoinType.JOIN_TYPE_INNER
@@ -58,14 +57,16 @@ object SubstraitUtil {
         // since we always assume build right side in substrait,
         // the left and right relations are exchanged and the
         // join type is reverted.
-        buildSide match {
-          case BuildLeft => CrossRel.JoinType.JOIN_TYPE_RIGHT
-          case BuildRight => CrossRel.JoinType.JOIN_TYPE_LEFT
+        if (needSwitchChildren) {
+          CrossRel.JoinType.JOIN_TYPE_RIGHT
+        } else {
+          CrossRel.JoinType.JOIN_TYPE_LEFT
         }
       case RightOuter =>
-        buildSide match {
-          case BuildRight => CrossRel.JoinType.JOIN_TYPE_RIGHT
-          case BuildLeft => CrossRel.JoinType.JOIN_TYPE_LEFT
+        if (needSwitchChildren) {
+          CrossRel.JoinType.JOIN_TYPE_LEFT
+        } else {
+          CrossRel.JoinType.JOIN_TYPE_RIGHT
         }
       case LeftSemi =>
         CrossRel.JoinType.JOIN_TYPE_LEFT_SEMI
