@@ -160,7 +160,7 @@ object FilterExecTransformerBase {
   }
 }
 
-case class ProjectExecTransformer private (projectList: Seq[NamedExpression], child: SparkPlan)
+abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val input: SparkPlan)
   extends UnaryTransformSupport
   with OrderPreservingNodeShim
   with PartitioningPreservingNodeShim
@@ -176,7 +176,7 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     val relNode =
-      getRelNode(substraitContext, projectList, child.output, operatorId, null, validation = true)
+      getRelNode(substraitContext, list, child.output, operatorId, null, validation = true)
     // Then, validate the generated plan in native engine.
     doNativeValidation(substraitContext, relNode)
   }
@@ -192,7 +192,7 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
-    if ((projectList == null || projectList.isEmpty) && childCtx != null) {
+    if ((list == null || list.isEmpty) && childCtx != null) {
       // The computing for this project is not needed.
       // the child may be an input adapter and childCtx is null. In this case we want to
       // make a read node with non-empty base_schema.
@@ -201,16 +201,16 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
     }
 
     val currRel =
-      getRelNode(context, projectList, child.output, operatorId, childCtx.root, validation = false)
+      getRelNode(context, list, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Project Rel should be valid")
     TransformContext(childCtx.outputAttributes, output, currRel)
   }
 
-  override def output: Seq[Attribute] = projectList.map(_.toAttribute)
+  override def output: Seq[Attribute] = list.map(_.toAttribute)
 
   override protected def orderingExpressions: Seq[SortOrder] = child.outputOrdering
 
-  override protected def outputExpressions: Seq[NamedExpression] = projectList
+  override protected def outputExpressions: Seq[NamedExpression] = list
 
   def getRelNode(
       context: SubstraitContext,
@@ -247,23 +247,10 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
   override def verboseStringWithOperatorId(): String = {
     s"""
        |$formattedNodeName
-       |${ExplainUtils.generateFieldString("Output", projectList)}
+       |${ExplainUtils.generateFieldString("Output", list)}
        |${ExplainUtils.generateFieldString("Input", child.output)}
        |""".stripMargin
   }
-
-  override protected def withNewChildInternal(newChild: SparkPlan): ProjectExecTransformer =
-    copy(child = newChild)
-}
-object ProjectExecTransformer {
-  def apply(projectList: Seq[NamedExpression], child: SparkPlan): ProjectExecTransformer = {
-    BackendsApiManager.getSparkPlanExecApiInstance.genProjectExecTransformer(projectList, child)
-  }
-
-  // Directly creating a project transformer may not be considered safe since some backends, E.g.,
-  // Clickhouse may require to intercept the instantiation procedure.
-  def createUnsafe(projectList: Seq[NamedExpression], child: SparkPlan): ProjectExecTransformer =
-    new ProjectExecTransformer(projectList, child)
 }
 
 // An alternatives for UnionExec.

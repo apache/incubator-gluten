@@ -18,28 +18,22 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
-import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.MetricsUpdater
 import org.apache.gluten.substrait.`type`.TypeBuilder
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, CaseWhen, Expression, NamedExpression, NullIntolerant, PredicateHelper, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, CaseWhen, NamedExpression}
 import org.apache.spark.sql.delta.metric.IncrementMetric
-import org.apache.spark.sql.execution.{ExplainUtils, OrderPreservingNodeShim, PartitioningPreservingNodeShim, SparkPlan}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-case class DeltaProjectExecTransformer private (projectList: Seq[NamedExpression], child: SparkPlan)
-  extends UnaryTransformSupport
-  with OrderPreservingNodeShim
-  with PartitioningPreservingNodeShim
-  with PredicateHelper
-  with Logging {
+case class DeltaProjectExecTransformer(projectList: Seq[NamedExpression], child: SparkPlan)
+  extends ProjectExecTransformerBase(projectList, child) {
 
   private var extraMetrics = mutable.Seq.empty[(String, SQLMetric)]
 
@@ -47,50 +41,12 @@ case class DeltaProjectExecTransformer private (projectList: Seq[NamedExpression
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetrics(sparkContext)
 
-  override protected def doValidateInternal(): ValidationResult = {
-    val substraitContext = new SubstraitContext
-    // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
-    val operatorId = substraitContext.nextOperatorId(this.nodeName)
-    val relNode =
-      getRelNode(substraitContext, projectList, child.output, operatorId, null, validation = true)
-    // Then, validate the generated plan in native engine.
-    doNativeValidation(substraitContext, relNode)
-  }
-
-  override def isNullIntolerant(expr: Expression): Boolean = expr match {
-    case e: NullIntolerant => e.children.forall(isNullIntolerant)
-    case _ => false
-  }
-
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(
       metrics,
       extraMetrics.toSeq)
 
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child.asInstanceOf[TransformSupport].transform(context)
-    val operatorId = context.nextOperatorId(this.nodeName)
-    if ((projectList == null || projectList.isEmpty) && childCtx != null) {
-      // The computing for this project is not needed.
-      // the child may be an input adapter and childCtx is null. In this case we want to
-      // make a read node with non-empty base_schema.
-      context.registerEmptyRelToOperator(operatorId)
-      return childCtx
-    }
-
-    val currRel =
-      getRelNode(context, projectList, child.output, operatorId, childCtx.root, validation = false)
-    assert(currRel != null, "Project Rel should be valid")
-    TransformContext(childCtx.outputAttributes, output, currRel)
-  }
-
-  override def output: Seq[Attribute] = projectList.map(_.toAttribute)
-
-  override protected def orderingExpressions: Seq[SortOrder] = child.outputOrdering
-
-  override protected def outputExpressions: Seq[NamedExpression] = projectList
-
-  def getRelNode(
+  override def getRelNode(
       context: SubstraitContext,
       projectList: Seq[NamedExpression],
       originalInputAttributes: Seq[Attribute],
@@ -121,14 +77,6 @@ case class DeltaProjectExecTransformer private (projectList: Seq[NamedExpression
         operatorId,
         emitStartIndex)
     }
-  }
-
-  override def verboseStringWithOperatorId(): String = {
-    s"""
-       |$formattedNodeName
-       |${ExplainUtils.generateFieldString("Output", projectList)}
-       |${ExplainUtils.generateFieldString("Input", child.output)}
-       |""".stripMargin
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): DeltaProjectExecTransformer =
