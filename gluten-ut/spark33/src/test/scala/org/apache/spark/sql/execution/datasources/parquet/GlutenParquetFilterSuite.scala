@@ -16,8 +16,6 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.gluten.GlutenConfig
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.dsl.expressions._
@@ -37,8 +35,9 @@ import org.apache.spark.tags.ExtendedSQLTest
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
-import org.apache.parquet.filter2.predicate.{FilterApi, FilterPredicate, Operators}
+import org.apache.parquet.filter2.predicate.{FilterApi, FilterPredicate}
 import org.apache.parquet.filter2.predicate.FilterApi._
+import org.apache.parquet.filter2.predicate.Operators
 import org.apache.parquet.filter2.predicate.Operators.{Column => _, Eq, Gt, GtEq, Lt, LtEq, NotEq}
 import org.apache.parquet.hadoop.{ParquetFileReader, ParquetInputFormat, ParquetOutputFormat}
 import org.apache.parquet.hadoop.util.HadoopInputFile
@@ -49,13 +48,7 @@ import java.time.LocalDate
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-abstract class GlutenParquetFilterSuite extends ParquetFilterSuite with GlutenSQLTestsBaseTrait {
-  override def sparkConf: SparkConf = {
-    // https://github.com/apache/incubator-gluten/issues/7174
-    super.sparkConf
-      .set(GlutenConfig.COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key, "2")
-  }
-
+abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQLTestsBaseTrait {
   protected def checkFilterPredicate(
       predicate: Predicate,
       filterClass: Class[_ <: FilterPredicate],
@@ -335,7 +328,7 @@ abstract class GlutenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
 }
 
 @ExtendedSQLTest
-class GlutenParquetV1FilterSuite extends GlutenParquetFilterSuite with GlutenSQLTestsBaseTrait {
+class GlutenParquetV1FilterSuite extends GltuenParquetFilterSuite with GlutenSQLTestsBaseTrait {
   // TODO: enable Parquet V2 write path after file source V2 writers are workable.
   override def sparkConf: SparkConf =
     super.sparkConf
@@ -423,7 +416,7 @@ class GlutenParquetV1FilterSuite extends GlutenParquetFilterSuite with GlutenSQL
 }
 
 @ExtendedSQLTest
-class GlutenParquetV2FilterSuite extends GlutenParquetFilterSuite with GlutenSQLTestsBaseTrait {
+class GlutenParquetV2FilterSuite extends GltuenParquetFilterSuite with GlutenSQLTestsBaseTrait {
   // TODO: enable Parquet V2 write path after file source V2 writers are workable.
   override def sparkConf: SparkConf =
     super.sparkConf
