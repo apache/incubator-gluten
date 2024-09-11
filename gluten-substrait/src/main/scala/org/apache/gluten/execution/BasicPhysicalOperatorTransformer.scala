@@ -267,7 +267,7 @@ object ProjectExecTransformer {
 }
 
 // An alternatives for UnionExec.
-case class ColumnarUnionExec(children: Seq[SparkPlan]) extends SparkPlan with GlutenPlan {
+case class ColumnarUnionExec(children: Seq[SparkPlan]) extends GlutenPlan {
   children.foreach(
     child =>
       child match {
