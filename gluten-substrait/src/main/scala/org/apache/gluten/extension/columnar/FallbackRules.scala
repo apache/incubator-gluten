@@ -333,7 +333,7 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
               plan.leftKeys,
               plan.rightKeys,
               plan.joinType,
-              OffloadJoin.getBuildSide(plan),
+              OffloadJoin.getShjBuildSide(plan),
               plan.condition,
               plan.left,
               plan.right,
@@ -443,13 +443,13 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
             offset)
           transformer.doValidate().tagOnFallback(plan)
         case plan: SampleExec =>
-          val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genSampleExecTransformer(
-            plan.lowerBound,
-            plan.upperBound,
-            plan.withReplacement,
-            plan.seed,
-            plan.child
-          )
+          val transformer =
+            BackendsApiManager.getSparkPlanExecApiInstance.genSampleExecTransformer(
+              plan.lowerBound,
+              plan.upperBound,
+              plan.withReplacement,
+              plan.seed,
+              plan.child)
           transformer.doValidate().tagOnFallback(plan)
         case _ =>
         // Currently we assume a plan to be offload-able by default.

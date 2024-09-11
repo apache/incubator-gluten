@@ -118,7 +118,6 @@ case class OffloadExchange() extends OffloadSingleNode with LogLevelUtil {
 
 // Join transformation.
 case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
-
   override def offload(plan: SparkPlan): SparkPlan = {
     if (FallbackTags.nonEmpty(plan)) {
       logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
@@ -134,7 +133,7 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
             plan.leftKeys,
             plan.rightKeys,
             plan.joinType,
-            OffloadJoin.getBuildSide(plan),
+            OffloadJoin.getShjBuildSide(plan),
             plan.condition,
             left,
             right,
@@ -186,37 +185,53 @@ case class OffloadJoin() extends OffloadSingleNode with LogLevelUtil {
 }
 
 object OffloadJoin {
-
-  def getBuildSide(shj: ShuffledHashJoinExec): BuildSide = {
+  def getShjBuildSide(shj: ShuffledHashJoinExec): BuildSide = {
     val leftBuildable =
       BackendsApiManager.getSettings.supportHashBuildJoinTypeOnLeft(shj.joinType)
     val rightBuildable =
       BackendsApiManager.getSettings.supportHashBuildJoinTypeOnRight(shj.joinType)
+
+    assert(leftBuildable || rightBuildable)
+
     if (!leftBuildable) {
       return BuildRight
     }
     if (!rightBuildable) {
       return BuildLeft
     }
+
     // Both left and right are buildable. Find out the better one.
     if (!GlutenConfig.getConf.shuffledHashJoinOptimizeBuildSide) {
+      // User disabled build side re-optimization. Return original build side from vanilla Spark.
       return shj.buildSide
     }
-    shj.logicalLink match {
-      case Some(join: Join) =>
-        val leftSize = join.left.stats.sizeInBytes
-        val rightSize = join.right.stats.sizeInBytes
-        val leftRowCount = join.left.stats.rowCount
-        val rightRowCount = join.right.stats.rowCount
-        if (rightSize == leftSize && rightRowCount.isDefined && leftRowCount.isDefined) {
-          if (rightRowCount.get <= leftRowCount.get) BuildRight
-          else BuildLeft
-        } else if (rightSize <= leftSize) BuildRight
-        else BuildLeft
-      // Only the ShuffledHashJoinExec generated directly in some spark tests is not link
-      // logical plan, such as OuterJoinSuite.
-      case _ => shj.buildSide
+    shj.logicalLink
+      .flatMap {
+        case join: Join => Some(getOptimalBuildSide(join))
+        case _ => None
+      }
+      .getOrElse {
+        // Some shj operators generated in certain Spark tests such as OuterJoinSuite,
+        // could possibly have no logical link set.
+        shj.buildSide
+      }
+  }
+
+  def getOptimalBuildSide(join: Join): BuildSide = {
+    val leftSize = join.left.stats.sizeInBytes
+    val rightSize = join.right.stats.sizeInBytes
+    val leftRowCount = join.left.stats.rowCount
+    val rightRowCount = join.right.stats.rowCount
+    if (leftSize == rightSize && rightRowCount.isDefined && leftRowCount.isDefined) {
+      if (rightRowCount.get <= leftRowCount.get) {
+        return BuildRight
+      }
+      return BuildLeft
     }
+    if (rightSize <= leftSize) {
+      return BuildRight
+    }
+    BuildLeft
   }
 }
 
@@ -332,8 +347,7 @@ object OffloadOthers {
             plan.partitionColumns,
             plan.bucketSpec,
             plan.options,
-            plan.staticPartitions
-          )
+            plan.staticPartitions)
         case plan: SortExec =>
           val child = plan.child
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
