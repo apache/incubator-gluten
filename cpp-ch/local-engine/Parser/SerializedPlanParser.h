@@ -23,14 +23,12 @@
 #include <Interpreters/Aggregator.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/RelMetric.h>
-#include <Processors/Executors/PullingPipelineExecutor.h>
 #include <Processors/QueryPlan/ISourceStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
 #include <Storages/SourceFromJavaIter.h>
 #include <base/types.h>
 #include <substrait/plan.pb.h>
-#include <Common/BlockIterator.h>
 
 namespace local_engine
 {
@@ -87,7 +85,7 @@ public:
 
     /// visible for UT
     DB::QueryPlanPtr parse(const substrait::Plan & plan);
-    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan) { return createExecutor(parse(plan), plan); }
+    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan);
     DB::QueryPipelineBuilderPtr buildQueryPipeline(DB::QueryPlan & query_plan);
     ///
     std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
@@ -194,48 +192,6 @@ private:
 public:
     const ActionsDAG::Node * addColumn(DB::ActionsDAG & actions_dag, const DataTypePtr & type, const Field & field);
 };
-
-struct SparkBuffer
-{
-    char * address;
-    size_t size;
-};
-
-class LocalExecutor : public BlockIterator
-{
-public:
-    LocalExecutor(QueryPlanPtr query_plan, QueryPipeline && pipeline, bool dump_pipeline_ = false);
-    ~LocalExecutor();
-
-    SparkRowInfoPtr next();
-    Block * nextColumnar();
-    bool hasNext();
-
-    /// Stop execution, used when task receives shutdown command or executor receives SIGTERM signal
-    void cancel();
-
-    Block & getHeader();
-    RelMetricPtr getMetric() const { return metric; }
-    void setMetric(const RelMetricPtr & metric_) { metric = metric_; }
-    void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
-
-private:
-    std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(const DB::Block & block) const;
-
-    /// Dump processor runtime information to log
-    std::string dumpPipeline() const;
-
-    QueryPipeline query_pipeline;
-    std::unique_ptr<PullingPipelineExecutor> executor;
-    Block header;
-    bool dump_pipeline;
-    std::unique_ptr<CHColumnToSparkRow> ch_column_to_spark_row;
-    std::unique_ptr<SparkBuffer> spark_buffer;
-    QueryPlanPtr current_query_plan;
-    RelMetricPtr metric;
-    std::vector<QueryPlanPtr> extra_plan_holder;
-};
-
 
 class ASTParser
 {

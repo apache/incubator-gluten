@@ -145,7 +145,7 @@ private:
 };
 
 DefaultHashAggregateResultStep::DefaultHashAggregateResultStep(const DB::DataStream & input_stream_)
-    : DB::ITransformingStep(input_stream_, input_stream_.header, getTraits())
+    : DB::ITransformingStep(input_stream_, adjustOutputHeader(input_stream_.header), getTraits())
 {
 }
 

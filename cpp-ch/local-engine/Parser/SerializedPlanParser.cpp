@@ -59,13 +59,13 @@
 #include <Parser/WriteRelParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
+#include <Parser/LocalExecutor.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/LimitStep.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Processors/QueryPlan/ReadFromPreparedSource.h>
-#include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
@@ -83,6 +83,8 @@
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
+#include <Processors/Executors/PipelineExecutor.h>
+#include <Parser/InputFileNameParser.h>
 
 namespace DB
 {
@@ -297,11 +299,11 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithJavaIter(const substrait
 
     GET_JNIENV(env)
     SCOPE_EXIT({CLEAN_JNIENV});
-    auto * first_block = SourceFromJavaIter::peekBlock(env, input_iter);
+    auto first_block = SourceFromJavaIter::peekBlock(env, input_iter);
 
     /// Try to decide header from the first block read from Java iterator. Thus AggregateFunction with parameters has more precise types.
-    auto header = first_block ? first_block->cloneEmpty() : TypeParser::buildBlockFromNamedStruct(rel.base_schema());
-    auto source = std::make_shared<SourceFromJavaIter>(context, std::move(header), input_iter, materialize_input, first_block);
+    auto header = first_block.has_value() ? first_block->cloneEmpty() : TypeParser::buildBlockFromNamedStruct(rel.base_schema());
+    auto source = std::make_shared<SourceFromJavaIter>(context, std::move(header), input_iter, materialize_input, std::move(first_block));
 
     QueryPlanStepPtr source_step = std::make_unique<ReadFromPreparedSource>(Pipe(source));
     source_step->setStepDescription("Read From Java Iter");
@@ -343,7 +345,7 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         NamesWithAliases aliases;
         auto cols = query_plan->getCurrentDataStream().header.getNamesAndTypesList();
         if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
-            throw Exception(ErrorCodes::LOGICAL_ERROR, "Missmatch result columns size.");
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "Missmatch result columns size. plan column size {}, subtrait plan size {}.", cols.getNames().size(), root_rel.root().names_size());
         for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
             aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
         actions_dag.project(aliases);
@@ -429,6 +431,9 @@ QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
 
     return query_plan;
 }
+
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const substrait::Plan & plan)
+{ return createExecutor(parse(plan), plan); }
 
 QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
 {
@@ -1301,23 +1306,19 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     const Settings & settings = context->getSettingsRef();
     auto builder = buildQueryPipeline(*query_plan);
 
-    ///
+
     assert(s_plan.relations_size() == 1);
     const substrait::PlanRel & root_rel = s_plan.relations().at(0);
     assert(root_rel.has_root());
     if (root_rel.root().input().has_write())
         addSinkTransform(context, root_rel.root().input().write(), builder);
-    ///
-    QueryPipeline pipeline = QueryPipelineBuilder::getPipeline(std::move(*builder));
-
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
     LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
     LOG_DEBUG(
         logger, "clickhouse plan [optimization={}]:\n{}", settings.query_plan_enable_optimizations, PlanUtil::explainPlan(*query_plan));
-    LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(pipeline));
 
     auto config = ExecutorConfig::loadFromContext(context);
-    return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(pipeline), config.dump_pipeline);
+    return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(builder), config.dump_pipeline);
 }
 
 SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_) : context(context_)
@@ -1559,115 +1560,6 @@ void SerializedPlanParser::wrapNullable(
         actions_dag.addOrReplaceInOutputs(*node);
         nullable_measure_names[item] = node->result_name;
     }
-}
-
-LocalExecutor::~LocalExecutor()
-{
-    if (dump_pipeline)
-        LOG_INFO(&Poco::Logger::get("LocalExecutor"), "Dump pipeline:\n{}", dumpPipeline());
-
-    if (spark_buffer)
-    {
-        ch_column_to_spark_row->freeMem(spark_buffer->address, spark_buffer->size);
-        spark_buffer.reset();
-    }
-}
-
-std::unique_ptr<SparkRowInfo> LocalExecutor::writeBlockToSparkRow(const Block & block) const
-{
-    return ch_column_to_spark_row->convertCHColumnToSparkRow(block);
-}
-
-bool LocalExecutor::hasNext()
-{
-    size_t columns = currentBlock().columns();
-    if (columns == 0 || isConsumed())
-    {
-        auto empty_block = header.cloneEmpty();
-        setCurrentBlock(empty_block);
-        bool has_next = executor->pull(currentBlock());
-        produce();
-        return has_next;
-    }
-    return true;
-}
-
-SparkRowInfoPtr LocalExecutor::next()
-{
-    checkNextValid();
-    SparkRowInfoPtr row_info = writeBlockToSparkRow(currentBlock());
-    consume();
-    if (spark_buffer)
-    {
-        ch_column_to_spark_row->freeMem(spark_buffer->address, spark_buffer->size);
-        spark_buffer.reset();
-    }
-    spark_buffer = std::make_unique<SparkBuffer>();
-    spark_buffer->address = row_info->getBufferAddress();
-    spark_buffer->size = row_info->getTotalBytes();
-    return row_info;
-}
-
-Block * LocalExecutor::nextColumnar()
-{
-    checkNextValid();
-    Block * columnar_batch;
-    if (currentBlock().columns() > 0)
-    {
-        columnar_batch = &currentBlock();
-    }
-    else
-    {
-        auto empty_block = header.cloneEmpty();
-        setCurrentBlock(empty_block);
-        columnar_batch = &currentBlock();
-    }
-    consume();
-    return columnar_batch;
-}
-
-void LocalExecutor::cancel()
-{
-    if (executor)
-        executor->cancel();
-}
-
-Block & LocalExecutor::getHeader()
-{
-    return header;
-}
-
-LocalExecutor::LocalExecutor(QueryPlanPtr query_plan, QueryPipeline && pipeline, bool dump_pipeline_)
-    : query_pipeline(std::move(pipeline))
-    , executor(std::make_unique<PullingPipelineExecutor>(query_pipeline))
-    , header(query_plan->getCurrentDataStream().header.cloneEmpty())
-    , dump_pipeline(dump_pipeline_)
-    , ch_column_to_spark_row(std::make_unique<CHColumnToSparkRow>())
-    , current_query_plan(std::move(query_plan))
-{
-}
-
-std::string LocalExecutor::dumpPipeline() const
-{
-    const auto & processors = query_pipeline.getProcessors();
-    for (auto & processor : processors)
-    {
-        WriteBufferFromOwnString buffer;
-        auto data_stats = processor->getProcessorDataStats();
-        buffer << "(";
-        buffer << "\nexcution time: " << processor->getElapsedNs() / 1000U << " us.";
-        buffer << "\ninput wait time: " << processor->getInputWaitElapsedNs() / 1000U << " us.";
-        buffer << "\noutput wait time: " << processor->getOutputWaitElapsedNs() / 1000U << " us.";
-        buffer << "\ninput rows: " << data_stats.input_rows;
-        buffer << "\ninput bytes: " << data_stats.input_bytes;
-        buffer << "\noutput rows: " << data_stats.output_rows;
-        buffer << "\noutput bytes: " << data_stats.output_bytes;
-        buffer << ")";
-        processor->setDescription(buffer.str());
-    }
-    WriteBufferFromOwnString out;
-    printPipeline(processors, out);
-    return out.str();
 }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(

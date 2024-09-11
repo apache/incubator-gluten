@@ -20,6 +20,9 @@ public class CHSplitResult extends SplitResult {
     private final long splitTime;
     private final long diskWriteTime;
     private final long serializationTime;
+    private final long totalRows;
+    private final long totalBatches;
+    private final long wallTime;
 
     public CHSplitResult(long totalComputePidTime,
                          long totalWriteTime,
@@ -31,7 +34,10 @@ public class CHSplitResult extends SplitResult {
                          long[] rawPartitionLengths,
                          long splitTime,
                          long diskWriteTime,
-                         long serializationTime) {
+                         long serializationTime,
+                         long totalRows,
+                         long totalBatches,
+                         long wallTime) {
         super(totalComputePidTime,
                 totalWriteTime,
                 totalEvictTime,
@@ -43,6 +49,9 @@ public class CHSplitResult extends SplitResult {
         this.splitTime = splitTime;
         this.diskWriteTime = diskWriteTime;
         this.serializationTime = serializationTime;
+        this.totalRows = totalRows;
+        this.totalBatches = totalBatches;
+        this.wallTime = wallTime;
     }
 
     public long getSplitTime() {
@@ -55,5 +64,17 @@ public class CHSplitResult extends SplitResult {
 
     public long getSerializationTime() {
         return serializationTime;
+    }
+
+    public long getTotalRows() {
+        return totalRows;
+    }
+
+    public long getTotalBatches() {
+        return totalBatches;
+    }
+
+    public long getWallTime() {
+        return wallTime;
     }
 }

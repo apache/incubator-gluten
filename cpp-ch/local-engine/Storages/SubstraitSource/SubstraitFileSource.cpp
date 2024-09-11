@@ -53,12 +53,28 @@ namespace local_engine
 // build blocks with a const virtual column to indicate how many rows is in it.
 static DB::Block getRealHeader(const DB::Block & header)
 {
-    return header ? header : BlockUtil::buildRowCountHeader();
+    auto header_without_input_file_columns = InputFileNameParser::removeInputFileColumn(header);
+    auto result_header = header;
+    if (!header_without_input_file_columns.columns())
+    {
+        auto virtual_header =  BlockUtil::buildRowCountHeader();
+        for (const auto & column_with_type_and_name : virtual_header.getColumnsWithTypeAndName())
+        {
+            result_header.insert(column_with_type_and_name);
+        }
+    }
+    return result_header;
 }
 
 SubstraitFileSource::SubstraitFileSource(
-    const DB::ContextPtr & context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos)
-    : DB::SourceWithKeyCondition(getRealHeader(header_), false), context(context_), output_header(header_), to_read_header(output_header)
+    const DB::ContextPtr & context_,
+    const DB::Block & header_,
+    const substrait::ReadRel::LocalFiles & file_infos)
+    : DB::SourceWithKeyCondition(getRealHeader(header_), false)
+    , context(context_)
+    , output_header(InputFileNameParser::removeInputFileColumn(header_))
+    , to_read_header(output_header)
+    , input_file_name(InputFileNameParser::containsInputFileColumns(header_))
 {
     if (file_infos.items_size())
     {
@@ -95,7 +111,11 @@ DB::Chunk SubstraitFileSource::generate()
 
         DB::Chunk chunk;
         if (file_reader->pull(chunk))
+        {
+            if (input_file_name)
+                input_file_name_parser.addInputFileColumnsToChunk(output.getHeader(), chunk);
             return chunk;
+        }
 
         /// try to read from next file
         file_reader.reset();
@@ -138,7 +158,9 @@ bool SubstraitFileSource::tryPrepareReader()
     }
     else
         file_reader = std::make_unique<NormalFileReader>(current_file, context, to_read_header, output_header);
-
+    input_file_name_parser.setFileName(current_file->getURIPath());
+    input_file_name_parser.setBlockStart(current_file->getStartOffset());
+    input_file_name_parser.setBlockLength(current_file->getLength());
     file_reader->applyKeyCondition(key_condition, column_index_filter);
     return true;
 }

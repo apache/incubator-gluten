@@ -26,17 +26,17 @@
 #include <Parser/MergeTreeRelParser.h>
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/LocalExecutor.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/WriteRelParser.h>
-#include <Shuffle/CachedShuffleWriter.h>
 #include <Shuffle/NativeSplitter.h>
 #include <Shuffle/NativeWriterInMemory.h>
 #include <Shuffle/PartitionWriter.h>
 #include <Shuffle/ShuffleCommon.h>
 #include <Shuffle/ShuffleReader.h>
 #include <Shuffle/ShuffleWriter.h>
-#include <Shuffle/ShuffleWriterBase.h>
+#include <Shuffle/SparkExchangeSink.h>
 #include <Shuffle/WriteBufferFromJavaOutputStream.h>
 #include <Storages/Cache/CacheManager.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
@@ -53,11 +53,12 @@
 #include <Poco/Logger.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
-#include <Common/ErrorCodes.h>
 #include <Common/ExceptionUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
-
+#include <Common/ErrorCodes.h>
+#include <Processors/Executors/PipelineExecutor.h>
+#include <Storages/Cache/CacheManager.h>
 
 #ifdef __cplusplus
 namespace DB
@@ -128,7 +129,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     block_stripes_constructor = local_engine::GetMethodID(env, block_stripes_class, "<init>", "(J[J[II)V");
 
     split_result_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/CHSplitResult;");
-    split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[JJJJ)V");
+    split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[JJJJJJJ)V");
 
     block_stats_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/BlockStats;");
     block_stats_constructor = local_engine::GetMethodID(env, block_stats_class, "<init>", "(JZ)V");
@@ -310,6 +311,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_BatchIterator_nativeClose(JNIEn
     LOCAL_ENGINE_JNI_METHOD_START
     auto * executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
     LOG_INFO(&Poco::Logger::get("jni"), "Finalize LocalExecutor {}", reinterpret_cast<intptr_t>(executor));
+    local_engine::LocalExecutor::resetCurrentExecutor();
     delete executor;
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
@@ -571,10 +573,56 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_CHStreamReader_nativeClose(JNIE
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
+local_engine::SplitterHolder * buildAndExecuteShuffle(JNIEnv * env,
+        jobject iter,
+        const String & name,
+        const local_engine::SplitOptions& options,
+        jobject rss_pusher = nullptr
+        )
+{
+    auto current_executor = local_engine::LocalExecutor::getCurrentExecutor();
+    local_engine::SplitterHolder * splitter = nullptr;
+    // There are two modes of fallback, one is full fallback but uses columnar shuffle,
+    // and the other is partial fallback that creates one or more LocalExecutor.
+    // In full fallback, the current executor does not exist.
+    if (!current_executor.has_value() || current_executor.value()->fallbackMode())
+    {
+        auto first_block = local_engine::SourceFromJavaIter::peekBlock(env, iter);
+        if (first_block.has_value())
+        {
+            /// Try to decide header from the first block read from Java iterator.
+            auto header = first_block.value().cloneEmpty();
+            splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(header, name, options, rss_pusher)};
+            splitter->exchange_manager->initSinks(1);
+            splitter->exchange_manager->pushBlock(first_block.value());
+            first_block = std::nullopt;
+            // in fallback mode, spark's whole stage code gen operator uses TaskContext and needs to be executed in the task thread.
+            while (auto block = local_engine::SourceFromJavaIter::peekBlock(env, iter))
+            {
+                splitter->exchange_manager->pushBlock(block.value());
+            }
+        }
+        else
+            // empty iterator
+            splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(DB::Block(), name, options, rss_pusher)};
+    }
+    else
+    {
+        splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(current_executor.value()->getHeader().cloneEmpty(), name, options, rss_pusher)};
+        // TODO support multiple sinks
+        splitter->exchange_manager->initSinks(1);
+        current_executor.value()->setSinks([&](auto & pipeline_builder) { splitter->exchange_manager->setSinksToPipeline(pipeline_builder);});
+        // execute pipeline
+        current_executor.value()->execute();
+    }
+    return splitter;
+}
+
 // Splitter Jni Wrapper
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_nativeMake(
     JNIEnv * env,
     jobject,
+    jobject iter,
     jstring short_name,
     jint num_partitions,
     jbyteArray expr_list,
@@ -631,15 +679,15 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .max_sort_buffer_size = static_cast<size_t>(max_sort_buffer_size),
         .force_memory_sort = static_cast<bool>(force_memory_sort)};
     auto name = jstring2string(env, short_name);
-    local_engine::SplitterHolder * splitter
-        = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options)};
-    return reinterpret_cast<jlong>(splitter);
+
+    return reinterpret_cast<jlong>(buildAndExecuteShuffle(env, iter, name, options));
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_nativeMakeForRSS(
     JNIEnv * env,
     jobject,
+    jobject iter,
     jstring short_name,
     jint num_partitions,
     jbyteArray expr_list,
@@ -685,27 +733,16 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_na
         .hash_algorithm = jstring2string(env, hash_algorithm),
         .force_memory_sort = static_cast<bool>(force_memory_sort)};
     auto name = jstring2string(env, short_name);
-    local_engine::SplitterHolder * splitter;
-    splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options, pusher)};
-    return reinterpret_cast<jlong>(splitter);
+    return reinterpret_cast<jlong>(buildAndExecuteShuffle(env, iter, name, options, pusher));
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
-}
-
-JNIEXPORT void Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_split(JNIEnv * env, jobject, jlong splitterId, jlong block)
-{
-    LOCAL_ENGINE_JNI_METHOD_START
-    local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
-    DB::Block * data = reinterpret_cast<DB::Block *>(block);
-    splitter->splitter->split(*data);
-    LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
 JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_stop(JNIEnv * env, jobject, jlong splitterId)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-
     local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
-    auto result = splitter->splitter->stop();
+    splitter->exchange_manager->finish();
+    auto result = splitter->exchange_manager->getSplitResult();
 
     const auto & partition_lengths = result.partition_lengths;
     auto * partition_length_arr = env->NewLongArray(partition_lengths.size());
@@ -719,7 +756,7 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_
 
     // AQE has dependency on total_bytes_written, if the data is wrong, it will generate inappropriate plan
     // add a log here for remining this.
-    if (!result.total_bytes_written)
+    if (result.total_rows && !result.total_bytes_written)
         LOG_WARNING(getLogger("CHShuffleSplitterJniWrapper"), "total_bytes_written is 0, something may be wrong");
 
     jobject split_result = env->NewObject(
@@ -735,7 +772,11 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_
         raw_partition_length_arr,
         result.total_split_time,
         result.total_io_time,
-        result.total_serialize_time);
+        result.total_serialize_time,
+        result.total_rows,
+        result.total_blocks,
+        result.wall_time
+        );
 
     return split_result;
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)

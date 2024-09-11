@@ -355,7 +355,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-      assert(addFiles.size == 4)
+      assert(addFiles.size == 6)
     }
 
     val sql2 =
@@ -420,7 +420,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       val parquetScan = scanExec.head
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-      assert(addFiles.size == 4)
+      assert(addFiles.size == 6)
     }
 
     {
@@ -985,7 +985,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-      assert(addFiles.size == 4)
+      assert(addFiles.size == 6)
     }
 
     val clickhouseTable = DeltaTable.forPath(spark, dataPath)
@@ -1007,7 +1007,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
       val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-      assert(addFiles.size == 3)
+      assert(addFiles.size == 6)
     }
 
     val df = spark.read
@@ -1042,7 +1042,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     val parquetScan = scanExec.head
     val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
     val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-    assert(addFiles.size == 4)
+    assert(addFiles.size == 6)
 
     val clickhouseTable = DeltaTable.forPath(spark, dataPath)
     clickhouseTable.delete("mod(l_orderkey, 3) = 2")

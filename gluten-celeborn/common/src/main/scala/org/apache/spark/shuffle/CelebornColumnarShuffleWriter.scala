@@ -116,10 +116,6 @@ abstract class CelebornColumnarShuffleWriter[K, V](
 
   @throws[IOException]
   final override def write(records: Iterator[Product2[K, V]]): Unit = {
-    if (!records.hasNext) {
-      handleEmptyIterator()
-      return
-    }
     internalWrite(records)
   }
 

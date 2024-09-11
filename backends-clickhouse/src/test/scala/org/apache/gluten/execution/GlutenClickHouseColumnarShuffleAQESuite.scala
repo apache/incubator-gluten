@@ -207,9 +207,10 @@ class GlutenClickHouseColumnarShuffleAQESuite
         }
       }
 
-      var sql = """
-                  |select * from t2 left join t1 on t1.a = t2.a
-                  |""".stripMargin
+      var sql =
+        """
+          |select * from t2 left join t1 on t1.a = t2.a
+          |""".stripMargin
       compareResultsAgainstVanillaSpark(
         sql,
         true,
@@ -305,5 +306,28 @@ class GlutenClickHouseColumnarShuffleAQESuite
       spark.sql("drop table t1")
       spark.sql("drop table t2")
     }
+  }
+
+  test("GLUTEN-2221 empty hash aggregate exec") {
+    val sql1 =
+      """
+        | select count(1) from (
+        |   select (c/all_pv)/d as t from (
+        |     select t0.*, t1.b pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t2 join(
+        |     select sum(t1.b) all_pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t3
+        | )""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
   }
 }

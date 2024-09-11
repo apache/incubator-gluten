@@ -29,10 +29,9 @@ public:
     static jmethodID serialized_record_batch_iterator_next;
 
     static Int64 byteArrayToLong(JNIEnv * env, jbyteArray arr);
-    static DB::Block * peekBlock(JNIEnv * env, jobject java_iter);
+    static std::optional<DB::Block> peekBlock(JNIEnv * env, jobject java_iter);
 
-    SourceFromJavaIter(
-        DB::ContextPtr context_, const DB::Block & header, jobject java_iter_, bool materialize_input_, const DB::Block * peek_block_);
+    SourceFromJavaIter(DB::ContextPtr context_, const DB::Block & header, jobject java_iter_, bool materialize_input_, std::optional<DB::Block> && peek_block_);
     ~SourceFromJavaIter() override;
 
     String getName() const override { return "SourceFromJavaIter"; }
@@ -46,7 +45,7 @@ private:
     bool materialize_input;
 
     /// The first block read from java iteration to decide exact types of columns, especially for AggregateFunctions with parameters.
-    const DB::Block * first_block = nullptr;
+    std::optional<DB::Block> first_block = std::nullopt;
 };
 
 }

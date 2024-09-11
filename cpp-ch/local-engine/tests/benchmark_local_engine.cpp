@@ -41,6 +41,10 @@
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
 #include <Common/PODArray_fwd.h>
+#include <Common/Stopwatch.h>
+#include <Common/logger_useful.h>
+#include <Parser/LocalExecutor.h>
+#include "testConfig.h"
 #include <Common/QueryContext.h>
 
 #if defined(__SSE2__)
