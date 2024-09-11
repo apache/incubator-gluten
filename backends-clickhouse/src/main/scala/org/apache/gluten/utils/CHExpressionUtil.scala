@@ -214,8 +214,6 @@ object CHExpressionUtil {
     REGR_SXY -> DefaultValidator(),
     TO_UTC_TIMESTAMP -> UtcTimestampValidator(),
     FROM_UTC_TIMESTAMP -> UtcTimestampValidator(),
-    TIMESTAMP_MILLIS -> DefaultValidator(),
-    TIMESTAMP_MICROS -> DefaultValidator(),
     STACK -> DefaultValidator(),
     TRANSFORM_KEYS -> DefaultValidator(),
     TRANSFORM_VALUES -> DefaultValidator(),

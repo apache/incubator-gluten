@@ -788,4 +788,16 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                 |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
+
+  test("test function timestamp_seconds/timestamp_millis/timestamp_micros") {
+    val sql = """
+                |SELECT
+                |  id,
+                |  timestamp_seconds(1725453790 + id) as ts_seconds,
+                |  timestamp_millis(1725453790123 + id) as ts_millis,
+                |  timestamp_micros(1725453790123456 + id) as ts_micros
+                |from range(10);
+                |""".stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
 }
