@@ -75,9 +75,12 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
         val jobId = CHNativeCacheManager.cacheParts(mergeTreeTable, columns)
         context.reply(CacheJobInfo(status = true, jobId))
       } catch {
-        case _: Exception =>
+        case e: Exception =>
           context.reply(
-            CacheJobInfo(status = false, "", s"executor: $executorId cache data failed."))
+            CacheJobInfo(
+              status = false,
+              "",
+              s"executor: $executorId cache data failed: ${e.getMessage}."))
       }
     case GlutenCacheLoadStatus(jobId) =>
       val status = CHNativeCacheManager.getCacheStatus(jobId)

@@ -32,7 +32,7 @@ import scala.concurrent.duration.DurationInt
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
 
-class GlutenClickHouseMergeTreeCacheDataSSuite
+class GlutenClickHouseMergeTreeCacheDataSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
 
@@ -343,6 +343,199 @@ class GlutenClickHouseMergeTreeCacheDataSSuite
               |cache data
               |  select * from '$HDFS_URL/test/lineitem_mergetree_hdfs'
               |  after l_shipdate AS OF '1995-01-10'
+              |  CACHEPROPERTIES(storage_policy='__hdfs_main',
+              |                aaa='ccc')""".stripMargin)
+      .collect()
+    assertResult(true)(res(0).getBoolean(0))
+    val metaPath = new File(HDFS_METADATA_PATH + s"$sparkVersion/test/lineitem_mergetree_hdfs")
+    assertResult(true)(metaPath.exists() && metaPath.isDirectory)
+    assertResult(22)(metaPath.list().length)
+    assert(countFiles(dataPath) > initial_cache_files)
+    val first_cache_files = countFiles(dataPath)
+    val res1 = spark.sql(s"cache data select * from lineitem_mergetree_hdfs").collect()
+    assertResult(true)(res1(0).getBoolean(0))
+    assertResult(31)(metaPath.list().length)
+    assert(countFiles(dataPath) > first_cache_files)
+
+    val sqlStr =
+      s"""
+         |SELECT
+         |    l_returnflag,
+         |    l_linestatus,
+         |    sum(l_quantity) AS sum_qty,
+         |    sum(l_extendedprice) AS sum_base_price,
+         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
+         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
+         |    avg(l_quantity) AS avg_qty,
+         |    avg(l_extendedprice) AS avg_price,
+         |    avg(l_discount) AS avg_disc,
+         |    count(*) AS count_order
+         |FROM
+         |    lineitem_mergetree_hdfs
+         |WHERE
+         |    l_shipdate >= date'1995-01-10'
+         |GROUP BY
+         |    l_returnflag,
+         |    l_linestatus
+         |ORDER BY
+         |    l_returnflag,
+         |    l_linestatus;
+         |
+         |""".stripMargin
+    runSql(sqlStr)(
+      df => {
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assertResult(1)(scanExec.size)
+
+        val mergetreeScan = scanExec.head
+        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+        val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+        assertResult(7898)(addFiles.map(_.rows).sum)
+      })
+    spark.sql("drop table lineitem_mergetree_hdfs purge")
+  }
+
+  test("test cache mergetree data no partition columns") {
+
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_hdfs;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_hdfs
+                 |(
+                 | L_ORDERKEY      bigint,
+                 | L_PARTKEY       bigint,
+                 | L_SUPPKEY       bigint,
+                 | L_LINENUMBER    bigint,
+                 | L_QUANTITY      double,
+                 | L_EXTENDEDPRICE double,
+                 | L_DISCOUNT      double,
+                 | L_TAX           double,
+                 | L_RETURNFLAG    string,
+                 | L_LINESTATUS    string,
+                 | L_SHIPDATE      date,
+                 | L_COMMITDATE    date,
+                 | L_RECEIPTDATE   date,
+                 | L_SHIPINSTRUCT  string,
+                 | L_SHIPMODE      string,
+                 | L_COMMENT       string
+                 |)
+                 |USING clickhouse
+                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_hdfs'
+                 |TBLPROPERTIES (storage_policy='__hdfs_main')
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_hdfs
+                 | select * from lineitem a
+                 | where a.l_shipdate between date'1995-01-01' and date'1995-01-31'
+                 |""".stripMargin)
+    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
+    FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))
+    val dataPath = new File(HDFS_CACHE_PATH)
+    val initial_cache_files = countFiles(dataPath)
+
+    val metaPath = new File(HDFS_METADATA_PATH + s"$sparkVersion/test/lineitem_mergetree_hdfs")
+    val res1 = spark.sql(s"cache data select * from lineitem_mergetree_hdfs").collect()
+    assertResult(true)(res1(0).getBoolean(0))
+    assertResult(1)(metaPath.list().length)
+    assert(countFiles(dataPath) > initial_cache_files)
+
+    val sqlStr =
+      s"""
+         |SELECT
+         |    l_returnflag,
+         |    l_linestatus,
+         |    sum(l_quantity) AS sum_qty,
+         |    sum(l_extendedprice) AS sum_base_price,
+         |    sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
+         |    sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
+         |    avg(l_quantity) AS avg_qty,
+         |    avg(l_extendedprice) AS avg_price,
+         |    avg(l_discount) AS avg_disc,
+         |    count(*) AS count_order
+         |FROM
+         |    lineitem_mergetree_hdfs
+         |WHERE
+         |    l_shipdate >= date'1995-01-10'
+         |GROUP BY
+         |    l_returnflag,
+         |    l_linestatus
+         |ORDER BY
+         |    l_returnflag,
+         |    l_linestatus;
+         |
+         |""".stripMargin
+    runSql(sqlStr)(
+      df => {
+        val scanExec = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assertResult(1)(scanExec.size)
+
+        val mergetreeScan = scanExec.head
+        assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+        val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
+        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddMergeTreeParts])
+        assertResult(7898)(addFiles.map(_.rows).sum)
+      })
+    spark.sql("drop table lineitem_mergetree_hdfs purge")
+  }
+
+  test("test cache mergetree data with upper case column name") {
+
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_mergetree_hdfs;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_hdfs
+                 |(
+                 | L_ORDERKEY      bigint,
+                 | L_PARTKEY       bigint,
+                 | L_SUPPKEY       bigint,
+                 | L_LINENUMBER    bigint,
+                 | L_QUANTITY      double,
+                 | L_EXTENDEDPRICE double,
+                 | L_DISCOUNT      double,
+                 | L_TAX           double,
+                 | L_RETURNFLAG    string,
+                 | L_LINESTATUS    string,
+                 | L_SHIPDATE      date,
+                 | L_COMMITDATE    date,
+                 | L_RECEIPTDATE   date,
+                 | L_SHIPINSTRUCT  string,
+                 | L_SHIPMODE      string,
+                 | L_COMMENT       string
+                 |)
+                 |USING clickhouse
+                 |PARTITIONED BY (L_SHIPDATE)
+                 |LOCATION '$HDFS_URL/test/lineitem_mergetree_hdfs'
+                 |TBLPROPERTIES (storage_policy='__hdfs_main',
+                 |               orderByKey='L_LINENUMBER,L_ORDERKEY')
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 | insert into table lineitem_mergetree_hdfs
+                 | select * from lineitem a
+                 | where a.l_shipdate between date'1995-01-01' and date'1995-01-31'
+                 |""".stripMargin)
+    FileUtils.deleteDirectory(new File(HDFS_METADATA_PATH))
+    FileUtils.forceMkdir(new File(HDFS_METADATA_PATH))
+    val dataPath = new File(HDFS_CACHE_PATH)
+    val initial_cache_files = countFiles(dataPath)
+
+    val res = spark
+      .sql(s"""
+              |cache data
+              |  select * from '$HDFS_URL/test/lineitem_mergetree_hdfs'
+              |  after L_SHIPDATE AS OF '1995-01-10'
               |  CACHEPROPERTIES(storage_policy='__hdfs_main',
               |                aaa='ccc')""".stripMargin)
       .collect()

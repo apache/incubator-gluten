@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.substrait.rel;
 
+import org.apache.gluten.expression.ConverterUtils;
+
 import java.util.List;
 import java.util.Map;
 
@@ -50,12 +52,12 @@ public class ExtensionTableBuilder {
         snapshotId,
         relativeTablePath,
         absoluteTablePath,
-        orderByKey,
-        lowCardKey,
-        minmaxIndexKey,
-        bfIndexKey,
-        setIndexKey,
-        primaryKey,
+        ConverterUtils.normalizeColName(orderByKey),
+        ConverterUtils.normalizeColName(lowCardKey),
+        ConverterUtils.normalizeColName(minmaxIndexKey),
+        ConverterUtils.normalizeColName(bfIndexKey),
+        ConverterUtils.normalizeColName(setIndexKey),
+        ConverterUtils.normalizeColName(primaryKey),
         partList,
         starts,
         lengths,

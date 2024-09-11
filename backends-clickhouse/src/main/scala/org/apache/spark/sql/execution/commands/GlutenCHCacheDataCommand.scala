@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference,
 import org.apache.spark.sql.delta._
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.execution.commands.GlutenCacheBase._
+import org.apache.spark.sql.execution.datasources.utils.MergeTreeDeltaUtil
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.types.{BooleanType, StringType}
 
@@ -180,7 +181,8 @@ case class GlutenCHCacheDataCommand(
             ClickhouseSnapshot.genSnapshotId(snapshot),
             onePart.tablePath,
             pathToCache.toString,
-            snapshot.metadata.configuration.getOrElse("orderByKey", ""),
+            snapshot.metadata.configuration
+              .getOrElse("orderByKey", MergeTreeDeltaUtil.DEFAULT_ORDER_BY_KEY),
             snapshot.metadata.configuration.getOrElse("lowCardKey", ""),
             snapshot.metadata.configuration.getOrElse("minmaxIndexKey", ""),
             snapshot.metadata.configuration.getOrElse("bloomfilterIndexKey", ""),
