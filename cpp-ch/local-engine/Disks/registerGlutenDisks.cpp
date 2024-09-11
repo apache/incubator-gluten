@@ -64,8 +64,8 @@ void registerGlutenDisks(bool global_skip_access_check)
                                           const Poco::Util::AbstractConfiguration & conf, DB::ContextPtr ctx) -> DB::ObjectStoragePtr
         { return DB::ObjectStorageFactory::instance().create(name, conf, config_prefix, ctx, skip_access_check); };
         auto object_storage = DB::ObjectStorageFactory::instance().create(name, config, config_prefix, context, skip_access_check);
-        MetadataStoragePtr metadata_storage;
-        auto metadata_type = MetadataStorageFactory::getMetadataType(config, config_prefix, "local");
+        DB::MetadataStoragePtr metadata_storage;
+        auto metadata_type = DB::MetadataStorageFactory::getMetadataType(config, config_prefix, "local");
         if (metadata_type == "rocksdb")
         {
 #if USE_ROCKSDB
@@ -111,8 +111,8 @@ void registerGlutenDisks(bool global_skip_access_check)
                                           const Poco::Util::AbstractConfiguration & conf, DB::ContextPtr ctx) -> DB::ObjectStoragePtr
         { return DB::ObjectStorageFactory::instance().create(name, conf, config_prefix, ctx, skip_access_check); };
         auto object_storage = object_storage_creator(config, context);
-        MetadataStoragePtr metadata_storage;
-        auto metadata_type = MetadataStorageFactory::getMetadataType(config, config_prefix,  "local");
+        DB::MetadataStoragePtr metadata_storage;
+        auto metadata_type = DB::MetadataStorageFactory::getMetadataType(config, config_prefix,  "local");
         if (metadata_type == "rocksdb")
         {
 #if USE_ROCKSDB

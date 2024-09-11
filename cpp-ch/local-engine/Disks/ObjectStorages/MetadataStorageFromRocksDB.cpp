@@ -20,40 +20,49 @@
 #include <Disks/ObjectStorages/MetadataStorageFromRocksDBTransactionOperations.h>
 #include <Disks/ObjectStorages/StaticDirectoryIterator.h>
 #include <Interpreters/Context.h>
+#include <Storages/MergeTree/MetaDataHelper.h>
+#include <rocksdb/db.h>
+#include <Common/QueryContext.h>
 
 namespace local_engine
 {
 static std::string getObjectKeyCompatiblePrefix(
-    const DB::IObjectStorage & object_storage,
-    const Poco::Util::AbstractConfiguration & config,
-    const String & config_prefix)
+    const DB::IObjectStorage & object_storage, const Poco::Util::AbstractConfiguration & config, const String & config_prefix)
 {
     return config.getString(config_prefix + ".key_compatibility_prefix", object_storage.getCommonKeyPrefix());
 }
 
 DB::MetadataStoragePtr MetadataStorageFromRocksDB::create(
-    const std::string & ,
+    const std::string &,
     const Poco::Util::AbstractConfiguration & config,
     const std::string & config_prefix,
     DB::ObjectStoragePtr object_storage)
 {
     auto metadata_path = config.getString(config_prefix + ".metadata_path");
+    size_t clean_meta_task_interval_seconds = config.getUInt(config_prefix + ".clean_meta_task_interval_seconds", 60 * 60 * 12);
     fs::create_directories(metadata_path);
     auto key_compatibility_prefix = getObjectKeyCompatiblePrefix(*object_storage, config, config_prefix);
-    return std::make_shared<MetadataStorageFromRocksDB>(key_compatibility_prefix, metadata_path, object_storage);
+    return std::make_shared<MetadataStorageFromRocksDB>(
+        key_compatibility_prefix, metadata_path, object_storage, clean_meta_task_interval_seconds);
 }
 
 MetadataStorageFromRocksDB::MetadataStorageFromRocksDB(
     const String & compatible_key_prefix,
     const String & rocksdb_dir,
-    DB::ObjectStoragePtr & object_storage_)
+    DB::ObjectStoragePtr & object_storage_,
+    size_t metadata_clean_task_interval_seconds_)
     : compatible_key_prefix(compatible_key_prefix)
     , rocksdb_dir(rocksdb_dir)
     , object_storage(object_storage_)
+    , metadata_clean_task_interval_seconds(metadata_clean_task_interval_seconds_)
 {
     rocksdb::Options options;
     options.create_if_missing = true;
     throwRockDBErrorNotOk(rocksdb::DB::Open(options, rocksdb_dir, &rocksdb));
+    metadata_clean_task = QueryContext::globalContext()->getSchedulePool().createTask(
+        "MetadataStorageFromRocksDB", [this] { cleanOutdatedMetadataThreadFunc(); });
+    metadata_clean_task->scheduleAfter(metadata_clean_task_interval_seconds * 1000);
+    logger = getLogger("MetadataStorageFromRocksDB");
 }
 
 DB::MetadataTransactionPtr MetadataStorageFromRocksDB::createTransaction()
@@ -136,9 +145,7 @@ DB::StoredObjects MetadataStorageFromRocksDB::getStorageObjects(const std::strin
     DB::StoredObjects objects;
     objects.reserve(keys_with_meta.size());
     for (const auto & [object_key, object_meta] : keys_with_meta)
-    {
         objects.emplace_back(object_key.serialize(), path, object_meta.size_bytes, object_meta.offset);
-    }
 
     return objects;
 }
@@ -149,9 +156,8 @@ DB::DiskObjectStorageMetadataPtr MetadataStorageFromRocksDB::readMetadata(const 
     return readMetadataUnlocked(path, lock);
 }
 
-DB::DiskObjectStorageMetadataPtr MetadataStorageFromRocksDB::readMetadataUnlocked(
-    const std::string & path,
-    std::unique_lock<DB::SharedMutex> &) const
+DB::DiskObjectStorageMetadataPtr
+MetadataStorageFromRocksDB::readMetadataUnlocked(const std::string & path, std::unique_lock<DB::SharedMutex> &) const
 {
     auto metadata = std::make_unique<DB::DiskObjectStorageMetadata>(compatible_key_prefix, path);
     auto str = getData(getRocksDB(), path);
@@ -159,9 +165,8 @@ DB::DiskObjectStorageMetadataPtr MetadataStorageFromRocksDB::readMetadataUnlocke
     return metadata;
 }
 
-DB::DiskObjectStorageMetadataPtr MetadataStorageFromRocksDB::readMetadataUnlocked(
-    const std::string & path,
-    std::shared_lock<DB::SharedMutex> &) const
+DB::DiskObjectStorageMetadataPtr
+MetadataStorageFromRocksDB::readMetadataUnlocked(const std::string & path, std::shared_lock<DB::SharedMutex> &) const
 {
     auto metadata = std::make_unique<DB::DiskObjectStorageMetadata>(compatible_key_prefix, path);
     auto str = getData(getRocksDB(), path);
@@ -176,11 +181,63 @@ std::string MetadataStorageFromRocksDB::readFileToString(const std::string & pat
 
 void MetadataStorageFromRocksDB::shutdown()
 {
+    metadata_clean_task->deactivate();
     if (rocksdb)
     {
         rocksdb->Close();
         rocksdb = nullptr;
     }
+}
+
+void MetadataStorageFromRocksDB::cleanOutdatedMetadataThreadFunc()
+{
+    LOG_INFO(logger, "start to clean disk metadata in rocksdb.");
+    std::queue<String> part_queue;
+    size_t total_count_remove = 0;
+    auto removeParts = [&]
+    {
+        while (!part_queue.empty())
+        {
+            auto meta_name = part_queue.front();
+            part_queue.pop();
+            std::filesystem::path meta_path(meta_name);
+            auto part_path = meta_path.parent_path();
+            auto files = listDirectory(part_path);
+            total_count_remove += (files.size() + 1);
+            getRocksDB().DeleteRange({}, part_path.generic_string(), files.back());
+            getRocksDB().Delete({}, files.back());
+        }
+    };
+    auto * it = getRocksDB().NewIterator({});
+    String prev_key;
+    String prev_data;
+    for (it->SeekToFirst(); it->Valid(); it->Next())
+    {
+        auto file_name = it->key().ToString();
+        // mark outdated part
+        if (isMergeTreePartMetaDataFile(file_name))
+        {
+            auto objects = getStorageObjects(it->key().ToString());
+            if (!object_storage->exists(objects.front()))
+                part_queue.push(file_name);
+        }
+        // clean empty directory
+        if (!prev_key.empty() && !file_name.starts_with(prev_key) && prev_data == RocksDBCreateDirectoryOperation::DIR_DATA)
+        {
+            getRocksDB().Delete({}, prev_key);
+            total_count_remove ++;
+        }
+        if (part_queue.size() > 10000)
+        {
+            removeParts();
+        }
+    }
+    removeParts();
+    rocksdb::Slice begin(nullptr, 0);
+    rocksdb::Slice end(nullptr, 0);
+    rocksdb::Status s = getRocksDB().CompactRange({}, &begin, &end);
+    LOG_INFO(logger, "Clean meta finish, totally clean {} meta", total_count_remove);
+    metadata_clean_task->scheduleAfter(metadata_clean_task_interval_seconds * 1000);
 }
 
 DB::SharedMutex & MetadataStorageFromRocksDB::getMetadataMutex() const

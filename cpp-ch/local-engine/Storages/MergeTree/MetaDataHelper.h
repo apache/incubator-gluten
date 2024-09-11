@@ -23,6 +23,10 @@
 namespace local_engine
 {
 
+
+
+bool isMergeTreePartMetaDataFile(const String & file_name);
+
 void restoreMetaData(const SparkStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context);
 
 void saveFileStatus(

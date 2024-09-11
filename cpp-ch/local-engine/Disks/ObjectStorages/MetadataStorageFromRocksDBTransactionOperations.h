@@ -28,7 +28,6 @@ bool exist(rocksdb::DB & db, const std::string & path);
 String getData(rocksdb::DB & db, const std::string & path);
 std::vector<String> listKeys(rocksdb::DB & db, const std::string & path);
 
-
 struct RocksDBWriteFileOperation final : public DB::IMetadataOperation
 {
     RocksDBWriteFileOperation(const std::string& path_, rocksdb::DB& db_, const std::string& data_) : path(path_),

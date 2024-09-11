@@ -16,15 +16,15 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.commons.io.FileUtils
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
+import org.apache.commons.io.FileUtils
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import java.io.File
 import scala.concurrent.duration.DurationInt
@@ -57,7 +57,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
         "false")
-     .set("spark.gluten.sql.columnar.backend.ch.runtime_config.path", "/tmp") // for local test
+
   }
 
   override protected def beforeEach(): Unit = {
@@ -530,7 +530,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
         assertResult(12)(addFiles.size)
         assertResult(600572)(addFiles.map(_.rows).sum)
     }
-    spark.sql("drop table lineitem_mergetree_bucket_hdfs")
+    spark.sql("drop table lineitem_mergetree_bucket_hdfs purge")
   }
 
   test("test mergetree write with the path based") {

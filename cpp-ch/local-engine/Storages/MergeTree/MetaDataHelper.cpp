@@ -41,6 +41,7 @@ using namespace DB;
 
 namespace local_engine
 {
+static const String METADATA_FILE_NAME = "metadata.gluten";
 
 std::unordered_map<String, String> extractPartMetaData(ReadBuffer & in)
 {
@@ -104,7 +105,7 @@ void restoreMetaData<ROCKSDB>(const SparkStorageMergeTreePtr & storage, const Me
         for (const auto & part : not_exists_part)
         {
                 auto part_path = table_path / part;
-                auto metadata_file_path = part_path / "metadata.gluten";
+                auto metadata_file_path = part_path / METADATA_FILE_NAME;
 
                 if (metadata_storage->exists(part_path))
                     return;
@@ -124,7 +125,8 @@ void restoreMetaData<ROCKSDB>(const SparkStorageMergeTreePtr & storage, const Me
 }
 
 template <>
-void restoreMetaData<LOCAL>(const SparkStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context)
+void restoreMetaData<LOCAL>(
+    const SparkStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context)
 {
     const auto data_disk = storage->getStoragePolicy()->getAnyDisk();
     std::unordered_set<String> not_exists_part;
@@ -154,8 +156,7 @@ void restoreMetaData<LOCAL>(const SparkStorageMergeTreePtr & storage, const Merg
             CurrentMetrics::LocalThreadScheduled,
             max_threads,
             max_threads,
-            not_exists_part.size()
-            );
+            not_exists_part.size());
         auto s3 = data_disk->getObjectStorage();
 
         if (!metadata_disk->exists(table_path))
@@ -163,9 +164,10 @@ void restoreMetaData<LOCAL>(const SparkStorageMergeTreePtr & storage, const Merg
 
         for (const auto & part : not_exists_part)
         {
-            auto job = [&]() {
+            auto job = [&]()
+            {
                 auto part_path = table_path / part;
-                auto metadata_file_path = part_path / "metadata.gluten";
+                auto metadata_file_path = part_path / METADATA_FILE_NAME;
 
                 if (metadata_disk->exists(part_path))
                     return;
@@ -185,6 +187,12 @@ void restoreMetaData<LOCAL>(const SparkStorageMergeTreePtr & storage, const Merg
         }
         thread_pool.wait();
     }
+}
+
+
+bool isMergeTreePartMetaDataFile(const String & file_name)
+{
+    return file_name.ends_with(METADATA_FILE_NAME);
 }
 
 void restoreMetaData(const SparkStorageMergeTreePtr & storage, const MergeTreeTableInstance & mergeTreeTable, const Context & context)
@@ -218,7 +226,7 @@ void saveFileStatus(
     if (!disk->isRemote())
         return;
     auto meta_storage = disk->getMetadataStorage();
-    const auto out = data_part_storage.writeFile("metadata.gluten", DBMS_DEFAULT_BUFFER_SIZE, context->getWriteSettings());
+    const auto out = data_part_storage.writeFile(METADATA_FILE_NAME, DBMS_DEFAULT_BUFFER_SIZE, context->getWriteSettings());
     for (const auto it = data_part_storage.iterate(); it->isValid(); it->next())
     {
         auto content = meta_storage->readFileToString(it->path());

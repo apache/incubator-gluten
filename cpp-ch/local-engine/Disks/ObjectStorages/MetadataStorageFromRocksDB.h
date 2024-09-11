@@ -25,15 +25,17 @@
 
 namespace local_engine
 {
-class MetadataStorageFromRocksDB final : public DB::IMetadataStorage {
+class MetadataStorageFromRocksDB final : public DB::IMetadataStorage
+{
     friend class MetadataStorageFromRocksDBTransaction;
+
 public:
     static DB::MetadataStoragePtr create(
         const std::string & name,
         const Poco::Util::AbstractConfiguration & config,
         const std::string & config_prefix,
         DB::ObjectStoragePtr object_storage);
-    MetadataStorageFromRocksDB(const String& compatible_key_prefix, const String& rocksdb_dir , DB::ObjectStoragePtr& object_storage);
+    MetadataStorageFromRocksDB(const String & compatible_key_prefix, const String & rocksdb_dir, DB::ObjectStoragePtr & object_storage, size_t metadata_clean_task_interval_seconds);
     DB::MetadataTransactionPtr createTransaction() override;
     const std::string & getPath() const override;
     DB::MetadataStorageType getType() const override;
@@ -51,12 +53,13 @@ public:
     DB::DiskObjectStorageMetadataPtr readMetadata(const std::string & path) const;
     DB::DiskObjectStorageMetadataPtr readMetadataUnlocked(const std::string & path, std::unique_lock<DB::SharedMutex> & lock) const;
     DB::DiskObjectStorageMetadataPtr readMetadataUnlocked(const std::string & path, std::shared_lock<DB::SharedMutex> & lock) const;
-    std::string readFileToString(const std::string& path) const override;
+    std::string readFileToString(const std::string & path) const override;
     void shutdown() override;
+    void cleanOutdatedMetadataThreadFunc();
 
 private:
     DB::SharedMutex & getMetadataMutex() const;
-    rocksdb::DB& getRocksDB() const;
+    rocksdb::DB & getRocksDB() const;
 
     using RocksDBPtr = rocksdb::DB *;
     RocksDBPtr rocksdb = nullptr;
@@ -64,16 +67,15 @@ private:
     String compatible_key_prefix;
     String rocksdb_dir;
     DB::ObjectStoragePtr object_storage;
+    size_t metadata_clean_task_interval_seconds;
+    DB::BackgroundSchedulePool::TaskHolder metadata_clean_task;
+    LoggerPtr logger;
 };
-
 
 class MetadataStorageFromRocksDBTransaction final : public DB::IMetadataTransaction, private DB::MetadataOperationsHolder
 {
 public:
-    MetadataStorageFromRocksDBTransaction(const MetadataStorageFromRocksDB & metadata_storage_)
-        : metadata_storage(metadata_storage_)
-    {
-    }
+    MetadataStorageFromRocksDBTransaction(const MetadataStorageFromRocksDB & metadata_storage_) : metadata_storage(metadata_storage_) { }
 
     void commit() override;
     const DB::IMetadataStorage & getStorageForNonTransactionalReads() const override;
@@ -86,7 +88,7 @@ public:
     void createDirectoryRecursive(const std::string &) override;
     void removeDirectory(const std::string &) override;
     void removeRecursive(const std::string &) override;
-    void unlinkFile(const std::string&) override;
+    void unlinkFile(const std::string &) override;
 
 private:
     const MetadataStorageFromRocksDB & metadata_storage;
