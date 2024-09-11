@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.joins
 
 import org.apache.gluten.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
