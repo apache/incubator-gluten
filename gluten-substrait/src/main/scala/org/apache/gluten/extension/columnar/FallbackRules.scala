@@ -104,9 +104,9 @@ object FallbackTags {
 
   /**
    * If true, it implies the plan maybe transformable during validation phase but not guaranteed,
-   * since another validation rule could turn it to "non-transformable" before implementing the plan
-   * within Gluten transformers. If false, the plan node will be guaranteed fallback to Vanilla plan
-   * node while being implemented.
+   * since another validation rule could turn it to "non-transformable" before implementing the
+   * plan within Gluten transformers. If false, the plan node will be guaranteed fallback to
+   * Vanilla plan node while being implemented.
    */
   def maybeOffloadable(plan: SparkPlan): Boolean = !nonEmpty(plan)
 
@@ -333,7 +333,7 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
               plan.leftKeys,
               plan.rightKeys,
               plan.joinType,
-              OffloadJoin.getBuildSide(plan),
+              OffloadJoin.getShjBuildSide(plan),
               plan.condition,
               plan.left,
               plan.right,
@@ -395,8 +395,7 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
             windowGroupLimitPlan.rankLikeFunction,
             windowGroupLimitPlan.limit,
             windowGroupLimitPlan.mode,
-            windowGroupLimitPlan.child
-          )
+            windowGroupLimitPlan.child)
           transformer.doValidate().tagOnFallback(plan)
         case plan: CoalesceExec =>
           ColumnarCoalesceExec(plan.numPartitions, plan.child)
@@ -424,10 +423,8 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
         case plan: ArrowEvalPythonExec =>
           // When backend doesn't support ColumnarArrow or colunmnar arrow configuration not
           // enabled, we will try offloading through EvalPythonExecTransformer
-          if (
-            !BackendsApiManager.getSettings.supportColumnarArrowUdf() ||
-            !GlutenConfig.getConf.enableColumnarArrowUDF
-          ) {
+          if (!BackendsApiManager.getSettings.supportColumnarArrowUdf() ||
+            !GlutenConfig.getConf.enableColumnarArrowUDF) {
             // Both CH and Velox will try using backend's built-in functions for calculate
             val transformer = EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, plan.child)
             transformer.doValidate().tagOnFallback(plan)
@@ -443,13 +440,13 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
             offset)
           transformer.doValidate().tagOnFallback(plan)
         case plan: SampleExec =>
-          val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genSampleExecTransformer(
-            plan.lowerBound,
-            plan.upperBound,
-            plan.withReplacement,
-            plan.seed,
-            plan.child
-          )
+          val transformer =
+            BackendsApiManager.getSparkPlanExecApiInstance.genSampleExecTransformer(
+              plan.lowerBound,
+              plan.upperBound,
+              plan.withReplacement,
+              plan.seed,
+              plan.child)
           transformer.doValidate().tagOnFallback(plan)
         case _ =>
         // Currently we assume a plan to be offload-able by default.
@@ -471,9 +468,9 @@ object AddFallbackTagRule {
   implicit private class ValidatorBuilderImplicits(builder: Validators.Builder) {
 
     /**
-     * Fails validation on non-scan plan nodes if Gluten is running as scan-only mode. Also, passes
-     * validation on filter for the exception that filter + scan is detected. Because filters can be
-     * pushed into scan then the filter conditions will be processed only in scan.
+     * Fails validation on non-scan plan nodes if Gluten is running as scan-only mode. Also,
+     * passes validation on filter for the exception that filter + scan is detected. Because
+     * filters can be pushed into scan then the filter conditions will be processed only in scan.
      */
     def fallbackIfScanOnlyWithFilterPushed(scanOnly: Boolean): Validators.Builder = {
       builder.add(new FallbackIfScanOnlyWithFilterPushed(scanOnly))
