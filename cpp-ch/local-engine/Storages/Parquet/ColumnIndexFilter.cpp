@@ -393,7 +393,7 @@ struct DESCENDING : BoundaryOrder
         {
             if (lowerLeft > lowerRight)
                 return std::nullopt;
-            Int32 i = std::floor((lowerLeft + lowerRight) / 2);
+            Int32 i = floorMid(lowerLeft, lowerRight);
             if (comparator.compareValueToMax(i) > 0)
                 lowerRight = upperRight = i - 1;
             else if (comparator.compareValueToMin(i) < 0)
@@ -406,7 +406,7 @@ struct DESCENDING : BoundaryOrder
         {
             if (upperLeft > upperRight)
                 return std::nullopt;
-            Int32 i = std::ceil((upperLeft + upperRight) / 2);
+            Int32 i = ceilingMid(upperLeft, upperRight);
             if (comparator.compareValueToMax(i) > 0)
                 upperRight = i - 1;
             else if (comparator.compareValueToMin(i) < 0)
