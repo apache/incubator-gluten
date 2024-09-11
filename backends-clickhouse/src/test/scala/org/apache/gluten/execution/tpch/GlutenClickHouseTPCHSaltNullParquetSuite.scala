@@ -2935,6 +2935,55 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       df => {
         checkBHJWithIsNullAwareAntiJoin(df)
       })
+
+    withSQLConf(("spark.sql.adaptive.enabled", "true")) {
+      def checkAQEBHJWithIsNullAwareAntiJoin(df: DataFrame, isNullAwareBhjCnt: Int = 1): Unit = {
+        val bhjs = collect(df.queryExecution.executedPlan) {
+          case bhj: CHBroadcastHashJoinExecTransformer if bhj.isNullAwareAntiJoin => true
+        }
+        assert(bhjs.size == isNullAwareBhjCnt)
+      }
+
+      val sql6 =
+        s"""
+           |select * from partsupp
+           |where
+           |ps_suppkey NOT IN (SELECT suppkey FROM VALUES (null), (6) sub(suppkey))
+           |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql6,
+        true,
+        df => {
+          checkAQEBHJWithIsNullAwareAntiJoin(df, 0)
+        })
+
+      val sql7 =
+        s"""
+           |select * from partsupp
+           |where
+           |cast(ps_suppkey AS INT) NOT IN (SELECT suppkey FROM VALUES (null), (6) sub(suppkey))
+           |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql7,
+        true,
+        df => {
+          checkAQEBHJWithIsNullAwareAntiJoin(df, 0)
+        })
+
+      val sql8 =
+        s"""
+           |select * from partsupp
+           |where
+           |ps_suppkey NOT IN (SELECT suppkey FROM VALUES (5), (6) sub(suppkey))
+           |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql8,
+        true,
+        df => {
+          checkAQEBHJWithIsNullAwareAntiJoin(df)
+        })
+    }
+
   }
 
   test("soundex") {

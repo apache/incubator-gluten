@@ -71,6 +71,12 @@ public class CHNativeBlock {
 
   public native void nativeClose(long blockAddress);
 
+  public native BlockStats nativeBlockStats(long blockAddress, int columnPosition);
+
+  public BlockStats getBlockStats(int columnPosition) {
+    return nativeBlockStats(blockAddress, columnPosition);
+  }
+
   public void close() {
     if (blockAddress != 0) {
       nativeClose(blockAddress);

@@ -48,7 +48,8 @@ public class StorageJoinBuilder {
       boolean hasMixedFiltCondition,
       boolean isExistenceJoin,
       byte[] namedStruct,
-      boolean isNullAwareAntiJoin);
+      boolean isNullAwareAntiJoin,
+      boolean hasNullKeyValues);
 
   private StorageJoinBuilder() {}
 
@@ -58,7 +59,8 @@ public class StorageJoinBuilder {
       long rowCount,
       BroadCastHashJoinContext broadCastContext,
       List<Expression> newBuildKeys,
-      List<Attribute> newOutput) {
+      List<Attribute> newOutput,
+      boolean hasNullKeyValues) {
     ConverterUtils$ converter = ConverterUtils$.MODULE$;
     List<Expression> keys;
     List<Attribute> output;
@@ -96,7 +98,8 @@ public class StorageJoinBuilder {
         broadCastContext.hasMixedFiltCondition(),
         broadCastContext.isExistenceJoin(),
         toNameStruct(output).toByteArray(),
-        broadCastContext.isNullAwareAntiJoin());
+        broadCastContext.isNullAwareAntiJoin(),
+        hasNullKeyValues);
   }
 
   /** create table named struct */

@@ -474,12 +474,12 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation = {
 
-    val buildKeys: Seq[Expression] = mode match {
+    val (buildKeys, isNullAware) = mode match {
       case mode1: HashedRelationBroadcastMode =>
-        mode1.key
+        (mode1.key, mode1.isNullAware)
       case _ =>
         // IdentityBroadcastMode
-        Seq.empty
+        (Seq.empty, false)
     }
 
     val (newChild, newOutput, newBuildKeys) =
@@ -532,8 +532,27 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
         }
         (newChild, (child.output ++ appendedProjections).map(_.toAttribute), preProjectionBuildKeys)
       }
+
+    // find the key index in the output
+    val keyColumnIndex = if (isNullAware) {
+      def findKeyOrdinal(key: Expression, output: Seq[Attribute]): Int = {
+        key match {
+          case b: BoundReference => b.ordinal
+          case n: NamedExpression =>
+            output.indexWhere(o => (o.name.equals(n.name) && o.exprId == n.exprId))
+          case _ => throw new GlutenException(s"Cannot find $key in the child's output: $output")
+        }
+      }
+      if (newBuildKeys.isEmpty) {
+        findKeyOrdinal(buildKeys(0), newOutput)
+      } else {
+        findKeyOrdinal(newBuildKeys(0), newOutput)
+      }
+    } else {
+      0
+    }
     val countsAndBytes =
-      CHExecUtil.buildSideRDD(dataSize, newChild).collect
+      CHExecUtil.buildSideRDD(dataSize, newChild, isNullAware, keyColumnIndex).collect
 
     val batches = countsAndBytes.map(_._2)
     val totalBatchesSize = batches.map(_.length).sum
@@ -548,8 +567,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
           s" written bytes is correct.")
     }
     val rowCount = countsAndBytes.map(_._1).sum
+    val hasNullKeyValues = countsAndBytes.map(_._3).foldLeft[Boolean](false)((b, a) => { b || a })
     numOutputRows += rowCount
-    ClickHouseBuildSideRelation(mode, newOutput, batches.flatten, rowCount, newBuildKeys)
+    ClickHouseBuildSideRelation(
+      mode,
+      newOutput,
+      batches.flatten,
+      rowCount,
+      newBuildKeys,
+      hasNullKeyValues)
   }
 
   /** Define backend specfic expression mappings. */

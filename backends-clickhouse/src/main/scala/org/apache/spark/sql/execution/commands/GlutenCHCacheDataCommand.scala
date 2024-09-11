@@ -43,7 +43,7 @@ import scala.concurrent.Future
 case class GlutenCHCacheDataCommand(
     onlyMetaCache: Boolean,
     asynExecute: Boolean,
-    selectedColuman: Option[Seq[String]],
+    selectedColumn: Option[Seq[String]],
     path: Option[String],
     table: Option[TableIdentifier],
     tsfilter: Option[String],
@@ -93,8 +93,8 @@ case class GlutenCHCacheDataCommand(
         "a Delta table? Refusing to garbage collect.")
 
     val allColumns = snapshot.dataSchema.fieldNames.toSeq
-    val selectedColumns = if (selectedColuman.nonEmpty) {
-      selectedColuman.get
+    val selectedColumns = if (selectedColumn.nonEmpty) {
+      selectedColumn.get
         .filter(allColumns.contains(_))
         .map(ConverterUtils.normalizeColName)
         .toSeq

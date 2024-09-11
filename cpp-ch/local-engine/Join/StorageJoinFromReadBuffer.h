@@ -47,7 +47,8 @@ public:
         const DB::ConstraintsDescription & constraints_,
         const String & comment,
         bool overwrite_,
-        bool is_null_aware_anti_join_);
+        bool is_null_aware_anti_join_,
+        bool has_null_key_values_);
 
     bool has_null_key_value = false;
     bool is_empty_hash_table = false;

@@ -110,6 +110,9 @@ static jmethodID block_stripes_constructor;
 static jclass split_result_class;
 static jmethodID split_result_constructor;
 
+static jclass block_stats_class;
+static jmethodID block_stats_constructor;
+
 JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 {
     JNIEnv * env;
@@ -126,6 +129,9 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 
     split_result_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/CHSplitResult;");
     split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[JJJJ)V");
+
+    block_stats_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/BlockStats;");
+    block_stats_constructor = local_engine::GetMethodID(env, block_stats_class, "<init>", "(JZ)V");
 
     local_engine::ShuffleReader::input_stream_class
         = local_engine::CreateGlobalClassReference(env, "Lorg/apache/gluten/vectorized/ShuffleInputStream;");
@@ -184,6 +190,7 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
     env->DeleteGlobalRef(spark_row_info_class);
     env->DeleteGlobalRef(block_stripes_class);
     env->DeleteGlobalRef(split_result_class);
+    env->DeleteGlobalRef(block_stats_class);
     env->DeleteGlobalRef(local_engine::ShuffleReader::input_stream_class);
     env->DeleteGlobalRef(local_engine::NativeSplitter::iterator_class);
     env->DeleteGlobalRef(local_engine::WriteBufferFromJavaOutputStream::output_stream_class);
@@ -332,8 +339,8 @@ Java_org_apache_gluten_vectorized_CHColumnVector_nativeHasNull(JNIEnv * env, job
     else
     {
         const auto * nullable = checkAndGetColumn<DB::ColumnNullable>(&*col.column);
-        size_t num_nulls = std::accumulate(nullable->getNullMapData().begin(), nullable->getNullMapData().end(), 0);
-        return num_nulls < block->rows();
+        const auto & null_map_data = nullable->getNullMapData();
+        return !DB::memoryIsZero(null_map_data.data(), 0, null_map_data.size());
     }
     LOCAL_ENGINE_JNI_METHOD_END(env, false)
 }
@@ -504,6 +511,35 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHNativeBlock_nativeTotalBytes
     auto * block = reinterpret_cast<DB::Block *>(block_address);
     return block->bytes();
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
+JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHNativeBlock_nativeBlockStats(JNIEnv * env, jobject obj, jlong block_address, jint column_position)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
+    auto col = getColumnFromColumnVector(env, obj, block_address, column_position);
+    if (!col.column->isNullable())
+    {
+        jobject block_stats = env->NewObject(
+            block_stats_class,
+            block_stats_constructor,
+            block->rows(),
+            false);
+        return block_stats;
+    }
+    else
+    {
+        const auto * nullable = checkAndGetColumn<DB::ColumnNullable>(&*col.column);
+        const auto & null_map_data = nullable->getNullMapData();
+
+        jobject block_stats = env->NewObject(
+            block_stats_class,
+            block_stats_constructor,
+            block->rows(),
+            !DB::memoryIsZero(null_map_data.data(), 0, null_map_data.size()));
+        return block_stats;
+    }
+    LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }
 
 JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHStreamReader_createNativeShuffleReader(
@@ -1065,7 +1101,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
     jboolean has_mixed_join_condition,
     jboolean is_existence_join,
     jbyteArray named_struct,
-    jboolean is_null_aware_anti_join)
+    jboolean is_null_aware_anti_join,
+    jboolean has_null_key_values)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     const auto hash_table_id = jstring2string(env, key);
@@ -1086,7 +1123,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
         has_mixed_join_condition,
         is_existence_join,
         struct_string,
-        is_null_aware_anti_join));
+        is_null_aware_anti_join,
+        has_null_key_values));
     return obj->instance();
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
