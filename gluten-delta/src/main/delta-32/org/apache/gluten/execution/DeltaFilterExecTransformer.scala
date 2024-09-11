@@ -24,7 +24,7 @@ import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.delta.metric.IncrementMetric
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -35,10 +35,6 @@ case class DeltaFilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecTransformerBase(condition, child) {
 
   private var extraMetrics: Seq[(String, SQLMetric)] = Seq.empty
-
-  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
-  @transient override lazy val metrics =
-    BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(
@@ -77,24 +73,6 @@ case class DeltaFilterExecTransformer(condition: Expression, child: SparkPlan)
         BackendsApiManager.getTransformerApiInstance.packPBMessage(
           TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeFilterRel(input, condExprNode, extensionNode, context, operatorId)
-    }
-  }
-
-  override protected def getRemainingCondition: Expression = {
-    val scanFilters = child match {
-      // Get the filters including the manually pushed down ones.
-      case basicScanExecTransformer: BasicScanExecTransformer =>
-        basicScanExecTransformer.filterExprs()
-      // For fallback scan, we need to keep original filter.
-      case _ =>
-        Seq.empty[Expression]
-    }
-    if (scanFilters.isEmpty) {
-      condition
-    } else {
-      val remainingFilters =
-        FilterHandler.getRemainingFilters(scanFilters, splitConjunctivePredicates(condition))
-      remainingFilters.reduceLeftOption(And).orNull
     }
   }
 

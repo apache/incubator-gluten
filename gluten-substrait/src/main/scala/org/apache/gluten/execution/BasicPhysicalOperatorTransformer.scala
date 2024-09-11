@@ -106,7 +106,25 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
 
   override protected def outputExpressions: Seq[NamedExpression] = child.output
 
-  protected def getRemainingCondition: Expression
+  // FIXME: Should use field "condition" to store the actual executed filter expressions.
+  //  To make optimization easier (like to remove filter when it actually does nothing)
+  protected def getRemainingCondition: Expression = {
+    val scanFilters = child match {
+      // Get the filters including the manually pushed down ones.
+      case basicScanExecTransformer: BasicScanExecTransformer =>
+        basicScanExecTransformer.filterExprs()
+      // For fallback scan, we need to keep original filter.
+      case _ =>
+        Seq.empty[Expression]
+    }
+    if (scanFilters.isEmpty) {
+      cond
+    } else {
+      val remainingFilters =
+        FilterHandler.getRemainingFilters(scanFilters, splitConjunctivePredicates(cond))
+      remainingFilters.reduceLeftOption(And).orNull
+    }
+  }
 
   override protected def doValidateInternal(): ValidationResult = {
     val remainingCondition = getRemainingCondition

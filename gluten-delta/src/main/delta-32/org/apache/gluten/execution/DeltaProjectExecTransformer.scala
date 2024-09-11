@@ -37,10 +37,6 @@ case class DeltaProjectExecTransformer(projectList: Seq[NamedExpression], child:
 
   private var extraMetrics = mutable.Seq.empty[(String, SQLMetric)]
 
-  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
-  @transient override lazy val metrics =
-    BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetrics(sparkContext)
-
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetricsUpdater(
       metrics,
