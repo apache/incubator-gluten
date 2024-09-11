@@ -79,6 +79,12 @@ enum class OpCase : uint8_t
     RightConstant
 };
 
+enum class OpMode : uint8_t
+{
+    Default,
+    Effect
+};
+
 template <bool is_plus_minus, bool is_multiply, bool is_division>
 bool calculateWith256(const IDataType & left, const IDataType & right)
 {
@@ -100,7 +106,7 @@ bool calculateWith256(const IDataType & left, const IDataType & right)
     return precision > DataTypeDecimal128::maxPrecision();
 }
 
-template <typename Operation>
+template <typename Operation, OpMode Mode>
 struct SparkDecimalBinaryOperation
 {
 private:
@@ -132,6 +138,12 @@ public:
 
         const ColVecLeft * const col_left = checkAndGetColumn<ColVecLeft>(col_left_raw);
         const ColVecRight * const col_right = checkAndGetColumn<ColVecRight>(col_right_raw);
+
+        if constexpr (Mode == OpMode::Effect)
+        {
+            return executeDecimalImpl<LeftDataType, RightDataType, ResultDataType>(
+                left, right, col_left_const, col_right_const, col_left, col_right, col_left_size, result);
+        }
 
         if (calculateWith256<is_plus_minus, is_multiply, is_division>(*arguments[0].type.get(), *arguments[1].type.get()))
         {
@@ -379,13 +391,12 @@ private:
 };
 
 
-template <class Operation, typename Name>
+template <class Operation, typename Name, OpMode Mode = OpMode::Default>
 class SparkFunctionDecimalBinaryArithmetic final : public IFunction
 {
     static constexpr bool is_plus_minus = SparkIsOperation<Operation>::plus || SparkIsOperation<Operation>::minus;
     static constexpr bool is_multiply = SparkIsOperation<Operation>::multiply;
     static constexpr bool is_division = SparkIsOperation<Operation>::division;
-
 
 public:
     static constexpr auto name = Name::name;
@@ -430,10 +441,11 @@ public:
         const bool valid = castBothTypes(
             left_generic,
             right_generic,
-            // getReturnType<is_plus_minus, is_multiply, is_division>(*left_generic, *right_generic).get(),
             removeNullable(arguments[2].type).get(),
-            [&](const auto & left, const auto & right, const auto & result)
-            { return (res = SparkDecimalBinaryOperation<Operation>::template executeDecimal(arguments, left, right, result)) != nullptr; });
+            [&](const auto & left, const auto & right, const auto & result) {
+                return (res = SparkDecimalBinaryOperation<Operation, Mode>::template executeDecimal(arguments, left, right, result))
+                    != nullptr;
+            });
 
         if (!valid)
         {
@@ -480,31 +492,55 @@ struct NameSparkDecimalPlus
 {
     static constexpr auto name = "sparkDecimalPlus";
 };
+struct NameSparkDecimalPlusEffect
+{
+    static constexpr auto name = "sparkDecimalPlusEffect";
+};
 struct NameSparkDecimalMinus
 {
     static constexpr auto name = "sparkDecimalMinus";
+};
+struct NameSparkDecimalMinusEffect
+{
+    static constexpr auto name = "sparkDecimalMinusEffect";
 };
 struct NameSparkDecimalMultiply
 {
     static constexpr auto name = "sparkDecimalMultiply";
 };
+struct NameSparkDecimalMultiplyEffect
+{
+    static constexpr auto name = "sparkDecimalMultiplyEffect";
+};
 struct NameSparkDecimalDivide
 {
     static constexpr auto name = "sparkDecimalDivide";
 };
+struct NameSparkDecimalDivideEffect
+{
+    static constexpr auto name = "sparkDecimalDivideEffect";
+};
 
-using SparkDecimalFunctionPlus = SparkFunctionDecimalBinaryArithmetic<DecimalPlusImpl, NameSparkDecimalPlus>;
-using SparkDecimalFunctionMinus = SparkFunctionDecimalBinaryArithmetic<DecimalMinusImpl, NameSparkDecimalMinus>;
-using SparkDecimalFunctionMultiply = SparkFunctionDecimalBinaryArithmetic<DecimalMultiplyImpl, NameSparkDecimalMultiply>;
-using SparkDecimalFunctionDivide = SparkFunctionDecimalBinaryArithmetic<DecimalDivideImpl, NameSparkDecimalDivide>;
+using DecimalPlus = SparkFunctionDecimalBinaryArithmetic<DecimalPlusImpl, NameSparkDecimalPlus>;
+using DecimalMinus = SparkFunctionDecimalBinaryArithmetic<DecimalMinusImpl, NameSparkDecimalMinus>;
+using DecimalMultiply = SparkFunctionDecimalBinaryArithmetic<DecimalMultiplyImpl, NameSparkDecimalMultiply>;
+using DecimalDivide = SparkFunctionDecimalBinaryArithmetic<DecimalDivideImpl, NameSparkDecimalDivide>;
 
+using DecimalPlusEffect = SparkFunctionDecimalBinaryArithmetic<DecimalPlusImpl, NameSparkDecimalPlusEffect, OpMode::Effect>;
+using DecimalMinusEffect = SparkFunctionDecimalBinaryArithmetic<DecimalMinusImpl, NameSparkDecimalMinusEffect, OpMode::Effect>;
+using DecimalMultiplyEffect = SparkFunctionDecimalBinaryArithmetic<DecimalMultiplyImpl, NameSparkDecimalMultiplyEffect, OpMode::Effect>;
+using DecimalDivideEffect = SparkFunctionDecimalBinaryArithmetic<DecimalDivideImpl, NameSparkDecimalDivideEffect, OpMode::Effect>;
 }
 
 REGISTER_FUNCTION(SparkDecimalFunctionArithmetic)
 {
-    factory.registerFunction<SparkDecimalFunctionPlus>();
-    factory.registerFunction<SparkDecimalFunctionMinus>();
-    factory.registerFunction<SparkDecimalFunctionMultiply>();
-    factory.registerFunction<SparkDecimalFunctionDivide>();
+    factory.registerFunction<DecimalPlus>();
+    factory.registerFunction<DecimalMinus>();
+    factory.registerFunction<DecimalMultiply>();
+    factory.registerFunction<DecimalDivide>();
+    factory.registerFunction<DecimalPlusEffect>();
+    factory.registerFunction<DecimalMinusEffect>();
+    factory.registerFunction<DecimalMultiplyEffect>();
+    factory.registerFunction<DecimalDivideEffect>();
 }
 }

@@ -214,9 +214,16 @@ protected:
 
         if (isDecimal(removeNullable(left_arg->result_type)) && isDecimal(removeNullable(right_arg->result_type)))
         {
-            const ActionsDAG::Node * type_node = &actions_dag.addColumn(
-                ColumnWithTypeAndName(result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
-            return toFunctionNode(actions_dag, "sparkDecimalPlus", {left_arg, right_arg, type_node});
+            const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
+                result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
+
+            const auto & settings = plan_parser->getContext()->getSettingsRef();
+            auto function_name
+                = settings.has("arithmetic.decimal.mode") && Poco::toUpper(settings.getString("arithmetic.decimal.mode")) == "'EFFECT'"
+                ? "sparkDecimalPlusEffect"
+                : "sparkDecimalPlus";
+
+            return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
         }
 
         return toFunctionNode(actions_dag, "plus", {left_arg, right_arg});
@@ -249,9 +256,16 @@ protected:
 
         if (isDecimal(removeNullable(left_arg->result_type)) && isDecimal(removeNullable(right_arg->result_type)))
         {
-            const ActionsDAG::Node * type_node = &actions_dag.addColumn(
-                ColumnWithTypeAndName(result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
-            return toFunctionNode(actions_dag, "sparkDecimalMinus", {left_arg, right_arg, type_node});
+            const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
+                result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
+
+            const auto & settings = plan_parser->getContext()->getSettingsRef();
+            auto function_name
+                = settings.has("arithmetic.decimal.mode") && Poco::toUpper(settings.getString("arithmetic.decimal.mode")) == "'EFFECT'"
+                ? "sparkDecimalMinusEffect"
+                : "sparkDecimalMinus";
+
+            return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
         }
 
         return toFunctionNode(actions_dag, "minus", {left_arg, right_arg});
@@ -283,9 +297,16 @@ protected:
 
         if (isDecimal(removeNullable(left_arg->result_type)) && isDecimal(removeNullable(right_arg->result_type)))
         {
-            const ActionsDAG::Node * type_node = &actions_dag.addColumn(
-                ColumnWithTypeAndName(result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
-            return toFunctionNode(actions_dag, "sparkDecimalMultiply", {left_arg, right_arg, type_node});
+            const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
+                result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
+
+            const auto & settings = plan_parser->getContext()->getSettingsRef();
+            auto function_name
+                = settings.has("arithmetic.decimal.mode") && Poco::toUpper(settings.getString("arithmetic.decimal.mode")) == "'EFFECT'"
+                ? "sparkDecimalMultiplyEffect"
+                : "sparkDecimalMultiply";
+
+            return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
         }
 
         return toFunctionNode(actions_dag, "multiply", {left_arg, right_arg});
@@ -333,9 +354,16 @@ protected:
 
         if (isDecimal(removeNullable(left_arg->result_type)) || isDecimal(removeNullable(right_arg->result_type)))
         {
-            const ActionsDAG::Node * type_node = &actions_dag.addColumn(
-                ColumnWithTypeAndName(result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
-            return toFunctionNode(actions_dag, "sparkDecimalDivide", {left_arg, right_arg, type_node});
+            const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
+                result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
+
+            const auto & settings = plan_parser->getContext()->getSettingsRef();
+            auto function_name
+                = settings.has("arithmetic.decimal.mode") && Poco::toUpper(settings.getString("arithmetic.decimal.mode")) == "'EFFECT'"
+                ? "sparkDecimalDivideEffect"
+                : "sparkDecimalDivide";
+            ;
+            return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
         }
 
         return toFunctionNode(actions_dag, "sparkDivide", {left_arg, right_arg});
