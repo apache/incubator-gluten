@@ -159,7 +159,6 @@ public:
         const auto right_type = DB::removeNullable(parsed_args[1]->result_type);
         const bool converted = isDecimal(left_type) && isDecimal(right_type);
 
-        // if (converted )
         if (converted && ch_func_name != "minus" && ch_func_name != "plus" && ch_func_name != "multiply" && ch_func_name != "divide")
         {
             const DecimalType evalType = getDecimalType(left_type, right_type);
@@ -168,9 +167,6 @@ public:
 
         const auto result_type = removeNullable(TypeParser::parseType(substrait_func.output_type()));
         const auto * func_node = createFunctionNode(actions_dag, ch_func_name, parsed_args, result_type);
-
-        const auto pp = removeNullable(TypeParser::parseType(substrait_func.output_type()));
-        std::cout << "pp: " << pp->getName() << ", func_node: " << func_node->result_type->getName() << std::endl;
 
         if (converted && ch_func_name != "minus" && ch_func_name != "plus" && ch_func_name != "multiply" && ch_func_name != "divide")
         {
