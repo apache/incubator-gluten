@@ -38,10 +38,17 @@ object RewriteJoin extends RewriteSingleNode with JoinSelectionHelper {
     if (!rightBuildable) {
       return Some(BuildLeft)
     }
-    join.logicalLink.flatMap {
-      case join: Join => Some(OffloadJoin.getOptimalBuildSide(join))
-      case _ => None
-    }
+    val side = join.logicalLink
+      .flatMap {
+        case join: Join => Some(OffloadJoin.getOptimalBuildSide(join))
+        case _ => None
+      }
+      .getOrElse {
+        // If smj has no logical link, or its logical link is not a join,
+        // then we always choose left as build side.
+        BuildLeft
+      }
+    Some(side)
   }
 
   override def rewrite(plan: SparkPlan): SparkPlan = plan match {
