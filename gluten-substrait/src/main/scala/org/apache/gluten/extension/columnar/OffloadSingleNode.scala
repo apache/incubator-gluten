@@ -39,11 +39,11 @@ import org.apache.spark.sql.execution.window.{WindowExec, WindowGroupLimitExecSh
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 
 /**
- * Converts a vanilla Spark plan node into Gluten plan node. Gluten plan is supposed to be
- * executed in native, and the internals of execution is subject by backend's implementation.
+ * Converts a vanilla Spark plan node into Gluten plan node. Gluten plan is supposed to be executed
+ * in native, and the internals of execution is subject by backend's implementation.
  *
- * Note: Only the current plan node is supposed to be open to modification. Do not access or
- * modify the children node. Tree-walking is done by caller of this trait.
+ * Note: Only the current plan node is supposed to be open to modification. Do not access or modify
+ * the children node. Tree-walking is done by caller of this trait.
  */
 sealed trait OffloadSingleNode extends Logging {
   def offload(plan: SparkPlan): SparkPlan
@@ -75,8 +75,10 @@ case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
     val aggChild = plan.child
 
     // If child's output is empty, fallback or offload both the child and aggregation.
-    if (aggChild.output.isEmpty && BackendsApiManager.getSettings
-        .fallbackAggregateWithEmptyOutputChild()) {
+    if (
+      aggChild.output.isEmpty && BackendsApiManager.getSettings
+        .fallbackAggregateWithEmptyOutputChild()
+    ) {
       aggChild match {
         case _: TransformSupport =>
           // If the child is transformable, transform aggregation as well.
@@ -376,7 +378,8 @@ object OffloadOthers {
             windowGroupLimitPlan.rankLikeFunction,
             windowGroupLimitPlan.limit,
             windowGroupLimitPlan.mode,
-            windowGroupLimitPlan.child)
+            windowGroupLimitPlan.child
+          )
         case plan: GlobalLimitExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val child = plan.child
