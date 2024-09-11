@@ -16,15 +16,11 @@
  */
 
 #include "WindowGroupLimitRelParser.h"
-#include <Interpreters/ActionsDAG.h>
 #include <Operator/WindowGroupLimitStep.h>
 #include <Parser/AdvancedParametersParseUtil.h>
-#include <Parser/SortRelParser.h>
-#include <Parser/WindowGroupLimitRelParser.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <google/protobuf/repeated_field.h>
 #include <google/protobuf/wrappers.pb.h>
-#include "AdvancedParametersParseUtil.h"
 
 namespace DB::ErrorCodes
 {

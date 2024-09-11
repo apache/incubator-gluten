@@ -38,11 +38,12 @@ public:
     explicit CrossRelParser(SerializedPlanParser * plan_paser_);
     ~CrossRelParser() override = default;
 
+    DB::QueryPlanPtr parse(
+        std::vector<DB::QueryPlanPtr> & input_plans_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
     DB::QueryPlanPtr
-    parse(DB::QueryPlanPtr query_plan, const substrait::Rel & sort_rel, std::list<const substrait::Rel *> & rel_stack_) override;
+    parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
 
-    DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack) override;
-
+    std::vector<const substrait::Rel *> getInputs(const substrait::Rel & rel) override;
     std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override;
 
 private:

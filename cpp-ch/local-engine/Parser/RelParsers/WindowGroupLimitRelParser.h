@@ -15,13 +15,8 @@
  * limitations under the License.
  */
 #pragma once
-#include <unordered_map>
-#include <Core/Field.h>
-#include <Core/SortDescription.h>
-#include <DataTypes/IDataType.h>
-#include <Interpreters/WindowDescription.h>
-#include <Parser/AggregateFunctionParser.h>
-#include <Parser/RelParser.h>
+#include <optional>
+#include <Parser/RelParsers/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Poco/Logger.h>
@@ -40,7 +35,7 @@ public:
     ~WindowGroupLimitRelParser() override = default;
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
-    const substrait::Rel & getSingleInput(const substrait::Rel & rel) override { return rel.windowgrouplimit().input(); }
+    std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override { return &rel.windowgrouplimit().input(); }
 
 private:
     DB::QueryPlanPtr current_plan;

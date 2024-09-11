@@ -54,6 +54,7 @@
 #include <Parser/FunctionParser.h>
 #include <Parser/InputFileNameParser.h>
 #include <Parser/LocalExecutor.h>
+#include <Parser/RelParsers/ReadRelParser.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Parser/RelParsers/WriteRelParser.h>
 #include <Parser/SubstraitParserUtils.h>
@@ -84,6 +85,7 @@
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
+#include "RelParsers/RelParser.h"
 
 namespace DB
 {
@@ -374,13 +376,48 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const substr
 
 QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
 {
-    QueryPlanPtr query_plan;
-    std::vector<IQueryPlanStep *> steps;
+    DB::QueryPlanPtr query_plan;
+    auto rel_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(this);
 
-    auto op_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(this);
-    query_plan = op_parser->parseOp(rel, rel_stack);
-    auto parser_steps = op_parser->getSteps();
-    steps.insert(steps.end(), parser_steps.begin(), parser_steps.end());
+    auto all_input_rels = rel_parser->getInputs(rel);
+    std::vector<DB::QueryPlanPtr> input_query_plans;
+    rel_stack.push_back(&rel);
+    for (const auto * input_rel : all_input_rels)
+    {
+        auto input_query_plan = parseOp(*input_rel, rel_stack);
+        input_query_plans.push_back(std::move(input_query_plan));
+    }
+    rel_stack.pop_back();
+
+    // source node is special
+    if (rel.rel_type_case() == substrait::Rel::RelTypeCase::kRead)
+    {
+        assert(all_input_rels.empty());
+        auto read_rel_parser = std::dynamic_pointer_cast<ReadRelParser>(rel_parser);
+        const auto & read = rel.read();
+        if (read.has_local_files())
+        {
+            if (read_rel_parser->isReadRelFromJava(read))
+            {
+                auto iter = read.local_files().items().at(0).uri_file();
+                auto pos = iter.find(':');
+                auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
+                auto [input_iter, materalize_input] = getInputIter(static_cast<size_t>(iter_index));
+                read_rel_parser->setInputIter(input_iter, materalize_input);
+            }
+        }
+        else if (read_rel_parser->isReadFromMergeTree(read))
+        {
+            if (!read.has_extension_table())
+            {
+                read_rel_parser->setSplitInfo(nextSplitInfo());
+            }
+        }
+    }
+
+    query_plan = rel_parser->parse(input_query_plans, rel, rel_stack);
+
+    std::vector<DB::IQueryPlanStep *> steps = rel_parser->getSteps();
 
     if (!context->getSettingsRef().query_plan_enable_optimizations)
     {
@@ -1187,218 +1224,6 @@ SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_) : contex
 {
 }
 
-<<<<<<< HEAD
-void SerializedPlanParser::collectJoinKeys(
-    const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start)
-{
-    auto condition_name = getFunctionName(
-        function_mapping.at(std::to_string(condition.scalar_function().function_reference())), condition.scalar_function());
-    if (condition_name == "and")
-    {
-        collectJoinKeys(condition.scalar_function().arguments(0).value(), join_keys, right_key_start);
-        collectJoinKeys(condition.scalar_function().arguments(1).value(), join_keys, right_key_start);
-    }
-    else if (condition_name == "equals")
-    {
-        const auto & function = condition.scalar_function();
-        auto left_key_idx = function.arguments(0).value().selection().direct_reference().struct_field().field();
-        auto right_key_idx = function.arguments(1).value().selection().direct_reference().struct_field().field() - right_key_start;
-        join_keys.emplace_back(std::pair(left_key_idx, right_key_idx));
-    }
-    else
-    {
-        throw Exception(ErrorCodes::BAD_ARGUMENTS, "doesn't support condition {}", condition_name);
-    }
-}
-
-ActionsDAG ASTParser::convertToActions(const NamesAndTypesList & name_and_types, const ASTPtr & ast) const
-{
-    NamesAndTypesList aggregation_keys;
-    ColumnNumbersList aggregation_keys_indexes_list;
-    AggregationKeysInfo info(aggregation_keys, aggregation_keys_indexes_list, GroupByKind::NONE);
-    SizeLimits size_limits_for_set;
-    ActionsMatcher::Data visitor_data(
-        context,
-        size_limits_for_set,
-        static_cast<size_t>(0),
-        name_and_types,
-        ActionsDAG(name_and_types),
-        std::make_shared<PreparedSets>(),
-        false /* no_subqueries */,
-        false /* no_makeset */,
-        false /* only_consts */,
-        info);
-    ActionsVisitor(visitor_data).visit(ast);
-    return visitor_data.getActions();
-}
-
-ASTPtr ASTParser::parseToAST(const Names & names, const substrait::Expression & rel)
-{
-    LOG_DEBUG(&Poco::Logger::get("ASTParser"), "substrait plan:\n{}", rel.DebugString());
-    if (rel.has_scalar_function())
-    {
-        const auto & scalar_function = rel.scalar_function();
-        auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
-
-        auto substrait_name = function_signature.substr(0, function_signature.find(':'));
-        auto func_parser = FunctionParserFactory::instance().tryGet(substrait_name, plan_parser);
-        String function_name = func_parser->getName();
-
-        ASTs ast_args;
-        parseFunctionArgumentsToAST(names, scalar_function, ast_args);
-
-        return makeASTFunction(function_name, ast_args);
-    }
-    else
-        return parseArgumentToAST(names, rel);
-}
-
-void ASTParser::parseFunctionArgumentsToAST(
-    const Names & names, const substrait::Expression_ScalarFunction & scalar_function, ASTs & ast_args)
-{
-    const auto & args = scalar_function.arguments();
-
-    for (const auto & arg : args)
-    {
-        if (arg.value().has_scalar_function())
-        {
-            ast_args.emplace_back(parseToAST(names, arg.value()));
-        }
-        else
-        {
-            ast_args.emplace_back(parseArgumentToAST(names, arg.value()));
-        }
-    }
-}
-
-ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expression & rel)
-{
-    switch (rel.rex_type_case())
-    {
-        case substrait::Expression::RexTypeCase::kLiteral: {
-            DataTypePtr type;
-            Field field;
-            std::tie(type, field) = SerializedPlanParser::parseLiteral(rel.literal());
-            return std::make_shared<ASTLiteral>(field, type);
-        }
-        case substrait::Expression::RexTypeCase::kSelection: {
-            if (!rel.selection().has_direct_reference() || !rel.selection().direct_reference().has_struct_field())
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "Can only have direct struct references in selections");
-
-            const auto field = rel.selection().direct_reference().struct_field().field();
-            return std::make_shared<ASTIdentifier>(names[field]);
-        }
-        case substrait::Expression::RexTypeCase::kCast: {
-            if (!rel.cast().has_type() || !rel.cast().has_input())
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
-
-            /// Append input to asts
-            ASTs args;
-            args.emplace_back(parseArgumentToAST(names, rel.cast().input()));
-
-            /// Append destination type to asts
-            const auto & substrait_type = rel.cast().type();
-            /// Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
-            if (substrait_type.has_binary())
-                return makeASTFunction("reinterpretAsStringSpark", args);
-            else
-            {
-                DataTypePtr ch_type = TypeParser::parseType(substrait_type);
-                args.emplace_back(std::make_shared<ASTLiteral>(ch_type->getName()));
-
-                return makeASTFunction("CAST", args);
-            }
-        }
-        case substrait::Expression::RexTypeCase::kIfThen: {
-            const auto & if_then = rel.if_then();
-            auto condition_nums = if_then.ifs_size();
-            std::string ch_function_name = condition_nums == 1 ? "if" : "multiIf";
-            auto function_multi_if = FunctionFactory::instance().get(ch_function_name, context);
-            ASTs args;
-
-            for (int i = 0; i < condition_nums; ++i)
-            {
-                const auto & ifs = if_then.ifs(i);
-                auto if_node = parseArgumentToAST(names, ifs.if_());
-                args.emplace_back(if_node);
-
-                auto then_node = parseArgumentToAST(names, ifs.then());
-                args.emplace_back(then_node);
-            }
-
-            auto else_node = parseArgumentToAST(names, if_then.else_());
-            args.emplace_back(std::move(else_node));
-            return makeASTFunction(ch_function_name, args);
-        }
-        case substrait::Expression::RexTypeCase::kScalarFunction: {
-            return parseToAST(names, rel);
-        }
-        case substrait::Expression::RexTypeCase::kSingularOrList: {
-            const auto & options = rel.singular_or_list().options();
-            /// options is empty always return false
-            if (options.empty())
-                return std::make_shared<ASTLiteral>(0);
-            /// options should be literals
-            if (!options[0].has_literal())
-                throw Exception(ErrorCodes::LOGICAL_ERROR, "Options of SingularOrList must have literal type");
-
-            ASTs args;
-            args.emplace_back(parseArgumentToAST(names, rel.singular_or_list().value()));
-
-            bool nullable = false;
-            size_t options_len = options.size();
-            ASTs in_args;
-            in_args.reserve(options_len);
-
-            for (int i = 0; i < static_cast<int>(options_len); ++i)
-            {
-                if (!options[i].has_literal())
-                    throw Exception(ErrorCodes::BAD_ARGUMENTS, "in expression values must be the literal!");
-                if (!nullable)
-                    nullable = options[i].literal().has_null();
-            }
-
-            auto elem_type_and_field = SerializedPlanParser::parseLiteral(options[0].literal());
-            DataTypePtr elem_type = wrapNullableType(nullable, elem_type_and_field.first);
-            for (int i = 0; i < static_cast<int>(options_len); ++i)
-            {
-                auto type_and_field = SerializedPlanParser::parseLiteral(options[i].literal());
-                auto option_type = wrapNullableType(nullable, type_and_field.first);
-                if (!elem_type->equals(*option_type))
-                    throw Exception(
-                        ErrorCodes::LOGICAL_ERROR,
-                        "SingularOrList options type mismatch:{} and {}",
-                        elem_type->getName(),
-                        option_type->getName());
-
-                in_args.emplace_back(std::make_shared<ASTLiteral>(type_and_field.second));
-            }
-            auto array_ast = makeASTFunction("array", in_args);
-            args.emplace_back(array_ast);
-
-            auto ast = makeASTFunction("in", args);
-            if (nullable)
-            {
-                /// if sets has `null` and value not in sets
-                /// In Spark: return `null`, is the standard behaviour from ANSI.(SPARK-37920)
-                /// In CH: return `false`
-                /// So we used if(a, b, c) cast `false` to `null` if sets has `null`
-                ast = makeASTFunction("if", ast, std::make_shared<ASTLiteral>(true), std::make_shared<ASTLiteral>(Field()));
-            }
-
-            return ast;
-        }
-        default:
-            throw Exception(
-                ErrorCodes::UNKNOWN_TYPE,
-                "Join on condition error. Unsupported spark expression type {} : {}",
-                magic_enum::enum_name(rel.rex_type_case()),
-                rel.DebugString());
-    }
-}
-
-=======
->>>>>>> refactor for rel parsers
 void SerializedPlanParser::removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAG & actions_dag) const
 {
     for (const auto & item : require_columns)

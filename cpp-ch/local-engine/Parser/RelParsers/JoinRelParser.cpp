@@ -80,12 +80,7 @@ JoinRelParser::parse(DB::QueryPlanPtr /*query_plan*/, const substrait::Rel & /*r
     throw Exception(ErrorCodes::LOGICAL_ERROR, "join node has 2 inputs, can't call parse().");
 }
 
-std::optional<const substrait::Rel *> JoinRelParser::getSingleInput(const substrait::Rel & /*rel*/)
-{
-    throw Exception(ErrorCodes::LOGICAL_ERROR, "join node has 2 inputs, can't call getSingleInput().");
-}
-
-DB::QueryPlanPtr JoinRelParser::parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
+std::vector<const substrait::Rel *> JoinRelParser::getInputs(const substrait::Rel & rel)
 {
     const auto & join = rel.join();
     if (!join.has_left() || !join.has_right())
@@ -93,12 +88,19 @@ DB::QueryPlanPtr JoinRelParser::parseOp(const substrait::Rel & rel, std::list<co
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "left table or right table is missing.");
     }
 
-    rel_stack.push_back(&rel);
-    auto left_plan = getPlanParser()->parseOp(join.left(), rel_stack);
-    auto right_plan = getPlanParser()->parseOp(join.right(), rel_stack);
-    rel_stack.pop_back();
+    return {&join.left(), &join.right()};
+}
+std::optional<const substrait::Rel *> JoinRelParser::getSingleInput(const substrait::Rel & /*rel*/)
+{
+    throw Exception(ErrorCodes::LOGICAL_ERROR, "join node has 2 inputs, can't call getSingleInput().");
+}
 
-    return parseJoin(join, std::move(left_plan), std::move(right_plan));
+DB::QueryPlanPtr JoinRelParser::parse(
+    std::vector<DB::QueryPlanPtr> & input_plans_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
+{
+    assert(input_plans_.size() == 2);
+    const auto & join = rel.join();
+    return parseJoin(join, std::move(input_plans_[0]), std::move(input_plans_[1]));
 }
 
 std::unordered_set<DB::JoinTableSide> JoinRelParser::extractTableSidesFromExpression(

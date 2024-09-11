@@ -39,7 +39,9 @@ public:
     virtual DB::QueryPlanPtr
     parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
         = 0;
-    virtual DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
+    virtual DB::QueryPlanPtr
+    parse(std::vector<DB::QueryPlanPtr> & input_plans_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_);
+    virtual std::vector<const substrait::Rel *> getInputs(const substrait::Rel & rel);
     virtual std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) = 0;
     const std::vector<IQueryPlanStep *> & getSteps() const { return steps; }
 
