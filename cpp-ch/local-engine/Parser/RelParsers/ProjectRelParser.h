@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 #pragma once
+#include <optional>
 #include <Core/Block.h>
 #include <Core/SortDescription.h>
-#include <Parser/RelParser.h>
+#include <Parser/RelParsers/RelParser.h>
 #include <Poco/Logger.h>
 
 namespace local_engine
@@ -29,7 +30,7 @@ public:
     {
         ActionsDAG before_array_join; /// Optional
         ActionsDAG array_join;
-        ActionsDAG after_array_join;  /// Optional
+        ActionsDAG after_array_join; /// Optional
     };
 
     explicit ProjectRelParser(SerializedPlanParser * plan_paser_);
@@ -44,21 +45,21 @@ private:
     DB::QueryPlanPtr parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_);
     DB::QueryPlanPtr parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_);
 
-    static const DB::ActionsDAG::Node * findArrayJoinNode(const ActionsDAG& actions_dag);
+    static const DB::ActionsDAG::Node * findArrayJoinNode(const ActionsDAG & actions_dag);
 
     /// Split actions_dag of generate rel into 3 parts: before array join + during array join + after array join
-    static SplittedActionsDAGs splitActionsDAGInGenerate(const ActionsDAG& actions_dag);
+    static SplittedActionsDAGs splitActionsDAGInGenerate(const ActionsDAG & actions_dag);
 
     bool isReplicateRows(substrait::GenerateRel rel);
 
     DB::QueryPlanPtr parseReplicateRows(QueryPlanPtr query_plan, substrait::GenerateRel generate_rel);
 
-    const substrait::Rel & getSingleInput(const substrait::Rel & rel) override
+    std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override
     {
         if (rel.has_generate())
-            return rel.generate().input();
+            return &rel.generate().input();
 
-        return rel.project().input();
+        return &rel.project().input();
     }
 };
 }

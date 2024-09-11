@@ -48,7 +48,7 @@
 #include <Functions/registerFunctions.h>
 #include <IO/SharedThreadPools.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
-#include <Parser/RelParser.h>
+#include <Parser/RelParsers/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Planner/PlannerActionsVisitor.h>

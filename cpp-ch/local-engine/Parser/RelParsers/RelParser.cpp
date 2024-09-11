@@ -84,7 +84,12 @@ DB::QueryPlanPtr RelParser::parseOp(const substrait::Rel & rel, std::list<const 
 {
     SerializedPlanParser & planParser = *getPlanParser();
     rel_stack.push_back(&rel);
-    auto query_plan = planParser.parseOp(getSingleInput(rel), rel_stack);
+    DB::QueryPlanPtr query_plan;
+    auto input = getSingleInput(rel);
+    if (input)
+    {
+        query_plan = planParser.parseOp(**input, rel_stack);
+    }
     rel_stack.pop_back();
     return parse(std::move(query_plan), rel, rel_stack);
 }
@@ -160,6 +165,8 @@ void registerProjectRelParser(RelParserFactory & factory);
 void registerJoinRelParser(RelParserFactory & factory);
 void registerFilterRelParser(RelParserFactory & factory);
 void registerCrossRelParser(RelParserFactory & factory);
+void registerFetchRelParser(RelParserFactory & factory);
+void registerReadRelParser(RelParserFactory & factory);
 
 void registerRelParsers()
 {
@@ -173,5 +180,7 @@ void registerRelParsers()
     registerJoinRelParser(factory);
     registerCrossRelParser(factory);
     registerFilterRelParser(factory);
+    registerFetchRelParser(factory);
+    registerReadRelParser(factory);
 }
 }

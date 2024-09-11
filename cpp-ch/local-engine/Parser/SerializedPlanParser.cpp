@@ -52,14 +52,15 @@
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Operator/BlocksBufferPoolTransform.h>
 #include <Parser/FunctionParser.h>
-#include <Parser/MergeTreeRelParser.h>
-#include <Parser/RelParser.h>
+#include <Parser/InputFileNameParser.h>
+#include <Parser/LocalExecutor.h>
+#include <Parser/RelParsers/RelParser.h>
+#include <Parser/RelParsers/WriteRelParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
-#include <Parser/WriteRelParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
-#include <Parser/LocalExecutor.h>
+#include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/LimitStep.h>
@@ -83,8 +84,6 @@
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
-#include <Processors/Executors/PipelineExecutor.h>
-#include <Parser/InputFileNameParser.h>
 
 namespace DB
 {
@@ -117,7 +116,7 @@ std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
     return res;
 }
 
-const ActionsDAG::Node * SerializedPlanParser::addColumn(ActionsDAG& actions_dag, const DataTypePtr & type, const Field & field)
+const ActionsDAG::Node * SerializedPlanParser::addColumn(ActionsDAG & actions_dag, const DataTypePtr & type, const Field & field)
 {
     return &actions_dag.addColumn(
         ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field).substr(0, 10))));
@@ -242,74 +241,6 @@ std::string getDecimalFunction(const substrait::Type_Decimal & decimal, bool nul
     return ch_function_name;
 }
 
-bool SerializedPlanParser::isReadRelFromJava(const substrait::ReadRel & rel)
-{
-    return rel.has_local_files() && rel.local_files().items().size() == 1
-        && rel.local_files().items().at(0).uri_file().starts_with("iterator");
-}
-
-bool SerializedPlanParser::isReadFromMergeTree(const substrait::ReadRel & rel)
-{
-    assert(rel.has_advanced_extension());
-    bool is_read_from_merge_tree;
-    google::protobuf::StringValue optimization;
-    optimization.ParseFromString(rel.advanced_extension().optimization().value());
-    ReadBufferFromString in(optimization.value());
-    assertString("isMergeTree=", in);
-    readBoolText(is_read_from_merge_tree, in);
-    assertChar('\n', in);
-    return is_read_from_merge_tree;
-}
-
-QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrait::ReadRel & rel)
-{
-    auto header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
-    substrait::ReadRel::LocalFiles local_files;
-    if (rel.has_local_files())
-        local_files = rel.local_files();
-    else
-    {
-        local_files = BinaryToMessage<substrait::ReadRel::LocalFiles>(split_infos.at(nextSplitInfoIndex()));
-        logDebugMessage(local_files, "local_files");
-    }
-    auto source = std::make_shared<SubstraitFileSource>(context, header, local_files);
-    auto source_pipe = Pipe(source);
-    auto source_step = std::make_unique<SubstraitFileSourceStep>(context, std::move(source_pipe), "substrait local files");
-    source_step->setStepDescription("read local files");
-    if (rel.has_filter())
-    {
-        ActionsDAG actions_dag{blockToNameAndTypeList(header)};
-        const ActionsDAG::Node * filter_node = parseExpression(actions_dag, rel.filter());
-        actions_dag.addOrReplaceInOutputs(*filter_node);
-        assert(filter_node == &(actions_dag.findInOutputs(filter_node->result_name)));
-        source_step->addFilter(std::move(actions_dag), filter_node->result_name);
-    }
-    return source_step;
-}
-
-QueryPlanStepPtr SerializedPlanParser::parseReadRealWithJavaIter(const substrait::ReadRel & rel)
-{
-    assert(rel.has_local_files());
-    assert(rel.local_files().items().size() == 1);
-    auto iter = rel.local_files().items().at(0).uri_file();
-    auto pos = iter.find(':');
-    auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
-    jobject input_iter = input_iters[iter_index];
-    bool materialize_input = materialize_inputs[iter_index];
-
-    GET_JNIENV(env)
-    SCOPE_EXIT({CLEAN_JNIENV});
-    auto first_block = SourceFromJavaIter::peekBlock(env, input_iter);
-
-    /// Try to decide header from the first block read from Java iterator. Thus AggregateFunction with parameters has more precise types.
-    auto header = first_block.has_value() ? first_block->cloneEmpty() : TypeParser::buildBlockFromNamedStruct(rel.base_schema());
-    auto source = std::make_shared<SourceFromJavaIter>(context, std::move(header), input_iter, materialize_input, std::move(first_block));
-
-    QueryPlanStepPtr source_step = std::make_unique<ReadFromPreparedSource>(Pipe(source));
-    source_step->setStepDescription("Read From Java Iter");
-    return source_step;
-}
-
 IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns)
 {
     if (columns.empty())
@@ -345,7 +276,11 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         NamesWithAliases aliases;
         auto cols = query_plan->getCurrentDataStream().header.getNamesAndTypesList();
         if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
-            throw Exception(ErrorCodes::LOGICAL_ERROR, "Missmatch result columns size. plan column size {}, subtrait plan size {}.", cols.getNames().size(), root_rel.root().names_size());
+            throw Exception(
+                ErrorCodes::LOGICAL_ERROR,
+                "Missmatch result columns size. plan column size {}, subtrait plan size {}.",
+                cols.getNames().size(),
+                root_rel.root().names_size());
         for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
             aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
         actions_dag.project(aliases);
@@ -433,88 +368,19 @@ QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
 }
 
 std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const substrait::Plan & plan)
-{ return createExecutor(parse(plan), plan); }
+{
+    return createExecutor(parse(plan), plan);
+}
 
 QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
 {
     QueryPlanPtr query_plan;
     std::vector<IQueryPlanStep *> steps;
-    switch (rel.rel_type_case())
-    {
-        case substrait::Rel::RelTypeCase::kFetch: {
-            rel_stack.push_back(&rel);
-            const auto & limit = rel.fetch();
-            query_plan = parseOp(limit.input(), rel_stack);
-            rel_stack.pop_back();
-            auto limit_step = std::make_unique<LimitStep>(query_plan->getCurrentDataStream(), limit.count(), limit.offset());
-            limit_step->setStepDescription("LIMIT");
-            steps.emplace_back(limit_step.get());
-            query_plan->addStep(std::move(limit_step));
-            break;
-        }
-        case substrait::Rel::RelTypeCase::kRead: {
-            const auto & read = rel.read();
-            // TODO: We still maintain the old logic of parsing LocalFiles or ExtensionTable in RealRel
-            // to be compatiable with some suites about metrics.
-            // Remove this compatiability in later and then only java iter has local files in ReadRel.
-            if (read.has_local_files() || (!read.has_extension_table() && !isReadFromMergeTree(read)))
-            {
-                assert(read.has_base_schema());
-                QueryPlanStepPtr step;
-                if (isReadRelFromJava(read))
-                    step = parseReadRealWithJavaIter(read);
-                else
-                    step = parseReadRealWithLocalFile(read);
 
-                query_plan = std::make_unique<QueryPlan>();
-                steps.emplace_back(step.get());
-                query_plan->addStep(std::move(step));
-
-                // Add a buffer after source, it try to preload data from source and reduce the
-                // waiting time of downstream nodes.
-                if (context->getSettingsRef().max_threads > 1)
-                {
-                    auto buffer_step = std::make_unique<BlocksBufferPoolStep>(query_plan->getCurrentDataStream());
-                    steps.emplace_back(buffer_step.get());
-                    query_plan->addStep(std::move(buffer_step));
-                }
-            }
-            else
-            {
-                substrait::ReadRel::ExtensionTable extension_table;
-                if (read.has_extension_table())
-                    extension_table = read.extension_table();
-                else
-                {
-                    extension_table = BinaryToMessage<substrait::ReadRel::ExtensionTable>(split_infos.at(nextSplitInfoIndex()));
-                    logDebugMessage(extension_table, "extension_table");
-                }
-
-                MergeTreeRelParser mergeTreeParser(this, context);
-                query_plan = mergeTreeParser.parseReadRel(std::make_unique<QueryPlan>(), read, extension_table);
-                steps = mergeTreeParser.getSteps();
-            }
-            break;
-        }
-        case substrait::Rel::RelTypeCase::kFilter:
-        case substrait::Rel::RelTypeCase::kGenerate:
-        case substrait::Rel::RelTypeCase::kProject:
-        case substrait::Rel::RelTypeCase::kAggregate:
-        case substrait::Rel::RelTypeCase::kSort:
-        case substrait::Rel::RelTypeCase::kWindow:
-        case substrait::Rel::RelTypeCase::kJoin:
-        case substrait::Rel::RelTypeCase::kCross:
-        case substrait::Rel::RelTypeCase::kWindowGroupLimit:
-        case substrait::Rel::RelTypeCase::kExpand: {
-            auto op_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(this);
-            query_plan = op_parser->parseOp(rel, rel_stack);
-            auto parser_steps = op_parser->getSteps();
-            steps.insert(steps.end(), parser_steps.begin(), parser_steps.end());
-            break;
-        }
-        default:
-            throw Exception(ErrorCodes::UNKNOWN_TYPE, "doesn't support relation type: {}.\n{}", rel.rel_type_case(), rel.DebugString());
-    }
+    auto op_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(this);
+    query_plan = op_parser->parseOp(rel, rel_stack);
+    auto parser_steps = op_parser->getSteps();
+    steps.insert(steps.end(), parser_steps.begin(), parser_steps.end());
 
     if (!context->getSettingsRef().query_plan_enable_optimizations)
     {
@@ -1321,6 +1187,7 @@ SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_) : contex
 {
 }
 
+<<<<<<< HEAD
 void SerializedPlanParser::collectJoinKeys(
     const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start)
 {
@@ -1530,6 +1397,8 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
     }
 }
 
+=======
+>>>>>>> refactor for rel parsers
 void SerializedPlanParser::removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAG & actions_dag) const
 {
     for (const auto & item : require_columns)

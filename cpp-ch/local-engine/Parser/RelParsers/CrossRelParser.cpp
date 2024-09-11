@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "CrossRelParser.h"
+#include <optional>
 
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
 #include <Interpreters/GraceHashJoin.h>
@@ -73,7 +74,7 @@ CrossRelParser::parse(DB::QueryPlanPtr /*query_plan*/, const substrait::Rel & /*
     throw Exception(ErrorCodes::LOGICAL_ERROR, "join node has 2 inputs, can't call parse().");
 }
 
-const substrait::Rel & CrossRelParser::getSingleInput(const substrait::Rel & /*rel*/)
+std::optional<const substrait::Rel *> CrossRelParser::getSingleInput(const substrait::Rel & /*rel*/)
 {
     throw Exception(ErrorCodes::LOGICAL_ERROR, "join node has 2 inputs, can't call getSingleInput().");
 }
@@ -194,7 +195,8 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
     else
     {
         JoinPtr hash_join = std::make_shared<HashJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty());
-        QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), hash_join, 8192, 1, false);
+        QueryPlanStepPtr join_step
+            = std::make_unique<DB::JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), hash_join, 8192, 1, false);
         join_step->setStepDescription("CROSS_JOIN");
         steps.emplace_back(join_step.get());
         std::vector<QueryPlanPtr> plans;

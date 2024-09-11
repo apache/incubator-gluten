@@ -90,16 +90,17 @@ public:
     ///
     std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
 
-    DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
-    DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
-
-    static bool isReadRelFromJava(const substrait::ReadRel & rel);
-    static bool isReadFromMergeTree(const substrait::ReadRel & rel);
-
     void addInputIter(jobject iter, bool materialize_input)
     {
         input_iters.emplace_back(iter);
         materialize_inputs.emplace_back(materialize_input);
+    }
+
+    std::pair<jobject, bool> getInputIter(size_t index)
+    {
+        if (index > input_iters.size())
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Index({}) is overflow input_iters's size({})", index, input_iters.size());
+        return {input_iters[index], materialize_inputs[index]};
     }
 
     void addSplitInfo(std::string && split_info) { split_infos.emplace_back(std::move(split_info)); }
@@ -113,6 +114,12 @@ public:
                 split_info_index,
                 split_infos.size());
         return split_info_index++;
+    }
+
+    const String & nextSplitInfo()
+    {
+        auto next_index = nextSplitInfoIndex();
+        return split_infos.at(next_index);
     }
 
     void parseExtensions(const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions);
@@ -133,8 +140,6 @@ public:
 
 private:
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
-    void
-    collectJoinKeys(const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start);
 
     void parseFunctionOrExpression(
         const substrait::Expression & rel, std::string & result_name, DB::ActionsDAG & actions_dag, bool keep_result = false);
@@ -185,34 +190,10 @@ private:
     int split_info_index = 0;
     std::vector<bool> materialize_inputs;
     ContextPtr context;
-    // for parse rel node, collect steps from a rel node
-    std::vector<IQueryPlanStep *> temp_step_collection;
     std::vector<RelMetricPtr> metrics;
 
 public:
     const ActionsDAG::Node * addColumn(DB::ActionsDAG & actions_dag, const DataTypePtr & type, const Field & field);
 };
 
-class ASTParser
-{
-public:
-    explicit ASTParser(
-        const ContextPtr & context_, std::unordered_map<std::string, std::string> & function_mapping_, SerializedPlanParser * plan_parser_)
-        : context(context_), function_mapping(function_mapping_), plan_parser(plan_parser_)
-    {
-    }
-
-    ~ASTParser() = default;
-
-    ASTPtr parseToAST(const Names & names, const substrait::Expression & rel);
-    ActionsDAG convertToActions(const NamesAndTypesList & name_and_types, const ASTPtr & ast) const;
-
-private:
-    ContextPtr context;
-    std::unordered_map<std::string, std::string> function_mapping;
-    SerializedPlanParser * plan_parser;
-
-    void parseFunctionArgumentsToAST(const Names & names, const substrait::Expression_ScalarFunction & scalar_function, ASTs & ast_args);
-    ASTPtr parseArgumentToAST(const Names & names, const substrait::Expression & rel);
-};
 }

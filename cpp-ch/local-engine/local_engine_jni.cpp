@@ -23,13 +23,14 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <Join/BroadCastJoinBuilder.h>
 #include <Parser/CHColumnToSparkRow.h>
-#include <Parser/MergeTreeRelParser.h>
-#include <Parser/RelParser.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parser/LocalExecutor.h>
+#include <Parser/RelParsers/MergeTreeRelParser.h>
+#include <Parser/RelParsers/RelParser.h>
+#include <Parser/RelParsers/WriteRelParser.h>
+#include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parser/SubstraitParserUtils.h>
-#include <Parser/WriteRelParser.h>
+#include <Processors/Executors/PipelineExecutor.h>
 #include <Shuffle/NativeSplitter.h>
 #include <Shuffle/NativeWriterInMemory.h>
 #include <Shuffle/PartitionWriter.h>
@@ -53,12 +54,10 @@
 #include <Poco/Logger.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
+#include <Common/ErrorCodes.h>
 #include <Common/ExceptionUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
-#include <Common/ErrorCodes.h>
-#include <Processors/Executors/PipelineExecutor.h>
-#include <Storages/Cache/CacheManager.h>
 
 #ifdef __cplusplus
 namespace DB
@@ -515,18 +514,15 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_CHNativeBlock_nativeTotalBytes
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
-JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHNativeBlock_nativeBlockStats(JNIEnv * env, jobject obj, jlong block_address, jint column_position)
+JNIEXPORT jobject
+Java_org_apache_gluten_vectorized_CHNativeBlock_nativeBlockStats(JNIEnv * env, jobject obj, jlong block_address, jint column_position)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     DB::Block * block = reinterpret_cast<DB::Block *>(block_address);
     auto col = getColumnFromColumnVector(env, obj, block_address, column_position);
     if (!col.column->isNullable())
     {
-        jobject block_stats = env->NewObject(
-            block_stats_class,
-            block_stats_constructor,
-            block->rows(),
-            false);
+        jobject block_stats = env->NewObject(block_stats_class, block_stats_constructor, block->rows(), false);
         return block_stats;
     }
     else
@@ -535,10 +531,7 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHNativeBlock_nativeBlockSta
         const auto & null_map_data = nullable->getNullMapData();
 
         jobject block_stats = env->NewObject(
-            block_stats_class,
-            block_stats_constructor,
-            block->rows(),
-            !DB::memoryIsZero(null_map_data.data(), 0, null_map_data.size()));
+            block_stats_class, block_stats_constructor, block->rows(), !DB::memoryIsZero(null_map_data.data(), 0, null_map_data.size()));
         return block_stats;
     }
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
@@ -573,12 +566,8 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_CHStreamReader_nativeClose(JNIE
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-local_engine::SplitterHolder * buildAndExecuteShuffle(JNIEnv * env,
-        jobject iter,
-        const String & name,
-        const local_engine::SplitOptions& options,
-        jobject rss_pusher = nullptr
-        )
+local_engine::SplitterHolder * buildAndExecuteShuffle(
+    JNIEnv * env, jobject iter, const String & name, const local_engine::SplitOptions & options, jobject rss_pusher = nullptr)
 {
     auto current_executor = local_engine::LocalExecutor::getCurrentExecutor();
     local_engine::SplitterHolder * splitter = nullptr;
@@ -592,7 +581,8 @@ local_engine::SplitterHolder * buildAndExecuteShuffle(JNIEnv * env,
         {
             /// Try to decide header from the first block read from Java iterator.
             auto header = first_block.value().cloneEmpty();
-            splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(header, name, options, rss_pusher)};
+            splitter = new local_engine::SplitterHolder{
+                .exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(header, name, options, rss_pusher)};
             splitter->exchange_manager->initSinks(1);
             splitter->exchange_manager->pushBlock(first_block.value());
             first_block = std::nullopt;
@@ -604,14 +594,18 @@ local_engine::SplitterHolder * buildAndExecuteShuffle(JNIEnv * env,
         }
         else
             // empty iterator
-            splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(DB::Block(), name, options, rss_pusher)};
+            splitter = new local_engine::SplitterHolder{
+                .exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(DB::Block(), name, options, rss_pusher)};
     }
     else
     {
-        splitter = new local_engine::SplitterHolder{.exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(current_executor.value()->getHeader().cloneEmpty(), name, options, rss_pusher)};
+        splitter = new local_engine::SplitterHolder{
+            .exchange_manager = std::make_unique<local_engine::SparkExchangeManager>(
+                current_executor.value()->getHeader().cloneEmpty(), name, options, rss_pusher)};
         // TODO support multiple sinks
         splitter->exchange_manager->initSinks(1);
-        current_executor.value()->setSinks([&](auto & pipeline_builder) { splitter->exchange_manager->setSinksToPipeline(pipeline_builder);});
+        current_executor.value()->setSinks([&](auto & pipeline_builder)
+                                           { splitter->exchange_manager->setSinksToPipeline(pipeline_builder); });
         // execute pipeline
         current_executor.value()->execute();
     }
@@ -775,8 +769,7 @@ JNIEXPORT jobject Java_org_apache_gluten_vectorized_CHShuffleSplitterJniWrapper_
         result.total_serialize_time,
         result.total_rows,
         result.total_blocks,
-        result.wall_time
-        );
+        result.wall_time);
 
     return split_result;
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)

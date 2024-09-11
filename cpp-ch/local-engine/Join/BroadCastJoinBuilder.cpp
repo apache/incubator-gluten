@@ -19,7 +19,7 @@
 #include <Compression/CompressedReadBuffer.h>
 #include <Interpreters/TableJoin.h>
 #include <Join/StorageJoinFromReadBuffer.h>
-#include <Parser/JoinRelParser.h>
+#include <Parser/RelParsers/JoinRelParser.h>
 #include <Parser/TypeParser.h>
 #include <QueryPipeline/ProfileInfo.h>
 #include <Shuffle/ShuffleReader.h>

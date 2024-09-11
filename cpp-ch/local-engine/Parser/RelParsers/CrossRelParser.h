@@ -17,7 +17,8 @@
 #pragma once
 
 #include <memory>
-#include <Parser/RelParser.h>
+#include <optional>
+#include <Parser/RelParsers/RelParser.h>
 #include <substrait/algebra.pb.h>
 
 namespace DB
@@ -42,7 +43,7 @@ public:
 
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack) override;
 
-    const substrait::Rel & getSingleInput(const substrait::Rel & rel) override;
+    std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override;
 
 private:
     std::unordered_map<std::string, std::string> & function_mapping;
@@ -55,7 +56,11 @@ private:
     void addConvertStep(TableJoin & table_join, DB::QueryPlan & left, DB::QueryPlan & right);
     void addPostFilter(DB::QueryPlan & query_plan, const substrait::CrossRel & join);
     bool applyJoinFilter(
-        DB::TableJoin & table_join, const substrait::CrossRel & join_rel, DB::QueryPlan & left, DB::QueryPlan & right, bool allow_mixed_condition);
+        DB::TableJoin & table_join,
+        const substrait::CrossRel & join_rel,
+        DB::QueryPlan & left,
+        DB::QueryPlan & right,
+        bool allow_mixed_condition);
 };
 
 }

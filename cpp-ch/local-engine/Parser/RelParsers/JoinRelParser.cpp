@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "JoinRelParser.h"
+#include <optional>
 
 #include <Core/Block.h>
 #include <Functions/FunctionFactory.h>
@@ -27,10 +28,10 @@
 #include <Interpreters/TableJoin.h>
 #include <Join/BroadCastJoinBuilder.h>
 #include <Join/StorageJoinFromReadBuffer.h>
+#include <Operator/EarlyStopStep.h>
 #include <Parser/AdvancedParametersParseUtil.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parsers/ASTIdentifier.h>
-#include <Operator/EarlyStopStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/JoinStep.h>
@@ -56,8 +57,8 @@ namespace local_engine
 {
 std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type, bool is_existence_join, ContextPtr & context)
 {
-    auto table_join = std::make_shared<TableJoin>(
-        context->getSettingsRef(), context->getGlobalTemporaryVolume(), context->getTempDataOnDisk());
+    auto table_join
+        = std::make_shared<TableJoin>(context->getSettingsRef(), context->getGlobalTemporaryVolume(), context->getTempDataOnDisk());
 
     std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = JoinUtil::getJoinKindAndStrictness(join_type, is_existence_join);
     table_join->setKind(kind_and_strictness.first);
@@ -79,7 +80,7 @@ JoinRelParser::parse(DB::QueryPlanPtr /*query_plan*/, const substrait::Rel & /*r
     throw Exception(ErrorCodes::LOGICAL_ERROR, "join node has 2 inputs, can't call parse().");
 }
 
-const substrait::Rel & JoinRelParser::getSingleInput(const substrait::Rel & /*rel*/)
+std::optional<const substrait::Rel *> JoinRelParser::getSingleInput(const substrait::Rel & /*rel*/)
 {
     throw Exception(ErrorCodes::LOGICAL_ERROR, "join node has 2 inputs, can't call getSingleInput().");
 }
@@ -282,13 +283,22 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
                 auto input_header = left->getCurrentDataStream().header;
                 DB::ActionsDAG filter_is_not_null_dag{input_header.getColumnsWithTypeAndName()};
                 // when is_null_aware_anti_join is true, there is only one join key
-                const auto * key_field = filter_is_not_null_dag.getInputs()[join.expression().scalar_function().arguments().at(0).value().selection().direct_reference().struct_field().field()];
+                const auto * key_field = filter_is_not_null_dag.getInputs()[join.expression()
+                                                                                .scalar_function()
+                                                                                .arguments()
+                                                                                .at(0)
+                                                                                .value()
+                                                                                .selection()
+                                                                                .direct_reference()
+                                                                                .struct_field()
+                                                                                .field()];
 
                 auto result_node = filter_is_not_null_dag.tryFindInOutputs(key_field->result_name);
                 // add a function isNotNull to filter the null key on the left side
                 const auto * cond_node = plan_parser->toFunctionNode(filter_is_not_null_dag, "isNotNull", {result_node});
                 filter_is_not_null_dag.addOrReplaceInOutputs(*cond_node);
-                auto filter_step = std::make_unique<FilterStep>(left->getCurrentDataStream(), std::move(filter_is_not_null_dag), cond_node->result_name, true);
+                auto filter_step = std::make_unique<FilterStep>(
+                    left->getCurrentDataStream(), std::move(filter_is_not_null_dag), cond_node->result_name, true);
                 left->addStep(std::move(filter_step));
             }
             // other case: is_empty_hash_table, don't need to handle
@@ -342,8 +352,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
             = couldRewriteToMultiJoinOnClauses(table_join->getOnlyClause(), join_on_clauses, join, left_header, right_header);
         if (is_multi_join_on_clauses && join_config.prefer_multi_join_on_clauses && join_opt_info.right_table_rows > 0
             && join_opt_info.partitions_num > 0
-            && join_opt_info.right_table_rows / join_opt_info.partitions_num
-                < join_config.multi_join_on_clauses_build_side_rows_limit)
+            && join_opt_info.right_table_rows / join_opt_info.partitions_num < join_config.multi_join_on_clauses_build_side_rows_limit)
         {
             query_plan = buildMultiOnClauseHashJoin(table_join, std::move(left), std::move(right), join_on_clauses);
         }

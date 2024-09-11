@@ -20,7 +20,7 @@
 #include <Core/ColumnWithTypeAndName.h>
 #include <Operator/ExpandStep.h>
 #include <Parser/ExpandField.h>
-#include <Parser/RelParser.h>
+#include <Parser/RelParsers/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Common/logger_useful.h>
