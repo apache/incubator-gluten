@@ -305,12 +305,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     FilterExecTransformer(condition, child)
   }
 
-  override def genProjectExecTransformer(
-      projectList: Seq[NamedExpression],
-      child: SparkPlan): ProjectExecTransformerBase = {
-    ProjectExecTransformer(projectList, child)
-  }
-
   /** Generate HashAggregateExecTransformer. */
   override def genHashAggregateExecTransformer(
       requiredChildDistributionExpressions: Option[Seq[Expression]],

@@ -77,7 +77,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
 
   override def genProjectExecTransformer(
       projectList: Seq[NamedExpression],
-      child: SparkPlan): ProjectExecTransformerBase = {
+      child: SparkPlan): ProjectExecTransformer = {
     def processProjectExecTransformer(projectList: Seq[NamedExpression]): Seq[NamedExpression] = {
       // When there is a MergeScalarSubqueries which will create the named_struct with the
       // same name, looks like {'bloomFilter', BF1, 'bloomFilter', BF2}
