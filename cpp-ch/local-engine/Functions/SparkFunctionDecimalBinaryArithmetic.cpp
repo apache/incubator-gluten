@@ -212,7 +212,7 @@ private:
         else
         {
             auto p1 = left.getPrecision();
-            auto p2 = left.getPrecision();
+            auto p2 = right.getPrecision();
             if (DataTypeDecimal<LeftFieldType>::maxPrecision() < p1 + max_scale - left.getScale()
                 || DataTypeDecimal<RightFieldType>::maxPrecision() < p2 + max_scale - right.getScale())
                 calculate_with_256 = true;
@@ -404,8 +404,8 @@ private:
             return calculateImpl<NativeResultType>(
                 static_cast<NativeResultType>(l),
                 static_cast<NativeResultType>(r),
-                static_cast<NativeResultType>(scale_left),
-                static_cast<NativeResultType>(scale_right),
+                scale_left,
+                scale_right,
                 res,
                 resultDataType,
                 max_scale);
