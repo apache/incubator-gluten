@@ -34,7 +34,7 @@ import org.apache.spark.sql.execution.datasources.parquet._
 import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, GlutenTextV2Suite}
 import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2StrategySuite, GlutenFileTableSuite, GlutenV2PredicateSuite}
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
-import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
+import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenInnerJoinSuiteForceShjOn, GlutenOuterJoinSuiteForceShjOn}
 import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
 import org.apache.spark.sql.gluten.GlutenFallbackSuite
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQueryCHSuite
@@ -1624,7 +1624,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("test composed unique condition (both non-equal) for left anti join using ShuffledHashJoin (whole-stage-codegen on)")
     .exclude("test composed unique condition (both non-equal) for left anti join using SortMergeJoin (whole-stage-codegen off)")
     .exclude("test composed unique condition (both non-equal) for left anti join using SortMergeJoin (whole-stage-codegen on)")
-  enableSuite[GlutenInnerJoinSuite]
+  enableSuite[GlutenInnerJoinSuiteForceShjOn]
     .exclude(
       "inner join, one match per row using ShuffledHashJoin (build=left) (whole-stage-codegen off)")
     .exclude(
@@ -1673,7 +1673,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-15822 - test structs as keys using BroadcastNestedLoopJoin build left (whole-stage-codegen on)")
     .exclude("SPARK-15822 - test structs as keys using BroadcastNestedLoopJoin build right (whole-stage-codegen off)")
     .exclude("SPARK-15822 - test structs as keys using BroadcastNestedLoopJoin build right (whole-stage-codegen on)")
-  enableSuite[GlutenOuterJoinSuite]
+  enableSuite[GlutenOuterJoinSuiteForceShjOn]
     .exclude("basic left outer join using ShuffledHashJoin (whole-stage-codegen off)")
     .exclude("basic left outer join using ShuffledHashJoin (whole-stage-codegen on)")
     .exclude("basic left outer join using SortMergeJoin (whole-stage-codegen off)")
