@@ -299,10 +299,11 @@ public class RelBuilder {
       RelNode input,
       ExpressionNode generator,
       List<ExpressionNode> childOutput,
+      boolean outer,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new GenerateRelNode(input, generator, childOutput);
+    return new GenerateRelNode(input, generator, childOutput, outer);
   }
 
   public static RelNode makeGenerateRel(
@@ -310,9 +311,10 @@ public class RelBuilder {
       ExpressionNode generator,
       List<ExpressionNode> childOutput,
       AdvancedExtensionNode extensionNode,
+      boolean outer,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new GenerateRelNode(input, generator, childOutput, extensionNode);
+    return new GenerateRelNode(input, generator, childOutput, extensionNode, outer);
   }
 }

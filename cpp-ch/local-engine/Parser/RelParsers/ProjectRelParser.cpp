@@ -199,7 +199,7 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
 
         /// ARRAY JOIN
         NameSet array_joined_columns{findArrayJoinNode(splitted_actions_dags.array_join)->result_name};
-        auto array_join_action = std::make_shared<ArrayJoinAction>(array_joined_columns, false, getContext());
+        auto array_join_action = std::make_shared<ArrayJoinAction>(array_joined_columns, generate_rel.outer(), getContext());
         auto array_join_step = std::make_unique<ArrayJoinStep>(query_plan->getCurrentDataStream(), array_join_action);
         array_join_step->setStepDescription("ARRAY JOIN In Generate");
         steps.emplace_back(array_join_step.get());
