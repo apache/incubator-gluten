@@ -97,9 +97,9 @@ class GlutenExpressionMappingSuite
 
   test("GLUTEN-7213: Check no fallback even if there is CheckOverflowInTableInsert") {
     withTable("t1", "t2") {
-      sql("create table t1 (a float) stored as parquet")
+      sql("create table t1 (a float) using parquet")
       sql("insert into t1 values(1.1)")
-      sql("create table t2 (b decimal(10,4)) stored as parquet")
+      sql("create table t2 (b decimal(10,4)) using parquet")
 
       withSQLConf(GlutenConfig.GLUTEN_ENABLED.key -> "true") {
         val df = sql("insert overwrite t2 select * from t1")
