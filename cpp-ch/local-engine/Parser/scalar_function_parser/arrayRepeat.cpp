@@ -49,11 +49,13 @@ public:
 
         /// Parse spark array_repeat(elem, n)
         /// if (n == null) return null
-        /// else return arrayMap(x -> elem, range(assumeNotNull(n)))
+        /// else return arrayMap(x -> elem, range(greatest(assumeNotNull(n))))
         const auto * elem_arg = parsed_args[0];
         const auto * n_arg = parsed_args[1];
         const auto * n_not_null_arg = toFunctionNode(actions_dag, "assumeNotNull", {n_arg});
-        const auto * range_node = toFunctionNode(actions_dag, "range", {n_not_null_arg});
+        const auto * const_zero_node = addColumnToActionsDAG(actions_dag, n_not_null_arg->result_type, {0});
+        const auto * greatest_node = toFunctionNode(actions_dag, "greatest", {n_not_null_arg, const_zero_node});
+        const auto * range_node = toFunctionNode(actions_dag, "range", {greatest_node});
         const auto & range_type = assert_cast<const DataTypeArray & >(*removeNullable(range_node->result_type));
 
         // Create lambda function x -> elem

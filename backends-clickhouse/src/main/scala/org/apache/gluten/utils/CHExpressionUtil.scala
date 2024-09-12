@@ -195,7 +195,6 @@ object CHExpressionUtil {
     DATE_FORMAT -> DateFormatClassValidator(),
     DECODE -> EncodeDecodeValidator(),
     ENCODE -> EncodeDecodeValidator(),
-    ARRAY_REMOVE -> DefaultValidator(),
     DATE_FROM_UNIX_DATE -> DefaultValidator(),
     MONOTONICALLY_INCREASING_ID -> DefaultValidator(),
     SPARK_PARTITION_ID -> DefaultValidator(),
