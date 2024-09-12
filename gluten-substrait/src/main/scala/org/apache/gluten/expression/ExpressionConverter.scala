@@ -689,6 +689,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           timeAdd.children,
           timeAdd
         )
+       case ss: StringSplit =>
+         BackendsApiManager.getSparkPlanExecApiInstance.genStringSplitTransformer(
+           substraitExprName,
+           replaceWithExpressionTransformer0(ss.str, attributeSeq, expressionsMap),
+           replaceWithExpressionTransformer0(ss.regex, attributeSeq, expressionsMap),
+           replaceWithExpressionTransformer0(ss.limit, attributeSeq, expressionsMap),
+           ss
+        )
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,

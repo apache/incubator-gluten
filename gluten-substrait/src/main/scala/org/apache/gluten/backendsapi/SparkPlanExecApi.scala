@@ -693,4 +693,12 @@ trait SparkPlanExecApi {
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
     HiveUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
   }
+
+  def genStringSplitTransformer(
+      substraitExprName: String,
+      srcExpr: ExpressionTransformer,
+      regexExpr: ExpressionTransformer,
+      limitExpr: ExpressionTransformer,
+      original: StringSplit): ExpressionTransformer =
+    GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
 }
