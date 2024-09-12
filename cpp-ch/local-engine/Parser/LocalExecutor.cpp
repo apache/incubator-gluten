@@ -146,7 +146,16 @@ LocalExecutor::LocalExecutor(QueryPlanPtr query_plan, QueryPipelineBuilderPtr pi
 thread_local LocalExecutor * LocalExecutor::current_executor = nullptr;
 std::string LocalExecutor::dumpPipeline() const
 {
-    const auto & processors = query_pipeline.getProcessors();
+    const DB::Processors * processors_ref = nullptr;
+    if (push_executor)
+    {
+        processors_ref = &(push_executor->getProcessors());
+    }
+    else
+    {
+        processors_ref = &(query_pipeline.getProcessors());
+    }
+    const auto & processors = *processors_ref;
     for (auto & processor : processors)
     {
         WriteBufferFromOwnString buffer;
