@@ -219,6 +219,7 @@ if(ENABLE_GLUTEN_VCPKG)
   # reported: xxx is being linked both statically and dynamically.
   target_link_options(
     gluten PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
+  target_link_libraries(gluten PRIVATE google::glog)
 endif()
 
 if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
@@ -317,7 +318,6 @@ endif()
 
 target_link_libraries(gluten PUBLIC Arrow::parquet Arrow::arrow
                                     Arrow::arrow_bundled_dependencies)
-target_link_libraries(gluten PRIVATE google::glog)
 
 install(TARGETS gluten DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources/libhdfs.so
