@@ -34,10 +34,7 @@ public class GenerateRelNode implements RelNode, Serializable {
   private final boolean outer;
 
   GenerateRelNode(
-      RelNode input,
-      ExpressionNode generator,
-      List<ExpressionNode> childOutput,
-      boolean outer) {
+      RelNode input, ExpressionNode generator, List<ExpressionNode> childOutput, boolean outer) {
     this(input, generator, childOutput, null, outer);
   }
 
