@@ -17,7 +17,8 @@
 
 #pragma once
 
-#include <Parser/RelParser.h>
+#include <optional>
+#include <Parser/RelParsers/RelParser.h>
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
 
@@ -29,11 +30,12 @@ public:
     explicit FilterRelParser(SerializedPlanParser * plan_paser_);
     ~FilterRelParser() override = default;
 
-    const substrait::Rel & getSingleInput(const substrait::Rel & rel) override { return rel.filter().input(); }
+    std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override { return &rel.filter().input(); }
 
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
+
 private:
     // Poco::Logger * logger = &Poco::Logger::get("ProjectRelParser");
-};   
+};
 }

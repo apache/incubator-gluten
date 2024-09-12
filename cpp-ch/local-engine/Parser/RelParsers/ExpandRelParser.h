@@ -15,26 +15,21 @@
  * limitations under the License.
  */
 #pragma once
-#include <Core/Block.h>
-#include <Core/SortDescription.h>
-#include <Parser/RelParser.h>
-#include <google/protobuf/repeated_field.h>
+#include <optional>
+#include <Parser/RelParsers/RelParser.h>
+
+
 namespace local_engine
 {
-class SortRelParser : public RelParser
+class SerializedPlanParser;
+class ExpandRelParser : public RelParser
 {
 public:
-    explicit SortRelParser(SerializedPlanParser * plan_paser_);
-    ~SortRelParser() override = default;
-
+    explicit ExpandRelParser(SerializedPlanParser * plan_parser_);
+    ~ExpandRelParser() override = default;
     DB::QueryPlanPtr
-    parse(DB::QueryPlanPtr query_plan, const substrait::Rel & sort_rel, std::list<const substrait::Rel *> & rel_stack_) override;
-    static DB::SortDescription
-    parseSortDescription(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields, const DB::Block & header);
+    parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
 
-    const substrait::Rel & getSingleInput(const substrait::Rel & rel) override { return rel.sort().input(); }
-
-private:
-    size_t parseLimit(std::list<const substrait::Rel *> & rel_stack_);
+    std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override { return &rel.expand().input(); }
 };
 }

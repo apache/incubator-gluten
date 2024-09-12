@@ -17,9 +17,10 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <substrait/algebra.pb.h>
 
-#include <Parser/RelParser.h>
+#include <Parser/RelParsers/RelParser.h>
 
 namespace DB
 {
@@ -50,7 +51,7 @@ public:
     DB::QueryPlanPtr parseReadRel(
         DB::QueryPlanPtr query_plan, const substrait::ReadRel & read_rel, const substrait::ReadRel::ExtensionTable & extension_table);
 
-    const substrait::Rel & getSingleInput(const substrait::Rel &) override
+    std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel &) override
     {
         throw Exception(ErrorCodes::LOGICAL_ERROR, "MergeTreeRelParser can't call getSingleInput().");
     }

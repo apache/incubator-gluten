@@ -31,7 +31,7 @@
 #include <DataTypes/DataTypesNumber.h>
 #include <Parser/AggregateFunctionParser.h>
 #include <Parser/FunctionParser.h>
-#include <Parser/RelParser.h>
+#include <Parser/RelParsers/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/TypeParser.h>
 #include <Poco/StringTokenizer.h>

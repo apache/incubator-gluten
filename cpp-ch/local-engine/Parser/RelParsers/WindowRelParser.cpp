@@ -29,8 +29,8 @@
 #include <IO/WriteBufferFromString.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/WindowDescription.h>
-#include <Parser/RelParser.h>
-#include <Parser/SortRelParser.h>
+#include <Parser/RelParsers/RelParser.h>
+#include <Parser/RelParsers/SortRelParser.h>
 #include <Parser/TypeParser.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/WindowStep.h>

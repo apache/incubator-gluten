@@ -22,9 +22,10 @@
 #include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/IDataType.h>
+#include <Poco/Logger.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/Exception.h>
-
+#include <Common/logger_useful.h>
 
 namespace DB
 {
@@ -37,6 +38,14 @@ extern const int LOGICAL_ERROR;
 
 namespace local_engine
 {
+
+std::vector<const substrait::Rel *> RelParser::getInputs(const substrait::Rel & rel)
+{
+    auto input = getSingleInput(rel);
+    if (!input)
+        return {};
+    return {*input};
+}
 AggregateFunctionPtr RelParser::getAggregateFunction(
     const String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters)
 {
@@ -80,13 +89,12 @@ std::optional<String> RelParser::parseFunctionName(UInt32 function_ref, const su
     }
     return plan_parser->getFunctionName(*sigature_name, function);
 }
-DB::QueryPlanPtr RelParser::parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
+
+DB::QueryPlanPtr
+RelParser::parse(std::vector<DB::QueryPlanPtr> & input_plans_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
 {
-    SerializedPlanParser & planParser = *getPlanParser();
-    rel_stack.push_back(&rel);
-    auto query_plan = planParser.parseOp(getSingleInput(rel), rel_stack);
-    rel_stack.pop_back();
-    return parse(std::move(query_plan), rel, rel_stack);
+    assert(input_plans_.size() == 1);
+    return parse(std::move(input_plans_[0]), rel, rel_stack_);
 }
 
 std::map<std::string, std::string>
@@ -160,6 +168,8 @@ void registerProjectRelParser(RelParserFactory & factory);
 void registerJoinRelParser(RelParserFactory & factory);
 void registerFilterRelParser(RelParserFactory & factory);
 void registerCrossRelParser(RelParserFactory & factory);
+void registerFetchRelParser(RelParserFactory & factory);
+void registerReadRelParser(RelParserFactory & factory);
 
 void registerRelParsers()
 {
@@ -173,5 +183,7 @@ void registerRelParsers()
     registerJoinRelParser(factory);
     registerCrossRelParser(factory);
     registerFilterRelParser(factory);
+    registerFetchRelParser(factory);
+    registerReadRelParser(factory);
 }
 }

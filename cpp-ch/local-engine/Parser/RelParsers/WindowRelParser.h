@@ -21,7 +21,7 @@
 #include <DataTypes/IDataType.h>
 #include <Interpreters/WindowDescription.h>
 #include <Parser/AggregateFunctionParser.h>
-#include <Parser/RelParser.h>
+#include <Parser/RelParsers/RelParser.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
@@ -35,7 +35,7 @@ public:
     ~WindowRelParser() override = default;
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
-    const substrait::Rel & getSingleInput(const substrait::Rel & rel) override { return rel.window().input(); }
+    std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override { return &rel.window().input(); }
 
 private:
     struct WindowInfo

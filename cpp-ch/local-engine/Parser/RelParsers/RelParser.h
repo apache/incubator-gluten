@@ -39,8 +39,10 @@ public:
     virtual DB::QueryPlanPtr
     parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
         = 0;
-    virtual DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
-    virtual const substrait::Rel & getSingleInput(const substrait::Rel & rel) = 0;
+    virtual DB::QueryPlanPtr
+    parse(std::vector<DB::QueryPlanPtr> & input_plans_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_);
+    virtual std::vector<const substrait::Rel *> getInputs(const substrait::Rel & rel);
+    virtual std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) = 0;
     const std::vector<IQueryPlanStep *> & getSteps() const { return steps; }
 
     static AggregateFunctionPtr getAggregateFunction(
@@ -59,12 +61,12 @@ protected:
     // Get coresponding function name in ClickHouse.
     std::optional<String> parseFunctionName(UInt32 function_ref, const substrait::Expression_ScalarFunction & function);
 
-    const DB::ActionsDAG::Node * parseArgument(ActionsDAG& action_dag, const substrait::Expression & rel)
+    const DB::ActionsDAG::Node * parseArgument(ActionsDAG & action_dag, const substrait::Expression & rel)
     {
         return plan_parser->parseExpression(action_dag, rel);
     }
 
-    const DB::ActionsDAG::Node * parseExpression(ActionsDAG& action_dag, const substrait::Expression & rel)
+    const DB::ActionsDAG::Node * parseExpression(ActionsDAG & action_dag, const substrait::Expression & rel)
     {
         return plan_parser->parseExpression(action_dag, rel);
     }
@@ -77,13 +79,15 @@ protected:
     std::vector<IQueryPlanStep *> steps;
 
     const ActionsDAG::Node *
-    buildFunctionNode(ActionsDAG& action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
+    buildFunctionNode(ActionsDAG & action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
     {
         return plan_parser->toFunctionNode(action_dag, function, args);
     }
 
-    static std::map<std::string, std::string> parseFormattedRelAdvancedOptimization(const substrait::extensions::AdvancedExtension &advanced_extension);
-    static std::string getStringConfig(const std::map<std::string, std::string> & configs, const std::string & key, const std::string & default_value = "");
+    static std::map<std::string, std::string>
+    parseFormattedRelAdvancedOptimization(const substrait::extensions::AdvancedExtension & advanced_extension);
+    static std::string
+    getStringConfig(const std::map<std::string, std::string> & configs, const std::string & key, const std::string & default_value = "");
 
     SerializedPlanParser * plan_parser;
 };

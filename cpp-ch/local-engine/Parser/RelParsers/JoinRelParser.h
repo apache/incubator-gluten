@@ -20,7 +20,7 @@
 #include <unordered_set>
 #include <Core/Joins.h>
 #include <Interpreters/TableJoin.h>
-#include <Parser/RelParser.h>
+#include <Parser/RelParsers/RelParser.h>
 #include <substrait/algebra.pb.h>
 
 namespace DB
@@ -42,9 +42,11 @@ public:
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr query_plan, const substrait::Rel & sort_rel, std::list<const substrait::Rel *> & rel_stack_) override;
 
-    DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack) override;
+    DB::QueryPlanPtr parse(
+        std::vector<DB::QueryPlanPtr> & input_plans_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
 
-    const substrait::Rel & getSingleInput(const substrait::Rel & rel) override;
+    std::vector<const substrait::Rel *> getInputs(const substrait::Rel & rel) override;
+    std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override;
 
 private:
     std::unordered_map<std::string, std::string> & function_mapping;
@@ -69,8 +71,8 @@ private:
 
     void existenceJoinPostProject(DB::QueryPlan & plan, const DB::Names & left_input_cols);
 
-    static std::unordered_set<DB::JoinTableSide> extractTableSidesFromExpression(
-        const substrait::Expression & expr, const DB::Block & left_header, const DB::Block & right_header);
+    static std::unordered_set<DB::JoinTableSide>
+    extractTableSidesFromExpression(const substrait::Expression & expr, const DB::Block & left_header, const DB::Block & right_header);
 
     bool couldRewriteToMultiJoinOnClauses(
         const DB::TableJoin::JoinOnClause & prefix_clause,

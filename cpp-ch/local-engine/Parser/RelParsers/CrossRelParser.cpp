@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "CrossRelParser.h"
+#include <optional>
 
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
 #include <Interpreters/GraceHashJoin.h>
@@ -73,12 +74,7 @@ CrossRelParser::parse(DB::QueryPlanPtr /*query_plan*/, const substrait::Rel & /*
     throw Exception(ErrorCodes::LOGICAL_ERROR, "join node has 2 inputs, can't call parse().");
 }
 
-const substrait::Rel & CrossRelParser::getSingleInput(const substrait::Rel & /*rel*/)
-{
-    throw Exception(ErrorCodes::LOGICAL_ERROR, "join node has 2 inputs, can't call getSingleInput().");
-}
-
-DB::QueryPlanPtr CrossRelParser::parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
+std::vector<const substrait::Rel *> CrossRelParser::getInputs(const substrait::Rel & rel)
 {
     const auto & join = rel.cross();
     if (!join.has_left() || !join.has_right())
@@ -86,12 +82,19 @@ DB::QueryPlanPtr CrossRelParser::parseOp(const substrait::Rel & rel, std::list<c
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "left table or right table is missing.");
     }
 
-    rel_stack.push_back(&rel);
-    auto left_plan = getPlanParser()->parseOp(join.left(), rel_stack);
-    auto right_plan = getPlanParser()->parseOp(join.right(), rel_stack);
-    rel_stack.pop_back();
+    return {&join.left(), &join.right()};
+}
+std::optional<const substrait::Rel *> CrossRelParser::getSingleInput(const substrait::Rel & /*rel*/)
+{
+    throw Exception(ErrorCodes::LOGICAL_ERROR, "join node has 2 inputs, can't call getSingleInput().");
+}
 
-    return parseJoin(join, std::move(left_plan), std::move(right_plan));
+DB::QueryPlanPtr
+CrossRelParser::parse(std::vector<DB::QueryPlanPtr> & input_plans_, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
+{
+    assert(input_plans_.size() == 2);
+    const auto & join = rel.cross();
+    return parseJoin(join, std::move(input_plans_[0]), std::move(input_plans_[1]));
 }
 
 void CrossRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & right, const StorageJoinFromReadBuffer & storage_join)
@@ -194,7 +197,8 @@ DB::QueryPlanPtr CrossRelParser::parseJoin(const substrait::CrossRel & join, DB:
     else
     {
         JoinPtr hash_join = std::make_shared<HashJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty());
-        QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), hash_join, 8192, 1, false);
+        QueryPlanStepPtr join_step
+            = std::make_unique<DB::JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), hash_join, 8192, 1, false);
         join_step->setStepDescription("CROSS_JOIN");
         steps.emplace_back(join_step.get());
         std::vector<QueryPlanPtr> plans;

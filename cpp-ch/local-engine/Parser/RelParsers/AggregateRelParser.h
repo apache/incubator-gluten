@@ -16,7 +16,7 @@
  */
 #pragma once
 #include <Parser/AggregateFunctionParser.h>
-#include <Parser/RelParser.h>
+#include <Parser/RelParsers/RelParser.h>
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
 
@@ -30,7 +30,7 @@ public:
     ~AggregateRelParser() override = default;
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
-    const substrait::Rel & getSingleInput(const substrait::Rel & rel) override { return rel.aggregate().input(); }
+    std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override { return &rel.aggregate().input(); }
 
 private:
     struct AggregateInfo

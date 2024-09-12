@@ -17,7 +17,7 @@
 #include "SortRelParser.h"
 
 #include <Common/GlutenConfig.h>
-#include <Parser/RelParser.h>
+#include <Parser/RelParsers/RelParser.h>
 #include <Processors/QueryPlan/SortingStep.h>
 #include <Common/logger_useful.h>
 #include <Common/QueryContext.h>
