@@ -75,8 +75,13 @@ object FilterTransformerFactory {
   private def supportedDelta(plan: SparkPlan): Boolean = {
     plan.find {
       p =>
-        p.isInstanceOf[FileSourceScanExec] &&
-        p.asInstanceOf[FileSourceScanExec].relation.fileFormat.getClass.getName.contains("Delta")
+        p.isInstanceOf[
+          FileSourceScanExec] && "org.apache.spark.sql.delta.DeltaParquetFileFormat" == p
+          .asInstanceOf[FileSourceScanExec]
+          .relation
+          .fileFormat
+          .getClass
+          .getName
     }.isDefined
   }
 }
