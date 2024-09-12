@@ -33,7 +33,11 @@ public class GenerateRelNode implements RelNode, Serializable {
   private final AdvancedExtensionNode extensionNode;
   private final boolean outer;
 
-  GenerateRelNode(RelNode input, ExpressionNode generator, List<ExpressionNode> childOutput, boolean outer) {
+  GenerateRelNode(
+      RelNode input,
+      ExpressionNode generator,
+      List<ExpressionNode> childOutput,
+      boolean outer) {
     this(input, generator, childOutput, null, outer);
   }
 
