@@ -53,6 +53,7 @@
 #include <Parser/SubstraitParserUtils.h>
 #include <Planner/PlannerActionsVisitor.h>
 #include <Processors/Chunk.h>
+#include <Processors/Formats/IOutputFormat.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
@@ -315,7 +316,6 @@ DB::Block BlockUtil::concatenateBlocksMemoryEfficiently(std::vector<DB::Block> &
     return out;
 }
 
-
 size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
 {
     /// According to definition of DEFUALT_BLOCK_SIZE
@@ -560,9 +560,7 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std
 }
 
 std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
-    const String & path_prefix,
-    const String & path_suffix,
-    Poco::Util::AbstractConfiguration & config)
+    const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config)
 {
     std::vector<String> changed_paths;
     if (path_prefix.empty() && path_suffix.empty())
@@ -657,9 +655,7 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
         auto path_need_clean = wrapDiskPathConfig("", "/" + pid, *config);
         std::lock_guard lock(BackendFinalizerUtil::paths_mutex);
         BackendFinalizerUtil::paths_need_to_clean.insert(
-            BackendFinalizerUtil::paths_need_to_clean.end(),
-            path_need_clean.begin(),
-            path_need_clean.end());
+            BackendFinalizerUtil::paths_need_to_clean.end(), path_need_clean.begin(), path_need_clean.end());
     }
     return config;
 }
@@ -683,7 +679,9 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
     {
         const std::string config_timezone = config->getString("timezone");
         const String mapped_timezone = DateTimeUtil::convertTimeZone(config_timezone);
-        if (0 != setenv("TZ", mapped_timezone.data(), 1)) // NOLINT(concurrency-mt-unsafe) // ok if not called concurrently with other setenv/getenv
+        if (0
+            != setenv(
+                "TZ", mapped_timezone.data(), 1)) // NOLINT(concurrency-mt-unsafe) // ok if not called concurrently with other setenv/getenv
             throw Poco::Exception("Cannot setenv TZ variable");
 
         tzset();
@@ -807,8 +805,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         {
             auto mem_gb = task_memory / static_cast<double>(1_GiB);
             // 2.8x+5, Heuristics calculate the block size of external sort, [8,16]
-            settings.prefer_external_sort_block_bytes = std::max(std::min(
-                static_cast<size_t>(2.8*mem_gb + 5), 16ul), 8ul) * 1024 * 1024;
+            settings.prefer_external_sort_block_bytes = std::max(std::min(static_cast<size_t>(2.8 * mem_gb + 5), 16ul), 8ul) * 1024 * 1024;
         }
     }
 }
@@ -848,10 +845,14 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
 
         global_context->setMarkCache(mark_cache_policy, mark_cache_size, mark_cache_size_ratio);
 
-        String index_uncompressed_cache_policy = config->getString("index_uncompressed_cache_policy", DEFAULT_INDEX_UNCOMPRESSED_CACHE_POLICY);
-        size_t index_uncompressed_cache_size = config->getUInt64("index_uncompressed_cache_size", DEFAULT_INDEX_UNCOMPRESSED_CACHE_MAX_SIZE);
-        double index_uncompressed_cache_size_ratio = config->getDouble("index_uncompressed_cache_size_ratio", DEFAULT_INDEX_UNCOMPRESSED_CACHE_SIZE_RATIO);
-        global_context->setIndexUncompressedCache(index_uncompressed_cache_policy, index_uncompressed_cache_size, index_uncompressed_cache_size_ratio);
+        String index_uncompressed_cache_policy
+            = config->getString("index_uncompressed_cache_policy", DEFAULT_INDEX_UNCOMPRESSED_CACHE_POLICY);
+        size_t index_uncompressed_cache_size
+            = config->getUInt64("index_uncompressed_cache_size", DEFAULT_INDEX_UNCOMPRESSED_CACHE_MAX_SIZE);
+        double index_uncompressed_cache_size_ratio
+            = config->getDouble("index_uncompressed_cache_size_ratio", DEFAULT_INDEX_UNCOMPRESSED_CACHE_SIZE_RATIO);
+        global_context->setIndexUncompressedCache(
+            index_uncompressed_cache_policy, index_uncompressed_cache_size, index_uncompressed_cache_size_ratio);
 
         String index_mark_cache_policy = config->getString("index_mark_cache_policy", DEFAULT_INDEX_MARK_CACHE_POLICY);
         size_t index_mark_cache_size = config->getUInt64("index_mark_cache_size", DEFAULT_INDEX_MARK_CACHE_MAX_SIZE);
@@ -1023,11 +1024,13 @@ void BackendFinalizerUtil::finalizeGlobally()
     StorageMergeTreeFactory::clear();
     QueryContext::resetGlobal();
     std::lock_guard lock(paths_mutex);
-    std::ranges::for_each(paths_need_to_clean, [](const auto & path)
-    {
-        if (fs::exists(path))
-            fs::remove_all(path);
-    });
+    std::ranges::for_each(
+        paths_need_to_clean,
+        [](const auto & path)
+        {
+            if (fs::exists(path))
+                fs::remove_all(path);
+        });
     paths_need_to_clean.clear();
 }
 

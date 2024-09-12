@@ -1855,7 +1855,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         | ) t1
         |) t2 where rank = 1
     """.stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, isSparkVersionLE("3.3"))
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("GLUTEN-1874 not null in both streams") {
@@ -1873,7 +1873,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         | ) t1
         |) t2 where rank = 1
     """.stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, isSparkVersionLE("3.3"))
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("GLUTEN-2095: test cast(string as binary)") {
@@ -2456,7 +2456,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |  ) t1
         |) t2 where rank = 1 order by p_partkey limit 100
         |""".stripMargin
-    runQueryAndCompare(sql, noFallBack = isSparkVersionLE("3.3"))({ _ => })
+    runQueryAndCompare(sql, noFallBack = true)({ _ => })
   }
 
   test("GLUTEN-4190: crush on flattening a const null column") {

@@ -53,6 +53,7 @@ import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleEx
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.{CHExecUtil, PushDownUtil}
+import org.apache.spark.sql.execution.window._
 import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -909,4 +910,19 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       toScale: Int): DecimalType = {
     SparkShimLoader.getSparkShims.genDecimalRoundExpressionOutput(decimalType, toScale)
   }
+
+  override def genWindowGroupLimitTransformer(
+      partitionSpec: Seq[Expression],
+      orderSpec: Seq[SortOrder],
+      rankLikeFunction: Expression,
+      limit: Int,
+      mode: WindowGroupLimitMode,
+      child: SparkPlan): SparkPlan =
+    CHWindowGroupLimitExecTransformer(
+      partitionSpec,
+      orderSpec,
+      rankLikeFunction,
+      limit,
+      mode,
+      child)
 }
