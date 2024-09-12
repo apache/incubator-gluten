@@ -202,6 +202,19 @@ private:
                 return DecimalUtils::scaleMultiplier<NativeResultType>(max_scale - right.getScale());
         }();
 
+
+        bool calculate_with_256 = false;
+        if constexpr (CalculateWith256)
+            calculate_with_256 = true;
+        else
+        {
+            auto p1 = left.getPrecision();
+            auto p2 = left.getPrecision();
+            if (DataTypeDecimal<LeftFieldType>::maxPrecision() < p1 + max_scale - left.getScale()
+                || DataTypeDecimal<RightFieldType>::maxPrecision() < p2 + max_scale - right.getScale())
+                calculate_with_256 = true;
+        }
+
         ColumnUInt8::MutablePtr col_null_map_to = ColumnUInt8::create(col_left_size, false);
         ColumnUInt8::Container * vec_null_map_to = &col_null_map_to->getData();
 
@@ -217,26 +230,66 @@ private:
 
         if (col_left && col_right)
         {
-            process<OpCase::Vector, CalculateWith256>(
-                col_left->getData(), col_right->getData(), vec_res, scale_left, scale_right, *vec_null_map_to, resultDataType, max_scale);
-            return ColumnNullable::create(std::move(col_res), std::move(col_null_map_to));
+            if (calculate_with_256)
+            {
+                process<OpCase::Vector, true>(
+                    col_left->getData(),
+                    col_right->getData(),
+                    vec_res,
+                    scale_left,
+                    scale_right,
+                    *vec_null_map_to,
+                    resultDataType,
+                    max_scale);
+            }
+            else
+            {
+                process<OpCase::Vector, false>(
+                    col_left->getData(),
+                    col_right->getData(),
+                    vec_res,
+                    scale_left,
+                    scale_right,
+                    *vec_null_map_to,
+                    resultDataType,
+                    max_scale);
+            }
         }
         else if (col_left_const && col_right)
         {
             LeftFieldType const_left = col_left_const->getValue<LeftFieldType>();
-            process<OpCase::LeftConstant, CalculateWith256>(
-                const_left, col_right->getData(), vec_res, scale_left, scale_right, *vec_null_map_to, resultDataType, max_scale);
-            return ColumnNullable::create(std::move(col_res), std::move(col_null_map_to));
+
+            if (calculate_with_256)
+            {
+                process<OpCase::LeftConstant, true>(
+                    const_left, col_right->getData(), vec_res, scale_left, scale_right, *vec_null_map_to, resultDataType, max_scale);
+            }
+            else
+            {
+                process<OpCase::LeftConstant, false>(
+                    const_left, col_right->getData(), vec_res, scale_left, scale_right, *vec_null_map_to, resultDataType, max_scale);
+            }
         }
         else if (col_left && col_right_const)
         {
             RightFieldType const_right = col_right_const->getValue<RightFieldType>();
-            process<OpCase::RightConstant, CalculateWith256>(
-                col_left->getData(), const_right, vec_res, scale_left, scale_right, *vec_null_map_to, resultDataType, max_scale);
-            return ColumnNullable::create(std::move(col_res), std::move(col_null_map_to));
+            if (calculate_with_256)
+            {
+                process<OpCase::RightConstant, true>(
+                    col_left->getData(), const_right, vec_res, scale_left, scale_right, *vec_null_map_to, resultDataType, max_scale);
+            }
+            else
+            {
+                process<OpCase::RightConstant, false>(
+                    col_left->getData(), const_right, vec_res, scale_left, scale_right, *vec_null_map_to, resultDataType, max_scale);
+            }
+        }
+        else
+        {
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "Not supported.");
         }
 
-        throw Exception(ErrorCodes::LOGICAL_ERROR, "Not supported.");
+        return ColumnNullable::create(std::move(col_res), std::move(col_null_map_to));
     }
 
     template <OpCase op_case, bool CalculateWith256, typename ResultContainerType, typename NativeResultType, typename ResultDataType>
