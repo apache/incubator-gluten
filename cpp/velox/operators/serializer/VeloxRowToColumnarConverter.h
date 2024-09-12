@@ -33,7 +33,8 @@ class VeloxRowToColumnarConverter final : public RowToColumnarConverter {
 
   std::shared_ptr<ColumnarBatch> convert(int64_t numRows, int64_t* rowLength, uint8_t* memoryAddress);
 
- protected:
+ private:
+  std::shared_ptr<ColumnarBatch> convertPrimitive(int64_t numRows, int64_t* rowLength, uint8_t* memoryAddress);
   facebook::velox::TypePtr rowType_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
 };
