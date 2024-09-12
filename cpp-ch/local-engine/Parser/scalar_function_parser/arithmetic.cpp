@@ -326,7 +326,7 @@ protected:
             return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
         }
 
-        return toFunctionNode(actions_dag, "sparkDivide", {left_arg, right_arg});
+        return toFunctionNode(actions_dag, "modulo", {left_arg, right_arg});
     }
 };
 

@@ -383,19 +383,40 @@ private:
         const size_t & max_scale)
     {
         if constexpr (CalculateWith256)
-            return calculateImpl<Int256>(l, r, scale_left, scale_right, res, resultDataType, max_scale);
+            return calculateImpl<Int256>(
+                static_cast<Int256>(l),
+                static_cast<Int256>(r),
+                static_cast<Int256>(scale_left),
+                static_cast<Int256>(scale_right),
+                res,
+                resultDataType,
+                max_scale);
         else if (is_division)
-            return calculateImpl<Int128>(l, r, scale_left, scale_right, res, resultDataType, max_scale);
+            return calculateImpl<Int128>(
+                static_cast<Int128>(l),
+                static_cast<Int128>(r),
+                static_cast<Int128>(scale_left),
+                static_cast<Int128>(scale_right),
+                res,
+                resultDataType,
+                max_scale);
         else
-            return calculateImpl<NativeResultType>(l, r, scale_left, scale_right, res, resultDataType, max_scale);
+            return calculateImpl<NativeResultType>(
+                static_cast<NativeResultType>(l),
+                static_cast<NativeResultType>(r),
+                static_cast<NativeResultType>(scale_left),
+                static_cast<NativeResultType>(scale_right),
+                res,
+                resultDataType,
+                max_scale);
     }
 
-    template <typename CalcType, typename LeftNativeType, typename RightNativeType, typename NativeResultType, typename ResultDataType>
+    template <typename CalcType, typename NativeResultType, typename ResultDataType>
     static NO_SANITIZE_UNDEFINED bool calculateImpl(
-        LeftNativeType l,
-        RightNativeType r,
-        NativeResultType scale_left,
-        NativeResultType scale_right,
+        CalcType l,
+        CalcType r,
+        CalcType scale_left,
+        CalcType scale_right,
         NativeResultType & res,
         const ResultDataType & resultDataType,
         const size_t & max_scale)
@@ -412,13 +433,19 @@ private:
         auto scale_diff = max_scale - result_scale;
         chassert(scale_diff >= 0);
         if (scale_diff)
-            c_res = c_res / DecimalUtils::scaleMultiplier<NativeResultType>(scale_diff);
+        {
+            auto scaled_diff = DecimalUtils::scaleMultiplier<CalcType>(scale_diff);
+            DecimalDivideImpl::apply<CalcType>(c_res, scaled_diff, c_res);
+        }
 
         auto max_value = intExp10OfSize<CalcType>(resultDataType.getPrecision());
 
         // check overflow
-        if (c_res <= -max_value || c_res >= max_value)
-            return false;
+        if constexpr (std::is_same_v<CalcType, Int256> || is_division)
+        {
+            if (c_res <= -max_value || c_res >= max_value)
+                return false;
+        }
 
         res = static_cast<NativeResultType>(c_res);
 
