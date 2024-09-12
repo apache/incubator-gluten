@@ -85,7 +85,7 @@ enum class OpMode : uint8_t
     Effect
 };
 
-template <bool is_plus_minus, bool is_multiply, bool is_division>
+template <bool is_plus_minus, bool is_multiply, bool is_division, bool is_modulo>
 bool calculateWith256(const IDataType & left, const IDataType & right)
 {
     const size_t p1 = getDecimalPrecision(left);
@@ -100,6 +100,8 @@ bool calculateWith256(const IDataType & left, const IDataType & right)
         precision = p1 + p2 + 1;
     else if constexpr (is_division)
         precision = p1 - s1 + s2 + std::max(static_cast<size_t>(6), s1 + p2 + 1);
+    else if constexpr (is_modulo)
+        precision = std::min(p1 - s1, p2 - s2) + std::max(s1, s2);
     else
         throw Exception(ErrorCodes::LOGICAL_ERROR, "Not supported.");
 
@@ -113,6 +115,7 @@ private:
     static constexpr bool is_plus_minus = SparkIsOperation<Operation>::plus || SparkIsOperation<Operation>::minus;
     static constexpr bool is_multiply = SparkIsOperation<Operation>::multiply;
     static constexpr bool is_division = SparkIsOperation<Operation>::division;
+    static constexpr bool is_modulo = SparkIsOperation<Operation>::modulo;
 
 public:
     template <typename A, typename B, typename R>
@@ -145,7 +148,7 @@ public:
                 left, right, col_left_const, col_right_const, col_left, col_right, col_left_size, result);
         }
 
-        if (calculateWith256<is_plus_minus, is_multiply, is_division>(*arguments[0].type.get(), *arguments[1].type.get()))
+        if (calculateWith256<is_plus_minus, is_multiply, is_division, is_modulo>(*arguments[0].type.get(), *arguments[1].type.get()))
         {
             return executeDecimalImpl<LeftDataType, RightDataType, ResultDataType, true>(
                 left, right, col_left_const, col_right_const, col_left, col_right, col_left_size, result);
@@ -379,8 +382,6 @@ private:
         const ResultDataType & resultDataType,
         const size_t & max_scale)
     {
-        static_assert(is_plus_minus || is_multiply || is_division);
-
         if constexpr (CalculateWith256)
             return calculateImpl<Int256>(l, r, scale_left, scale_right, res, resultDataType, max_scale);
         else if (is_division)
@@ -450,6 +451,7 @@ class SparkFunctionDecimalBinaryArithmetic final : public IFunction
     static constexpr bool is_plus_minus = SparkIsOperation<Operation>::plus || SparkIsOperation<Operation>::minus;
     static constexpr bool is_multiply = SparkIsOperation<Operation>::multiply;
     static constexpr bool is_division = SparkIsOperation<Operation>::division;
+    static constexpr bool is_modulo = SparkIsOperation<Operation>::modulo;
 
 public:
     static constexpr auto name = Name::name;
@@ -482,7 +484,7 @@ public:
     }
 
     // executeImpl2
-    ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr &, size_t input_rows_count) const override
+    ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr &, size_t) const override
     {
         const auto & left_argument = arguments[0];
         const auto & right_argument = arguments[1];
@@ -573,16 +575,27 @@ struct NameSparkDecimalDivideEffect
 {
     static constexpr auto name = "sparkDecimalDivideEffect";
 };
+struct NameSparkDecimalModulo
+{
+    static constexpr auto name = "NameSparkDecimalModulo";
+};
+struct NameSparkDecimalModuloEffect
+{
+    static constexpr auto name = "NameSparkDecimalModuloEffect";
+};
+
 
 using DecimalPlus = SparkFunctionDecimalBinaryArithmetic<DecimalPlusImpl, NameSparkDecimalPlus>;
 using DecimalMinus = SparkFunctionDecimalBinaryArithmetic<DecimalMinusImpl, NameSparkDecimalMinus>;
 using DecimalMultiply = SparkFunctionDecimalBinaryArithmetic<DecimalMultiplyImpl, NameSparkDecimalMultiply>;
 using DecimalDivide = SparkFunctionDecimalBinaryArithmetic<DecimalDivideImpl, NameSparkDecimalDivide>;
+using DecimalModulo = SparkFunctionDecimalBinaryArithmetic<DecimalModuloImpl, NameSparkDecimalModulo>;
 
 using DecimalPlusEffect = SparkFunctionDecimalBinaryArithmetic<DecimalPlusImpl, NameSparkDecimalPlusEffect, OpMode::Effect>;
 using DecimalMinusEffect = SparkFunctionDecimalBinaryArithmetic<DecimalMinusImpl, NameSparkDecimalMinusEffect, OpMode::Effect>;
 using DecimalMultiplyEffect = SparkFunctionDecimalBinaryArithmetic<DecimalMultiplyImpl, NameSparkDecimalMultiplyEffect, OpMode::Effect>;
 using DecimalDivideEffect = SparkFunctionDecimalBinaryArithmetic<DecimalDivideImpl, NameSparkDecimalDivideEffect, OpMode::Effect>;
+using DecimalModuloEffect = SparkFunctionDecimalBinaryArithmetic<DecimalModuloImpl, NameSparkDecimalModuloEffect, OpMode::Effect>;
 }
 
 REGISTER_FUNCTION(SparkDecimalFunctionArithmetic)
@@ -591,9 +604,12 @@ REGISTER_FUNCTION(SparkDecimalFunctionArithmetic)
     factory.registerFunction<DecimalMinus>();
     factory.registerFunction<DecimalMultiply>();
     factory.registerFunction<DecimalDivide>();
+    factory.registerFunction<DecimalModulo>();
+
     factory.registerFunction<DecimalPlusEffect>();
     factory.registerFunction<DecimalMinusEffect>();
     factory.registerFunction<DecimalMultiplyEffect>();
     factory.registerFunction<DecimalDivideEffect>();
+    factory.registerFunction<DecimalModuloEffect>();
 }
 }

@@ -157,33 +157,8 @@ public:
 
         const auto left_type = DB::removeNullable(parsed_args[0]->result_type);
         const auto right_type = DB::removeNullable(parsed_args[1]->result_type);
-        const bool converted = isDecimal(left_type) && isDecimal(right_type);
-
-        if (converted && ch_func_name != "minus" && ch_func_name != "plus" && ch_func_name != "multiply" && ch_func_name != "divide")
-        {
-            const DecimalType evalType = getDecimalType(left_type, right_type);
-            parsed_args = convertBinaryArithmeticFunDecimalArgs(actions_dag, parsed_args, evalType, substrait_func);
-        }
-
         const auto result_type = removeNullable(TypeParser::parseType(substrait_func.output_type()));
         const auto * func_node = createFunctionNode(actions_dag, ch_func_name, parsed_args, result_type);
-
-        if (converted && ch_func_name != "minus" && ch_func_name != "plus" && ch_func_name != "multiply" && ch_func_name != "divide")
-        {
-            assert(isDecimal(result_type));
-            const Int32 parsed_precision = getDecimalPrecision(*result_type);
-            const Int32 parsed_scale = getDecimalScale(*result_type);
-            func_node = checkDecimalOverflow(actions_dag, func_node, parsed_precision, parsed_scale);
-#ifndef NDEBUG
-            const auto output_type = removeNullable(func_node->result_type);
-            const Int32 output_precision = getDecimalPrecision(*output_type);
-            const Int32 output_scale = getDecimalScale(*output_type);
-            if (output_precision != parsed_precision || output_scale != parsed_scale)
-                throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {} has wrong output type", getName());
-#endif
-
-            return func_node;
-        }
         return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
     }
 };
@@ -325,6 +300,33 @@ protected:
     DecimalType internalEvalType(const Int32 p1, const Int32 s1, const Int32 p2, const Int32 s2) const override
     {
         return DecimalType::evalModuloDecimalType(p1, s1, p2, s2);
+    }
+
+    const DB::ActionsDAG::Node * createFunctionNode(
+        DB::ActionsDAG & actions_dag,
+        const String & func_name,
+        const DB::ActionsDAG::NodeRawConstPtrs & new_args,
+        DataTypePtr result_type) const override
+    {
+        assert(func_name == name);
+        const auto * left_arg = new_args[0];
+        const auto * right_arg = new_args[1];
+
+        if (isDecimal(removeNullable(left_arg->result_type)) || isDecimal(removeNullable(right_arg->result_type)))
+        {
+            const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
+                result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
+
+            const auto & settings = plan_parser->getContext()->getSettingsRef();
+            auto function_name
+                = settings.has("arithmetic.decimal.mode") && Poco::toUpper(settings.getString("arithmetic.decimal.mode")) == "'EFFECT'"
+                ? "NameSparkDecimalModuloEffect"
+                : "NameSparkDecimalModulo";
+            ;
+            return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
+        }
+
+        return toFunctionNode(actions_dag, "sparkDivide", {left_arg, right_arg});
     }
 };
 

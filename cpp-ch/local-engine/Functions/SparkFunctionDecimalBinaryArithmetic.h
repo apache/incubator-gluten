@@ -234,6 +234,30 @@ struct DecimalDivideImpl
 #endif
 };
 
+
+// ModuloImpl
+struct DecimalModuloImpl
+{
+    template <typename A>
+    static bool apply(A & a, A & b, A & r)
+    {
+        if (b == 0)
+            return false;
+
+        r = a % b;
+        return true;
+    }
+
+#if USE_EMBEDDED_COMPILER
+    static constexpr bool compilable = true;
+
+    static llvm::Value * compile(llvm::IRBuilder<> & b, llvm::Value * left, llvm::Value * right, bool)
+    {
+        return left->getType()->isIntegerTy() ? b.CreateSub(left, right) : b.CreateFSub(left, right);
+    }
+#endif
+};
+
 template <typename Op1, typename Op2>
 struct IsSameOperation
 {
@@ -247,5 +271,6 @@ struct SparkIsOperation
     static constexpr bool minus = IsSameOperation<Op, DecimalMinusImpl>::value;
     static constexpr bool multiply = IsSameOperation<Op, DecimalMultiplyImpl>::value;
     static constexpr bool division = IsSameOperation<Op, DecimalDivideImpl>::value;
+    static constexpr bool modulo = IsSameOperation<Op, DecimalModuloImpl>::value;
 };
 }
