@@ -338,7 +338,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   override def transformCheckOverflow: Boolean = false
 
-  override def requiredInputFilePaths(): Boolean = true
+  override def requiredInputFilePaths(): Boolean = false
 
   override def requireBloomFilterAggMightContainJointFallback(): Boolean = false
 
