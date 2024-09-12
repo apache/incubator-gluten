@@ -17,7 +17,6 @@
 package org.apache.gluten.planner.cost
 
 import org.apache.gluten.execution.RowToColumnarExecBase
-import org.apache.gluten.extension.columnar.enumerated.RemoveFilter
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
@@ -30,9 +29,6 @@ class RoughCostModel extends LongCostModel {
 
   override def selfLongCostOf(node: SparkPlan): Long = {
     node match {
-      case _: RemoveFilter.NoopFilter =>
-        // To make planner choose the tree that has applied rule PushFilterToScan.
-        0L
       case ProjectExec(projectList, _) if projectList.forall(isCheapExpression) =>
         // Make trivial ProjectExec has the same cost as ProjectExecTransform to reduce unnecessary
         // c2r and r2c.
