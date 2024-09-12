@@ -92,7 +92,6 @@ public:
         const auto * null_array_node
             = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeNullable>(arr_not_null->result_type), {});
         const auto * if_node = toFunctionNode(actions_dag, "if", {arr_or_elem_is_null, null_array_node, array_filter});
-        std::cout << "xxx actions_dag:" << actions_dag.dumpDAG() << std::endl;
         return convertNodeTypeIfNeeded(substrait_func, if_node, actions_dag);
     }
 };

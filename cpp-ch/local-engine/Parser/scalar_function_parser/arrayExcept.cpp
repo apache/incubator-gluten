@@ -102,7 +102,6 @@ public:
             null_array_node,
             array_distinct_node,
         });
-        std::cout << "xxx actions_dag:" << actions_dag.dumpDAG() << std::endl;
         return convertNodeTypeIfNeeded(substrait_func, multi_if_node, actions_dag);
     }
 };
