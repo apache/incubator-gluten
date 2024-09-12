@@ -105,7 +105,7 @@ case class DeltaProjectExecTransformer(projectList: Seq[NamedExpression], child:
             Alias(
               child = CaseWhen(newBranches, newElseValue),
               name = alias.name
-            )()
+            )(alias.exprId)
 
           case _ =>
             alias

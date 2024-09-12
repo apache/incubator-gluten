@@ -69,7 +69,8 @@ trait SparkPlanExecApi {
 
   def genProjectExecTransformer(
       projectList: Seq[NamedExpression],
-      child: SparkPlan): ProjectExecTransformerBase
+      child: SparkPlan): ProjectExecTransformer =
+    ProjectExecTransformer.createUnsafe(projectList, child)
 
   /** Generate HashAggregateExecTransformer. */
   def genHashAggregateExecTransformer(
