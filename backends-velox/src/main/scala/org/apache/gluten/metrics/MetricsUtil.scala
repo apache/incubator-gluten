@@ -18,7 +18,6 @@ package org.apache.gluten.metrics
 
 import org.apache.gluten.execution._
 import org.apache.gluten.substrait.{AggregationParams, JoinParams}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 

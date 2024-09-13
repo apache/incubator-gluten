@@ -17,7 +17,6 @@
 package org.apache.gluten.metrics
 
 import org.apache.gluten.substrait.AggregationParams
-
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkMetricsUtil
 import org.apache.spark.task.TaskResources

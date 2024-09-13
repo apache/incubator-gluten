@@ -47,7 +47,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-substrait</artifactId>
+      <artifactId>gluten-core</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
@@ -64,7 +64,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-substrait</artifactId>
+      <artifactId>gluten-core</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

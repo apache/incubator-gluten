@@ -18,7 +18,6 @@ package org.apache.gluten.metrics
 
 import org.apache.gluten.metrics.Metrics.SingleMetric
 import org.apache.gluten.substrait.JoinParams
-
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkMetricsUtil
 import org.apache.spark.task.TaskResources
