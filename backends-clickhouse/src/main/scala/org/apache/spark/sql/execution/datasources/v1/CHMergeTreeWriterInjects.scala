@@ -109,9 +109,8 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
   }
   // scalastyle:on argcount
 
-  override def getFormatName(): String = {
-    "mergetree"
-  }
+  override val formatName: String = "mergetree"
+
 }
 
 object CHMergeTreeWriterInjects {

@@ -52,10 +52,7 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     val namedStruct = namedStructBuilder.build
 
     val instance =
-      datasourceJniWrapper.nativeInitFileWriterWrapper(
-        path,
-        namedStruct.toByteArray,
-        getFormatName())
+      datasourceJniWrapper.nativeInitFileWriterWrapper(path, namedStruct.toByteArray, formatName)
 
     new OutputWriter {
       override def write(row: InternalRow): Unit = {

@@ -45,7 +45,7 @@ trait GlutenFormatWriterInjects {
       options: Map[String, String],
       compressionCodec: String): java.util.Map[String, String]
 
-  def getFormatName(): String
+  def formatName: String
 
   def getExtendedColumnarPostRule(session: SparkSession): Rule[SparkPlan]
 }
