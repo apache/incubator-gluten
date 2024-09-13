@@ -26,17 +26,25 @@ import org.apache.spark.SparkContext;
 import org.apache.spark.api.plugin.PluginContext;
 import org.apache.spark.resource.ResourceInformation;
 import org.jetbrains.annotations.NotNull;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 import java.io.IOException;
 import java.util.Map;
 
-/** For testing Velox backend without starting a Spark context. */
 public abstract class VeloxBackendTestBase {
+  private static SparkContext sc = null;
+
   @BeforeClass
   public static void setup() {
     final ListenerApi api = new VeloxListenerApi();
-    api.onDriverStart(mockSparkContext(), mockPluginContext());
+    sc = mockSparkContext();
+    api.onDriverStart(sc, mockPluginContext());
+  }
+
+  @AfterClass
+  public static void tearDown() {
+    sc.stop();
   }
 
   private static SparkContext mockSparkContext() {
