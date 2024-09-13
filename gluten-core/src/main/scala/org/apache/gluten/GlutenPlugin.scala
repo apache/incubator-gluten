@@ -16,6 +16,7 @@
  */
 package org.apache.gluten
 
+import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.GlutenConfig.GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.events.GlutenBuildInfoEvent
