@@ -116,7 +116,7 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
     val df = sql(query)
     checkAnswer(
       df,
-      Seq(Row(1, 'a'), Row(1, 'b'), Row(2, null), Row(null, 'c'), Row(null, 'd'), Row(3, "")))
+      Seq(Row(1, "a"), Row(1, "b"), Row(2, null), Row(null, "c"), Row(null, "d"), Row(3, "")))
     spark.sessionState.catalog.dropTable(
       TableIdentifier("test_7116"),
       ignoreIfNotExists = true,
