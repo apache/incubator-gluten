@@ -1,12 +1,12 @@
 # rebuild in #33610
-# docker build -t clickhouse/binary-builder .
+# docker build -t libch_builder .
 FROM ubuntu:20.04
 
 # ARG for quick switch to a given ubuntu mirror
 ARG apt_archive="http://mirrors.aliyun.com"
 RUN sed -i "s|http://archive.ubuntu.com|$apt_archive|g" /etc/apt/sources.list
 
-ENV DEBIAN_FRONTEND=noninteractive LLVM_VERSION=16
+ENV DEBIAN_FRONTEND=noninteractive LLVM_VERSION=17
 
 RUN apt-get update \
     && apt-get install \
@@ -36,35 +36,35 @@ RUN apt-get update \
 RUN curl -s https://apt.kitware.com/keys/kitware-archive-latest.asc | \
         gpg --dearmor - > /etc/apt/trusted.gpg.d/kitware.gpg && \
     echo "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" >> /etc/apt/sources.list
+
 # initial packages
 RUN apt-get update \
     && apt-get install \
         bash \
         openjdk-8-jdk\
-    #        build-essential \
         ccache \
         clang-${LLVM_VERSION} \
-#        clang-tidy-${LLVM_VERSION} \
         cmake \
         fakeroot \
-#        gdb \
         git \
-#        gperf \
         lld-${LLVM_VERSION} \
         llvm-${LLVM_VERSION} \
-#        llvm-${LLVM_VERSION}-dev \
-#        moreutils \
         ninja-build \
-#        pigz \
-#        rename \
         software-properties-common \
         tzdata \
         --yes --no-install-recommends \
+#       clang-tidy-${LLVM_VERSION} \
+#       gperf \
+#       gdb \
+#       llvm-${LLVM_VERSION}-dev \
+#       moreutils \
+#       build-essential \
+#       pigz \
+#       rename \
     && apt-get clean
 
 # This symlink required by gcc to find lld compiler
 RUN ln -s /usr/bin/lld-${LLVM_VERSION} /usr/bin/ld.lld
-
 ENV RUSTUP_HOME=/rust/rustup
 ENV CARGO_HOME=/rust/cargo
 ENV PATH="/rust/cargo/env:${PATH}"

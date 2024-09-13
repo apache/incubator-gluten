@@ -27,49 +27,90 @@ The architecture of the ClickHouse backend is shown below:
 
 In general, we use IDEA for Gluten development and CLion for ClickHouse backend development on **Ubuntu 20**.
 
-#### Prerequisites
+#### Prerequisite
 
-Install the software required for compilation, run `sudo ./ep/build-clickhouse/src/install_ubuntu.sh`.
-Under the hood, it will install the following software:
+##### For compiling clickhouse backend
+
+Following softwares are required,
 - Clang 18.0
 - cmake 3.20 or higher version
 - ninja-build 1.8.2
 
+You can run `sudo $gluten_root/ep/build-clickhouse/src/install_ubuntu.sh` to setup the requirements. We also provide a [docker file](../../cpp-ch/local-engine/docker/image/Dockerfile), you can build your own image
+```shell
+cd $gluten_root/cpp-ch/local-engine/docker/image/
+docker build . -t libch_builder
+```
+
 You can also refer to [How-to-Build-ClickHouse-on-Linux](https://clickhouse.com/docs/en/development/build/).
+
+##### For compiling gluten
 You need to install the following software manually:
 - Java 8
 - Maven 3.6.3 or higher version
 - Spark 3.2.2 or Spark 3.3.1
 
 Then, get Gluten code:
-```
+```shell
     git clone https://github.com/apache/incubator-gluten.git
 ```
 
 #### Setup ClickHouse backend development environment
 
-If you don't care about development environment, you can skip this part.
+##### Compile Clickhouse backend
 
-Otherwise, do:
+###### clone repos
 
-1. clone Kyligence/ClickHouse repo
-    ```
-    cd /to/some/place/
+clone Kyligence/ClickHouse repo
+    ```shell
     git clone --recursive --shallow-submodules -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
     ```
-
-2. Configure cpp-ch
-    ${GLUTEN_SOURCE}/cpp-ch can be treated as an add-on of Kyligence/Clickhouse
-
-    First, initialize some configuration for this add-on:
-
+    checkout to the latest branch
     ```shell
-    export GLUTEN_SOURCE=/path/to/gluten
-    export CH_SOURCE_DIR=/path/to/ClickHouse
-    cmake -G Ninja -S ${GLUTEN_SOURCE}/cpp-ch -B ${GLUTEN_SOURCE}/cpp-ch/build_ch -DCH_SOURCE_DIR=${CH_SOURCE_DIR} "-DCMAKE_C_COMPILER=$(command -v clang-18)" "-DCMAKE_CXX_COMPILER=$(command -v clang++-18)" "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+    latest_branch=$(cat $gluten_root/cpp-ch/clickhouse.version  | grep CH_BRANCH | cut -d= -f2)
+    git checkout -b $latest_branch origin/$latest_branch
+    git submodule sync --recursive
+    git submodule update --init --recursive
     ```
 
-    Next, you need to compile Kyligence/Clickhouse. There are two options:
+
+clone gluten repo
+  ```shell
+  git clone https://github.com/apache/incubator-gluten.git
+  ```
+
+
+##### build
+
+There are several ways to build the backend library.
+1. Build it direclty
+
+If you have setup all requirements, you can use following command to build it direclty.
+
+```bash
+cd $gluten_root
+bash ./ep/build-clickhouse/src/build_clickhouse.sh
+```
+
+
+This will download Clickhouse for you and build everything.
+The target file is `$gluten_root/cpp-ch/build/utils/extern-local-engine/libch.so`.
+
+
+2. Use docker
+You can use [docker file](../../cpp-ch/local-engine/docker/image/Dockerfile) to build a docker image
+```shell
+cd $gluten_root/cpp-ch/local-engine/docker/image/
+docker build . -t libch_builder
+
+cd $gluten_root/cpp-ch/local-engine/docker
+./build.sh -g <gluten_root> -c <clickhouse_root> [-b <build_directory>] [-o <output_directory>] libch_builder
+```
+`build_directory` is a directory used as to store the intermediate files from compiling. It will use `current_dir>`/build as the default value if you don't provide it.
+
+
+`output_directory` is used as to store the finaly output `libch.so`. The default value is `current_dir`/output if you don't provide it.
+
 
 3. (Option 1) Use CLion
 
@@ -94,28 +135,31 @@ Otherwise, do:
    
       If it builds with Debug mode successfully, there is a library file called 'libchd.so' in path '${CH_SOURCE_DIR}/cmake-build-debug/utils/extern-local-engine/'.
 
-4. (Option 2) Use command line
-    ```
-    cmake --build ${GLUTEN_SOURCE}/cpp-ch/build_ch --target build_ch
-   ```
-   If it builds successfully, there is a library file called 'libch.so' in path '${GLUTEN_SOURCE}/cpp-ch/build/utils/extern-local-engine/'.
-   
-### Directly Compile ClickHouse backend
+4. Build it as a submodule of Clickhouse
 
-In case you don't want a develop environment, you can use the following command to compile ClickHouse backend directly:
-
+```shell
+ln -s $gluten_root/cpp-ch/local-engine $clickhouse_root/utils/extern-local-engine
+mkdir -p $clickhouse_root/build
+cd $clickhouse_root/build
+cmake -G Ninja  "-DCMAKE_C_COMPILER=$CC" "-DCMAKE_CXX_COMPILER=$CXX" \
+          "-DCMAKE_BUILD_TYPE=Release" \
+          "-DENABLE_PROTOBUF=1" \
+          "-DENABLE_EMBEDDED_COMPILER=$ENABLE_EMBEDDED_COMPILER" \
+          "-DENABLE_TESTS=OFF" \
+          "-DWERROR=OFF" \
+          "-DENABLE_JEMALLOC=1" \
+          "-DENABLE_MULTITARGET_CODE=ON" \
+          "-DENABLE_GWP_ASAN=OFF" \
+          "-DENABLE_EXTERN_LOCAL_ENGINE=ON" \
+          "-DENABLE_THINLTO=false" \
+          ..
+ninja
 ```
-git clone https://github.com/apache/incubator-gluten.git
-cd incubator-gluten
-bash ./ep/build-clickhouse/src/build_clickhouse.sh
-```
-
-This will download Clickhouse for you and build everything.
-The target file is `/path/to/gluten/cpp-ch/build/utils/extern-local-engine/libch.so`.
+The result is in `$clickhouse_root/build/utils/extern-local-engine/libch.so`.
 
 
 
-### Compile Gluten
+#### Compile Gluten
 
 The prerequisites are the same as the one mentioned above. Compile Gluten with ClickHouse backend through maven:
 
