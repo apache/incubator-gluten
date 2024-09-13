@@ -91,15 +91,17 @@ case class CHInputPartitionsUtil(
       .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
 
     val totalCores = SparkResourceUtil.getTotalCores(relation.sparkSession.sessionState.conf)
-    val fileCntPerPartition = math.ceil((splitFiles.size * 1.0) / totalCores).toInt
+    val isAllSmallFiles = splitFiles.forall(_.length < maxSplitBytes)
     val fileCntThreshold = relation.sparkSession.sessionState.conf
       .getConfString(
         CHBackendSettings.GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD,
         CHBackendSettings.GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD_DEFAULT
       )
       .toInt
+    val fileCntPerPartition =
+      math.ceil((splitFiles.size * 1.0) / (totalCores * fileCntThreshold)).toInt
 
-    if (fileCntThreshold > 0 && fileCntPerPartition > fileCntThreshold) {
+    if (fileCntThreshold > 0 && isAllSmallFiles && fileCntPerPartition <= fileCntThreshold) {
       getFilePartitionsByFileCnt(splitFiles, fileCntPerPartition)
     } else {
       FilePartition.getFilePartitions(relation.sparkSession, splitFiles, maxSplitBytes)
