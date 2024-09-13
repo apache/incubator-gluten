@@ -52,7 +52,7 @@ You need to install the following software manually:
 
 Then, get Gluten code:
 ```shell
-    git clone https://github.com/apache/incubator-gluten.git
+git clone https://github.com/apache/incubator-gluten.git
 ```
 
 #### Setup ClickHouse backend development environment
@@ -60,30 +60,36 @@ Then, get Gluten code:
 ##### Compile Clickhouse backend
 
 ###### clone repos
+clone gluten repo
+
+
+```shell
+git clone https://github.com/apache/incubator-gluten.git
+```
 
 clone Kyligence/ClickHouse repo
-    ```shell
-    git clone --recursive --shallow-submodules -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
-    ```
-    checkout to the latest branch
-    ```shell
-    latest_branch=$(cat $gluten_root/cpp-ch/clickhouse.version  | grep CH_BRANCH | cut -d= -f2)
-    git checkout -b $latest_branch origin/$latest_branch
-    git submodule sync --recursive
-    git submodule update --init --recursive
-    ```
+
+```shell
+git clone --recursive --shallow-submodules -b clickhouse_backend https://github.com/Kyligence/ClickHouse.git
+```
+
+checkout to the latest branch
+
+```shell
+latest_branch=$(cat $gluten_root/cpp-ch/clickhouse.version  | grep CH_BRANCH | cut -d= -f2)
+git checkout -b $latest_branch origin/$latest_branch
+git submodule sync --recursive
+git submodule update --init --recursive
+```
 
 
-clone gluten repo
-  ```shell
-  git clone https://github.com/apache/incubator-gluten.git
-  ```
 
 
 ##### build
 
 There are several ways to build the backend library.
 1. Build it direclty
+
 
 If you have setup all requirements, you can use following command to build it direclty.
 
@@ -98,6 +104,8 @@ The target file is `$gluten_root/cpp-ch/build/utils/extern-local-engine/libch.so
 
 
 2. Use docker
+
+
 You can use [docker file](../../cpp-ch/local-engine/docker/image/Dockerfile) to build a docker image
 ```shell
 cd $gluten_root/cpp-ch/local-engine/docker/image/
@@ -136,6 +144,7 @@ cd $gluten_root/cpp-ch/local-engine/docker
       If it builds with Debug mode successfully, there is a library file called 'libchd.so' in path '${CH_SOURCE_DIR}/cmake-build-debug/utils/extern-local-engine/'.
 
 4. Build it as a submodule of Clickhouse
+
 
 ```shell
 ln -s $gluten_root/cpp-ch/local-engine $clickhouse_root/utils/extern-local-engine
