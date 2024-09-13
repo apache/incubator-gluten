@@ -38,7 +38,7 @@ class RoughCostModel extends LongCostModel {
         10L
       case r2c: RowToColumnarExecBase if hasComplexTypes(r2c.schema) =>
         // Avoid moving computation back to native when transition has complex types in schema.
-        // such transitions are observed to be extreme expensive as of now.
+        // Such transitions are observed to be extreme expensive as of now.
         Long.MaxValue
       case ColumnarToRowExec(_) => 10L
       case RowToColumnarExec(_) => 10L
