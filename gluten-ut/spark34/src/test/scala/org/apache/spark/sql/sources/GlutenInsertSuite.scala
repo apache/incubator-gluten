@@ -24,7 +24,7 @@ import org.apache.spark.executor.OutputMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, CommandResultExec, GlutenImplicits, QueryExecution}
+import org.apache.spark.sql.execution.{ColumnarWriteFilesExec, CommandResultExec, GlutenImplicits, ProjectExec, QueryExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -621,6 +621,21 @@ class GlutenInsertSuite
             }.getMessage.contains(incompatibleDefault))
           }
       }
+    }
+  }
+
+  testGluten("GLUTEN-7213: Check no fallback with CheckOverflowInTableInsert") {
+    withTable("t1", "t2") {
+      sql("create table t1 (a float) using parquet")
+      sql("insert into t1 values(1.1)")
+      sql("create table t2 (b decimal(10,4)) using parquet")
+
+      val df = sql("insert overwrite t2 select * from t1")
+      val executedPlan = df.queryExecution.executedPlan
+        .asInstanceOf[CommandResultExec]
+        .commandPhysicalPlan
+      assert(find(executedPlan)(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+      assert(find(executedPlan)(_.isInstanceOf[ProjectExec]).isEmpty)
     }
   }
 }
