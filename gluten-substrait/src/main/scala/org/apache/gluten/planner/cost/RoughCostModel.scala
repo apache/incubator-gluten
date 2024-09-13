@@ -16,12 +16,14 @@
  */
 package org.apache.gluten.planner.cost
 
+import org.apache.gluten.execution.RowToColumnarExecBase
 import org.apache.gluten.extension.columnar.enumerated.RemoveFilter
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ProjectExec, RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.types.{ArrayType, MapType, StructType}
 
 class RoughCostModel extends LongCostModel {
 
@@ -34,6 +36,10 @@ class RoughCostModel extends LongCostModel {
         // Make trivial ProjectExec has the same cost as ProjectExecTransform to reduce unnecessary
         // c2r and r2c.
         10L
+      case r2c: RowToColumnarExecBase if hasComplexType(r2c.schema) =>
+        // Avoid moving computation back to native when transition has complex types in schema.
+        // such transitions are observed to be extreme expensive as of now.
+        Long.MaxValue
       case ColumnarToRowExec(_) => 10L
       case RowToColumnarExec(_) => 10L
       case ColumnarToRowLike(_) => 10L
@@ -49,5 +55,14 @@ class RoughCostModel extends LongCostModel {
     case Alias(_: Attribute, _) => true
     case _: Attribute => true
     case _ => false
+  }
+
+  private def hasComplexType(schema: StructType): Boolean = {
+    schema.exists(_.dataType match {
+      case _: StructType => true
+      case _: ArrayType => true
+      case _: MapType => true
+      case _ => false
+    })
   }
 }

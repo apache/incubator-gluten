@@ -29,7 +29,7 @@ class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
     super.beforeAll()
     spark
       .range(100)
-      .selectExpr("cast(id % 3 as int) as c1", "id as c2")
+      .selectExpr("cast(id % 3 as int) as c1", "id as c2", "array(id, id + 1) as c3")
       .write
       .format("parquet")
       .saveAsTable("tmp1")
@@ -43,10 +43,19 @@ class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
   override protected def sparkConf: SparkConf = super.sparkConf
     .set(GlutenConfig.RAS_ENABLED.key, "true")
     .set(GlutenConfig.RAS_COST_MODEL.key, "rough")
+    .set(GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED.key, "false")
 
   test("fallback trivial project if its neighbor nodes fell back") {
     withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
       runQueryAndCompare("select c1 as c3 from tmp1") {
+        checkSparkOperatorMatch[ProjectExec]
+      }
+    }
+  }
+
+  test("fallback r2c whose schema contains complex data types") {
+    withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
+      runQueryAndCompare("select array_contains(c3, 0) as list from tmp1") {
         checkSparkOperatorMatch[ProjectExec]
       }
     }
