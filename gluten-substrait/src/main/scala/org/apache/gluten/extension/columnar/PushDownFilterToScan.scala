@@ -51,10 +51,12 @@ object PushDownFilterToScan extends Rule[SparkPlan] with PredicateHelper {
             BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
               splitConjunctivePredicates(filter.cond),
               batchScan)
+          // If BatchScanExecTransformerBase's parent is filter, pushdownFilters can't be None.
+          batchScan.setPushDownFilters(Seq.empty)
+          val newScan = batchScan
           if (pushDownFilters.size > 0) {
-            val newScan = batchScan
             newScan.setPushDownFilters(pushDownFilters)
-            if (newScan.doValidate().ok()) {
+            if (newScan.doValidate().ok() && false) {
               filter.withNewChildren(Seq(newScan))
             } else {
               filter
