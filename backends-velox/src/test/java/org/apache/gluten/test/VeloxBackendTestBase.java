@@ -25,12 +25,15 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.plugin.PluginContext;
 import org.apache.spark.resource.ResourceInformation;
+import org.jetbrains.annotations.NotNull;
 import org.junit.BeforeClass;
 
 import java.io.IOException;
 import java.util.Map;
 
-/** For testing Velox backend without starting a Spark context. */
+/**
+ * For testing Velox backend without starting a Spark context.
+ */
 public abstract class VeloxBackendTestBase {
   @BeforeClass
   public static void setup() {
@@ -39,8 +42,7 @@ public abstract class VeloxBackendTestBase {
   }
 
   private static SparkContext mockSparkContext() {
-    // Not yet implemented.
-    return null;
+    return new SparkContext("local[2]", "test-sql-context", newSparkConf());
   }
 
   private static PluginContext mockPluginContext() {
@@ -52,9 +54,7 @@ public abstract class VeloxBackendTestBase {
 
       @Override
       public SparkConf conf() {
-        final SparkConf conf = new SparkConf();
-        conf.set(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY(), "1g");
-        return conf;
+        return newSparkConf();
       }
 
       @Override
@@ -82,5 +82,13 @@ public abstract class VeloxBackendTestBase {
         throw new UnsupportedOperationException();
       }
     };
+  }
+
+  @NotNull
+  private static SparkConf newSparkConf() {
+    final SparkConf conf = new SparkConf();
+    conf.set("spark.sql.testkey", "true");
+    conf.set(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY(), "1g");
+    return conf;
   }
 }
