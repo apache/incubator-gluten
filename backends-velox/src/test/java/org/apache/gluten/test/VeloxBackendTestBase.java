@@ -31,9 +31,7 @@ import org.junit.BeforeClass;
 import java.io.IOException;
 import java.util.Map;
 
-/**
- * For testing Velox backend without starting a Spark context.
- */
+/** For testing Velox backend without starting a Spark context. */
 public abstract class VeloxBackendTestBase {
   @BeforeClass
   public static void setup() {
