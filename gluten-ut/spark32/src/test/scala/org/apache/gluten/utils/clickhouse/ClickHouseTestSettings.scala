@@ -653,6 +653,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("cast from struct II")
     .exclude("cast from struct III")
   enableSuite[GlutenCollectionExpressionsSuite]
+    .exclude("ArraysZip") // wait for https://github.com/ClickHouse/ClickHouse/pull/69576
     .exclude("Sequence of numbers")
     .exclude("elementAt")
     .exclude("Shuffle")
