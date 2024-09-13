@@ -41,29 +41,6 @@ extern const int TYPE_MISMATCH;
 extern const int LOGICAL_ERROR;
 }
 
-bool decimalCheckArithmeticOverflow(ContextPtr context);
-}
-
-namespace ProfileEvents
-{
-extern const Event FileSegmentWaitReadBufferMicroseconds;
-extern const Event FileSegmentReadMicroseconds;
-extern const Event FileSegmentCacheWriteMicroseconds;
-extern const Event FileSegmentPredownloadMicroseconds;
-extern const Event FileSegmentUsedBytes;
-
-extern const Event CachedReadBufferReadFromSourceMicroseconds;
-extern const Event CachedReadBufferReadFromCacheMicroseconds;
-extern const Event CachedReadBufferCacheWriteMicroseconds;
-extern const Event CachedReadBufferReadFromSourceBytes;
-extern const Event CachedReadBufferReadFromCacheBytes;
-extern const Event CachedReadBufferCacheWriteBytes;
-extern const Event CachedReadBufferCreateBufferMicroseconds;
-
-extern const Event BackupReadMetadataMicroseconds;
-extern const Event BackupWriteMetadataMicroseconds;
-extern const Event BackupEntriesCollectorMicroseconds;
-
 }
 
 namespace local_engine
@@ -225,12 +202,6 @@ private:
         auto & vec_res = col_res->getData();
         vec_res.resize(col_left_size);
 
-        Stopwatch watch3(CLOCK_MONOTONIC);
-        SCOPE_EXIT({
-            watch3.stop();
-            ProfileEvents::increment(ProfileEvents::BackupEntriesCollectorMicroseconds, watch3.elapsedMicroseconds());
-        });
-
         if (col_left && col_right)
         {
             if (calculate_with_256)
@@ -300,8 +271,8 @@ private:
         const auto & a,
         const auto & b,
         ResultContainerType & result_container,
-        NativeResultType scale_a,
-        NativeResultType scale_b,
+        const NativeResultType & scale_a,
+        const NativeResultType & scale_b,
         ColumnUInt8::Container & vec_null_map_to,
         const ResultDataType & resultDataType,
         const size_t & max_scale)
@@ -374,49 +345,28 @@ private:
     // ResultNativeType = Int32/64/128/256
     template <bool CalculateWith256, typename LeftNativeType, typename RightNativeType, typename NativeResultType, typename ResultDataType>
     static NO_SANITIZE_UNDEFINED bool calculate(
-        LeftNativeType l,
-        RightNativeType r,
-        NativeResultType scale_left,
-        NativeResultType scale_right,
+        const LeftNativeType l,
+        const RightNativeType r,
+        const NativeResultType & scale_left,
+        const NativeResultType & scale_right,
         NativeResultType & res,
         const ResultDataType & resultDataType,
         const size_t & max_scale)
     {
         if constexpr (CalculateWith256)
-            return calculateImpl<Int256>(
-                static_cast<Int256>(l),
-                static_cast<Int256>(r),
-                static_cast<Int256>(scale_left),
-                static_cast<Int256>(scale_right),
-                res,
-                resultDataType,
-                max_scale);
+            return calculateImpl<Int256>(l, r, scale_left, scale_right, res, resultDataType, max_scale);
         else if (is_division)
-            return calculateImpl<Int128>(
-                static_cast<Int128>(l),
-                static_cast<Int128>(r),
-                static_cast<Int128>(scale_left),
-                static_cast<Int128>(scale_right),
-                res,
-                resultDataType,
-                max_scale);
+            return calculateImpl<Int128>(l, r, scale_left, scale_right, res, resultDataType, max_scale);
         else
-            return calculateImpl<NativeResultType>(
-                static_cast<NativeResultType>(l),
-                static_cast<NativeResultType>(r),
-                scale_left,
-                scale_right,
-                res,
-                resultDataType,
-                max_scale);
+            return calculateImpl<NativeResultType>(l, r, scale_left, scale_right, res, resultDataType, max_scale);
     }
 
-    template <typename CalcType, typename NativeResultType, typename ResultDataType>
+    template <typename CalcType, typename LeftNativeType, typename RightNativeType, typename NativeResultType, typename ResultDataType>
     static NO_SANITIZE_UNDEFINED bool calculateImpl(
-        CalcType l,
-        CalcType r,
-        CalcType scale_left,
-        CalcType scale_right,
+        const LeftNativeType & l,
+        const RightNativeType & r,
+        const NativeResultType & scale_left,
+        const NativeResultType & scale_right,
         NativeResultType & res,
         const ResultDataType & resultDataType,
         const size_t & max_scale)
