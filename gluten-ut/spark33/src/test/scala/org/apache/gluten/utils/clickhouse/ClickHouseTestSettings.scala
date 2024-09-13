@@ -817,32 +817,12 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35728: Check multiply/divide of day-time intervals of any fields by numeric")
     .exclude("SPARK-35778: Check multiply/divide of year-month intervals of any fields by numeric")
   enableSuite[GlutenLiteralExpressionSuite]
-    .exclude("null")
     .exclude("default")
-    .exclude("decimal")
-    .exclude("array")
-    .exclude("seq")
-    .exclude("map")
-    .exclude("struct")
-    .exclude("SPARK-35664: construct literals from java.time.LocalDateTime")
-    .exclude("SPARK-34605: construct literals from java.time.Duration")
-    .exclude("SPARK-34605: construct literals from arrays of java.time.Duration")
-    .exclude("SPARK-34615: construct literals from java.time.Period")
-    .exclude("SPARK-34615: construct literals from arrays of java.time.Period")
-    .exclude("SPARK-35871: Literal.create(value, dataType) should support fields")
     .exclude("SPARK-37967: Literal.create support ObjectType")
   enableSuite[GlutenMathExpressionsSuite]
-    .exclude("tanh")
-    .exclude("unhex")
-    .exclude("atan2")
-    .exclude("round/bround/floor/ceil")
-    .exclude("SPARK-36922: Support ANSI intervals for SIGN/SIGNUM")
-    .exclude("SPARK-35926: Support YearMonthIntervalType in width-bucket function")
-    .exclude("SPARK-35925: Support DayTimeIntervalType in width-bucket function")
-    .exclude("SPARK-37388: width_bucket")
-    .exclude("shift left")
-    .exclude("shift right")
-    .exclude("shift right unsigned")
+    .exclude("unhex") // https://github.com/apache/incubator-gluten/issues/7232
+    .exclude("round/bround/floor/ceil") // https://github.com/apache/incubator-gluten/issues/7233
+    .exclude("atan2") // https://github.com/apache/incubator-gluten/issues/7233
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
