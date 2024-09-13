@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
-import org.apache.gluten.{CH_BRANCH, CH_COMMIT, GlutenConfig}
+import org.apache.gluten.GlutenBuildInfo._
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi._
 import org.apache.gluten.execution.WriteFilesExecTransformer
@@ -39,7 +40,7 @@ import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{ArrayType, MapType, Metadata, StructField, StructType}
+import org.apache.spark.sql.types._
 
 import java.util.Locale
 
