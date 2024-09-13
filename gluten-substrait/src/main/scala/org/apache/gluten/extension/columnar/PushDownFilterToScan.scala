@@ -56,7 +56,7 @@ object PushDownFilterToScan extends Rule[SparkPlan] with PredicateHelper {
           val newScan = batchScan
           if (pushDownFilters.size > 0) {
             newScan.setPushDownFilters(pushDownFilters)
-            if (newScan.doValidate().ok() && false) {
+            if (newScan.doValidate().ok()) {
               filter.withNewChildren(Seq(newScan))
             } else {
               filter
