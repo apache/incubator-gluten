@@ -16,28 +16,14 @@
  */
 package org.apache.gluten.backendsapi
 
-import java.util.ServiceLoader
-
-import scala.collection.JavaConverters
+import org.apache.gluten.backend.Backend
 
 object BackendsApiManager {
-
-  private lazy val backend: Backend = initializeInternal()
+  private lazy val backend: SubstraitBackend = initializeInternal()
 
   /** Initialize all backends api. */
-  private def initializeInternal(): Backend = {
-    val discoveredBackends =
-      JavaConverters.iterableAsScalaIterable(ServiceLoader.load(classOf[Backend])).toSeq
-    if (discoveredBackends.isEmpty) {
-      throw new IllegalStateException("Backend implementation not discovered from JVM classpath")
-    }
-    if (discoveredBackends.size != 1) {
-      throw new IllegalStateException(
-        s"More than one Backend implementation discovered from JVM classpath: " +
-          s"${discoveredBackends.map(_.name()).toList}")
-    }
-    val backend = discoveredBackends.head
-    backend
+  private def initializeInternal(): SubstraitBackend = {
+    Backend.get().asInstanceOf[SubstraitBackend]
   }
 
   /**
@@ -53,10 +39,6 @@ object BackendsApiManager {
   // (e.g. gluten-substrait, gluten-data)
   def getBackendName: String = {
     backend.name()
-  }
-
-  def getBuildInfo: BackendBuildInfo = {
-    backend.buildInfo()
   }
 
   def getListenerApiInstance: ListenerApi = {

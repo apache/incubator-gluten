@@ -17,7 +17,8 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, Transitions}
-import org.apache.gluten.utils.{LogLevelUtil, PlanUtil}
+import org.apache.gluten.logging.LogLevelUtil
+import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression

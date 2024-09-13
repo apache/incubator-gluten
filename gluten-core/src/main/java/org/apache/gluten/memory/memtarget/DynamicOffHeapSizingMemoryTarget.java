@@ -18,11 +18,13 @@ package org.apache.gluten.memory.memtarget;
 
 import org.apache.gluten.GlutenConfig;
 
+import org.apache.spark.annotation.Experimental;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+@Experimental
 public class DynamicOffHeapSizingMemoryTarget implements MemoryTarget {
   private static final Logger LOG = LoggerFactory.getLogger(DynamicOffHeapSizingMemoryTarget.class);
   private final MemoryTarget delegated;

@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.backend.Backend
 
 import org.apache.spark.sql.execution.SparkPlan
 
@@ -58,7 +58,7 @@ object ConventionReq {
   val vanillaBatch: ConventionReq =
     Impl(RowType.Any, BatchType.Is(Convention.BatchType.VanillaBatch))
   lazy val backendBatch: ConventionReq =
-    Impl(RowType.Any, BatchType.Is(BackendsApiManager.getSparkPlanExecApiInstance.batchType))
+    Impl(RowType.Any, BatchType.Is(Backend.get().batchType))
 
   def get(plan: SparkPlan): ConventionReq = ConventionFunc.create().conventionReqOf(plan)
   def of(rowType: RowType, batchType: BatchType): ConventionReq = Impl(rowType, batchType)

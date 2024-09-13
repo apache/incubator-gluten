@@ -18,12 +18,10 @@ package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.heuristic.FallbackNode
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike, Transitions}
 import org.apache.gluten.utils.PlanUtil
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec}
@@ -274,10 +272,4 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
   object FallbackInfo {
     def DO_NOT_FALLBACK(): FallbackInfo = FallbackInfo()
   }
-}
-
-/** A wrapper to specify the plan is fallback plan, the caller side should unwrap it. */
-case class FallbackNode(fallbackPlan: SparkPlan) extends LeafExecNode {
-  override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-  override def output: Seq[Attribute] = fallbackPlan.output
 }

@@ -17,15 +17,16 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.TransformerState
 import org.apache.gluten.extension.columnar.transition.Convention
+import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.plan.PlanBuilder
 import org.apache.gluten.substrait.rel.RelNode
 import org.apache.gluten.test.TestStats
-import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.sql.execution.SparkPlan
 
@@ -108,7 +109,7 @@ trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelU
   }
 
   protected def batchType0(): Convention.BatchType = {
-    BackendsApiManager.getSparkPlanExecApiInstance.batchType
+    Backend.get().batchType
   }
 
   protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded

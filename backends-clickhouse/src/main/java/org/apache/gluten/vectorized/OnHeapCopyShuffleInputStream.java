@@ -37,24 +37,26 @@ public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
 
   @Override
   public long read(long destAddress, long maxReadSize) {
-    return GlutenException.wrap(
-        () -> {
-          int maxReadSize32 = Math.toIntExact(maxReadSize);
-          if (buffer == null || maxReadSize32 > buffer.length) {
-            this.buffer = new byte[maxReadSize32];
-          }
-          // The code conducts copy as long as 'in' wraps off-heap data,
-          // which is about to be moved to heap
-          int read = in.read(buffer, 0, maxReadSize32);
-          if (read == -1 || read == 0) {
-            return 0;
-          }
-          // The code conducts copy, from heap to off-heap
-          // memCopyFromHeap(buffer, destAddress, read);
-          PlatformDependent.copyMemory(buffer, 0, destAddress, read);
-          bytesRead += read;
-          return read;
-        });
+    try {
+
+      int maxReadSize32 = Math.toIntExact(maxReadSize);
+      if (buffer == null || maxReadSize32 > buffer.length) {
+        this.buffer = new byte[maxReadSize32];
+      }
+      // The code conducts copy as long as 'in' wraps off-heap data,
+      // which is about to be moved to heap
+      int read = in.read(buffer, 0, maxReadSize32);
+      if (read == -1 || read == 0) {
+        return 0;
+      }
+      // The code conducts copy, from heap to off-heap
+      // memCopyFromHeap(buffer, destAddress, read);
+      PlatformDependent.copyMemory(buffer, 0, destAddress, read);
+      bytesRead += read;
+      return read;
+    } catch (Exception e) {
+      throw new GlutenException(e);
+    }
   }
 
   @Override
@@ -69,11 +71,11 @@ public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
 
   @Override
   public void close() {
-    GlutenException.wrap(
-        () -> {
-          in.close();
-          in = null;
-          return null;
-        });
+    try {
+      in.close();
+      in = null;
+    } catch (Exception e) {
+      throw new GlutenException(e);
+    }
   }
 }

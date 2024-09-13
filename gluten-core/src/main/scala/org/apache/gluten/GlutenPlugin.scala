@@ -17,19 +17,18 @@
 package org.apache.gluten
 
 import org.apache.gluten.GlutenConfig.GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.backend.Backend
 import org.apache.gluten.events.GlutenBuildInfoEvent
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.extension.GlutenSessionExtensions.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
+import org.apache.gluten.extension.GlutenSessionExtensions
 import org.apache.gluten.task.TaskListener
-import org.apache.gluten.test.TestStats
 
-import org.apache.spark.{HdfsConfGenerator, SparkConf, SparkContext, TaskFailedReason}
+import org.apache.spark.{SparkConf, SparkContext, TaskFailedReason}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
-import org.apache.spark.listener.GlutenListenerFactory
 import org.apache.spark.network.util.JavaUtils
-import org.apache.spark.sql.execution.ui.GlutenEventUtils
+import org.apache.spark.softaffinity.SoftAffinityListener
+import org.apache.spark.sql.execution.ui.{GlutenEventUtils, GlutenSQLAppStatusListener}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.task.TaskResources
 import org.apache.spark.util.SparkResourceUtil
@@ -54,23 +53,21 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     _sc = Some(sc)
-    GlutenEventUtils.registerListener(sc)
+    GlutenSQLAppStatusListener.register(sc)
     postBuildInfoEvent(sc)
 
     val conf = pluginContext.conf()
-    if (conf.getBoolean(GlutenConfig.UT_STATISTIC.key, defaultValue = false)) {
-      // Only statistic in UT, not thread safe
-      TestStats.beginStatistic()
-    }
 
     setPredefinedConfigs(sc, conf)
-    if (BackendsApiManager.getSettings.generateHdfsConfForLibhdfs()) {
-      HdfsConfGenerator.addHdfsClientToSparkWorkDirectory(sc)
+    // Initialize Backends API.
+    Backend.get().onDriverStart(sc, pluginContext)
+    if (
+      sc.getConf.getBoolean(
+        GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED,
+        GlutenConfig.GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE)
+    ) {
+      SoftAffinityListener.register(sc)
     }
-    // Initialize Backends API
-    BackendsApiManager.initialize()
-    BackendsApiManager.getListenerApiInstance.onDriverStart(sc, pluginContext)
-    GlutenListenerFactory.addToSparkListenerBus(sc)
 
     Collections.emptyMap()
   }
@@ -86,11 +83,11 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
   }
 
   override def shutdown(): Unit = {
-    BackendsApiManager.getListenerApiInstance.onDriverShutdown()
+    Backend.get().onDriverShutdown()
   }
 
   private def postBuildInfoEvent(sc: SparkContext): Unit = {
-    val buildInfo = BackendsApiManager.getBuildInfo
+    val buildInfo = Backend.get().buildInfo()
 
     // export gluten version to property to spark
     System.setProperty("gluten.version", VERSION)
@@ -107,10 +104,10 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     glutenBuildInfo.put("Gluten Revision Time", REVISION_TIME)
     glutenBuildInfo.put("Gluten Build Time", BUILD_DATE)
     glutenBuildInfo.put("Gluten Repo URL", REPO_URL)
-    glutenBuildInfo.put("Backend", buildInfo.backend)
-    glutenBuildInfo.put("Backend Branch", buildInfo.backendBranch)
-    glutenBuildInfo.put("Backend Revision", buildInfo.backendRevision)
-    glutenBuildInfo.put("Backend Revision Time", buildInfo.backendRevisionTime)
+    glutenBuildInfo.put("Backend", buildInfo.name)
+    glutenBuildInfo.put("Backend Branch", buildInfo.branch)
+    glutenBuildInfo.put("Backend Revision", buildInfo.revision)
+    glutenBuildInfo.put("Backend Revision Time", buildInfo.revisionTime)
     val infoMap = glutenBuildInfo.toMap
     val loggingInfo = infoMap.toSeq
       .sortBy(_._1)
@@ -130,12 +127,13 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 
   private def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
     // sql extensions
-    val extensions = if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
-      s"${conf.get(SPARK_SESSION_EXTS_KEY)},$GLUTEN_SESSION_EXTENSION_NAME"
+    val extensions = if (conf.contains(GlutenSessionExtensions.SPARK_SESSION_EXTS_KEY)) {
+      s"${conf.get(GlutenSessionExtensions.SPARK_SESSION_EXTS_KEY)}," +
+        s"${GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME}"
     } else {
-      s"$GLUTEN_SESSION_EXTENSION_NAME"
+      s"${GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME}"
     }
-    conf.set(SPARK_SESSION_EXTS_KEY, extensions)
+    conf.set(GlutenSessionExtensions.SPARK_SESSION_EXTS_KEY, extensions)
 
     // adaptive custom cost evaluator class
     if (GlutenConfig.getConf.enableGluten && GlutenConfig.getConf.enableGlutenCostEvaluator) {
@@ -230,13 +228,19 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
         conservativeOffHeapPerTask.toString)
     }
 
-    // disable vanilla columnar readers, to prevent columnar-to-columnar conversions
-    if (BackendsApiManager.getSettings.disableVanillaColumnarReaders(conf)) {
+    // Disable vanilla columnar readers, to prevent columnar-to-columnar conversions.
+    // FIXME: Do we still need this trick since
+    //  https://github.com/apache/incubator-gluten/pull/1931 was merged?
+    if (
+      !conf.getBoolean(
+        GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED.key,
+        GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED.defaultValue.get)
+    ) {
       // FIXME Hongze 22/12/06
       //  BatchScan.scala in shim was not always loaded by class loader.
       //  The file should be removed and the "ClassCastException" issue caused by
       //  spark.sql.<format>.enableVectorizedReader=true should be fixed in another way.
-      //  Before the issue was fixed we force the use of vanilla row reader by using
+      //  Before the issue is fixed we force the use of vanilla row reader by using
       //  the following statement.
       conf.set("spark.sql.parquet.enableVectorizedReader", "false")
       conf.set("spark.sql.orc.enableVectorizedReader", "false")
@@ -262,15 +266,13 @@ private[gluten] class GlutenExecutorPlugin extends ExecutorPlugin {
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     val conf = ctx.conf()
 
-    // Initialize Backends API
-    // TODO categorize the APIs by driver's or executor's
-    BackendsApiManager.initialize()
-    BackendsApiManager.getListenerApiInstance.onExecutorStart(ctx)
+    // Initialize Backends API.
+    Backend.get().onExecutorStart(ctx)
   }
 
   /** Clean up and terminate this plugin. For example: close the native engine. */
   override def shutdown(): Unit = {
-    BackendsApiManager.getListenerApiInstance.onExecutorShutdown()
+    Backend.get().onExecutorShutdown()
     super.shutdown()
   }
 

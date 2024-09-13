@@ -17,10 +17,12 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.{CH_BRANCH, CH_COMMIT, GlutenConfig}
+import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi._
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
 
@@ -43,10 +45,11 @@ import java.util.Locale
 
 import scala.util.control.Breaks.{break, breakable}
 
-class CHBackend extends Backend {
+class CHBackend extends SubstraitBackend {
   override def name(): String = CHBackend.BACKEND_NAME
-  override def buildInfo(): BackendBuildInfo =
-    BackendBuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
+  override def batchType: Convention.BatchType = CHBatch
+  override def buildInfo(): Backend.BuildInfo =
+    Backend.BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi

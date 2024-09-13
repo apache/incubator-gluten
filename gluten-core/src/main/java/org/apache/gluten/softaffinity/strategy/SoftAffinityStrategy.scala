@@ -18,7 +18,7 @@ package org.apache.gluten.softaffinity.strategy
 
 import org.apache.spark.internal.Logging
 
-import scala.collection.mutable.LinkedHashSet
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 class SoftAffinityStrategy extends SoftAffinityAllocationTrait with Logging {
@@ -32,7 +32,7 @@ class SoftAffinityStrategy extends SoftAffinityAllocationTrait with Logging {
     } else {
       val candidatesSize = candidates.size
       val halfCandidatesSize = candidatesSize / softAffinityReplicationNum
-      val resultSet = new LinkedHashSet[(String, String)]
+      val resultSet = new mutable.LinkedHashSet[(String, String)]
 
       // TODO: try to use ConsistentHash
       val mod = file.hashCode % candidatesSize
@@ -41,7 +41,7 @@ class SoftAffinityStrategy extends SoftAffinityAllocationTrait with Logging {
       if (candidates(c1).isDefined) {
         resultSet.add(candidates(c1).get)
       }
-      for (i <- 1 to (softAffinityReplicationNum - 1)) {
+      for (i <- 1 until softAffinityReplicationNum) {
         val c2 = (c1 + halfCandidatesSize + i) % candidatesSize
         if (candidates(c2).isDefined) {
           resultSet.add(candidates(c2).get)

@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.backend.Backend
 import org.apache.gluten.extension.injector.RuleInjector
 
 import org.apache.spark.sql.SparkSessionExtensions
@@ -27,7 +27,7 @@ import java.util.Objects
 private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions => Unit) {
   override def apply(exts: SparkSessionExtensions): Unit = {
     val injector = new RuleInjector()
-    BackendsApiManager.getRuleApiInstance.injectRules(injector)
+    Backend.get().injectRules(injector)
     injector.inject(exts)
   }
 }

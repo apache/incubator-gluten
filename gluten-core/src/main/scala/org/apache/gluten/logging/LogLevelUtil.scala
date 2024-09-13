@@ -14,32 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi
+package org.apache.gluten.logging
 
-trait Backend {
-  def name(): String
+import org.apache.spark.internal.Logging
 
-  def buildInfo(): BackendBuildInfo
+trait LogLevelUtil { self: Logging =>
 
-  def iteratorApi(): IteratorApi
+  protected def logOnLevel(level: String, msg: => String): Unit =
+    level match {
+      case "TRACE" => logTrace(msg)
+      case "DEBUG" => logDebug(msg)
+      case "INFO" => logInfo(msg)
+      case "WARN" => logWarning(msg)
+      case "ERROR" => logError(msg)
+      case _ => logDebug(msg)
+    }
 
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def listenerApi(): ListenerApi
-
-  def ruleApi(): RuleApi
-
-  def settings(): BackendSettingsApi
+  protected def logOnLevel(level: String, msg: => String, e: Throwable): Unit =
+    level match {
+      case "TRACE" => logTrace(msg, e)
+      case "DEBUG" => logDebug(msg, e)
+      case "INFO" => logInfo(msg, e)
+      case "WARN" => logWarning(msg, e)
+      case "ERROR" => logError(msg, e)
+      case _ => logDebug(msg, e)
+    }
 }
-
-case class BackendBuildInfo(
-    backend: String,
-    backendBranch: String,
-    backendRevision: String,
-    backendRevisionTime: String)

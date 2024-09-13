@@ -16,9 +16,9 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.extension.columnar._
+import org.apache.gluten.extension.columnar.ColumnarRuleApplier
 import org.apache.gluten.extension.columnar.transition.Transitions
-import org.apache.gluten.utils.LogLevelUtil
+import org.apache.gluten.logging.LogLevelUtil
 
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
@@ -30,7 +30,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-object ColumnarOverrideRules {
+object GlutenColumnarRule {
 
   // Utilities to infer columnar rule's caller's property:
   // ApplyColumnarRulesAndInsertTransitions#outputsColumnar.
@@ -92,14 +92,14 @@ object ColumnarOverrideRules {
   }
 }
 
-case class ColumnarOverrideRules(
+case class GlutenColumnarRule(
     session: SparkSession,
     applierBuilder: SparkSession => ColumnarRuleApplier)
   extends ColumnarRule
   with Logging
   with LogLevelUtil {
 
-  import ColumnarOverrideRules._
+  import GlutenColumnarRule._
 
   /**
    * Note: Do not implement this API. We basically inject all of Gluten's physical rules through

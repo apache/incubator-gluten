@@ -19,12 +19,12 @@ package org.apache.gluten.extension.columnar.enumerated
 import org.apache.gluten.extension.columnar.{OffloadExchange, OffloadJoin, OffloadOthers}
 import org.apache.gluten.extension.columnar.transition.ConventionReq
 import org.apache.gluten.extension.columnar.validator.{Validator, Validators}
+import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.planner.GlutenOptimization
 import org.apache.gluten.planner.cost.GlutenCostModel
 import org.apache.gluten.planner.property.Conv
 import org.apache.gluten.ras.property.PropertySet
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule

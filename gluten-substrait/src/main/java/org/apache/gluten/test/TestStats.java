@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.test;
 
+import org.apache.gluten.GlutenConfig;
+
 import java.util.*;
 
 /** Only use in UT Env. It's not thread safe. */
@@ -24,7 +26,6 @@ public class TestStats {
   private static final String ROW_FORMAT =
       "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>";
 
-  private static boolean UT_ENV = false;
   private static final Map<String, CaseInfo> caseInfos = new HashMap<>();
   private static String currentCase;
   public static int offloadGlutenUnitNumber = 0;
@@ -35,8 +36,8 @@ public class TestStats {
   public static int suiteTestNumber = 0;
   public static int offloadGlutenTestNumber = 0;
 
-  public static void beginStatistic() {
-    UT_ENV = true;
+  private static boolean enabled() {
+    return GlutenConfig.getConf().collectUtStats();
   }
 
   public static void reset() {
@@ -56,7 +57,7 @@ public class TestStats {
   public static int totalOffloadGlutenCaseNumber = 0;
 
   public static void printMarkdown(String suitName) {
-    if (!UT_ENV) {
+    if (!enabled()) {
       return;
     }
 
@@ -105,7 +106,7 @@ public class TestStats {
   }
 
   public static void addFallBackClassName(String className) {
-    if (!UT_ENV) {
+    if (!enabled()) {
       return;
     }
 
@@ -117,7 +118,7 @@ public class TestStats {
   }
 
   public static void addFallBackCase() {
-    if (!UT_ENV) {
+    if (!enabled()) {
       return;
     }
 
@@ -127,7 +128,7 @@ public class TestStats {
   }
 
   public static void addExpressionClassName(String className) {
-    if (!UT_ENV) {
+    if (!enabled()) {
       return;
     }
 
@@ -138,7 +139,7 @@ public class TestStats {
   }
 
   public static Set<String> getFallBackClassName() {
-    if (!UT_ENV) {
+    if (!enabled()) {
       return Collections.emptySet();
     }
 
@@ -150,7 +151,7 @@ public class TestStats {
   }
 
   public static void addIgnoreCaseName(String caseName) {
-    if (!UT_ENV) {
+    if (!enabled()) {
       return;
     }
 
@@ -160,7 +161,7 @@ public class TestStats {
   }
 
   public static void resetCase() {
-    if (!UT_ENV) {
+    if (!enabled()) {
       return;
     }
 
@@ -171,7 +172,7 @@ public class TestStats {
   }
 
   public static void startCase(String caseName) {
-    if (!UT_ENV) {
+    if (!enabled()) {
       return;
     }
 
@@ -180,7 +181,7 @@ public class TestStats {
   }
 
   public static void endCase(boolean status) {
-    if (!UT_ENV) {
+    if (!enabled()) {
       return;
     }
 

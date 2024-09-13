@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.backend.Backend
 import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.sql.execution._
@@ -25,7 +25,7 @@ import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 
 object PlanUtil {
   private def isGlutenTableCacheInternal(i: InMemoryTableScanExec): Boolean = {
-    Convention.get(i).batchType == BackendsApiManager.getSparkPlanExecApiInstance.batchType
+    Convention.get(i).batchType == Backend.get().batchType
   }
 
   def isGlutenTableCache(plan: SparkPlan): Boolean = {
@@ -44,6 +44,6 @@ object PlanUtil {
   }
 
   def isGlutenColumnarOp(plan: SparkPlan): Boolean = {
-    Convention.get(plan).batchType == BackendsApiManager.getSparkPlanExecApiInstance.batchType
+    Convention.get(plan).batchType == Backend.get().batchType
   }
 }

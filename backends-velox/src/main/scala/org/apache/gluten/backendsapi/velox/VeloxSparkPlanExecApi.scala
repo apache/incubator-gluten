@@ -23,8 +23,6 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
 import org.apache.gluten.extension.columnar.FallbackTags
-import org.apache.gluten.extension.columnar.transition.Convention
-import org.apache.gluten.extension.columnar.transition.ConventionFunc.BatchOverride
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
 
@@ -42,7 +40,6 @@ import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelationBroadcastMode}
@@ -60,23 +57,6 @@ import org.apache.commons.lang3.ClassUtils
 import javax.ws.rs.core.UriBuilder
 
 class VeloxSparkPlanExecApi extends SparkPlanExecApi {
-
-  /** The columnar-batch type this backend is using. */
-  override def batchType: Convention.BatchType = {
-    VeloxBatch
-  }
-
-  /**
-   * Overrides [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using to
-   * determine the convention (its row-based processing / columnar-batch processing support) of a
-   * plan with a user-defined function that accepts a plan then returns batch type it outputs.
-   */
-  override def batchTypeFunc(): BatchOverride = {
-    case i: InMemoryTableScanExec
-        if i.supportsColumnar && i.relation.cacheBuilder.serializer
-          .isInstanceOf[ColumnarCachedBatchSerializer] =>
-      VeloxBatch
-  }
 
   /** Transform GetArrayItem to Substrait. */
   override def genGetArrayItemTransformer(
