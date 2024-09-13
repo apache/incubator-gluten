@@ -25,9 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpress
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ProjectExec, RowToColumnarExec, SparkPlan}
 import org.apache.spark.sql.types.{ArrayType, MapType, StructType}
 
-/**
- * A rough cost model with some empirical heuristics.
- */
+/** A rough cost model with some empirical heuristics. */
 class RoughCostModel extends LongCostModel {
 
   override def selfLongCostOf(node: SparkPlan): Long = {
