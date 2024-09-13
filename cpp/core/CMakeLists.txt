@@ -213,13 +213,11 @@ file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
 add_dependencies(gluten jni_proto)
 
-if(ENABLE_GLUTEN_VCPKG)
-  # Hide symbols of some static dependencies. Otherwise, if such dependencies
-  # are already statically linked to libvelox.so, a runtime error will be
-  # reported: xxx is being linked both statically and dynamically.
-  target_link_options(
-    gluten PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
-endif()
+# Hide symbols of some static dependencies. Otherwise, if such dependencies are
+# already statically linked to libvelox.so, a runtime error will be reported:
+# xxx is being linked both statically and dynamically.
+target_link_options(
+  gluten PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 
 if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
   execute_process(
