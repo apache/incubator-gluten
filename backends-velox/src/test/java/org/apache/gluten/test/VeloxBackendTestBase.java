@@ -16,10 +16,11 @@
  */
 package org.apache.gluten.test;
 
-import com.codahale.metrics.MetricRegistry;
 import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.backendsapi.ListenerApi;
 import org.apache.gluten.backendsapi.velox.VeloxListenerApi;
+
+import com.codahale.metrics.MetricRegistry;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.plugin.PluginContext;
 import org.apache.spark.resource.ResourceInformation;
@@ -29,7 +30,6 @@ import org.junit.BeforeClass;
 
 import java.io.IOException;
 import java.util.Map;
-
 
 public abstract class VeloxBackendTestBase {
   private static final ListenerApi API = new VeloxListenerApi();
