@@ -17,10 +17,10 @@ AdaptiveSparkPlan (88)
                                  :     :- ^ InputIteratorTransformer (7)
                                  :     :  +- BroadcastQueryStage (5), Statistics(X)
                                  :     :     +- ColumnarBroadcastExchange (4)
-                                 :     :        +- ^ NoopFilter (2)
+                                 :     :        +- ^ FilterExecTransformer (2)
                                  :     :           +- ^ Scan parquet (1)
                                  :     +- ^ BroadcastHashJoinExecTransformer LeftSemi BuildRight (27)
-                                 :        :- ^ NoopFilter (9)
+                                 :        :- ^ FilterExecTransformer (9)
                                  :        :  +- ^ Scan parquet (8)
                                  :        +- ^ InputIteratorTransformer (26)
                                  :           +- BroadcastQueryStage (24), Statistics(X)
@@ -39,7 +39,7 @@ AdaptiveSparkPlan (88)
                                     +- BroadcastQueryStage (39), Statistics(X)
                                        +- ColumnarBroadcastExchange (38)
                                           +- ^ BroadcastHashJoinExecTransformer LeftSemi BuildRight (36)
-                                             :- ^ NoopFilter (31)
+                                             :- ^ FilterExecTransformer (31)
                                              :  +- ^ Scan parquet (30)
                                              +- ^ InputIteratorTransformer (35)
                                                 +- BroadcastQueryStage (33), Statistics(X)
@@ -86,9 +86,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_custkey)]
 ReadSchema: struct<c_custkey:bigint,c_name:string>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [2]: [c_custkey#X, c_name#X]
-Arguments: [c_custkey#X, c_name#X]
+Arguments: isnotnull(c_custkey#X)
 
 (3) WholeStageCodegenTransformer (X)
 Input [2]: [c_custkey#X, c_name#X]
@@ -115,9 +115,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_custkey), IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_totalprice:decimal(12,2),o_orderdate:date>
 
-(9) NoopFilter
+(9) FilterExecTransformer
 Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
-Arguments: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
+Arguments: (isnotnull(o_custkey#X) AND isnotnull(o_orderkey#X))
 
 (10) Scan parquet
 Output [2]: [l_orderkey#X, l_quantity#X]
@@ -212,9 +212,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
 
-(31) NoopFilter
+(31) FilterExecTransformer
 Input [2]: [l_orderkey#X, l_quantity#X]
-Arguments: [l_orderkey#X, l_quantity#X]
+Arguments: isnotnull(l_orderkey#X)
 
 (32) ReusedExchange [Reuses operator id: 23]
 Output [1]: [l_orderkey#X]

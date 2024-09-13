@@ -11,14 +11,14 @@ AdaptiveSparkPlan (38)
                :     +- ColumnarExchange (6)
                :        +- VeloxResizeBatches (5)
                :           +- ^ ProjectExecTransformer (3)
-               :              +- ^ NoopFilter (2)
+               :              +- ^ FilterExecTransformer (2)
                :                 +- ^ Scan parquet (1)
                +- ^ InputIteratorTransformer (18)
                   +- ShuffleQueryStage (16)
                      +- ColumnarExchange (15)
                         +- VeloxResizeBatches (14)
                            +- ^ ProjectExecTransformer (12)
-                              +- ^ NoopFilter (11)
+                              +- ^ FilterExecTransformer (11)
                                  +- ^ Scan parquet (10)
 +- == Initial Plan ==
    HashAggregate (37)
@@ -43,9 +43,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_shipinstruct), In(l_shipmode, [AIR,AIR REG]), EqualTo(l_shipinstruct,DELIVER IN PERSON), IsNotNull(l_partkey), Or(Or(And(GreaterThanOrEqual(l_quantity,1.00),LessThanOrEqual(l_quantity,11.00)),And(GreaterThanOrEqual(l_quantity,10.00),LessThanOrEqual(l_quantity,20.00))),And(GreaterThanOrEqual(l_quantity,20.00),LessThanOrEqual(l_quantity,30.00)))]
 ReadSchema: struct<l_partkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipinstruct:string,l_shipmode:string>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [6]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipinstruct#X, l_shipmode#X]
-Arguments: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipinstruct#X, l_shipmode#X]
+Arguments: ((((isnotnull(l_shipinstruct#X) AND l_shipmode#X IN (AIR,AIR REG)) AND (l_shipinstruct#X = DELIVER IN PERSON)) AND isnotnull(l_partkey#X)) AND ((((l_quantity#X >= 1.00) AND (l_quantity#X <= 11.00)) OR ((l_quantity#X >= 10.00) AND (l_quantity#X <= 20.00))) OR ((l_quantity#X >= 20.00) AND (l_quantity#X <= 30.00))))
 
 (3) ProjectExecTransformer
 Output [5]: [hash(l_partkey#X, 42) AS hash_partition_key#X, l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
@@ -80,9 +80,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_size), GreaterThanOrEqual(p_size,1), IsNotNull(p_partkey), Or(Or(And(And(EqualTo(p_brand,Brand#X),In(p_container, [SM BOX,SM CASE,SM PACK,SM PKG])),LessThanOrEqual(p_size,5)),And(And(EqualTo(p_brand,Brand#X),In(p_container, [MED BAG,MED BOX,MED PACK,MED PKG])),LessThanOrEqual(p_size,10))),And(And(EqualTo(p_brand,Brand#X),In(p_container, [LG BOX,LG CASE,LG PACK,LG PKG])),LessThanOrEqual(p_size,15)))]
 ReadSchema: struct<p_partkey:bigint,p_brand:string,p_size:int,p_container:string>
 
-(11) NoopFilter
+(11) FilterExecTransformer
 Input [4]: [p_partkey#X, p_brand#X, p_size#X, p_container#X]
-Arguments: [p_partkey#X, p_brand#X, p_size#X, p_container#X]
+Arguments: (((isnotnull(p_size#X) AND (p_size#X >= 1)) AND isnotnull(p_partkey#X)) AND (((((p_brand#X = Brand#X) AND p_container#X IN (SM CASE,SM BOX,SM PACK,SM PKG)) AND (p_size#X <= 5)) OR (((p_brand#X = Brand#X) AND p_container#X IN (MED BAG,MED BOX,MED PKG,MED PACK)) AND (p_size#X <= 10))) OR (((p_brand#X = Brand#X) AND p_container#X IN (LG CASE,LG BOX,LG PACK,LG PKG)) AND (p_size#X <= 15))))
 
 (12) ProjectExecTransformer
 Output [5]: [hash(p_partkey#X, 42) AS hash_partition_key#X, p_partkey#X, p_brand#X, p_size#X, p_container#X]

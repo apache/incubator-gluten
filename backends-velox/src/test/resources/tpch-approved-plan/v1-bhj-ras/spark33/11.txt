@@ -19,18 +19,18 @@ AdaptiveSparkPlan (60)
                                              +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (20)
                                                 :- ^ ProjectExecTransformer (11)
                                                 :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (10)
-                                                :     :- ^ NoopFilter (2)
+                                                :     :- ^ FilterExecTransformer (2)
                                                 :     :  +- ^ Scan parquet (1)
                                                 :     +- ^ InputIteratorTransformer (9)
                                                 :        +- BroadcastQueryStage (7), Statistics(X)
                                                 :           +- ColumnarBroadcastExchange (6)
-                                                :              +- ^ NoopFilter (4)
+                                                :              +- ^ FilterExecTransformer (4)
                                                 :                 +- ^ Scan parquet (3)
                                                 +- ^ InputIteratorTransformer (19)
                                                    +- BroadcastQueryStage (17), Statistics(X)
                                                       +- ColumnarBroadcastExchange (16)
                                                          +- ^ ProjectExecTransformer (14)
-                                                            +- ^ NoopFilter (13)
+                                                            +- ^ FilterExecTransformer (13)
                                                                +- ^ Scan parquet (12)
 +- == Initial Plan ==
    Sort (59)
@@ -61,9 +61,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_suppkey)]
 ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_availqty:int,ps_supplycost:decimal(12,2)>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [4]: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
-Arguments: [ps_partkey#X, ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
+Arguments: isnotnull(ps_suppkey#X)
 
 (3) Scan parquet
 Output [2]: [s_suppkey#X, s_nationkey#X]
@@ -72,9 +72,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
 
-(4) NoopFilter
+(4) FilterExecTransformer
 Input [2]: [s_suppkey#X, s_nationkey#X]
-Arguments: [s_suppkey#X, s_nationkey#X]
+Arguments: (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
 (5) WholeStageCodegenTransformer (X)
 Input [2]: [s_suppkey#X, s_nationkey#X]
@@ -110,9 +110,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_name), EqualTo(n_name,GERMANY), IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(13) NoopFilter
+(13) FilterExecTransformer
 Input [2]: [n_nationkey#X, n_name#X]
-Arguments: [n_nationkey#X, n_name#X]
+Arguments: ((isnotnull(n_name#X) AND (n_name#X = GERMANY)) AND isnotnull(n_nationkey#X))
 
 (14) ProjectExecTransformer
 Output [1]: [n_nationkey#X]
@@ -336,7 +336,7 @@ AdaptiveSparkPlan (102)
                            +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (73)
                               :- ^ ProjectExecTransformer (68)
                               :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (67)
-                              :     :- ^ NoopFilter (62)
+                              :     :- ^ FilterExecTransformer (62)
                               :     :  +- ^ Scan parquet (61)
                               :     +- ^ InputIteratorTransformer (66)
                               :        +- BroadcastQueryStage (64), Statistics(X)
@@ -370,9 +370,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_suppkey)]
 ReadSchema: struct<ps_suppkey:bigint,ps_availqty:int,ps_supplycost:decimal(12,2)>
 
-(62) NoopFilter
+(62) FilterExecTransformer
 Input [3]: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
-Arguments: [ps_suppkey#X, ps_availqty#X, ps_supplycost#X]
+Arguments: isnotnull(ps_suppkey#X)
 
 (63) ReusedExchange [Reuses operator id: 6]
 Output [2]: [s_suppkey#X, s_nationkey#X]
