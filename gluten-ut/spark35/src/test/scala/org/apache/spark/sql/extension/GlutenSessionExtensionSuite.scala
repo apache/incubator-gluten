@@ -31,8 +31,7 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
   }
 
   testGluten("test gluten extensions") {
-    assert(
-      spark.sessionState.columnarRules.map(_.getClass).contains(classOf[GlutenColumnarRule]))
+    assert(spark.sessionState.columnarRules.map(_.getClass).contains(classOf[GlutenColumnarRule]))
 
     assert(spark.sessionState.planner.strategies.contains(MySparkStrategy(spark)))
     assert(spark.sessionState.analyzer.extendedResolutionRules.contains(MyRule(spark)))
