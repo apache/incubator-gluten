@@ -36,13 +36,9 @@ object PushDownFilterToScan extends Rule[SparkPlan] with PredicateHelper {
             BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
               splitConjunctivePredicates(filter.cond),
               fileScan)
-          if (pushDownFilters.size > fileScan.dataFilters.size) {
-            val newScan = fileScan.copy(dataFilters = pushDownFilters)
-            if (newScan.doValidate().ok()) {
-              filter.withNewChildren(Seq(newScan))
-            } else {
-              filter
-            }
+          val newScan = fileScan.copy(dataFilters = pushDownFilters)
+          if (newScan.doValidate().ok()) {
+            filter.withNewChildren(Seq(newScan))
           } else {
             filter
           }
