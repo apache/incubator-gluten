@@ -33,22 +33,26 @@ class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTr
       expected: Any,
       exprDataType: DataType,
       exprNullable: Boolean): Boolean = {
-    // The result is null for a non-nullable expression
-    assert(result != null || exprNullable, "exprNullable should be true if result is null")
-    (result, expected) match {
-      case (result: Double, expected: Double) =>
-        if (
-          (isNaNOrInf(result) || isNaNOrInf(expected))
-          || (result == -0.0) || (expected == -0.0)
-        ) {
-          java.lang.Double.doubleToRawLongBits(result) ==
-            java.lang.Double.doubleToRawLongBits(expected)
-        } else {
-          Precision.equalsWithRelativeTolerance(result, expected, 0.00001d) ||
-          Precision.equals(result, expected, 0.00001d)
-        }
-      case _ =>
-        super.checkResult(result, expected, exprDataType, exprNullable)
+    if (BackendTestUtils.isVeloxBackendLoaded()) {
+      super.checkResult(result, expected, exprDataType, exprNullable)
+    } else {
+      // The result is null for a non-nullable expression
+      assert(result != null || exprNullable, "exprNullable should be true if result is null")
+      (result, expected) match {
+        case (result: Double, expected: Double) =>
+          if (
+            (isNaNOrInf(result) || isNaNOrInf(expected))
+            || (result == -0.0) || (expected == -0.0)
+          ) {
+            java.lang.Double.doubleToRawLongBits(result) ==
+              java.lang.Double.doubleToRawLongBits(expected)
+          } else {
+            Precision.equalsWithRelativeTolerance(result, expected, 0.00001d) ||
+            Precision.equals(result, expected, 0.00001d)
+          }
+        case _ =>
+          super.checkResult(result, expected, exprDataType, exprNullable)
+      }
     }
   }
 
