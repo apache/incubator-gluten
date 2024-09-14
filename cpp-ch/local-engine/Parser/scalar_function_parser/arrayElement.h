@@ -38,7 +38,7 @@ class FunctionParserArrayElement : public FunctionParser
 {
 
 public:
-    explicit FunctionParserArrayElement(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserArrayElement(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserArrayElement() override = default;
 
     const ActionsDAG::Node * parse(

@@ -30,7 +30,7 @@ namespace local_engine
 class SparkFunctionReverseParser : public FunctionParser
 {
 public:
-    SparkFunctionReverseParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionReverseParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionReverseParser() override = default;
 
     static constexpr auto name = "reverse";

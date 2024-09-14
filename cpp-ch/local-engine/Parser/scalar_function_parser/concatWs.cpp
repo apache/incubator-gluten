@@ -36,7 +36,7 @@ namespace local_engine
 class FunctionParserConcatWS : public FunctionParser
 {
 public:
-    explicit FunctionParserConcatWS(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserConcatWS(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserConcatWS() override = default;
 
     static constexpr auto name = "concat_ws";

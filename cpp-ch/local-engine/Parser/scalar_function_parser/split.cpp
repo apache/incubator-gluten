@@ -22,7 +22,7 @@ namespace local_engine
 class SparkFunctionSplitParser : public FunctionParser
 {
 public:
-    SparkFunctionSplitParser(SerializedPlanParser * plan_paser_) : FunctionParser(plan_paser_) {}
+    SparkFunctionSplitParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionSplitParser() override = default;
     static constexpr auto name = "split";
     String getName() const override { return name; }

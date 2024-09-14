@@ -30,7 +30,7 @@ namespace local_engine
 class FunctionParserExpm1 : public FunctionParser
 {
 public:
-    explicit FunctionParserExpm1(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserExpm1(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserExpm1() override = default;
 
     static constexpr auto name = "expm1";

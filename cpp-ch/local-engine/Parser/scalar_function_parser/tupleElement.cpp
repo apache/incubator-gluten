@@ -29,7 +29,7 @@ namespace local_engine
     class SparkFunctionParser##class_name : public FunctionParser \
     { \
     public: \
-        SparkFunctionParser##class_name(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}\
+        SparkFunctionParser##class_name(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}\
         ~SparkFunctionParser##class_name() override = default; \
         static constexpr auto name = #substrait_name; \
         String getName () const override { return name; } \

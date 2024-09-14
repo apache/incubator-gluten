@@ -33,7 +33,7 @@ namespace local_engine
 class FunctionParserSubstring : public FunctionParser
 {
 public:
-    explicit FunctionParserSubstring(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserSubstring(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserSubstring() override = default;
     static constexpr auto name = "substring";
     String getName() const override { return name; }

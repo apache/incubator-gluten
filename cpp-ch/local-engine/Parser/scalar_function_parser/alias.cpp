@@ -22,7 +22,7 @@ namespace local_engine
 class SparkFunctionAliasParser : public FunctionParser
 {
 public:
-    SparkFunctionAliasParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionAliasParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionAliasParser() override = default;
     static constexpr auto name = "alias";
     String getName() const { return name; }

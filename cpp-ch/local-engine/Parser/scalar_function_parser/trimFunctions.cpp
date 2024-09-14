@@ -22,7 +22,7 @@ namespace local_engine
 class SparkFunctionTrimParser : public FunctionParser
 {
 public:
-    SparkFunctionTrimParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionTrimParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionTrimParser() override = default;
 
     static constexpr auto name = "trim";
@@ -59,7 +59,7 @@ static FunctionParserRegister<SparkFunctionTrimParser> register_trim;
 class SparkFunctionLtrimParser : public FunctionParser
 {
 public:
-    SparkFunctionLtrimParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionLtrimParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionLtrimParser() override = default;
 
     static constexpr auto name = "ltrim";
@@ -95,7 +95,7 @@ static FunctionParserRegister<SparkFunctionLtrimParser> register_ltrim;
 class SparkFunctionRtrimParser : public FunctionParser
 {
 public:
-    SparkFunctionRtrimParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionRtrimParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionRtrimParser() override = default;
 
     static constexpr auto name = "rtrim";

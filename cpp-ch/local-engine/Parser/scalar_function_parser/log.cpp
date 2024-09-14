@@ -19,6 +19,7 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <Parser/FunctionParser.h>
 #include <Common/CHUtil.h>
+#include <Parser/ExpressionParser.h>
 
 namespace DB
 {
@@ -35,7 +36,7 @@ namespace local_engine
 class FunctionParserLog : public FunctionParser
 {
 public:
-    explicit FunctionParserLog(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserLog(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserLog() override = default;
 
     static constexpr auto name = "log";

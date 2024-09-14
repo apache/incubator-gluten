@@ -622,7 +622,6 @@ String ExpressionParser::getFunctionNameInSignature(UInt32 func_ref_) const
     if (!function_sig)
         throw DB::Exception(DB::ErrorCodes::UNKNOWN_FUNCTION, "Unknown function anchor: {}", func_ref_);
     return *function_sig;
-    return context->getFunctionNameInSignature(func_ref_);
 }
 
 String ExpressionParser::getFunctionName(const substrait::Expression_ScalarFunction & func_) const
@@ -817,9 +816,5 @@ ExpressionParser::parseJsonTuple(const substrait::Expression_ScalarFunction & fu
         res_nodes.push_back(tuple_node);
     }
     return res_nodes;
-}
-std::shared_ptr<SerializedPlanParser> ExpressionParser::createFakePlanPlanParser() const
-{
-    return nullptr;
 }
 }

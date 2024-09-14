@@ -34,7 +34,7 @@ namespace local_engine
 class FunctionParserFactorial : public FunctionParser
 {
 public:
-    explicit FunctionParserFactorial(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserFactorial(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserFactorial() override = default;
 
     static constexpr auto name = "factorial";

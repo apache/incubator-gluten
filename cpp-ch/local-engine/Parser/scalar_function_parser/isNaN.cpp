@@ -26,7 +26,7 @@ namespace local_engine
 class SparkFunctionIsNaNParser : public FunctionParser
 {
 public:
-    SparkFunctionIsNaNParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionIsNaNParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionIsNaNParser() override = default;
 
     static constexpr auto name = "isnan";

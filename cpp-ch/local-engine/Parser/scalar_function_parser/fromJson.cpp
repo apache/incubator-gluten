@@ -24,7 +24,7 @@ namespace local_engine
 class SparkFunctionFromJsonParser : public FunctionParser
 {
 public:
-    SparkFunctionFromJsonParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionFromJsonParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionFromJsonParser() override = default;
 
     static constexpr auto name = "from_json";

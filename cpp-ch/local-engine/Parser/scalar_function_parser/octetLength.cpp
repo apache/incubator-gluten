@@ -31,7 +31,7 @@ namespace local_engine
 class FunctionParserOctetLength : public FunctionParser
 {
 public:
-    explicit FunctionParserOctetLength(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserOctetLength(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserOctetLength() override = default;
 
     static constexpr auto name = "octet_length";
