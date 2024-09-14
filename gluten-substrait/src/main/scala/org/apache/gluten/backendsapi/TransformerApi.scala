@@ -44,7 +44,7 @@ trait TransformerApi {
       filterExprs: Seq[Expression] = Seq.empty): Seq[InputPartition]
 
   /**
-   * Post process native config For example, for ClickHouse backend, sync 'spark.executor.cores' to
+   * Post-process native config, For example, for ClickHouse backend, sync 'spark.executor.cores' to
    * 'spark.gluten.sql.columnar.backend.ch.runtime_settings.max_threads'
    */
   def postProcessNativeConfig(

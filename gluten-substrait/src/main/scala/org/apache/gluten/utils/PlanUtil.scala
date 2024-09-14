@@ -23,11 +23,14 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 
+import scala.annotation.tailrec
+
 object PlanUtil {
   private def isGlutenTableCacheInternal(i: InMemoryTableScanExec): Boolean = {
     Convention.get(i).batchType == Backend.get().batchType
   }
 
+  @tailrec
   def isGlutenTableCache(plan: SparkPlan): Boolean = {
     plan match {
       case i: InMemoryTableScanExec =>

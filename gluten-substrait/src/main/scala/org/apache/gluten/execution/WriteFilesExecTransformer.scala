@@ -120,7 +120,7 @@ case class WriteFilesExecTransformer(
         genWriteParameters(),
         SubstraitUtil.createEnhancement(originalInputAttributes))
     } else {
-      // Use a extension node to send the input types through Substrait plan for validation.
+      // Use an extension node to send the input types through Substrait plan for validation.
       ExtensionBuilder.makeAdvancedExtension(
         SubstraitUtil.createEnhancement(originalInputAttributes))
     }
