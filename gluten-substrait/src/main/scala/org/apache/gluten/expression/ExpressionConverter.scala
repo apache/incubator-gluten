@@ -490,8 +490,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         if (!BackendsApiManager.getSettings.transformCheckOverflow) {
           GenericExpressionTransformer(
             substraitExprName,
-            b.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
-            b
+            expr.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+            expr
           )
         } else {
           // Without the rescale and remove cast, result is right for high version Spark,

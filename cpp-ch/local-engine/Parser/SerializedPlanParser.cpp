@@ -1007,10 +1007,10 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG & acti
 
             const auto & substrait_type = rel.cast().type();
             const auto & input_type = args[0]->result_type;
-
             DataTypePtr non_nullable_input_type = removeNullable(input_type);
             DataTypePtr output_type = TypeParser::parseType(substrait_type);
             DataTypePtr non_nullable_output_type = removeNullable(output_type);
+
             const ActionsDAG::Node * function_node = nullptr;
             if (substrait_type.has_binary())
             {
