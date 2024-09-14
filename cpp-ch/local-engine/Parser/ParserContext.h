@@ -48,7 +48,7 @@ public:
     std::optional<String> getFunctionSignature(const substrait::Expression_ScalarFunction & func) const;
     std::optional<String> getFunctionNameInSignature(Int32 ref) const;
     std::optional<String> getFunctionNameInSignature(const substrait::Expression_ScalarFunction & func) const;
-    std::unordered_map<String, String> & getLegacyFunctionMapping() const;
+    const std::unordered_map<String, String> & getLegacyFunctionMapping() const;
 
 private:
     DB::ContextPtr query_context;

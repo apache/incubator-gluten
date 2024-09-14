@@ -34,12 +34,12 @@ namespace local_engine
 using namespace dbms;
 using namespace DB;
 
-void FunctionExecutor::buildExtensions()
+void FunctionExecutor::buildExpressionParser()
 {
-    auto * extension = extensions.Add();
-    auto * extension_function = extension->mutable_extension_function();
-    extension_function->set_function_anchor(0);
-    extension_function->set_name(name);
+    std::unordered_map<String, String> function_mapping;
+    function_mapping["0"] = name;
+    auto parser_context = ParserContext::build(context, function_mapping);
+    expression_parser = std::make_unique<ExpressionParser>(parser_context);
 }
 
 void FunctionExecutor::buildExpression()
@@ -73,16 +73,12 @@ void FunctionExecutor::buildHeader()
         header.insert(ColumnWithTypeAndName{nullptr, input_type, "col_" + std::to_string(i++)});
 }
 
-void FunctionExecutor::parseExtensions()
-{
-    plan_parser.parseExtensions(extensions);
-}
-
 void FunctionExecutor::parseExpression()
 {
     DB::ActionsDAG actions_dag{blockToNameAndTypeList(header)};
     /// Notice keep_result must be true, because result_node of current function must be output node in actions_dag
-    plan_parser.parseFunctionWithDAG(expression, result_name, actions_dag, true);
+    const auto * node = expression_parser->parseFunction(expression.scalar_function(), actions_dag, true);
+    result_name = node->result_name;
     // std::cout << "actions_dag:" << std::endl;
     // std::cout << actions_dag->dumpDAG() << std::endl;
 

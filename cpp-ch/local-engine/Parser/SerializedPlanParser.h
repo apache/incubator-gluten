@@ -37,6 +37,7 @@ std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c);
 
 class SerializedPlanParser;
 class LocalExecutor;
+class ParserContext;
 
 // Give a condition expression `cond_rel_`, found all columns with nullability that must not containt
 // null after this filter.
@@ -81,7 +82,7 @@ private:
     std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan);
 
 public:
-    explicit SerializedPlanParser(const ContextPtr & context);
+    explicit SerializedPlanParser(std::shared_ptr<const ParserContext> parser_context_);
 
     /// visible for UT
     DB::QueryPlanPtr parse(const substrait::Plan & plan);
@@ -122,11 +123,10 @@ public:
         return split_infos.at(next_index);
     }
 
-    void parseExtensions(const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions);
     DB::ActionsDAG expressionsToActionsDAG(
         const std::vector<substrait::Expression> & expressions, const DB::Block & header, const DB::Block & read_schema);
     RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
-    const std::unordered_map<std::string, std::string> & getFunctionMapping() { return function_mapping; }
+    const std::unordered_map<std::string, std::string> & getFunctionMapping() const;
 
     std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
     std::optional<std::string> getFunctionSignatureName(UInt32 function_ref) const;
@@ -191,6 +191,7 @@ private:
     int split_info_index = 0;
     std::vector<bool> materialize_inputs;
     ContextPtr context;
+    std::shared_ptr<const ParserContext> parser_context;
     std::vector<RelMetricPtr> metrics;
 
 public:

@@ -33,6 +33,7 @@
 #include <Parser/FunctionParser.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/ParserContext.h>
 #include <Parser/TypeParser.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/Exception.h>
@@ -274,7 +275,8 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
             auto args_types = tuple_type->getElements();
             AggregateFunctionProperties properties;
             auto tmp_ctx = DB::Context::createCopy(QueryContext::globalContext());
-            SerializedPlanParser tmp_plan_parser(tmp_ctx);
+            auto parser_context = ParserContext::build(tmp_ctx);
+            SerializedPlanParser tmp_plan_parser(parser_context);
             auto function_parser = AggregateFunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
             /// This may remove elements from args_types, because some of them are used to determine CH function name, but not needed for the following
             /// call `AggregateFunctionFactory::instance().get`
