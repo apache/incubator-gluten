@@ -252,8 +252,17 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
   std::string poolName{pool->root()->name() + "/" + pool->name()};
   std::string logPrefix{"Spill[" + poolName + "]: "};
   int64_t shrunken = memoryManager_->shrink(size);
-  // todo return the actual spilled size?
   if (spillStrategy_ == "auto") {
+    if (task_->numThreads() != 0) {
+      // Task should have zero running threads, otherwise there's
+      // possibility that this spill call hangs. See https://github.com/apache/incubator-gluten/issues/7243.
+      // As of now, non-zero running threads usually happens when:
+      // 1. Task A spills task B;
+      // 2. Task A trys to grow buffers created by task B, during which spill is requested on task A again;
+      VLOG(2) << logPrefix << "Spill is requested on a task " << task_->taskId()
+              << " that has non-zero running threads, which is not currently supported. Skipping.";
+      return shrunken;
+    }
     int64_t remaining = size - shrunken;
     LOG(INFO) << logPrefix << "Trying to request spilling for " << remaining << " bytes...";
     // suspend the driver when we are on it
@@ -265,10 +274,8 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     uint64_t total = shrunken + spilledOut;
     VLOG(2) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
     return total;
-  } else {
-    LOG(WARNING) << "Spill-to-disk was disabled since " << kSpillStrategy << " was not configured.";
   }
-
+  LOG(WARNING) << "Spill-to-disk was disabled since " << kSpillStrategy << " was not configured.";
   VLOG(2) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
   return shrunken;
 }
