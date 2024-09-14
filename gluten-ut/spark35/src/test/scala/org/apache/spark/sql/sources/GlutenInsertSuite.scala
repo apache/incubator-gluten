@@ -17,7 +17,7 @@
 package org.apache.spark.sql.sources
 
 import org.apache.gluten.GlutenColumnarWriteTestSupport
-import org.apache.gluten.execution.{ProjectExecTransformer, SortExecTransformer}
+import org.apache.gluten.execution.SortExecTransformer
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.FallbackTags
 
