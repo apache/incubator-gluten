@@ -22,6 +22,10 @@ import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}
 
+/**
+ * A cost model that is supposed to drive RAS planner create the same query plan with legacy
+ * planner.
+ */
 class LegacyCostModel extends LongCostModel {
 
   // A very rough estimation as of now. The cost model basically considers any
