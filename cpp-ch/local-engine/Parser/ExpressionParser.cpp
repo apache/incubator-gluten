@@ -283,7 +283,7 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
                 throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Can only have direct struct references in selections");
 
             const auto * field = actions_dag.getInputs()[rel.selection().direct_reference().struct_field().field()];
-            return actions_dag.tryFindInOutputs(field->result_name);
+            return field;
         }
 
         case substrait::Expression::RexTypeCase::kCast: {
@@ -571,11 +571,15 @@ ExpressionParser::parseFunctionArguments(DB::ActionsDAG & actions_dag, const sub
 {
     DB::ActionsDAG::NodeRawConstPtrs parsed_args;
     parsed_args.reserve(func.arguments_size());
-    for (const auto & arg : func.arguments())
+    for (Int32 i = 0; i < func.arguments_size(); ++i)
     {
+        const auto & arg = func.arguments(i);
+        if (!arg.has_value())
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow scalar function:{}\n\n{}", func.DebugString(), arg.DebugString());
         const auto * node = parseExpression(actions_dag, arg.value());
         parsed_args.emplace_back(node);
     }
+    return parsed_args;
 }
 
 const DB::ActionsDAG::Node *

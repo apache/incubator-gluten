@@ -55,6 +55,7 @@
 #include <Parser/RelParsers/ReadRelParser.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Parser/RelParsers/WriteRelParser.h>
+#include <Parser/ParserContext.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Parsers/ExpressionListParsers.h>
@@ -119,18 +120,9 @@ const ActionsDAG::Node * SerializedPlanParser::addColumn(ActionsDAG & actions_da
         ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field).substr(0, 10))));
 }
 
-
-void SerializedPlanParser::parseExtensions(
-    const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions)
+const std::unordered_map<String, String> & SerializedPlanParser::getFunctionMapping() const
 {
-    for (const auto & extension : extensions)
-    {
-        if (extension.has_extension_function())
-        {
-            function_mapping.emplace(
-                std::to_string(extension.extension_function().function_anchor()), extension.extension_function().name());
-        }
-    }
+    return function_mapping;
 }
 
 ActionsDAG SerializedPlanParser::expressionsToActionsDAG(
@@ -162,14 +154,16 @@ ActionsDAG SerializedPlanParser::expressionsToActionsDAG(
         else if (expr.has_scalar_function())
         {
             const auto & scalar_function = expr.scalar_function();
-            auto function_signature = function_mapping.at(std::to_string(scalar_function.function_reference()));
+            auto function_signature = parser_context->getFunctionSignature(scalar_function);
+            if (!function_signature)
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unknow function anchor: {}", scalar_function.DebugString());
 
             std::vector<String> result_names;
-            if (startsWith(function_signature, "explode:"))
+            if (startsWith(*function_signature, "explode:"))
                 parseArrayJoinWithDAG(expr, result_names, actions_dag, true, false);
-            else if (startsWith(function_signature, "posexplode:"))
+            else if (startsWith(*function_signature, "posexplode:"))
                 parseArrayJoinWithDAG(expr, result_names, actions_dag, true, true);
-            else if (startsWith(function_signature, "json_tuple:"))
+            else if (startsWith(*function_signature, "json_tuple:"))
                 parseJsonTuple(expr, result_names, actions_dag, true, false);
             else
             {
@@ -335,7 +329,7 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
 QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
 {
     logDebugMessage(plan, "substrait plan");
-    parseExtensions(plan.extensions());
+    //parseExtensions(plan.extensions());
     if (plan.relations_size() != 1)
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "too many relations found");
 
@@ -414,7 +408,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
 
     std::vector<DB::IQueryPlanStep *> steps = rel_parser->getSteps();
 
-    if (!context->getSettingsRef()[Setting::query_plan_enable_optimizations])
+    if (!parser_context->queryContext()->getSettingsRef()[Setting::query_plan_enable_optimizations])
     {
         if (rel.rel_type_case() == substrait::Rel::RelTypeCase::kRead)
         {
@@ -430,12 +424,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
 
 std::optional<String> SerializedPlanParser::getFunctionSignatureName(UInt32 function_ref) const
 {
-    auto it = function_mapping.find(std::to_string(function_ref));
-    if (it == function_mapping.end())
-        return {};
-    auto function_signature = it->second;
-    auto pos = function_signature.find(':');
-    return function_signature.substr(0, pos);
+    return parser_context->getFunctionNameInSignature(function_ref);
 }
 
 std::string
@@ -444,7 +433,7 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
     auto args = function.arguments();
     auto pos = function_signature.find(':');
     auto function_name = function_signature.substr(0, pos);
-    auto function_parser = FunctionParserFactory::instance().tryGet(function_name, this);
+    auto function_parser = FunctionParserFactory::instance().tryGet(function_name, parser_context);
     if (!function_parser)
         throw DB::Exception(DB::ErrorCodes::UNKNOWN_FUNCTION, "Unsupported function: {}", function_name);
     return function_parser->getCHFunctionName(function);
@@ -512,7 +501,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
 
     const auto & scalar_function = rel.scalar_function();
 
-    auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
+    const auto & function_mapping = parser_context->getLegacyFunctionMapping();
     String function_name = "arrayJoin";
 
     /// Whether the input argument of explode/posexplode is map type
@@ -527,7 +516,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     /// arrayJoin(arg_not_null)
     const auto * array_join_node = &actions_dag.addArrayJoin(*arg_not_null, array_join_name);
 
-    auto tuple_element_builder = FunctionFactory::instance().get("sparkTupleElement", context);
+    auto tuple_element_builder = FunctionFactory::instance().get("sparkTupleElement", parser_context->queryContext());
     auto tuple_index_type = std::make_shared<DataTypeUInt32>();
     auto add_tuple_element = [&](const ActionsDAG::Node * tuple_node, size_t i) -> const ActionsDAG::Node *
     {
@@ -627,14 +616,11 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
     if (!rel.has_scalar_function())
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "the root of expression should be a scalar function:\n {}", rel.DebugString());
 
-    const auto & scalar_function = rel.scalar_function();
-    auto function_signature = function_mapping.at(std::to_string(scalar_function.function_reference()));
-
     /// If the substrait function name is registered in FunctionParserFactory, use it to parse the function, and return result directly
-    auto pos = function_signature.find(':');
-    auto func_name = function_signature.substr(0, pos);
+    const auto scalar_function = rel.scalar_function();
+    auto func_name = *(parser_context->getFunctionNameInSignature(scalar_function));
 
-    auto func_parser = FunctionParserFactory::instance().tryGet(func_name, this);
+    auto func_parser = FunctionParserFactory::instance().tryGet(func_name, parser_context);
     if (!func_parser)
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not found function parser for {}", func_name);
     LOG_DEBUG(&Poco::Logger::get("SerializedPlanParser"), "parse function {} by function parser: {}", func_name, func_parser->getName());
@@ -649,7 +635,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
 void SerializedPlanParser::parseFunctionArguments(
     ActionsDAG & actions_dag, ActionsDAG::NodeRawConstPtrs & parsed_args, const substrait::Expression_ScalarFunction & scalar_function)
 {
-    auto function_signature = function_mapping.at(std::to_string(scalar_function.function_reference()));
     const auto & args = scalar_function.arguments();
     parsed_args.reserve(args.size());
     for (const auto & arg : args)
@@ -679,8 +664,8 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::convertStructFieldType(const
 
 bool SerializedPlanParser::isFunction(substrait::Expression_ScalarFunction rel, String function_name)
 {
-    auto func_signature = function_mapping[std::to_string(rel.function_reference())];
-    return func_signature.starts_with(function_name + ":");
+    auto func_signature = parser_context->getFunctionSignature(rel);
+    return func_signature && func_signature->starts_with(function_name + ":");
 }
 
 void SerializedPlanParser::parseFunctionOrExpression(
@@ -699,7 +684,6 @@ void SerializedPlanParser::parseJsonTuple(
     const substrait::Expression & rel, std::vector<String> & result_names, ActionsDAG & actions_dag, bool keep_result, bool)
 {
     const auto & scalar_function = rel.scalar_function();
-    auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
     String function_name = "json_tuple";
     auto args = scalar_function.arguments();
     if (args.size() < 2)
@@ -730,11 +714,11 @@ void SerializedPlanParser::parseJsonTuple(
     }
     extract_expr.append(")");
     const ActionsDAG::Node * extract_expr_node = addColumn(actions_dag, std::make_shared<DataTypeString>(), extract_expr);
-    auto json_extract_builder = FunctionFactory::instance().get("JSONExtract", context);
+    auto json_extract_builder = FunctionFactory::instance().get("JSONExtract", parser_context->queryContext());
     auto json_extract_result_name = "JSONExtract(" + json_expr_node->result_name + "," + extract_expr_node->result_name + ")";
     const ActionsDAG::Node * json_extract_node
         = &actions_dag.addFunction(json_extract_builder, {json_expr_node, extract_expr_node}, json_extract_result_name);
-    auto tuple_element_builder = FunctionFactory::instance().get("sparkTupleElement", context);
+    auto tuple_element_builder = FunctionFactory::instance().get("sparkTupleElement", parser_context->queryContext());
     auto tuple_index_type = std::make_shared<DataTypeUInt32>();
     auto add_tuple_element = [&](const ActionsDAG::Node * tuple_node, size_t i) -> const ActionsDAG::Node *
     {
@@ -757,7 +741,7 @@ void SerializedPlanParser::parseJsonTuple(
 const ActionsDAG::Node *
 SerializedPlanParser::toFunctionNode(ActionsDAG & actions_dag, const String & function, const ActionsDAG::NodeRawConstPtrs & args)
 {
-    auto function_builder = FunctionFactory::instance().get(function, context);
+    auto function_builder = FunctionFactory::instance().get(function, parser_context->queryContext());
     std::string args_name = join(args, ',');
     auto result_name = function + "(" + args_name + ")";
     const auto * function_node = &actions_dag.addFunction(function_builder, args, result_name);
@@ -1066,9 +1050,9 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG & acti
             FunctionOverloadResolverPtr function_ptr = nullptr;
             auto condition_nums = if_then.ifs_size();
             if (condition_nums == 1)
-                function_ptr = FunctionFactory::instance().get("if", context);
+                function_ptr = FunctionFactory::instance().get("if", parser_context->queryContext());
             else
-                function_ptr = FunctionFactory::instance().get("multiIf", context);
+                function_ptr = FunctionFactory::instance().get("multiIf", parser_context->queryContext());
             ActionsDAG::NodeRawConstPtrs args;
 
             for (int i = 0; i < condition_nums; ++i)
@@ -1149,7 +1133,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG & acti
             elem_block.insert(ColumnWithTypeAndName(nullptr, elem_type, name));
             elem_block.setColumns(std::move(elem_columns));
 
-            auto future_set = std::make_shared<FutureSetFromTuple>(elem_block, context->getSettingsRef());
+            auto future_set = std::make_shared<FutureSetFromTuple>(elem_block, parser_context->queryContext()->getSettingsRef());
             auto arg = ColumnSet::create(1, std::move(future_set));
             args.emplace_back(&actions_dag.addColumn(ColumnWithTypeAndName(std::move(arg), std::make_shared<DataTypeSet>(), name)));
 
@@ -1164,7 +1148,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG & acti
                 auto type = wrapNullableType(true, function_node->result_type);
                 ActionsDAG::NodeRawConstPtrs cast_args(
                     {function_node, addColumn(actions_dag, type, true), addColumn(actions_dag, type, Field())});
-                auto cast = FunctionFactory::instance().get("if", context);
+                auto cast = FunctionFactory::instance().get("if", parser_context->queryContext());
                 function_node = toFunctionNode(actions_dag, "if", cast_args);
                 actions_dag.addOrReplaceInOutputs(*function_node);
             }
@@ -1182,12 +1166,12 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG & acti
 
 DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPlan & query_plan)
 {
-    const Settings & settings = context->getSettingsRef();
+    const Settings & settings = parser_context->queryContext()->getSettingsRef();
     QueryPriorities priorities;
     const auto query_status = std::make_shared<QueryStatus>(
-        context,
+        parser_context->queryContext(),
         "",
-        context->getClientInfo(),
+        parser_context->queryContext()->getClientInfo(),
         priorities.insert(settings[Setting::priority]),
         CurrentThread::getGroup(),
         IAST::QueryKind::Select,
@@ -1212,7 +1196,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
 {
     Stopwatch stopwatch;
 
-    const Settings & settings = context->getSettingsRef();
+    const Settings & settings = parser_context->queryContext()->getSettingsRef();
     DB::QueryPipelineBuilderPtr builder = nullptr;
     try
     {
@@ -1224,12 +1208,11 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
         throw;
     }
 
-
     assert(s_plan.relations_size() == 1);
     const substrait::PlanRel & root_rel = s_plan.relations().at(0);
     assert(root_rel.has_root());
     if (root_rel.root().input().has_write())
-        addSinkTransform(context, root_rel.root().input().write(), builder);
+        addSinkTransform(parser_context->queryContext(), root_rel.root().input().write(), builder);
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
     LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
     LOG_DEBUG(
@@ -1238,12 +1221,14 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
         settings[Setting::query_plan_enable_optimizations],
         PlanUtil::explainPlan(*query_plan));
 
-    auto config = ExecutorConfig::loadFromContext(context);
+    auto config = ExecutorConfig::loadFromContext(parser_context->queryContext());
     return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(builder), config.dump_pipeline);
 }
 
-SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_) : context(context_)
+SerializedPlanParser::SerializedPlanParser(ParserContextPtr parser_context_) : parser_context(parser_context_)
 {
+    context = parser_context->queryContext();
+    function_mapping = parser_context->getLegacyFunctionMapping();
 }
 
 void SerializedPlanParser::removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAG & actions_dag) const
@@ -1252,7 +1237,7 @@ void SerializedPlanParser::removeNullableForRequiredColumns(const std::set<Strin
     {
         if (const auto * require_node = actions_dag.tryFindInOutputs(item))
         {
-            auto function_builder = FunctionFactory::instance().get("assumeNotNull", context);
+            auto function_builder = FunctionFactory::instance().get("assumeNotNull", parser_context->queryContext());
             ActionsDAG::NodeRawConstPtrs args = {require_node};
             const auto & node = actions_dag.addFunction(function_builder, args, item);
             actions_dag.addOrReplaceInOutputs(node);

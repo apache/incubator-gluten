@@ -84,7 +84,5 @@ private:
 
     DB::ActionsDAG::NodeRawConstPtrs parseJsonTuple(const substrait::Expression_ScalarFunction & func, DB::ActionsDAG & actions_dag) const;
 
-    // FIXME: this funciton should be remove in the future.
-    std::shared_ptr<SerializedPlanParser> createFakePlanParser() const;
 };
 }

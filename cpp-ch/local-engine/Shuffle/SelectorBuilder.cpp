@@ -24,6 +24,7 @@
 #include <DataTypes/DataTypesDecimal.h>
 #include <Functions/FunctionFactory.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/ParserContext.h>
 #include <Parser/TypeParser.h>
 #include <Poco/JSON/Parser.h>
 #include <Poco/MemoryStream.h>
@@ -328,8 +329,9 @@ void RangeSelectorBuilder::initActionsDAG(const DB::Block & block)
     std::lock_guard lock(actions_dag_mutex);
     if (has_init_actions_dag)
         return;
-    SerializedPlanParser plan_parser(QueryContext::globalContext());
-    plan_parser.parseExtensions(projection_plan_pb->extensions());
+
+    auto parser_context = ParserContext::build(QueryContext::globalContext(), *projection_plan_pb);
+    SerializedPlanParser plan_parser(parser_context);
 
     const auto & expressions = projection_plan_pb->relations().at(0).root().input().project().expressions();
     std::vector<substrait::Expression> exprs;

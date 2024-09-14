@@ -91,4 +91,8 @@ std::optional<String> ParserContext::getFunctionNameInSignature(const substrait:
     return getFunctionNameInSignature(func.function_reference());
 }
 
+const std::unordered_map<String, String> & ParserContext::getLegacyFunctionMapping() const
+{
+    return legacy_function_mapping;
+}
 }
