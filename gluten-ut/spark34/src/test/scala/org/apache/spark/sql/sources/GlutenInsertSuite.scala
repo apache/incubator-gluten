@@ -631,7 +631,8 @@ class GlutenInsertSuite
       sql("insert into t1 values(1.1)")
       sql("create table t2 (b decimal(10,4)) using parquet")
 
-      val msg = "CheckOverflowInTableInsert is used in ansi mode, but gluten does not support ANSI mode."
+      val msg =
+        "CheckOverflowInTableInsert is used in ansi mode, but gluten does not support ANSI mode."
       val df = sql("insert overwrite t2 select * from t1")
       val executedPlan = df.queryExecution.executedPlan
         .asInstanceOf[CommandResultExec]
