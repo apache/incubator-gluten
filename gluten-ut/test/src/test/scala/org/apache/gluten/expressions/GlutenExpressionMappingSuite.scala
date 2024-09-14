@@ -94,4 +94,20 @@ class GlutenExpressionMappingSuite
       }
     }
   }
+
+  testWithSpecifiedSparkVersion(
+    "GLUTEN-7213: Check fallback reason with CheckOverflowInTableInsert",
+    Some("3.4")) {
+    withTable("t1", "t2") {
+      sql("create table t1 (a float) using parquet")
+      sql("insert into t1 values(1.1)")
+      sql("create table t2 (b decimal(10,4)) using parquet")
+
+      val msg =
+        "CheckOverflowInTableInsert is used in ansi mode, but gluten does not support ANSI mode."
+      import org.apache.spark.sql.execution.GlutenImplicits._
+      val fallbackSummary = sql("insert overwrite t2 select * from t1").fallbackSummary
+      assert(fallbackSummary.fallbackNodeToReason.flatMap(_.values).exists(_.contains(msg)))
+    }
+  }
 }
