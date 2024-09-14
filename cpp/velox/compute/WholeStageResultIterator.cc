@@ -231,8 +231,16 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
   std::string poolName{pool->root()->name() + "/" + pool->name()};
   std::string logPrefix{"Spill[" + poolName + "]: "};
   int64_t shrunken = memoryManager_->shrink(size);
-  // todo return the actual spilled size?
   if (spillStrategy_ == "auto") {
+    auto driverThreadCtx = velox::exec::driverThreadContext();
+    if (driverThreadCtx != nullptr && driverThreadCtx->driverCtx.task->taskId() != task_->taskId()) {
+      // If spill is requested bt a Velox task, then the target task should be the same one, otherwise there's
+      // possibility that this spill call hangs. See https://github.com/apache/incubator-gluten/issues/7243.
+      VLOG(2) << logPrefix << "Spilling is requested by task " << driverThreadCtx->driverCtx.task->taskId()
+              << " and is conducting on different task " << task_->taskId()
+              << ", which is not currently supported. Skipping.";
+      return shrunken;
+    }
     int64_t remaining = size - shrunken;
     LOG(INFO) << logPrefix << "Trying to request spilling for " << remaining << " bytes...";
     auto* mm = memoryManager_->getMemoryManager();
@@ -241,10 +249,8 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     uint64_t total = shrunken + spilledOut;
     VLOG(2) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
     return total;
-  } else {
-    LOG(WARNING) << "Spill-to-disk was disabled since " << kSpillStrategy << " was not configured.";
   }
-
+  LOG(WARNING) << "Spill-to-disk was disabled since " << kSpillStrategy << " was not configured.";
   VLOG(2) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
   return shrunken;
 }
