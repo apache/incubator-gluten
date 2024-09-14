@@ -47,7 +47,7 @@ DataTypePtr getSparkAvgReturnType(const DataTypePtr & arg_type)
     return createDecimal<DataTypeDecimal>(precision_value, scale_value);
 }
 
-template <typename T>
+template <typename T, bool SPARK35>
 requires is_decimal<T>
 class AggregateFunctionSparkAvg final : public AggregateFunctionAvg<T>
 {
@@ -61,7 +61,7 @@ public:
     {
     }
 
-    DataTypePtr createResultType(const DataTypes & argument_types_, UInt32 num_scale_, UInt32 round_scale_)
+    DataTypePtr createResultType(const DataTypes & argument_types_, UInt32 num_scale_, UInt32 /*round_scale_*/)
     {
         const DataTypePtr & data_type = argument_types_[0];
         const UInt32 precision_value = std::min<size_t>(getDecimalPrecision(*data_type) + 4, DecimalUtils::max_precision<Decimal128>);
@@ -82,7 +82,7 @@ public:
         else if (which.isDecimal64())
         {
             assert_cast<ColumnDecimal<Decimal64> &>(to).getData().push_back(
-          divideDecimalAndUInt(this->data(place), num_scale, result_scale, round_scale));
+                divideDecimalAndUInt(this->data(place), num_scale, result_scale, round_scale));
         }
         else if (which.isDecimal128())
         {
@@ -116,6 +116,9 @@ private:
 
         auto result = value / avg.denominator;
 
+        if constexpr (SPARK35)
+            return result;
+
         if (round_scale > result_scale)
             return result;
 
@@ -128,8 +131,21 @@ private:
     UInt32 round_scale;
 };
 
-AggregateFunctionPtr
-createAggregateFunctionSparkAvg(const std::string & name, const DataTypes & argument_types, const Array & parameters, const Settings * settings)
+template <bool Data, typename... TArgs>
+static IAggregateFunction * createWithDecimalType(const IDataType & argument_type, TArgs && ... args)
+{
+    WhichDataType which(argument_type);
+    if (which.idx == TypeIndex::Decimal32) return new AggregateFunctionSparkAvg<Decimal32, Data>(args...);
+    if (which.idx == TypeIndex::Decimal64) return new AggregateFunctionSparkAvg<Decimal64, Data>(args...);
+    if (which.idx == TypeIndex::Decimal128) return new AggregateFunctionSparkAvg<Decimal128, Data>(args...);
+    if (which.idx == TypeIndex::Decimal256) return new AggregateFunctionSparkAvg<Decimal256, Data>(args...);
+    if constexpr (AggregateFunctionSparkAvg<DateTime64, Data>::DateTime64Supported)
+        if (which.idx == TypeIndex::DateTime64) return new AggregateFunctionSparkAvg<DateTime64, Data>(args...);
+    return nullptr;
+}
+
+AggregateFunctionPtr createAggregateFunctionSparkAvg(
+    const std::string & name, const DataTypes & argument_types, const Array & parameters, const Settings * settings)
 {
     assertNoParameters(name, parameters);
     assertUnary(name, argument_types);
@@ -140,13 +156,19 @@ createAggregateFunctionSparkAvg(const std::string & name, const DataTypes & argu
         throw Exception(
             ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal type {} of argument for aggregate function {}", data_type->getName(), name);
 
+    if (settings->getString("spark_version").starts_with("'3.5"))
+    {
+        res.reset(createWithDecimalType<true>(*data_type, argument_types, getDecimalScale(*data_type), 0));
+        return res;
+    }
+
     bool allowPrecisionLoss = settings->get(DECIMAL_OPERATIONS_ALLOW_PREC_LOSS).safeGet<bool>();
     const UInt32 p1 = DB::getDecimalPrecision(*data_type);
     const UInt32 s1 = DB::getDecimalScale(*data_type);
     auto [p2, s2] = GlutenDecimalUtils::LONG_DECIMAL;
     auto [_, round_scale] = GlutenDecimalUtils::dividePrecisionScale(p1, s1, p2, s2, allowPrecisionLoss);
 
-    res.reset(createWithDecimalType<AggregateFunctionSparkAvg>(*data_type, argument_types, getDecimalScale(*data_type), round_scale));
+    res.reset(createWithDecimalType<false>(*data_type, argument_types, getDecimalScale(*data_type), round_scale));
     return res;
 }
 

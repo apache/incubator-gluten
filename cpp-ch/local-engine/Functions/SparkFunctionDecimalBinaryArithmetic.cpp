@@ -388,11 +388,10 @@ private:
             DecimalDivideImpl::apply<CalcType>(c_res, scaled_diff, c_res);
         }
 
-        auto max_value = intExp10OfSize<CalcType>(resultDataType.getPrecision());
-
         // check overflow
         if constexpr (std::is_same_v<CalcType, Int256> || is_division)
         {
+            auto max_value = intExp10OfSize<CalcType>(resultDataType.getPrecision());
             if (c_res <= -max_value || c_res >= max_value)
                 return false;
         }
@@ -412,10 +411,10 @@ private:
     }
 
     template <typename NativeType, typename ResultNativeType>
-    static ResultNativeType applyScaled(NativeType l, ResultNativeType scale)
+    static ResultNativeType applyScaled(const NativeType & l, const ResultNativeType & scale)
     {
         if (scale > 1)
-            return static_cast<ResultNativeType>(common::mulIgnoreOverflow(l, scale));
+            return common::mulIgnoreOverflow(l, scale);
 
         return static_cast<ResultNativeType>(l);
     }
