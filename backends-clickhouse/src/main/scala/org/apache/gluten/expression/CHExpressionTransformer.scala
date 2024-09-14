@@ -243,3 +243,12 @@ case class GetArrayItemTransformer(
       ConverterUtils.getTypeNode(getArrayItem.dataType, getArrayItem.nullable))
   }
 }
+case class CHStringSplitTransformer(
+    substraitExprName: String,
+    children: Seq[ExpressionTransformer],
+    original: Expression,
+    override val dataType: DataType = ArrayType(StringType, containsNull = true))
+  extends ExpressionTransformer {
+  // In Spark: split return Array(String), while Array is nullable
+  // In CH: splitByXXX return Array(Nullable(String))
+}

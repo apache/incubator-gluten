@@ -91,6 +91,7 @@ case class GenerateExecTransformer(
       generatorNode,
       requiredChildOutputNodes.asJava,
       getExtensionNode(validation),
+      outer,
       context,
       operatorId)
   }

@@ -31,20 +31,24 @@ public class GenerateRelNode implements RelNode, Serializable {
   private final ExpressionNode generator;
   private final List<ExpressionNode> childOutput;
   private final AdvancedExtensionNode extensionNode;
+  private final boolean outer;
 
-  GenerateRelNode(RelNode input, ExpressionNode generator, List<ExpressionNode> childOutput) {
-    this(input, generator, childOutput, null);
+  GenerateRelNode(
+      RelNode input, ExpressionNode generator, List<ExpressionNode> childOutput, boolean outer) {
+    this(input, generator, childOutput, null, outer);
   }
 
   GenerateRelNode(
       RelNode input,
       ExpressionNode generator,
       List<ExpressionNode> childOutput,
-      AdvancedExtensionNode extensionNode) {
+      AdvancedExtensionNode extensionNode,
+      boolean outer) {
     this.input = input;
     this.generator = generator;
     this.childOutput = childOutput;
     this.extensionNode = extensionNode;
+    this.outer = outer;
   }
 
   @Override
@@ -66,6 +70,8 @@ public class GenerateRelNode implements RelNode, Serializable {
     for (ExpressionNode node : childOutput) {
       generateRelBuilder.addChildOutput(node.toProtobuf());
     }
+
+    generateRelBuilder.setOuter(outer);
 
     if (extensionNode != null) {
       generateRelBuilder.setAdvancedExtension(extensionNode.toProtobuf());

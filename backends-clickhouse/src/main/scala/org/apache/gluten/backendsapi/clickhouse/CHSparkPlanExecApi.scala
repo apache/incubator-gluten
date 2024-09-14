@@ -921,4 +921,12 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       limit,
       mode,
       child)
+
+  override def genStringSplitTransformer(
+      substraitExprName: String,
+      srcExpr: ExpressionTransformer,
+      regexExpr: ExpressionTransformer,
+      limitExpr: ExpressionTransformer,
+      original: StringSplit): ExpressionTransformer =
+    CHStringSplitTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
 }
