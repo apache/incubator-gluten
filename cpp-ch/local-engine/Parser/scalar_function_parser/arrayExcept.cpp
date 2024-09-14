@@ -50,7 +50,9 @@ public:
         /// if (arr1 == null || arr2 == null)
         ///    return null
         /// else
-        ///    return arrayDistinct(arrayFilter(x -> !has(assumeNotNull(arr2), x), assumeNotNull(arr1)))
+        ///    return arrayDistinctSpark(arrayFilter(x -> !has(assumeNotNull(arr2), x), assumeNotNull(arr1)))
+        ///
+        /// Note: we should use arrayDistinctSpark instead of arrayDistinct because of https://github.com/ClickHouse/ClickHouse/issues/69546
         const auto * arr1_arg = parsed_args[0];
         const auto * arr2_arg = parsed_args[1];
         const auto * arr1_not_null = toFunctionNode(actions_dag, "assumeNotNull", {arr1_arg});
@@ -85,8 +87,8 @@ public:
         // Apply arrayFilter with the lambda function
         const auto * array_filter_node = toFunctionNode(actions_dag, "arrayFilter", {lambda_function, arr1_not_null});
 
-        // Apply arrayDistinct to the result of arrayFilter
-        const auto * array_distinct_node = toFunctionNode(actions_dag, "arrayDistinct", {array_filter_node});
+        // Apply arrayDistinctSpark to the result of arrayFilter
+        const auto * array_distinct_node = toFunctionNode(actions_dag, "arrayDistinctSpark", {array_filter_node});
 
         /// Return null if any of arr1 or arr2 is null
         const auto * arr1_is_null_node = toFunctionNode(actions_dag, "isNull", {arr1_arg});
