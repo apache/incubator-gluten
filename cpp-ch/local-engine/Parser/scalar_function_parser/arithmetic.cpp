@@ -131,8 +131,8 @@ protected:
         //TODO: checkDecimalOverflowSpark throw exception per configuration
         const DB::ActionsDAG::NodeRawConstPtrs overflow_args
             = {func_node,
-               plan_parser->addColumn(actions_dag, std::make_shared<DataTypeInt32>(), precision),
-               plan_parser->addColumn(actions_dag, std::make_shared<DataTypeInt32>(), scale)};
+               expression_parser->addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), precision),
+               expression_parser->addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), scale)};
         return toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", overflow_args);
     }
 
@@ -146,7 +146,7 @@ protected:
     }
 
 public:
-    explicit FunctionParserBinaryArithmetic(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserBinaryArithmetic(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const override
     {
         const auto ch_func_name = getCHFunctionName(substrait_func);
@@ -166,7 +166,7 @@ public:
 class FunctionParserPlus final : public FunctionParserBinaryArithmetic
 {
 public:
-    explicit FunctionParserPlus(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
+    explicit FunctionParserPlus(ParserContextPtr parser_context_) : FunctionParserBinaryArithmetic(parser_context_) { }
 
     static constexpr auto name = "add";
     String getName() const override { return name; }
@@ -207,7 +207,7 @@ protected:
 class FunctionParserMinus final : public FunctionParserBinaryArithmetic
 {
 public:
-    explicit FunctionParserMinus(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
+    explicit FunctionParserMinus(ParserContextPtr parser_context_) : FunctionParserBinaryArithmetic(parser_context_) { }
 
     static constexpr auto name = "subtract";
     String getName() const override { return name; }
@@ -248,7 +248,7 @@ protected:
 class FunctionParserMultiply final : public FunctionParserBinaryArithmetic
 {
 public:
-    explicit FunctionParserMultiply(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
+    explicit FunctionParserMultiply(ParserContextPtr parser_context_) : FunctionParserBinaryArithmetic(parser_context_) { }
     static constexpr auto name = "multiply";
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "multiply"; }
@@ -288,7 +288,7 @@ protected:
 class FunctionParserModulo final : public FunctionParserBinaryArithmetic
 {
 public:
-    explicit FunctionParserModulo(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
+    explicit FunctionParserModulo(ParserContextPtr parser_context_) : FunctionParserBinaryArithmetic(parser_context_) { }
     static constexpr auto name = "modulus";
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "modulo"; }
@@ -328,7 +328,7 @@ protected:
 class FunctionParserDivide final : public FunctionParserBinaryArithmetic
 {
 public:
-    explicit FunctionParserDivide(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
+    explicit FunctionParserDivide(ParserContextPtr parser_context_) : FunctionParserBinaryArithmetic(parser_context_) { }
     static constexpr auto name = "divide";
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "divide"; }

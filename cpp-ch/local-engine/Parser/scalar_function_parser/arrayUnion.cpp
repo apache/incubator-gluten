@@ -34,7 +34,7 @@ namespace local_engine
 class FunctionParserArrayUnion : public FunctionParser
 {
 public:
-    explicit FunctionParserArrayUnion(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserArrayUnion(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
 
     static constexpr auto name = "array_union";
 

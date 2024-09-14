@@ -35,7 +35,7 @@ namespace local_engine
 class FunctionParserNaNvl : public FunctionParser
 {
 public:
-    explicit FunctionParserNaNvl(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserNaNvl(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserNaNvl() override = default;
 
     static constexpr auto name = "nanvl";
