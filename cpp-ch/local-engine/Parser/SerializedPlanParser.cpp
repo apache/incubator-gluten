@@ -770,7 +770,6 @@ SerializedPlanParser::toFunctionNode(ActionsDAG & actions_dag, const String & fu
     std::string args_name = join(args, ',');
     auto result_name = function + "(" + args_name + ")";
     const auto * function_node = &actions_dag.addFunction(function_builder, args, result_name);
-
     return function_node;
 }
 
