@@ -18,11 +18,44 @@ package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.gluten.utils.BackendTestUtils
 
+import org.apache.spark.sql.GlutenQueryTestUtil.isNaNOrInf
 import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.types._
 
+import org.apache.commons.math3.util.Precision
+
+import java.nio.charset.StandardCharsets
+
 class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTrait {
+  override protected def checkResult(
+      result: Any,
+      expected: Any,
+      exprDataType: DataType,
+      exprNullable: Boolean): Boolean = {
+    if (BackendTestUtils.isVeloxBackendLoaded()) {
+      super.checkResult(result, expected, exprDataType, exprNullable)
+    } else {
+      // The result is null for a non-nullable expression
+      assert(result != null || exprNullable, "exprNullable should be true if result is null")
+      (result, expected) match {
+        case (result: Double, expected: Double) =>
+          if (
+            (isNaNOrInf(result) || isNaNOrInf(expected))
+            || (result == -0.0) || (expected == -0.0)
+          ) {
+            java.lang.Double.doubleToRawLongBits(result) ==
+              java.lang.Double.doubleToRawLongBits(expected)
+          } else {
+            Precision.equalsWithRelativeTolerance(result, expected, 0.00001d) ||
+            Precision.equals(result, expected, 0.00001d)
+          }
+        case _ =>
+          super.checkResult(result, expected, exprDataType, exprNullable)
+      }
+    }
+  }
+
   testGluten("round/bround/floor/ceil") {
     val scales = -6 to 6
     val doublePi: Double = math.Pi
@@ -283,5 +316,23 @@ class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTr
     checkEvaluation(checkDataTypeAndCast(RoundCeil(Literal(5), Literal(0))), Decimal(5))
     checkEvaluation(checkDataTypeAndCast(RoundCeil(Literal(3.1411), Literal(-3))), Decimal(1000))
     checkEvaluation(checkDataTypeAndCast(RoundCeil(Literal(135.135), Literal(-2))), Decimal(200))
+  }
+
+  testGluten("unhex") {
+    checkEvaluation(Unhex(Literal.create(null, StringType)), null)
+    checkEvaluation(Unhex(Literal("737472696E67")), "string".getBytes(StandardCharsets.UTF_8))
+    checkEvaluation(Unhex(Literal("")), new Array[Byte](0))
+    checkEvaluation(Unhex(Literal("F")), Array[Byte](15))
+    checkEvaluation(Unhex(Literal("ff")), Array[Byte](-1))
+
+//    checkEvaluation(Unhex(Literal("GG")), null)
+    checkEvaluation(Unhex(Literal("123")), Array[Byte](1, 35))
+    checkEvaluation(Unhex(Literal("12345")), Array[Byte](1, 35, 69))
+    // scalastyle:off
+    // Turn off scala style for non-ascii chars
+    checkEvaluation(Unhex(Literal("E4B889E9878DE79A84")), "三重的".getBytes(StandardCharsets.UTF_8))
+//    checkEvaluation(Unhex(Literal("三重的")), null)
+    // scalastyle:on
+    checkConsistencyBetweenInterpretedAndCodegen(Unhex, StringType)
   }
 }

@@ -214,6 +214,7 @@ object CHExpressionUtil {
     STACK -> DefaultValidator(),
     TRANSFORM_KEYS -> DefaultValidator(),
     TRANSFORM_VALUES -> DefaultValidator(),
-    RAISE_ERROR -> DefaultValidator()
+    RAISE_ERROR -> DefaultValidator(),
+    WIDTH_BUCKET -> DefaultValidator()
   )
 }
