@@ -211,6 +211,7 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
 
 DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right)
 {
+    Stopwatch watch(CLOCK_MONOTONIC);
     auto join_config = JoinConfig::loadFromContext(getContext());
     google::protobuf::StringValue optimization_info;
     optimization_info.ParseFromString(join.advanced_extension().optimization().value());
@@ -319,6 +320,8 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         query_plan = std::move(left);
         /// hold right plan for profile
         extra_plan_holder.emplace_back(std::move(right));
+        std::cout << "parse bhj time: " << join_opt_info.storage_join_key << "---" << watch.elapsedMicroseconds() / 1000.0 << std::endl;
+        watch.stop();
     }
     else if (join_opt_info.is_smj)
     {

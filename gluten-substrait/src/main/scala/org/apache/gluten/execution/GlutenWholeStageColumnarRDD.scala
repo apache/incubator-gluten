@@ -77,8 +77,11 @@ class GlutenWholeStageColumnarRDD(
       _ =>
         ExecutorManager.tryTaskSet(numaBindingInfo)
         val (inputPartition, inputColumnarRDDPartitions) = castNativePartition(split)
+        var st = System.nanoTime()
         val inputIterators = rdds.getIterators(inputColumnarRDDPartitions, context)
-        BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
+        logWarning(s"${split.index} rdds get iterators: ${System.nanoTime() - st}")
+        st = System.nanoTime()
+        val gen = BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
           inputPartition,
           context,
           pipelineTime,
@@ -87,6 +90,8 @@ class GlutenWholeStageColumnarRDD(
           split.index,
           inputIterators
         )
+        logWarning(s"${split.index} gen iterators: ${System.nanoTime() - st}")
+        gen
     }
   }
 
