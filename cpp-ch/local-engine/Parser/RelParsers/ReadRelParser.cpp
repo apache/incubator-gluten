@@ -17,6 +17,20 @@
 
 #include "ReadRelParser.h"
 #include <memory>
+#include <Core/Block.h>
+#include <Core/Settings.h>
+#include <Interpreters/Context.h>
+#include <Operator/BlocksBufferPoolTransform.h>
+#include <Parser/RelParsers/MergeTreeRelParser.h>
+#include <Parser/SubstraitParserUtils.h>
+#include <Parser/TypeParser.h>
+#include <Processors/QueryPlan/ReadFromPreparedSource.h>
+#include <Storages/SourceFromJavaIter.h>
+#include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
+#include <google/protobuf/wrappers.pb.h>
+#include <Common/BlockTypeUtils.h>
+
 
 namespace DB::ErrorCodes
 {

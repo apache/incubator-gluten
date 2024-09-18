@@ -18,7 +18,7 @@
 #include "LocalExecutor.h"
 
 #include <Core/Settings.h>
-#include <Parser/SerializedPlanParser.h>
+#include <Interpreters/Context.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <QueryPipeline/printPipeline.h>
 #include <Common/QueryContext.h>

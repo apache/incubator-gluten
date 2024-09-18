@@ -18,6 +18,7 @@
 #include <incbin.h>
 #include <Core/Settings.h>
 #include <Interpreters/Context.h>
+#include <Parser/LocalExecutor.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <gtest/gtest.h>
