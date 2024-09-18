@@ -82,15 +82,15 @@ class CHListenerApi extends ListenerApi with Logging {
     }
     // Add configs
     conf.set(
-      s"${CHBackendSettings.getBackendConfigPrefix}.runtime_config.timezone",
+      s"${CHBackend.CONF_PREFIX}.runtime_config.timezone",
       conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
     conf.set(
-      s"${CHBackendSettings.getBackendConfigPrefix}.runtime_config" +
+      s"${CHBackend.CONF_PREFIX}.runtime_config" +
         s".local_engine.settings.log_processors_profiles",
       "true")
 
     // add memory limit for external sort
-    val externalSortKey = s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings" +
+    val externalSortKey = s"${CHBackend.CONF_PREFIX}.runtime_settings" +
       s".max_bytes_before_external_sort"
     if (conf.getLong(externalSortKey, -1) < 0) {
       if (conf.getBoolean("spark.memory.offHeap.enabled", defaultValue = false)) {

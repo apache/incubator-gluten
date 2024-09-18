@@ -17,6 +17,7 @@
 package org.apache.gluten.vectorized;
 
 import org.apache.gluten.columnarbatch.ColumnarBatches;
+import org.apache.gluten.iterator.ClosableIterator;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
 
@@ -24,7 +25,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
 
-public class ColumnarBatchOutIterator extends OutIteratorBase implements RuntimeAware {
+public class ColumnarBatchOutIterator extends ClosableIterator implements RuntimeAware {
   private final Runtime runtime;
   private final long iterHandle;
 

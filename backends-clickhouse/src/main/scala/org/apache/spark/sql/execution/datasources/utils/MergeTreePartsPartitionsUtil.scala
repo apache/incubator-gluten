@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.utils
 
-import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.backendsapi.clickhouse.CHBackend
 import org.apache.gluten.execution.{GlutenMergeTreePartition, MergeTreePartRange, MergeTreePartSplit}
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.softaffinity.SoftAffinityManager
@@ -453,7 +453,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
   }
 
   private def useDriverFilter(filterExprs: Seq[Expression], sparkSession: SparkSession): Boolean = {
-    val enableDriverFilterKey = s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings" +
+    val enableDriverFilterKey = s"${CHBackend.CONF_PREFIX}.runtime_settings" +
       s".enabled_driver_filter_mergetree_index"
 
     // When using soft affinity, disable driver filter

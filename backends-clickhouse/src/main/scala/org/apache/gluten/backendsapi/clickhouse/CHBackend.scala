@@ -26,7 +26,6 @@ import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
-
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -43,7 +42,6 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 import java.util.Locale
-
 import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends SubstraitBackend {
@@ -63,6 +61,7 @@ class CHBackend extends SubstraitBackend {
 
 object CHBackend {
   val BACKEND_NAME = "ch"
+  val CONF_PREFIX: String = GlutenConfig.prefixOf(BACKEND_NAME)
 }
 
 object CHBackendSettings extends BackendSettingsApi with Logging {
@@ -343,10 +342,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     SQLConf.get
       .getConfString(GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT)
       .toBoolean
-
-  /** Get the config prefix for each backend */
-  override def getBackendConfigPrefix: String =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME
 
   override def shuffleSupportedCodec(): Set[String] = GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
   override def needOutputSchemaForPlan(): Boolean = true

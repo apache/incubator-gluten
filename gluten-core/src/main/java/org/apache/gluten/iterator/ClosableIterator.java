@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.vectorized;
+package org.apache.gluten.iterator;
 
 import org.apache.gluten.exception.GlutenException;
 
@@ -24,11 +24,11 @@ import java.io.Serializable;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class OutIteratorBase
+public abstract class ClosableIterator
     implements AutoCloseable, Serializable, Iterator<ColumnarBatch> {
   protected final AtomicBoolean closed = new AtomicBoolean(false);
 
-  public OutIteratorBase() {}
+  public ClosableIterator() {}
 
   @Override
   public final boolean hasNext() {

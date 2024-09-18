@@ -19,6 +19,7 @@ package org.apache.gluten.vectorized
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.iterator.ClosableIterator
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
 import org.apache.gluten.utils.ArrowAbiUtil
@@ -130,7 +131,7 @@ private class ColumnarBatchSerializerInstance(
     with TaskResource {
     private val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
     private val runtime = Runtimes.contextInstance("ShuffleReader")
-    private val wrappedOut: OutIteratorBase = new ColumnarBatchOutIterator(
+    private val wrappedOut: ClosableIterator = new ColumnarBatchOutIterator(
       runtime,
       ShuffleReaderJniWrapper
         .create(runtime)

@@ -22,12 +22,12 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.memory.CHThreadGroup
-import org.apache.gluten.metrics.{IMetrics, NativeMetrics}
+import org.apache.gluten.metrics.IMetrics
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.substrait.rel._
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
-import org.apache.gluten.vectorized.{BatchIterator, CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator}
+import org.apache.gluten.vectorized.{BatchIterator, CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator}
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, TaskContext}
 import org.apache.spark.affinity.CHAffinity
@@ -77,7 +77,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           case i: CloseableCHColumnBatchIterator => i
           case it => new CloseableCHColumnBatchIterator(it)
         }
-        .map(it => new ColumnarNativeIterator(it.asJava).asInstanceOf[GeneralInIterator])
+        .map(it => new ColumnarNativeIterator(it.asJava))
         .asJava
     CHNativeExpressionEvaluator.createKernelWithBatchIterator(
       wsPlan,
@@ -351,7 +351,7 @@ class CollectMetricIterator(
 
   private def collectStageMetrics(): Unit = {
     if (!metricsUpdated) {
-      val nativeMetrics = nativeIterator.getMetrics.asInstanceOf[NativeMetrics]
+      val nativeMetrics = nativeIterator.getMetrics
       if (wholeStagePipeline) {
         outputRowCount = Math.max(outputRowCount, CHColumnarShuffleWriter.getTotalOutputRows)
         outputVectorCount =

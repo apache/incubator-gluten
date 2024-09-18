@@ -57,7 +57,6 @@ public class GlutenSplitResult {
     this.c2rTime = totalC2RTime;
   }
 
-
   public long getTotalComputePidTime() {
     return totalComputePidTime;
   }

@@ -18,7 +18,6 @@ package org.apache.gluten.execution.metrics
 
 import org.apache.gluten.execution.{ColumnarNativeIterator, GlutenClickHouseTPCDSAbstractSuite, WholeStageTransformer}
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.vectorized.GeneralInIterator
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -45,7 +44,7 @@ class GlutenClickHouseTPCDSMetricsSuite extends GlutenClickHouseTPCDSAbstractSui
   test("test tpcds q47 metrics") {
     TaskResources.runUnsafe({
       // Test getting metrics
-      val inBatchIters = new java.util.ArrayList[GeneralInIterator](
+      val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator](
         Array(0).map(iter => new ColumnarNativeIterator(Iterator.empty.asJava)).toSeq.asJava)
       val outputAttributes = new java.util.ArrayList[Attribute](0)
 

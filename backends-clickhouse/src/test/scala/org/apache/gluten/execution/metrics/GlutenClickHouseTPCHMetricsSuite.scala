@@ -18,7 +18,6 @@ package org.apache.gluten.execution.metrics
 
 import org.apache.gluten.execution._
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.vectorized.GeneralInIterator
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -154,7 +153,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
 
   test("test tpch wholestage execute") {
     TaskResources.runUnsafe {
-      val inBatchIters = new java.util.ArrayList[GeneralInIterator](0)
+      val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator](0)
       val outputAttributes = new java.util.ArrayList[Attribute](0)
       val nativeMetricsList = GlutenClickHouseMetricsUTUtils
         .executeSubstraitPlan(
@@ -314,7 +313,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
 
   test("GLUTEN-1754: test agg func covar_samp, covar_pop final stage execute") {
     TaskResources.runUnsafe {
-      val inBatchIters = new java.util.ArrayList[GeneralInIterator](0)
+      val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator](0)
       val outputAttributes = new java.util.ArrayList[Attribute](0)
       val nativeMetricsList = GlutenClickHouseMetricsUTUtils
         .executeSubstraitPlan(
@@ -386,7 +385,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
           .get(0)
           .getOutputRows == 4)
 
-      val inBatchItersFinal = new java.util.ArrayList[GeneralInIterator](
+      val inBatchItersFinal = new java.util.ArrayList[ColumnarNativeIterator](
         Array(0).map(iter => new ColumnarNativeIterator(Iterator.empty.asJava)).toSeq.asJava)
       val outputAttributesFinal = new java.util.ArrayList[Attribute](0)
 
