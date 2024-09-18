@@ -12,14 +12,14 @@ AdaptiveSparkPlan (39)
                   :     +- ColumnarExchange (6)
                   :        +- VeloxResizeBatches (5)
                   :           +- ^ ProjectExecTransformer (3)
-                  :              +- ^ NoopFilter (2)
+                  :              +- ^ FilterExecTransformer (2)
                   :                 +- ^ Scan parquet (1)
                   +- ^ InputIteratorTransformer (18)
                      +- ShuffleQueryStage (16), Statistics(X)
                         +- ColumnarExchange (15)
                            +- VeloxResizeBatches (14)
                               +- ^ ProjectExecTransformer (12)
-                                 +- ^ NoopFilter (11)
+                                 +- ^ FilterExecTransformer (11)
                                     +- ^ Scan parquet (10)
 +- == Initial Plan ==
    HashAggregate (38)
@@ -44,9 +44,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_shipdate), GreaterThanOrEqual(l_shipdate,1995-09-01), LessThan(l_shipdate,1995-10-01), IsNotNull(l_partkey)]
 ReadSchema: struct<l_partkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipdate:date>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [4]: [l_partkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
-Arguments: [l_partkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
+Arguments: (((isnotnull(l_shipdate#X) AND (l_shipdate#X >= 1995-09-01)) AND (l_shipdate#X < 1995-10-01)) AND isnotnull(l_partkey#X))
 
 (3) ProjectExecTransformer
 Output [4]: [hash(l_partkey#X, 42) AS hash_partition_key#X, l_partkey#X, l_extendedprice#X, l_discount#X]
@@ -81,9 +81,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_type:string>
 
-(11) NoopFilter
+(11) FilterExecTransformer
 Input [2]: [p_partkey#X, p_type#X]
-Arguments: [p_partkey#X, p_type#X]
+Arguments: isnotnull(p_partkey#X)
 
 (12) ProjectExecTransformer
 Output [3]: [hash(p_partkey#X, 42) AS hash_partition_key#X, p_partkey#X, p_type#X]

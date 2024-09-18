@@ -842,7 +842,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     // Let's make push down functionally same as vanilla Spark for now.
 
     sparkExecNode match {
-      case fileSourceScan: FileSourceScanExec
+      case fileSourceScan: FileSourceScanExecTransformerBase
           if isParquetFormat(fileSourceScan.relation.fileFormat) =>
         PushDownUtil.removeNotSupportPushDownFilters(
           fileSourceScan.conf,
