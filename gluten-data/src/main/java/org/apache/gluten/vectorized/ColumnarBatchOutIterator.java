@@ -17,7 +17,6 @@
 package org.apache.gluten.vectorized;
 
 import org.apache.gluten.columnarbatch.ColumnarBatches;
-import org.apache.gluten.metrics.IMetrics;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
 
@@ -25,7 +24,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
 
-public class ColumnarBatchOutIterator extends GeneralOutIterator implements RuntimeAware {
+public class ColumnarBatchOutIterator extends OutIteratorBase implements RuntimeAware {
   private final Runtime runtime;
   private final long iterHandle;
 
@@ -41,7 +40,7 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator implements Runt
   }
 
   @Override
-  public String getId() {
+  public String id() {
     // Using native iterHandle as identifier
     return String.valueOf(iterHandle);
   }
@@ -54,25 +53,18 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator implements Runt
 
   private native void nativeClose(long iterHandle);
 
-  private native IMetrics nativeFetchMetrics(long iterHandle);
-
   @Override
-  public boolean hasNextInternal() throws IOException {
+  public boolean hasNext0() throws IOException {
     return nativeHasNext(iterHandle);
   }
 
   @Override
-  public ColumnarBatch nextInternal() throws IOException {
+  public ColumnarBatch next0() throws IOException {
     long batchHandle = nativeNext(iterHandle);
     if (batchHandle == -1L) {
       return null; // stream ended
     }
     return ColumnarBatches.create(batchHandle);
-  }
-
-  @Override
-  public IMetrics getMetricsInternal() throws IOException, ClassNotFoundException {
-    return nativeFetchMetrics(iterHandle);
   }
 
   public long spill(long size) {
@@ -84,7 +76,7 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator implements Runt
   }
 
   @Override
-  public void closeInternal() {
+  public void close0() {
     // To make sure the outputted batches are still accessible after the iterator is closed.
     // TODO: Remove this API if we have other choice, e.g., hold the pools in native code.
     runtime.holdMemory();

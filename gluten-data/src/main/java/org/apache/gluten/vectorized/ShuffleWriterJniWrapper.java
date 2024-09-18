@@ -40,7 +40,6 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
   /**
    * Construct native shuffle writer for shuffled RecordBatch over
    *
-   * @param part contains the partitioning parameter needed by native splitter
    * @param bufferSize size of native buffers held by each partition writer
    * @param mergeBufferSize maximum size of the merged buffer
    * @param mergeThreshold threshold to control whether native partition buffer need to be merged
@@ -52,7 +51,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
    * @return native shuffle writer instance handle if created successfully.
    */
   public long make(
-      NativePartitioning part,
+      String shortName,
+      int numPartitions,
       int bufferSize,
       int mergeBufferSize,
       double mergeThreshold,
@@ -73,8 +73,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       int startPartitionId,
       String shuffleWriterType) {
     return nativeMake(
-        part.getShortName(),
-        part.getNumPartitions(),
+        shortName,
+        numPartitions,
         bufferSize,
         mergeBufferSize,
         mergeThreshold,
@@ -103,13 +103,13 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
   /**
    * Construct RSS native shuffle writer for shuffled RecordBatch over
    *
-   * @param part contains the partitioning parameter needed by native shuffle writer
    * @param bufferSize size of native buffers hold by partition writer
    * @param codec compression codec
    * @return native shuffle writer instance handle if created successfully.
    */
   public long makeForRSS(
-      NativePartitioning part,
+      String shortName,
+      int numPartitions,
       int bufferSize,
       String codec,
       int compressionLevel,
@@ -128,8 +128,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       String shuffleWriterType,
       double reallocThreshold) {
     return nativeMake(
-        part.getShortName(),
-        part.getNumPartitions(),
+        shortName,
+        numPartitions,
         bufferSize,
         0,
         0,

@@ -17,7 +17,7 @@
 package org.apache.gluten.runtime
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.backend.Backend
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.init.JniUtils
 import org.apache.gluten.memory.MemoryUsageStatsBuilder
@@ -55,11 +55,11 @@ object Runtime {
     private val mutableStats: mutable.Map[String, MemoryUsageStatsBuilder] = mutable.Map()
     private val rl = ReservationListeners.create(resourceName(), spillers, mutableStats.asJava)
     private val handle = RuntimeJniWrapper.createRuntime(
-      BackendsApiManager.getBackendName,
+      Backend.get().name(),
       rl,
       JniUtils.toNativeConf(
         GlutenConfig.getNativeSessionConf(
-          BackendsApiManager.getSettings.getBackendConfigPrefix,
+          Backend.get().name(),
           GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))
     )
 

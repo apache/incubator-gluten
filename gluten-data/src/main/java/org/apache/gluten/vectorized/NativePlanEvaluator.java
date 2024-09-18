@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.vectorized;
 
-import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.memory.memtarget.MemoryTarget;
 import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
@@ -24,14 +23,10 @@ import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.utils.DebugUtil;
 import org.apache.gluten.validate.NativePlanValidationInfo;
-
 import org.apache.spark.TaskContext;
-import org.apache.spark.util.SparkDirectoryUtil;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.UUID;
 
 public class NativePlanEvaluator {
 
@@ -56,37 +51,19 @@ public class NativePlanEvaluator {
 
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
-  public GeneralOutIterator createKernelWithBatchIterator(
-      byte[] wsPlan, byte[][] splitInfo, List<GeneralInIterator> iterList, int partitionIndex)
-      throws RuntimeException, IOException {
-
-    final String spillDirPath =
-        SparkDirectoryUtil.get()
-            .namespace("gluten-spill")
-            .mkChildDirRoundRobin(UUID.randomUUID().toString())
-            .getAbsolutePath();
-
-    final long itrHandle =
-        jniWrapper.nativeCreateKernelWithIterator(
-            wsPlan,
-            splitInfo,
-            iterList.toArray(new GeneralInIterator[0]),
-            TaskContext.get().stageId(),
-            partitionIndex, // TaskContext.getPartitionId(),
-            TaskContext.get().taskAttemptId(),
-            DebugUtil.saveInputToFile(),
-            BackendsApiManager.getSparkPlanExecApiInstance().rewriteSpillPath(spillDirPath));
+  public ColumnarBatchOutIterator createKernelWithBatchIterator(byte[] wsPlan, byte[][] splitInfo, List<ColumnarBatchInIterator> iterList, int partitionIndex, String spillDirPath) throws RuntimeException {
+    final long itrHandle = jniWrapper.nativeCreateKernelWithIterator(wsPlan, splitInfo, iterList.toArray(new ColumnarBatchInIterator[0]), TaskContext.get().stageId(), partitionIndex, // TaskContext.getPartitionId(),
+        TaskContext.get().taskAttemptId(), DebugUtil.saveInputToFile(), spillDirPath);
     final ColumnarBatchOutIterator out = createOutIterator(runtime, itrHandle);
-    runtime.addSpiller(
-        new Spiller() {
-          @Override
-          public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
-            if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-              return 0L;
-            }
-            return out.spill(size);
-          }
-        });
+    runtime.addSpiller(new Spiller() {
+      @Override
+      public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
+        if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+          return 0L;
+        }
+        return out.spill(size);
+      }
+    });
     return out;
   }
 

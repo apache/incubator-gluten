@@ -23,8 +23,8 @@ import org.apache.gluten.memory.memtarget.Spiller;
 import org.apache.gluten.memory.memtarget.Spillers;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
+import org.apache.gluten.vectorized.GlutenSplitResult;
 import org.apache.gluten.vectorized.ShuffleWriterJniWrapper;
-import org.apache.gluten.vectorized.SplitResult;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
@@ -148,7 +148,8 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
         if (nativeShuffleWriter == -1) {
           nativeShuffleWriter =
               jniWrapper.makeForRSS(
-                  columnarDep.nativePartitioning(),
+                  columnarDep.nativePartitioning().getShortName(),
+                  columnarDep.nativePartitioning().getNumPartitions(),
                   nativeBufferSize,
                   // use field do this
                   compressionCodec,
@@ -204,7 +205,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
       return;
     }
     long startTime = System.nanoTime();
-    SplitResult splitResult;
+    GlutenSplitResult splitResult;
     try {
       splitResult = jniWrapper.stop(nativeShuffleWriter);
     } catch (IOException e) {

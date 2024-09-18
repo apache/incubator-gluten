@@ -16,25 +16,50 @@
  */
 package org.apache.gluten.vectorized;
 
+import org.apache.gluten.exception.GlutenException;
+
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
+import java.io.Serializable;
 import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class GeneralInIterator implements AutoCloseable {
-  protected final Iterator<ColumnarBatch> delegated;
+public abstract class OutIteratorBase
+    implements AutoCloseable, Serializable, Iterator<ColumnarBatch> {
+  protected final AtomicBoolean closed = new AtomicBoolean(false);
 
-  public GeneralInIterator(Iterator<ColumnarBatch> delegated) {
-    this.delegated = delegated;
-  }
+  public OutIteratorBase() {}
 
-  public boolean hasNext() {
-    return delegated.hasNext();
+  @Override
+  public final boolean hasNext() {
+    try {
+      return hasNext0();
+    } catch (Exception e) {
+      throw new GlutenException(e);
+    }
   }
 
   @Override
-  public void close() throws Exception {}
-
-  public ColumnarBatch nextColumnarBatch() {
-    return delegated.next();
+  public final ColumnarBatch next() {
+    try {
+      return next0();
+    } catch (Exception e) {
+      throw new GlutenException(e);
+    }
   }
+
+  @Override
+  public final void close() {
+    if (closed.compareAndSet(false, true)) {
+      close0();
+    }
+  }
+
+  public abstract String id();
+
+  protected abstract void close0();
+
+  protected abstract boolean hasNext0() throws Exception;
+
+  protected abstract ColumnarBatch next0() throws Exception;
 }

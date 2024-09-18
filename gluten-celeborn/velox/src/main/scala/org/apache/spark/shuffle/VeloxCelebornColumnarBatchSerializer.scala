@@ -117,7 +117,7 @@ private class CelebornColumnarBatchSerializerInstance(
     extends DeserializationStream
     with TaskResource {
     private val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
-    private val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
+    private val wrappedOut: OutIteratorBase = new ColumnarBatchOutIterator(
       runtime,
       ShuffleReaderJniWrapper
         .create(runtime)
