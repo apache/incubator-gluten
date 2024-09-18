@@ -69,8 +69,9 @@ case class VeloxGetStructFieldTransformer(
         val nodeType =
           node.getTypeNode.asInstanceOf[StructNode].getFieldTypes.get(ordinal)
         ExpressionBuilder.makeNullLiteral(nodeType)
-      case other =>
-        throw new GlutenNotSupportException(s"$other is not supported.")
+      case _ =>
+        throw new GlutenNotSupportException(
+          s"Unsupported child expression of GetStructField: $original.")
     }
   }
 }
