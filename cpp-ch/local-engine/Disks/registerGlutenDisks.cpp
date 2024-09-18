@@ -71,7 +71,7 @@ void registerGlutenDisks(bool global_skip_access_check)
 #if USE_ROCKSDB
             metadata_storage = MetadataStorageFromRocksDB::create(name, config, config_prefix, object_storage);
 #else
-            throw Exception(ErrorCodes::NOT_IMPLEMENTED, "RocksDB metadata storage is not enabled in the build");
+            throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "RocksDB metadata storage is not enabled in the build");
 #endif
         }
         else
@@ -118,7 +118,7 @@ void registerGlutenDisks(bool global_skip_access_check)
 #if USE_ROCKSDB
             metadata_storage = MetadataStorageFromRocksDB::create(name, config, config_prefix, object_storage);
 #else
-            throw Exception(ErrorCodes::NOT_IMPLEMENTED, "RocksDB metadata storage is not enabled in the build");
+            throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "RocksDB metadata storage is not enabled in the build");
 #endif
         }
         else
