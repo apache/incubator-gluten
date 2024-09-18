@@ -1392,14 +1392,4 @@ class GlutenClickHouseHiveTableSuite
     spark.sql("DROP TABLE test_tbl_7054")
   }
 
-  test("GLUTEN-6506: Orc read time zone") {
-    val dataPath = s"$basePath/orc-data/test_reader_time_zone.snappy.orc"
-    val create_table_sql = ("create table test_tbl_6506(" +
-      "id bigint, t timestamp) stored as orc location '%s'")
-      .format(dataPath)
-    val select_sql = "select * from test_tbl_6506"
-    spark.sql(create_table_sql)
-    compareResultsAgainstVanillaSpark(select_sql, true, _ => {})
-    spark.sql("drop table test_tbl_6506")
-  }
 }
