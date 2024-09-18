@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.util
+package org.apache.spark.sql.execution.utils
 
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.iterator.Iterators
@@ -201,7 +201,7 @@ object ExecUtil {
     val dependency =
       new ColumnarShuffleDependency[Int, ColumnarBatch, ColumnarBatch](
         rddWithDummyKey,
-        new PartitionIdPassthrough(newPartitioning.numPartitions),
+        new PartitionIdPassThrough(newPartitioning.numPartitions),
         serializer,
         shuffleWriterProcessor = ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),
         nativePartitioning = nativePartitioning,
@@ -212,6 +212,6 @@ object ExecUtil {
     dependency
   }
 }
-private[spark] class PartitionIdPassthrough(override val numPartitions: Int) extends Partitioner {
+private[spark] class PartitionIdPassThrough(override val numPartitions: Int) extends Partitioner {
   override def getPartition(key: Any): Int = key.asInstanceOf[Int]
 }
