@@ -49,10 +49,12 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
     Map<String, String> confMap =
         Arrays.stream(all).collect(Collectors.toMap(Tuple2::_1, Tuple2::_2));
     Map<String, String> nativeConfMap =
-        GlutenConfig.getNativeBackendConf(Backend.get().name(), JavaConverters.mapAsScalaMap(confMap));
+        GlutenConfig.getNativeBackendConf(
+            Backend.get().name(), JavaConverters.mapAsScalaMap(confMap));
 
     // Get the customer config from SparkConf for each backend
-    BackendsApiManager.getTransformerApiInstance().postProcessNativeConfig(nativeConfMap, GlutenConfig.prefixOf(Backend.get().name()));
+    BackendsApiManager.getTransformerApiInstance()
+        .postProcessNativeConfig(nativeConfMap, GlutenConfig.prefixOf(Backend.get().name()));
 
     nativeInitNative(buildNativeConf(nativeConfMap));
   }

@@ -18,6 +18,7 @@ package org.apache.gluten.backendsapi
 
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.substrait.plan.PlanNode
+
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan

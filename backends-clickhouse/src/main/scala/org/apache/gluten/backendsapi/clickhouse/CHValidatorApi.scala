@@ -25,6 +25,7 @@ import org.apache.gluten.substrait.expression.SelectionNode
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.utils.CHExpressionUtil
 import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.expressions.Expression

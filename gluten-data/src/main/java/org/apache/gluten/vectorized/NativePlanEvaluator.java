@@ -23,6 +23,7 @@ import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.utils.DebugUtil;
 import org.apache.gluten.validate.NativePlanValidationInfo;
+
 import org.apache.spark.TaskContext;
 
 import java.nio.charset.StandardCharsets;
@@ -51,19 +52,34 @@ public class NativePlanEvaluator {
 
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
-  public ColumnarBatchOutIterator createKernelWithBatchIterator(byte[] wsPlan, byte[][] splitInfo, List<ColumnarBatchInIterator> iterList, int partitionIndex, String spillDirPath) throws RuntimeException {
-    final long itrHandle = jniWrapper.nativeCreateKernelWithIterator(wsPlan, splitInfo, iterList.toArray(new ColumnarBatchInIterator[0]), TaskContext.get().stageId(), partitionIndex, // TaskContext.getPartitionId(),
-        TaskContext.get().taskAttemptId(), DebugUtil.saveInputToFile(), spillDirPath);
+  public ColumnarBatchOutIterator createKernelWithBatchIterator(
+      byte[] wsPlan,
+      byte[][] splitInfo,
+      List<ColumnarBatchInIterator> iterList,
+      int partitionIndex,
+      String spillDirPath)
+      throws RuntimeException {
+    final long itrHandle =
+        jniWrapper.nativeCreateKernelWithIterator(
+            wsPlan,
+            splitInfo,
+            iterList.toArray(new ColumnarBatchInIterator[0]),
+            TaskContext.get().stageId(),
+            partitionIndex, // TaskContext.getPartitionId(),
+            TaskContext.get().taskAttemptId(),
+            DebugUtil.saveInputToFile(),
+            spillDirPath);
     final ColumnarBatchOutIterator out = createOutIterator(runtime, itrHandle);
-    runtime.addSpiller(new Spiller() {
-      @Override
-      public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
-        if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-          return 0L;
-        }
-        return out.spill(size);
-      }
-    });
+    runtime.addSpiller(
+        new Spiller() {
+          @Override
+          public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
+            if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+              return 0L;
+            }
+            return out.spill(size);
+          }
+        });
     return out;
   }
 

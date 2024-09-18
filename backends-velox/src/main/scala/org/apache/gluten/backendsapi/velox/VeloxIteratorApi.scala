@@ -27,6 +27,7 @@ import org.apache.gluten.substrait.rel.{LocalFilesBuilder, LocalFilesNode, Split
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.utils._
 import org.apache.gluten.vectorized._
+
 import org.apache.spark.{SparkConf, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.softaffinity.SoftAffinity
@@ -43,7 +44,8 @@ import org.apache.spark.util.{ExecutorManager, SparkDirectoryUtil}
 import java.lang.{Long => JLong}
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
-import java.util.{UUID, ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap, UUID}
+
 import scala.collection.JavaConverters._
 
 class VeloxIteratorApi extends IteratorApi with Logging {
