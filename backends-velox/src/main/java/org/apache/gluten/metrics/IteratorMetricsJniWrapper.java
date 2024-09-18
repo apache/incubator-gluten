@@ -34,7 +34,7 @@ public class IteratorMetricsJniWrapper implements RuntimeAware {
   }
 
   public Metrics fetch(ColumnarBatchOutIterator out) {
-    return nativeFetchMetrics(out.handle());
+    return nativeFetchMetrics(out.itrHandle());
   }
 
   private native Metrics nativeFetchMetrics(long itrHandle);

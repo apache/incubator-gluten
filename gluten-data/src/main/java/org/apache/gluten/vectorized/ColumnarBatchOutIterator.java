@@ -46,6 +46,10 @@ public class ColumnarBatchOutIterator extends ClosableIterator implements Runtim
     return String.valueOf(iterHandle);
   }
 
+  public long itrHandle() {
+    return iterHandle;
+  }
+
   private native boolean nativeHasNext(long iterHandle);
 
   private native long nativeNext(long iterHandle);
