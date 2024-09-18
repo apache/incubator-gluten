@@ -54,7 +54,8 @@ case class GlutenCacheFilesCommand(
   override def run(session: SparkSession): Seq[Row] = {
     if (
       !session.sparkContext.getConf.getBoolean(
-        s"${GlutenConfig.GLUTEN_CONFIG_PREFIX}${CHBackend.BACKEND_NAME}.runtime_config.gluten_cache.local.enabled",
+        s"${GlutenConfig.GLUTEN_CONFIG_PREFIX}${CHBackend.BACKEND_NAME}" +
+          s".runtime_config.gluten_cache.local.enabled",
         defaultValue = false)
     ) {
       return Seq(Row(false, "Config `gluten_cache.local.enabled` is not disabled."))
