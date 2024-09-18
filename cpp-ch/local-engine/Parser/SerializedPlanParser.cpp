@@ -85,7 +85,6 @@
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
-#include "RelParsers/RelParser.h"
 
 namespace DB
 {

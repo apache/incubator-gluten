@@ -21,7 +21,6 @@
 
 #include <ranges>
 #include <Core/Range.h>
-#include <Common/BlockTypeUtils.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDate32.h>
 #include <DataTypes/DataTypeDateTime.h>
@@ -32,7 +31,6 @@
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/ExpressionActions.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
@@ -44,6 +42,7 @@
 #include <parquet/arrow/reader.h>
 #include <parquet/level_conversion.h>
 #include <tests/gluten_test_util.h>
+#include <Common/BlockTypeUtils.h>
 
 using namespace DB;
 

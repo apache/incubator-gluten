@@ -21,7 +21,6 @@
 #include <memory>
 #include <optional>
 #include <unistd.h>
-
 #include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
@@ -53,7 +52,6 @@
 #include <Parser/SubstraitParserUtils.h>
 #include <Planner/PlannerActionsVisitor.h>
 #include <Processors/Chunk.h>
-#include <Processors/Formats/IOutputFormat.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
