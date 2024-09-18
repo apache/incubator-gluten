@@ -27,7 +27,7 @@
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
 
-#include "ExpandTransorm.h"
+#include "ExpandTransform.h"
 
 namespace DB
 {
@@ -122,8 +122,8 @@ void ExpandTransform::work()
         else if (kind == EXPAND_FIELD_KIND_LITERAL)
         {
             /// Add const column with field value
-            auto column = type->createColumnConst(rows, field);
-            columns[col_i] = column;
+            auto column = type->createColumnConst(rows, field)->convertToFullColumnIfConst();
+            columns[col_i] = std::move(column);
         }
         else
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unknown ExpandFieldKind {}", magic_enum::enum_name(kind));
