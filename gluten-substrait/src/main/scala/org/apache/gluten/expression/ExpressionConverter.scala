@@ -450,7 +450,8 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           if child.dataType
             .isInstanceOf[DecimalType] && !BackendsApiManager.getSettings.transformCheckOverflow =>
         replaceWithExpressionTransformer0(child, attributeSeq, expressionsMap)
-      case _: NormalizeNaNAndZero | _: PromotePrecision | _: TaggingExpression | _: DynamicPruningExpression =>
+      case _: NormalizeNaNAndZero | _: PromotePrecision | _: TaggingExpression |
+          _: DynamicPruningExpression =>
         ChildTransformer(
           substraitExprName,
           replaceWithExpressionTransformer0(expr.children.head, attributeSeq, expressionsMap),
