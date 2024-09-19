@@ -58,7 +58,7 @@ case class GlutenCacheFilesCommand(
           s".runtime_config.gluten_cache.local.enabled",
         defaultValue = false)
     ) {
-      return Seq(Row(false, "Config `gluten_cache.local.enabled` is not disabled."))
+      return Seq(Row(false, "Config `gluten_cache.local.enabled` is disabled."))
     }
 
     val targetFile = new Path(filePath)
