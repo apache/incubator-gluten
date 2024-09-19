@@ -16,12 +16,14 @@
  */
 #include "StorageJoinFromReadBuffer.h"
 
+#include <Columns/ColumnsCommon.h>
 #include <Interpreters/Context.h>
 #include <Interpreters/HashJoin/HashJoin.h>
 #include <Interpreters/TableJoin.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
-#include <Columns/ColumnsCommon.h>
+
+#include <Interpreters/sortBlock.h>
 
 #include <Common/logger_useful.h>
 
@@ -76,7 +78,12 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     const bool overwrite_,
     bool is_null_aware_anti_join_,
     bool has_null_key_values_)
-    : key_names(key_names_), use_nulls(use_nulls_), row_count(row_count_), overwrite(overwrite_), is_null_aware_anti_join(is_null_aware_anti_join_), has_null_key_value(has_null_key_values_)
+    : key_names(key_names_)
+    , use_nulls(use_nulls_)
+    , row_count(row_count_)
+    , overwrite(overwrite_)
+    , is_null_aware_anti_join(is_null_aware_anti_join_)
+    , has_null_key_value(has_null_key_values_)
 {
     is_empty_hash_table = row_count < 1;
     storage_metadata.setColumns(columns);
@@ -104,12 +111,20 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
 
 void StorageJoinFromReadBuffer::buildJoin(Blocks & data, const Block header, std::shared_ptr<DB::TableJoin> analyzed_join)
 {
-
     auto build_join = [&]
     {
         join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
+        auto total_block = DB::concatenateBlocks(data);
+#if 1
         for (Block block : data)
             join->addBlockToJoin(std::move(block), true);
+#else
+        DB::SortColumnDescription sort_col_desc(*(analyzed_join->getOnlyClause().key_names_right.begin()));
+        DB::SortDescription sort_cols_desc;
+        sort_cols_desc.push_back(sort_col_desc);
+        DB::sortBlock(total_block, sort_cols_desc);
+        join->addBlockToJoin(std::move(total_block), true);
+#endif
     };
     /// Record memory usage in Total Memory Tracker
     ThreadFromGlobalPoolNoTracingContextPropagation thread(build_join);
@@ -135,7 +150,7 @@ void StorageJoinFromReadBuffer::buildJoinLazily(DB::Block header, std::shared_pt
         if (join)
             return;
         join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
-        while(!input_blocks.empty())
+        while (!input_blocks.empty())
         {
             auto & block = *input_blocks.begin();
             DB::ColumnsWithTypeAndName columns;
