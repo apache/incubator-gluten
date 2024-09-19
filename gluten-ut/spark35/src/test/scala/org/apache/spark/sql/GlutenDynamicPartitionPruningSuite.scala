@@ -776,6 +776,44 @@ class GlutenDynamicPartitionPruningV1SuiteAEOn
       checkAnswer(df, Row(1000, 1) :: Row(1010, 2) :: Row(1020, 2) :: Nil)
     }
   }
+
+  testGluten("Filter with unused dpp expression") {
+    withTable("fact_stats_non_partition") {
+      spark
+        .table("fact_stats")
+        .write
+        .format(tableFormat)
+        .saveAsTable("fact_stats_non_partition")
+
+      withSQLConf(
+        SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "true",
+        SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false") {
+        val df = sql("""
+                       |SELECT f.date_id, f.product_id, f.units_sold, f.store_id FROM (
+                       | select * from fact_stats
+                       | union all
+                       | select * from fact_stats_non_partition
+                       |) f
+                       |JOIN dim_stats s
+                       |ON f.store_id = s.store_id WHERE s.country = 'DE'
+        """.stripMargin)
+        import org.apache.spark.sql.execution.GlutenImplicits._
+        val fallbackSummary = df.fallbackSummary
+        assert(fallbackSummary.numFallbackNodes == 0)
+        checkAnswer(
+          df,
+          Row(1030, 2, 10, 3) ::
+            Row(1040, 2, 50, 3) ::
+            Row(1050, 2, 50, 3) ::
+            Row(1060, 2, 50, 3) ::
+            Row(1030, 2, 10, 3) ::
+            Row(1040, 2, 50, 3) ::
+            Row(1050, 2, 50, 3) ::
+            Row(1060, 2, 50, 3) :: Nil
+        )
+      }
+    }
+  }
 }
 
 abstract class GlutenDynamicPartitionPruningV2Suite extends GlutenDynamicPartitionPruningSuiteBase {

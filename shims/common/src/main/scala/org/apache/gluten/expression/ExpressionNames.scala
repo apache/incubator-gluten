@@ -307,6 +307,7 @@ object ExpressionNames {
   final val IN = "in"
   final val IN_SET = "in_set"
   final val SCALAR_SUBQUERY = "scalar_subquery"
+  final val DYNAMIC_PRUNING_EXPRESSION = "dynamic_pruning_expression"
   final val AGGREGATE = "aggregate"
   final val LAMBDAFUNCTION = "lambdafunction"
   final val EXPLODE = "explode"

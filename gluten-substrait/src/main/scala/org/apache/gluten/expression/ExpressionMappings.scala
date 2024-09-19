@@ -281,6 +281,7 @@ object ExpressionMappings {
     Sig[In](IN),
     Sig[InSet](IN_SET),
     Sig[ScalarSubquery](SCALAR_SUBQUERY),
+    Sig[DynamicPruningExpression](DYNAMIC_PRUNING_EXPRESSION),
     Sig[CheckOverflow](CHECK_OVERFLOW),
     Sig[MakeDecimal](MAKE_DECIMAL),
     Sig[PromotePrecision](PROMOTE_PRECISION),

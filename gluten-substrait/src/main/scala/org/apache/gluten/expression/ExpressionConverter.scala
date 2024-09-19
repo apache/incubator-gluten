@@ -450,7 +450,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           if child.dataType
             .isInstanceOf[DecimalType] && !BackendsApiManager.getSettings.transformCheckOverflow =>
         replaceWithExpressionTransformer0(child, attributeSeq, expressionsMap)
-      case _: NormalizeNaNAndZero | _: PromotePrecision | _: TaggingExpression =>
+      case _: NormalizeNaNAndZero | _: PromotePrecision | _: TaggingExpression | _: DynamicPruningExpression =>
         ChildTransformer(
           substraitExprName,
           replaceWithExpressionTransformer0(expr.children.head, attributeSeq, expressionsMap),
@@ -470,12 +470,16 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           if !BackendsApiManager.getSettings.transformCheckOverflow &&
             DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         DecimalArithmeticUtil.checkAllowDecimalArithmetic()
-        val arithmeticExprName = getAndCheckSubstraitName(b, expressionsMap)
-        val left =
+        val leftChild =
           replaceWithExpressionTransformer0(b.left, attributeSeq, expressionsMap)
-        val right =
+        val rightChild =
           replaceWithExpressionTransformer0(b.right, attributeSeq, expressionsMap)
-        DecimalArithmeticExpressionTransformer(arithmeticExprName, left, right, decimalType, b)
+        DecimalArithmeticExpressionTransformer(
+          getAndCheckSubstraitName(b, expressionsMap),
+          leftChild,
+          rightChild,
+          decimalType,
+          b)
       case c: CheckOverflow =>
         CheckOverflowTransformer(
           substraitExprName,
