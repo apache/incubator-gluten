@@ -777,7 +777,7 @@ class GlutenDynamicPartitionPruningV1SuiteAEOn
     }
   }
 
-  testGluten("Filter with unused dpp expression") {
+  testGluten("Filter with DynamicPruningExpression") {
     withTable("fact_stats_non_partition") {
       spark
         .table("fact_stats")
