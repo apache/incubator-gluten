@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
@@ -592,7 +593,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
   }
 
   test("test disable cache files return") {
-    withSQLConf(s"$CH_CONFIG_PREFIX.gluten_cache.local.enabled" -> "false") {
+    withSQLConf(CHConf.runtimeConfig("gluten_cache.local.enabled") -> "false") {
       runSql(
         s"CACHE FILES select * from '$HDFS_URL_ENDPOINT/tpch-data/lineitem'",
         noFallBack = false) {
