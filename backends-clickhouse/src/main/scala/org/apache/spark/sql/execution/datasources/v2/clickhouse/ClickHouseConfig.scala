@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.clickhouse
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
+
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 
 import java.util
@@ -34,12 +36,10 @@ object ClickHouseConfig {
 
   @deprecated
   // Whether to use MergeTree DataSource V2 API, default is false, fall back to V1.
-  val USE_DATASOURCE_V2 = "spark.gluten.sql.columnar.backend.ch.use.v2"
+  val USE_DATASOURCE_V2: String = CHConf.prefixOf("use.v2")
   val DEFAULT_USE_DATASOURCE_V2 = "false"
 
-  val CLICKHOUSE_WORKER_ID = "spark.gluten.sql.columnar.backend.ch.worker.id"
-
-  val CLICKHOUSE_WAREHOUSE_DIR = "spark.gluten.sql.columnar.backend.ch.warehouse.dir"
+  val CLICKHOUSE_WORKER_ID: String = CHConf.prefixOf("worker.id")
 
   /** Create a mergetree configurations and returns the normalized key -> value map. */
   def createMergeTreeConfigurations(

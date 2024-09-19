@@ -684,8 +684,8 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      settingsKey("mergetree.insert_without_local_storage") -> "true",
-      settingsKey("mergetree.merge_after_insert") -> "true"
+      runtimeSettings("mergetree.insert_without_local_storage") -> "true",
+      runtimeSettings("mergetree.merge_after_insert") -> "true"
     ) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS $tableName;
@@ -757,7 +757,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
          |    AND l_quantity < 24
          |""".stripMargin
 
-    withSQLConf(settingsKey("enabled_driver_filter_mergetree_index") -> "true") {
+    withSQLConf(runtimeSettings("enabled_driver_filter_mergetree_index") -> "true") {
       runTPCHQueryBySQL(6, sqlStr) {
         df =>
           val scanExec = collect(df.queryExecution.executedPlan) {

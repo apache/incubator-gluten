@@ -1783,7 +1783,7 @@ class GlutenClickHouseMergeTreeWriteSuite
 
     Seq(("true", 2), ("false", 3)).foreach(
       conf => {
-        withSQLConf(CHConf.settingsKey("enabled_driver_filter_mergetree_index") -> conf._1) {
+        withSQLConf(CHConf.runtimeSettings("enabled_driver_filter_mergetree_index") -> conf._1) {
           runTPCHQueryBySQL(6, sqlStr) {
             df =>
               val scanExec = collect(df.queryExecution.executedPlan) {
@@ -1900,7 +1900,7 @@ class GlutenClickHouseMergeTreeWriteSuite
 
     Seq(("true", 2), ("false", 2)).foreach(
       conf => {
-        withSQLConf(CHConf.settingsKey("enabled_driver_filter_mergetree_index") -> conf._1) {
+        withSQLConf(CHConf.runtimeSettings("enabled_driver_filter_mergetree_index") -> conf._1) {
           runTPCHQueryBySQL(12, sqlStr) {
             df =>
               val scanExec = collect(df.queryExecution.executedPlan) {

@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
@@ -472,7 +473,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
   test("test mergetree insert with optimize basic") {
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert" -> "true"
+      CHConf.runtimeSettings("mergetree.merge_after_insert") -> "true"
     ) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS lineitem_mergetree_insert_optimize_basic;

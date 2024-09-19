@@ -623,9 +623,9 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
 
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      CHConf.settingsKey("mergetree.merge_after_insert") -> "true",
-      CHConf.settingsKey("mergetree.insert_without_local_storage") -> "true",
-      CHConf.settingsKey("min_insert_block_size_rows") -> "10000"
+      CHConf.runtimeSettings("mergetree.merge_after_insert") -> "true",
+      CHConf.runtimeSettings("mergetree.insert_without_local_storage") -> "true",
+      CHConf.runtimeSettings("min_insert_block_size_rows") -> "10000"
     ) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS $tableName;

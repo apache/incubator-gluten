@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
+
 import org.apache.spark.SparkConf
 
 // Some sqls' line length exceeds 100
@@ -93,14 +95,13 @@ class GlutenClickHouseS3SourceSuite extends GlutenClickHouseTPCHAbstractSuite {
     println(s"currTime=$currTime")
     // scalastyle:on println
     spark.sparkContext.setLocalProperty(
-      "spark.gluten.sql.columnar.backend.ch." +
-        "runtime_settings.spark.kylin.local-cache.accept-cache-time",
+      CHConf.runtimeSettings("spark.kylin.local-cache.accept-cache-time"),
       currTime.toString)
     spark
       .sql("""
              |select * from supplier_s3
              |""".stripMargin)
-      .show(10, false)
+      .show(10, truncate = false)
 
     Thread.sleep(5000)
 
@@ -108,14 +109,13 @@ class GlutenClickHouseS3SourceSuite extends GlutenClickHouseTPCHAbstractSuite {
     println(s"currTime=$currTime")
     // scalastyle:on println
     spark.sparkContext.setLocalProperty(
-      "spark.gluten.sql.columnar.backend.ch." +
-        "runtime_settings.spark.kylin.local-cache.accept-cache-time",
+      CHConf.runtimeSettings("spark.kylin.local-cache.accept-cache-time"),
       currTime.toString)
     spark
       .sql("""
              |select * from supplier_s3
              |""".stripMargin)
-      .show(10, false)
+      .show(10, truncate = false)
 
     Thread.sleep(5000)
     currTime = System.currentTimeMillis()
@@ -123,14 +123,13 @@ class GlutenClickHouseS3SourceSuite extends GlutenClickHouseTPCHAbstractSuite {
     println(s"currTime=$currTime")
     // scalastyle:on println
     spark.sparkContext.setLocalProperty(
-      "spark.gluten.sql.columnar.backend.ch." +
-        "runtime_settings.spark.kylin.local-cache.accept-cache-time",
+      CHConf.runtimeSettings("spark.kylin.local-cache.accept-cache-time"),
       currTime.toString)
     spark
       .sql("""
              |select * from supplier_s3
              |""".stripMargin)
-      .show(10, false)
+      .show(10, truncate = false)
   }
 }
 // scalastyle:on line.size.limit

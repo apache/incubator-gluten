@@ -45,7 +45,7 @@ class GlutenClickHouseHDFSSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .setCHConfig("use_local_format", true)
-      .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
+      .set(prefixOf("shuffle.hash.algorithm"), "sparkMurmurHash3_32")
       .setCHConfig("gluten_cache.local.enabled", "true")
       .setCHConfig("gluten_cache.local.name", cache_name)
       .setCHConfig("gluten_cache.local.path", hdfsCachePath)
@@ -53,7 +53,8 @@ class GlutenClickHouseHDFSSuite
       .setCHConfig("reuse_disk_cache", "false")
       .set("spark.sql.adaptive.enabled", "false")
 
-    // TODO: spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm
+    // TODO: spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm =>
+    //     CHConf.prefixOf("shuffle.hash.algorithm")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -126,7 +127,7 @@ class GlutenClickHouseHDFSSuite
 
   ignore("test no cache by query") {
     withSQLConf(
-      settingsKey("read_from_filesystem_cache_if_exists_otherwise_bypass_cache") -> "true") {
+      runtimeSettings("read_from_filesystem_cache_if_exists_otherwise_bypass_cache") -> "true") {
       runWithoutCache()
     }
 

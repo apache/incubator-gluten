@@ -21,32 +21,35 @@ import org.apache.gluten.GlutenConfig
 import org.apache.spark.SparkConf
 
 object CHConf {
-
-  private val CH = GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME + "."
-  private val CH_SETTINGS = CH + "runtime_settings."
-  private val CH_CONFIG = CH + "runtime_config."
+  private[clickhouse] val BACKEND_NAME: String = "ch"
+  private[clickhouse] val CONF_PREFIX: String = GlutenConfig.prefixOf(BACKEND_NAME)
+  private val RUNTIME_SETTINGS: String = s"$CONF_PREFIX.runtime_settings"
+  private val RUNTIME_CONFIG = s"$CONF_PREFIX.runtime_config"
   implicit class GlutenCHConf(conf: SparkConf) {
     def setCHSettings(settings: (String, String)*): SparkConf = {
-      settings.foreach { case (k, v) => conf.set(settingsKey(k), v) }
+      settings.foreach { case (k, v) => conf.set(runtimeSettings(k), v) }
       conf
     }
 
     def setCHSettings[T](k: String, v: T): SparkConf = {
-      conf.set(settingsKey(k), v.toString)
+      conf.set(runtimeSettings(k), v.toString)
       conf
     }
 
     def setCHConfig(config: (String, String)*): SparkConf = {
-      config.foreach { case (k, v) => conf.set(configKey(k), v) }
+      config.foreach { case (k, v) => conf.set(runtimeConfig(k), v) }
       conf
     }
 
     def setCHConfig[T](k: String, v: T): SparkConf = {
-      conf.set(configKey(k), v.toString)
+      conf.set(runtimeConfig(k), v.toString)
       conf
     }
   }
 
-  def configKey(key: String): String = CH_CONFIG + key
-  def settingsKey(key: String): String = CH_SETTINGS + key
+  def prefixOf(key: String): String = s"$CONF_PREFIX.$key"
+  def runtimeConfig(key: String): String = s"$RUNTIME_CONFIG.$key"
+  def runtimeSettings(key: String): String = s"$RUNTIME_SETTINGS.$key"
+
+  def startWithSettings(key: String): Boolean = key.startsWith(RUNTIME_SETTINGS)
 }
