@@ -290,10 +290,11 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
         case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
           HiveTableScanExecTransformer.validate(plan).tagOnFallback(plan)
         case plan: ProjectExec =>
-          val transformer = ProjectTransformerFactory.createProjectTransformer(plan)
+          val transformer = ProjectExecTransformer(plan.projectList, plan.child)
           transformer.doValidate().tagOnFallback(plan)
         case plan: FilterExec =>
-          val transformer = FilterTransformerFactory.createFilterTransformer(plan)
+          val transformer = BackendsApiManager.getSparkPlanExecApiInstance
+            .genFilterExecTransformer(plan.condition, plan.child)
           transformer.doValidate().tagOnFallback(plan)
         case plan: HashAggregateExec =>
           val transformer = HashAggregateExecBaseTransformer.from(plan)
