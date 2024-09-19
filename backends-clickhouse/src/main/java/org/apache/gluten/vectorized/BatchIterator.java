@@ -32,12 +32,6 @@ public class BatchIterator extends ClosableIterator {
     this.handle = handle;
   }
 
-  @Override
-  public String id() {
-    // Using native handle as identifier
-    return String.valueOf(handle);
-  }
-
   private native boolean nativeHasNext(long nativeHandle);
 
   private native long nativeCHNext(long nativeHandle);

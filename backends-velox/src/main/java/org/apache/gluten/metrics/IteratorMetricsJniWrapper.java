@@ -40,7 +40,7 @@ public class IteratorMetricsJniWrapper implements RuntimeAware {
   private native Metrics nativeFetchMetrics(long itrHandle);
 
   @Override
-  public long handle() {
+  public long rtHandle() {
     return runtime.getHandle();
   }
 }
