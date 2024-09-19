@@ -58,7 +58,6 @@ class GlutenClickHouseMergeTreeCacheDataSuite
       .setCHConfig("logger.level", "error")
       .set("spark.gluten.soft-affinity.enabled", "true")
       .setCHSettings("mergetree.merge_after_insert", false)
-      .setCHConfig("path", "/data")
   }
 
   override protected def beforeEach(): Unit = {
