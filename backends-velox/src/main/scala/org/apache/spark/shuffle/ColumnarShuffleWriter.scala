@@ -145,7 +145,8 @@ class ColumnarShuffleWriter[K, V](
         val handle = ColumnarBatches.getNativeHandle(cb)
         if (nativeShuffleWriter == -1L) {
           nativeShuffleWriter = jniWrapper.make(
-            dep.nativePartitioning,
+            dep.nativePartitioning.getShortName,
+            dep.nativePartitioning.getNumPartitions,
             nativeBufferSize,
             nativeMergeBufferSize,
             nativeMergeThreshold,

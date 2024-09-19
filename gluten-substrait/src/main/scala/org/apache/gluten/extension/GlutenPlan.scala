@@ -117,9 +117,8 @@ trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelU
   protected def doNativeValidation(context: SubstraitContext, node: RelNode): ValidationResult = {
     if (node != null && enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(node))
-      val info = BackendsApiManager.getValidatorApiInstance
+      BackendsApiManager.getValidatorApiInstance
         .doNativeValidateWithFailureReason(planNode)
-      info.asResult()
     } else {
       ValidationResult.succeeded
     }

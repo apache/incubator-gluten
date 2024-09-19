@@ -16,10 +16,10 @@
  */
 package org.apache.gluten.execution.metrics
 
-import org.apache.gluten.execution.WholeStageTransformer
+import org.apache.gluten.execution.{ColumnarNativeIterator, WholeStageTransformer}
 import org.apache.gluten.metrics.{MetricsUtil, NativeMetrics}
 import org.apache.gluten.utils.SubstraitPlanPrinterUtil
-import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, GeneralInIterator}
+import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -35,7 +35,7 @@ object GlutenClickHouseMetricsUTUtils {
   def executeSubstraitPlan(
       substraitPlanPath: String,
       basePath: String,
-      inBatchIters: java.util.ArrayList[GeneralInIterator],
+      inBatchIters: java.util.ArrayList[ColumnarNativeIterator],
       outputAttributes: java.util.ArrayList[Attribute]): Seq[NativeMetrics] = {
     val nativeMetricsList = new ListBuffer[NativeMetrics]
 

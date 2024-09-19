@@ -17,7 +17,7 @@
 package org.apache.gluten.init;
 
 import org.apache.gluten.GlutenConfig;
-import org.apache.gluten.backendsapi.BackendsApiManager;
+import org.apache.gluten.backend.Backend;
 
 import org.apache.spark.util.SparkShutdownManagerUtil;
 import org.slf4j.Logger;
@@ -55,9 +55,8 @@ public final class NativeBackendInitializer {
 
   private static void initialize0(scala.collection.Map<String, String> conf) {
     try {
-      String prefix = BackendsApiManager.getSettings().getBackendConfigPrefix();
-      Map<String, String> nativeConfMap = GlutenConfig.getNativeBackendConf(prefix, conf);
-      BackendsApiManager.getSettings().resolveNativeConf(nativeConfMap);
+      Map<String, String> nativeConfMap =
+          GlutenConfig.getNativeBackendConf(Backend.get().name(), conf);
       initialize(JniUtils.toNativeConf(nativeConfMap));
     } catch (Exception e) {
       LOG.error("Failed to call native backend's initialize method", e);

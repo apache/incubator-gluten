@@ -63,6 +63,7 @@ class CHBackend extends SubstraitBackend {
 
 object CHBackend {
   val BACKEND_NAME = "ch"
+  val CONF_PREFIX: String = GlutenConfig.prefixOf(BACKEND_NAME)
 }
 
 object CHBackendSettings extends BackendSettingsApi with Logging {
@@ -343,10 +344,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     SQLConf.get
       .getConfString(GLUTEN_CLICKHOUSE_SEP_SCAN_RDD, GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT)
       .toBoolean
-
-  /** Get the config prefix for each backend */
-  override def getBackendConfigPrefix: String =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME
 
   override def shuffleSupportedCodec(): Set[String] = GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
   override def needOutputSchemaForPlan(): Boolean = true

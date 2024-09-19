@@ -25,14 +25,21 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-public class ColumnarBatchInIterator extends GeneralInIterator {
+public class ColumnarBatchInIterator {
+  private final Iterator<ColumnarBatch> delegated;
 
   public ColumnarBatchInIterator(Iterator<ColumnarBatch> delegated) {
-    super(delegated);
+    this.delegated = delegated;
   }
 
+  // For being called by native code.
+  public boolean hasNext() {
+    return delegated.hasNext();
+  }
+
+  // For being called by native code.
   public long next() {
-    final ColumnarBatch next = nextColumnarBatch();
+    final ColumnarBatch next = delegated.next();
     if (next.numCols() == 0) {
       // the operation will find a zero column batch from a task-local pool
       return ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatchInIterator"))

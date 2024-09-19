@@ -16,29 +16,16 @@
  */
 package org.apache.gluten.validate;
 
-import org.apache.gluten.extension.ValidationResult;
-
-import java.util.Vector;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class NativePlanValidationInfo {
-  private final Vector<String> fallbackInfo = new Vector<>();
-  private final int isSupported;
+  public final List<String> fallbackInfo;
+  public final int isSupported;
 
   public NativePlanValidationInfo(int isSupported, String fallbackInfo) {
     this.isSupported = isSupported;
-    String[] splitInfo = fallbackInfo.split("@");
-    for (int i = 0; i < splitInfo.length; i++) {
-      this.fallbackInfo.add(splitInfo[i]);
-    }
-  }
-
-  public ValidationResult asResult() {
-    if (isSupported == 1) {
-      return ValidationResult.succeeded();
-    }
-    return ValidationResult.failed(
-        String.format(
-            "Native validation failed: %n%s",
-            fallbackInfo.stream().reduce((l, r) -> l + "\n" + r)));
+    this.fallbackInfo = Arrays.stream(fallbackInfo.split("@")).collect(Collectors.toList());
   }
 }

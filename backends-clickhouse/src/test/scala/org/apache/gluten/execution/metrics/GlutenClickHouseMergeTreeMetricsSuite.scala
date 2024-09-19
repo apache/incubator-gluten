@@ -17,7 +17,6 @@
 package org.apache.gluten.execution.metrics
 
 import org.apache.gluten.execution.{ColumnarNativeIterator, GlutenClickHouseTPCHAbstractSuite}
-import org.apache.gluten.vectorized.GeneralInIterator
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -44,7 +43,7 @@ class GlutenClickHouseMergeTreeMetricsSuite extends GlutenClickHouseTPCHAbstract
   // ignore first, and fix these unit cases after all the change done.
   ignore("test all substrait plan in one wholestagetransformer") {
     // Copy Substrait Plan from GlutenClickHouseDSV2ColumnarShuffleSuite.'TPCH Q2'
-    val inBatchIters = new java.util.ArrayList[GeneralInIterator](0)
+    val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator](0)
     val outputAttributes = new java.util.ArrayList[Attribute](0)
     val nativeMetricsList = GlutenClickHouseMetricsUTUtils
       .executeSubstraitPlan(
@@ -176,7 +175,7 @@ class GlutenClickHouseMergeTreeMetricsSuite extends GlutenClickHouseTPCHAbstract
 
   ignore("test final agg stage") {
     // Copy Substrait Plan from TPCH Q1 second agg stage
-    val inBatchIters = new java.util.ArrayList[GeneralInIterator](
+    val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator](
       Array(0).map(iter => new ColumnarNativeIterator(Iterator.empty.asJava)).toSeq.asJava)
     val outputAttributes = new java.util.ArrayList[Attribute](0)
 
@@ -210,7 +209,7 @@ class GlutenClickHouseMergeTreeMetricsSuite extends GlutenClickHouseTPCHAbstract
 
   ignore("test shj stage") {
     // Copy Substrait Plan from TPCH Q1 second agg stage
-    val inBatchIters = new java.util.ArrayList[GeneralInIterator](
+    val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator](
       Array(0, 1).map(iter => new ColumnarNativeIterator(Iterator.empty.asJava)).toSeq.asJava)
     val outputAttributes = new java.util.ArrayList[Attribute](0)
 

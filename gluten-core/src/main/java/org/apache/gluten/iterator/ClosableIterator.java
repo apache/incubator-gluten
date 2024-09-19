@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.vectorized;
+package org.apache.gluten.iterator;
 
 import org.apache.gluten.exception.GlutenException;
-import org.apache.gluten.metrics.IMetrics;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
@@ -25,16 +24,16 @@ import java.io.Serializable;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class GeneralOutIterator
+public abstract class ClosableIterator
     implements AutoCloseable, Serializable, Iterator<ColumnarBatch> {
   protected final AtomicBoolean closed = new AtomicBoolean(false);
 
-  public GeneralOutIterator() {}
+  public ClosableIterator() {}
 
   @Override
   public final boolean hasNext() {
     try {
-      return hasNextInternal();
+      return hasNext0();
     } catch (Exception e) {
       throw new GlutenException(e);
     }
@@ -43,30 +42,24 @@ public abstract class GeneralOutIterator
   @Override
   public final ColumnarBatch next() {
     try {
-      return nextInternal();
+      return next0();
     } catch (Exception e) {
       throw new GlutenException(e);
     }
   }
 
-  public final IMetrics getMetrics() throws Exception {
-    return getMetricsInternal();
-  }
-
   @Override
   public final void close() {
     if (closed.compareAndSet(false, true)) {
-      closeInternal();
+      close0();
     }
   }
 
-  public abstract String getId();
+  public abstract String id();
 
-  protected abstract void closeInternal();
+  protected abstract void close0();
 
-  protected abstract boolean hasNextInternal() throws Exception;
+  protected abstract boolean hasNext0() throws Exception;
 
-  protected abstract ColumnarBatch nextInternal() throws Exception;
-
-  protected abstract IMetrics getMetricsInternal() throws Exception;
+  protected abstract ColumnarBatch next0() throws Exception;
 }
