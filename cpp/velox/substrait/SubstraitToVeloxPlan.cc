@@ -226,7 +226,7 @@ core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationFunction
   const auto& phase = sAggFuc.phase();
   switch (phase) {
     case ::substrait::AGGREGATION_PHASE_UNSPECIFIED:
-      VELOX_FAIL("Aggregation phase not specified.")
+      VELOX_FAIL("Aggregation phase not specified.");
       break;
     case ::substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE:
       return core::AggregationNode::Step::kPartial;
@@ -237,7 +237,7 @@ core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationFunction
     case ::substrait::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT:
       return core::AggregationNode::Step::kFinal;
     default:
-      VELOX_FAIL("Unexpected aggregation phase.")
+      VELOX_FAIL("Unexpected aggregation phase.");
   }
 }
 
@@ -259,7 +259,7 @@ std::string SubstraitToVeloxPlanConverter::toAggregationFunctionName(
       suffix = "";
       break;
     default:
-      VELOX_FAIL("Unexpected aggregation node step.")
+      VELOX_FAIL("Unexpected aggregation node step.");
   }
   return baseName + suffix;
 }
@@ -765,7 +765,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   for (const auto& output : requiredChildOutput) {
     auto expression = exprConverter_->toVeloxExpr(output, inputType);
     auto exprField = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-    VELOX_CHECK(exprField != nullptr, " the output in Generate Operator only support field")
+    VELOX_CHECK(exprField != nullptr, " the output in Generate Operator only support field");
 
     replicated.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
   }
@@ -780,7 +780,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
          std::dynamic_pointer_cast<const ValueStreamNode>(childNode) != nullptr) &&
             childNode->outputType()->size() > requiredChildOutput.size(),
         "injectedProject is true, but the ProjectNode or ValueStreamNode (in case of projection fallback)"
-        " is missing or does not have the corresponding projection field")
+        " is missing or does not have the corresponding projection field");
 
     bool isStack = generateRel.has_advanced_extension() &&
         SubstraitParser::configSetInOptimization(generateRel.advanced_extension(), "isStack=");
@@ -872,11 +872,11 @@ const core::WindowNode::Frame SubstraitToVeloxPlanConverter::createWindowFrame(
     if (hasOffset) {
       VELOX_CHECK(
           frame.type != core::WindowNode::WindowType::kRange,
-          "for RANGE frame offset, we should pre-calculate the range frame boundary and pass the column reference, but got a constant offset.")
+          "for RANGE frame offset, we should pre-calculate the range frame boundary and pass the column reference, but got a constant offset.");
       return std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(offset));
     } else {
       VELOX_CHECK(
-          frame.type != core::WindowNode::WindowType::kRows, "for ROW frame offset, we should pass a constant offset.")
+          frame.type != core::WindowNode::WindowType::kRows, "for ROW frame offset, we should pass a constant offset.");
       return exprConverter_->toVeloxExpr(columnRef, inputType);
     }
   };
@@ -1355,7 +1355,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::Plan& substraitPlan) {
-  VELOX_CHECK(checkTypeExtension(substraitPlan), "The type extension only have unknown type.")
+  VELOX_CHECK(checkTypeExtension(substraitPlan), "The type extension only have unknown type.");
   // Construct the function map based on the Substrait representation,
   // and initialize the expression converter with it.
   constructFunctionMap(substraitPlan);

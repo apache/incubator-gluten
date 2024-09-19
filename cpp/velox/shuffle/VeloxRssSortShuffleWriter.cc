@@ -134,7 +134,7 @@ arrow::Status VeloxRssSortShuffleWriter::evictRowVector(uint32_t partitionId) {
   if (options_.partitioning != Partitioning::kSingle) {
     if (auto it = rowVectorIndexMap_.find(partitionId); it != rowVectorIndexMap_.end()) {
       const auto& rowIndices = it->second;
-      VELOX_DCHECK(!rowIndices.empty())
+      VELOX_DCHECK(!rowIndices.empty());
 
       size_t idx = 0;
       const auto outputSize = rowIndices.size();

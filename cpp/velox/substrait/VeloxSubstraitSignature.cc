@@ -76,8 +76,8 @@ namespace {
 using index = std::string::size_type;
 
 index findEnclosingPos(std::string text, index from, char left, char right) {
-  VELOX_CHECK(left != right)
-  VELOX_CHECK(text.at(from) == left)
+  VELOX_CHECK(left != right);
+  VELOX_CHECK(text.at(from) == left);
   int32_t stackedLeftChars = 0;
   for (index idx = from; idx < text.size(); idx++) {
     const char ch = text.at(idx);
@@ -91,12 +91,12 @@ index findEnclosingPos(std::string text, index from, char left, char right) {
       return idx;
     }
   }
-  VELOX_FAIL("Unable to find enclose character from text: " + text)
+  VELOX_FAIL("Unable to find enclose character from text: " + text);
 }
 
 index findSansNesting(std::string text, index from, char target, char left, char right) {
-  VELOX_CHECK(left != right)
-  VELOX_CHECK(target != left && target != right)
+  VELOX_CHECK(left != right);
+  VELOX_CHECK(target != left && target != right);
   int32_t stackedLeftChars = 0;
   for (index idx = from; idx < text.size(); idx++) {
     const char ch = text.at(idx);
@@ -181,14 +181,14 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
       if (typeStart == childrenTypes.size()) {
         break;
       }
-      VELOX_CHECK(typeStart < childrenTypes.size())
+      VELOX_CHECK(typeStart < childrenTypes.size());
       const size_t typeEnd = findSansNesting(childrenTypes, typeStart, delimiter, '<', '>');
       if (typeEnd == std::string::npos) {
         std::string typeStr = childrenTypes.substr(typeStart);
         types.emplace_back(fromSubstraitSignature(typeStr));
         break;
       }
-      VELOX_CHECK(childrenTypes.at(typeEnd) == delimiter)
+      VELOX_CHECK(childrenTypes.at(typeEnd) == delimiter);
       std::string typeStr = childrenTypes.substr(typeStart, typeEnd - typeStart);
       types.emplace_back(fromSubstraitSignature(typeStr));
       typeStart = typeEnd + 1;
