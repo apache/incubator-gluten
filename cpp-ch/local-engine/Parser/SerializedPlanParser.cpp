@@ -50,12 +50,13 @@
 #include <Interpreters/QueryPriorities.h>
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Operator/BlocksBufferPoolTransform.h>
+#include <Parser/ExpressionParser.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/LocalExecutor.h>
+#include <Parser/ParserContext.h>
 #include <Parser/RelParsers/ReadRelParser.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Parser/RelParsers/WriteRelParser.h>
-#include <Parser/ParserContext.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Parsers/ExpressionListParsers.h>
@@ -246,19 +247,6 @@ IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, c
     return step_ptr;
 }
 
-IQueryPlanStep * SerializedPlanParser::addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header)
-{
-    auto convert_actions_dag = ActionsDAG::makeConvertingActions(
-        query_plan->getCurrentDataStream().header.getColumnsWithTypeAndName(),
-        input_header.getColumnsWithTypeAndName(),
-        ActionsDAG::MatchColumnsMode::Name);
-    auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(convert_actions_dag));
-    expression_step->setStepDescription("Generator for rollback filter");
-    auto * step_ptr = expression_step.get();
-    query_plan->addStep(std::move(expression_step));
-    return step_ptr;
-}
-
 void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel & root_rel)
 {
     if (root_rel.root().names_size())
@@ -366,9 +354,10 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const substr
 QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
 {
     DB::QueryPlanPtr query_plan;
-    auto rel_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(this);
+    auto rel_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(parser_context);
 
     auto all_input_rels = rel_parser->getInputs(rel);
+    assert(all_input_rels.size() == 1 || all_input_rels.size() == 2);
     std::vector<DB::QueryPlanPtr> input_query_plans;
     rel_stack.push_back(&rel);
     for (const auto * input_rel : all_input_rels)
@@ -376,6 +365,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
         auto input_query_plan = parseOp(*input_rel, rel_stack);
         input_query_plans.push_back(std::move(input_query_plan));
     }
+
     rel_stack.pop_back();
 
     // source node is special
@@ -394,6 +384,10 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
                 auto [input_iter, materalize_input] = getInputIter(static_cast<size_t>(iter_index));
                 read_rel_parser->setInputIter(input_iter, materalize_input);
             }
+            else if (!read.has_local_files())
+            {
+                read_rel_parser->setSplitInfo(nextSplitInfo());
+            }
         }
         else if (read_rel_parser->isReadFromMergeTree(read))
         {
@@ -405,6 +399,10 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
     }
 
     query_plan = rel_parser->parse(input_query_plans, rel, rel_stack);
+    for (auto & extra_plan : rel_parser->extraPlans())
+    {
+        extra_plan_holder.push_back(std::move(extra_plan));
+    }
 
     std::vector<DB::IQueryPlanStep *> steps = rel_parser->getSteps();
 
@@ -1259,8 +1257,13 @@ void SerializedPlanParser::wrapNullable(
 }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(
-    const Block & header_, SerializedPlanParser & parser_, const substrait::Expression & cond_rel_)
-    : header(header_), parser(parser_), cond_rel(cond_rel_)
+    const Block & header_, ParserContextPtr parser_context_, const substrait::Expression & cond_rel_)
+    : header(header_), parser_context(parser_context_), cond_rel(cond_rel_)
+{
+    expression_parser = std::make_unique<ExpressionParser>(parser_context);
+}
+
+NonNullableColumnsResolver::~NonNullableColumnsResolver()
 {
 }
 
@@ -1279,8 +1282,7 @@ void NonNullableColumnsResolver::visit(const substrait::Expression & expr)
         return;
 
     const auto & scalar_function = expr.scalar_function();
-    auto function_signature = parser.function_mapping.at(std::to_string(scalar_function.function_reference()));
-    auto function_name = safeGetFunctionName(function_signature, scalar_function);
+    auto function_name = expression_parser->safeGetFunctionName(scalar_function);
 
     // Only some special functions are used to judge whether the column is non-nullable.
     if (function_name == "and")
@@ -1313,8 +1315,7 @@ void NonNullableColumnsResolver::visitNonNullable(const substrait::Expression & 
     if (expr.has_scalar_function())
     {
         const auto & scalar_function = expr.scalar_function();
-        auto function_signature = parser.function_mapping.at(std::to_string(scalar_function.function_reference()));
-        auto function_name = safeGetFunctionName(function_signature, scalar_function);
+        auto function_name = expression_parser->safeGetFunctionName(scalar_function);
         if (function_name == "plus" || function_name == "minus" || function_name == "multiply" || function_name == "divide")
         {
             visitNonNullable(scalar_function.arguments(0).value());
@@ -1331,16 +1332,4 @@ void NonNullableColumnsResolver::visitNonNullable(const substrait::Expression & 
     // else, do nothing.
 }
 
-std::string NonNullableColumnsResolver::safeGetFunctionName(
-    const std::string & function_signature, const substrait::Expression_ScalarFunction & function) const
-{
-    try
-    {
-        return parser.getFunctionName(function_signature, function);
-    }
-    catch (const Exception &)
-    {
-        return "";
-    }
-}
 }

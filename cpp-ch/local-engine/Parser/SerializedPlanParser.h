@@ -38,6 +38,7 @@ std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c);
 class SerializedPlanParser;
 class LocalExecutor;
 class ParserContext;
+class ExpressionParser;
 
 // Give a condition expression `cond_rel_`, found all columns with nullability that must not containt
 // null after this filter.
@@ -45,23 +46,23 @@ class ParserContext;
 class NonNullableColumnsResolver
 {
 public:
-    explicit NonNullableColumnsResolver(const DB::Block & header_, SerializedPlanParser & parser_, const substrait::Expression & cond_rel_);
-    ~NonNullableColumnsResolver() = default;
+    explicit NonNullableColumnsResolver(
+        const DB::Block & header_, std::shared_ptr<const ParserContext> parser_context_, const substrait::Expression & cond_rel_);
+    ~NonNullableColumnsResolver();
 
     // return column names
     std::set<String> resolve();
 
 private:
     DB::Block header;
-    SerializedPlanParser & parser;
+    std::shared_ptr<const ParserContext> parser_context;
     const substrait::Expression & cond_rel;
+    std::unique_ptr<ExpressionParser> expression_parser;
 
     std::set<String> collected_columns;
 
     void visit(const substrait::Expression & expr);
     void visitNonNullable(const substrait::Expression & expr);
-
-    String safeGetFunctionName(const String & function_signature, const substrait::Expression_ScalarFunction & function) const;
 };
 
 class SerializedPlanParser
@@ -132,7 +133,6 @@ public:
     std::optional<std::string> getFunctionSignatureName(UInt32 function_ref) const;
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
-    IQueryPlanStep * addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header);
 
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     ContextPtr getContext() const { return context; }

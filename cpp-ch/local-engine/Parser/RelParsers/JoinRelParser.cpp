@@ -30,6 +30,7 @@
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Operator/EarlyStopStep.h>
 #include <Parser/AdvancedParametersParseUtil.h>
+#include <Parser/ExpressionParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
@@ -67,11 +68,7 @@ std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinTyp
     return table_join;
 }
 
-JoinRelParser::JoinRelParser(SerializedPlanParser * plan_paser_)
-    : RelParser(plan_paser_)
-    , function_mapping(plan_paser_->function_mapping)
-    , context(plan_paser_->context)
-    , extra_plan_holder(plan_paser_->extra_plan_holder)
+JoinRelParser::JoinRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_), context(parser_context_->queryContext())
 {
 }
 
@@ -284,7 +281,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
                 auto result_node = filter_is_not_null_dag.tryFindInOutputs(key_field->result_name);
                 // add a function isNotNull to filter the null key on the left side
-                const auto * cond_node = plan_parser->toFunctionNode(filter_is_not_null_dag, "isNotNull", {result_node});
+                const auto * cond_node = buildFunctionNode(filter_is_not_null_dag, "isNotNull", {result_node});
                 filter_is_not_null_dag.addOrReplaceInOutputs(*cond_node);
                 auto filter_step = std::make_unique<FilterStep>(
                     left->getCurrentDataStream(), std::move(filter_is_not_null_dag), cond_node->result_name, true);
@@ -460,7 +457,7 @@ void JoinRelParser::collectJoinKeys(
         expressions_stack.pop_back();
         if (!current_expr->has_scalar_function())
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Function expression is expected");
-        auto function_name = parseFunctionName(current_expr->scalar_function().function_reference(), current_expr->scalar_function());
+        auto function_name = parseFunctionName(current_expr->scalar_function());
         if (!function_name)
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Invalid function expression");
         if (*function_name == "equals")
@@ -609,7 +606,7 @@ void JoinRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::J
     if (!join.post_join_filter().has_scalar_function())
     {
         // It may be singular_or_list
-        auto * in_node = getPlanParser()->parseExpression(actions_dag, join.post_join_filter());
+        auto * in_node = expression_parser->parseExpression(actions_dag, join.post_join_filter());
         filter_name = in_node->result_name;
     }
     else
@@ -829,7 +826,7 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
 
 void registerJoinRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_paser) { return std::make_shared<JoinRelParser>(plan_paser); };
+    auto builder = [](ParserContextPtr parser_context) { return std::make_shared<JoinRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kJoin, builder);
 }
 

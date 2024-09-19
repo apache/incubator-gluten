@@ -24,11 +24,11 @@
 #include <Join/BroadCastJoinBuilder.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/LocalExecutor.h>
+#include <Parser/ParserContext.h>
 #include <Parser/RelParsers/MergeTreeRelParser.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Parser/RelParsers/WriteRelParser.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Parser/ParserContext.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Shuffle/NativeSplitter.h>
@@ -979,7 +979,7 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     auto read_pb = local_engine::BinaryToMessage<substrait::Rel>(
         {reinterpret_cast<const char *>(read_a.elems()), static_cast<size_t>(read_a.length())});
 
-    local_engine::MergeTreeRelParser mergeTreeParser(&parser, local_engine::QueryContext::globalContext());
+    local_engine::MergeTreeRelParser mergeTreeParser(parser_context, local_engine::QueryContext::globalContext());
     auto res = mergeTreeParser.filterRangesOnDriver(read_pb.read());
 
     return local_engine::charTojstring(env, res.c_str());

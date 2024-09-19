@@ -54,6 +54,8 @@ private:
     DB::ContextPtr query_context;
     std::unordered_map<String, String> legacy_function_mapping;
     std::unordered_map<Int32, FunctionSignature> function_mapping;
+
+    void addSelfDefinedFunctionMapping();
 };
 
 using ParserContextPtr = ParserContext::Ptr;

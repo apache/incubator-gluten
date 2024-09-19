@@ -17,8 +17,27 @@
 #include "ParserContext.h"
 #include <string>
 #include <unordered_map>
+#include <Functions/SparkFunctionGetJsonObject.h>
+#include <Rewriter/ExpressionRewriter.h>
+#include <Common/Exception.h>
+namespace DB::ErrorCodes
+{
+extern const int LOGICAL_ERROR;
+}
+
 namespace local_engine
 {
+
+void ParserContext::addSelfDefinedFunctionMapping()
+{
+    FunctionSignature sig;
+    sig.function_name = std::string(FlattenJSONStringOnRequiredFunction::name);
+    sig.signature = sig.function_name + ":";
+    if (function_mapping.count(SelfDefinedFunctionReference::GET_JSON_OBJECT))
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Confict function rerefence");
+    function_mapping[SelfDefinedFunctionReference::GET_JSON_OBJECT] = sig;
+    legacy_function_mapping[std::to_string(SelfDefinedFunctionReference::GET_JSON_OBJECT)] = sig.signature;
+}
 
 ParserContextPtr ParserContext::build(DB::ContextPtr context_, const std::unordered_map<String, String> & function_mapping_)
 {
@@ -35,6 +54,7 @@ ParserContextPtr ParserContext::build(DB::ContextPtr context_, const std::unorde
         function_sig.function_name = fm.second.substr(0, fm.second.find(':'));
         function_mapping[ref] = function_sig;
     }
+    res->addSelfDefinedFunctionMapping();
     return res;
 }
 
@@ -42,7 +62,7 @@ ParserContextPtr ParserContext::build(DB::ContextPtr context_)
 {
     auto res = std::make_shared<ParserContext>();
     res->query_context = context_;
-
+    res->addSelfDefinedFunctionMapping();
     return res;
 }
 

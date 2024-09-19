@@ -29,7 +29,7 @@ extern const int BAD_ARGUMENTS;
 
 namespace local_engine
 {
-WindowGroupLimitRelParser::WindowGroupLimitRelParser(SerializedPlanParser * plan_parser_) : RelParser(plan_parser_)
+WindowGroupLimitRelParser::WindowGroupLimitRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_)
 {
 }
 
@@ -102,7 +102,7 @@ std::vector<size_t> WindowGroupLimitRelParser::parseSortFields(const google::pro
 
 void registerWindowGroupLimitRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_parser) { return std::make_shared<WindowGroupLimitRelParser>(plan_parser); };
+    auto builder = [](ParserConextPtr parser_context) { return std::make_shared<WindowGroupLimitRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kWindowGroupLimit, builder);
 }
 }
