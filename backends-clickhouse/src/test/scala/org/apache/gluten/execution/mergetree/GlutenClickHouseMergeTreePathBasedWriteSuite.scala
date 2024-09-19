@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.mergetree
+
+import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
@@ -31,9 +33,6 @@ import org.apache.commons.io.filefilter.WildcardFileFilter
 import java.io.File
 
 import scala.io.Source
-
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
 
 class GlutenClickHouseMergeTreePathBasedWriteSuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -1337,4 +1336,3 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     }
   }
 }
-// scalastyle:off line.size.limit

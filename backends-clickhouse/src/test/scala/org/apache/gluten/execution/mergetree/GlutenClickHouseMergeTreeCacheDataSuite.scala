@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.mergetree
+
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.files.TahoeFileIndex
@@ -28,9 +30,6 @@ import org.apache.hadoop.fs.FileSystem
 import java.io.File
 
 import scala.concurrent.duration.DurationInt
-
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
 
 class GlutenClickHouseMergeTreeCacheDataSuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -58,7 +57,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
         "false")
-    // .set("spark.gluten.sql.columnar.backend.ch.runtime_config.path", "/data") // for local test
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.path", "/data")
   }
 
   override protected def beforeEach(): Unit = {
@@ -605,4 +604,3 @@ class GlutenClickHouseMergeTreeCacheDataSuite
     }
   }
 }
-// scalastyle:off line.size.limit

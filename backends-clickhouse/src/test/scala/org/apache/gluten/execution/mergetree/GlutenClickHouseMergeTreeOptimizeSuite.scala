@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.mergetree
+
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
@@ -25,9 +27,6 @@ import io.delta.tables.ClickhouseTable
 import java.io.File
 
 import scala.concurrent.duration.DurationInt
-
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
 
 class GlutenClickHouseMergeTreeOptimizeSuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -55,7 +54,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
       .set(
         "spark.databricks.delta.retentionDurationCheck.enabled",
         "false"
-      ) // otherwise RETAIN 0 HOURS will fail
+      ) // otherwise, RETAIN 0 HOURS will fail
       .set(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
         "false")
@@ -501,4 +500,3 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     }
   }
 }
-// scalastyle:off line.size.limit

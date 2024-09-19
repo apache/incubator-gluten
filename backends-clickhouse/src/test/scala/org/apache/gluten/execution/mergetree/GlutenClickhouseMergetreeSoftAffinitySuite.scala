@@ -14,9 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.mergetree
 
 import org.apache.gluten.affinity.{CHUTAffinity, CHUTSoftAffinityManager}
+import org.apache.gluten.execution.{GlutenClickHouseTPCHAbstractSuite, GlutenMergeTreePartition, MergeTreePartSplit}
 
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2

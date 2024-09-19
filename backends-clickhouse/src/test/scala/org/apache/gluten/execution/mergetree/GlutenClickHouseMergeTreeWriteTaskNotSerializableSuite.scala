@@ -14,15 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.mergetree
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackend
+import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
 
 class GlutenClickHouseMergeTreeWriteTaskNotSerializableSuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -117,4 +115,3 @@ class GlutenClickHouseMergeTreeWriteTaskNotSerializableSuite
     runTPCHQueryBySQL(1, sqlStr)(_ => {})
   }
 }
-// scalastyle:off line.size.limit
