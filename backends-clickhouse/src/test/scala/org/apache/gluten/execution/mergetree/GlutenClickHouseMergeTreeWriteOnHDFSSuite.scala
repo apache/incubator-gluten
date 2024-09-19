@@ -14,7 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.mergetree
+
+import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
@@ -31,9 +34,6 @@ import java.io.File
 
 import scala.concurrent.duration.DurationInt
 
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
-
 class GlutenClickHouseMergeTreeWriteOnHDFSSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
@@ -49,17 +49,17 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
   }
 
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
-        "false")
-    // .set("spark.gluten.sql.columnar.backend.ch.runtime_config.path", "/data") // for local test
+      .setCHConfig("logger.level", "error")
+      .setCHSettings("mergetree.merge_after_insert", false)
+      .setCHConfig("path", "/data")
   }
 
   override protected def beforeEach(): Unit = {
@@ -462,7 +462,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |USING clickhouse
                  |PARTITIONED BY (l_returnflag)
                  |CLUSTERED BY (l_orderkey)
-                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey)"} INTO 4 BUCKETS
+                 |${if (spark32) "" else "SORTED BY (l_partkey)"} INTO 4 BUCKETS
                  |LOCATION '$HDFS_URL/test/lineitem_mergetree_bucket_hdfs'
                  |TBLPROPERTIES (storage_policy='__hdfs_main')
                  |""".stripMargin)
@@ -510,7 +510,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isDefined)
-        if (sparkVersion.equals("3.2")) {
+        if (spark32) {
           assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
         } else {
           assertResult("l_partkey")(
@@ -623,9 +623,9 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
 
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert" -> "true",
-      "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.insert_without_local_storage" -> "true",
-      "spark.gluten.sql.columnar.backend.ch.runtime_settings.min_insert_block_size_rows" -> "10000"
+      CHConf.runtimeSettings("mergetree.merge_after_insert") -> "true",
+      CHConf.runtimeSettings("mergetree.insert_without_local_storage") -> "true",
+      CHConf.runtimeSettings("min_insert_block_size_rows") -> "10000"
     ) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS $tableName;
@@ -657,4 +657,3 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
     }
   }
 }
-// scalastyle:off line.size.limit

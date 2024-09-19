@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.mergetree
+
+import org.apache.gluten.execution._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
@@ -32,9 +34,6 @@ import java.io.File
 
 import scala.io.Source
 
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
-
 class GlutenClickHouseMergeTreePathBasedWriteSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
@@ -47,6 +46,8 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
@@ -55,15 +56,10 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set("spark.ui.enabled", "true")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.min_insert_block_size_rows",
-        "100000")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
-        "false")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
-        "8192")
+      .setCHSettings("min_insert_block_size_rows", 100000)
+      .setCHSettings("mergetree.merge_after_insert", false)
+      .setCHSettings("input_format_parquet_max_block_size", 8192)
+
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -509,17 +505,23 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
           merge into clickhouse.`$dataPath`
           using (
 
-            select l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax,
-           'Z' as `l_returnflag`,
-            l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
-            from lineitem where l_orderkey in (select l_orderkey from lineitem group by l_orderkey having count(*) =1 ) and l_orderkey < 100000
+            select l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity,
+              l_extendedprice, l_discount, l_tax, 'Z' as `l_returnflag`,
+              l_linestatus, l_shipdate, l_commitdate, l_receiptdate,
+              l_shipinstruct, l_shipmode, l_comment
+            from lineitem where l_orderkey in
+              (select l_orderkey from lineitem group by l_orderkey having count(*) =1 )
+               and l_orderkey < 100000
 
             union
 
             select l_orderkey + 10000000,
-            l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag,
-            l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
-            from lineitem where l_orderkey in (select l_orderkey from lineitem group by l_orderkey having count(*) =1 ) and l_orderkey < 100000
+              l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice,
+              l_discount, l_tax, l_returnflag,l_linestatus, l_shipdate, l_commitdate,
+              l_receiptdate, l_shipinstruct, l_shipmode, l_comment
+            from lineitem where l_orderkey in
+              (select l_orderkey from lineitem group by l_orderkey having count(*) =1 )
+              and l_orderkey < 100000
 
           ) as updates
           on updates.l_orderkey = clickhouse.`$dataPath`.l_orderkey
@@ -922,15 +924,14 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     val dataPath = s"$basePath/lineitem_mergetree_ctas2"
     clearDataPath(dataPath)
 
-    spark.sql(
-      s"""
-         |CREATE TABLE clickhouse.`$dataPath`
-         |USING clickhouse
-         |PARTITIONED BY (l_shipdate)
-         |CLUSTERED BY (l_orderkey)
-         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey, l_returnflag)"} INTO 4 BUCKETS
-         | as select * from lineitem
-         |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE clickhouse.`$dataPath`
+                 |USING clickhouse
+                 |PARTITIONED BY (l_shipdate)
+                 |CLUSTERED BY (l_orderkey)
+                 |${if (spark32) "" else "SORTED BY (l_partkey, l_returnflag)"} INTO 4 BUCKETS
+                 | as select * from lineitem
+                 |""".stripMargin)
 
     val sqlStr =
       s"""
@@ -1332,9 +1333,8 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     val result = df.collect()
     assertResult(600572)(result(0).getLong(0))
     // Spark 3.2 + Delta 2.0 does not support this feature
-    if (!sparkVersion.equals("3.2")) {
+    if (!spark32) {
       assert(df.queryExecution.executedPlan.isInstanceOf[LocalTableScanExec])
     }
   }
 }
-// scalastyle:off line.size.limit

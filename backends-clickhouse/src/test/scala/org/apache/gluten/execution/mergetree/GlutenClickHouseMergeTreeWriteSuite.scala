@@ -14,7 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.mergetree
+
+import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.execution._
+import org.apache.gluten.utils.Arm
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode}
@@ -30,9 +34,6 @@ import java.io.File
 
 import scala.io.Source
 
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
-
 class GlutenClickHouseMergeTreeWriteSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
@@ -43,6 +44,8 @@ class GlutenClickHouseMergeTreeWriteSuite
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
 
+  import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -52,15 +55,9 @@ class GlutenClickHouseMergeTreeWriteSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.min_insert_block_size_rows",
-        "100000")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
-        "false")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
-        "8192")
+      .setCHSettings("min_insert_block_size_rows", 100000)
+      .setCHSettings("mergetree.merge_after_insert", false)
+      .setCHSettings("input_format_parquet_max_block_size", 8192)
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -152,7 +149,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         val planNodeJson = wholeStageTransformer.substraitPlanJson
         assert(
           !planNodeJson
-            .replaceAll("\\\n", "")
+            .replaceAll("\n", "")
             .replaceAll(" ", "")
             .contains("\"input\":{\"filter\":{"))
     }
@@ -485,18 +482,23 @@ class GlutenClickHouseMergeTreeWriteSuite
           merge into $tableName
           using (
 
-            select l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax,
-           'Z' as `l_returnflag`,
-            l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
-            from lineitem where l_orderkey in (select l_orderkey from lineitem group by l_orderkey having count(*) =1 ) and l_orderkey < 100000
+            select l_orderkey, l_partkey, l_suppkey, l_linenumber,
+              l_quantity, l_extendedprice, l_discount, l_tax,
+               'Z' as `l_returnflag`,l_linestatus, l_shipdate, l_commitdate,
+                l_receiptdate, l_shipinstruct, l_shipmode, l_comment
+            from lineitem where l_orderkey in
+              (select l_orderkey from lineitem group by l_orderkey having count(*) =1 )
+              and l_orderkey < 100000
 
             union
 
             select l_orderkey + 10000000,
-            l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag,
-            l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
-            from lineitem where l_orderkey in (select l_orderkey from lineitem group by l_orderkey having count(*) =1 ) and l_orderkey < 100000
-
+              l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice,
+              l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate,
+              l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
+            from lineitem where l_orderkey in
+             (select l_orderkey from lineitem group by l_orderkey having count(*) =1 )
+             and l_orderkey < 100000
           ) as updates
           on updates.l_orderkey = $tableName.l_orderkey
           when matched then update set *
@@ -829,7 +831,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |USING clickhouse
                  |PARTITIONED BY (l_returnflag)
                  |CLUSTERED BY (l_partkey)
-                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey)"} INTO 4 BUCKETS
+                 |${if (spark32) "" else "SORTED BY (l_orderkey)"} INTO 4 BUCKETS
                  |LOCATION '$basePath/lineitem_mergetree_bucket'
                  |""".stripMargin)
 
@@ -876,7 +878,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isDefined)
-        if (sparkVersion.equals("3.2")) {
+        if (spark32) {
           assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
         } else {
           assertResult("l_orderkey")(
@@ -1096,16 +1098,15 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |DROP TABLE IF EXISTS lineitem_mergetree_ctas2;
                  |""".stripMargin)
 
-    spark.sql(
-      s"""
-         |CREATE TABLE IF NOT EXISTS lineitem_mergetree_ctas2
-         |USING clickhouse
-         |PARTITIONED BY (l_shipdate)
-         |CLUSTERED BY (l_orderkey)
-         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey, l_returnflag)"} INTO 4 BUCKETS
-         |LOCATION '$basePath/lineitem_mergetree_ctas2'
-         | as select * from lineitem
-         |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_ctas2
+                 |USING clickhouse
+                 |PARTITIONED BY (l_shipdate)
+                 |CLUSTERED BY (l_orderkey)
+                 |${if (spark32) "" else "SORTED BY (l_partkey, l_returnflag)"} INTO 4 BUCKETS
+                 |LOCATION '$basePath/lineitem_mergetree_ctas2'
+                 | as select * from lineitem
+                 |""".stripMargin)
 
     val sqlStr =
       s"""
@@ -1201,7 +1202,7 @@ class GlutenClickHouseMergeTreeWriteSuite
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
     val partDir = directory.listFiles().filter(f => f.getName.length > 20).head
     val columnsFile = new File(partDir, "columns.txt")
-    val columns = Source.fromFile(columnsFile).getLines().mkString
+    val columns = Arm.withResource(Source.fromFile(columnsFile))(_.getLines().mkString)
     assert(columns.contains("`l_returnflag` LowCardinality(Nullable(String))"))
     assert(columns.contains("`l_linestatus` LowCardinality(Nullable(String))"))
 
@@ -1782,8 +1783,7 @@ class GlutenClickHouseMergeTreeWriteSuite
 
     Seq(("true", 2), ("false", 3)).foreach(
       conf => {
-        withSQLConf(
-          "spark.gluten.sql.columnar.backend.ch.runtime_settings.enabled_driver_filter_mergetree_index" -> conf._1) {
+        withSQLConf(CHConf.runtimeSettings("enabled_driver_filter_mergetree_index") -> conf._1) {
           runTPCHQueryBySQL(6, sqlStr) {
             df =>
               val scanExec = collect(df.queryExecution.executedPlan) {
@@ -1812,32 +1812,31 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |DROP TABLE IF EXISTS orders_mergetree_pk_pruning_by_driver_bucket;
                  |""".stripMargin)
 
-    spark.sql(
-      s"""
-         |CREATE TABLE IF NOT EXISTS lineitem_mergetree_pk_pruning_by_driver_bucket
-         |(
-         | l_orderkey      bigint,
-         | l_partkey       bigint,
-         | l_suppkey       bigint,
-         | l_linenumber    bigint,
-         | l_quantity      double,
-         | l_extendedprice double,
-         | l_discount      double,
-         | l_tax           double,
-         | l_returnflag    string,
-         | l_linestatus    string,
-         | l_shipdate      date,
-         | l_commitdate    date,
-         | l_receiptdate   date,
-         | l_shipinstruct  string,
-         | l_shipmode      string,
-         | l_comment       string
-         |)
-         |USING clickhouse
-         |CLUSTERED by (l_orderkey)
-         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_receiptdate)"} INTO 2 BUCKETS
-         |LOCATION '$basePath/lineitem_mergetree_pk_pruning_by_driver_bucket'
-         |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_pk_pruning_by_driver_bucket
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |CLUSTERED by (l_orderkey)
+                 |${if (spark32) "" else "SORTED BY (l_receiptdate)"} INTO 2 BUCKETS
+                 |LOCATION '$basePath/lineitem_mergetree_pk_pruning_by_driver_bucket'
+                 |""".stripMargin)
 
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS orders_mergetree_pk_pruning_by_driver_bucket (
@@ -1852,7 +1851,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | o_comment       string)
                  |USING clickhouse
                  |CLUSTERED by (o_orderkey)
-                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (o_orderdate)"} INTO 2 BUCKETS
+                 |${if (spark32) "" else "SORTED BY (o_orderdate)"} INTO 2 BUCKETS
                  |LOCATION '$basePath/orders_mergetree_pk_pruning_by_driver_bucket'
                  |""".stripMargin)
 
@@ -1891,7 +1890,8 @@ class GlutenClickHouseMergeTreeWriteSuite
          |    AND l_shipmode IN ('MAIL', 'SHIP')
          |    AND l_commitdate < l_receiptdate
          |    AND l_shipdate < l_commitdate
-         |    AND l_receiptdate >= date'1994-01-01' AND l_receiptdate < date'1994-01-01' + interval 1 year
+         |    AND l_receiptdate >= date'1994-01-01'
+         |    AND l_receiptdate < date'1994-01-01' + interval 1 year
          |GROUP BY
          |    l_shipmode
          |ORDER BY
@@ -1900,8 +1900,7 @@ class GlutenClickHouseMergeTreeWriteSuite
 
     Seq(("true", 2), ("false", 2)).foreach(
       conf => {
-        withSQLConf(
-          "spark.gluten.sql.columnar.backend.ch.runtime_settings.enabled_driver_filter_mergetree_index" -> conf._1) {
+        withSQLConf(CHConf.runtimeSettings("enabled_driver_filter_mergetree_index") -> conf._1) {
           runTPCHQueryBySQL(12, sqlStr) {
             df =>
               val scanExec = collect(df.queryExecution.executedPlan) {
@@ -1966,7 +1965,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         assertResult("600572")(result(0).getLong(0).toString)
 
         // Spark 3.2 + Delta 2.0 does not support this feature
-        if (!sparkVersion.equals("3.2")) {
+        if (!spark32) {
           assert(df.queryExecution.executedPlan.isInstanceOf[LocalTableScanExec])
         }
       })
@@ -2051,4 +2050,3 @@ class GlutenClickHouseMergeTreeWriteSuite
     runSql(sqlStr) { _ => }
   }
 }
-// scalastyle:off line.size.limit

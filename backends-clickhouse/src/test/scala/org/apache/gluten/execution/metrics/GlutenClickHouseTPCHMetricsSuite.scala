@@ -41,18 +41,16 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
   // scalastyle:off line.size.limit
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      // .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "DEBUG")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
-        s"$parquetMaxBlockSize")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.enable_streaming_aggregating",
-        "true")
+      .setCHConfig("logger.level", "error")
+      .setCHSettings("input_format_parquet_max_block_size", parquetMaxBlockSize)
+      .setCHConfig("enable_streaming_aggregating", true)
   }
   // scalastyle:on line.size.limit
 

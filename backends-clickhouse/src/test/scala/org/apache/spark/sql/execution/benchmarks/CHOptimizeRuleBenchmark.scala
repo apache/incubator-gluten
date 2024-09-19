@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
+
 import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
@@ -60,7 +62,7 @@ object CHOptimizeRuleBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmar
   }
 
   def testToDateOptimize(parquetDir: String, enable: String): Unit = {
-    withSQLConf(("spark.gluten.sql.columnar.backend.ch.rewrite.dateConversion", enable)) {
+    withSQLConf((CHConf.prefixOf("rewrite.dateConversion"), enable)) {
       spark
         .sql(s"""
                 |select

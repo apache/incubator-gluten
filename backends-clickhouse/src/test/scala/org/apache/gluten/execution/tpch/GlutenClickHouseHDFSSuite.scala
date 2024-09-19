@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.tpch
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf._
 import org.apache.gluten.execution.{CHNativeCacheManager, FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
@@ -43,14 +44,17 @@ class GlutenClickHouseHDFSSuite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set(s"$CH_CONFIG_PREFIX.use_local_format", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
-      .set(s"$CH_CONFIG_PREFIX.gluten_cache.local.enabled", "true")
-      .set(s"$CH_CONFIG_PREFIX.gluten_cache.local.name", cache_name)
-      .set(s"$CH_CONFIG_PREFIX.gluten_cache.local.path", hdfsCachePath)
-      .set(s"$CH_CONFIG_PREFIX.gluten_cache.local.max_size", "10Gi")
-      .set(s"$CH_CONFIG_PREFIX.reuse_disk_cache", "false")
+      .setCHConfig("use_local_format", true)
+      .set(prefixOf("shuffle.hash.algorithm"), "sparkMurmurHash3_32")
+      .setCHConfig("gluten_cache.local.enabled", "true")
+      .setCHConfig("gluten_cache.local.name", cache_name)
+      .setCHConfig("gluten_cache.local.path", hdfsCachePath)
+      .setCHConfig("gluten_cache.local.max_size", "10Gi")
+      .setCHConfig("reuse_disk_cache", "false")
       .set("spark.sql.adaptive.enabled", "false")
+
+    // TODO: spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm =>
+    //     CHConf.prefixOf("shuffle.hash.algorithm")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -123,7 +127,7 @@ class GlutenClickHouseHDFSSuite
 
   ignore("test no cache by query") {
     withSQLConf(
-      s"$CH_SETTING_PREFIX.read_from_filesystem_cache_if_exists_otherwise_bypass_cache" -> "true") {
+      runtimeSettings("read_from_filesystem_cache_if_exists_otherwise_bypass_cache") -> "true") {
       runWithoutCache()
     }
 

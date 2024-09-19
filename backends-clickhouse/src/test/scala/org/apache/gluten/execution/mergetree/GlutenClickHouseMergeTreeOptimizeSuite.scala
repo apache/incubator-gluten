@@ -14,7 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.mergetree
+
+import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
@@ -25,9 +28,6 @@ import io.delta.tables.ClickhouseTable
 import java.io.File
 
 import scala.concurrent.duration.DurationInt
-
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
 
 class GlutenClickHouseMergeTreeOptimizeSuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -41,27 +41,22 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.min_insert_block_size_rows",
-        "10000"
-      )
+      .setCHConfig("logger.level", "error")
+      .setCHSettings("min_insert_block_size_rows", 10000)
       .set(
         "spark.databricks.delta.retentionDurationCheck.enabled",
         "false"
-      ) // otherwise RETAIN 0 HOURS will fail
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
-        "false")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
-        "8192")
+      ) // otherwise, RETAIN 0 HOURS will fail
+      .setCHSettings("mergetree.merge_after_insert", false)
+      .setCHSettings("input_format_parquet_max_block_size", 8192)
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -119,7 +114,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     spark.sparkContext.setJobGroup("test", "test")
     spark.sql("optimize lineitem_mergetree_optimize_p")
     val job_ids = spark.sparkContext.statusTracker.getJobIdsForGroup("test")
-    if (sparkVersion.equals("3.5")) {
+    if (spark35) {
       assertResult(4)(job_ids.length)
     } else {
       assertResult(1)(job_ids.length) // will not trigger actual merge job
@@ -131,7 +126,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
     assertResult(22728)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p")))
     spark.sql("VACUUM lineitem_mergetree_optimize_p RETAIN 0 HOURS")
-    if (sparkVersion.equals("3.2")) {
+    if (spark32) {
       assertResult(22728)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p")))
     } else {
       // For Spark 3.3 + Delta 2.3, vacuum command will create two commit files in deltalog dir.
@@ -158,7 +153,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     spark.sparkContext.setJobGroup("test2", "test2")
     spark.sql("optimize lineitem_mergetree_optimize_p2")
     val job_ids = spark.sparkContext.statusTracker.getJobIdsForGroup("test2")
-    if (sparkVersion.equals("3.2")) {
+    if (spark32) {
       assertResult(7)(job_ids.length) // WILL trigger actual merge job
     } else {
       assertResult(8)(job_ids.length) // WILL trigger actual merge job
@@ -171,14 +166,14 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
     assertResult(372)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")))
     spark.sql("VACUUM lineitem_mergetree_optimize_p2 RETAIN 0 HOURS")
-    if (sparkVersion.equals("3.2")) {
+    if (spark32) {
       assertResult(239)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")))
     } else {
       assertResult(241)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")))
     }
     spark.sql("VACUUM lineitem_mergetree_optimize_p2 RETAIN 0 HOURS")
     // the second VACUUM will remove some empty folders
-    if (sparkVersion.equals("3.2")) {
+    if (spark32) {
       assertResult(220)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")))
     } else {
       assertResult(226)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p2")))
@@ -208,13 +203,13 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
       assertResult(516)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")))
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
-      if (sparkVersion.equals("3.2")) {
+      if (spark32) {
         assertResult(306)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")))
       } else {
         assertResult(308)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")))
       }
       spark.sql("VACUUM lineitem_mergetree_optimize_p3 RETAIN 0 HOURS")
-      if (sparkVersion.equals("3.2")) {
+      if (spark32) {
         assertResult(276)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")))
       } else {
         assertResult(282)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p3")))
@@ -245,13 +240,13 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
       assertResult(516)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")))
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
-      if (sparkVersion.equals("3.2")) {
+      if (spark32) {
         assertResult(306)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")))
       } else {
         assertResult(308)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")))
       }
       spark.sql("VACUUM lineitem_mergetree_optimize_p4 RETAIN 0 HOURS")
-      if (sparkVersion.equals("3.2")) {
+      if (spark32) {
         assertResult(276)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")))
       } else {
         assertResult(282)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p4")))
@@ -281,7 +276,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
       spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
       spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
-      if (sparkVersion.equals("3.2")) {
+      if (spark32) {
         assertResult(99)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")))
       } else {
         // For Spark 3.3 + Delta 2.3, vacuum command will create two commit files in deltalog dir.
@@ -305,7 +300,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
       spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
       spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
-      if (sparkVersion.equals("3.2")) {
+      if (spark32) {
         assertResult(93)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")))
       } else {
         // For Spark 3.3 + Delta 2.3, vacuum command will create two commit files in deltalog dir.
@@ -321,7 +316,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
     spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
     spark.sql("VACUUM lineitem_mergetree_optimize_p5 RETAIN 0 HOURS")
-    if (sparkVersion.equals("3.2")) {
+    if (spark32) {
       assertResult(77)(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p5")))
     } else {
       // For Spark 3.3 + Delta 2.3, vacuum command will create two commit files in deltalog dir.
@@ -343,7 +338,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
                  |PARTITIONED BY (l_returnflag)
                  |LOCATION '$basePath/lineitem_mergetree_optimize_p6'
                  | CLUSTERED BY (l_partkey)
-                 | ${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey)"} INTO 2 BUCKETS
+                 | ${if (spark32) "" else "SORTED BY (l_partkey)"} INTO 2 BUCKETS
                  | as select * from lineitem
                  |""".stripMargin)
 
@@ -353,11 +348,11 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     assertResult(600572)(ret.apply(0).get(0))
 
     assertResult(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p6")))(
-      if (sparkVersion.equals("3.2")) 499 else 528)
+      if (spark32) 499 else 528)
     spark.sql("VACUUM lineitem_mergetree_optimize_p6 RETAIN 0 HOURS")
     spark.sql("VACUUM lineitem_mergetree_optimize_p6 RETAIN 0 HOURS")
     assertResult(countFiles(new File(s"$basePath/lineitem_mergetree_optimize_p6")))(
-      if (sparkVersion.equals("3.2")) 315 else 327)
+      if (spark32) 315 else 327)
 
     val ret2 = spark.sql("select count(*) from lineitem_mergetree_optimize_p6").collect()
     assertResult(600572)(ret2.apply(0).get(0))
@@ -426,7 +421,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
       clickhouseTable.vacuum(0.0)
       clickhouseTable.vacuum(0.0)
-      if (sparkVersion.equals("3.2")) {
+      if (spark32) {
         assertResult(99)(countFiles(new File(dataPath)))
       } else {
         assertResult(105)(countFiles(new File(dataPath)))
@@ -449,7 +444,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
       clickhouseTable.vacuum(0.0)
       clickhouseTable.vacuum(0.0)
-      if (sparkVersion.equals("3.2")) {
+      if (spark32) {
         assertResult(93)(countFiles(new File(dataPath)))
       } else {
         assertResult(104)(countFiles(new File(dataPath)))
@@ -465,7 +460,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
     clickhouseTable.vacuum(0.0)
     clickhouseTable.vacuum(0.0)
-    if (sparkVersion.equals("3.2")) {
+    if (spark32) {
       assertResult(77)(countFiles(new File(dataPath)))
     } else {
       assertResult(93)(countFiles(new File(dataPath)))
@@ -478,7 +473,7 @@ class GlutenClickHouseMergeTreeOptimizeSuite
   test("test mergetree insert with optimize basic") {
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert" -> "true"
+      CHConf.runtimeSettings("mergetree.merge_after_insert") -> "true"
     ) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS lineitem_mergetree_insert_optimize_basic;
@@ -501,4 +496,3 @@ class GlutenClickHouseMergeTreeOptimizeSuite
     }
   }
 }
-// scalastyle:off line.size.limit

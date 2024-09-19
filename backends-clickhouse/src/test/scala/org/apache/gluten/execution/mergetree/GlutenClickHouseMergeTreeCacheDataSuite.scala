@@ -14,7 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.execution
+package org.apache.gluten.execution.mergetree
+
+import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.execution.{FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.delta.files.TahoeFileIndex
@@ -28,9 +31,6 @@ import org.apache.hadoop.fs.FileSystem
 import java.io.File
 
 import scala.concurrent.duration.DurationInt
-
-// Some sqls' line length exceeds 100
-// scalastyle:off line.size.limit
 
 class GlutenClickHouseMergeTreeCacheDataSuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -47,18 +47,18 @@ class GlutenClickHouseMergeTreeCacheDataSuite
   }
 
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
+      .setCHConfig("logger.level", "error")
       .set("spark.gluten.soft-affinity.enabled", "true")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
-        "false")
-    // .set("spark.gluten.sql.columnar.backend.ch.runtime_config.path", "/data") // for local test
+      .setCHSettings("mergetree.merge_after_insert", false)
+      .setCHConfig("path", "/data")
   }
 
   override protected def beforeEach(): Unit = {
@@ -593,7 +593,7 @@ class GlutenClickHouseMergeTreeCacheDataSuite
   }
 
   test("test disable cache files return") {
-    withSQLConf(s"$CH_CONFIG_PREFIX.gluten_cache.local.enabled" -> "false") {
+    withSQLConf(CHConf.runtimeConfig("gluten_cache.local.enabled") -> "false") {
       runSql(
         s"CACHE FILES select * from '$HDFS_URL_ENDPOINT/tpch-data/lineitem'",
         noFallBack = false) {
@@ -605,4 +605,3 @@ class GlutenClickHouseMergeTreeCacheDataSuite
     }
   }
 }
-// scalastyle:off line.size.limit
