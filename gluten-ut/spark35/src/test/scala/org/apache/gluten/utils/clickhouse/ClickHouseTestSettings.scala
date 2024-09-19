@@ -570,15 +570,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36924: Cast YearMonthIntervalType to IntegralType")
     .exclude("SPARK-36924: Cast IntegralType to YearMonthIntervalType")
   enableSuite[GlutenCollectionExpressionsSuite]
-<<<<<<< HEAD
-    .exclude("Array and Map Size")
-    .exclude("MapEntries")
-    .exclude("Map Concat")
-    .exclude("MapFromEntries")
-    .exclude("ArraysZip")
-=======
     .exclude("ArraysZip") // wait for https://github.com/ClickHouse/ClickHouse/pull/69576
->>>>>>> main
     .exclude("Sequence of numbers")
     .exclude("elementAt")
     .exclude("Shuffle")
