@@ -19,7 +19,7 @@ package org.apache.gluten.runtime
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.init.JniUtils
+import org.apache.gluten.jni.JniUtils
 import org.apache.gluten.memory.MemoryUsageStatsBuilder
 import org.apache.gluten.memory.listener.ReservationListeners
 import org.apache.gluten.memory.memtarget.{KnownNameAndStats, MemoryTarget, Spiller, Spillers}

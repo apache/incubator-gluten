@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.datasource;
 
-import org.apache.gluten.init.JniUtils;
+import org.apache.gluten.jni.JniUtils;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
 

@@ -18,6 +18,7 @@ package org.apache.gluten.init;
 
 import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.backend.Backend;
+import org.apache.gluten.jni.JniUtils;
 
 import org.apache.spark.util.SparkShutdownManagerUtil;
 import org.slf4j.Logger;
