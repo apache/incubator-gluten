@@ -36,7 +36,7 @@ class StorageJoinFromReadBuffer;
 class JoinRelParser : public RelParser
 {
 public:
-    explicit JoinRelParser(SerializedPlanParser * plan_paser_);
+    explicit JoinRelParser(ParserContextPtr parser_context_);
     ~JoinRelParser() override = default;
 
     DB::QueryPlanPtr
@@ -47,11 +47,12 @@ public:
 
     std::vector<const substrait::Rel *> getInputs(const substrait::Rel & rel) override;
     std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override;
+    std::vector<DB::QueryPlanPtr> extraPlans() override { return std::move(extra_plan_holder); }
 
 private:
     std::unordered_map<std::string, std::string> & function_mapping;
     ContextPtr & context;
-    std::vector<QueryPlanPtr> & extra_plan_holder;
+    std::vector<QueryPlanPtr> extra_plan_holder;
 
 
     DB::QueryPlanPtr parseJoin(const substrait::JoinRel & join, DB::QueryPlanPtr left, DB::QueryPlanPtr right);

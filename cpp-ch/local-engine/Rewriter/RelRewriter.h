@@ -19,6 +19,7 @@
 #include <unordered_map>
 #include <Functions/SparkFunctionGetJsonObject.h>
 #include <Interpreters/Context_fwd.h>
+#include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
 #include <substrait/algebra.pb.h>
 
@@ -28,15 +29,14 @@ namespace local_engine
 class RelRewriter
 {
 public:
-    RelRewriter(SerializedPlanParser * parser_) : parser(parser_) { }
+    RelRewriter(ParserContextPtr parser_context_) : parser_context(parser_context_) { }
     virtual ~RelRewriter() = default;
     virtual void rewrite(substrait::Rel & rel) = 0;
 
 protected:
-    SerializedPlanParser * parser;
+    ParserContextPtr parser_context;
 
-    inline DB::ContextPtr getContext() const { return parser->context; }
-    inline std::unordered_map<std::string, std::string> & getFunctionMapping() const { return parser->function_mapping; }
+    inline DB::ContextPtr getContext() const { return parser_context->queryContext(); }
 };
 
 }

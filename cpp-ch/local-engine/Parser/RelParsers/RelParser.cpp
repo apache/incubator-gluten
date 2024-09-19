@@ -19,8 +19,11 @@
 #include <string>
 #include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/IDataType.h>
+#include <Parser/ExpressionParser.h>
 #include <google/protobuf/wrappers.pb.h>
+#include <Poco/Logger.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
@@ -36,6 +39,41 @@ extern const int LOGICAL_ERROR;
 
 namespace local_engine
 {
+RelParser::RelParser(ParserContextPtr parser_context_) : parser_context(parser_context_)
+{
+    expression_parser = std::make_unique<ExpressionParser>(parser_context);
+}
+
+String RelParser::getUniqueName(const std::string & name) const
+{
+    return expression_parser->getUniqueName(name);
+}
+
+const DB::ActionsDAG::Node * RelParser::parseArgument(ActionsDAG & action_dag, const substrait::Expression & rel) const
+{
+    return expression_parser->parseExpression(action_dag, rel);
+}
+
+const DB::ActionsDAG::Node * RelParser::parseExpression(ActionsDAG & action_dag, const substrait::Expression & rel) const
+{
+    return expression_parser->parseExpression(action_dag, rel);
+}
+
+DB::ActionsDAG RelParser::expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header) const
+{
+    return expression_parser->expressionsToActionsDAG(expressions, header);
+}
+
+std::pair<DataTypePtr, Field> RelParser::parseLiteral(const substrait::Expression_Literal & literal) const
+{
+    return LiteralParser().parse(literal);
+}
+
+const ActionsDAG::Node *
+RelParser::buildFunctionNode(ActionsDAG & action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+{
+    return expression_parser->toFunctionNode(action_dag, function, args);
+}
 
 std::vector<const substrait::Rel *> RelParser::getInputs(const substrait::Rel & rel)
 {
@@ -65,27 +103,17 @@ AggregateFunctionPtr RelParser::getAggregateFunction(
     return factory.get(function_name, action, arg_types, parameters, properties);
 }
 
-std::optional<String> RelParser::parseSignatureFunctionName(UInt32 function_ref)
+std::optional<String> RelParser::parseSignatureFunctionName(UInt32 function_ref) const
 {
-    const auto & function_mapping = getFunctionMapping();
-    auto it = function_mapping.find(std::to_string(function_ref));
-    if (it == function_mapping.end())
-    {
-        return {};
-    }
-    auto function_signature = it->second;
-    auto function_name = function_signature.substr(0, function_signature.find(':'));
-    return function_name;
+    return parser_context->getFunctionNameInSignature(function_ref);
 }
 
-std::optional<String> RelParser::parseFunctionName(UInt32 function_ref, const substrait::Expression_ScalarFunction & function)
+std::optional<String> RelParser::parseFunctionName(const substrait::Expression_ScalarFunction & function) const
 {
-    auto sigature_name = parseSignatureFunctionName(function_ref);
-    if (!sigature_name)
-    {
+    auto func_name = expression_parser->safeGetFunctionName(function);
+    if (func_name.empty())
         return {};
-    }
-    return plan_parser->getFunctionName(*sigature_name, function);
+    return func_name;
 }
 
 DB::QueryPlanPtr

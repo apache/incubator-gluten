@@ -31,7 +31,7 @@ namespace local_engine
 class WindowRelParser : public RelParser
 {
 public:
-    explicit WindowRelParser(SerializedPlanParser * plan_paser_);
+    explicit WindowRelParser(ParserContextPtr parser_context_);
     ~WindowRelParser() override = default;
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;

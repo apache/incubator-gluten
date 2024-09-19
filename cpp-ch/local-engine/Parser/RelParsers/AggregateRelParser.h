@@ -26,7 +26,7 @@ namespace local_engine
 class AggregateRelParser : public RelParser
 {
 public:
-    explicit AggregateRelParser(SerializedPlanParser * plan_paser_);
+    explicit AggregateRelParser(ParserContextPtr parser_context_);
     ~AggregateRelParser() override = default;
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
