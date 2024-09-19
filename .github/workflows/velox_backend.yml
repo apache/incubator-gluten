@@ -28,7 +28,7 @@ on:
       - 'gluten-ras/**'
       - 'gluten-core/**'
       - 'gluten-substrait/**'
-      - 'gluten-data/**'
+      - 'gluten-arrow/**'
       - 'gluten-delta/**'
       - 'gluten-iceberg/**'
       - 'gluten-hudi/**'

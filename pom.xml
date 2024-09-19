@@ -450,7 +450,7 @@
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
-        <module>gluten-data</module>
+        <module>gluten-arrow</module>
         <module>backends-velox</module>
       </modules>
       <properties>
