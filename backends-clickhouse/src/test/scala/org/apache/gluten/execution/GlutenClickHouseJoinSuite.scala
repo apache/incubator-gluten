@@ -17,9 +17,11 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 
 class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
@@ -28,7 +30,7 @@ class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSui
     rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"
 
-  private val joinAlgorithm = "spark.gluten.sql.columnar.backend.ch.runtime_settings.join_algorithm"
+  private val joinAlgorithm = CHConf.runtimeSettings("join_algorithm")
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -38,7 +40,7 @@ class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSui
       .set("spark.sql.adaptive.enabled", "false")
       .set("spark.sql.files.minPartitionNum", "1")
       .set("spark.gluten.sql.columnar.columnartorow", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+      .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")

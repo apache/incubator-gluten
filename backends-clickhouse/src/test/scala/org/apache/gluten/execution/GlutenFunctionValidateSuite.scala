@@ -22,6 +22,7 @@ import org.apache.gluten.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -54,7 +55,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.gluten.sql.columnar.columnartorow", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+      .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
@@ -75,9 +76,9 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
     val schema = StructType(
       Array(
-        StructField("double_field1", DoubleType, true),
-        StructField("int_field1", IntegerType, true),
-        StructField("string_field1", StringType, true)
+        StructField("double_field1", DoubleType, nullable = true),
+        StructField("int_field1", IntegerType, nullable = true),
+        StructField("string_field1", StringType, nullable = true)
       ))
     val data = sparkContext.parallelize(
       Seq(
@@ -103,9 +104,9 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
     val dateSchema = StructType(
       Array(
-        StructField("ts", IntegerType, true),
-        StructField("day", DateType, true),
-        StructField("weekday_abbr", StringType, true)
+        StructField("ts", IntegerType, nullable = true),
+        StructField("day", DateType, nullable = true),
+        StructField("weekday_abbr", StringType, nullable = true)
       )
     )
     val dateRows = sparkContext.parallelize(
@@ -142,7 +143,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     val str2MapFilePath = str2Mapfile.getAbsolutePath
     val str2MapSchema = StructType(
       Array(
-        StructField("str", StringType, true)
+        StructField("str", StringType, nullable = true)
       ))
     val str2MapData = sparkContext.parallelize(
       Seq(
@@ -165,12 +166,12 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       .parquet(str2MapFilePath)
     spark.catalog.createTable("str2map_table", str2MapFilePath, fileFormat)
 
-    val urlFile = Files.createTempFile("", ".parquet").toFile()
+    val urlFile = Files.createTempFile("", ".parquet").toFile
     urlFile.deleteOnExit()
     val urlFilePath = urlFile.getAbsolutePath
     val urlTalbeSchema = StructType(
       Array(
-        StructField("url", StringType, true)
+        StructField("url", StringType, nullable = true)
       )
     )
     val urlTableData = sparkContext.parallelize(
@@ -504,7 +505,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     def checkResult(df: DataFrame, exceptedResult: Seq[Row]): Unit = {
       // check the result
       val result = df.collect()
-      assert(result.size == exceptedResult.size)
+      assert(result.length === exceptedResult.size)
       TestUtils.compareAnswers(result, exceptedResult)
     }
 
@@ -607,7 +608,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   test("test common subexpression eliminate") {
     def checkOperatorCount[T <: TransformSupport](count: Int)(df: DataFrame)(implicit
         tag: ClassTag[T]): Unit = {
-      if (sparkVersion.equals("3.3")) {
+      if (spark33) {
         assert(
           getExecutedPlan(df).count(
             plan => {
@@ -723,10 +724,10 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       val transform_sql = "select transform(ids, x -> x + 1) from tb_array"
       runQueryAndCompare(transform_sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
 
-      val filter_sql = "select filter(ids, x -> x % 2 == 1) from tb_array";
+      val filter_sql = "select filter(ids, x -> x % 2 == 1) from tb_array"
       runQueryAndCompare(filter_sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
 
-      val aggregate_sql = "select ids, aggregate(ids, 3, (acc, x) -> acc + x) from tb_array";
+      val aggregate_sql = "select ids, aggregate(ids, 3, (acc, x) -> acc + x) from tb_array"
       runQueryAndCompare(aggregate_sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }

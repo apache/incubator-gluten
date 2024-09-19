@@ -55,7 +55,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
 
   private val jniWrapper = ShuffleWriterJniWrapper.create(runtime)
 
-  private var splitResult: SplitResult = _
+  private var splitResult: GlutenSplitResult = _
 
   private def availableOffHeapPerTask(): Long = {
     val perTask =
@@ -118,7 +118,8 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
 
   override def createShuffleWriter(columnarBatch: ColumnarBatch): Unit = {
     nativeShuffleWriter = jniWrapper.makeForRSS(
-      dep.nativePartitioning,
+      dep.nativePartitioning.getShortName,
+      dep.nativePartitioning.getNumPartitions,
       nativeBufferSize,
       customizedCompressionCodec,
       compressionLevel,

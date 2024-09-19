@@ -17,6 +17,7 @@
 package org.apache.gluten.execution.tpch
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.execution._
 import org.apache.gluten.extension.GlutenPlan
 
@@ -40,9 +41,6 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   override protected val tpchQueries: String =
     rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
-
-  protected val BACKEND_CONF_KEY = "spark.gluten.sql.columnar.backend.ch."
-  protected val BACKEND_RUNTIME_CINF_KEY: String = BACKEND_CONF_KEY + "runtime_config."
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -1419,8 +1417,8 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       queriesResults: String = queriesResults,
       compareResult: Boolean = true,
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    val confName = "spark.gluten.sql.columnar.backend.ch." +
-      "runtime_settings.query_plan_enable_optimizations"
+    val confName = CHConf.runtimeSettings("query_plan_enable_optimizations")
+
     withSQLConf((confName, "true")) {
       compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
     }
@@ -2549,9 +2547,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
 
   test("GLUTEN-4521: Invalid result from grace mergeing aggregation with spill") {
     withSQLConf(
-      (
-        BACKEND_RUNTIME_CINF_KEY + "max_allowed_memory_usage_ratio_for_aggregate_merging",
-        "0.0001")) {
+      (CHConf.runtimeConfig("max_allowed_memory_usage_ratio_for_aggregate_merging"), "0.0001")) {
       val sql =
         """
           |select count(l_orderkey, l_partkey) from (
@@ -2840,7 +2836,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         checkBHJWithIsNullAwareAntiJoin(df)
       })
@@ -2879,7 +2875,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql1,
-      true,
+      compareResult = true,
       df => {
         checkBHJWithIsNullAwareAntiJoin(df)
       })
@@ -2892,7 +2888,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql2,
-      true,
+      compareResult = true,
       df => {
         checkBHJWithIsNullAwareAntiJoin(df)
       })
@@ -2905,7 +2901,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql3,
-      true,
+      compareResult = true,
       df => {
         checkBHJWithIsNullAwareAntiJoin(df)
       })
@@ -2918,7 +2914,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql4,
-      true,
+      compareResult = true,
       df => {
         checkBHJWithIsNullAwareAntiJoin(df)
       })
@@ -2931,7 +2927,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql5,
-      true,
+      compareResult = true,
       df => {
         checkBHJWithIsNullAwareAntiJoin(df)
       })
@@ -2952,7 +2948,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
            |""".stripMargin
       compareResultsAgainstVanillaSpark(
         sql6,
-        true,
+        compareResult = true,
         df => {
           checkAQEBHJWithIsNullAwareAntiJoin(df, 0)
         })
@@ -2965,7 +2961,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
            |""".stripMargin
       compareResultsAgainstVanillaSpark(
         sql7,
-        true,
+        compareResult = true,
         df => {
           checkAQEBHJWithIsNullAwareAntiJoin(df, 0)
         })
@@ -2978,7 +2974,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
            |""".stripMargin
       compareResultsAgainstVanillaSpark(
         sql8,
-        true,
+        compareResult = true,
         df => {
           checkAQEBHJWithIsNullAwareAntiJoin(df)
         })

@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.commands
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.substrait.rel.LocalFilesBuilder
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
@@ -50,6 +51,14 @@ case class GlutenCacheFilesCommand(
     AttributeReference("reason", StringType, nullable = false)())
 
   override def run(session: SparkSession): Seq[Row] = {
+    if (
+      !session.sparkContext.getConf.getBoolean(
+        CHConf.runtimeConfig("gluten_cache.local.enabled"),
+        defaultValue = false)
+    ) {
+      return Seq(Row(false, "Config `gluten_cache.local.enabled` is disabled."))
+    }
+
     val targetFile = new Path(filePath)
     val hadoopConf: Configuration = session.sparkContext.hadoopConfiguration
     val fs = targetFile.getFileSystem(hadoopConf)

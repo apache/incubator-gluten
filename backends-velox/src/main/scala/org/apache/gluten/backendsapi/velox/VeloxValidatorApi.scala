@@ -17,6 +17,7 @@
 package org.apache.gluten.backendsapi.velox
 
 import org.apache.gluten.backendsapi.ValidatorApi
+import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.validate.NativePlanValidationInfo
 import org.apache.gluten.vectorized.NativePlanEvaluator
@@ -27,20 +28,32 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types._
 import org.apache.spark.task.TaskResources
 
+import scala.collection.JavaConverters._
+
 class VeloxValidatorApi extends ValidatorApi {
 
   /** For velox backend, key validation is on native side. */
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =
     true
 
-  override def doNativeValidateWithFailureReason(plan: PlanNode): NativePlanValidationInfo = {
+  override def doNativeValidateWithFailureReason(plan: PlanNode): ValidationResult = {
     TaskResources.runUnsafe {
       val validator = NativePlanEvaluator.create()
-      validator.doNativeValidateWithFailureReason(plan.toProtobuf.toByteArray)
+      asValidationResult(validator.doNativeValidateWithFailureReason(plan.toProtobuf.toByteArray))
     }
   }
 
   override def doSparkPlanValidate(plan: SparkPlan): Boolean = true
+
+  private def asValidationResult(info: NativePlanValidationInfo): ValidationResult = {
+    if (info.isSupported == 1) {
+      return ValidationResult.succeeded
+    }
+    ValidationResult.failed(
+      String.format(
+        "Native validation failed: %n%s",
+        info.fallbackInfo.asScala.reduce[String] { case (l, r) => l + "\n" + r }))
+  }
 
   private def isPrimitiveType(dataType: DataType): Boolean = {
     dataType match {

@@ -38,6 +38,8 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
@@ -45,9 +47,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.enable_streaming_aggregating",
-        "true")
+      .setCHConfig("enable_streaming_aggregating", true)
   }
 
   override protected def createTPCHNotNullTables(): Unit = {

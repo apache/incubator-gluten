@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.vectorized;
 
+import org.apache.gluten.execution.ColumnarNativeIterator;
+
 /**
  * This class is implemented in JNI. This provides the Java interface to invoke functions in JNI.
  * This file is used to generate the .h files required for jni. Avoid all external dependencies in
@@ -37,7 +39,7 @@ public class ExpressionEvaluatorJniWrapper {
   public static native long nativeCreateKernelWithIterator(
       byte[] wsPlan,
       byte[][] splitInfo,
-      GeneralInIterator[] batchItr,
+      ColumnarNativeIterator[] batchItr,
       byte[] confArray,
       boolean materializeInput);
 

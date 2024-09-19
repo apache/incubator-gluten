@@ -306,7 +306,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
             .asInstanceOf[HashJoinLikeExecTransformer]
             .left
             .isInstanceOf[InputIteratorTransformer])
-        if (sparkVersion.equals("3.2")) {
+        if (spark32) {
           assert(
             plans(9)
               .asInstanceOf[HashJoinLikeExecTransformer]
@@ -320,7 +320,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
               .isInstanceOf[FilterExecTransformerBase])
         }
 
-        if (sparkVersion.equals("3.2")) {
+        if (spark32) {
           assert(!plans(11).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         } else {
           assert(plans(11).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
@@ -340,7 +340,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
           case scanExec: BasicScanExecTransformer => scanExec
           case joinExec: HashJoinLikeExecTransformer => joinExec
         }
-        if (sparkVersion.equals("3.2")) {
+        if (spark32) {
           assert(
             plans(1)
               .asInstanceOf[HashJoinLikeExecTransformer]
@@ -360,7 +360,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
             .right
             .isInstanceOf[InputIteratorTransformer])
 
-        if (sparkVersion.equals("3.2")) {
+        if (spark32) {
           assert(!plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
         } else {
           assert(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan)
@@ -381,7 +381,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         3,
         tpchQueries,
         df => {
-          if (sparkVersion.equals("3.3")) {
+          if (spark33) {
             val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
               case aggExec: HashAggregateExecBaseTransformer
                   if aggExec.aggregateExpressions.exists(
@@ -433,7 +433,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         4,
         tpchQueries,
         df => {
-          if (sparkVersion.equals("3.3")) {
+          if (spark33) {
             val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
               case aggExec: HashAggregateExecBaseTransformer
                   if aggExec.aggregateExpressions.exists(
@@ -501,7 +501,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         12,
         tpchQueries,
         df => {
-          if (sparkVersion.equals("3.3")) {
+          if (spark33) {
             val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
               case aggExec: HashAggregateExecBaseTransformer
                   if aggExec.aggregateExpressions.exists(
@@ -557,7 +557,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         val plans = collect(df.queryExecution.executedPlan) {
           case joinExec: HashJoinLikeExecTransformer => joinExec
         }
-        if (sparkVersion.equals("3.2")) {
+        if (spark32) {
           assert(
             plans(1)
               .asInstanceOf[HashJoinLikeExecTransformer]
@@ -607,7 +607,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
         20,
         tpchQueries,
         df => {
-          if (sparkVersion.equals("3.3")) {
+          if (spark33) {
             val plans = collectWithSubqueries(df.queryExecution.executedPlan) {
               case aggExec: HashAggregateExecBaseTransformer
                   if aggExec.aggregateExpressions.exists(

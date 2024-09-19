@@ -18,7 +18,6 @@ package org.apache.gluten.execution.metrics
 
 import org.apache.gluten.execution._
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.vectorized.GeneralInIterator
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -42,18 +41,16 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
   // scalastyle:off line.size.limit
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      // .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "DEBUG")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
-        s"$parquetMaxBlockSize")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.enable_streaming_aggregating",
-        "true")
+      .setCHConfig("logger.level", "error")
+      .setCHSettings("input_format_parquet_max_block_size", parquetMaxBlockSize)
+      .setCHConfig("enable_streaming_aggregating", true)
   }
   // scalastyle:on line.size.limit
 
@@ -154,7 +151,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
 
   test("test tpch wholestage execute") {
     TaskResources.runUnsafe {
-      val inBatchIters = new java.util.ArrayList[GeneralInIterator](0)
+      val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator](0)
       val outputAttributes = new java.util.ArrayList[Attribute](0)
       val nativeMetricsList = GlutenClickHouseMetricsUTUtils
         .executeSubstraitPlan(
@@ -314,7 +311,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
 
   test("GLUTEN-1754: test agg func covar_samp, covar_pop final stage execute") {
     TaskResources.runUnsafe {
-      val inBatchIters = new java.util.ArrayList[GeneralInIterator](0)
+      val inBatchIters = new java.util.ArrayList[ColumnarNativeIterator](0)
       val outputAttributes = new java.util.ArrayList[Attribute](0)
       val nativeMetricsList = GlutenClickHouseMetricsUTUtils
         .executeSubstraitPlan(
@@ -386,7 +383,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
           .get(0)
           .getOutputRows == 4)
 
-      val inBatchItersFinal = new java.util.ArrayList[GeneralInIterator](
+      val inBatchItersFinal = new java.util.ArrayList[ColumnarNativeIterator](
         Array(0).map(iter => new ColumnarNativeIterator(Iterator.empty.asJava)).toSeq.asJava)
       val outputAttributesFinal = new java.util.ArrayList[Attribute](0)
 
