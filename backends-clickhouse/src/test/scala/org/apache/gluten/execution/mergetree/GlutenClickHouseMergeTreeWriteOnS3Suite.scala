@@ -523,7 +523,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  |USING clickhouse
                  |PARTITIONED BY (l_returnflag)
                  |CLUSTERED BY (l_orderkey)
-                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey)"} INTO 4 BUCKETS
+                 |${if (spark32) "" else "SORTED BY (l_partkey)"} INTO 4 BUCKETS
                  |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_bucket_s3'
                  |TBLPROPERTIES (storage_policy='__s3_main')
                  |""".stripMargin)
@@ -571,7 +571,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isDefined)
-        if (sparkVersion.equals("3.2")) {
+        if (spark32) {
           assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
         } else {
           assertResult("l_partkey")(
@@ -805,7 +805,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
                  |USING clickhouse
                  |PARTITIONED BY (l_returnflag)
                  |CLUSTERED BY (l_orderkey)
-                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey)"} INTO 4 BUCKETS
+                 |${if (spark32) "" else "SORTED BY (l_partkey)"} INTO 4 BUCKETS
                  |LOCATION 's3a://$BUCKET_NAME/lineitem_mergetree_bucket_s3'
                  |TBLPROPERTIES (storage_policy='__s3_main')
                  |""".stripMargin)

@@ -462,7 +462,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
                  |USING clickhouse
                  |PARTITIONED BY (l_returnflag)
                  |CLUSTERED BY (l_orderkey)
-                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey)"} INTO 4 BUCKETS
+                 |${if (spark32) "" else "SORTED BY (l_partkey)"} INTO 4 BUCKETS
                  |LOCATION '$HDFS_URL/test/lineitem_mergetree_bucket_hdfs'
                  |TBLPROPERTIES (storage_policy='__hdfs_main')
                  |""".stripMargin)
@@ -510,7 +510,7 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isDefined)
-        if (sparkVersion.equals("3.2")) {
+        if (spark32) {
           assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
         } else {
           assertResult("l_partkey")(

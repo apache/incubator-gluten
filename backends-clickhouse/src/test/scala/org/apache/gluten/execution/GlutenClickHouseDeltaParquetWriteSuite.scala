@@ -1293,7 +1293,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     spark.sparkContext.setJobGroup("test3", "test3")
     spark.sql("optimize lineitem_delta_parquet_optimize_p2")
     val job_ids = spark.sparkContext.statusTracker.getJobIdsForGroup("test3")
-    if (sparkVersion.equals("3.2")) {
+    if (spark32) {
       assert(job_ids.length === 7) // WILL trigger actual merge job
     } else {
       assert(job_ids.length === 8) // WILL trigger actual merge job
@@ -1306,7 +1306,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
     assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) === 23)
     spark.sql("VACUUM lineitem_delta_parquet_optimize_p2 RETAIN 0 HOURS")
-    if (sparkVersion.equals("3.2")) {
+    if (spark32) {
       assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) === 5)
     } else {
       assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) === 7)
@@ -1336,7 +1336,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
       assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) === 149)
       spark.sql("VACUUM lineitem_delta_parquet_optimize_p4 RETAIN 0 HOURS")
-      if (sparkVersion.equals("3.2")) {
+      if (spark32) {
         assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) === 23)
       } else {
         assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) === 25)
@@ -1369,7 +1369,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       clickhouseTable.optimize().executeCompaction()
 
       clickhouseTable.vacuum(0.0)
-      if (sparkVersion.equals("3.2")) {
+      if (spark32) {
         assert(countFiles(new File(dataPath)) === 27)
       } else {
         assert(countFiles(new File(dataPath)) === 29)
@@ -1387,7 +1387,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       clickhouseTable.optimize().executeCompaction()
 
       clickhouseTable.vacuum(0.0)
-      if (sparkVersion.equals("3.2")) {
+      if (spark32) {
         assert(countFiles(new File(dataPath)) === 6)
       } else {
         assert(countFiles(new File(dataPath)) === 12)
@@ -1402,7 +1402,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
     clickhouseTable.optimize().executeCompaction()
 
     clickhouseTable.vacuum(0.0)
-    if (sparkVersion.equals("3.2")) {
+    if (spark32) {
       assert(countFiles(new File(dataPath)) === 5)
     } else {
       assert(countFiles(new File(dataPath)) === 13)

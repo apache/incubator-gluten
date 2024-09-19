@@ -1336,7 +1336,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     val result = df.collect()
     assertResult(600572)(result(0).getLong(0))
     // Spark 3.2 + Delta 2.0 does not support this feature
-    if (!sparkVersion.equals("3.2")) {
+    if (!spark32) {
       assert(df.queryExecution.executedPlan.isInstanceOf[LocalTableScanExec])
     }
   }

@@ -831,7 +831,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |USING clickhouse
                  |PARTITIONED BY (l_returnflag)
                  |CLUSTERED BY (l_partkey)
-                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_orderkey)"} INTO 4 BUCKETS
+                 |${if (spark32) "" else "SORTED BY (l_orderkey)"} INTO 4 BUCKETS
                  |LOCATION '$basePath/lineitem_mergetree_bucket'
                  |""".stripMargin)
 
@@ -878,7 +878,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         val fileIndex = mergetreeScan.relation.location.asInstanceOf[TahoeFileIndex]
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).clickhouseTableConfigs.nonEmpty)
         assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).bucketOption.isDefined)
-        if (sparkVersion.equals("3.2")) {
+        if (spark32) {
           assert(ClickHouseTableV2.getTable(fileIndex.deltaLog).orderByKeyOption.isEmpty)
         } else {
           assertResult("l_orderkey")(
@@ -1812,32 +1812,31 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |DROP TABLE IF EXISTS orders_mergetree_pk_pruning_by_driver_bucket;
                  |""".stripMargin)
 
-    spark.sql(
-      s"""
-         |CREATE TABLE IF NOT EXISTS lineitem_mergetree_pk_pruning_by_driver_bucket
-         |(
-         | l_orderkey      bigint,
-         | l_partkey       bigint,
-         | l_suppkey       bigint,
-         | l_linenumber    bigint,
-         | l_quantity      double,
-         | l_extendedprice double,
-         | l_discount      double,
-         | l_tax           double,
-         | l_returnflag    string,
-         | l_linestatus    string,
-         | l_shipdate      date,
-         | l_commitdate    date,
-         | l_receiptdate   date,
-         | l_shipinstruct  string,
-         | l_shipmode      string,
-         | l_comment       string
-         |)
-         |USING clickhouse
-         |CLUSTERED by (l_orderkey)
-         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_receiptdate)"} INTO 2 BUCKETS
-         |LOCATION '$basePath/lineitem_mergetree_pk_pruning_by_driver_bucket'
-         |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_pk_pruning_by_driver_bucket
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |CLUSTERED by (l_orderkey)
+                 |${if (spark32) "" else "SORTED BY (l_receiptdate)"} INTO 2 BUCKETS
+                 |LOCATION '$basePath/lineitem_mergetree_pk_pruning_by_driver_bucket'
+                 |""".stripMargin)
 
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS orders_mergetree_pk_pruning_by_driver_bucket (
@@ -1966,7 +1965,7 @@ class GlutenClickHouseMergeTreeWriteSuite
         assertResult("600572")(result(0).getLong(0).toString)
 
         // Spark 3.2 + Delta 2.0 does not support this feature
-        if (!sparkVersion.equals("3.2")) {
+        if (!spark32) {
           assert(df.queryExecution.executedPlan.isInstanceOf[LocalTableScanExec])
         }
       })

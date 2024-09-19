@@ -56,7 +56,7 @@ class GlutenClickHouseTPCHParquetRFSuite extends GlutenClickHouseTPCHSaltNullPar
           |""".stripMargin,
         compareResult = true,
         df => {
-          if (sparkVersion.equals("3.3")) {
+          if (spark33) {
             val filterExecs = df.queryExecution.executedPlan.collect {
               case filter: FilterExecTransformerBase => filter
             }

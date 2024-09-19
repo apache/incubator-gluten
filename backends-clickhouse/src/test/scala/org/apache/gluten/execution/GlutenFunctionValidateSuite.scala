@@ -607,7 +607,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   test("test common subexpression eliminate") {
     def checkOperatorCount[T <: TransformSupport](count: Int)(df: DataFrame)(implicit
         tag: ClassTag[T]): Unit = {
-      if (sparkVersion.equals("3.3")) {
+      if (spark33) {
         assert(
           getExecutedPlan(df).count(
             plan => {
