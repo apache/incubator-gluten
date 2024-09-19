@@ -29,7 +29,7 @@ AdaptiveSparkPlan (55)
                                                                         +- BroadcastQueryStage (7)
                                                                            +- ColumnarBroadcastExchange (6)
                                                                               +- ^ ProjectExecTransformer (4)
-                                                                                 +- ^ NoopFilter (3)
+                                                                                 +- ^ FilterExecTransformer (3)
                                                                                     +- ^ Scan parquet (2)
 +- == Initial Plan ==
    Sort (54)
@@ -62,9 +62,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_comment), IsNotNull(o_custkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_comment:string>
 
-(3) NoopFilter
+(3) FilterExecTransformer
 Input [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
-Arguments: [o_orderkey#X, o_custkey#X, o_comment#X]
+Arguments: ((isnotnull(o_comment#X) AND NOT o_comment#X LIKE %special%requests%) AND isnotnull(o_custkey#X))
 
 (4) ProjectExecTransformer
 Output [2]: [o_orderkey#X, o_custkey#X]

@@ -16,7 +16,8 @@
  */
 package org.apache.gluten.backendsapi.velox
 
-import org.apache.gluten.{GlutenConfig, VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME}
+import org.apache.gluten.GlutenBuildInfo._
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi._
 import org.apache.gluten.exception.GlutenNotSupportException

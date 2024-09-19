@@ -77,6 +77,7 @@ checkout to the latest branch
 
 ```shell
 latest_branch=$(cat $gluten_root/cpp-ch/clickhouse.version  | grep CH_BRANCH | cut -d= -f2)
+git fetch origin $latest_branch
 git checkout -b $latest_branch origin/$latest_branch
 git submodule sync --recursive
 git submodule update --init --recursive

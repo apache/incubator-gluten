@@ -30,7 +30,6 @@
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Operator/EarlyStopStep.h>
 #include <Parser/AdvancedParametersParseUtil.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>

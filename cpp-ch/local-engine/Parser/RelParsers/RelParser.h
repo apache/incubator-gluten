@@ -27,6 +27,7 @@
 #include <base/types.h>
 #include <substrait/extensions/extensions.pb.h>
 #include <substrait/plan.pb.h>
+
 namespace local_engine
 {
 /// parse a single substrait relation
@@ -52,34 +53,37 @@ protected:
     inline SerializedPlanParser * getPlanParser() const { return plan_parser; }
     inline ContextPtr getContext() const { return plan_parser->context; }
 
-    inline String getUniqueName(const std::string & name) { return plan_parser->getUniqueName(name); }
+    inline String getUniqueName(const std::string & name) const { return plan_parser->getUniqueName(name); }
 
-    inline const std::unordered_map<std::string, std::string> & getFunctionMapping() { return plan_parser->function_mapping; }
+    inline const std::unordered_map<std::string, std::string> & getFunctionMapping() const { return plan_parser->function_mapping; }
 
     // Get function signature name.
     std::optional<String> parseSignatureFunctionName(UInt32 function_ref);
     // Get coresponding function name in ClickHouse.
     std::optional<String> parseFunctionName(UInt32 function_ref, const substrait::Expression_ScalarFunction & function);
 
-    const DB::ActionsDAG::Node * parseArgument(ActionsDAG & action_dag, const substrait::Expression & rel)
+    const DB::ActionsDAG::Node * parseArgument(ActionsDAG & action_dag, const substrait::Expression & rel) const
     {
         return plan_parser->parseExpression(action_dag, rel);
     }
 
-    const DB::ActionsDAG::Node * parseExpression(ActionsDAG & action_dag, const substrait::Expression & rel)
+    const DB::ActionsDAG::Node * parseExpression(ActionsDAG & action_dag, const substrait::Expression & rel) const
     {
         return plan_parser->parseExpression(action_dag, rel);
     }
-    DB::ActionsDAG expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header)
+    DB::ActionsDAG expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header) const
     {
         return plan_parser->expressionsToActionsDAG(expressions, header, header);
     }
-    std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) { return plan_parser->parseLiteral(literal); }
+    std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) const
+    {
+        return plan_parser->parseLiteral(literal);
+    }
     // collect all steps for metrics
     std::vector<IQueryPlanStep *> steps;
 
     const ActionsDAG::Node *
-    buildFunctionNode(ActionsDAG & action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
+    buildFunctionNode(ActionsDAG & action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args) const
     {
         return plan_parser->toFunctionNode(action_dag, function, args);
     }

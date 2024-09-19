@@ -153,6 +153,36 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
           "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes.main.disk",
           "hdfs_cache")
         .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs2.type",
+          "hdfs_gluten")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs2.endpoint",
+          HDFS_URL_ENDPOINT + "/")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs2.metadata_path",
+          HDFS_METADATA_PATH)
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs2.metadata_type",
+          "rocksdb")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache2.type",
+          "cache")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache2.disk",
+          "hdfs2")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache2.path",
+          HDFS_CACHE_PATH)
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache2.max_size",
+          "10Gi")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main_rocksdb.volumes",
+          "main")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main_rocksdb.volumes.main.disk",
+          "hdfs_cache2")
+        .set(
           "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_client_read_shortcircuit",
           "false")
         .set("spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_default_replica", "1")

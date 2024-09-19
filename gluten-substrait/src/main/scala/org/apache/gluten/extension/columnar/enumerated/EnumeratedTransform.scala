@@ -53,9 +53,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     .build()
 
   private val rules = List(
-    new PushFilterToScan(validator),
-    RemoveSort,
-    RemoveFilter
+    RemoveSort
   )
 
   // TODO: Should obey ReplaceSingleNode#applyScanNotTransformable to select

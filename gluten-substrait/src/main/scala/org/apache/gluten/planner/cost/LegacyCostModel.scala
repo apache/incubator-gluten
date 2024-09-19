@@ -16,12 +16,15 @@
  */
 package org.apache.gluten.planner.cost
 
-import org.apache.gluten.extension.columnar.enumerated.RemoveFilter
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.execution.{ColumnarToRowExec, RowToColumnarExec, SparkPlan}
 
+/**
+ * A cost model that is supposed to drive RAS planner create the same query plan with legacy
+ * planner.
+ */
 class LegacyCostModel extends LongCostModel {
 
   // A very rough estimation as of now. The cost model basically considers any
@@ -29,9 +32,6 @@ class LegacyCostModel extends LongCostModel {
   // much as possible.
   override def selfLongCostOf(node: SparkPlan): Long = {
     node match {
-      case _: RemoveFilter.NoopFilter =>
-        // To make planner choose the tree that has applied rule PushFilterToScan.
-        0L
       case ColumnarToRowExec(_) => 10L
       case RowToColumnarExec(_) => 10L
       case ColumnarToRowLike(_) => 10L

@@ -18,9 +18,10 @@
 #include <incbin.h>
 #include <Core/Settings.h>
 #include <Interpreters/Context.h>
-#include <Parser/SerializedPlanParser.h>
+#include <Parser/LocalExecutor.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <gtest/gtest.h>
+#include <substrait/plan.pb.h>
 #include <Common/DebugUtils.h>
 #include <Common/GlutenConfig.h>
 #include <Common/QueryContext.h>

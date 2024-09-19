@@ -21,7 +21,6 @@
 #include <Core/Block.h>
 #include <Core/Settings.h>
 #include <Interpreters/TemporaryDataOnDisk.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Shuffle/ShuffleCommon.h>
 #include <jni/CelebornClient.h>
 #include <Common/GlutenConfig.h>
@@ -68,7 +67,7 @@ public:
     PartitionWriter(const SplitOptions& options, LoggerPtr logger_);
     virtual ~PartitionWriter() = default;
 
-    void initialize(SplitResult * split_result_, const Block & output_header_)
+    void initialize(SplitResult * split_result_, const DB::Block & output_header_)
     {
         if (!init)
         {
@@ -107,8 +106,8 @@ protected:
 
     /// Only valid in celeborn partition writer
     size_t last_partition_id;
-    SplitResult* split_result = nullptr;
-    Block output_header;
+    SplitResult * split_result = nullptr;
+    DB::Block output_header;
     LoggerPtr logger = nullptr;
     bool init = false;
 };

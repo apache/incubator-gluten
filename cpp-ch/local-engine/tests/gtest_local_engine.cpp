@@ -24,7 +24,6 @@
 #include <Formats/FormatFactory.h>
 #include <Interpreters/Context.h>
 #include <Parser/CHColumnToSparkRow.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Processors/Executors/PipelineExecutor.h>

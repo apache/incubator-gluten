@@ -2991,5 +2991,17 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       checkGlutenOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("GLUTEN-7220: Fix bug of grouping sets") {
+    val table_create_sql = "create table test_tbl_7220(id bigint, name string) using parquet"
+    val insert_data_sql = "insert into test_tbl_7220 values(1, 'a123'), (2, 'a124'), (3, 'a125')"
+    val query_sql = "select '2024-08-26' as day, id,name from" +
+      " (select id, name from test_tbl_7220 group by id, name grouping sets((id),(id,name))) " +
+      " where name  = 'a124'"
+    spark.sql(table_create_sql)
+    spark.sql(insert_data_sql)
+    compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
+    spark.sql("drop table test_tbl_7220")
+  }
 }
 // scalastyle:on line.size.limit

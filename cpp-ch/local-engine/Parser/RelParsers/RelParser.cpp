@@ -17,12 +17,10 @@
 #include "RelParser.h"
 
 #include <string>
-#include <google/protobuf/wrappers.pb.h>
-
 #include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/IDataType.h>
-#include <Poco/Logger.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
@@ -49,7 +47,7 @@ std::vector<const substrait::Rel *> RelParser::getInputs(const substrait::Rel & 
 AggregateFunctionPtr RelParser::getAggregateFunction(
     const String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters)
 {
-    auto & factory = AggregateFunctionFactory::instance();
+    auto & factory = DB::AggregateFunctionFactory::instance();
     auto action = NullsAction::EMPTY;
 
     String function_name = name;
@@ -57,8 +55,8 @@ AggregateFunctionPtr RelParser::getAggregateFunction(
         function_name = "sparkAvg";
     else if (name == "avgPartialMerge")
     {
-        if (auto agg_func = typeid_cast<const DataTypeAggregateFunction *>(arg_types[0].get());
-            !agg_func->getArgumentsDataTypes().empty() && isDecimal(removeNullable(agg_func->getArgumentsDataTypes()[0])))
+        if (auto agg_func = typeid_cast<const DB::DataTypeAggregateFunction *>(arg_types[0].get());
+            !agg_func->getArgumentsDataTypes().empty() && DB::isDecimal(DB::removeNullable(agg_func->getArgumentsDataTypes()[0])))
         {
             function_name = "sparkAvgPartialMerge";
         }
@@ -144,7 +142,7 @@ void RelParserFactory::registerBuilder(UInt32 k, RelParserBuilder builder)
     auto it = builders.find(k);
     if (it != builders.end())
     {
-        throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Duplicated builder key:{}", k);
+        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Duplicated builder key:{}", k);
     }
     builders[k] = builder;
 }

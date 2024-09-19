@@ -35,7 +35,7 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources.FileFormat
-import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
+import org.apache.spark.sql.execution.datasources.v2.FileScan
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -617,9 +617,9 @@ trait SparkPlanExecApi {
       })
     }
     sparkExecNode match {
-      case fileSourceScan: FileSourceScanExec =>
+      case fileSourceScan: FileSourceScanExecTransformerBase =>
         getPushedFilter(fileSourceScan.dataFilters)
-      case batchScan: BatchScanExec =>
+      case batchScan: BatchScanExecTransformerBase =>
         batchScan.scan match {
           case fileScan: FileScan =>
             getPushedFilter(fileScan.dataFilters)
@@ -682,4 +682,12 @@ trait SparkPlanExecApi {
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
     HiveUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
   }
+
+  def genStringSplitTransformer(
+      substraitExprName: String,
+      srcExpr: ExpressionTransformer,
+      regexExpr: ExpressionTransformer,
+      limitExpr: ExpressionTransformer,
+      original: StringSplit): ExpressionTransformer =
+    GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
 }

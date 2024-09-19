@@ -14,26 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 #include "config.h"
 #if USE_PARQUET
 #include <charconv>
 #include <ranges>
 #include <string>
 #include <Columns/ColumnString.h>
-#include <DataTypes/DataTypeString.h>
+#include <IO/ReadBufferFromFile.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/Context.h>
 #include <Interpreters/ExpressionActions.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parsers/ExpressionListParsers.h>
-#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ColumnIndexFilter.h>
 #include <Storages/Parquet/ParquetConverter.h>
 #include <Storages/Parquet/RowRanges.h>
 #include <Storages/Parquet/VectorizedParquetRecordReader.h>
+#include <boost/iterator/counting_iterator.hpp>
 #include <gtest/gtest.h>
 #include <parquet/page_index.h>
 #include <parquet/schema.h>
@@ -41,7 +38,6 @@
 #include <tests/gluten_test_util.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/QueryContext.h>
-
 
 #    define ASSERT_DURATION_LE(secs, stmt) \
         { \

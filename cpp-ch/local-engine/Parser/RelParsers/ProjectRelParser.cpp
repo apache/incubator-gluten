@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 #include "ProjectRelParser.h"
-#include <Interpreters/ArrayJoinAction.h>
+
+#include <Interpreters/ArrayJoin.h>
 #include <Operator/EmptyProjectStep.h>
 #include <Processors/QueryPlan/ArrayJoinStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
@@ -198,9 +199,12 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
         }
 
         /// ARRAY JOIN
-        NameSet array_joined_columns{findArrayJoinNode(splitted_actions_dags.array_join)->result_name};
-        auto array_join_action = std::make_shared<ArrayJoinAction>(array_joined_columns, false, getContext());
-        auto array_join_step = std::make_unique<ArrayJoinStep>(query_plan->getCurrentDataStream(), array_join_action);
+        Names array_joined_columns{findArrayJoinNode(splitted_actions_dags.array_join)->result_name};
+        ArrayJoin array_join;
+        array_join.columns = std::move(array_joined_columns);
+        array_join.is_left = generate_rel.outer();
+        auto array_join_step = std::make_unique<ArrayJoinStep>(
+            query_plan->getCurrentDataStream(), std::move(array_join), false, getContext()->getSettingsRef().max_block_size);
         array_join_step->setStepDescription("ARRAY JOIN In Generate");
         steps.emplace_back(array_join_step.get());
         query_plan->addStep(std::move(array_join_step));

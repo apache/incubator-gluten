@@ -481,6 +481,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           replaceWithExpressionTransformer0(c.child, attributeSeq, expressionsMap),
           c)
+      case c if c.getClass.getSimpleName.equals("CheckOverflowInTableInsert") =>
+        throw new GlutenNotSupportException(
+          "CheckOverflowInTableInsert is used in ansi mode, but gluten does not support ANSI mode."
+        )
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         DecimalArithmeticUtil.checkAllowDecimalArithmetic()
         if (!BackendsApiManager.getSettings.transformCheckOverflow) {
@@ -688,6 +692,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           timeAdd.children,
           timeAdd
+        )
+      case ss: StringSplit =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genStringSplitTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(ss.str, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(ss.regex, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(ss.limit, attributeSeq, expressionsMap),
+          ss
         )
       case expr =>
         GenericExpressionTransformer(

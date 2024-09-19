@@ -19,6 +19,7 @@
 #include <testConfig.h>
 #include <Core/Settings.h>
 #include <Interpreters/Context.h>
+#include <Parser/LocalExecutor.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
@@ -45,8 +46,8 @@ TEST(LocalExecutor, ReadCSV)
     auto plan = local_engine::JsonStringToMessage<substrait::Plan>(EMBEDDED_PLAN(_readcsv_plan));
 
     auto query_plan = parser.parse(plan);
-    const auto pipeline = parser.buildQueryPipeline(*query_plan);
-    LocalExecutor local_executor{std::move(query_plan), QueryPipelineBuilder::getPipeline(std::move(*pipeline))};
+    auto pipeline = parser.buildQueryPipeline(*query_plan);
+    LocalExecutor local_executor{std::move(query_plan), std::move(pipeline)};
 
     EXPECT_TRUE(local_executor.hasNext());
     const Block & x = *local_executor.nextColumnar();
