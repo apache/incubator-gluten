@@ -96,8 +96,11 @@ class GlutenParquetColumnIndexSuite
     val chFileScan = chScanPlan.head
     assertResult(scanOutput)(chFileScan.longMetric("numOutputRows").value)
   }
-  override protected def sparkConf: SparkConf =
+  override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key, "false")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
+      .setCHConfig("use_local_format", true)
+  }
 }

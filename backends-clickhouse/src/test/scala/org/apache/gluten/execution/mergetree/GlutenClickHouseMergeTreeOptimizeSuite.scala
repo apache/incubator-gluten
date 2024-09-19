@@ -40,27 +40,22 @@ class GlutenClickHouseMergeTreeOptimizeSuite
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.min_insert_block_size_rows",
-        "10000"
-      )
+      .setCHConfig("logger.level", "error")
+      .setCHSettings("min_insert_block_size_rows", 10000)
       .set(
         "spark.databricks.delta.retentionDurationCheck.enabled",
         "false"
       ) // otherwise, RETAIN 0 HOURS will fail
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
-        "false")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.input_format_parquet_max_block_size",
-        "8192")
+      .setCHSettings("mergetree.merge_after_insert", false)
+      .setCHSettings("input_format_parquet_max_block_size", 8192)
   }
 
   override protected def createTPCHNotNullTables(): Unit = {

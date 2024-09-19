@@ -36,6 +36,8 @@ class GlutenClickHouseColumnarMemorySortShuffleSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.backend.ch.forceMemorySortShuffle", "true")
+
+    // TODO: forceMemorySortShuffle
   }
 
   test("TPCH Q1") {

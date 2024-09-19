@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.backendsapi.clickhouse.CHConf._
 import org.apache.gluten.execution.{BasicScanExecTransformer, FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
@@ -62,8 +62,8 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.path", "/data")
+      .setCHConfig("logger.level", "error")
+      .setCHConfig("path", "/data")
   }
 
   override protected def beforeEach(): Unit = {
@@ -684,8 +684,8 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      CHConf.settingsKey("mergetree.insert_without_local_storage") -> "true",
-      CHConf.settingsKey("mergetree.merge_after_insert") -> "true"
+      settingsKey("mergetree.insert_without_local_storage") -> "true",
+      settingsKey("mergetree.merge_after_insert") -> "true"
     ) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS $tableName;
@@ -757,7 +757,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
          |    AND l_quantity < 24
          |""".stripMargin
 
-    withSQLConf(CHConf.settingsKey("enabled_driver_filter_mergetree_index") -> "true") {
+    withSQLConf(settingsKey("enabled_driver_filter_mergetree_index") -> "true") {
       runTPCHQueryBySQL(6, sqlStr) {
         df =>
           val scanExec = collect(df.queryExecution.executedPlan) {

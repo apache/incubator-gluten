@@ -40,6 +40,8 @@ class GlutenClickHouseHiveTableSuite
   with AdaptiveSparkPlanHelper {
 
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     new SparkConf()
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.memory.offHeap.enabled", "true")
@@ -60,10 +62,10 @@ class GlutenClickHouseHiveTableSuite
       .set("spark.gluten.sql.parquet.maxmin.index", "true")
       .set(
         "spark.sql.warehouse.dir",
-        getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
+        this.getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
       .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
       .set("spark.gluten.supported.hive.udfs", "my_add")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
+      .setCHConfig("use_local_format", true)
       .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
       .set(
         "spark.sql.catalog.spark_catalog",

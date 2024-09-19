@@ -49,17 +49,17 @@ class GlutenClickHouseMergeTreeWriteOnHDFSWithRocksDBMetaSuite
   }
 
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
-        "false")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.path", "/data")
+      .setCHConfig("logger.level", "error")
+      .setCHSettings("mergetree.merge_after_insert", false)
+      .setCHConfig("path", "/data")
   }
 
   override protected def beforeEach(): Unit = {

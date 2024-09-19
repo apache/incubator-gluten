@@ -31,6 +31,8 @@ class GlutenClickHouseS3SourceSuite extends GlutenClickHouseTPCHAbstractSuite {
   override protected val queriesResults: String = rootPath + "queries-output"
 
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
@@ -44,10 +46,8 @@ class GlutenClickHouseS3SourceSuite extends GlutenClickHouseTPCHAbstractSuite {
       .set("spark.hadoop.fs.s3a.path.style.access", "true")
       .set("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
       .set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.s3.local_cache.enabled", "true")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.s3.local_cache.cache_path",
-        "/data/gluten-ch-cache-dir")
+      .setCHConfig("s3.local_cache.enabled", true)
+      .setCHConfig("s3.local_cache.cache_path", "/data/gluten-ch-cache-dir")
   }
 
   override protected val createNullableTables = true

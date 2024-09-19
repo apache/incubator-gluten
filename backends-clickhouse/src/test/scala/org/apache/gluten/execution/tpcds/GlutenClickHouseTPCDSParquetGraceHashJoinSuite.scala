@@ -26,14 +26,16 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.memory.offHeap.size", "6g")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_settings.join_algorithm", "grace_hash")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_settings.max_bytes_in_join", "314572800")
+      .setCHSettings("join_algorithm", "grace_hash")
+      .setCHSettings("max_bytes_in_join", 314572800)
       .setMaster("local[2]")
   }
 
