@@ -223,9 +223,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         outputSchema,
         null)
     } else {
-      for (attr <- childCtx.outputAttributes) {
-        outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
-      }
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
     }
 
