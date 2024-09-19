@@ -15,30 +15,41 @@
  * limitations under the License.
  */
 #pragma once
-#include <Disks/IDisk.h>
-#include <latch>
 
+#include <substrait/plan.pb.h>
+
+#include <jni.h>
+#include <Disks/IDisk.h>
+#include <Storages/Cache/JobScheduler.h>
+#include <Storages/SubstraitSource/ReadBufferBuilder.h>
 
 namespace local_engine
 {
 struct MergeTreePart;
-struct MergeTreeTable;
+struct MergeTreeTableInstance;
+
 /***
  * Manage the cache of the MergeTree, mainly including meta.bin, data.bin, metadata.gluten
  */
-class CacheManager {
+class CacheManager
+{
 public:
-    static CacheManager & instance();
-    static void initialize(DB::ContextMutablePtr context);
-    void cachePart(const MergeTreeTable& table, const MergeTreePart& part, const std::unordered_set<String>& columns, std::shared_ptr<std::latch> latch = nullptr);
-    void cacheParts(const String& table_def, const std::unordered_set<String>& columns, bool async = true);
-private:
-    CacheManager() = default;
+    static jclass cache_result_class;
+    static jmethodID cache_result_constructor;
+    static void initJNI(JNIEnv * env);
 
-    std::unique_ptr<ThreadPool> thread_pool;
+    static CacheManager & instance();
+    static void initialize(const DB::ContextMutablePtr & context);
+    JobId cacheParts(const MergeTreeTableInstance & table, const std::unordered_set<String> & columns);
+    static jobject getCacheStatus(JNIEnv * env, const String & jobId);
+
+    Task cacheFile(const substrait::ReadRel::LocalFiles::FileOrFiles & file, ReadBufferBuilderPtr read_buffer_builder);
+    JobId cacheFiles(substrait::ReadRel::LocalFiles file_infos);
+    static void removeFiles(String file, String cache_name);
+
+private:
+    Task cachePart(const MergeTreeTableInstance & table, const MergeTreePart & part, const std::unordered_set<String> & columns);
+    CacheManager() = default;
     DB::ContextMutablePtr context;
-    std::unordered_map<String, DB::DiskPtr> policy_to_disk;
-    std::unordered_map<DB::DiskPtr, DB::DiskPtr> disk_to_metadisk;
-    std::unordered_map<String, DB::FileCachePtr> policy_to_cache;
 };
 }

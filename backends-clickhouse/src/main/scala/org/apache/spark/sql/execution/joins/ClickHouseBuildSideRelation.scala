@@ -35,7 +35,8 @@ case class ClickHouseBuildSideRelation(
     output: Seq[Attribute],
     batches: Array[Byte],
     numOfRows: Long,
-    newBuildKeys: Seq[Expression] = Seq.empty)
+    newBuildKeys: Seq[Expression] = Seq.empty,
+    hasNullKeyValues: Boolean = false)
   extends BuildSideRelation
   with Logging {
 
@@ -58,7 +59,8 @@ case class ClickHouseBuildSideRelation(
           numOfRows,
           broadCastContext,
           newBuildKeys.asJava,
-          output.asJava)
+          output.asJava,
+          hasNullKeyValues)
         (hashTableData, this)
       } else {
         (StorageJoinBuilder.nativeCloneBuildHashTable(hashTableData), null)

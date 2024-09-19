@@ -17,6 +17,7 @@
 package org.apache.gluten.vectorized;
 
 import org.apache.gluten.execution.BroadCastHashJoinContext;
+import org.apache.gluten.execution.JoinTypeTransform;
 import org.apache.gluten.expression.ConverterUtils;
 import org.apache.gluten.expression.ConverterUtils$;
 import org.apache.gluten.substrait.type.TypeNode;
@@ -46,7 +47,9 @@ public class StorageJoinBuilder {
       int joinType,
       boolean hasMixedFiltCondition,
       boolean isExistenceJoin,
-      byte[] namedStruct);
+      byte[] namedStruct,
+      boolean isNullAwareAntiJoin,
+      boolean hasNullKeyValues);
 
   private StorageJoinBuilder() {}
 
@@ -56,7 +59,8 @@ public class StorageJoinBuilder {
       long rowCount,
       BroadCastHashJoinContext broadCastContext,
       List<Expression> newBuildKeys,
-      List<Attribute> newOutput) {
+      List<Attribute> newOutput,
+      boolean hasNullKeyValues) {
     ConverterUtils$ converter = ConverterUtils$.MODULE$;
     List<Expression> keys;
     List<Attribute> output;
@@ -80,7 +84,9 @@ public class StorageJoinBuilder {
     if (broadCastContext.buildHashTableId().startsWith("BuiltBNLJBroadcastTable-")) {
       joinType = SubstraitUtil.toCrossRelSubstrait(broadCastContext.joinType()).ordinal();
     } else {
-      joinType = SubstraitUtil.toSubstrait(broadCastContext.joinType()).ordinal();
+      boolean buildRight = broadCastContext.buildRight();
+      joinType =
+          JoinTypeTransform.toSubstraitJoinType(broadCastContext.joinType(), buildRight).ordinal();
     }
 
     return nativeBuild(
@@ -91,7 +97,9 @@ public class StorageJoinBuilder {
         joinType,
         broadCastContext.hasMixedFiltCondition(),
         broadCastContext.isExistenceJoin(),
-        toNameStruct(output).toByteArray());
+        toNameStruct(output).toByteArray(),
+        broadCastContext.isNullAwareAntiJoin(),
+        hasNullKeyValues);
   }
 
   /** create table named struct */

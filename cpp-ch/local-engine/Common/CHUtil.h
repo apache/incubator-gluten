@@ -42,8 +42,6 @@ namespace local_engine
 static const String MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE = "mergetree.insert_without_local_storage";
 static const String MERGETREE_MERGE_AFTER_INSERT = "mergetree.merge_after_insert";
 static const std::string DECIMAL_OPERATIONS_ALLOW_PREC_LOSS = "spark.sql.decimalOperations.allowPrecisionLoss";
-static const std::string SPARK_TASK_WRITE_TMEP_DIR = "gluten.write.temp.dir";
-static const std::string SPARK_TASK_WRITE_FILENAME = "gluten.write.file.name";
 
 static const std::unordered_set<String> BOOL_VALUE_SETTINGS{
     MERGETREE_MERGE_AFTER_INSERT, MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, DECIMAL_OPERATIONS_ALLOW_PREC_LOSS};
@@ -84,7 +82,8 @@ public:
 
     /// The column names may be different in two blocks.
     /// and the nullability also could be different, with TPCDS-Q1 as an example.
-    static DB::ColumnWithTypeAndName convertColumnAsNecessary(const DB::ColumnWithTypeAndName & column, const DB::ColumnWithTypeAndName & sample_column);
+    static DB::ColumnWithTypeAndName
+    convertColumnAsNecessary(const DB::ColumnWithTypeAndName & column, const DB::ColumnWithTypeAndName & sample_column);
 };
 
 class PODArrayUtil
@@ -128,8 +127,8 @@ class ActionsDAGUtil
 public:
     static const DB::ActionsDAG::Node * convertNodeType(
         DB::ActionsDAG & actions_dag,
-        const DB::ActionsDAG::Node * node,
-        const std::string & type_name,
+        const DB::ActionsDAG::Node * node_to_cast,
+        const DB::DataTypePtr & cast_to_type,
         const std::string & result_name = "",
         DB::CastType cast_type = DB::CastType::nonAccurate);
 
@@ -195,6 +194,8 @@ public:
 
     inline static const String GLUTEN_TASK_OFFHEAP = "spark.gluten.memory.task.offHeap.size.in.bytes";
 
+    inline static const String GLUTEN_LOCAL_CACHE_PREFIX = "gluten_cache.local.";
+
     /// On yarn mode, native writing on hdfs cluster takes yarn container user as the user passed to libhdfs3, which
     /// will cause permission issue because yarn container user is not the owner of the hdfs dir to be written.
     /// So we need to get the spark user from env and pass it to libhdfs3.
@@ -212,9 +213,10 @@ private:
     static void initContexts(DB::Context::ConfigurationPtr config);
     static void initCompiledExpressionCache(DB::Context::ConfigurationPtr config);
     static void registerAllFactories();
-    static void applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr, DB::Settings &);
+    static void applyGlobalConfigAndSettings(const DB::Context::ConfigurationPtr & config, const DB::Settings & settings);
     static void updateNewSettings(const DB::ContextMutablePtr &, const DB::Settings &);
-    static std::vector<String> wrapDiskPathConfig(const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config);
+    static std::vector<String>
+    wrapDiskPathConfig(const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config);
 
 
     static std::map<std::string, std::string> getBackendConfMap(std::string_view plan);
@@ -260,64 +262,12 @@ public:
     static UInt64 getMemoryRSS();
 };
 
-template <typename T>
-class ConcurrentDeque
-{
-public:
-    std::optional<T> pop_front()
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-
-        if (deq.empty())
-            return {};
-
-        T t = deq.front();
-        deq.pop_front();
-        return t;
-    }
-
-    void emplace_back(T value)
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        deq.emplace_back(value);
-    }
-
-    void emplace_back(std::vector<T> values)
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        deq.insert(deq.end(), values.begin(), values.end());
-    }
-
-    void emplace_front(T value)
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        deq.emplace_front(value);
-    }
-
-    size_t size()
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        return deq.size();
-    }
-
-    bool empty()
-    {
-        std::lock_guard<std::mutex> lock(mtx);
-        return deq.empty();
-    }
-
-    std::deque<T> unsafeGet() { return deq; }
-
-private:
-    std::deque<T> deq;
-    mutable std::mutex mtx;
-};
-
 class JoinUtil
 {
 public:
     static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
-    static std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type, bool is_existence_join);
+    static std::pair<DB::JoinKind, DB::JoinStrictness>
+    getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type, bool is_existence_join);
     static std::pair<DB::JoinKind, DB::JoinStrictness> getCrossJoinKindAndStrictness(substrait::CrossRel_JoinType join_type);
 };
 

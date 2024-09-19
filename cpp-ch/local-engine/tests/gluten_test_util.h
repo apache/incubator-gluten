@@ -21,13 +21,19 @@
 #include <Core/Block.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
-#include <DataTypes/DataTypeDate32.h>
-#include <DataTypes/DataTypeString.h>
-#include <DataTypes/DataTypesNumber.h>
+
 #include <Interpreters/ActionsDAG.h>
 #include <boost/algorithm/string/replace.hpp>
 #include <parquet/schema.h>
 
+namespace substrait
+{
+class Plan;
+}
+namespace local_engine
+{
+class LocalExecutor;
+}
 using BlockRowType = DB::ColumnsWithTypeAndName;
 using BlockFieldType = DB::ColumnWithTypeAndName;
 using AnotherRowType = DB::NamesAndTypesList;
@@ -65,12 +71,18 @@ AnotherRowType readParquetSchema(const std::string & file);
 
 std::optional<DB::ActionsDAG> parseFilter(const std::string & filter, const AnotherRowType & name_and_types);
 
+std::pair<substrait::Plan, std::unique_ptr<LocalExecutor>> create_plan_and_executor(
+    std::string_view json_plan,
+    std::string_view split_template,
+    std::string_view file,
+    const std::optional<DB::ContextPtr> & context = std::nullopt);
+
 }
 
-inline std::string replaceLocalFilesWildcards(const String & haystack, const String & replaced)
+inline std::string replaceLocalFilesWildcards(const std::string_view haystack, const std::string_view replaced)
 {
-    static constexpr auto _WILDCARD_ = "{replace_local_files}";
-    return boost::replace_all_copy(haystack, _WILDCARD_, replaced);
+    static constexpr auto wildcard = "{replace_local_files}";
+    return boost::replace_all_copy(std::string{haystack}, wildcard, replaced);
 }
 
 inline BlockFieldType toBlockFieldType(const AnotherFieldType & type)
@@ -123,3 +135,9 @@ inline parquet::ByteArray ByteArrayFromString(const std::string & s)
     const auto * const ptr = reinterpret_cast<const uint8_t *>(s.data());
     return parquet::ByteArray(static_cast<uint32_t>(s.size()), ptr);
 }
+
+#define EMBEDDED_PLAN(res) \
+    std::string_view \
+    { \
+        reinterpret_cast<const char *>(g##res##Data), g##res##Size \
+    }

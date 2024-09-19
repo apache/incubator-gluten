@@ -41,6 +41,9 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
     version(0) + "." + version(1)
   }
 
+  val CH_CONFIG_PREFIX: String = "spark.gluten.sql.columnar.backend.ch.runtime_config"
+  val CH_SETTING_PREFIX: String = "spark.gluten.sql.columnar.backend.ch.runtime_settings"
+
   val S3_METADATA_PATH = s"/tmp/metadata/s3/$sparkVersion/"
   val S3_CACHE_PATH = s"/tmp/s3_cache/$sparkVersion/"
   val S3_ENDPOINT = "s3://127.0.0.1:9000/"
@@ -150,6 +153,36 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
           "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes.main.disk",
           "hdfs_cache")
         .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs2.type",
+          "hdfs_gluten")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs2.endpoint",
+          HDFS_URL_ENDPOINT + "/")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs2.metadata_path",
+          HDFS_METADATA_PATH)
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs2.metadata_type",
+          "rocksdb")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache2.type",
+          "cache")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache2.disk",
+          "hdfs2")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache2.path",
+          HDFS_CACHE_PATH)
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache2.max_size",
+          "10Gi")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main_rocksdb.volumes",
+          "main")
+        .set(
+          "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main_rocksdb.volumes.main.disk",
+          "hdfs_cache2")
+        .set(
           "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_client_read_shortcircuit",
           "false")
         .set("spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_default_replica", "1")
@@ -178,11 +211,13 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
     super.beforeAll()
   }
 
-  protected val rootPath: String = this.getClass.getResource("/").getPath
-  protected val basePath: String = rootPath + "tests-working-home"
-  protected val warehouse: String = basePath + "/spark-warehouse"
-  protected val metaStorePathAbsolute: String = basePath + "/meta"
-  protected val hiveMetaStoreDB: String = metaStorePathAbsolute + "/metastore_db"
+  final protected val rootPath: String = this.getClass.getResource("/").getPath
+  final protected val basePath: String = rootPath + "tests-working-home"
+  final protected val warehouse: String = basePath + "/spark-warehouse"
+  final protected val metaStorePathAbsolute: String = basePath + "/meta"
+
+  protected val hiveMetaStoreDB: String =
+    s"$metaStorePathAbsolute/${getClass.getSimpleName}/metastore_db"
 
   final override protected val resourcePath: String = "" // ch not need this
   override protected val fileFormat: String = "parquet"

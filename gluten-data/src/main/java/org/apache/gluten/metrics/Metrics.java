@@ -32,6 +32,7 @@ public class Metrics implements IMetrics {
   public long[] scanTime;
   public long[] peakMemoryBytes;
   public long[] numMemoryAllocations;
+  public long[] spilledInputBytes;
   public long[] spilledBytes;
   public long[] spilledRows;
   public long[] spilledPartitions;
@@ -49,7 +50,7 @@ public class Metrics implements IMetrics {
   public long[] preloadSplits;
 
   public long[] physicalWrittenBytes;
-
+  public long[] writeIOTime;
   public long[] numWrittenFiles;
 
   public SingleMetric singleMetric = new SingleMetric();
@@ -69,6 +70,7 @@ public class Metrics implements IMetrics {
       long veloxToArrow,
       long[] peakMemoryBytes,
       long[] numMemoryAllocations,
+      long[] spilledInputBytes,
       long[] spilledBytes,
       long[] spilledRows,
       long[] spilledPartitions,
@@ -86,6 +88,7 @@ public class Metrics implements IMetrics {
       long[] ioWaitTime,
       long[] preloadSplits,
       long[] physicalWrittenBytes,
+      long[] writeIOTime,
       long[] numWrittenFiles) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
@@ -101,6 +104,7 @@ public class Metrics implements IMetrics {
     this.singleMetric.veloxToArrow = veloxToArrow;
     this.peakMemoryBytes = peakMemoryBytes;
     this.numMemoryAllocations = numMemoryAllocations;
+    this.spilledInputBytes = spilledInputBytes;
     this.spilledBytes = spilledBytes;
     this.spilledRows = spilledRows;
     this.spilledPartitions = spilledPartitions;
@@ -117,6 +121,7 @@ public class Metrics implements IMetrics {
     this.ioWaitTime = ioWaitTime;
     this.preloadSplits = preloadSplits;
     this.physicalWrittenBytes = physicalWrittenBytes;
+    this.writeIOTime = writeIOTime;
     this.numWrittenFiles = numWrittenFiles;
   }
 
@@ -138,6 +143,7 @@ public class Metrics implements IMetrics {
         wallNanos[index],
         peakMemoryBytes[index],
         numMemoryAllocations[index],
+        spilledInputBytes[index],
         spilledBytes[index],
         spilledRows[index],
         spilledPartitions[index],
@@ -155,6 +161,7 @@ public class Metrics implements IMetrics {
         ioWaitTime[index],
         preloadSplits[index],
         physicalWrittenBytes[index],
+        writeIOTime[index],
         numWrittenFiles[index]);
   }
 

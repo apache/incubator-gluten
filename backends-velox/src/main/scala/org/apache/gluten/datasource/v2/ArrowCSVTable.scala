@@ -29,7 +29,7 @@ import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.v2.FileTable
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import org.apache.spark.util.TaskResources
+import org.apache.spark.task.TaskResources
 
 import org.apache.hadoop.fs.FileStatus
 

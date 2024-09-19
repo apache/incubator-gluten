@@ -43,9 +43,9 @@ public:
     {
         /// parse shiftrightunsigned(a, b) as
         /// if (isInteger(a))
-        ///   bitShiftRight(a::UInt32, b::UInt32)
+        ///   bitShiftRight(a::UInt32, pmod(b, 32))
         /// else if (isLong(a))
-        ///   bitShiftRight(a::UInt64, b::UInt64)
+        ///   bitShiftRight(a::UInt64, pmod(b, 32))
         /// else
         ///   throw Exception
 
@@ -55,26 +55,27 @@ public:
 
         const auto * a = parsed_args[0];
         const auto * b = parsed_args[1];
-        const auto * new_a = a;
-        const auto * new_b = b;
 
         WhichDataType which(removeNullable(a->result_type));
+        const ActionsDAG::Node * base_node = nullptr;
+        const ActionsDAG::Node * unsigned_a_node = nullptr;
         if (which.isInt32())
         {
+            base_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt32>(), 32);
             const auto * uint32_type_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), "Nullable(UInt32)");
-            new_a = toFunctionNode(actions_dag, "CAST", {a, uint32_type_node});
-            new_b = toFunctionNode(actions_dag, "CAST", {b, uint32_type_node});
+            unsigned_a_node = toFunctionNode(actions_dag, "CAST", {a, uint32_type_node});
         }
         else if (which.isInt64())
         {
+            base_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeUInt32>(), 64);
             const auto * uint64_type_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), "Nullable(UInt64)");
-            new_a = toFunctionNode(actions_dag, "CAST", {a, uint64_type_node});
-            new_b = toFunctionNode(actions_dag, "CAST", {b, uint64_type_node});
+            unsigned_a_node = toFunctionNode(actions_dag, "CAST", {a, uint64_type_node});
         }
         else
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {} requires integer or long as first argument", getName());
 
-        const auto * result = toFunctionNode(actions_dag, "bitShiftRight", {new_a, new_b});
+        const auto * pmod_node = toFunctionNode(actions_dag, "pmod", {b, base_node});
+        const auto * result = toFunctionNode(actions_dag, "bitShiftRight", {unsigned_a_node, pmod_node});
         return convertNodeTypeIfNeeded(substrait_func, result, actions_dag);
     }
 };

@@ -33,7 +33,6 @@
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
-#include "operators/functions/SparkTokenizer.h"
 #include "udf/UdfLoader.h"
 #include "utils/exception.h"
 #include "velox/common/caching/SsdCache.h"
@@ -45,6 +44,7 @@
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
 DECLARE_bool(velox_memory_use_hugepages);
+DECLARE_bool(velox_memory_pool_capacity_transfer_across_tasks);
 DECLARE_int32(cache_prefetch_min_pct);
 
 DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
@@ -63,13 +63,14 @@ gluten::Runtime* veloxRuntimeFactory(
 } // namespace
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
-  backendConf_ = std::make_shared<facebook::velox::core::MemConfig>(conf);
+  backendConf_ =
+      std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
 
   // Register Velox runtime factory
   gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
 
   if (backendConf_->get<bool>(kDebugModeEnabled, false)) {
-    LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->values());
+    LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->rawConfigs());
   }
 
   // Init glog and log level.
@@ -77,7 +78,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
     FLAGS_v = backendConf_->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
     FLAGS_minloglevel = backendConf_->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
   } else {
-    if (backendConf_->isValueExists(kGlogVerboseLevel)) {
+    if (backendConf_->valueExists(kGlogVerboseLevel)) {
       FLAGS_v = backendConf_->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
     } else {
       FLAGS_v = kGlogVerboseLevelMaximum;
@@ -85,6 +86,9 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   }
   FLAGS_logtostderr = true;
   google::InitGoogleLogging("gluten");
+
+  // Allow growing buffer in another task through its memory pool.
+  FLAGS_velox_memory_pool_capacity_transfer_across_tasks = true;
 
   // Avoid creating too many shared leaf pools.
   FLAGS_velox_memory_num_shared_leaf_pools = 0;
@@ -119,10 +123,19 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 
   initUdf();
-  registerSparkTokenizer();
 
-  // initialize the global memory manager for current process
-  facebook::velox::memory::MemoryManager::initialize({});
+  // Initialize the global memory manager for current process.
+  auto sparkOverhead = backendConf_->get<int64_t>(kSparkOverheadMemory);
+  int64_t memoryManagerCapacity;
+  if (sparkOverhead.hasValue()) {
+    // 0.75 * total overhead memory is used for Velox global memory manager.
+    // FIXME: Make this configurable.
+    memoryManagerCapacity = sparkOverhead.value() * 0.75;
+  } else {
+    memoryManagerCapacity = facebook::velox::memory::kMaxMemory;
+  }
+  LOG(INFO) << "Setting global Velox memory manager with capacity: " << memoryManagerCapacity;
+  facebook::velox::memory::MemoryManager::initialize({.allocatorCapacity = memoryManagerCapacity});
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
@@ -187,15 +200,15 @@ void VeloxBackend::initCache() {
 
 void VeloxBackend::initConnector() {
   // The configs below are used at process level.
-  std::unordered_map<std::string, std::string> connectorConfMap = backendConf_->values();
+  std::unordered_map<std::string, std::string> connectorConfMap = backendConf_->rawConfigs();
 
   auto hiveConf = getHiveConfig(backendConf_);
-  for (auto& [k, v] : hiveConf->valuesCopy()) {
+  for (auto& [k, v] : hiveConf->rawConfigsCopy()) {
     connectorConfMap[k] = v;
   }
 
 #ifdef ENABLE_ABFS
-  const auto& confValue = backendConf_->values();
+  const auto& confValue = backendConf_->rawConfigs();
   for (auto& [k, v] : confValue) {
     if (k.find("fs.azure.account.key") == 0) {
       connectorConfMap[k] = v;
@@ -205,6 +218,7 @@ void VeloxBackend::initConnector() {
     }
   }
 #endif
+
   connectorConfMap[velox::connector::hive::HiveConfig::kEnableFileHandleCache] =
       backendConf_->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false";
 
@@ -229,11 +243,15 @@ void VeloxBackend::initConnector() {
       ioThreads >= 0,
       kVeloxIOThreads + " was set to negative number " + std::to_string(ioThreads) + ", this should not happen.");
   if (ioThreads > 0) {
+    LOG(WARNING)
+        << "Velox background IO threads is enabled. Which is highly unrecommended as of now, since it may cause"
+        << " some unexpected issues like query crash or hanging. Please turn it off if you are unsure about"
+        << " this option.";
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }
   velox::connector::registerConnector(std::make_shared<velox::connector::hive::HiveConnector>(
       kHiveConnectorId,
-      std::make_shared<facebook::velox::core::MemConfig>(std::move(connectorConfMap)),
+      std::make_shared<facebook::velox::config::ConfigBase>(std::move(connectorConfMap)),
       ioExecutor_.get()));
 }
 

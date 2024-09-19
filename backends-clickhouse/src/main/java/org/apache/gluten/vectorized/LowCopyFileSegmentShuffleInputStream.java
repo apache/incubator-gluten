@@ -89,11 +89,11 @@ public class LowCopyFileSegmentShuffleInputStream implements ShuffleInputStream 
 
   @Override
   public void close() {
-    GlutenException.wrap(
-        () -> {
-          channel.close();
-          in.close();
-          return null;
-        });
+    try {
+      channel.close();
+      in.close();
+    } catch (Exception e) {
+      throw new GlutenException(e);
+    }
   }
 }

@@ -38,6 +38,8 @@ const std::string kIgnoreMissingFiles = "spark.sql.files.ignoreMissingFiles";
 
 const std::string kDefaultSessionTimezone = "spark.gluten.sql.session.timeZone.default";
 
+const std::string kSparkOverheadMemory = "spark.gluten.memoryOverhead.size.in.bytes";
+
 const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
 
 const std::string kSparkTaskOffHeapMemory = "spark.gluten.memory.task.offHeap.size.in.bytes";
@@ -57,7 +59,6 @@ const std::string kGzipWindowSize4k = "4096";
 const std::string kParquetCompressionCodec = "spark.sql.parquet.compression.codec";
 
 const std::string kColumnarToRowMemoryThreshold = "spark.gluten.sql.columnarToRowMemoryThreshold";
-const std::string kColumnarToRowMemoryDefaultThreshold = "67108864"; // 64MB
 
 const std::string kUGIUserName = "spark.gluten.ugi.username";
 const std::string kUGITokens = "spark.gluten.ugi.tokens";
@@ -66,6 +67,9 @@ const std::string kShuffleCompressionCodec = "spark.gluten.sql.columnar.shuffle.
 const std::string kShuffleCompressionCodecBackend = "spark.gluten.sql.columnar.shuffle.codecBackend";
 const std::string kQatBackendName = "qat";
 const std::string kIaaBackendName = "iaa";
+
+const std::string kSparkRedactionRegex = "spark.redaction.regex";
+const std::string kSparkRedactionString = "*********(redacted)";
 
 std::unordered_map<std::string, std::string>
 parseConfMap(JNIEnv* env, const uint8_t* planData, const int32_t planDataLength);

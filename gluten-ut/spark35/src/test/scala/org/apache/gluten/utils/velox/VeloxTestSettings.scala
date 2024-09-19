@@ -35,7 +35,7 @@ import org.apache.spark.sql.execution.datasources.parquet._
 import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, GlutenTextV2Suite}
 import org.apache.spark.sql.execution.datasources.v2.{GlutenDataSourceV2StrategySuite, GlutenFileTableSuite, GlutenV2PredicateSuite}
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
-import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
+import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.extension.{GlutenCollapseProjectExecTransformerSuite, GlutenSessionExtensionSuite, TestFileSourceScanExecTransformer}
 import org.apache.spark.sql.gluten.GlutenFallbackSuite
 import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
@@ -665,6 +665,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
+    // https://github.com/apache/incubator-gluten/issues/7174
+    .excludeGlutenTest("Filter applied on merged Parquet schema with new column should work")
   enableSuite[GlutenParquetV2FilterSuite]
     // Rewrite.
     .exclude("Filter applied on merged Parquet schema with new column should work")
@@ -683,6 +685,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
+    // https://github.com/apache/incubator-gluten/issues/7174
+    .excludeGlutenTest("Filter applied on merged Parquet schema with new column should work")
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
@@ -875,8 +879,15 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("broadcast join where streamed side's output partitioning is HashPartitioning")
 
   enableSuite[GlutenExistenceJoinSuite]
-  enableSuite[GlutenInnerJoinSuite]
-  enableSuite[GlutenOuterJoinSuite]
+  enableSuite[GlutenInnerJoinSuiteForceShjOn]
+  enableSuite[GlutenInnerJoinSuiteForceShjOff]
+  enableSuite[GlutenOuterJoinSuiteForceShjOn]
+  enableSuite[GlutenOuterJoinSuiteForceShjOff]
+    // Caused by Velox SMJ result mismatches with Spark.
+    .exclude("basic right outer join using SortMergeJoin (whole-stage-codegen off)")
+    .exclude("basic right outer join using SortMergeJoin (whole-stage-codegen on)")
+    .exclude("right outer join with unique keys using SortMergeJoin (whole-stage-codegen off)")
+    .exclude("right outer join with unique keys using SortMergeJoin (whole-stage-codegen on)")
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenLocalBroadcastExchangeSuite]

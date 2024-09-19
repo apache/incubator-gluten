@@ -16,7 +16,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-core</artifactId>
+      <artifactId>gluten-substrait</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
       <exclusions>
@@ -33,7 +33,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-core</artifactId>
+      <artifactId>gluten-substrait</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -266,20 +266,57 @@
         <artifactId>maven-compiler-plugin</artifactId>
       </plugin>
       <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>3.3.0</version>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
         <configuration>
-          <finalName>${jar.assembly.name.prefix}-${project.version}-spark-${sparkbundle.version}</finalName>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
+          <createDependencyReducedPom>false</createDependencyReducedPom>
+          <shadedArtifactAttached>false</shadedArtifactAttached>
+          <outputFile>target/${jar.assembly.name.prefix}-${project.version}-spark-${sparkbundle.version}-jar-with-dependencies.jar</outputFile>
+          <relocations>
+            <relocation>
+              <pattern>com.google.protobuf</pattern>
+              <shadedPattern>${gluten.shade.packageName}.com.google.protobuf</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>google.protobuf</pattern>
+	          <shadedPattern>${gluten.shade.packageName}.google.protobuf</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>com.google.gson</pattern>
+              <shadedPattern>${gluten.shade.packageName}.com.google.gson</shadedPattern>
+              <includes>
+                <include>com.google.gson.**</include>
+              </includes>
+            </relocation>
+            <relocation>
+              <pattern>com.google.errorprone.annotations</pattern>
+              <shadedPattern>${gluten.shade.packageName}.com.google.errorprone.annotations</shadedPattern>
+              <includes>
+                <include>com.google.errorprone.annotations.**</include>
+              </includes>
+            </relocation>
+            <relocation>
+              <pattern>com.google.j2objc</pattern>
+              <shadedPattern>${gluten.shade.packageName}.com.google.j2objc</shadedPattern>
+              <includes>
+                <include>com.google.j2objc.**</include>
+              </includes>
+            </relocation>
+            <relocation>
+              <pattern>com.github.benmanes.caffeine</pattern>
+              <shadedPattern>${gluten.shade.packageName}.com.github.benmanes.caffeine</shadedPattern>
+            </relocation>
+            <relocation>
+              <pattern>org.checkerframework</pattern>
+              <shadedPattern>${gluten.shade.packageName}.org.checkerframework</shadedPattern>
+            </relocation>
+          </relocations>
         </configuration>
         <executions>
           <execution>
-            <id>make-assembly</id>
             <phase>package</phase>
             <goals>
-              <goal>single</goal>
+              <goal>shade</goal>
             </goals>
           </execution>
         </executions>

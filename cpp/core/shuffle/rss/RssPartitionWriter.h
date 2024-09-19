@@ -37,12 +37,17 @@ class RssPartitionWriter final : public PartitionWriter {
     init();
   }
 
-  arrow::Status evict(
+  arrow::Status hashEvict(
       uint32_t partitionId,
       std::unique_ptr<InMemoryPayload> inMemoryPayload,
       Evict::type evictType,
       bool reuseBuffers,
-      bool hasComplexType,
+      bool hasComplexType) override;
+
+  arrow::Status sortEvict(
+      uint32_t partitionId,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      std::shared_ptr<arrow::Buffer> compressed,
       bool isFinal) override;
 
   arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> blockPayload, bool stop) override;
@@ -53,6 +58,11 @@ class RssPartitionWriter final : public PartitionWriter {
 
  private:
   void init();
+
+  arrow::Status doEvict(
+      uint32_t partitionId,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      std::shared_ptr<arrow::Buffer> compressed);
 
   std::shared_ptr<RssClient> rssClient_;
 

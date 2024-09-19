@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.utils.{BroadcastHashJoinStrategy, CHJoinValidateUtil, ShuffleHashJoinStrategy}
 
@@ -29,41 +30,49 @@ import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.JoinRel
 
 object JoinTypeTransform {
-  def toNativeJoinType(joinType: JoinType): JoinType = {
-    joinType match {
-      case ExistenceJoin(_) =>
-        LeftSemi
-      case _ =>
-        joinType
-    }
-  }
 
-  def toSubstraitType(joinType: JoinType, buildSide: BuildSide): JoinRel.JoinType = {
-    joinType match {
+  // ExistenceJoin is introduced in #SPARK-14781. It returns all rows from the left table with
+  // a new column to indecate whether the row is matched in the right table.
+  // Indeed, the ExistenceJoin is transformed into left any join in CH.
+  // We don't have left any join in substrait, so use left semi join instead.
+  // and isExistenceJoin is set to true to indicate that it is an existence join.
+  def toSubstraitJoinType(sparkJoin: JoinType, buildRight: Boolean): JoinRel.JoinType =
+    sparkJoin match {
       case _: InnerLike =>
         JoinRel.JoinType.JOIN_TYPE_INNER
       case FullOuter =>
         JoinRel.JoinType.JOIN_TYPE_OUTER
       case LeftOuter =>
-        JoinRel.JoinType.JOIN_TYPE_LEFT
-      case RightOuter if (buildSide == BuildLeft) =>
-        // The tables order will be reversed in HashJoinLikeExecTransformer
-        JoinRel.JoinType.JOIN_TYPE_LEFT
-      case RightOuter if (buildSide == BuildRight) =>
-        // This the case rewritten in ReorderJoinLeftRightRule
-        JoinRel.JoinType.JOIN_TYPE_RIGHT
+        if (!buildRight) {
+          JoinRel.JoinType.JOIN_TYPE_RIGHT
+        } else {
+          JoinRel.JoinType.JOIN_TYPE_LEFT
+        }
+      case RightOuter =>
+        if (!buildRight) {
+          JoinRel.JoinType.JOIN_TYPE_LEFT
+        } else {
+          JoinRel.JoinType.JOIN_TYPE_RIGHT
+        }
       case LeftSemi | ExistenceJoin(_) =>
+        if (!buildRight) {
+          throw new IllegalArgumentException("LeftSemi join should not switch children")
+        }
         JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
       case LeftAnti =>
-        JoinRel.JoinType.JOIN_TYPE_ANTI
+        if (!buildRight) {
+          throw new IllegalArgumentException("LeftAnti join should not switch children")
+        }
+        JoinRel.JoinType.JOIN_TYPE_LEFT_ANTI
       case _ =>
         // TODO: Support cross join with Cross Rel
         JoinRel.JoinType.UNRECOGNIZED
     }
-  }
+
 }
 
 case class CHShuffledHashJoinExecTransformer(
@@ -92,7 +101,7 @@ case class CHShuffledHashJoinExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     val shouldFallback =
       CHJoinValidateUtil.shouldFallback(
-        ShuffleHashJoinStrategy(finalJoinType),
+        ShuffleHashJoinStrategy(joinType),
         left.outputSet,
         right.outputSet,
         condition)
@@ -101,9 +110,68 @@ case class CHShuffledHashJoinExecTransformer(
     }
     super.doValidateInternal()
   }
-  private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
-  override protected lazy val substraitJoinType: JoinRel.JoinType =
-    JoinTypeTransform.toSubstraitType(joinType, buildSide)
+
+  override def genJoinParameters(): Any = {
+    val (isBHJ, isNullAwareAntiJoin, buildHashTableId): (Int, Int, String) = (0, 0, "")
+
+    // Start with "JoinParameters:"
+    val joinParametersStr = new StringBuffer("JoinParameters:")
+    // isBHJ: 0 for SHJ, 1 for BHJ
+    // isNullAwareAntiJoin: 0 for false, 1 for true
+    // buildHashTableId: the unique id for the hash table of build plan
+    joinParametersStr
+      .append("isBHJ=")
+      .append(isBHJ)
+      .append("\n")
+      .append("isNullAwareAntiJoin=")
+      .append(isNullAwareAntiJoin)
+      .append("\n")
+      .append("buildHashTableId=")
+      .append(buildHashTableId)
+      .append("\n")
+      .append("isExistenceJoin=")
+      .append(if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0)
+      .append("\n")
+
+    CHAQEUtil.getShuffleQueryStageStats(streamedPlan) match {
+      case Some(stats) =>
+        joinParametersStr
+          .append("leftRowCount=")
+          .append(stats.rowCount.getOrElse(-1))
+          .append("\n")
+          .append("leftSizeInBytes=")
+          .append(stats.sizeInBytes)
+          .append("\n")
+      case _ =>
+    }
+    CHAQEUtil.getShuffleQueryStageStats(buildPlan) match {
+      case Some(stats) =>
+        joinParametersStr
+          .append("rightRowCount=")
+          .append(stats.rowCount.getOrElse(-1))
+          .append("\n")
+          .append("rightSizeInBytes=")
+          .append(stats.sizeInBytes)
+          .append("\n")
+      case _ =>
+    }
+    joinParametersStr
+      .append("numPartitions=")
+      .append(outputPartitioning.numPartitions)
+      .append("\n")
+
+    val message = StringValue
+      .newBuilder()
+      .setValue(joinParametersStr.toString)
+      .build()
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
+  }
+
+  override protected lazy val substraitJoinType: JoinRel.JoinType = {
+    val res = JoinTypeTransform.toSubstraitJoinType(joinType, buildSide == BuildRight)
+    logDebug(s"Convert join type from: $joinType:$buildSide to $res $needSwitchChildren")
+    res
+  }
 }
 
 case class CHBroadcastBuildSideRDD(
@@ -121,10 +189,12 @@ case class CHBroadcastBuildSideRDD(
 case class BroadCastHashJoinContext(
     buildSideJoinKeys: Seq[Expression],
     joinType: JoinType,
+    buildRight: Boolean,
     hasMixedFiltCondition: Boolean,
     isExistenceJoin: Boolean,
     buildSideStructure: Seq[Attribute],
-    buildHashTableId: String)
+    buildHashTableId: String,
+    isNullAwareAntiJoin: Boolean = false)
 
 case class CHBroadcastHashJoinExecTransformer(
     leftKeys: Seq[Expression],
@@ -153,16 +223,13 @@ case class CHBroadcastHashJoinExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     val shouldFallback =
       CHJoinValidateUtil.shouldFallback(
-        BroadcastHashJoinStrategy(finalJoinType),
+        BroadcastHashJoinStrategy(joinType),
         left.outputSet,
         right.outputSet,
         condition)
 
     if (shouldFallback) {
       return ValidationResult.failed("ch join validate fail")
-    }
-    if (isNullAwareAntiJoin) {
-      return ValidationResult.failed("ch does not support NAAJ")
     }
     super.doValidateInternal()
   }
@@ -182,11 +249,14 @@ case class CHBroadcastHashJoinExecTransformer(
     val context =
       BroadCastHashJoinContext(
         buildKeyExprs,
-        finalJoinType,
+        joinType,
+        buildSide == BuildRight,
         isMixedCondition(condition),
         joinType.isInstanceOf[ExistenceJoin],
         buildPlan.output,
-        buildHashTableId)
+        buildHashTableId,
+        isNullAwareAntiJoin
+      )
     val broadcastRDD = CHBroadcastBuildSideRDD(sparkContext, broadcast, context)
     // FIXME: Do we have to make build side a RDD?
     streamedRDD :+ broadcastRDD
@@ -204,12 +274,7 @@ case class CHBroadcastHashJoinExecTransformer(
     res
   }
 
-  // ExistenceJoin is introduced in #SPARK-14781. It returns all rows from the left table with
-  // a new column to indecate whether the row is matched in the right table.
-  // Indeed, the ExistenceJoin is transformed into left any join in CH.
-  // We don't have left any join in substrait, so use left semi join instead.
-  // and isExistenceJoin is set to true to indicate that it is an existence join.
-  private val finalJoinType = JoinTypeTransform.toNativeJoinType(joinType)
-  override protected lazy val substraitJoinType: JoinRel.JoinType =
-    JoinTypeTransform.toSubstraitType(joinType, buildSide)
+  override protected lazy val substraitJoinType: JoinRel.JoinType = {
+    JoinTypeTransform.toSubstraitJoinType(joinType, buildSide == BuildRight)
+  }
 }

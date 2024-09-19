@@ -23,14 +23,12 @@
 #include <Interpreters/Aggregator.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/RelMetric.h>
-#include <Processors/Executors/PullingPipelineExecutor.h>
 #include <Processors/QueryPlan/ISourceStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
-#include <Storages/CustomStorageMergeTree.h>
+#include <Storages/MergeTree/SparkStorageMergeTree.h>
 #include <Storages/SourceFromJavaIter.h>
 #include <base/types.h>
 #include <substrait/plan.pb.h>
-#include <Common/BlockIterator.h>
 
 namespace local_engine
 {
@@ -87,21 +85,22 @@ public:
 
     /// visible for UT
     DB::QueryPlanPtr parse(const substrait::Plan & plan);
-    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan) { return createExecutor(parse(plan), plan); }
+    std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan);
     DB::QueryPipelineBuilderPtr buildQueryPipeline(DB::QueryPlan & query_plan);
     ///
     std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
-
-    DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
-    DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
-
-    static bool isReadRelFromJava(const substrait::ReadRel & rel);
-    static bool isReadFromMergeTree(const substrait::ReadRel & rel);
 
     void addInputIter(jobject iter, bool materialize_input)
     {
         input_iters.emplace_back(iter);
         materialize_inputs.emplace_back(materialize_input);
+    }
+
+    std::pair<jobject, bool> getInputIter(size_t index)
+    {
+        if (index > input_iters.size())
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Index({}) is overflow input_iters's size({})", index, input_iters.size());
+        return {input_iters[index], materialize_inputs[index]};
     }
 
     void addSplitInfo(std::string && split_info) { split_infos.emplace_back(std::move(split_info)); }
@@ -115,6 +114,12 @@ public:
                 split_info_index,
                 split_infos.size());
         return split_info_index++;
+    }
+
+    const String & nextSplitInfo()
+    {
+        auto next_index = nextSplitInfoIndex();
+        return split_infos.at(next_index);
     }
 
     void parseExtensions(const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions);
@@ -131,33 +136,25 @@ public:
 
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
 
-    static ContextMutablePtr global_context;
-    static Context::ConfigurationPtr config;
-    static SharedContextHolder shared_context;
     std::vector<QueryPlanPtr> extra_plan_holder;
 
 private:
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
-    void
-    collectJoinKeys(const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start);
 
     void parseFunctionOrExpression(
-        const substrait::Expression & rel,
-        std::string & result_name,
-        DB::ActionsDAG& actions_dag,
-        bool keep_result = false);
+        const substrait::Expression & rel, std::string & result_name, DB::ActionsDAG & actions_dag, bool keep_result = false);
     void parseJsonTuple(
         const substrait::Expression & rel,
         std::vector<String> & result_names,
-        DB::ActionsDAG& actions_dag,
+        DB::ActionsDAG & actions_dag,
         bool keep_result = false,
         bool position = false);
     const ActionsDAG::Node * parseFunctionWithDAG(
-        const substrait::Expression & rel, std::string & result_name, DB::ActionsDAG& actions_dag, bool keep_result = false);
+        const substrait::Expression & rel, std::string & result_name, DB::ActionsDAG & actions_dag, bool keep_result = false);
     ActionsDAG::NodeRawConstPtrs parseArrayJoinWithDAG(
         const substrait::Expression & rel,
         std::vector<String> & result_name,
-        DB::ActionsDAG& actions_dag,
+        DB::ActionsDAG & actions_dag,
         bool keep_result = false,
         bool position = false);
     void parseFunctionArguments(
@@ -174,14 +171,14 @@ private:
         bool & is_map);
 
 
-    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG& actions_dag, const substrait::Expression & rel);
+    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG & actions_dag, const substrait::Expression & rel);
     const ActionsDAG::Node *
-    toFunctionNode(ActionsDAG& actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
+    toFunctionNode(ActionsDAG & actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
     // remove nullable after isNotNull
     void removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAG & actions_dag) const;
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
     void wrapNullable(
-        const std::vector<String> & columns, ActionsDAG& actions_dag, std::map<std::string, std::string> & nullable_measure_names);
+        const std::vector<String> & columns, ActionsDAG & actions_dag, std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
 
     bool isFunction(substrait::Expression_ScalarFunction rel, String function_name);
@@ -193,76 +190,10 @@ private:
     int split_info_index = 0;
     std::vector<bool> materialize_inputs;
     ContextPtr context;
-    // for parse rel node, collect steps from a rel node
-    std::vector<IQueryPlanStep *> temp_step_collection;
     std::vector<RelMetricPtr> metrics;
 
 public:
-    const ActionsDAG::Node * addColumn(DB::ActionsDAG& actions_dag, const DataTypePtr & type, const Field & field);
+    const ActionsDAG::Node * addColumn(DB::ActionsDAG & actions_dag, const DataTypePtr & type, const Field & field);
 };
 
-struct SparkBuffer
-{
-    char * address;
-    size_t size;
-};
-
-class LocalExecutor : public BlockIterator
-{
-public:
-    LocalExecutor(QueryPlanPtr query_plan, QueryPipeline && pipeline, bool dump_pipeline_ = false);
-    ~LocalExecutor();
-
-    SparkRowInfoPtr next();
-    Block * nextColumnar();
-    bool hasNext();
-
-    /// Stop execution, used when task receives shutdown command or executor receives SIGTERM signal
-    void cancel();
-
-    Block & getHeader();
-    RelMetricPtr getMetric() const { return metric; }
-    void setMetric(const RelMetricPtr & metric_) { metric = metric_; }
-    void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
-
-private:
-    std::unique_ptr<SparkRowInfo> writeBlockToSparkRow(const DB::Block & block) const;
-
-    /// Dump processor runtime information to log
-    std::string dumpPipeline() const;
-
-    QueryPipeline query_pipeline;
-    std::unique_ptr<PullingPipelineExecutor> executor;
-    Block header;
-    bool dump_pipeline;
-    std::unique_ptr<CHColumnToSparkRow> ch_column_to_spark_row;
-    std::unique_ptr<SparkBuffer> spark_buffer;
-    QueryPlanPtr current_query_plan;
-    RelMetricPtr metric;
-    std::vector<QueryPlanPtr> extra_plan_holder;
-};
-
-
-class ASTParser
-{
-public:
-    explicit ASTParser(
-        const ContextPtr & context_, std::unordered_map<std::string, std::string> & function_mapping_, SerializedPlanParser * plan_parser_)
-        : context(context_), function_mapping(function_mapping_), plan_parser(plan_parser_)
-    {
-    }
-
-    ~ASTParser() = default;
-
-    ASTPtr parseToAST(const Names & names, const substrait::Expression & rel);
-    ActionsDAG convertToActions(const NamesAndTypesList & name_and_types, const ASTPtr & ast) const;
-
-private:
-    ContextPtr context;
-    std::unordered_map<std::string, std::string> function_mapping;
-    SerializedPlanParser * plan_parser;
-
-    void parseFunctionArgumentsToAST(const Names & names, const substrait::Expression_ScalarFunction & scalar_function, ASTs & ast_args);
-    ASTPtr parseArgumentToAST(const Names & names, const substrait::Expression & rel);
-};
 }

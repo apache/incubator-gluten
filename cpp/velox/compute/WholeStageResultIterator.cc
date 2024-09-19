@@ -43,9 +43,10 @@ const std::string kProcessedSplits = "processedSplits";
 const std::string kSkippedStrides = "skippedStrides";
 const std::string kProcessedStrides = "processedStrides";
 const std::string kRemainingFilterTime = "totalRemainingFilterTime";
-const std::string kIoWaitTime = "ioWaitNanos";
+const std::string kIoWaitTime = "ioWaitWallNanos";
 const std::string kPreloadSplits = "readyPreloadedSplits";
 const std::string kNumWrittenFiles = "numWrittenFiles";
+const std::string kWriteIOTime = "writeIOTime";
 
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
@@ -62,7 +63,8 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::unordered_map<std::string, std::string>& confMap,
     const SparkTaskInfo& taskInfo)
     : memoryManager_(memoryManager),
-      veloxCfg_(std::make_shared<facebook::velox::core::MemConfig>(confMap)),
+      veloxCfg_(
+          std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap))),
       taskInfo_(taskInfo),
       veloxPlan_(planNode),
       scanNodeIds_(scanNodeIds),
@@ -94,7 +96,7 @@ WholeStageResultIterator::WholeStageResultIterator(
       0,
       std::move(queryCtx),
       velox::exec::Task::ExecutionMode::kSerial);
-  if (!task_->supportsSingleThreadedExecution()) {
+  if (!task_->supportSerialExecutionMode()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
   }
   auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
@@ -175,7 +177,7 @@ WholeStageResultIterator::WholeStageResultIterator(
 }
 
 std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQueryCtx() {
-  std::unordered_map<std::string, std::shared_ptr<velox::Config>> connectorConfigs;
+  std::unordered_map<std::string, std::shared_ptr<velox::config::ConfigBase>> connectorConfigs;
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
 
   std::shared_ptr<velox::core::QueryCtx> ctx = velox::core::QueryCtx::create(
@@ -194,7 +196,22 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
   if (task_->isFinished()) {
     return nullptr;
   }
-  velox::RowVectorPtr vector = task_->next();
+  velox::RowVectorPtr vector;
+  while (true) {
+    auto future = velox::ContinueFuture::makeEmpty();
+    auto out = task_->next(&future);
+    if (!future.valid()) {
+      // Not need to wait. Break.
+      vector = std::move(out);
+      break;
+    }
+    // Velox suggested to wait. This might be because another thread (e.g., background io thread) is spilling the task.
+    GLUTEN_CHECK(out == nullptr, "Expected to wait but still got non-null output from Velox task");
+    VLOG(2) << "Velox task " << task_->taskId()
+            << " is busy when ::next() is called. Will wait and try again. Task state: "
+            << taskStateString(task_->state());
+    future.wait();
+  }
   if (vector == nullptr) {
     return nullptr;
   }
@@ -209,51 +226,32 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
   return std::make_shared<VeloxColumnarBatch>(vector);
 }
 
-namespace {
-class SuspendedSection {
- public:
-  SuspendedSection() {
-    reclaimer_->enterArbitration();
-  }
-
-  virtual ~SuspendedSection() {
-    reclaimer_->leaveArbitration();
-  }
-
-  // singleton
-  SuspendedSection(const SuspendedSection&) = delete;
-  SuspendedSection(SuspendedSection&&) = delete;
-  SuspendedSection& operator=(const SuspendedSection&) = delete;
-  SuspendedSection& operator=(SuspendedSection&&) = delete;
-
- private:
-  // We only use suspension APIs in exec::MemoryReclaimer.
-  std::unique_ptr<velox::memory::MemoryReclaimer> reclaimer_{velox::exec::MemoryReclaimer::create()};
-};
-} // namespace
-
 int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
   auto pool = memoryManager_->getAggregateMemoryPool();
   std::string poolName{pool->root()->name() + "/" + pool->name()};
   std::string logPrefix{"Spill[" + poolName + "]: "};
   int64_t shrunken = memoryManager_->shrink(size);
-  // todo return the actual spilled size?
   if (spillStrategy_ == "auto") {
+    if (task_->numThreads() != 0) {
+      // Task should have zero running threads, otherwise there's
+      // possibility that this spill call hangs. See https://github.com/apache/incubator-gluten/issues/7243.
+      // As of now, non-zero running threads usually happens when:
+      // 1. Task A spills task B;
+      // 2. Task A trys to grow buffers created by task B, during which spill is requested on task A again;
+      VLOG(2) << logPrefix << "Spill is requested on a task " << task_->taskId()
+              << " that has non-zero running threads, which is not currently supported. Skipping.";
+      return shrunken;
+    }
     int64_t remaining = size - shrunken;
-    LOG(INFO) << logPrefix << "Trying to request spilling for " << remaining << " bytes...";
-    // suspend the driver when we are on it
-    SuspendedSection suspender;
-    velox::exec::MemoryReclaimer::Stats status;
+    LOG(INFO) << logPrefix << "Trying to request spill for " << remaining << " bytes...";
     auto* mm = memoryManager_->getMemoryManager();
-    uint64_t spilledOut = mm->arbitrator()->shrinkCapacity(remaining); // this conducts spilling
+    uint64_t spilledOut = mm->arbitrator()->shrinkCapacity(remaining); // this conducts spill
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
     uint64_t total = shrunken + spilledOut;
     VLOG(2) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
     return total;
-  } else {
-    LOG(WARNING) << "Spill-to-disk was disabled since " << kSpillStrategy << " was not configured.";
   }
-
+  LOG(WARNING) << "Spill-to-disk was disabled since " << kSpillStrategy << " was not configured.";
   VLOG(2) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
   return shrunken;
 }
@@ -311,16 +309,22 @@ void WholeStageResultIterator::collectMetrics() {
     return;
   }
 
+  const auto& taskStats = task_->taskStats();
+  if (taskStats.executionStartTimeMs == 0) {
+    LOG(INFO) << "Skip collect task metrics since task did not call next().";
+    return;
+  }
+
   if (veloxCfg_->get<bool>(kDebugModeEnabled, false) ||
       veloxCfg_->get<bool>(kShowTaskMetricsWhenFinished, kShowTaskMetricsWhenFinishedDefault)) {
-    auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), task_->taskStats(), true);
+    auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), taskStats, true);
     std::ostringstream oss;
     oss << "Native Plan with stats for: " << taskInfo_;
     oss << "\n" << planWithStats << std::endl;
     LOG(INFO) << oss.str();
   }
 
-  auto planStats = velox::exec::toPlanStats(task_->taskStats());
+  auto planStats = velox::exec::toPlanStats(taskStats);
   // Calculate the total number of metrics.
   int statsNum = 0;
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
@@ -374,6 +378,7 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kWallNanos)[metricIndex] = second->cpuWallTiming.wallNanos;
       metrics_->get(Metrics::kPeakMemoryBytes)[metricIndex] = second->peakMemoryBytes;
       metrics_->get(Metrics::kNumMemoryAllocations)[metricIndex] = second->numMemoryAllocations;
+      metrics_->get(Metrics::kSpilledInputBytes)[metricIndex] = second->spilledInputBytes;
       metrics_->get(Metrics::kSpilledBytes)[metricIndex] = second->spilledBytes;
       metrics_->get(Metrics::kSpilledRows)[metricIndex] = second->spilledRows;
       metrics_->get(Metrics::kSpilledPartitions)[metricIndex] = second->spilledPartitions;
@@ -400,6 +405,7 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kNumWrittenFiles)[metricIndex] =
           runtimeMetric("sum", entry.second->customStats, kNumWrittenFiles);
       metrics_->get(Metrics::kPhysicalWrittenBytes)[metricIndex] = second->physicalWrittenBytes;
+      metrics_->get(Metrics::kWriteIOTime)[metricIndex] = runtimeMetric("sum", second->customStats, kWriteIOTime);
 
       metricIndex += 1;
     }
@@ -437,18 +443,14 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
   // FIXME this uses process-wise off-heap memory which is not for task
   try {
-    if (veloxCfg_->isValueExists(kDefaultSessionTimezone)) {
+    if (veloxCfg_->valueExists(kDefaultSessionTimezone)) {
       configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kDefaultSessionTimezone, "");
     }
-    if (veloxCfg_->isValueExists(kSessionTimezone)) {
+    if (veloxCfg_->valueExists(kSessionTimezone)) {
       configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kSessionTimezone, "");
     }
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
-
-    // To align with Spark's behavior, allow decimal precision loss or not.
-    configs[velox::core::QueryConfig::kSparkDecimalOperationsAllowPrecisionLoss] =
-        veloxCfg_->get<std::string>(kAllowPrecisionLoss, "true");
 
     {
       // partial aggregation memory config
@@ -519,7 +521,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   return configs;
 }
 
-std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig() {
+std::shared_ptr<velox::config::ConfigBase> WholeStageResultIterator::createConnectorConfig() {
   // The configs below are used at session level.
   std::unordered_map<std::string, std::string> configs = {};
   // The semantics of reading as lower case is opposite with case-sensitive.
@@ -532,7 +534,7 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
       std::to_string(veloxCfg_->get<int32_t>(kMaxPartitions, 10000));
   configs[velox::connector::hive::HiveConfig::kIgnoreMissingFilesSession] =
       std::to_string(veloxCfg_->get<bool>(kIgnoreMissingFiles, false));
-  return std::make_shared<velox::core::MemConfig>(configs);
+  return std::make_shared<velox::config::ConfigBase>(std::move(configs));
 }
 
 } // namespace gluten

@@ -91,7 +91,7 @@ trait ClickHouseTableV2Base {
                 s"$keyName $s can not contain '.' (not support nested column yet)")
             }
           })
-        Some(keys.map(s => s.toLowerCase()))
+        Some(keys)
       } else {
         None
       }
@@ -102,27 +102,22 @@ trait ClickHouseTableV2Base {
 
   lazy val orderByKeyOption: Option[Seq[String]] = {
     if (bucketOption.isDefined && bucketOption.get.sortColumnNames.nonEmpty) {
-      val orderByKes = bucketOption.get.sortColumnNames
-      val invalidKeys = orderByKes.intersect(partitionColumns)
+      val orderByKeys = bucketOption.get.sortColumnNames.map(normalizeColName).toSeq
+      val invalidKeys = orderByKeys.intersect(partitionColumns)
       if (invalidKeys.nonEmpty) {
         throw new IllegalStateException(
           s"partition cols $invalidKeys can not be in the order by keys.")
       }
-      Some(orderByKes)
+      Some(orderByKeys)
     } else {
-      val tableProperties = deltaProperties
-      if (tableProperties.containsKey("orderByKey")) {
-        if (tableProperties.get("orderByKey").nonEmpty) {
-          val orderByKes = tableProperties.get("orderByKey").split(",").map(_.trim).toSeq
-          val invalidKeys = orderByKes.intersect(partitionColumns)
-          if (invalidKeys.nonEmpty) {
-            throw new IllegalStateException(
-              s"partition cols $invalidKeys can not be in the order by keys.")
-          }
-          Some(orderByKes)
-        } else {
-          None
+      val orderByKeys = getCommaSeparatedColumns("orderByKey")
+      if (orderByKeys.isDefined) {
+        val invalidKeys = orderByKeys.get.intersect(partitionColumns)
+        if (invalidKeys.nonEmpty) {
+          throw new IllegalStateException(
+            s"partition cols $invalidKeys can not be in the order by keys.")
         }
+        orderByKeys
       } else {
         None
       }
@@ -131,27 +126,22 @@ trait ClickHouseTableV2Base {
 
   lazy val primaryKeyOption: Option[Seq[String]] = {
     if (orderByKeyOption.isDefined) {
-      val tableProperties = deltaProperties
-      if (tableProperties.containsKey("primaryKey")) {
-        if (tableProperties.get("primaryKey").nonEmpty) {
-          val primaryKeys = tableProperties.get("primaryKey").split(",").map(_.trim).toSeq
-          if (!orderByKeyOption.get.mkString(",").startsWith(primaryKeys.mkString(","))) {
-            throw new IllegalStateException(
-              s"Primary key $primaryKeys must be a prefix of the sorting key")
-          }
-          Some(primaryKeys)
-        } else {
-          None
-        }
-      } else {
-        None
+      val primaryKeys = getCommaSeparatedColumns("primaryKey")
+      if (
+        primaryKeys.isDefined && !orderByKeyOption.get
+          .mkString(",")
+          .startsWith(primaryKeys.get.mkString(","))
+      ) {
+        throw new IllegalStateException(
+          s"Primary key $primaryKeys must be a prefix of the sorting key")
       }
+      primaryKeys
     } else {
       None
     }
   }
 
-  lazy val partitionColumns = deltaSnapshot.metadata.partitionColumns
+  lazy val partitionColumns = deltaSnapshot.metadata.partitionColumns.map(normalizeColName).toSeq
 
   lazy val clickhouseTableConfigs: Map[String, String] = {
     val tableProperties = deltaProperties()

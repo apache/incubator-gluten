@@ -17,10 +17,12 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.extension.util.AdaptiveContext
+import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.metrics.GlutenTimeMetric
-import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.{Rule, RuleExecutor}
 import org.apache.spark.sql.catalyst.util.sideBySide
 import org.apache.spark.sql.execution.SparkPlan
@@ -30,6 +32,17 @@ trait ColumnarRuleApplier {
 }
 
 object ColumnarRuleApplier {
+  type ColumnarRuleBuilder = ColumnarRuleCall => Rule[SparkPlan]
+
+  class ColumnarRuleCall(
+      val session: SparkSession,
+      val ac: AdaptiveContext,
+      val outputsColumnar: Boolean) {
+    val conf: GlutenConfig = {
+      new GlutenConfig(session.sessionState.conf)
+    }
+  }
+
   class Executor(phase: String, rules: Seq[Rule[SparkPlan]]) extends RuleExecutor[SparkPlan] {
     private val batch: Batch =
       Batch(s"Columnar (Phase [$phase])", Once, rules.map(r => new LoggedRule(r)): _*)
@@ -61,6 +74,11 @@ object ColumnarRuleApplier {
       logOnLevel(transformPlanLogLevel, message(plan, out, millisTime))
       out
     }
+  }
 
+  // A temporary workaround for applying toggle `spark.gluten.enabled`, to be removed.
+  trait SkipCondition {
+    // True if the rule execution should be skipped.
+    def skip(session: SparkSession, plan: SparkPlan): Boolean
   }
 }

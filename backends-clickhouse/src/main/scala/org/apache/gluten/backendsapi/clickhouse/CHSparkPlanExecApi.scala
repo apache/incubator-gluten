@@ -18,36 +18,30 @@ package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, SparkPlanExecApi}
-import org.apache.gluten.exception.GlutenNotSupportException
+import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
-import org.apache.gluten.extension.{CommonSubexpressionEliminateRule, CountDistinctWithoutExpand, FallbackBroadcastHashJoin, FallbackBroadcastHashJoinPrepQueryStage, ReorderJoinTablesRule, RewriteDateTimestampComparisonRule, RewriteSortMergeJoinToHashJoinRule, RewriteToDateExpresstionRule}
+import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
-import org.apache.gluten.extension.columnar.transition.Convention
-import org.apache.gluten.parser.GlutenClickhouseSqlParser
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
 import org.apache.gluten.vectorized.CHColumnarBatchSerializer
 
-import org.apache.spark.{ShuffleDependency, SparkException}
+import org.apache.spark.ShuffleDependency
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper, HashPartitioningWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
-import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRewrite}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
-import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, HashPartitioning, Partitioning, RangePartitioning}
-import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
@@ -58,6 +52,7 @@ import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleEx
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildSideRelation, HashedRelationBroadcastMode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.{CHExecUtil, PushDownUtil}
+import org.apache.spark.sql.execution.window._
 import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -69,10 +64,7 @@ import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-class CHSparkPlanExecApi extends SparkPlanExecApi {
-
-  /** The columnar-batch type this backend is using. */
-  override def batchType: Convention.BatchType = CHBatch
+class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
 
   /** Transform GetArrayItem to Substrait. */
   override def genGetArrayItemTransformer(
@@ -309,7 +301,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       condition: Option[Expression],
       left: SparkPlan,
       right: SparkPlan,
-      isSkewJoin: Boolean): ShuffledHashJoinExecTransformerBase =
+      isSkewJoin: Boolean): ShuffledHashJoinExecTransformerBase = {
     CHShuffledHashJoinExecTransformer(
       leftKeys,
       rightKeys,
@@ -319,6 +311,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left,
       right,
       isSkewJoin)
+  }
 
   /** Generate BroadcastHashJoinExecTransformer. */
   def genBroadcastHashJoinExecTransformer(
@@ -478,12 +471,12 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       numOutputRows: SQLMetric,
       dataSize: SQLMetric): BuildSideRelation = {
 
-    val buildKeys: Seq[Expression] = mode match {
+    val (buildKeys, isNullAware) = mode match {
       case mode1: HashedRelationBroadcastMode =>
-        mode1.key
+        (mode1.key, mode1.isNullAware)
       case _ =>
         // IdentityBroadcastMode
-        Seq.empty
+        (Seq.empty, false)
     }
 
     val (newChild, newOutput, newBuildKeys) =
@@ -528,100 +521,58 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             wrapChild(r2c)
           case union: ColumnarUnionExec =>
             wrapChild(union)
+          case ordered: TakeOrderedAndProjectExecTransformer =>
+            wrapChild(ordered)
           case other =>
             throw new GlutenNotSupportException(
               s"Not supported operator ${other.nodeName} for BroadcastRelation")
         }
         (newChild, (child.output ++ appendedProjections).map(_.toAttribute), preProjectionBuildKeys)
       }
+
+    // find the key index in the output
+    val keyColumnIndex = if (isNullAware) {
+      def findKeyOrdinal(key: Expression, output: Seq[Attribute]): Int = {
+        key match {
+          case b: BoundReference => b.ordinal
+          case n: NamedExpression =>
+            output.indexWhere(o => (o.name.equals(n.name) && o.exprId == n.exprId))
+          case _ => throw new GlutenException(s"Cannot find $key in the child's output: $output")
+        }
+      }
+      if (newBuildKeys.isEmpty) {
+        findKeyOrdinal(buildKeys(0), newOutput)
+      } else {
+        findKeyOrdinal(newBuildKeys(0), newOutput)
+      }
+    } else {
+      0
+    }
     val countsAndBytes =
-      CHExecUtil.buildSideRDD(dataSize, newChild).collect
+      CHExecUtil.buildSideRDD(dataSize, newChild, isNullAware, keyColumnIndex).collect
 
     val batches = countsAndBytes.map(_._2)
+    val totalBatchesSize = batches.map(_.length).sum
     val rawSize = dataSize.value
     if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
-      throw new SparkException(
-        s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
+      throw new GlutenException(
+        s"Cannot broadcast the table that is larger than 8GB: $rawSize bytes")
+    }
+    if ((rawSize == 0 && totalBatchesSize != 0) || totalBatchesSize < 0) {
+      throw new GlutenException(
+        s"Invalid rawSize($rawSize) or totalBatchesSize ($totalBatchesSize). Ensure the shuffle" +
+          s" written bytes is correct.")
     }
     val rowCount = countsAndBytes.map(_._1).sum
+    val hasNullKeyValues = countsAndBytes.map(_._3).foldLeft[Boolean](false)((b, a) => { b || a })
     numOutputRows += rowCount
-    ClickHouseBuildSideRelation(mode, newOutput, batches.flatten, rowCount, newBuildKeys)
-  }
-
-  /**
-   * Generate extended DataSourceV2 Strategies. Currently only for ClickHouse backend.
-   *
-   * @return
-   */
-  override def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy] = {
-    List.empty
-  }
-
-  /**
-   * Generate extended query stage preparation rules.
-   *
-   * @return
-   */
-  override def genExtendedQueryStagePrepRules(): List[SparkSession => Rule[SparkPlan]] = {
-    List(spark => FallbackBroadcastHashJoinPrepQueryStage(spark))
-  }
-
-  /**
-   * Generate extended Analyzers. Currently only for ClickHouse backend.
-   *
-   * @return
-   */
-  override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(
-      spark => new RewriteToDateExpresstionRule(spark, spark.sessionState.conf),
-      spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
-  }
-
-  /**
-   * Generate extended Optimizers.
-   *
-   * @return
-   */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(
-      spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf),
-      spark => CHAggregateFunctionRewriteRule(spark),
-      _ => CountDistinctWithoutExpand,
-      _ => EqualToRewrite
-    )
-  }
-
-  /**
-   * Generate extended columnar pre-rules, in the validation phase.
-   *
-   * @return
-   */
-  override def genExtendedColumnarValidationRules(): List[SparkSession => Rule[SparkPlan]] =
-    List(spark => FallbackBroadcastHashJoin(spark))
-
-  /**
-   * Generate extended columnar pre-rules.
-   *
-   * @return
-   */
-  override def genExtendedColumnarTransformRules(): List[SparkSession => Rule[SparkPlan]] =
-    List(spark => RewriteSortMergeJoinToHashJoinRule(spark), spark => ReorderJoinTablesRule(spark))
-
-  override def genInjectPostHocResolutionRules(): List[SparkSession => Rule[LogicalPlan]] = {
-    List()
-  }
-
-  /**
-   * Generate extended Strategies.
-   *
-   * @return
-   */
-  override def genExtendedStrategies(): List[SparkSession => Strategy] =
-    List()
-
-  override def genInjectExtendedParser()
-      : List[(SparkSession, ParserInterface) => ParserInterface] = {
-    List((spark, parserInterface) => new GlutenClickhouseSqlParser(spark, parserInterface))
+    ClickHouseBuildSideRelation(
+      mode,
+      newOutput,
+      batches.flatten,
+      rowCount,
+      newBuildKeys,
+      hasNullKeyValues)
   }
 
   /** Define backend specfic expression mappings. */
@@ -630,7 +581,23 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       Sig[CollectList](ExpressionNames.COLLECT_LIST),
       Sig[CollectSet](ExpressionNames.COLLECT_SET)
     ) ++
+      ExpressionExtensionTrait.expressionExtensionTransformer.expressionSigList ++
       SparkShimLoader.getSparkShims.bloomFilterExpressionMappings()
+  }
+
+  /** Define backend-specific expression converter. */
+  override def extraExpressionConverter(
+      substraitExprName: String,
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): Option[ExpressionTransformer] = expr match {
+    case e
+        if ExpressionExtensionTrait.expressionExtensionTransformer.extensionExpressionsMapping
+          .contains(e.getClass) =>
+      // Use extended expression transformer to replace custom expression first
+      Some(
+        ExpressionExtensionTrait.expressionExtensionTransformer
+          .replaceWithExtensionExpressionTransformer(substraitExprName, e, attributeSeq))
+    case _ => None
   }
 
   override def genStringTranslateTransformer(
@@ -772,7 +739,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
                     .doTransform(args)))
 
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              AggregateFunctionsBuilder.create(args, aggExpression.aggregateFunction).toInt,
+              CHExpressions.createAggregateFunction(args, aggExpression.aggregateFunction).toInt,
               childrenNodeList,
               columnName,
               ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
@@ -875,7 +842,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     // Let's make push down functionally same as vanilla Spark for now.
 
     sparkExecNode match {
-      case fileSourceScan: FileSourceScanExec
+      case fileSourceScan: FileSourceScanExecTransformerBase
           if isParquetFormat(fileSourceScan.relation.fileFormat) =>
         PushDownUtil.removeNotSupportPushDownFilters(
           fileSourceScan.conf,
@@ -939,4 +906,27 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       toScale: Int): DecimalType = {
     SparkShimLoader.getSparkShims.genDecimalRoundExpressionOutput(decimalType, toScale)
   }
+
+  override def genWindowGroupLimitTransformer(
+      partitionSpec: Seq[Expression],
+      orderSpec: Seq[SortOrder],
+      rankLikeFunction: Expression,
+      limit: Int,
+      mode: WindowGroupLimitMode,
+      child: SparkPlan): SparkPlan =
+    CHWindowGroupLimitExecTransformer(
+      partitionSpec,
+      orderSpec,
+      rankLikeFunction,
+      limit,
+      mode,
+      child)
+
+  override def genStringSplitTransformer(
+      substraitExprName: String,
+      srcExpr: ExpressionTransformer,
+      regexExpr: ExpressionTransformer,
+      limitExpr: ExpressionTransformer,
+      original: StringSplit): ExpressionTransformer =
+    CHStringSplitTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
 }

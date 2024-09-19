@@ -70,6 +70,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
+  def shuffledHashJoinOptimizeBuildSide: Boolean =
+    conf.getConf(COLUMNAR_SHUFFLED_HASH_JOIN_OPTIMIZE_BUILD_SIDE)
+
   def enableNativeColumnarToRow: Boolean = conf.getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
 
   def forceShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED)
@@ -285,7 +288,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxSsdODirectEnabled: Boolean = conf.getConf(COLUMNAR_VELOX_SSD_ODIRECT_ENABLED)
 
   def veloxConnectorIOThreads: Int = {
-    conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS).getOrElse(numTaskSlotsPerExecutor)
+    conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS)
   }
 
   def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
@@ -403,6 +406,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def debug: Boolean = conf.getConf(DEBUG_ENABLED)
   def debugKeepJniWorkspace: Boolean = conf.getConf(DEBUG_KEEP_JNI_WORKSPACE)
+  def collectUtStats: Boolean = conf.getConf(UT_STATISTIC)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
   def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
@@ -535,30 +539,33 @@ object GlutenConfig {
   val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // Private Spark configs.
-  val GLUTEN_ONHEAP_SIZE_KEY = "spark.executor.memory"
-  val GLUTEN_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
-  val GLUTEN_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
+  val SPARK_ONHEAP_SIZE_KEY = "spark.executor.memory"
+  val SPARK_OVERHEAD_SIZE_KEY = "spark.executor.memoryOverhead"
+  val SPARK_OVERHEAD_FACTOR_KEY = "spark.executor.memoryOverheadFactor"
+  val SPARK_OFFHEAP_SIZE_KEY = "spark.memory.offHeap.size"
+  val SPARK_OFFHEAP_ENABLED = "spark.memory.offHeap.enabled"
+  val SPARK_REDACTION_REGEX = "spark.redaction.regex"
 
   // For Soft Affinity Scheduling
-  // Enable Soft Affinity Scheduling, defalut value is false
+  // Enable Soft Affinity Scheduling, default value is false
   val GLUTEN_SOFT_AFFINITY_ENABLED = "spark.gluten.soft-affinity.enabled"
   val GLUTEN_SOFT_AFFINITY_ENABLED_DEFAULT_VALUE = false
-  // Calculate the number of the replcations for scheduling to the target executors per file
+  // Calculate the number of the replications for scheduling to the target executors per file
   val GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM = "spark.gluten.soft-affinity.replications.num"
   val GLUTEN_SOFT_AFFINITY_REPLICATIONS_NUM_DEFAULT_VALUE = 2
   // For on HDFS, if there are already target hosts,
-  // and then prefer to use the orginal target hosts to schedule
+  // and then prefer to use the original target hosts to schedule
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS = "spark.gluten.soft-affinity.min.target-hosts"
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
 
   // Enable Soft Affinity duplicate reading detection, defalut value is true
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED =
     "spark.gluten.soft-affinity.duplicateReadingDetect.enabled"
-  val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED_DEFAULT_VALUE = true
+  val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED_DEFAULT_VALUE = false
   // Enable Soft Affinity duplicate reading detection, defalut value is 10000
-  val GLUTEN_SOFT_AFFINITY_MAX_DUPLICATE_READING_RECORDS =
-    "spark.gluten.soft-affinity.maxDuplicateReading.records"
-  val GLUTEN_SOFT_AFFINITY_MAX_DUPLICATE_READING_RECORDS_DEFAULT_VALUE = 10000
+  val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS =
+    "spark.gluten.soft-affinity.duplicateReading.maxCacheItems"
+  val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE = 10000
 
   // Pass through to native conf
   val GLUTEN_SAVE_DIR = "spark.gluten.saveDir"
@@ -569,6 +576,7 @@ object GlutenConfig {
 
   // Added back to Spark Conf during executor initialization
   val GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY = "spark.gluten.numTaskSlotsPerExecutor"
+  val GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY = "spark.gluten.memoryOverhead.size.in.bytes"
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
   val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
   val GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY =
@@ -584,11 +592,8 @@ object GlutenConfig {
 
   // Shuffle Writer buffer size.
   val GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE = "spark.gluten.shuffleWriter.bufferSize"
-
   val GLUTEN_SHUFFLE_WRITER_MERGE_THRESHOLD = "spark.gluten.sql.columnar.shuffle.merge.threshold"
-
-  // Columnar to row memory threshold.
-  val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY = "spark.gluten.sql.columnarToRowMemoryThreshold"
+  val GLUTEN_SHUFFLE_DEFUALT_COMPRESSION_BUFFER_SIZE = 32 * 1024
 
   // Controls whether to load DLL from jars. User can get dependent native libs packed into a jar
   // by executing dev/package.sh. Then, with that jar configured, Gluten can load the native libs
@@ -609,6 +614,7 @@ object GlutenConfig {
   val GLUTEN_SUPPORTED_PYTHON_UDFS = "spark.gluten.supported.python.udfs"
   val GLUTEN_SUPPORTED_SCALA_UDFS = "spark.gluten.supported.scala.udfs"
 
+  // FIXME: This only works with CH backend.
   val GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF =
     "spark.gluten.sql.columnar.extended.expressions.transformer"
 
@@ -654,7 +660,6 @@ object GlutenConfig {
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_MAX_BATCH_SIZE_KEY,
-      GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY,
       GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
@@ -681,7 +686,8 @@ object GlutenConfig {
       // gcs config
       SPARK_GCS_STORAGE_ROOT_URL,
       SPARK_GCS_AUTH_TYPE,
-      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
+      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
+      SPARK_REDACTION_REGEX
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -690,7 +696,10 @@ object GlutenConfig {
       (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
       (
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
-        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString)
+        COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
+      (
+        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.key,
+        GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD.defaultValue.get.toString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -737,9 +746,7 @@ object GlutenConfig {
       (AWS_S3_RETRY_MODE.key, AWS_S3_RETRY_MODE.defaultValueString),
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
-        conf.getOrElse(
-          NUM_TASK_SLOTS_PER_EXECUTOR.key,
-          NUM_TASK_SLOTS_PER_EXECUTOR.defaultValueString)),
+        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
@@ -761,11 +768,13 @@ object GlutenConfig {
       SPARK_SQL_PARQUET_COMPRESSION_CODEC,
       // datasource config end
 
+      GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY,
       GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
-      GLUTEN_OFFHEAP_ENABLED,
+      SPARK_OFFHEAP_ENABLED,
       SESSION_LOCAL_TIMEZONE.key,
-      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key
+      DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key,
+      SPARK_REDACTION_REGEX
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
@@ -827,7 +836,7 @@ object GlutenConfig {
       .createWithDefault(true)
 
   val VANILLA_VECTORIZED_READERS_ENABLED =
-    buildConf("spark.gluten.sql.columnar.enableVanillaVectorizedReaders")
+    buildStaticConf("spark.gluten.sql.columnar.enableVanillaVectorizedReaders")
       .internal()
       .doc("Enable or disable vanilla vectorized scan.")
       .booleanConf
@@ -918,6 +927,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.shuffledHashJoin")
       .internal()
       .doc("Enable or disable columnar shuffledHashJoin.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_SHUFFLED_HASH_JOIN_OPTIMIZE_BUILD_SIDE =
+    buildConf("spark.gluten.sql.columnar.shuffledHashJoin.optimizeBuildSide")
+      .internal()
+      .doc("Whether to allow Gluten to choose an optimal build side for shuffled hash join.")
       .booleanConf
       .createWithDefault(true)
 
@@ -1123,7 +1139,7 @@ object GlutenConfig {
       .createWithDefault(4096)
 
   val GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD =
-    buildConf(GLUTEN_COLUMNAR_TO_ROW_MEM_THRESHOLD_KEY)
+    buildConf("spark.gluten.sql.columnarToRowMemoryThreshold")
       .internal()
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("64MB")
@@ -1241,6 +1257,16 @@ object GlutenConfig {
           "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
       .intConf
       .createWithDefaultString("-1")
+
+  val COLUMNAR_OVERHEAD_SIZE_IN_BYTES =
+    buildConf(GlutenConfig.GLUTEN_OVERHEAD_SIZE_IN_BYTES_KEY)
+      .internal()
+      .doc(
+        "Must provide default value since non-execution operations " +
+          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
+          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("0")
 
   val COLUMNAR_OFFHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY)
@@ -1383,13 +1409,19 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  // FIXME: May cause issues when toggled on. Examples:
+  //  https://github.com/apache/incubator-gluten/issues/7161
+  //  https://github.com/facebookincubator/velox/issues/10173
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()
-      .doc("The Size of the IO thread pool in the Connector. This thread pool is used for split" +
-        " preloading and DirectBufferedInput.")
+      .doc(
+        "Experimental: The Size of the IO thread pool in the Connector." +
+          " This thread pool is used for split preloading and DirectBufferedInput." +
+          " The option is experimental. Toggling on it (setting a non-zero value) may cause some" +
+          " unexpected issues when application reaches some certain conditions.")
       .intConf
-      .createOptional
+      .createWithDefault(0)
 
   val COLUMNAR_VELOX_ASYNC_TIMEOUT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")
@@ -1591,6 +1623,12 @@ object GlutenConfig {
       .stringConf
       .createWithDefault("/tmp")
 
+  val UT_STATISTIC =
+    buildStaticConf("spark.gluten.sql.ut.statistic")
+      .internal()
+      .booleanConf
+      .createWithDefault(false)
+
   val BENCHMARK_TASK_STAGEID =
     buildConf("spark.gluten.sql.benchmark_task.stageId")
       .internal()
@@ -1649,12 +1687,7 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val UT_STATISTIC =
-    buildConf("spark.gluten.sql.ut.statistic")
-      .internal()
-      .booleanConf
-      .createWithDefault(false)
-
+  // FIXME: This only works with CH backend.
   val EXTENDED_COLUMNAR_TRANSFORM_RULES =
     buildConf("spark.gluten.sql.columnar.extended.columnar.transform.rules")
       .withAlternative("spark.gluten.sql.columnar.extended.columnar.pre.rules")
@@ -1662,12 +1695,14 @@ object GlutenConfig {
       .stringConf
       .createWithDefaultString("")
 
+  // FIXME: This only works with CH backend.
   val EXTENDED_COLUMNAR_POST_RULES =
     buildConf("spark.gluten.sql.columnar.extended.columnar.post.rules")
       .doc("A comma-separated list of classes for the extended columnar post rules.")
       .stringConf
       .createWithDefaultString("")
 
+  // FIXME: This only works with CH backend.
   val EXTENDED_EXPRESSION_TRAN_CONF =
     buildConf(GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF)
       .doc("A class for the extended expressions transformer.")

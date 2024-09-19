@@ -20,7 +20,7 @@
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <Functions/FunctionHelpers.h>
-#include <Parser/RelParser.h>
+#include <Parser/RelParsers/RelParser.h>
 #include <Parser/TypeParser.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
@@ -155,7 +155,7 @@ const DB::ActionsDAG::Node * AggregateFunctionParser::convertNodeTypeIfNeeded(
     if (need_convert_type)
     {
         func_node = ActionsDAGUtil::convertNodeType(
-            actions_dag, func_node, TypeParser::parseType(output_type)->getName(), func_node->result_name);
+            actions_dag, func_node, TypeParser::parseType(output_type), func_node->result_name);
         actions_dag.addOrReplaceInOutputs(*func_node);
     }
 

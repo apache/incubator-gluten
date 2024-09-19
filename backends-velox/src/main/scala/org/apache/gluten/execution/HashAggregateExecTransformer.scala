@@ -30,6 +30,8 @@ import org.apache.gluten.utils.VeloxIntermediateData
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.expression.UDFResolver
+import org.apache.spark.sql.hive.HiveUDAFInspector
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -681,14 +683,25 @@ object VeloxAggregateFunctionsBuilder {
       aggregateFunc: AggregateFunction,
       mode: AggregateMode): Long = {
     val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
-    val sigName = AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc)
+    val (sigName, aggFunc) =
+      try {
+        (AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc), aggregateFunc)
+      } catch {
+        case e: GlutenNotSupportException =>
+          HiveUDAFInspector.getUDAFClassName(aggregateFunc) match {
+            case Some(udafClass) if UDFResolver.UDAFNames.contains(udafClass) =>
+              (udafClass, UDFResolver.getUdafExpression(udafClass)(aggregateFunc.children))
+            case _ => throw e
+          }
+        case e: Throwable => throw e
+      }
 
     ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName(
         // Substrait-to-Velox procedure will choose appropriate companion function if needed.
         sigName,
-        VeloxIntermediateData.getInputTypes(aggregateFunc, mode == PartialMerge || mode == Final),
+        VeloxIntermediateData.getInputTypes(aggFunc, mode == PartialMerge || mode == Final),
         FunctionConfig.REQ
       )
     )

@@ -63,11 +63,18 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   ListenableArbitrator(const Config& config, AllocationListener* listener)
       : MemoryArbitrator(config),
         listener_(listener),
-        memoryPoolInitialCapacity_(
-            getConfig<uint64_t>(config.extraConfigs, kMemoryPoolInitialCapacity, kDefaultMemoryPoolInitialCapacity)),
-        memoryPoolTransferCapacity_(
-            getConfig<uint64_t>(config.extraConfigs, kMemoryPoolTransferCapacity, kDefaultMemoryPoolTransferCapacity)) {
-  }
+        memoryPoolInitialCapacity_(velox::config::toCapacity(
+            getConfig<std::string>(
+                config.extraConfigs,
+                kMemoryPoolInitialCapacity,
+                std::to_string(kDefaultMemoryPoolInitialCapacity)),
+            velox::config::CapacityUnit::BYTE)),
+        memoryPoolTransferCapacity_(velox::config::toCapacity(
+            getConfig<std::string>(
+                config.extraConfigs,
+                kMemoryPoolTransferCapacity,
+                std::to_string(kDefaultMemoryPoolTransferCapacity)),
+            velox::config::CapacityUnit::BYTE)) {}
   std::string kind() const override {
     return kind_;
   }
@@ -252,10 +259,7 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
   VLOG(2) << logPrefix << "Pool has reserved " << pool->usedBytes() << "/" << pool->root()->reservedBytes() << "/"
           << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
   VLOG(2) << logPrefix << "Shrinking...";
-  const uint64_t oldCapacity = pool->capacity();
-  mm->arbitrator()->shrinkCapacity(pool, 0);
-  const uint64_t newCapacity = pool->capacity();
-  int64_t shrunken = oldCapacity - newCapacity;
+  auto shrunken = mm->arbitrator()->shrinkCapacity(pool, 0);
   VLOG(2) << logPrefix << shrunken << " bytes released from shrinking.";
   return shrunken;
 }
@@ -312,22 +316,27 @@ bool VeloxMemoryManager::tryDestructSafe() {
 
   // Velox memory manager considered safe to destruct when no alive pools.
   if (veloxMemoryManager_) {
-    if (veloxMemoryManager_->numPools() > 1) {
+    if (veloxMemoryManager_->numPools() > 2) {
       return false;
     }
-    if (veloxMemoryManager_->numPools() == 1) {
+    if (veloxMemoryManager_->numPools() == 2) {
       // Assert the pool is spill pool
       // See https://github.com/facebookincubator/velox/commit/e6f84e8ac9ef6721f527a2d552a13f7e79bdf72e
       int32_t spillPoolCount = 0;
+      int32_t tracePoolCount = 0;
       veloxMemoryManager_->testingDefaultRoot().visitChildren([&](velox::memory::MemoryPool* child) -> bool {
         if (child == veloxMemoryManager_->spillPool()) {
           spillPoolCount++;
         }
+        if (child == veloxMemoryManager_->tracePool()) {
+          tracePoolCount++;
+        }
         return true;
       });
       GLUTEN_CHECK(spillPoolCount == 1, "Illegal pool count state: spillPoolCount: " + std::to_string(spillPoolCount));
+      GLUTEN_CHECK(tracePoolCount == 1, "Illegal pool count state: tracePoolCount: " + std::to_string(tracePoolCount));
     }
-    if (veloxMemoryManager_->numPools() < 1) {
+    if (veloxMemoryManager_->numPools() < 2) {
       GLUTEN_CHECK(false, "Unreachable code");
     }
   }

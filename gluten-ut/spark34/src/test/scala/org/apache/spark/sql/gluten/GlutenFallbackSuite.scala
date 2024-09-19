@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.gluten
 
-import org.apache.gluten.{GlutenConfig, VERSION}
+import org.apache.gluten.{GlutenBuildInfo, GlutenConfig}
 import org.apache.gluten.events.GlutenPlanFallbackEvent
 import org.apache.gluten.execution.FileSourceScanExecTransformer
 import org.apache.gluten.utils.BackendTestUtils
@@ -55,7 +55,12 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
   testGluten("test fallback event") {
     val kvStore = spark.sparkContext.statusStore.store.asInstanceOf[ElementTrackingStore]
     val glutenStore = new GlutenSQLAppStatusStore(kvStore)
-    assert(glutenStore.buildInfo().info.find(_._1 == "Gluten Version").exists(_._2 == VERSION))
+    assert(
+      glutenStore
+        .buildInfo()
+        .info
+        .find(_._1 == "Gluten Version")
+        .exists(_._2 == GlutenBuildInfo.VERSION))
 
     def runExecution(sqlString: String): Long = {
       var id = 0L

@@ -24,8 +24,8 @@
   <description>Apache Gluten(incubating)</description>
 
   <organization>
-        <name>Apache</name>
-        <url>http://gluten.apache.org</url>
+    <name>Apache</name>
+    <url>http://gluten.apache.org</url>
   </organization>
 
   <scm>
@@ -43,6 +43,7 @@
 
   <modules>
     <module>gluten-core</module>
+    <module>gluten-substrait</module>
     <module>gluten-ui</module>
     <module>package</module>
     <module>shims</module>
@@ -58,7 +59,7 @@
     <scala.version>2.12.15</scala.version>
     <spark.major.version>3</spark.major.version>
     <sparkbundle.version>3.4</sparkbundle.version>
-    <spark.version>3.4.2</spark.version>
+    <spark.version>3.4.3</spark.version>
     <sparkshim.module.name>spark34</sparkshim.module.name>
     <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
     <iceberg.version>1.5.0</iceberg.version>
@@ -171,6 +172,7 @@
                     <version>0.1.2</version>
                   </dependency>
                 </dependencies> -->
+                <recompileMode>${scala.recompile.mode}</recompileMode>
                 <args>
                   <arg>-unchecked</arg>
                   <arg>-deprecation</arg>
@@ -215,9 +217,24 @@
                   <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
                   -->
                 </args>
-                <compilerPlugins combine.self="override">
-                </compilerPlugins>
               </configuration>
+              <executions>
+                <execution>
+                  <id>scala-compile-first</id>
+                  <phase>process-resources</phase>
+                  <goals>
+                    <goal>add-source</goal>
+                    <goal>compile</goal>
+                  </goals>
+                </execution>
+                <execution>
+                  <id>scala-test-compile-first</id>
+                  <phase>process-test-resources</phase>
+                  <goals>
+                    <goal>testCompile</goal>
+                  </goals>
+                </execution>
+              </executions>
             </plugin>
           </plugins>
         </pluginManagement>
@@ -264,6 +281,7 @@
         <delta.version>2.0.1</delta.version>
         <delta.binary.version>20</delta.binary.version>
         <antlr4.version>4.8</antlr4.version>
+        <hudi.version>0.15.0</hudi.version>
       </properties>
     </profile>
     <profile>
@@ -279,6 +297,7 @@
         <delta.version>2.3.0</delta.version>
         <delta.binary.version>23</delta.binary.version>
         <antlr4.version>4.8</antlr4.version>
+	<hudi.version>0.15.0</hudi.version>
       </properties>
     </profile>
     <profile>
@@ -287,12 +306,13 @@
         <sparkbundle.version>3.4</sparkbundle.version>
         <sparkshim.module.name>spark34</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
-        <spark.version>3.4.2</spark.version>
+        <spark.version>3.4.3</spark.version>
         <iceberg.version>1.5.0</iceberg.version>
         <delta.package.name>delta-core</delta.package.name>
         <delta.version>2.4.0</delta.version>
         <delta.binary.version>24</delta.binary.version>
         <antlr4.version>4.9.3</antlr4.version>
+        <hudi.version>0.15.0</hudi.version>
       </properties>
     </profile>
     <profile>
@@ -305,7 +325,8 @@
         <iceberg.version>1.5.0</iceberg.version>
         <delta.package.name>delta-spark</delta.package.name>
         <delta.version>3.2.0</delta.version>
-        <delta.binary.version>32</delta.binary.version>
+	<delta.binary.version>32</delta.binary.version>
+	<hudi.version>0.15.0</hudi.version>
         <fasterxml.version>2.15.1</fasterxml.version>
         <hadoop.version>3.3.4</hadoop.version>
         <antlr4.version>4.9.3</antlr4.version>
@@ -415,6 +436,15 @@
       </modules>
     </profile>
     <profile>
+      <id>hudi</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>gluten-hudi</module>
+      </modules>
+    </profile>
+    <profile>
       <id>backends-velox</id>
       <activation>
         <activeByDefault>false</activeByDefault>
@@ -471,7 +501,7 @@
                   <appendAssemblyId>true</appendAssemblyId>
                   <descriptors>
                     <descriptor>
-                    src/assembly/source-assembly.xml
+                      src/assembly/source-assembly.xml
                     </descriptor>
                   </descriptors>
                   <finalName>apache-gluten-${project.version}</finalName>
@@ -479,8 +509,62 @@
               </execution>
             </executions>
           </plugin>
-	</plugins>
+        </plugins>
       </build>
+    </profile>
+
+    <!-- Profiles for different platforms -->
+    <profile>
+      <id>Darwin-x86</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>x86</arch>
+        </os>
+      </activation>
+      <properties>
+        <platform>darwin</platform>
+        <arch>x86_64</arch>
+      </properties>
+    </profile>
+    <profile>
+      <id>Darwin-aarch64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <platform>darwin</platform>
+        <arch>aarch64</arch>
+      </properties>
+    </profile>
+    <profile>
+      <id>Linux-amd64</id>
+      <activation>
+        <os>
+          <family>Linux</family>
+          <arch>amd64</arch>
+        </os>
+      </activation>
+      <properties>
+        <platform>linux</platform>
+        <arch>amd64</arch>
+      </properties>
+    </profile>
+    <profile>
+      <id>Linux-aarch64</id>
+      <activation>
+        <os>
+          <family>Linux</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <platform>linux</platform>
+        <arch>aarch64</arch>
+      </properties>
     </profile>
   </profiles>
 
@@ -768,7 +852,7 @@
               </goals>
               <configuration>
                 <classifier>${scala.binary.version}</classifier>
-		<classifier>${sparkbundle.version}</classifier>
+                <classifier>${sparkbundle.version}</classifier>
               </configuration>
             </execution>
           </executions>
@@ -828,6 +912,7 @@
               <arg>-Ywarn-unused:imports</arg>
               <arg>-deprecation</arg>
               <arg>-feature</arg>
+              <arg>-Wconf:cat=deprecation:wv,any:e</arg>
               <arg>-P:wartremover:traverser:io.github.zhztheplayer.scalawarts.InheritFromCaseClass</arg>
             </args>
           </configuration>
@@ -945,7 +1030,7 @@
           <version>${spotless.version}</version>
           <configuration>
             <java>
-              <toggleOffOn />
+              <toggleOffOn/>
               <googleJavaFormat>
                 <version>1.7</version>
               </googleJavaFormat>
@@ -955,7 +1040,7 @@
                 <order>org.apache.gluten,io.substrait.spark,,javax,java,scala,\#</order>
               </importOrder>
 
-              <removeUnusedImports />
+              <removeUnusedImports/>
               <licenseHeader>
                 <content>${spotless.license.header}</content>
                 <delimiter>${spotless.delimiter}</delimiter>
@@ -963,7 +1048,7 @@
             </java>
             <scala>
               <!--  make it works `// spotless:off `  -->
-              <toggleOffOn />
+              <toggleOffOn/>
               <scalafmt>
                 <version>${spotless.scalafmt.version}</version>
                 <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>

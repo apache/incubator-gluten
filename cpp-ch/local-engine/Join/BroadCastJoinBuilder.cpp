@@ -19,7 +19,7 @@
 #include <Compression/CompressedReadBuffer.h>
 #include <Interpreters/TableJoin.h>
 #include <Join/StorageJoinFromReadBuffer.h>
-#include <Parser/JoinRelParser.h>
+#include <Parser/RelParsers/JoinRelParser.h>
 #include <Parser/TypeParser.h>
 #include <QueryPipeline/ProfileInfo.h>
 #include <Shuffle/ShuffleReader.h>
@@ -57,13 +57,26 @@ jlong callJavaGet(const std::string & id)
 DB::Block resetBuildTableBlockName(Block & block, bool only_one = false)
 {
     DB::ColumnsWithTypeAndName new_cols;
+    std::set<std::string> names;
+    int32_t seq = 0;
     for (const auto & col : block)
     {
-        // Add a prefix to avoid column name conflicts with left table.
-        new_cols.emplace_back(col.column, col.type, BlockUtil::RIHGT_COLUMN_PREFIX + col.name);
+      // Add a prefix to avoid column name conflicts with left table.
+      std::stringstream new_name;
+      // add a sequence to avoid duplicate name in some rare cases
+      if (names.find(col.name) == names.end())
+      {
+         new_name << BlockUtil::RIHGT_COLUMN_PREFIX << col.name;
+         names.insert(col.name);
+      }
+      else
+      {
+        new_name << BlockUtil::RIHGT_COLUMN_PREFIX  << (seq++) << "_" << col.name;
+      }
+      new_cols.emplace_back(col.column, col.type, new_name.str());
 
-        if (only_one)
-            break;
+      if (only_one)
+        break;
     }
     return DB::Block(new_cols);
 }
@@ -102,7 +115,9 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     jint join_type,
     bool has_mixed_join_condition,
     bool is_existence_join,
-    const std::string & named_struct)
+    const std::string & named_struct,
+    bool is_null_aware_anti_join,
+    bool has_null_key_values)
 {
     auto join_key_list = Poco::StringTokenizer(join_keys, ",");
     Names key_names;
@@ -178,7 +193,9 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
         columns_description,
         ConstraintsDescription(),
         key,
-        true);
+        true,
+        is_null_aware_anti_join,
+        has_null_key_values);
 }
 
 void init(JNIEnv * env)

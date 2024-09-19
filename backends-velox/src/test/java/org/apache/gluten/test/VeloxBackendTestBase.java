@@ -22,25 +22,26 @@ import org.apache.gluten.backendsapi.velox.VeloxListenerApi;
 
 import com.codahale.metrics.MetricRegistry;
 import org.apache.spark.SparkConf;
-import org.apache.spark.SparkContext;
 import org.apache.spark.api.plugin.PluginContext;
 import org.apache.spark.resource.ResourceInformation;
+import org.jetbrains.annotations.NotNull;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 import java.io.IOException;
 import java.util.Map;
 
-/** For testing Velox backend without starting a Spark context. */
 public abstract class VeloxBackendTestBase {
+  private static final ListenerApi API = new VeloxListenerApi();
+
   @BeforeClass
   public static void setup() {
-    final ListenerApi api = new VeloxListenerApi();
-    api.onDriverStart(mockSparkContext(), mockPluginContext());
+    API.onExecutorStart(mockPluginContext());
   }
 
-  private static SparkContext mockSparkContext() {
-    // Not yet implemented.
-    return null;
+  @AfterClass
+  public static void tearDown() {
+    API.onExecutorShutdown();
   }
 
   private static PluginContext mockPluginContext() {
@@ -52,9 +53,7 @@ public abstract class VeloxBackendTestBase {
 
       @Override
       public SparkConf conf() {
-        final SparkConf conf = new SparkConf();
-        conf.set(GlutenConfig.COLUMNAR_VELOX_CONNECTOR_IO_THREADS().key(), "0");
-        return conf;
+        return newSparkConf();
       }
 
       @Override
@@ -82,5 +81,12 @@ public abstract class VeloxBackendTestBase {
         throw new UnsupportedOperationException();
       }
     };
+  }
+
+  @NotNull
+  private static SparkConf newSparkConf() {
+    final SparkConf conf = new SparkConf();
+    conf.set(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY(), "1g");
+    return conf;
   }
 }

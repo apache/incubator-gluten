@@ -23,12 +23,12 @@ AdaptiveSparkPlan (59)
                                                          +- ^ FlushableHashAggregateExecTransformer (12)
                                                             +- ^ ProjectExecTransformer (11)
                                                                +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (10)
-                                                                  :- ^ NoopFilter (2)
+                                                                  :- ^ FilterExecTransformer (2)
                                                                   :  +- ^ Scan parquet (1)
                                                                   +- ^ InputIteratorTransformer (9)
                                                                      +- BroadcastQueryStage (7), Statistics(X)
                                                                         +- ColumnarBroadcastExchange (6)
-                                                                           +- ^ NoopFilter (4)
+                                                                           +- ^ FilterExecTransformer (4)
                                                                               +- ^ Scan parquet (3)
 +- == Initial Plan ==
    Sort (58)
@@ -60,9 +60,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_partkey)]
 ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [2]: [ps_partkey#X, ps_suppkey#X]
-Arguments: [ps_partkey#X, ps_suppkey#X]
+Arguments: isnotnull(ps_partkey#X)
 
 (3) Scan parquet
 Output [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
@@ -71,9 +71,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_brand), IsNotNull(p_type), Not(EqualTo(p_brand,Brand#X)), Not(StringStartsWith(p_type,MEDIUM POLISHED)), In(p_size, [14,19,23,3,36,45,49,9]), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_brand:string,p_type:string,p_size:int>
 
-(4) NoopFilter
+(4) FilterExecTransformer
 Input [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
-Arguments: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
+Arguments: (((((isnotnull(p_brand#X) AND isnotnull(p_type#X)) AND NOT (p_brand#X = Brand#X)) AND NOT StartsWith(p_type#X, MEDIUM POLISHED)) AND p_size#X IN (49,14,23,45,19,3,36,9)) AND isnotnull(p_partkey#X))
 
 (5) WholeStageCodegenTransformer (X)
 Input [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]

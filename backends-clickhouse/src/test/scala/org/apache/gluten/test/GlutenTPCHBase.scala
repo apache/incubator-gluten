@@ -14,9 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.gluten.test
-
-import org.apache.gluten.test.GlutenTPCBase
+package org.apache.gluten.test
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 
@@ -51,7 +49,11 @@ trait GlutenTPCHBase extends GlutenTPCBase {
 
   override def dropTables(): Unit = {
     tpchCreateTable.keys.foreach {
-      tableName => spark.sessionState.catalog.dropTable(TableIdentifier(tableName), true, true)
+      tableName =>
+        spark.sessionState.catalog.dropTable(
+          TableIdentifier(tableName),
+          ignoreIfNotExists = true,
+          purge = true)
     }
   }
 

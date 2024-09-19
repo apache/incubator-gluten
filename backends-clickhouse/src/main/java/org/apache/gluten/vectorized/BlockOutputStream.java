@@ -75,6 +75,7 @@ public class BlockOutputStream implements Closeable {
   private native void nativeFlush(long instance);
 
   public void write(ColumnarBatch cb) {
+    if (cb.numCols() == 0 || cb.numRows() == 0) return;
     CHNativeBlock block = CHNativeBlock.fromColumnarBatch(cb);
     dataSize.add(block.totalBytes());
     nativeWrite(instance, block.blockAddress());

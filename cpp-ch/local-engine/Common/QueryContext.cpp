@@ -16,19 +16,15 @@
  */
 #include "QueryContext.h"
 
-#include <format>
-
-#include <Interpreters/Context.h>
-#include <Parser/SerializedPlanParser.h>
-#include <Common/CurrentThread.h>
-#include <Common/ThreadStatus.h>
-#include <Common/CHUtil.h>
-#include <Common/GlutenConfig.h>
-#include <Common/ConcurrentMap.h>
-#include <base/unit.h>
-#include <sstream>
 #include <iomanip>
-
+#include <sstream>
+#include <Interpreters/Context.h>
+#include <base/unit.h>
+#include <Common/CHUtil.h>
+#include <Common/ConcurrentMap.h>
+#include <Common/CurrentThread.h>
+#include <Common/GlutenConfig.h>
+#include <Common/ThreadStatus.h>
 
 namespace DB
 {
@@ -38,23 +34,59 @@ extern const int LOGICAL_ERROR;
 }
 }
 
-namespace local_engine
-{
 using namespace DB;
 
-struct QueryContext
+namespace local_engine
+{
+
+struct QueryContext::Data
 {
     std::shared_ptr<ThreadStatus> thread_status;
     std::shared_ptr<ThreadGroup> thread_group;
     ContextMutablePtr query_context;
+
+    static DB::ContextMutablePtr global_context;
+    static SharedContextHolder shared_context;
 };
 
-ConcurrentMap<int64_t, std::shared_ptr<QueryContext>> query_map;
+ContextMutablePtr QueryContext::Data::global_context{};
+SharedContextHolder QueryContext::Data::shared_context{};
 
-int64_t QueryContextManager::initializeQuery()
+DB::ContextMutablePtr QueryContext::globalMutableContext()
 {
-    std::shared_ptr<QueryContext> query_context = std::make_shared<QueryContext>();
-    query_context->query_context = Context::createCopy(SerializedPlanParser::global_context);
+    return Data::global_context;
+}
+void QueryContext::resetGlobal()
+{
+    if (Data::global_context)
+    {
+        Data::global_context->shutdown();
+        Data::global_context.reset();
+    }
+    Data::shared_context.reset();
+}
+
+DB::ContextMutablePtr QueryContext::createGlobal()
+{
+    assert(Data::shared_context.get() == nullptr);
+
+    if (!Data::shared_context.get())
+        Data::shared_context = SharedContextHolder(Context::createShared());
+
+    assert(Data::global_context == nullptr);
+    Data::global_context = Context::createGlobal(Data::shared_context.get());
+    return globalMutableContext();
+}
+
+DB::ContextPtr QueryContext::globalContext()
+{
+    return Data::global_context;
+}
+
+int64_t QueryContext::initializeQuery()
+{
+    std::shared_ptr<Data> query_context = std::make_shared<Data>();
+    query_context->query_context = Context::createCopy(globalContext());
     query_context->query_context->makeQueryContext();
 
     // empty input will trigger random query id to be set
@@ -73,27 +105,30 @@ int64_t QueryContextManager::initializeQuery()
     query_context->thread_group->memory_tracker.setSoftLimit(memory_limit);
     query_context->thread_group->memory_tracker.setHardLimit(memory_limit + config.extra_memory_hard_limit);
     int64_t id = reinterpret_cast<int64_t>(query_context->thread_group.get());
-    query_map.insert(id, query_context);
+    query_map_.insert(id, query_context);
     return id;
 }
 
-DB::ContextMutablePtr QueryContextManager::currentQueryContext()
+DB::ContextMutablePtr QueryContext::currentQueryContext()
 {
-    if (!CurrentThread::getGroup())
-    {
-        throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found.");
-    }
-    int64_t id = reinterpret_cast<int64_t>(CurrentThread::getGroup().get());
-    return query_map.get(id)->query_context;
+    auto thread_group = currentThreadGroup();
+    const int64_t id = reinterpret_cast<int64_t>(CurrentThread::getGroup().get());
+    return query_map_.get(id)->query_context;
 }
 
-void QueryContextManager::logCurrentPerformanceCounters(ProfileEvents::Counters & counters)
+std::shared_ptr<DB::ThreadGroup> QueryContext::currentThreadGroup()
+{
+    if (auto thread_group = CurrentThread::getGroup())
+        return thread_group;
+
+    throw Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found.");
+}
+
+void QueryContext::logCurrentPerformanceCounters(ProfileEvents::Counters & counters) const
 {
     if (!CurrentThread::getGroup())
-    {
         return;
-    }
-    if (logger->information())
+    if (logger_->information())
     {
         std::ostringstream msg;
         msg << "\n---------------------Task Performance Counters-----------------------------\n";
@@ -104,69 +139,55 @@ void QueryContextManager::logCurrentPerformanceCounters(ProfileEvents::Counters 
             auto & count = counters[event];
             if (count == 0)
                 continue;
-            msg << std::setw(50) << std::setfill(' ') << std::left << name << "|"
-                << std::setw(20) << std::setfill(' ') << std::left << count.load()
-                << " | (" << doc << ")\n";
+            msg << std::setw(50) << std::setfill(' ') << std::left << name << "|" << std::setw(20) << std::setfill(' ') << std::left
+                << count.load() << " | (" << doc << ")\n";
         }
-        LOG_INFO(logger, "{}", msg.str());
+        LOG_INFO(logger_, "{}", msg.str());
     }
 }
 
-size_t QueryContextManager::currentPeakMemory(int64_t id)
+size_t QueryContext::currentPeakMemory(int64_t id)
 {
-    if (!query_map.contains(id))
+    if (!query_map_.contains(id))
         throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "context released {}", id);
-    return query_map.get(id)->thread_group->memory_tracker.getPeak();
+    return query_map_.get(id)->thread_group->memory_tracker.getPeak();
 }
 
-void QueryContextManager::finalizeQuery(int64_t id)
+void QueryContext::finalizeQuery(int64_t id)
 {
     if (!CurrentThread::getGroup())
-    {
         throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found.");
-    }
-    std::shared_ptr<QueryContext> context;
-    {
-        context = query_map.get(id);
-    }
+    std::shared_ptr<Data> context = query_map_.get(id);
     auto query_context = context->thread_status->getQueryContext();
     if (!query_context)
-    {
         throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "query context not found");
-    }
     context->thread_status->flushUntrackedMemory();
     context->thread_status->finalizePerformanceCounters();
-    LOG_INFO(logger, "Task finished, peak memory usage: {} bytes", currentPeakMemory(id));
+    LOG_INFO(logger_, "Task finished, peak memory usage: {} bytes", currentPeakMemory(id));
 
-    if (currentThreadGroupMemoryUsage() > 1_MiB)
-    {
-        LOG_WARNING(logger, "{} bytes memory didn't release, There may be a memory leak!", currentThreadGroupMemoryUsage());
-    }
+    if (currentThreadGroupMemoryUsage() > 2_MiB)
+        LOG_WARNING(logger_, "{} bytes memory didn't release, There may be a memory leak!", currentThreadGroupMemoryUsage());
     logCurrentPerformanceCounters(context->thread_group->performance_counters);
     context->thread_status->detachFromGroup();
     context->thread_group.reset();
     context->thread_status.reset();
     query_context.reset();
     {
-        query_map.erase(id);
+        query_map_.erase(id);
     }
 }
 
 size_t currentThreadGroupMemoryUsage()
 {
     if (!CurrentThread::getGroup())
-    {
         throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found, please call initializeQuery first.");
-    }
     return CurrentThread::getGroup()->memory_tracker.get();
 }
 
 double currentThreadGroupMemoryUsageRatio()
 {
     if (!CurrentThread::getGroup())
-    {
         throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found, please call initializeQuery first.");
-    }
     return static_cast<double>(CurrentThread::getGroup()->memory_tracker.get()) / CurrentThread::getGroup()->memory_tracker.getSoftLimit();
 }
 }

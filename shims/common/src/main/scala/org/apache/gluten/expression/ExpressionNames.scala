@@ -223,6 +223,7 @@ object ExpressionNames {
   final val UNIX_SECONDS = "unix_seconds"
   final val UNIX_MILLIS = "unix_millis"
   final val UNIX_MICROS = "unix_micros"
+  final val TIMESTAMP_SECONDS = "timestamp_seconds"
   final val TIMESTAMP_MILLIS = "timestamp_millis"
   final val TIMESTAMP_MICROS = "timestamp_micros"
   final val PRECYSE_TIMESTAMP_CONVERSION = "precise_timestamp_conversion"
@@ -272,6 +273,7 @@ object ExpressionNames {
   final val SHUFFLE = "shuffle"
   final val ZIP_WITH = "zip_with"
   final val FLATTEN = "flatten"
+  final val ARRAY_INSERT = "array_insert"
 
   // Map functions
   final val CREATE_MAP = "map"
@@ -312,6 +314,7 @@ object ExpressionNames {
   final val INLINE = "inline"
   final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"
+  final val CHECK_OVERFLOW_IN_TABLE_INSERT = "check_overflow_in_table_insert"
   final val MAKE_DECIMAL = "make_decimal"
   final val PROMOTE_PRECISION = "promote_precision"
   final val SPARK_PARTITION_ID = "spark_partition_id"

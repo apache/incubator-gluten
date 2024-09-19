@@ -80,8 +80,8 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
                 actions_dag,
                 func_node,
                 // as stated in isTypeMatched， currently we don't change nullability of the result type
-                func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)->getName()
-                                                         : local_engine::removeNullable(result_type)->getName(),
+                func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)
+                                                     : local_engine::removeNullable(result_type),
                 func_node->result_name,
                 CastType::accurateOrNull);
         }
@@ -91,8 +91,8 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
                 actions_dag,
                 func_node,
                 // as stated in isTypeMatched， currently we don't change nullability of the result type
-                func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, TypeParser::parseType(output_type))->getName()
-                                                     : DB::removeNullable(TypeParser::parseType(output_type))->getName(),
+                func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, TypeParser::parseType(output_type))
+                                                     : DB::removeNullable(TypeParser::parseType(output_type)),
                 func_node->result_name);
         }
     }

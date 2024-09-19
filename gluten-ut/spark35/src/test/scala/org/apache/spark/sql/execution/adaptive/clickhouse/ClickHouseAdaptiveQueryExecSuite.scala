@@ -797,10 +797,25 @@ class ClickHouseAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with Glute
     }
   }
 
-  // because gluten use columnar format, which cannot execute to get rowIterator, then get the key
-  // null status
-  ignore(
-    GLUTEN_TEST + "SPARK-32573: Eliminate NAAJ when BuildSide is HashedRelationWithAllNullKeys") {}
+  testGluten("SPARK-32717: AQEOptimizer should respect excludedRules configuration") {
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> Long.MaxValue.toString,
+      // This test is a copy of test(SPARK-32573), in order to test the configuration
+      // `spark.sql.adaptive.optimizer.excludedRules` works as expect.
+      "spark.gluten.sql.columnar.backend.ch.aqe.propagate.empty.relation" -> "false"
+    ) {
+      val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
+        "SELECT * FROM testData2 t1 WHERE t1.b NOT IN (SELECT b FROM testData3)")
+      val bhj = findTopLevelBroadcastHashJoin(plan)
+      assert(bhj.size == 1)
+      val join = findTopLevelBaseJoin(adaptivePlan)
+      // this is different compares to test(SPARK-32573) due to the rule
+      // `EliminateUnnecessaryJoin` has been excluded.
+      assert(join.nonEmpty)
+      checkNumLocalShuffleReads(adaptivePlan)
+    }
+  }
 
   // EmptyRelation case
   ignore(

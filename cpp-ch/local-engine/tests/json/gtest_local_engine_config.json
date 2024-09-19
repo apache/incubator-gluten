@@ -260,6 +260,102 @@
               "value": {
                 "string": "false"
               }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format"
+              },
+              "value": {
+                "string": "true"
+              }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.type"
+              },
+              "value": {
+                "string": "hdfs_gluten"
+              }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.path"
+              },
+              "value": {
+                "string": "/tmp/hdfs_cache/3.5/"
+              }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.type"
+              },
+              "value": {
+                "string": "cache"
+              }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.max_size"
+              },
+              "value": {
+                "string": "10Gi"
+              }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes.main.disk"
+              },
+              "value": {
+                "string": "hdfs_cache"
+              }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_client_read_shortcircuit"
+              },
+              "value": {
+                "string": "false"
+              }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_default_replica"
+              },
+              "value": {
+                "string": "1"
+              }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.metadata_path"
+              },
+              "value": {
+                "string": "/tmp/metadata/hdfs/3.5/"
+              }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.endpoint"
+              },
+              "value": {
+                "string": "hdfs://127.0.0.1:8020/"
+              }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes"
+              },
+              "value": {
+                "string": "main"
+              }
+            },
+            {
+              "key": {
+                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.disk"
+              },
+              "value": {
+                "string": "hdfs"
+              }
             }
           ]
         }

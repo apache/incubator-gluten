@@ -105,4 +105,21 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
       purge = false)
   }
 
+  testGluten("GLUTEN-7116: Support outer explode") {
+    sql("create table if not exists test_7116 (id int, name string)")
+    sql("insert into test_7116 values (1, 'a,b'), (2, null), (null, 'c,d'), (3, '')")
+    val query =
+      """
+        |select id, col_name
+        |from test_7116 lateral view outer explode(split(name, ',')) as col_name
+        |""".stripMargin
+    val df = sql(query)
+    checkAnswer(
+      df,
+      Seq(Row(1, "a"), Row(1, "b"), Row(2, null), Row(null, "c"), Row(null, "d"), Row(3, "")))
+    spark.sessionState.catalog.dropTable(
+      TableIdentifier("test_7116"),
+      ignoreIfNotExists = true,
+      purge = false)
+  }
 }

@@ -30,7 +30,10 @@ abstract class BackendTestSettings {
   private val enabledSuites: java.util.Map[String, SuiteSettings] = new util.HashMap()
 
   protected def enableSuite[T: ClassTag]: SuiteSettings = {
-    val suiteName = implicitly[ClassTag[T]].runtimeClass.getCanonicalName
+    enableSuite(implicitly[ClassTag[T]].runtimeClass.getCanonicalName)
+  }
+
+  protected def enableSuite(suiteName: String): SuiteSettings = {
     if (enabledSuites.containsKey(suiteName)) {
       throw new IllegalArgumentException("Duplicated suite name: " + suiteName)
     }

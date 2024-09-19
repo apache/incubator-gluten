@@ -19,10 +19,10 @@ AdaptiveSparkPlan (44)
                                              :- ^ InputIteratorTransformer (7)
                                              :  +- BroadcastQueryStage (5)
                                              :     +- ColumnarBroadcastExchange (4)
-                                             :        +- ^ NoopFilter (2)
+                                             :        +- ^ FilterExecTransformer (2)
                                              :           +- ^ Scan parquet (1)
                                              +- ^ ProjectExecTransformer (10)
-                                                +- ^ NoopFilter (9)
+                                                +- ^ FilterExecTransformer (9)
                                                    +- ^ Scan parquet (8)
 +- == Initial Plan ==
    Sort (43)
@@ -47,9 +47,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_orderpriority:string>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [2]: [o_orderkey#X, o_orderpriority#X]
-Arguments: [o_orderkey#X, o_orderpriority#X]
+Arguments: isnotnull(o_orderkey#X)
 
 (3) WholeStageCodegenTransformer (X)
 Input [2]: [o_orderkey#X, o_orderpriority#X]
@@ -76,9 +76,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate), IsNotNull(l_shipdate), In(l_shipmode, [MAIL,SHIP]), GreaterThanOrEqual(l_receiptdate,1994-01-01), LessThan(l_receiptdate,1995-01-01), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_shipdate:date,l_commitdate:date,l_receiptdate:date,l_shipmode:string>
 
-(9) NoopFilter
+(9) FilterExecTransformer
 Input [5]: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
-Arguments: [l_orderkey#X, l_shipdate#X, l_commitdate#X, l_receiptdate#X, l_shipmode#X]
+Arguments: ((((((((isnotnull(l_commitdate#X) AND isnotnull(l_receiptdate#X)) AND isnotnull(l_shipdate#X)) AND l_shipmode#X IN (MAIL,SHIP)) AND (l_commitdate#X < l_receiptdate#X)) AND (l_shipdate#X < l_commitdate#X)) AND (l_receiptdate#X >= 1994-01-01)) AND (l_receiptdate#X < 1995-01-01)) AND isnotnull(l_orderkey#X))
 
 (10) ProjectExecTransformer
 Output [2]: [l_orderkey#X, l_shipmode#X]

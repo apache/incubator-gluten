@@ -17,7 +17,6 @@
 #include "SelectorBuilder.h"
 #include <limits>
 #include <memory>
-#include <Columns/ColumnArray.h>
 #include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
 #include <DataTypes/DataTypeArray.h>
@@ -30,6 +29,7 @@
 #include <Poco/MemoryStream.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
+#include <Common/QueryContext.h>
 
 namespace DB
 {
@@ -101,7 +101,7 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
     if (!hash_function) [[unlikely]]
     {
         auto & factory = DB::FunctionFactory::instance();
-        auto function = factory.get(hash_function_name, local_engine::SerializedPlanParser::global_context);
+        auto function = factory.get(hash_function_name, QueryContext::globalContext());
 
         hash_function = function->build(args);
     }
@@ -328,7 +328,7 @@ void RangeSelectorBuilder::initActionsDAG(const DB::Block & block)
     std::lock_guard lock(actions_dag_mutex);
     if (has_init_actions_dag)
         return;
-    SerializedPlanParser plan_parser(local_engine::SerializedPlanParser::global_context);
+    SerializedPlanParser plan_parser(QueryContext::globalContext());
     plan_parser.parseExtensions(projection_plan_pb->extensions());
 
     const auto & expressions = projection_plan_pb->relations().at(0).root().input().project().expressions();
@@ -367,19 +367,31 @@ void RangeSelectorBuilder::computePartitionIdByBinarySearch(DB::Block & block, D
         selector.emplace_back(selected_partition);
     }
 }
+namespace {
+int doCompareAt(const ColumnPtr & lhs, size_t n, size_t m, const IColumn & rhs, int nan_direction_hint)
+{
+    if (const auto * l_const = typeid_cast<const ColumnConst *>(lhs.get()))
+    {
+        // we know rhs never be Const
+        chassert(l_const->getDataType() == rhs.getDataType());
+        return l_const->getDataColumn().compareAt(0, m, rhs, nan_direction_hint);
+    }
+    return lhs->compareAt(n, m, rhs, nan_direction_hint);
+}
+}
 
 int RangeSelectorBuilder::compareRow(
     const DB::Columns & columns,
     const std::vector<size_t> & required_columns,
     size_t row,
     const DB::Columns & bound_columns,
-    size_t bound_row)
+    size_t bound_row) const
 {
     for (size_t i = 0, n = required_columns.size(); i < n; ++i)
     {
         auto lpos = required_columns[i];
         auto rpos = i;
-        auto res = columns[lpos]->compareAt(row, bound_row, *bound_columns[rpos], sort_descriptions[i].nulls_direction)
+        auto res = doCompareAt(columns[lpos], row, bound_row, *bound_columns[rpos], sort_descriptions[i].nulls_direction)
             * sort_descriptions[i].direction;
         if (res != 0)
             return res;

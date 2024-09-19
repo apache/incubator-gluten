@@ -63,12 +63,13 @@ private class CHColumnarBatchSerializerInstance(
       compressionCodec,
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)
 
+  private val useColumnarShuffle: Boolean = GlutenConfig.getConf.isUseColumnarShuffleManager
+
   override def deserializeStream(in: InputStream): DeserializationStream = {
+    // Don't use GlutenConfig in this method. It will execute in non task Thread.
     new DeserializationStream {
-      private val reader: CHStreamReader = new CHStreamReader(
-        in,
-        GlutenConfig.getConf.isUseColumnarShuffleManager,
-        CHBackendSettings.useCustomizedShuffleCodec)
+      private val reader: CHStreamReader =
+        new CHStreamReader(in, useColumnarShuffle, CHBackendSettings.useCustomizedShuffleCodec)
       private var cb: ColumnarBatch = _
 
       private var numBatchesTotal: Long = _
@@ -97,7 +98,6 @@ private class CHColumnarBatchSerializerInstance(
         var nativeBlock = reader.next()
         while (nativeBlock.numRows() == 0) {
           if (nativeBlock.numColumns() == 0) {
-            nativeBlock.close()
             this.close()
             throw new EOFException
           }

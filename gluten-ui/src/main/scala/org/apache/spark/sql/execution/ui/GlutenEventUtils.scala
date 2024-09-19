@@ -26,12 +26,6 @@ object GlutenEventUtils {
     sc.listenerBus.post(event)
   }
 
-  def registerListener(sc: SparkContext): Unit = {
-    val kvStore = sc.statusStore.store.asInstanceOf[ElementTrackingStore]
-    val listener = new GlutenSQLAppStatusListener(sc.conf, kvStore)
-    sc.listenerBus.addToStatusQueue(listener)
-  }
-
   def attachUI(sc: SparkContext): Unit = {
     val kvStore = sc.statusStore.store.asInstanceOf[ElementTrackingStore]
     val statusStore = new GlutenSQLAppStatusStore(kvStore)

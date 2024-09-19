@@ -26,8 +26,8 @@
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsRound.h>
 #include <Functions/SparkFunctionFloor.h>
-#include <Parser/SerializedPlanParser.h>
 #include <benchmark/benchmark.h>
+#include <Common/QueryContext.h>
 #include <Common/TargetSpecific.h>
 
 using namespace DB;
@@ -61,7 +61,7 @@ static void BM_CHFloorFunction_For_Int64(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    auto function = factory.get("floor", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("floor", local_engine::QueryContext::globalContext());
     Block int64_block = createDataBlock("Nullable(Int64)", 65536);
     auto executable = function->build(int64_block.getColumnsWithTypeAndName());
     for (auto _ : state)
@@ -75,7 +75,7 @@ static void BM_CHFloorFunction_For_Float64(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    auto function = factory.get("floor", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("floor", local_engine::QueryContext::globalContext());
     Block float64_block = createDataBlock("Nullable(Float64)", 65536);
     auto executable = function->build(float64_block.getColumnsWithTypeAndName());
     for (auto _ : state)
@@ -89,7 +89,7 @@ static void BM_SparkFloorFunction_For_Int64(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    auto function = factory.get("sparkFloor", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("sparkFloor", local_engine::QueryContext::globalContext());
     Block int64_block = createDataBlock("Nullable(Int64)", 65536);
     auto executable = function->build(int64_block.getColumnsWithTypeAndName());
     for (auto _ : state)
@@ -103,7 +103,7 @@ static void BM_SparkFloorFunction_For_Float64(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    auto function = factory.get("sparkFloor", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("sparkFloor", local_engine::QueryContext::globalContext());
     Block float64_block = createDataBlock("Nullable(Float64)", 65536);
     auto executable = function->build(float64_block.getColumnsWithTypeAndName());
     for (auto _ : state)
@@ -118,7 +118,8 @@ static void nanInfToNullAutoOpt(float * data, uint8_t * null_map, size_t size)
     for (size_t i = 0; i < size; ++i)
     {
         uint8_t is_nan = (data[i] != data[i]);
-        uint8_t is_inf = ((*reinterpret_cast<const uint32_t *>(&data[i]) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000);
+        uint8_t is_inf
+            = ((*reinterpret_cast<const uint32_t *>(&data[i]) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000);
         uint8_t null_flag = is_nan | is_inf;
         null_map[i] = null_flag;
 
@@ -171,8 +172,7 @@ DECLARE_AVX2_SPECIFIC_CODE(
                 mask >>= 1;
             }
         }
-    }
-)
+    })
 
 static void BMNanInfToNullAVX2(benchmark::State & state)
 {

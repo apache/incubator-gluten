@@ -43,7 +43,7 @@ DB::NamesAndTypesList collectLambdaArguments(const SerializedPlanParser & plan_p
             && plan_parser_.getFunctionSignatureName(arg.value().scalar_function().function_reference()) == "namedlambdavariable")
         {
             auto [_, col_name_field] = plan_parser_.parseLiteral(arg.value().scalar_function().arguments()[0].value().literal());
-            String col_name = col_name_field.get<String>();
+            String col_name = col_name_field.safeGet<String>();
             if (collected_names.contains(col_name))
             {
                 continue;
@@ -57,12 +57,12 @@ DB::NamesAndTypesList collectLambdaArguments(const SerializedPlanParser & plan_p
 }
 
 /// Refer to `PlannerActionsVisitorImpl::visitLambda` for how to build a lambda function node.
-class LambdaFunction : public FunctionParser
+class FunctionParserLambda : public FunctionParser
 {
 public:
     static constexpr auto name = "lambdafunction";
-    explicit LambdaFunction(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
-    ~LambdaFunction() override = default;
+    explicit FunctionParserLambda(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    ~FunctionParserLambda() override = default;
 
     String getName() const override { return name; }
 
@@ -79,7 +79,7 @@ public:
         for (const auto * output_node : actions_dag.getOutputs())
         {
             parent_header.emplace_back(output_node->result_name, output_node->result_type);
-        } 
+        }
         ActionsDAG lambda_actions_dag{parent_header};
 
         /// The first argument is the lambda function body, followings are the lambda arguments which is
@@ -157,7 +157,7 @@ protected:
     {
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "parseFunctionArguments is not implemented for LambdaFunction");
     }
- 
+
     const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
         const substrait::Expression_ScalarFunction & substrait_func,
         const DB::ActionsDAG::Node * func_node,
@@ -167,7 +167,7 @@ protected:
     }
 };
 
-static FunctionParserRegister<LambdaFunction> register_lambda_function;
+static FunctionParserRegister<FunctionParserLambda> register_lambda_function;
 
 
 class NamedLambdaVariable : public FunctionParser
@@ -187,7 +187,7 @@ public:
     const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
         auto [_, col_name_field] = parseLiteral(substrait_func.arguments()[0].value().literal());
-        String col_name = col_name_field.get<String>();
+        String col_name = col_name_field.safeGet<String>();
 
         auto type = TypeParser::parseType(substrait_func.output_type());
         const auto & inputs = actions_dag.getInputs();

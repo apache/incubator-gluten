@@ -29,13 +29,10 @@ case class BroadcastHashJoinStrategy(joinType: JoinType) extends JoinStrategy {}
 case class SortMergeJoinStrategy(joinType: JoinType) extends JoinStrategy {}
 
 /**
- * The logic here is that if it is not an equi-join spark will create BNLJ, which will fallback, if
- * it is an equi-join, spark will create BroadcastHashJoin or ShuffleHashJoin, for these join types,
- * we need to filter For cases that cannot be handled by the backend, 1 there are at least two
- * different tables column and Literal in the condition Or condition for comparison, for example: (a
- * join b on a.a1 = b.b1 and (a.a2 > 1 or b.b2 < 2) ) 2 tow join key for inequality comparison (!= ,
- * > , <), for example: (a join b on a.a1 > b.b1) There will be a fallback for Nullaware Jion For
- * Existence Join which is just an optimization of exist subquery, it will also fallback
+ * BroadcastHashJoinStrategy and ShuffleHashJoinStrategy are relatively complete, They support
+ * left/right/inner full/anti/semi join, existence Join, and also support join contiditions with
+ * columns from both sides. e.g. (a join b on a.a1 = b.b1 and a.a2 > 1 and b.b2 < 2)
+ * SortMergeJoinStrategy is not fully supported for all cases in CH.
  */
 
 object CHJoinValidateUtil extends Logging {
@@ -52,33 +49,24 @@ object CHJoinValidateUtil extends Logging {
       leftOutputSet: AttributeSet,
       rightOutputSet: AttributeSet,
       condition: Option[Expression]): Boolean = {
-    var shouldFallback = false
-    val joinType = joinStrategy.joinType
 
-    if (!joinType.isInstanceOf[ExistenceJoin] && joinType.sql.contains("INNER")) {
-      shouldFallback = false;
-    } else if (
+    val hasMixedFilterCondition =
       condition.isDefined && hasTwoTableColumn(leftOutputSet, rightOutputSet, condition.get)
-    ) {
-      shouldFallback = joinStrategy match {
-        case BroadcastHashJoinStrategy(joinTy) =>
-          joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI")
-        case SortMergeJoinStrategy(_) => true
-        case ShuffleHashJoinStrategy(joinTy) =>
-          joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI")
-        case UnknownJoinStrategy(joinTy) =>
-          joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI")
-      }
-    } else {
-      shouldFallback = joinStrategy match {
-        case SortMergeJoinStrategy(joinTy) =>
-          joinTy.sql.contains("SEMI") || joinTy.sql.contains("ANTI") || joinTy.toString.contains(
-            "ExistenceJoin")
-        case _ => false
-      }
+    val shouldFallback = joinStrategy match {
+      case SortMergeJoinStrategy(joinType) =>
+        if (!joinType.isInstanceOf[ExistenceJoin] && joinType.sql.contains("INNER")) {
+          false
+        } else {
+          joinType.sql.contains("SEMI") || joinType.sql.contains("ANTI") || joinType.toString
+            .contains("ExistenceJoin") || hasMixedFilterCondition
+        }
+      case UnknownJoinStrategy(joinType) =>
+        throw new IllegalArgumentException(s"Unknown join type $joinStrategy")
+      case _ => false
     }
+
     if (shouldFallback) {
-      logError(s"Fallback for join type $joinType")
+      logError(s"Fallback for join type $joinStrategy")
     }
     shouldFallback
   }

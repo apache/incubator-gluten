@@ -38,13 +38,13 @@ endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 
-set(SUBSTRAIT_PROTO_SRC_DIR
-    ${GLUTEN_HOME}/gluten-core/src/main/resources/substrait/proto)
-message(STATUS "Set Substrait Proto Directory in ${SUBSTRAIT_PROTO_SRC_DIR}")
-
 set(GLUTEN_PROTO_SRC_DIR
     ${GLUTEN_HOME}/gluten-core/src/main/resources/org/apache/gluten/proto)
 message(STATUS "Set Gluten Proto Directory in ${GLUTEN_PROTO_SRC_DIR}")
+
+set(SUBSTRAIT_PROTO_SRC_DIR
+    ${GLUTEN_HOME}/gluten-substrait/src/main/resources/substrait/proto)
+message(STATUS "Set Substrait Proto Directory in ${SUBSTRAIT_PROTO_SRC_DIR}")
 
 find_program(CCACHE_FOUND ccache)
 if(CCACHE_FOUND)
@@ -213,13 +213,11 @@ file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
 add_dependencies(gluten jni_proto)
 
-if(ENABLE_GLUTEN_VCPKG)
-  # Hide symbols of some static dependencies. Otherwise, if such dependencies
-  # are already statically linked to libvelox.so, a runtime error will be
-  # reported: xxx is being linked both statically and dynamically.
-  target_link_options(
-    gluten PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
-endif()
+# Hide symbols of some static dependencies. Otherwise, if such dependencies are
+# already statically linked to libvelox.so, a runtime error will be reported:
+# xxx is being linked both statically and dynamically.
+target_link_options(
+  gluten PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
 
 if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
   execute_process(

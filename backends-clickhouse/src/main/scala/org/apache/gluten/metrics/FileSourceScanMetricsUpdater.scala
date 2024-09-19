@@ -17,7 +17,7 @@
 package org.apache.gluten.metrics
 
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
+import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 
 /**
  * Note: "val metrics" is made transient to avoid sending driver-side metrics to tasks, e.g.
@@ -35,9 +35,15 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
   val extraTime: SQLMetric = metrics("extraTime")
   val inputWaitTime: SQLMetric = metrics("inputWaitTime")
   val outputWaitTime: SQLMetric = metrics("outputWaitTime")
-  val selected_marks_pk: SQLMetric = metrics("selectedMarksPk")
-  val selected_marks: SQLMetric = metrics("selectedMarks")
-  val total_marks_pk: SQLMetric = metrics("totalMarksPk")
+  val selectedMarksPK: SQLMetric = metrics("selectedMarksPk")
+  val selectedMarks: SQLMetric = metrics("selectedMarks")
+  val totalMarksPK: SQLMetric = metrics("totalMarksPk")
+  val readCacheHits: SQLMetric = metrics("readCacheHits")
+  val missCacheHits: SQLMetric = metrics("missCacheHits")
+  val readCacheBytes: SQLMetric = metrics("readCacheBytes")
+  val readMissBytes: SQLMetric = metrics("readMissBytes")
+  val readCacheMillisecond: SQLMetric = metrics("readCacheMillisecond")
+  val missCacheMillisecond: SQLMetric = metrics("missCacheMillisecond")
 
   override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
     // inputMetrics.bridgeIncBytesRead(metrics("inputBytes").value)
@@ -56,9 +62,15 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
 
         metricsData.getSteps.forEach(
           step => {
-            selected_marks_pk += step.selectedMarksPk
-            selected_marks += step.selectedMarks
-            total_marks_pk += step.totalMarksPk
+            selectedMarksPK += step.selectedMarksPk
+            selectedMarks += step.selectedMarks
+            totalMarksPK += step.totalMarksPk
+            readCacheHits += step.readCacheHits
+            missCacheHits += step.missCacheHits
+            readCacheBytes += step.readCacheBytes
+            readMissBytes += step.readMissBytes
+            readCacheMillisecond += step.readCacheMillisecond
+            missCacheMillisecond += step.missCacheMillisecond
           })
 
         MetricsUtil.updateExtraTimeMetric(

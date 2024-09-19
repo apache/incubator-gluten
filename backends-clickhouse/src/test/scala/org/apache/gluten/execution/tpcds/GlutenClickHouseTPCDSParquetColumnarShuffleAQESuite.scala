@@ -239,6 +239,6 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
         | LIMIT 100 ;
         |""".stripMargin
     // There are some BroadcastHashJoin with NOT condition
-    compareResultsAgainstVanillaSpark(sql, true, { df => }, false)
+    compareResultsAgainstVanillaSpark(sql, true, { df => })
   }
 }

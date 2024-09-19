@@ -22,36 +22,11 @@
 
 namespace local_engine
 {
-int getFileOrder(const std::string & path)
-{
-    if (path.ends_with("columns.txt"))
-        return 1;
-    if (path.ends_with("metadata_version.txt"))
-        return 2;
-    if (path.ends_with("count.txt"))
-        return 3;
-    if (path.ends_with("default_compression_codec.txt"))
-        return 4;
-    if (path.ends_with("checksums.txt"))
-        return 5;
-    if (path.ends_with("uuid.txt"))
-        return 6;
-    if (path.ends_with(".cmrk3") || path.ends_with(".cmrk2") || path.ends_with(".cmrk1") ||
-        path.ends_with(".mrk3") || path.ends_with(".mrk2") || path.ends_with(".mrk1"))
-        return 10;
-    if (path.ends_with("idx"))
-        return 20;
-    if (path.ends_with("bin"))
-        return 1000;
-    return 100;
-}
 
 bool isMetaDataFile(const std::string & path)
 {
     return !path.ends_with("bin");
 }
-
-using FileMappings = std::vector<std::pair<String, std::shared_ptr<DB::TemporaryFileOnDisk>>>;
 
 void CompactObjectStorageDiskTransaction::commit()
 {

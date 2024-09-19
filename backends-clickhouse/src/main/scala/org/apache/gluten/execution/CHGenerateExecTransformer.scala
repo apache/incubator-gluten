@@ -76,6 +76,7 @@ case class CHGenerateExecTransformer(
         inputRel,
         generatorNode,
         requiredChildOutputNodes.asJava,
+        outer,
         context,
         context.nextOperatorId(this.nodeName))
     } else {
@@ -84,6 +85,7 @@ case class CHGenerateExecTransformer(
         generatorNode,
         requiredChildOutputNodes.asJava,
         getExtensionNodeForValidation,
+        outer,
         context,
         context.nextOperatorId(this.nodeName))
     }

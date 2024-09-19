@@ -54,19 +54,20 @@ case class VeloxNamedStructTransformer(
 case class VeloxGetStructFieldTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
+    ordinal: Int,
     original: GetStructField)
   extends UnaryExpressionTransformer {
   override def doTransform(args: Object): ExpressionNode = {
     val childNode = child.doTransform(args)
     childNode match {
       case node: StructLiteralNode =>
-        node.getFieldLiteral(original.ordinal)
+        node.getFieldLiteral(ordinal)
       case node: SelectionNode =>
         // Append the nested index to selection node.
-        node.addNestedChildIdx(JInteger.valueOf(original.ordinal))
+        node.addNestedChildIdx(JInteger.valueOf(ordinal))
       case node: NullLiteralNode =>
         val nodeType =
-          node.getTypeNode.asInstanceOf[StructNode].getFieldTypes.get(original.ordinal)
+          node.getTypeNode.asInstanceOf[StructNode].getFieldTypes.get(ordinal)
         ExpressionBuilder.makeNullLiteral(nodeType)
       case other =>
         throw new GlutenNotSupportException(s"$other is not supported.")
@@ -105,35 +106,5 @@ case class VeloxHashExpressionTransformer(
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
-  }
-}
-
-case class VeloxStringSplitTransformer(
-    substraitExprName: String,
-    srcExpr: ExpressionTransformer,
-    regexExpr: ExpressionTransformer,
-    limitExpr: ExpressionTransformer,
-    original: StringSplit)
-  extends ExpressionTransformer {
-  // TODO: split function support limit arg
-  override def children: Seq[ExpressionTransformer] = srcExpr :: regexExpr :: Nil
-
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    if (
-      !regexExpr.isInstanceOf[LiteralTransformer] ||
-      !limitExpr.isInstanceOf[LiteralTransformer]
-    ) {
-      throw new GlutenNotSupportException(
-        "Gluten only supports literal input as limit/regex for split function.")
-    }
-
-    val limit = limitExpr.doTransform(args).asInstanceOf[IntLiteralNode].getValue
-    val regex = regexExpr.doTransform(args).asInstanceOf[StringLiteralNode].getValue
-    if (limit > 0 || regex.length > 1) {
-      throw new GlutenNotSupportException(
-        s"$original supported single-length regex and negative limit, but given $limit and $regex")
-    }
-
-    super.doTransform(args)
   }
 }

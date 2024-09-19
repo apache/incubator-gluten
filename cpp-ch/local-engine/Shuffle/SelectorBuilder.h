@@ -118,7 +118,7 @@ private:
         const std::vector<size_t> & required_columns,
         size_t row,
         const DB::Columns & bound_columns,
-        size_t bound_row);
+        size_t bound_row) const;
 
     int binarySearchBound(
         const DB::Columns & bound_columns,

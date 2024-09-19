@@ -99,6 +99,9 @@ abstract class CelebornColumnarShuffleWriter[K, V](
       customizedCompressionCodec,
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull)
 
+  protected val compressionBufferSize: Int =
+    GlutenShuffleUtils.getCompressionBufferSize(conf, customizedCompressionCodec)
+
   protected val bufferCompressThreshold: Int =
     GlutenConfig.getConf.columnarShuffleCompressionThreshold
 
@@ -113,10 +116,6 @@ abstract class CelebornColumnarShuffleWriter[K, V](
 
   @throws[IOException]
   final override def write(records: Iterator[Product2[K, V]]): Unit = {
-    if (!records.hasNext) {
-      handleEmptyIterator()
-      return
-    }
     internalWrite(records)
   }
 

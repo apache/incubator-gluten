@@ -16,7 +16,6 @@
  */
 #include <Shuffle/ShuffleCommon.h>
 #include <Storages/IO/AggregateSerializationUtils.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Poco/StringTokenizer.h>
 
 namespace local_engine

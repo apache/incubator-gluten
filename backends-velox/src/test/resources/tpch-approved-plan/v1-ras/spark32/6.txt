@@ -9,7 +9,7 @@ AdaptiveSparkPlan (20)
                +- VeloxResizeBatches (6)
                   +- ^ FlushableHashAggregateExecTransformer (4)
                      +- ^ ProjectExecTransformer (3)
-                        +- ^ NoopFilter (2)
+                        +- ^ FilterExecTransformer (2)
                            +- ^ Scan parquet (1)
 +- == Initial Plan ==
    HashAggregate (19)
@@ -27,9 +27,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_shipdate), IsNotNull(l_discount), IsNotNull(l_quantity), GreaterThanOrEqual(l_shipdate,1994-01-01), LessThan(l_shipdate,1995-01-01), GreaterThanOrEqual(l_discount,0.05), LessThanOrEqual(l_discount,0.07), LessThan(l_quantity,24.00)]
 ReadSchema: struct<l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_shipdate:date>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [4]: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
-Arguments: [l_quantity#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
+Arguments: (((((((isnotnull(l_shipdate#X) AND isnotnull(l_discount#X)) AND isnotnull(l_quantity#X)) AND (l_shipdate#X >= 1994-01-01)) AND (l_shipdate#X < 1995-01-01)) AND (l_discount#X >= 0.05)) AND (l_discount#X <= 0.07)) AND (l_quantity#X < 24.00))
 
 (3) ProjectExecTransformer
 Output [3]: [l_extendedprice#X, l_discount#X, CheckOverflow((promote_precision(l_extendedprice#X) * promote_precision(l_discount#X)), DecimalType(25,4), true) AS _pre_X#X]

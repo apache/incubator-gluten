@@ -54,6 +54,7 @@ struct Metrics {
     kNumMemoryAllocations,
 
     // Spill.
+    kSpilledInputBytes,
     kSpilledBytes,
     kSpilledRows,
     kSpilledPartitions,
@@ -75,6 +76,7 @@ struct Metrics {
 
     // Write metrics.
     kPhysicalWrittenBytes,
+    kWriteIOTime,
     kNumWrittenFiles,
 
     // The end of enum items.

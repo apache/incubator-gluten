@@ -16,7 +16,7 @@ AdaptiveSparkPlan (40)
                                     +- ^ FlushableHashAggregateExecTransformer (11)
                                        +- ^ ProjectExecTransformer (10)
                                           +- ^ BroadcastHashJoinExecTransformer LeftAnti BuildRight (9)
-                                             :- ^ NoopFilter (2)
+                                             :- ^ FilterExecTransformer (2)
                                              :  +- ^ Scan parquet (1)
                                              +- ^ InputIteratorTransformer (8)
                                                 +- BroadcastQueryStage (6), Statistics(X)
@@ -43,9 +43,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_acctbal)]
 ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
-Arguments: [c_custkey#X, c_phone#X, c_acctbal#X]
+Arguments: ((isnotnull(c_acctbal#X) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#X as decimal(16,6)) > Subquery subquery#X, [id=#X]))
 
 (3) Scan parquet
 Output [1]: [o_custkey#X]
@@ -215,7 +215,7 @@ Arguments: isFinalPlan=true
 
 ===== Subqueries =====
 
-Subquery:1 Hosting operator id = 1 Hosting Expression = Subquery subquery#X, [id=#X]
+Subquery:1 Hosting operator id = 2 Hosting Expression = Subquery subquery#X, [id=#X]
 AdaptiveSparkPlan (60)
 +- == Final Plan ==
    VeloxColumnarToRowExec (53)
@@ -226,7 +226,7 @@ AdaptiveSparkPlan (60)
                +- VeloxResizeBatches (46)
                   +- ^ FlushableHashAggregateExecTransformer (44)
                      +- ^ ProjectExecTransformer (43)
-                        +- ^ NoopFilter (42)
+                        +- ^ FilterExecTransformer (42)
                            +- ^ Scan parquet (41)
 +- == Initial Plan ==
    HashAggregate (59)
@@ -244,9 +244,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_acctbal), GreaterThan(c_acctbal,0.00)]
 ReadSchema: struct<c_phone:string,c_acctbal:decimal(12,2)>
 
-(42) NoopFilter
+(42) FilterExecTransformer
 Input [2]: [c_phone#X, c_acctbal#X]
-Arguments: [c_phone#X, c_acctbal#X]
+Arguments: ((isnotnull(c_acctbal#X) AND (c_acctbal#X > 0.00)) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17))
 
 (43) ProjectExecTransformer
 Output [1]: [c_acctbal#X]
@@ -331,3 +331,24 @@ Results [1]: [avg(c_acctbal#X)#X AS avg(c_acctbal)#X]
 (60) AdaptiveSparkPlan
 Output [1]: [avg(c_acctbal)#X]
 Arguments: isFinalPlan=true
+
+Subquery:2 Hosting operator id = 1 Hosting Expression = Subquery subquery#X, [id=#X]
+AdaptiveSparkPlan (60)
++- == Final Plan ==
+   VeloxColumnarToRowExec (53)
+   +- ^ RegularHashAggregateExecTransformer (51)
+      +- ^ InputIteratorTransformer (50)
+         +- ShuffleQueryStage (48), Statistics(X)
+            +- ColumnarExchange (47)
+               +- VeloxResizeBatches (46)
+                  +- ^ FlushableHashAggregateExecTransformer (44)
+                     +- ^ ProjectExecTransformer (43)
+                        +- ^ FilterExecTransformer (42)
+                           +- ^ Scan parquet (41)
++- == Initial Plan ==
+   HashAggregate (59)
+   +- Exchange (58)
+      +- HashAggregate (57)
+         +- Project (56)
+            +- Filter (55)
+               +- Scan parquet (54)

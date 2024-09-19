@@ -16,8 +16,6 @@
  */
 package org.apache.gluten.exception;
 
-import java.util.concurrent.Callable;
-
 public class GlutenException extends RuntimeException {
 
   public GlutenException() {}
@@ -32,13 +30,5 @@ public class GlutenException extends RuntimeException {
 
   public GlutenException(Throwable cause) {
     super(cause);
-  }
-
-  public static <V> V wrap(Callable<V> callable) {
-    try {
-      return callable.call();
-    } catch (Exception e) {
-      throw new GlutenException(e);
-    }
   }
 }

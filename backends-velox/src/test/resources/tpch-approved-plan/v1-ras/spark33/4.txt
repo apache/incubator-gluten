@@ -21,14 +21,14 @@ AdaptiveSparkPlan (56)
                                              :     +- ColumnarExchange (6)
                                              :        +- VeloxResizeBatches (5)
                                              :           +- ^ ProjectExecTransformer (3)
-                                             :              +- ^ NoopFilter (2)
+                                             :              +- ^ FilterExecTransformer (2)
                                              :                 +- ^ Scan parquet (1)
                                              +- ^ InputIteratorTransformer (18)
                                                 +- ShuffleQueryStage (16), Statistics(X)
                                                    +- ColumnarExchange (15)
                                                       +- VeloxResizeBatches (14)
                                                          +- ^ ProjectExecTransformer (12)
-                                                            +- ^ NoopFilter (11)
+                                                            +- ^ FilterExecTransformer (11)
                                                                +- ^ Scan parquet (10)
 +- == Initial Plan ==
    Sort (55)
@@ -57,9 +57,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-07-01), LessThan(o_orderdate,1993-10-01)]
 ReadSchema: struct<o_orderkey:bigint,o_orderdate:date,o_orderpriority:string>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [3]: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
-Arguments: [o_orderkey#X, o_orderdate#X, o_orderpriority#X]
+Arguments: ((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-07-01)) AND (o_orderdate#X < 1993-10-01))
 
 (3) ProjectExecTransformer
 Output [3]: [hash(o_orderkey#X, 42) AS hash_partition_key#X, o_orderkey#X, o_orderpriority#X]
@@ -94,9 +94,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_commitdate), IsNotNull(l_receiptdate)]
 ReadSchema: struct<l_orderkey:bigint,l_commitdate:date,l_receiptdate:date>
 
-(11) NoopFilter
+(11) FilterExecTransformer
 Input [3]: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
-Arguments: [l_orderkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: ((isnotnull(l_commitdate#X) AND isnotnull(l_receiptdate#X)) AND (l_commitdate#X < l_receiptdate#X))
 
 (12) ProjectExecTransformer
 Output [2]: [hash(l_orderkey#X, 42) AS hash_partition_key#X, l_orderkey#X]

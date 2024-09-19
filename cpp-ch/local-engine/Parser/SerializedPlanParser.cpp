@@ -42,7 +42,6 @@
 #include <DataTypes/Serializations/ISerialization.h>
 #include <DataTypes/getLeastSupertype.h>
 #include <Functions/FunctionFactory.h>
-#include <Functions/FunctionHelpers.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
@@ -53,25 +52,25 @@
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Operator/BlocksBufferPoolTransform.h>
 #include <Parser/FunctionParser.h>
-#include <Parser/MergeTreeRelParser.h>
-#include <Parser/RelParser.h>
+#include <Parser/InputFileNameParser.h>
+#include <Parser/LocalExecutor.h>
+#include <Parser/RelParsers/ReadRelParser.h>
+#include <Parser/RelParsers/RelParser.h>
+#include <Parser/RelParsers/WriteRelParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
-#include <Parser/WriteRelParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
-#include <Processors/Formats/Impl/ArrowBlockOutputFormat.h>
+#include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/LimitStep.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Processors/QueryPlan/ReadFromPreparedSource.h>
-#include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
-#include <Storages/CustomStorageMergeTree.h>
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/Output/FileWriterWrappers.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
@@ -84,7 +83,6 @@
 #include <Common/Exception.h>
 #include <Common/GlutenConfig.h>
 #include <Common/JNIUtils.h>
-#include <Common/MergeTreeTool.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
 
@@ -119,22 +117,7 @@ std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
     return res;
 }
 
-void logDebugMessage(const google::protobuf::Message & message, const char * type)
-{
-    auto * logger = &Poco::Logger::get("SerializedPlanParser");
-    if (logger->debug())
-    {
-        namespace pb_util = google::protobuf::util;
-        pb_util::JsonOptions options;
-        std::string json;
-        auto s = pb_util::MessageToJsonString(message, &json, options);
-        if (!s.ok())
-            throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert {} to Json", type);
-        LOG_DEBUG(logger, "{}:\n{}", type, json);
-    }
-}
-
-const ActionsDAG::Node * SerializedPlanParser::addColumn(ActionsDAG& actions_dag, const DataTypePtr & type, const Field & field)
+const ActionsDAG::Node * SerializedPlanParser::addColumn(ActionsDAG & actions_dag, const DataTypePtr & type, const Field & field)
 {
     return &actions_dag.addColumn(
         ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field).substr(0, 10))));
@@ -259,71 +242,6 @@ std::string getDecimalFunction(const substrait::Type_Decimal & decimal, bool nul
     return ch_function_name;
 }
 
-bool SerializedPlanParser::isReadRelFromJava(const substrait::ReadRel & rel)
-{
-    return rel.has_local_files() && rel.local_files().items().size() == 1
-        && rel.local_files().items().at(0).uri_file().starts_with("iterator");
-}
-
-bool SerializedPlanParser::isReadFromMergeTree(const substrait::ReadRel & rel)
-{
-    assert(rel.has_advanced_extension());
-    bool is_read_from_merge_tree;
-    google::protobuf::StringValue optimization;
-    optimization.ParseFromString(rel.advanced_extension().optimization().value());
-    ReadBufferFromString in(optimization.value());
-    assertString("isMergeTree=", in);
-    readBoolText(is_read_from_merge_tree, in);
-    assertChar('\n', in);
-    return is_read_from_merge_tree;
-}
-
-QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrait::ReadRel & rel)
-{
-    auto header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
-    substrait::ReadRel::LocalFiles local_files;
-    if (rel.has_local_files())
-        local_files = rel.local_files();
-    else
-        local_files = BinaryToMessage<substrait::ReadRel::LocalFiles>(split_infos.at(nextSplitInfoIndex()));
-    auto source = std::make_shared<SubstraitFileSource>(context, header, local_files);
-    auto source_pipe = Pipe(source);
-    auto source_step = std::make_unique<SubstraitFileSourceStep>(context, std::move(source_pipe), "substrait local files");
-    source_step->setStepDescription("read local files");
-    if (rel.has_filter())
-    {
-        ActionsDAG actions_dag{blockToNameAndTypeList(header)};
-        const ActionsDAG::Node * filter_node = parseExpression(actions_dag, rel.filter());
-        actions_dag.addOrReplaceInOutputs(*filter_node);
-        assert(filter_node == &(actions_dag.findInOutputs(filter_node->result_name)));
-        source_step->addFilter(std::move(actions_dag), filter_node->result_name);
-    }
-    return source_step;
-}
-
-QueryPlanStepPtr SerializedPlanParser::parseReadRealWithJavaIter(const substrait::ReadRel & rel)
-{
-    assert(rel.has_local_files());
-    assert(rel.local_files().items().size() == 1);
-    auto iter = rel.local_files().items().at(0).uri_file();
-    auto pos = iter.find(':');
-    auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
-    jobject input_iter = input_iters[iter_index];
-    bool materialize_input = materialize_inputs[iter_index];
-
-    GET_JNIENV(env)
-    SCOPE_EXIT({CLEAN_JNIENV});
-    auto * first_block = SourceFromJavaIter::peekBlock(env, input_iter);
-
-    /// Try to decide header from the first block read from Java iterator. Thus AggregateFunction with parameters has more precise types.
-    auto header = first_block ? first_block->cloneEmpty() : TypeParser::buildBlockFromNamedStruct(rel.base_schema());
-    auto source = std::make_shared<SourceFromJavaIter>(context, std::move(header), input_iter, materialize_input, first_block);
-
-    QueryPlanStepPtr source_step = std::make_unique<ReadFromPreparedSource>(Pipe(source));
-    source_step->setStepDescription("Read From Java Iter");
-    return source_step;
-}
-
 IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns)
 {
     if (columns.empty())
@@ -359,7 +277,11 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         NamesWithAliases aliases;
         auto cols = query_plan->getCurrentDataStream().header.getNamesAndTypesList();
         if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
-            throw Exception(ErrorCodes::LOGICAL_ERROR, "Missmatch result columns size.");
+            throw Exception(
+                ErrorCodes::LOGICAL_ERROR,
+                "Missmatch result columns size. plan column size {}, subtrait plan size {}.",
+                cols.getNames().size(),
+                root_rel.root().names_size());
         for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
             aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
         actions_dag.project(aliases);
@@ -405,9 +327,9 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         }
         if (need_final_project)
         {
-            ActionsDAG final_project
-                = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
-            QueryPlanStepPtr final_project_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(final_project));
+            ActionsDAG final_project = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
+            QueryPlanStepPtr final_project_step
+                = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(final_project));
             final_project_step->setStepDescription("Project for output schema");
             query_plan->addStep(std::move(final_project_step));
         }
@@ -446,82 +368,55 @@ QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
     return query_plan;
 }
 
+std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(const substrait::Plan & plan)
+{
+    return createExecutor(parse(plan), plan);
+}
+
 QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
 {
-    QueryPlanPtr query_plan;
-    std::vector<IQueryPlanStep *> steps;
-    switch (rel.rel_type_case())
+    DB::QueryPlanPtr query_plan;
+    auto rel_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(this);
+
+    auto all_input_rels = rel_parser->getInputs(rel);
+    std::vector<DB::QueryPlanPtr> input_query_plans;
+    rel_stack.push_back(&rel);
+    for (const auto * input_rel : all_input_rels)
     {
-        case substrait::Rel::RelTypeCase::kFetch: {
-            rel_stack.push_back(&rel);
-            const auto & limit = rel.fetch();
-            query_plan = parseOp(limit.input(), rel_stack);
-            rel_stack.pop_back();
-            auto limit_step = std::make_unique<LimitStep>(query_plan->getCurrentDataStream(), limit.count(), limit.offset());
-            limit_step->setStepDescription("LIMIT");
-            steps.emplace_back(limit_step.get());
-            query_plan->addStep(std::move(limit_step));
-            break;
-        }
-        case substrait::Rel::RelTypeCase::kRead: {
-            const auto & read = rel.read();
-            // TODO: We still maintain the old logic of parsing LocalFiles or ExtensionTable in RealRel
-            // to be compatiable with some suites about metrics.
-            // Remove this compatiability in later and then only java iter has local files in ReadRel.
-            if (read.has_local_files() || (!read.has_extension_table() && !isReadFromMergeTree(read)))
-            {
-                assert(read.has_base_schema());
-                QueryPlanStepPtr step;
-                if (isReadRelFromJava(read))
-                    step = parseReadRealWithJavaIter(read);
-                else
-                    step = parseReadRealWithLocalFile(read);
-
-                query_plan = std::make_unique<QueryPlan>();
-                steps.emplace_back(step.get());
-                query_plan->addStep(std::move(step));
-
-                // Add a buffer after source, it try to preload data from source and reduce the
-                // waiting time of downstream nodes.
-                if (context->getSettingsRef().max_threads > 1)
-                {
-                    auto buffer_step = std::make_unique<BlocksBufferPoolStep>(query_plan->getCurrentDataStream());
-                    steps.emplace_back(buffer_step.get());
-                    query_plan->addStep(std::move(buffer_step));
-                }
-            }
-            else
-            {
-                substrait::ReadRel::ExtensionTable extension_table;
-                if (read.has_extension_table())
-                    extension_table = read.extension_table();
-                else
-                    extension_table = BinaryToMessage<substrait::ReadRel::ExtensionTable>(split_infos.at(nextSplitInfoIndex()));
-
-                MergeTreeRelParser mergeTreeParser(this, context);
-                query_plan = mergeTreeParser.parseReadRel(std::make_unique<QueryPlan>(), read, extension_table);
-                steps = mergeTreeParser.getSteps();
-            }
-            break;
-        }
-        case substrait::Rel::RelTypeCase::kFilter:
-        case substrait::Rel::RelTypeCase::kGenerate:
-        case substrait::Rel::RelTypeCase::kProject:
-        case substrait::Rel::RelTypeCase::kAggregate:
-        case substrait::Rel::RelTypeCase::kSort:
-        case substrait::Rel::RelTypeCase::kWindow:
-        case substrait::Rel::RelTypeCase::kJoin:
-        case substrait::Rel::RelTypeCase::kCross:
-        case substrait::Rel::RelTypeCase::kExpand: {
-            auto op_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(this);
-            query_plan = op_parser->parseOp(rel, rel_stack);
-            auto parser_steps = op_parser->getSteps();
-            steps.insert(steps.end(), parser_steps.begin(), parser_steps.end());
-            break;
-        }
-        default:
-            throw Exception(ErrorCodes::UNKNOWN_TYPE, "doesn't support relation type: {}.\n{}", rel.rel_type_case(), rel.DebugString());
+        auto input_query_plan = parseOp(*input_rel, rel_stack);
+        input_query_plans.push_back(std::move(input_query_plan));
     }
+    rel_stack.pop_back();
+
+    // source node is special
+    if (rel.rel_type_case() == substrait::Rel::RelTypeCase::kRead)
+    {
+        assert(all_input_rels.empty());
+        auto read_rel_parser = std::dynamic_pointer_cast<ReadRelParser>(rel_parser);
+        const auto & read = rel.read();
+        if (read.has_local_files())
+        {
+            if (read_rel_parser->isReadRelFromJava(read))
+            {
+                auto iter = read.local_files().items().at(0).uri_file();
+                auto pos = iter.find(':');
+                auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
+                auto [input_iter, materalize_input] = getInputIter(static_cast<size_t>(iter_index));
+                read_rel_parser->setInputIter(input_iter, materalize_input);
+            }
+        }
+        else if (read_rel_parser->isReadFromMergeTree(read))
+        {
+            if (!read.has_extension_table())
+            {
+                read_rel_parser->setSplitInfo(nextSplitInfo());
+            }
+        }
+    }
+
+    query_plan = rel_parser->parse(input_query_plans, rel, rel_stack);
+
+    std::vector<DB::IQueryPlanStep *> steps = rel_parser->getSteps();
 
     if (!context->getSettingsRef().query_plan_enable_optimizations)
     {
@@ -614,7 +509,7 @@ void SerializedPlanParser::parseArrayJoinArguments(
 }
 
 ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
-    const substrait::Expression & rel, std::vector<String> & result_names, ActionsDAG& actions_dag, bool keep_result, bool position)
+    const substrait::Expression & rel, std::vector<String> & result_names, ActionsDAG & actions_dag, bool keep_result, bool position)
 {
     if (!rel.has_scalar_function())
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "The root of expression should be a scalar function:\n {}", rel.DebugString());
@@ -689,7 +584,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
 
         /// pos = cast(arrayJoin(arg_not_null).1, "Int32")
         const auto * pos_node = add_tuple_element(array_join_node, 1);
-        pos_node = ActionsDAGUtil::convertNodeType(actions_dag, pos_node, "Int32");
+        pos_node = ActionsDAGUtil::convertNodeType(actions_dag, pos_node, INT());
 
         /// if is_map is false, output col = arrayJoin(arg_not_null).2
         /// if is_map is true,  output (key, value) = arrayJoin(arg_not_null).2
@@ -731,7 +626,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
 }
 
 const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
-    const substrait::Expression & rel, std::string & result_name, ActionsDAG& actions_dag, bool keep_result)
+    const substrait::Expression & rel, std::string & result_name, ActionsDAG & actions_dag, bool keep_result)
 {
     if (!rel.has_scalar_function())
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "the root of expression should be a scalar function:\n {}", rel.DebugString());
@@ -772,7 +667,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::convertStructFieldType(const
 #define UINT_CONVERT(type_ptr, field, type_name) \
     if ((type_ptr)->getTypeId() == TypeIndex::type_name) \
     { \
-        return {std::make_shared<DataTypeU##type_name>(), static_cast<U##type_name>((field).get<type_name>()) + 1}; \
+        return {std::make_shared<DataTypeU##type_name>(), static_cast<U##type_name>((field).safeGet<type_name>()) + 1}; \
     }
 
     auto type_id = type->getTypeId();
@@ -793,9 +688,8 @@ bool SerializedPlanParser::isFunction(substrait::Expression_ScalarFunction rel, 
 }
 
 void SerializedPlanParser::parseFunctionOrExpression(
-    const substrait::Expression & rel, std::string & result_name, ActionsDAG& actions_dag, bool keep_result)
+    const substrait::Expression & rel, std::string & result_name, ActionsDAG & actions_dag, bool keep_result)
 {
-
     if (rel.has_scalar_function())
         parseFunctionWithDAG(rel, result_name, actions_dag, keep_result);
     else
@@ -806,11 +700,7 @@ void SerializedPlanParser::parseFunctionOrExpression(
 }
 
 void SerializedPlanParser::parseJsonTuple(
-    const substrait::Expression & rel,
-    std::vector<String> & result_names,
-    ActionsDAG& actions_dag,
-    bool keep_result,
-    bool)
+    const substrait::Expression & rel, std::vector<String> & result_names, ActionsDAG & actions_dag, bool keep_result, bool)
 {
     const auto & scalar_function = rel.scalar_function();
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
@@ -869,7 +759,7 @@ void SerializedPlanParser::parseJsonTuple(
 }
 
 const ActionsDAG::Node *
-SerializedPlanParser::toFunctionNode(ActionsDAG& actions_dag, const String & function, const ActionsDAG::NodeRawConstPtrs & args)
+SerializedPlanParser::toFunctionNode(ActionsDAG & actions_dag, const String & function, const ActionsDAG::NodeRawConstPtrs & args)
 {
     auto function_builder = FunctionFactory::instance().get(function, context);
     std::string args_name = join(args, ',');
@@ -1081,7 +971,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
     return std::make_pair(std::move(type), std::move(field));
 }
 
-const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG& actions_dag, const substrait::Expression & rel)
+const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG & actions_dag, const substrait::Expression & rel)
 {
     switch (rel.rex_type_case())
     {
@@ -1314,244 +1204,26 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     const Settings & settings = context->getSettingsRef();
     auto builder = buildQueryPipeline(*query_plan);
 
-    ///
+
     assert(s_plan.relations_size() == 1);
     const substrait::PlanRel & root_rel = s_plan.relations().at(0);
     assert(root_rel.has_root());
     if (root_rel.root().input().has_write())
-        addSinkTransfrom(context, root_rel.root().input().write(), builder);
-    ///
-    QueryPipeline pipeline = QueryPipelineBuilder::getPipeline(std::move(*builder));
-
+        addSinkTransform(context, root_rel.root().input().write(), builder);
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
     LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
     LOG_DEBUG(
         logger, "clickhouse plan [optimization={}]:\n{}", settings.query_plan_enable_optimizations, PlanUtil::explainPlan(*query_plan));
-    LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(pipeline));
 
     auto config = ExecutorConfig::loadFromContext(context);
-    return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(pipeline), config.dump_pipeline);
+    return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(builder), config.dump_pipeline);
 }
 
 SerializedPlanParser::SerializedPlanParser(const ContextPtr & context_) : context(context_)
 {
 }
 
-ContextMutablePtr SerializedPlanParser::global_context = nullptr;
-
-Context::ConfigurationPtr SerializedPlanParser::config = nullptr;
-
-void SerializedPlanParser::collectJoinKeys(
-    const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start)
-{
-    auto condition_name = getFunctionName(
-        function_mapping.at(std::to_string(condition.scalar_function().function_reference())), condition.scalar_function());
-    if (condition_name == "and")
-    {
-        collectJoinKeys(condition.scalar_function().arguments(0).value(), join_keys, right_key_start);
-        collectJoinKeys(condition.scalar_function().arguments(1).value(), join_keys, right_key_start);
-    }
-    else if (condition_name == "equals")
-    {
-        const auto & function = condition.scalar_function();
-        auto left_key_idx = function.arguments(0).value().selection().direct_reference().struct_field().field();
-        auto right_key_idx = function.arguments(1).value().selection().direct_reference().struct_field().field() - right_key_start;
-        join_keys.emplace_back(std::pair(left_key_idx, right_key_idx));
-    }
-    else
-    {
-        throw Exception(ErrorCodes::BAD_ARGUMENTS, "doesn't support condition {}", condition_name);
-    }
-}
-
-ActionsDAG ASTParser::convertToActions(const NamesAndTypesList & name_and_types, const ASTPtr & ast) const
-{
-    NamesAndTypesList aggregation_keys;
-    ColumnNumbersList aggregation_keys_indexes_list;
-    AggregationKeysInfo info(aggregation_keys, aggregation_keys_indexes_list, GroupByKind::NONE);
-    SizeLimits size_limits_for_set;
-    ActionsMatcher::Data visitor_data(
-        context,
-        size_limits_for_set,
-        static_cast<size_t>(0),
-        name_and_types,
-        ActionsDAG(name_and_types),
-        std::make_shared<PreparedSets>(),
-        false /* no_subqueries */,
-        false /* no_makeset */,
-        false /* only_consts */,
-        info);
-    ActionsVisitor(visitor_data).visit(ast);
-    return visitor_data.getActions();
-}
-
-ASTPtr ASTParser::parseToAST(const Names & names, const substrait::Expression & rel)
-{
-    LOG_DEBUG(&Poco::Logger::get("ASTParser"), "substrait plan:\n{}", rel.DebugString());
-    if (rel.has_scalar_function())
-    {
-        const auto & scalar_function = rel.scalar_function();
-        auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
-
-        auto substrait_name = function_signature.substr(0, function_signature.find(':'));
-        auto func_parser = FunctionParserFactory::instance().tryGet(substrait_name, plan_parser);
-        String function_name = func_parser->getName();
-
-        ASTs ast_args;
-        parseFunctionArgumentsToAST(names, scalar_function, ast_args);
-
-        return makeASTFunction(function_name, ast_args);
-    }
-    else
-        return parseArgumentToAST(names, rel);
-}
-
-void ASTParser::parseFunctionArgumentsToAST(
-    const Names & names, const substrait::Expression_ScalarFunction & scalar_function, ASTs & ast_args)
-{
-    const auto & args = scalar_function.arguments();
-
-    for (const auto & arg : args)
-    {
-        if (arg.value().has_scalar_function())
-        {
-            ast_args.emplace_back(parseToAST(names, arg.value()));
-        }
-        else
-        {
-            ast_args.emplace_back(parseArgumentToAST(names, arg.value()));
-        }
-    }
-}
-
-ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expression & rel)
-{
-    switch (rel.rex_type_case())
-    {
-        case substrait::Expression::RexTypeCase::kLiteral: {
-            DataTypePtr type;
-            Field field;
-            std::tie(type, field) = SerializedPlanParser::parseLiteral(rel.literal());
-            return std::make_shared<ASTLiteral>(field, type);
-        }
-        case substrait::Expression::RexTypeCase::kSelection: {
-            if (!rel.selection().has_direct_reference() || !rel.selection().direct_reference().has_struct_field())
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "Can only have direct struct references in selections");
-
-            const auto field = rel.selection().direct_reference().struct_field().field();
-            return std::make_shared<ASTIdentifier>(names[field]);
-        }
-        case substrait::Expression::RexTypeCase::kCast: {
-            if (!rel.cast().has_type() || !rel.cast().has_input())
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
-
-            /// Append input to asts
-            ASTs args;
-            args.emplace_back(parseArgumentToAST(names, rel.cast().input()));
-
-            /// Append destination type to asts
-            const auto & substrait_type = rel.cast().type();
-            /// Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
-            if (substrait_type.has_binary())
-                return makeASTFunction("reinterpretAsStringSpark", args);
-            else
-            {
-                DataTypePtr ch_type = TypeParser::parseType(substrait_type);
-                args.emplace_back(std::make_shared<ASTLiteral>(ch_type->getName()));
-
-                return makeASTFunction("CAST", args);
-            }
-        }
-        case substrait::Expression::RexTypeCase::kIfThen: {
-            const auto & if_then = rel.if_then();
-            auto condition_nums = if_then.ifs_size();
-            std::string ch_function_name = condition_nums == 1 ? "if" : "multiIf";
-            auto function_multi_if = FunctionFactory::instance().get(ch_function_name, context);
-            ASTs args;
-
-            for (int i = 0; i < condition_nums; ++i)
-            {
-                const auto & ifs = if_then.ifs(i);
-                auto if_node = parseArgumentToAST(names, ifs.if_());
-                args.emplace_back(if_node);
-
-                auto then_node = parseArgumentToAST(names, ifs.then());
-                args.emplace_back(then_node);
-            }
-
-            auto else_node = parseArgumentToAST(names, if_then.else_());
-            args.emplace_back(std::move(else_node));
-            return makeASTFunction(ch_function_name, args);
-        }
-        case substrait::Expression::RexTypeCase::kScalarFunction: {
-            return parseToAST(names, rel);
-        }
-        case substrait::Expression::RexTypeCase::kSingularOrList: {
-            const auto & options = rel.singular_or_list().options();
-            /// options is empty always return false
-            if (options.empty())
-                return std::make_shared<ASTLiteral>(0);
-            /// options should be literals
-            if (!options[0].has_literal())
-                throw Exception(ErrorCodes::LOGICAL_ERROR, "Options of SingularOrList must have literal type");
-
-            ASTs args;
-            args.emplace_back(parseArgumentToAST(names, rel.singular_or_list().value()));
-
-            bool nullable = false;
-            size_t options_len = options.size();
-            ASTs in_args;
-            in_args.reserve(options_len);
-
-            for (int i = 0; i < static_cast<int>(options_len); ++i)
-            {
-                if (!options[i].has_literal())
-                    throw Exception(ErrorCodes::BAD_ARGUMENTS, "in expression values must be the literal!");
-                if (!nullable)
-                    nullable = options[i].literal().has_null();
-            }
-
-            auto elem_type_and_field = SerializedPlanParser::parseLiteral(options[0].literal());
-            DataTypePtr elem_type = wrapNullableType(nullable, elem_type_and_field.first);
-            for (int i = 0; i < static_cast<int>(options_len); ++i)
-            {
-                auto type_and_field = SerializedPlanParser::parseLiteral(options[i].literal());
-                auto option_type = wrapNullableType(nullable, type_and_field.first);
-                if (!elem_type->equals(*option_type))
-                    throw Exception(
-                        ErrorCodes::LOGICAL_ERROR,
-                        "SingularOrList options type mismatch:{} and {}",
-                        elem_type->getName(),
-                        option_type->getName());
-
-                in_args.emplace_back(std::make_shared<ASTLiteral>(type_and_field.second));
-            }
-            auto array_ast = makeASTFunction("array", in_args);
-            args.emplace_back(array_ast);
-
-            auto ast = makeASTFunction("in", args);
-            if (nullable)
-            {
-                /// if sets has `null` and value not in sets
-                /// In Spark: return `null`, is the standard behaviour from ANSI.(SPARK-37920)
-                /// In CH: return `false`
-                /// So we used if(a, b, c) cast `false` to `null` if sets has `null`
-                ast = makeASTFunction("if", ast, std::make_shared<ASTLiteral>(true), std::make_shared<ASTLiteral>(Field()));
-            }
-
-            return ast;
-        }
-        default:
-            throw Exception(
-                ErrorCodes::UNKNOWN_TYPE,
-                "Join on condition error. Unsupported spark expression type {} : {}",
-                magic_enum::enum_name(rel.rex_type_case()),
-                rel.DebugString());
-    }
-}
-
-void SerializedPlanParser::removeNullableForRequiredColumns(
-    const std::set<String> & require_columns, ActionsDAG & actions_dag) const
+void SerializedPlanParser::removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAG & actions_dag) const
 {
     for (const auto & item : require_columns)
     {
@@ -1566,7 +1238,7 @@ void SerializedPlanParser::removeNullableForRequiredColumns(
 }
 
 void SerializedPlanParser::wrapNullable(
-    const std::vector<String> & columns, ActionsDAG& actions_dag, std::map<std::string, std::string> & nullable_measure_names)
+    const std::vector<String> & columns, ActionsDAG & actions_dag, std::map<std::string, std::string> & nullable_measure_names)
 {
     for (const auto & item : columns)
     {
@@ -1576,117 +1248,6 @@ void SerializedPlanParser::wrapNullable(
         actions_dag.addOrReplaceInOutputs(*node);
         nullable_measure_names[item] = node->result_name;
     }
-}
-
-SharedContextHolder SerializedPlanParser::shared_context;
-
-LocalExecutor::~LocalExecutor()
-{
-    if (dump_pipeline)
-        LOG_INFO(&Poco::Logger::get("LocalExecutor"), "Dump pipeline:\n{}", dumpPipeline());
-
-    if (spark_buffer)
-    {
-        ch_column_to_spark_row->freeMem(spark_buffer->address, spark_buffer->size);
-        spark_buffer.reset();
-    }
-}
-
-std::unique_ptr<SparkRowInfo> LocalExecutor::writeBlockToSparkRow(const Block & block) const
-{
-    return ch_column_to_spark_row->convertCHColumnToSparkRow(block);
-}
-
-bool LocalExecutor::hasNext()
-{
-    size_t columns = currentBlock().columns();
-    if (columns == 0 || isConsumed())
-    {
-        auto empty_block = header.cloneEmpty();
-        setCurrentBlock(empty_block);
-        bool has_next = executor->pull(currentBlock());
-        produce();
-        return has_next;
-    }
-    return true;
-}
-
-SparkRowInfoPtr LocalExecutor::next()
-{
-    checkNextValid();
-    SparkRowInfoPtr row_info = writeBlockToSparkRow(currentBlock());
-    consume();
-    if (spark_buffer)
-    {
-        ch_column_to_spark_row->freeMem(spark_buffer->address, spark_buffer->size);
-        spark_buffer.reset();
-    }
-    spark_buffer = std::make_unique<SparkBuffer>();
-    spark_buffer->address = row_info->getBufferAddress();
-    spark_buffer->size = row_info->getTotalBytes();
-    return row_info;
-}
-
-Block * LocalExecutor::nextColumnar()
-{
-    checkNextValid();
-    Block * columnar_batch;
-    if (currentBlock().columns() > 0)
-    {
-        columnar_batch = &currentBlock();
-    }
-    else
-    {
-        auto empty_block = header.cloneEmpty();
-        setCurrentBlock(empty_block);
-        columnar_batch = &currentBlock();
-    }
-    consume();
-    return columnar_batch;
-}
-
-void LocalExecutor::cancel()
-{
-    if (executor)
-        executor->cancel();
-}
-
-Block & LocalExecutor::getHeader()
-{
-    return header;
-}
-
-LocalExecutor::LocalExecutor(QueryPlanPtr query_plan, QueryPipeline && pipeline, bool dump_pipeline_)
-    : query_pipeline(std::move(pipeline))
-    , executor(std::make_unique<PullingPipelineExecutor>(query_pipeline))
-    , header(query_plan->getCurrentDataStream().header.cloneEmpty())
-    , dump_pipeline(dump_pipeline_)
-    , ch_column_to_spark_row(std::make_unique<CHColumnToSparkRow>())
-    , current_query_plan(std::move(query_plan))
-{
-}
-
-std::string LocalExecutor::dumpPipeline() const
-{
-    const auto & processors = query_pipeline.getProcessors();
-    for (auto & processor : processors)
-    {
-        WriteBufferFromOwnString buffer;
-        auto data_stats = processor->getProcessorDataStats();
-        buffer << "(";
-        buffer << "\nexcution time: " << processor->getElapsedNs() / 1000U << " us.";
-        buffer << "\ninput wait time: " << processor->getInputWaitElapsedNs() / 1000U << " us.";
-        buffer << "\noutput wait time: " << processor->getOutputWaitElapsedNs() / 1000U << " us.";
-        buffer << "\ninput rows: " << data_stats.input_rows;
-        buffer << "\ninput bytes: " << data_stats.input_bytes;
-        buffer << "\noutput rows: " << data_stats.output_rows;
-        buffer << "\noutput bytes: " << data_stats.output_bytes;
-        buffer << ")";
-        processor->setDescription(buffer.str());
-    }
-    WriteBufferFromOwnString out;
-    printPipeline(processors, out);
-    return out.str();
 }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(

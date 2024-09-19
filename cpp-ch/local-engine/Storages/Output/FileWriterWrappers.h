@@ -19,9 +19,9 @@
 #include <Core/Block.h>
 #include <Core/Field.h>
 #include <Interpreters/Context.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parsers/ASTFunction.h>
 #include <Parsers/ASTIdentifier.h>
+#include <Parsers/ASTLiteral.h>
 #include <Processors/Chunk.h>
 #include <Processors/Executors/PushingPipelineExecutor.h>
 #include <Processors/ISimpleTransform.h>
@@ -69,31 +69,25 @@ private:
 };
 
 std::unique_ptr<FileWriterWrapper> createFileWriterWrapper(
-    const DB::ContextPtr & context,
-    const std::string & file_uri,
-    const DB::Block & preferred_schema,
-    const std::string & format_hint);
+    const DB::ContextPtr & context, const std::string & file_uri, const DB::Block & preferred_schema, const std::string & format_hint);
 
 OutputFormatFilePtr createOutputFormatFile(
-    const DB::ContextPtr & context,
-    const std::string & file_uri,
-    const DB::Block & preferred_schema,
-    const std::string & format_hint);
+    const DB::ContextPtr & context, const std::string & file_uri, const DB::Block & preferred_schema, const std::string & format_hint);
 
 class WriteStats : public DB::ISimpleTransform
 {
     bool all_chunks_processed_ = false; /// flag to determine if we have already processed all chunks
-    Arena partition_keys_arena_;
+    DB::Arena partition_keys_arena_;
     std::string filename_;
 
     absl::flat_hash_map<StringRef, size_t> fiel_to_count_;
 
-    static Block statsHeader()
+    static DB::Block statsHeader()
     {
         return makeBlockHeader({{STRING(), "filename"}, {STRING(), "partition_id"}, {BIGINT(), "record_count"}});
     }
 
-    Chunk final_result() const
+    DB::Chunk final_result() const
     {
         ///TODO: improve performance
         auto file_col = STRING()->createColumn();
@@ -115,7 +109,7 @@ class WriteStats : public DB::ISimpleTransform
     }
 
 public:
-    explicit WriteStats(const Block & input_header_) : ISimpleTransform(input_header_, statsHeader(), true) { }
+    explicit WriteStats(const DB::Block & input_header_) : ISimpleTransform(input_header_, statsHeader(), true) { }
 
     Status prepare() override
     {
@@ -130,7 +124,7 @@ public:
     }
 
     String getName() const override { return "WriteStats"; }
-    void transform(Chunk & chunk) override
+    void transform(DB::Chunk & chunk) override
     {
         if (all_chunks_processed_)
             chunk = final_result();
@@ -159,11 +153,11 @@ public:
             it->second += rows;
             return;
         }
-        throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "File path {} not found in the stats map", file_path);
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "File path {} not found in the stats map", file_path);
     }
 };
 
-class SubstraitFileSink final : public SinkToStorage
+class SubstraitFileSink final : public DB::SinkToStorage
 {
     const std::string partition_id_;
     const std::string relative_path_;
@@ -187,7 +181,7 @@ public:
         const std::string & partition_id,
         const std::string & relative,
         const std::string & format_hint,
-        const Block & header)
+        const DB::Block & header)
         : SinkToStorage(header)
         , partition_id_(partition_id.empty() ? NO_PARTITION_ID : partition_id)
         , relative_path_(relative)
@@ -205,7 +199,7 @@ public:
     }
 
 protected:
-    void consume(Chunk & chunk) override
+    void consume(DB::Chunk & chunk) override
     {
         const size_t row_count = chunk.getNumRows();
         output_format_->output->write(materializeBlock(getHeader().cloneWithColumns(chunk.detachColumns())));
@@ -227,12 +221,12 @@ class SubstraitPartitionedFileSink final : public DB::PartitionedSink
 
 public:
     /// visible for UTs
-    static ASTPtr make_partition_expression(const DB::Names & partition_columns)
+    static DB::ASTPtr make_partition_expression(const DB::Names & partition_columns)
     {
         /// Parse the following expression into ASTs
         /// cancat('/col_name=', 'toString(col_name)')
         bool add_slash = false;
-        ASTs arguments;
+        DB::ASTs arguments;
         for (const auto & column : partition_columns)
         {
             // partition_column=
@@ -243,7 +237,8 @@ public:
             // ifNull(toString(partition_column), DEFAULT_PARTITION_NAME)
             // FIXME if toString(partition_column) is empty
             auto column_ast = std::make_shared<DB::ASTIdentifier>(column);
-            ASTs if_null_args{makeASTFunction("toString", ASTs{column_ast}), std::make_shared<DB::ASTLiteral>(DEFAULT_PARTITION_NAME)};
+            DB::ASTs if_null_args{
+                makeASTFunction("toString", DB::ASTs{column_ast}), std::make_shared<DB::ASTLiteral>(DEFAULT_PARTITION_NAME)};
             arguments.emplace_back(makeASTFunction("ifNull", std::move(if_null_args)));
         }
         return DB::makeASTFunction("concat", std::move(arguments));
@@ -252,17 +247,17 @@ public:
 private:
     const std::string base_path_;
     const std::string filenmame_;
-    ContextPtr context_;
-    const Block sample_block_;
+    DB::ContextPtr context_;
+    const DB::Block sample_block_;
     const std::string format_hint_;
     std::shared_ptr<WriteStats> stats_{nullptr};
 
 public:
     SubstraitPartitionedFileSink(
-        const ContextPtr & context,
-        const Names & partition_by,
-        const Block & input_header,
-        const Block & sample_block,
+        const DB::ContextPtr & context,
+        const DB::Names & partition_by,
+        const DB::Block & input_header,
+        const DB::Block & sample_block,
         const std::string & base_path,
         const std::string & filename,
         const std::string & format_hint)
@@ -274,7 +269,7 @@ public:
         , format_hint_(format_hint)
     {
     }
-    SinkPtr createSinkForPartition(const String & partition_id) override
+    DB::SinkPtr createSinkForPartition(const String & partition_id) override
     {
         assert(stats_);
         const auto partition_path = fmt::format("{}/{}", partition_id, filenmame_);

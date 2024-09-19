@@ -16,27 +16,41 @@
  */
 #pragma once
 #include <Interpreters/Context_fwd.h>
+#include <Common/ConcurrentMap.h>
 #include <Common/ThreadStatus.h>
 
+namespace DB
+{
+struct ContextSharedPart;
+}
 namespace local_engine
 {
-class QueryContextManager
+
+class QueryContext
 {
+    struct Data;
+
 public:
-    static QueryContextManager & instance()
+    static DB::ContextMutablePtr createGlobal();
+    static void resetGlobal();
+    static DB::ContextMutablePtr globalMutableContext();
+    static DB::ContextPtr globalContext();
+    static QueryContext & instance()
     {
-        static QueryContextManager instance;
+        static QueryContext instance;
         return instance;
     }
     int64_t initializeQuery();
     DB::ContextMutablePtr currentQueryContext();
-    void logCurrentPerformanceCounters(ProfileEvents::Counters& counters);
+    static std::shared_ptr<DB::ThreadGroup> currentThreadGroup();
+    void logCurrentPerformanceCounters(ProfileEvents::Counters & counters) const;
     size_t currentPeakMemory(int64_t id);
     void finalizeQuery(int64_t id);
 
 private:
-    QueryContextManager() = default;
-    LoggerPtr logger = getLogger("QueryContextManager");
+    QueryContext() = default;
+    LoggerPtr logger_ = getLogger("QueryContextManager");
+    ConcurrentMap<int64_t, std::shared_ptr<Data>> query_map_{};
 };
 
 size_t currentThreadGroupMemoryUsage();

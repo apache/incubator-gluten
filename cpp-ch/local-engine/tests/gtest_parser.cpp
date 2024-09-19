@@ -18,6 +18,8 @@
 #include <incbin.h>
 #include <testConfig.h>
 #include <Core/Settings.h>
+#include <Interpreters/Context.h>
+#include <Parser/LocalExecutor.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
@@ -26,27 +28,27 @@
 #include <gtest/gtest.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
-
+#include <Common/QueryContext.h>
 
 using namespace local_engine;
 using namespace DB;
 
 
-INCBIN(resource_embedded_readcsv_json, SOURCE_DIR "/utils/extern-local-engine/tests/json/read_student_option_schema.csv.json");
+INCBIN(_readcsv_plan, SOURCE_DIR "/utils/extern-local-engine/tests/json/read_student_option_schema.csv.json");
 TEST(LocalExecutor, ReadCSV)
 {
-    const std::string split_template
+    constexpr std::string_view split_template
         = R"({"items":[{"uriFile":"{replace_local_files}","length":"56","text":{"fieldDelimiter":",","maxBlockSize":"8192","header":"1"},"schema":{"names":["id","name","language"],"struct":{"types":[{"string":{"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}},{"string":{"nullability":"NULLABILITY_NULLABLE"}}]}},"metadataColumns":[{}]}]})";
     const std::string split = replaceLocalFilesWildcards(
         split_template, GLUTEN_SOURCE_DIR("/backends-velox/src/test/resources/datasource/csv/student_option_schema.csv"));
-    SerializedPlanParser parser(SerializedPlanParser::global_context);
+    SerializedPlanParser parser(QueryContext::globalContext());
     parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
-    auto plan = local_engine::JsonStringToMessage<substrait::Plan>(
-        {reinterpret_cast<const char *>(gresource_embedded_readcsv_jsonData), gresource_embedded_readcsv_jsonSize});
+    auto plan = local_engine::JsonStringToMessage<substrait::Plan>(EMBEDDED_PLAN(_readcsv_plan));
 
     auto query_plan = parser.parse(plan);
-    const auto pipeline = parser.buildQueryPipeline(*query_plan);
-    LocalExecutor local_executor{std::move(query_plan), QueryPipelineBuilder::getPipeline(std::move(*pipeline))};
+    auto pipeline = parser.buildQueryPipeline(*query_plan);
+    LocalExecutor local_executor{std::move(query_plan), std::move(pipeline)};
+
     EXPECT_TRUE(local_executor.hasNext());
     const Block & x = *local_executor.nextColumnar();
     EXPECT_EQ(4, x.rows());
@@ -56,12 +58,10 @@ size_t count(const substrait::Type_Struct & type)
 {
     size_t ret = 0;
     for (const auto & t : type.types())
-    {
         if (t.has_struct_())
             ret += 1 + count(t.struct_());
         else
             ret++;
-    }
     return ret;
 }
 

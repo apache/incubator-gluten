@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.ui
 
 import org.apache.gluten.events.{GlutenBuildInfoEvent, GlutenPlanFallbackEvent}
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler._
 import org.apache.spark.sql.internal.StaticSQLConf._
@@ -100,5 +100,13 @@ class GlutenSQLAppStatusListener(conf: SparkConf, kvstore: ElementTrackingStore)
     val view = kvstore.view(classOf[GlutenSQLExecutionUIData]).first(0L)
     val toDelete = KVUtils.viewToSeq(view, countToDelete.toInt)(_ => true)
     toDelete.foreach(e => kvstore.delete(e.getClass(), e.executionId))
+  }
+}
+
+object GlutenSQLAppStatusListener {
+  def register(sc: SparkContext): Unit = {
+    val kvStore = sc.statusStore.store.asInstanceOf[ElementTrackingStore]
+    val listener = new GlutenSQLAppStatusListener(sc.conf, kvStore)
+    sc.listenerBus.addToStatusQueue(listener)
   }
 }

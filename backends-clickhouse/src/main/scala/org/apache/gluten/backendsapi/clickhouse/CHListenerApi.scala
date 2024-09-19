@@ -21,7 +21,9 @@ import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.execution.CHBroadcastBuildSideCache
 import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
 import org.apache.gluten.expression.UDFMappings
-import org.apache.gluten.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
+import org.apache.gluten.extension.ExpressionExtensionTrait
+import org.apache.gluten.jni.JniLibLoader
+import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
@@ -30,6 +32,7 @@ import org.apache.spark.listener.CHGlutenSQLAppStatusListener
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.execution.datasources.v1._
+import org.apache.spark.sql.utils.ExpressionUtil
 import org.apache.spark.util.SparkDirectoryUtil
 
 import org.apache.commons.lang3.StringUtils
@@ -42,6 +45,13 @@ class CHListenerApi extends ListenerApi with Logging {
     GlutenDriverEndpoint.glutenDriverEndpointRef = (new GlutenDriverEndpoint).self
     CHGlutenSQLAppStatusListener.registerListener(sc)
     initialize(pc.conf, isDriver = true)
+
+    val expressionExtensionTransformer = ExpressionUtil.extendedExpressionTransformer(
+      pc.conf.get(GlutenConfig.GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF, "")
+    )
+    if (expressionExtensionTransformer != null) {
+      ExpressionExtensionTrait.expressionExtensionTransformer = expressionExtensionTransformer
+    }
   }
 
   override def onDriverShutdown(): Unit = shutdown()

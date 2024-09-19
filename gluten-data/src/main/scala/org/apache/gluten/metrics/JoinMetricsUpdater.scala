@@ -20,6 +20,8 @@ import org.apache.gluten.metrics.Metrics.SingleMetric
 import org.apache.gluten.substrait.JoinParams
 
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.utils.SparkMetricsUtil
+import org.apache.spark.task.TaskResources
 
 import java.util
 
@@ -149,6 +151,20 @@ class HashJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
       streamPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
       streamPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
       idx += 1
+    }
+    if (TaskResources.inSparkTask()) {
+      SparkMetricsUtil.incMemoryBytesSpilled(
+        TaskResources.getLocalTaskContext().taskMetrics(),
+        hashProbeMetrics.spilledInputBytes)
+      SparkMetricsUtil.incDiskBytesSpilled(
+        TaskResources.getLocalTaskContext().taskMetrics(),
+        hashProbeMetrics.spilledBytes)
+      SparkMetricsUtil.incMemoryBytesSpilled(
+        TaskResources.getLocalTaskContext().taskMetrics(),
+        hashBuildMetrics.spilledInputBytes)
+      SparkMetricsUtil.incDiskBytesSpilled(
+        TaskResources.getLocalTaskContext().taskMetrics(),
+        hashBuildMetrics.spilledBytes)
     }
   }
 }

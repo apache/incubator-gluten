@@ -26,6 +26,7 @@ on:
       - 'gluten-celeborn/package/**'
       - 'gluten-celeborn/clickhouse/**'
       - 'gluten-core/**'
+      - 'gluten-substrait/**'
       - 'gluten-ut/**'
       - 'shims/**'
       - 'tools/gluten-it/**'
@@ -34,17 +35,21 @@ on:
 jobs:
   add-comment:
     runs-on: ubuntu-latest
+    permissions: write-all
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Sleep for Dev PR workflow done
         run: |
           sleep 15
-        
       - name: Add comment to PR
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          COMMENT="Run Gluten Clickhouse CI"
-          URL=$(jq -r .pull_request.comments_url "$GITHUB_EVENT_PATH")
-          curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST -d "{\"body\":\"$COMMENT\"}" "${URL}"
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.number,
+              body: "Run Gluten Clickhouse CI"
+            });

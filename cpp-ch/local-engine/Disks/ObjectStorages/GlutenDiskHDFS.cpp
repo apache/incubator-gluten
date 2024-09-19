@@ -17,11 +17,10 @@
 
 #include "GlutenDiskHDFS.h"
 #include <ranges>
-
+#include <Disks/ObjectStorages/CompactObjectStorageDiskTransaction.h>
+#include <Common/QueryContext.h>
 #include <Common/Throttler.h>
-#include <Parser/SerializedPlanParser.h>
 
-#include "CompactObjectStorageDiskTransaction.h"
 #if USE_HDFS
 
 namespace local_engine
@@ -30,7 +29,7 @@ using namespace DB;
 
 DiskTransactionPtr GlutenDiskHDFS::createTransaction()
 {
-    return std::make_shared<CompactObjectStorageDiskTransaction>(*this, SerializedPlanParser::global_context->getTempDataOnDisk()->getVolume()->getDisk());
+    return std::make_shared<CompactObjectStorageDiskTransaction>(*this, QueryContext::globalContext()->getTempDataOnDisk()->getVolume()->getDisk());
 }
 
 void GlutenDiskHDFS::createDirectory(const String & path)
@@ -78,7 +77,7 @@ DiskObjectStoragePtr GlutenDiskHDFS::createDiskObjectStorage()
         object_key_prefix,
         getMetadataStorage(),
         getObjectStorage(),
-        SerializedPlanParser::global_context->getConfigRef(),
+        QueryContext::globalContext()->getConfigRef(),
         config_prefix,
         object_storage_creator);
 }

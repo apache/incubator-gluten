@@ -17,6 +17,8 @@
 package org.apache.gluten.metrics
 
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.utils.SparkMetricsUtil
+import org.apache.spark.task.TaskResources
 
 class SortMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
 
@@ -34,6 +36,14 @@ class SortMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpd
       metrics("spilledRows") += operatorMetrics.spilledRows
       metrics("spilledPartitions") += operatorMetrics.spilledPartitions
       metrics("spilledFiles") += operatorMetrics.spilledFiles
+      if (TaskResources.inSparkTask()) {
+        SparkMetricsUtil.incMemoryBytesSpilled(
+          TaskResources.getLocalTaskContext().taskMetrics(),
+          operatorMetrics.spilledInputBytes)
+        SparkMetricsUtil.incDiskBytesSpilled(
+          TaskResources.getLocalTaskContext().taskMetrics(),
+          operatorMetrics.spilledBytes)
+      }
     }
   }
 }

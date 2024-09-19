@@ -14,32 +14,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 #include "config.h"
 #if USE_PARQUET
+#include <charconv>
 #include <ranges>
 #include <string>
-#include <charconv>
-#include <DataTypes/DataTypeString.h>
+#include <Columns/ColumnString.h>
+#include <IO/ReadBufferFromFile.h>
 #include <Interpreters/ActionsVisitor.h>
+#include <Interpreters/Context.h>
 #include <Interpreters/ExpressionActions.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parsers/ExpressionListParsers.h>
-
-#include <Core/Settings.h>
-#include <Common/BlockTypeUtils.h>
-#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Storages/Parquet/ArrowUtils.h>
 #include <Storages/Parquet/ColumnIndexFilter.h>
 #include <Storages/Parquet/ParquetConverter.h>
 #include <Storages/Parquet/RowRanges.h>
 #include <Storages/Parquet/VectorizedParquetRecordReader.h>
+#include <boost/iterator/counting_iterator.hpp>
 #include <gtest/gtest.h>
 #include <parquet/page_index.h>
 #include <parquet/schema.h>
 #include <parquet/statistics.h>
 #include <tests/gluten_test_util.h>
+#include <Common/BlockTypeUtils.h>
+#include <Common/QueryContext.h>
+
+#    define ASSERT_DURATION_LE(secs, stmt) \
+        { \
+            std::promise<bool> completed; \
+            auto stmt_future = completed.get_future(); \
+            std::thread( \
+                [&](std::promise<bool> & completed) \
+                { \
+                    stmt; \
+                    completed.set_value(true); \
+                }, \
+                std::ref(completed)) \
+                .detach(); \
+            if (stmt_future.wait_for(std::chrono::seconds(secs)) == std::future_status::timeout) \
+                GTEST_FATAL_FAILURE_("       timed out (> " #secs " seconds). Check code for infinite loops"); \
+        }
+
 
 namespace DB::ErrorCodes
 {
@@ -162,6 +177,13 @@ public:
         return *this;
     }
 
+    CIBuilder & addSamePages(size_t num, int64_t nullCount, const std::string & min, const std::string & max)
+    {
+        for (size_t i = 0; i < num; ++i)
+            addPage(nullCount, min, max);
+        return *this;
+    }
+
     parquet::ColumnIndexPtr build() const
     {
         const parquet::ColumnDescriptor descr(node_, /*max_definition_level=*/1, 0);
@@ -184,6 +206,13 @@ public:
     {
         row_index_.push_back(previouse_count_);
         previouse_count_ += row_count;
+        return *this;
+    }
+
+    OIBuilder & addSamePages(size_t num, size_t row_count)
+    {
+        for (size_t i = 0; i < num; ++i)
+            addPage(row_count);
         return *this;
     }
 
@@ -297,6 +326,13 @@ static const CIBuilder c5 = CIBuilder(PNB::optional(parquet::Type::INT64).named(
 static const OIBuilder o5 = OIBuilder().addPage(1).addPage(29);
 static const parquet::ColumnDescriptor d5 = c5.descr();
 
+// GLUTEN-7179 - test customer.c_mktsegment = 'BUILDING'
+static const CIBuilder c6 = CIBuilder(PNB::optional(parquet::Type::BYTE_ARRAY).as(parquet::ConvertedType::UTF8).named("c_mktsegment"))
+                                .addSamePages(75, 0, "AUTOMOBILE", "MACHINERY")
+                                .addPage(0, "AUTOMOBILE", "FURNITURE");
+static const OIBuilder o6 = OIBuilder().addSamePages(77, 10);
+static const parquet::ColumnDescriptor d6 = c6.descr();
+
 local_engine::ColumnIndexStore buildTestColumnIndexStore()
 {
     local_engine::ColumnIndexStore result;
@@ -305,6 +341,7 @@ local_engine::ColumnIndexStore buildTestColumnIndexStore()
     result[d3.name()] = std::move(local_engine::ColumnIndex::create(&d3, c3.build(), o3.build()));
     result[d4.name()] = std::move(local_engine::ColumnIndex::create(&d4, nullptr, o3.build()));
     result[d5.name()] = std::move(local_engine::ColumnIndex::create(&d5, c5.build(), o5.build()));
+    result[d6.name()] = std::move(local_engine::ColumnIndex::create(&d6, c6.build(), o6.build()));
     return result;
 }
 
@@ -316,6 +353,7 @@ AnotherRowType buildTestRowType()
     result.emplace_back(toAnotherFieldType(d3));
     result.emplace_back(toAnotherFieldType(d4));
     result.emplace_back(toAnotherFieldType(d5));
+    result.emplace_back(toAnotherFieldType(d6));
     return result;
 }
 
@@ -359,7 +397,7 @@ void testCondition(const std::string & exp, const std::vector<size_t> & expected
     static const AnotherRowType name_and_types = buildTestRowType();
     static const local_engine::ColumnIndexStore column_index_store = buildTestColumnIndexStore();
     const local_engine::ColumnIndexFilter filter(
-        local_engine::test::parseFilter(exp, name_and_types).value(), local_engine::SerializedPlanParser::global_context);
+        local_engine::test::parseFilter(exp, name_and_types).value(), local_engine::QueryContext::globalContext());
     assertRows(filter.calculateRowRanges(column_index_store, TOTALSIZE), expectedRows);
 }
 
@@ -468,9 +506,15 @@ TEST(ColumnIndex, FilteringWithAllNullPages)
     // testCondition("column5 == 1234567", TOTALSIZE);
     // testCondition("column5 >= 1234567", TOTALSIZE);
 }
+
+TEST(ColumnIndex, GLUTEN_7179_INFINTE_LOOP)
+{
+    using namespace test_utils;
+    ASSERT_DURATION_LE(10, { testCondition("c_mktsegment = 'BUILDING'", 760); })
+}
+
 TEST(ColumnIndex, FilteringWithNotFoundColumnName)
 {
-
     using namespace test_utils;
     using namespace local_engine;
     const local_engine::ColumnIndexStore column_index_store = buildTestColumnIndexStore();
@@ -480,7 +524,7 @@ TEST(ColumnIndex, FilteringWithNotFoundColumnName)
         const AnotherRowType upper_name_and_types{{"COLUMN5", BIGINT()}};
         const local_engine::ColumnIndexFilter filter_upper(
             local_engine::test::parseFilter("COLUMN5 in (7, 20)", upper_name_and_types).value(),
-            local_engine::SerializedPlanParser::global_context);
+            local_engine::QueryContext::globalContext());
         assertRows(
             filter_upper.calculateRowRanges(column_index_store, TOTALSIZE),
             std::vector(boost::counting_iterator<size_t>(0), boost::counting_iterator<size_t>(TOTALSIZE)));
@@ -490,7 +534,7 @@ TEST(ColumnIndex, FilteringWithNotFoundColumnName)
         const AnotherRowType lower_name_and_types{{"column5", BIGINT()}};
         const local_engine::ColumnIndexFilter filter_lower(
             local_engine::test::parseFilter("column5 in (7, 20)", lower_name_and_types).value(),
-            local_engine::SerializedPlanParser::global_context);
+            local_engine::QueryContext::globalContext());
         assertRows(filter_lower.calculateRowRanges(column_index_store, TOTALSIZE), {});
     }
 }
@@ -1053,7 +1097,7 @@ TEST(ColumnIndex, VectorizedParquetRecordReader)
     static const AnotherRowType name_and_types{{"11", BIGINT()}};
     const auto filterAction = local_engine::test::parseFilter("`11` = 10 or `11` = 50", name_and_types);
     auto column_index_filter
-        = std::make_shared<local_engine::ColumnIndexFilter>(filterAction.value(), local_engine::SerializedPlanParser::global_context);
+        = std::make_shared<local_engine::ColumnIndexFilter>(filterAction.value(), local_engine::QueryContext::globalContext());
 
     Block blockHeader({{BIGINT(), "11"}, {STRING(), "18"}});
 

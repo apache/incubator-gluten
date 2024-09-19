@@ -28,5 +28,8 @@ class GlutenStringUtils
 public:
     static PartitionValues parsePartitionTablePath(const std::string & file);
     static bool isNullPartitionValue(const std::string & value);
+
+    static std::string dumpPartitionValue(const PartitionValue & value);
+    static std::string dumpPartitionValues(const PartitionValues & values);
 };
 }

@@ -1,7 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <parent>
     <artifactId>gluten-parent</artifactId>
     <groupId>org.apache.gluten</groupId>
@@ -10,19 +9,15 @@
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>gluten-core</artifactId>
+  <packaging>jar</packaging>
   <name>Gluten Core</name>
-
-  <properties>
-    <build.testJarPhase>none</build.testJarPhase>
-    <build.copyDependenciesPhase>package</build.copyDependenciesPhase>
-    <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars</jars.target.dir>
-  </properties>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-ui</artifactId>
+      <artifactId>gluten-ras-common</artifactId>
       <version>${project.version}</version>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>
@@ -32,9 +27,14 @@
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-ras-common</artifactId>
+      <artifactId>spark-sql-columnar-shims-common</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.gluten</groupId>
+      <artifactId>gluten-ui</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <!-- Prevent our dummy JAR from being included in Spark distributions or uploaded to YARN -->
     <dependency>
@@ -122,185 +122,22 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.seleniumhq.selenium</groupId>
-      <artifactId>selenium-htmlunit-driver</artifactId>
-      <version>2.52.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.trino.tpch</groupId>
-      <artifactId>tpch</artifactId>
-      <version>1.1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.trino.tpcds</groupId>
-      <artifactId>tpcds</artifactId>
-      <version>1.4</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.kohsuke</groupId>
-      <artifactId>github-api</artifactId>
-      <version>1.117</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.jsonwebtoken</groupId>
-      <artifactId>jjwt-api</artifactId>
-      <version>0.10.5</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.jsonwebtoken</groupId>
-      <artifactId>jjwt-impl</artifactId>
-      <version>0.10.5</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.jsonwebtoken</groupId>
-      <artifactId>jjwt-jackson</artifactId>
-      <version>0.10.5</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.knowm.xchart</groupId>
-      <artifactId>xchart</artifactId>
-      <version>3.6.5</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>de.erichseifert.vectorgraphics2d</groupId>
-          <artifactId>VectorGraphics2D</artifactId>		      
-	</exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.gluten</groupId>
-      <artifactId>spark-sql-columnar-shims-common</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
       <version>${protobuf.version}</version>
       <scope>provided</scope>
     </dependency>
-    <dependency>
-      <groupId>io.glutenproject</groupId>
-      <artifactId>protobuf-java-util</artifactId>
-      <version>${custom.protobuf.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>commons-io</groupId>
-      <artifactId>commons-io</artifactId>
-      <version>2.11.0</version>
-      <scope>provided</scope>
-    </dependency>
-
-    <!-- Fasterxml -->
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-annotations</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.module</groupId>
-      <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
-    </dependency>
-    <!-- Java Faker for generating random data -->
-    <dependency>
-      <groupId>com.github.javafaker</groupId>
-      <artifactId>javafaker</artifactId>
-      <version>1.0.2</version>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
-
-  <profiles>
-    <profile>
-      <id>backends-velox</id>
-      <properties>
-        <backend.type>velox</backend.type>
-        <backend.home>${project.basedir}/../ep/build-velox/build/velox_ep</backend.home>
-      </properties>
-    </profile>
-    <profile>
-      <id>backends-clickhouse</id>
-      <properties>
-        <backend.type>ch</backend.type>
-        <backend.home>${project.basedir}/../cpp-ch/ClickHouse</backend.home>
-      </properties>
-    </profile>
-  </profiles>
 
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
-    <resources>
-      <resource>
-        <filtering>true</filtering>
-        <!-- Include the properties file to provide the build information. -->
-        <directory>${project.build.directory}/extra-resources</directory>
-      </resource>
-    </resources>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>build-info</id>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <phase>generate-resources</phase>
-            <configuration>
-              <target>
-                <exec executable="bash" osfamily="unix">
-                  <arg value="${project.basedir}/../dev/gluten-build-info.sh"/>
-                  <arg value="${backend.type}"/>
-                  <arg value="${backend.home}"/>
-                  <arg value="${project.build.directory}/extra-resources"/>
-                  <arg value="${project.version}"/>
-                  <arg value="${java.version}"/>
-                  <arg value="${scala.version}"/>
-                  <arg value="${spark.version}"/>
-                  <arg value="${hadoop.version}"/>
-                </exec>
-              </target>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
       <!-- compile proto buffer files using copied protoc binary -->
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
         <executions>
-          <execution>
-            <id>compile-substrait-proto</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>compile</goal>
-              <goal>test-compile</goal>
-            </goals>
-            <configuration>
-              <protocArtifact>
-                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
-              </protocArtifact>
-              <protoSourceRoot>src/main/resources/substrait/proto</protoSourceRoot>
-              <clearOutputDirectory>true</clearOutputDirectory>
-            </configuration>
-          </execution>
           <execution>
             <id>compile-gluten-proto</id>
             <phase>generate-sources</phase>

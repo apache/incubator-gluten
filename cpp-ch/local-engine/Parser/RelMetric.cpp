@@ -15,14 +15,62 @@
  * limitations under the License.
  */
 #include "RelMetric.h"
+
 #include <Processors/IProcessor.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ReadFromMergeTree.h>
+#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
+#include <Common/QueryContext.h>
 
 using namespace rapidjson;
 
+namespace ProfileEvents
+{
+extern const Event FileSegmentWaitReadBufferMicroseconds;
+extern const Event FileSegmentReadMicroseconds;
+extern const Event FileSegmentCacheWriteMicroseconds;
+extern const Event FileSegmentPredownloadMicroseconds;
+extern const Event FileSegmentUsedBytes;
+
+extern const Event CachedReadBufferReadFromSourceMicroseconds;
+extern const Event CachedReadBufferReadFromCacheMicroseconds;
+extern const Event CachedReadBufferCacheWriteMicroseconds;
+extern const Event CachedReadBufferReadFromSourceBytes;
+extern const Event CachedReadBufferReadFromCacheBytes;
+extern const Event CachedReadBufferCacheWriteBytes;
+extern const Event CachedReadBufferCreateBufferMicroseconds;
+
+extern const Event CachedReadBufferReadFromCacheHits;
+extern const Event CachedReadBufferReadFromCacheMisses;
+}
+
 namespace local_engine
 {
+
+static void writeCacheHits(Writer<StringBuffer> & writer)
+{
+    const auto thread_group = QueryContext::currentThreadGroup();
+    auto & counters = thread_group->performance_counters;
+    auto read_cache_hits = counters[ProfileEvents::CachedReadBufferReadFromCacheHits].load();
+    auto miss_cache_hits = counters[ProfileEvents::CachedReadBufferReadFromCacheMisses].load();
+    auto read_cache_bytes = counters[ProfileEvents::CachedReadBufferReadFromCacheBytes].load();
+    auto read_miss_bytes = counters[ProfileEvents::CachedReadBufferReadFromSourceBytes].load();
+    auto read_cache_millisecond = counters[ProfileEvents::CachedReadBufferReadFromCacheMicroseconds].load() / 1000;
+    auto miss_cache_millisecond = counters[ProfileEvents::CachedReadBufferReadFromSourceMicroseconds].load() / 1000;
+
+    writer.Key("read_cache_hits");
+    writer.Uint64(read_cache_hits);
+    writer.Key("miss_cache_hits");
+    writer.Uint64(miss_cache_hits);
+    writer.Key("read_cache_bytes");
+    writer.Uint64(read_cache_bytes);
+    writer.Key("read_miss_bytes");
+    writer.Uint64(read_miss_bytes);
+    writer.Key("read_cache_millisecond");
+    writer.Uint64(read_cache_millisecond);
+    writer.Key("miss_cache_millisecond");
+    writer.Uint64(miss_cache_millisecond);
+}
 
 RelMetric::RelMetric(size_t id_, const String & name_, std::vector<DB::IQueryPlanStep *> & steps_) : id(id_), name(name_), steps(steps_)
 {
@@ -61,7 +109,7 @@ RelMetricTimes RelMetric::getTotalTime() const
             {
                 for (const auto & processor : step->getProcessors())
                 {
-                    timeMetrics.time += processor->getElapsedNs() / 1000U ;
+                    timeMetrics.time += processor->getElapsedNs() / 1000U;
                     timeMetrics.input_wait_elapsed_us += processor->getInputWaitElapsedNs() / 1000U;
                     timeMetrics.output_wait_elapsed_us += processor->getInputWaitElapsedNs() / 1000U;
                 }
@@ -117,7 +165,7 @@ void RelMetric::serialize(Writer<StringBuffer> & writer, bool) const
             }
             writer.EndArray();
 
-            if (auto read_mergetree = dynamic_cast<DB::ReadFromMergeTree*>(step))
+            if (auto read_mergetree = dynamic_cast<DB::ReadFromMergeTree *>(step))
             {
                 auto selected_marks_pk = read_mergetree->getAnalysisResult().selected_marks_pk;
                 auto selected_marks = read_mergetree->getAnalysisResult().selected_marks;
@@ -128,6 +176,11 @@ void RelMetric::serialize(Writer<StringBuffer> & writer, bool) const
                 writer.Uint64(selected_marks);
                 writer.Key("total_marks_pk");
                 writer.Uint64(total_marks_pk);
+                writeCacheHits(writer);
+            }
+            else if (dynamic_cast<SubstraitFileSourceStep *>(step))
+            {
+                writeCacheHits(writer);
             }
 
             writer.EndObject();
@@ -156,9 +209,7 @@ std::string RelMetricSerializer::serializeRelMetric(const RelMetricPtr & rel_met
             auto metric = metrics.top();
             metrics.pop();
             for (const auto & item : metric->getInputs())
-            {
                 metrics.push(item);
-            }
             metric->serialize(writer);
         }
         writer.EndArray();

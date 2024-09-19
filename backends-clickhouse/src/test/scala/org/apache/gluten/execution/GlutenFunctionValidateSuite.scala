@@ -755,4 +755,49 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                 |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
+
+  test("test function array_except") {
+    val sql =
+      """
+        |SELECT array_except(array(id, id+1, id+2), array(id+2, id+3))
+        |FROM RANGE(10)
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test functions unix_seconds/unix_date/unix_millis/unix_micros") {
+    val sql = """
+                |SELECT
+                |  id,
+                |  unix_seconds(cast(concat('2024-09-03 17:23:1',
+                |     cast(id as string)) as timestamp)),
+                |  unix_date(cast(concat('2024-09-1', cast(id as string)) as date)),
+                |  unix_millis(cast(concat('2024-09-03 17:23:10.11',
+                |     cast(id as string)) as timestamp)),
+                |  unix_micros(cast(concat('2024-09-03 17:23:10.12345',
+                |     cast(id as string)) as timestamp))
+                |FROM range(10)
+                |""".stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test function arrays_zip") {
+    val sql = """
+                |SELECT arrays_zip(array(id, id+1, id+2), array(id, id-1, id-2))
+                |FROM range(10)
+                |""".stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test function timestamp_seconds/timestamp_millis/timestamp_micros") {
+    val sql = """
+                |SELECT
+                |  id,
+                |  timestamp_seconds(1725453790 + id) as ts_seconds,
+                |  timestamp_millis(1725453790123 + id) as ts_millis,
+                |  timestamp_micros(1725453790123456 + id) as ts_micros
+                |from range(10);
+                |""".stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
 }

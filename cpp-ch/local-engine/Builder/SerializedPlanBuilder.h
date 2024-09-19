@@ -16,9 +16,8 @@
  */
 #pragma once
 
+#include <DataTypes/IDataType.h>
 #include <substrait/plan.pb.h>
-#include <Common/MergeTreeTool.h>
-
 
 namespace dbms
 {

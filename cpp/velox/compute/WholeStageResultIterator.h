@@ -23,8 +23,8 @@
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"
 #include "utils/metrics.h"
+#include "velox/common/config/Config.h"
 #include "velox/connectors/hive/iceberg/IcebergSplit.h"
-#include "velox/core/Config.h"
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
 
@@ -55,7 +55,9 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
 
   Metrics* getMetrics(int64_t exportNanos) {
     collectMetrics();
-    metrics_->veloxToArrow = exportNanos;
+    if (metrics_) {
+      metrics_->veloxToArrow = exportNanos;
+    }
     return metrics_.get();
   }
 
@@ -80,7 +82,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       std::vector<facebook::velox::core::PlanNodeId>& nodeIds);
 
   /// Create connector config.
-  std::shared_ptr<facebook::velox::Config> createConnectorConfig();
+  std::shared_ptr<facebook::velox::config::ConfigBase> createConnectorConfig();
 
   /// Construct partition columns.
   void constructPartitionColumns(
@@ -103,7 +105,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   VeloxMemoryManager* memoryManager_;
 
   /// Config, task and plan.
-  std::shared_ptr<Config> veloxCfg_;
+  std::shared_ptr<config::ConfigBase> veloxCfg_;
   const SparkTaskInfo taskInfo_;
   std::shared_ptr<facebook::velox::exec::Task> task_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;

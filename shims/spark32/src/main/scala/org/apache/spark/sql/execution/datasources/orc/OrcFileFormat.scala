@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.execution.datasources.orc
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.datasource.GlutenOrcWriterInjects
 
 import org.apache.spark.TaskContext

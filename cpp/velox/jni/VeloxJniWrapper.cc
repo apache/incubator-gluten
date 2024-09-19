@@ -88,11 +88,11 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_init_NativeBackendInitializer_shut
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_org_apache_gluten_udf_UdfJniWrapper_getFunctionSignatures( // NOLINT
+JNIEXPORT void JNICALL Java_org_apache_gluten_udf_UdfJniWrapper_registerFunctionSignatures( // NOLINT
     JNIEnv* env,
     jclass) {
   JNI_METHOD_START
-  gluten::jniGetFunctionSignatures(env);
+  gluten::jniRegisterFunctionSignatures(env);
   JNI_METHOD_END()
 }
 

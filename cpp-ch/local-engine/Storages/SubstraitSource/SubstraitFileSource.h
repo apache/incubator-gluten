@@ -25,6 +25,8 @@
 #include <Storages/SubstraitSource/FormatFile.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <base/types.h>
+#include <Parser/InputFileNameParser.h>
+
 namespace local_engine
 {
 class FileReaderWrapper
@@ -137,6 +139,8 @@ private:
     DB::Block output_header; /// Sample header may contains partitions keys
     DB::Block to_read_header; // Sample header not include partition keys
     FormatFiles files;
+    bool input_file_name = false;
+    InputFileNameParser input_file_name_parser;
 
     UInt32 current_file_index = 0;
     std::unique_ptr<FileReaderWrapper> file_reader;

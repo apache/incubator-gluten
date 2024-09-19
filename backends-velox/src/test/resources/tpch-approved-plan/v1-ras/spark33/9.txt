@@ -45,42 +45,42 @@ AdaptiveSparkPlan (155)
                                              :                 :                 :                 :                 :     +- ColumnarExchange (6)
                                              :                 :                 :                 :                 :        +- VeloxResizeBatches (5)
                                              :                 :                 :                 :                 :           +- ^ ProjectExecTransformer (3)
-                                             :                 :                 :                 :                 :              +- ^ NoopFilter (2)
+                                             :                 :                 :                 :                 :              +- ^ FilterExecTransformer (2)
                                              :                 :                 :                 :                 :                 +- ^ Scan parquet (1)
                                              :                 :                 :                 :                 +- ^ InputIteratorTransformer (18)
                                              :                 :                 :                 :                    +- ShuffleQueryStage (16), Statistics(X)
                                              :                 :                 :                 :                       +- ColumnarExchange (15)
                                              :                 :                 :                 :                          +- VeloxResizeBatches (14)
                                              :                 :                 :                 :                             +- ^ ProjectExecTransformer (12)
-                                             :                 :                 :                 :                                +- ^ NoopFilter (11)
+                                             :                 :                 :                 :                                +- ^ FilterExecTransformer (11)
                                              :                 :                 :                 :                                   +- ^ Scan parquet (10)
                                              :                 :                 :                 +- ^ InputIteratorTransformer (35)
                                              :                 :                 :                    +- ShuffleQueryStage (33), Statistics(X)
                                              :                 :                 :                       +- ColumnarExchange (32)
                                              :                 :                 :                          +- VeloxResizeBatches (31)
                                              :                 :                 :                             +- ^ ProjectExecTransformer (29)
-                                             :                 :                 :                                +- ^ NoopFilter (28)
+                                             :                 :                 :                                +- ^ FilterExecTransformer (28)
                                              :                 :                 :                                   +- ^ Scan parquet (27)
                                              :                 :                 +- ^ InputIteratorTransformer (52)
                                              :                 :                    +- ShuffleQueryStage (50), Statistics(X)
                                              :                 :                       +- ColumnarExchange (49)
                                              :                 :                          +- VeloxResizeBatches (48)
                                              :                 :                             +- ^ ProjectExecTransformer (46)
-                                             :                 :                                +- ^ NoopFilter (45)
+                                             :                 :                                +- ^ FilterExecTransformer (45)
                                              :                 :                                   +- ^ Scan parquet (44)
                                              :                 +- ^ InputIteratorTransformer (69)
                                              :                    +- ShuffleQueryStage (67), Statistics(X)
                                              :                       +- ColumnarExchange (66)
                                              :                          +- VeloxResizeBatches (65)
                                              :                             +- ^ ProjectExecTransformer (63)
-                                             :                                +- ^ NoopFilter (62)
+                                             :                                +- ^ FilterExecTransformer (62)
                                              :                                   +- ^ Scan parquet (61)
                                              +- ^ InputIteratorTransformer (86)
                                                 +- ShuffleQueryStage (84), Statistics(X)
                                                    +- ColumnarExchange (83)
                                                       +- VeloxResizeBatches (82)
                                                          +- ^ ProjectExecTransformer (80)
-                                                            +- ^ NoopFilter (79)
+                                                            +- ^ FilterExecTransformer (79)
                                                                +- ^ Scan parquet (78)
 +- == Initial Plan ==
    Sort (154)
@@ -140,9 +140,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_name), StringContains(p_name,green), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_name:string>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [2]: [p_partkey#X, p_name#X]
-Arguments: [p_partkey#X, p_name#X]
+Arguments: ((isnotnull(p_name#X) AND Contains(p_name#X, green)) AND isnotnull(p_partkey#X))
 
 (3) ProjectExecTransformer
 Output [2]: [hash(p_partkey#X, 42) AS hash_partition_key#X, p_partkey#X]
@@ -177,9 +177,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_partkey), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_partkey:bigint,l_suppkey:bigint,l_quantity:decimal(12,2),l_extendedprice:decimal(12,2),l_discount:decimal(12,2)>
 
-(11) NoopFilter
+(11) FilterExecTransformer
 Input [6]: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
-Arguments: [l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
+Arguments: ((isnotnull(l_partkey#X) AND isnotnull(l_suppkey#X)) AND isnotnull(l_orderkey#X))
 
 (12) ProjectExecTransformer
 Output [7]: [hash(l_partkey#X, 42) AS hash_partition_key#X, l_orderkey#X, l_partkey#X, l_suppkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
@@ -245,9 +245,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
 
-(28) NoopFilter
+(28) FilterExecTransformer
 Input [2]: [s_suppkey#X, s_nationkey#X]
-Arguments: [s_suppkey#X, s_nationkey#X]
+Arguments: (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
 (29) ProjectExecTransformer
 Output [3]: [hash(s_suppkey#X, 42) AS hash_partition_key#X, s_suppkey#X, s_nationkey#X]
@@ -313,9 +313,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_suppkey), IsNotNull(ps_partkey)]
 ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint,ps_supplycost:decimal(12,2)>
 
-(45) NoopFilter
+(45) FilterExecTransformer
 Input [3]: [ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
-Arguments: [ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
+Arguments: (isnotnull(ps_suppkey#X) AND isnotnull(ps_partkey#X))
 
 (46) ProjectExecTransformer
 Output [4]: [hash(ps_suppkey#X, ps_partkey#X, 42) AS hash_partition_key#X, ps_partkey#X, ps_suppkey#X, ps_supplycost#X]
@@ -381,9 +381,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_orderdate:date>
 
-(62) NoopFilter
+(62) FilterExecTransformer
 Input [2]: [o_orderkey#X, o_orderdate#X]
-Arguments: [o_orderkey#X, o_orderdate#X]
+Arguments: isnotnull(o_orderkey#X)
 
 (63) ProjectExecTransformer
 Output [3]: [hash(o_orderkey#X, 42) AS hash_partition_key#X, o_orderkey#X, o_orderdate#X]
@@ -449,9 +449,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(79) NoopFilter
+(79) FilterExecTransformer
 Input [2]: [n_nationkey#X, n_name#X]
-Arguments: [n_nationkey#X, n_name#X]
+Arguments: isnotnull(n_nationkey#X)
 
 (80) ProjectExecTransformer
 Output [3]: [hash(n_nationkey#X, 42) AS hash_partition_key#X, n_nationkey#X, n_name#X]

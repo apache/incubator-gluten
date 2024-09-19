@@ -39,7 +39,7 @@ echo_build_properties() {
   echo url=$(git config --get remote.origin.url)
 
   if [ "$BACKEND_TYPE" = "velox" ]; then
-      echo gcc_version=$(gcc --version | head -n 1)
+      echo gcc_version=$(strings $GLUTEN_ROOT/cpp/build/releases/libgluten.so | grep "GCC:" | head -n 1)
       echo velox_branch=$(git -C $BACKEND_HOME rev-parse --abbrev-ref HEAD)
       echo velox_revision=$(git -C $BACKEND_HOME rev-parse HEAD)
       echo velox_revision_time=$(git -C $BACKEND_HOME show -s --format=%ci HEAD)

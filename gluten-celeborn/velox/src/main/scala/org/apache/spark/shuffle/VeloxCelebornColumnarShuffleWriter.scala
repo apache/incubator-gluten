@@ -65,6 +65,10 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
 
   @throws[IOException]
   override def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
+    if (!records.hasNext) {
+      handleEmptyIterator()
+      return
+    }
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
       if (cb.numRows == 0 || cb.numCols == 0) {
@@ -118,6 +122,7 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
       nativeBufferSize,
       customizedCompressionCodec,
       compressionLevel,
+      compressionBufferSize,
       bufferCompressThreshold,
       GlutenConfig.getConf.columnarShuffleCompressionMode,
       conf.get(SHUFFLE_SORT_INIT_BUFFER_SIZE).toInt,

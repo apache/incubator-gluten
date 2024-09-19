@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "FileWriterWrappers.h"
+#include <QueryPipeline/QueryPipeline.h>
 
 namespace local_engine
 {

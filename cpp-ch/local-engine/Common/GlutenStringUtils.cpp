@@ -14,10 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "GlutenStringUtils.h"
-#include <filesystem>
 #include <boost/algorithm/string.hpp>
 #include <Poco/StringTokenizer.h>
+#include <Poco/URI.h>
+
+#include "GlutenStringUtils.h"
 
 namespace local_engine
 {
@@ -27,16 +28,46 @@ PartitionValues GlutenStringUtils::parsePartitionTablePath(const std::string & f
     Poco::StringTokenizer path(file, "/");
     for (const auto & item : path)
     {
-        auto position = item.find('=');
-        if (position != std::string::npos)
+        auto pos = item.find('=');
+        if (pos != std::string::npos)
         {
-            result.emplace_back(PartitionValue(boost::algorithm::to_lower_copy(item.substr(0, position)), item.substr(position + 1)));
+            auto key = boost::to_lower_copy(item.substr(0, pos));
+            auto value = item.substr(pos + 1);
+
+            std::string unescaped_key;
+            std::string unescaped_value;
+            Poco::URI::decode(key, unescaped_key);
+            Poco::URI::decode(value, unescaped_value);
+            result.emplace_back(std::move(unescaped_key), std::move(unescaped_value));
         }
     }
     return result;
 }
+
 bool GlutenStringUtils::isNullPartitionValue(const std::string & value)
 {
     return value == "__HIVE_DEFAULT_PARTITION__";
 }
+
+std::string GlutenStringUtils::dumpPartitionValue(const PartitionValue & value)
+{
+    return value.first + "=" + value.second;
+}
+
+std::string GlutenStringUtils::dumpPartitionValues(const PartitionValues & values)
+{
+    std::string res;
+    res += "[";
+
+    for (size_t i = 0; i < values.size(); ++i)
+    {
+        if (i)
+            res += ", ";
+        res += dumpPartitionValue(values[i]);
+    }
+
+    res += "]";
+    return res;
+}
+
 }

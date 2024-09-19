@@ -16,11 +16,14 @@
  */
 package org.apache.gluten.backendsapi.clickhouse
 
-import org.apache.gluten.{CH_BRANCH, CH_COMMIT, GlutenConfig}
+import org.apache.gluten.GlutenBuildInfo._
+import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi._
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.extension.columnar.transition.Convention
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat._
 
@@ -29,6 +32,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
@@ -36,22 +40,24 @@ import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{ArrayType, MapType, Metadata, StructField, StructType}
+import org.apache.spark.sql.types._
 
 import java.util.Locale
 
 import scala.util.control.Breaks.{break, breakable}
 
-class CHBackend extends Backend {
+class CHBackend extends SubstraitBackend {
   override def name(): String = CHBackend.BACKEND_NAME
-  override def buildInfo(): BackendBuildInfo =
-    BackendBuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
+  override def batchType: Convention.BatchType = CHBatch
+  override def buildInfo(): Backend.BuildInfo =
+    Backend.BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi
   override def validatorApi(): ValidatorApi = new CHValidatorApi
   override def metricsApi(): MetricsApi = new CHMetricsApi
   override def listenerApi(): ListenerApi = new CHListenerApi
+  override def ruleApi(): RuleApi = new CHRuleApi
   override def settings(): BackendSettingsApi = CHBackendSettings
 }
 
@@ -130,6 +136,10 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".runtime_config.max_source_concatenate_bytes"
   val GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT = GLUTEN_MAX_BLOCK_SIZE_DEFAULT * 256
+
+  val GLUTEN_AQE_PROPAGATEEMPTY: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
+      ".aqe.propagate.empty.relation"
 
   def affinityMode: String = {
     SparkEnv.get.conf
@@ -374,12 +384,44 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  // Move the pre-prejection for a aggregation ahead of the expand node
+  // for example, select a, b, sum(c+d) from t group by a, b with cube
+  def enablePushdownPreProjectionAheadExpand(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      "spark.gluten.sql.columnar.backend.ch.enable_pushdown_preprojection_ahead_expand",
+      true
+    )
+  }
+
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
   }
 
-  override def mergeTwoPhasesHashBaseAggregateIfNeed(): Boolean = true
-
   override def supportCartesianProductExec(): Boolean = true
 
+  override def supportHashBuildJoinTypeOnLeft: JoinType => Boolean = {
+    t =>
+      if (super.supportHashBuildJoinTypeOnLeft(t)) {
+        true
+      } else {
+        t match {
+          case LeftOuter => true
+          case _ => false
+        }
+      }
+  }
+
+  override def supportHashBuildJoinTypeOnRight: JoinType => Boolean = {
+    t =>
+      if (super.supportHashBuildJoinTypeOnRight(t)) {
+        true
+      } else {
+        t match {
+          case RightOuter => true
+          case _ => false
+        }
+      }
+  }
+
+  override def supportWindowGroupLimitExec(rankLikeFunction: Expression): Boolean = true
 }

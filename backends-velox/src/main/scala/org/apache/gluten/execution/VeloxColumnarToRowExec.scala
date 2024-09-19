@@ -19,8 +19,8 @@ package org.apache.gluten.execution
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.extension.ValidationResult
+import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.runtime.Runtimes
-import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.NativeColumnarToRowJniWrapper
 
 import org.apache.spark.broadcast.Broadcast
@@ -99,6 +99,22 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
 }
 
 object VeloxColumnarToRowExec {
+
+  def toRowIterator(
+      batches: Iterator[ColumnarBatch],
+      output: Seq[Attribute]): Iterator[InternalRow] = {
+    val numOutputRows = new SQLMetric("numOutputRows")
+    val numInputBatches = new SQLMetric("numInputBatches")
+    val convertTime = new SQLMetric("convertTime")
+    toRowIterator(
+      batches,
+      output,
+      numOutputRows,
+      numInputBatches,
+      convertTime
+    )
+  }
+
   def toRowIterator(
       batches: Iterator[ColumnarBatch],
       output: Seq[Attribute],

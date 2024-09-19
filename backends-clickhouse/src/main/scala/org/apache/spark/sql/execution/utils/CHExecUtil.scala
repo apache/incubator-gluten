@@ -58,10 +58,13 @@ object CHExecUtil extends Logging {
   def toBytes(
       dataSize: SQLMetric,
       iter: Iterator[ColumnarBatch],
+      isNullAware: Boolean = false,
+      keyColumnIndex: Int = 0,
       compressionCodec: Option[String] = Some("lz4"),
       compressionLevel: Option[Int] = None,
-      bufferSize: Int = 4 << 10): Iterator[(Int, Array[Byte])] = {
-    var count = 0
+      bufferSize: Int = 4 << 10): Iterator[(Long, Array[Byte], Boolean)] = {
+    var count = 0L
+    var hasNullKeyValues = false
     val bos = new ByteArrayOutputStream()
     val buffer = new Array[Byte](bufferSize) // 4K
     val level = compressionLevel.getOrElse(Int.MinValue)
@@ -69,20 +72,35 @@ object CHExecUtil extends Logging {
       compressionCodec
         .map(new BlockOutputStream(bos, buffer, dataSize, true, _, level, bufferSize))
         .getOrElse(new BlockOutputStream(bos, buffer, dataSize, false, "", level, bufferSize))
-    while (iter.hasNext) {
-      val batch = iter.next()
-      count += batch.numRows
-      blockOutputStream.write(batch)
+    if (isNullAware) {
+      while (iter.hasNext) {
+        val batch = iter.next()
+        val blockStats = CHNativeBlock.fromColumnarBatch(batch).getBlockStats(keyColumnIndex)
+        count += blockStats.getBlockRecordCount
+        hasNullKeyValues = hasNullKeyValues || blockStats.isHasNullKeyValues
+        blockOutputStream.write(batch)
+      }
+    } else {
+      while (iter.hasNext) {
+        val batch = iter.next()
+        count += batch.numRows()
+        blockOutputStream.write(batch)
+      }
     }
     blockOutputStream.flush()
     blockOutputStream.close()
-    Iterator((count, bos.toByteArray))
+    Iterator((count, bos.toByteArray, hasNullKeyValues))
   }
 
-  def buildSideRDD(dataSize: SQLMetric, newChild: SparkPlan): RDD[(Int, Array[Byte])] = {
+  def buildSideRDD(
+      dataSize: SQLMetric,
+      newChild: SparkPlan,
+      isNullAware: Boolean,
+      keyColumnIndex: Int
+  ): RDD[(Long, Array[Byte], Boolean)] = {
     newChild
       .executeColumnar()
-      .mapPartitionsInternal(iter => toBytes(dataSize, iter))
+      .mapPartitionsInternal(iter => toBytes(dataSize, iter, isNullAware, keyColumnIndex))
   }
 
   private def buildRangePartitionSampleRDD(
@@ -319,7 +337,7 @@ object CHExecUtil extends Logging {
     // Thus in Columnar Shuffle we never use the "key" part.
     val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
 
-    val rddWithpartitionKey: RDD[Product2[Int, ColumnarBatch]] =
+    val rddWithPartitionKey: RDD[Product2[Int, ColumnarBatch]] =
       if (
         GlutenConfig.getConf.isUseColumnarShuffleManager
         || GlutenConfig.getConf.isUseCelebornShuffleManager
@@ -345,7 +363,7 @@ object CHExecUtil extends Logging {
 
     val dependency =
       new ColumnarShuffleDependency[Int, ColumnarBatch, ColumnarBatch](
-        rddWithpartitionKey,
+        rddWithPartitionKey,
         new PartitionIdPassthrough(newPartitioning.numPartitions),
         serializer,
         shuffleWriterProcessor = ShuffleExchangeExec.createShuffleWriteProcessor(writeMetrics),

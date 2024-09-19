@@ -94,7 +94,8 @@ object MergeTreeFileFormatWriter extends Logging {
 
     val writerBucketSpec = bucketSpec.map {
       spec =>
-        val bucketColumns = spec.bucketColumnNames.map(c => dataColumns.find(_.name == c).get)
+        val bucketColumns =
+          spec.bucketColumnNames.map(c => dataColumns.find(_.name.equalsIgnoreCase(c)).get)
         // Spark bucketed table: use `HashPartitioning.partitionIdExpression` as bucket id
         // expression, so that we can guarantee the data distribution is same between shuffle and
         // bucketed data source, which enables us to only shuffle one side when join a bucketed
@@ -104,7 +105,7 @@ object MergeTreeFileFormatWriter extends Logging {
         MergeTreeWriterBucketSpec(bucketIdExpression, (_: Int) => "")
     }
     val sortColumns = bucketSpec.toSeq.flatMap {
-      spec => spec.sortColumnNames.map(c => dataColumns.find(_.name == c).get)
+      spec => spec.sortColumnNames.map(c => dataColumns.find(_.name.equalsIgnoreCase(c)).get)
     }
 
     val caseInsensitiveOptions = CaseInsensitiveMap(options)
@@ -164,13 +165,14 @@ object MergeTreeFileFormatWriter extends Logging {
       if (writerBucketSpec.isDefined) {
         // We need to add the bucket id expression to the output of the sort plan,
         // so that we can use backend to calculate the bucket id for each row.
-        wrapped = ProjectExec(
-          wrapped.output :+ Alias(writerBucketSpec.get.bucketIdExpression, "__bucket_value__")(),
-          wrapped)
+        val bucketValueExpr = bindReferences(
+          Seq(writerBucketSpec.get.bucketIdExpression),
+          finalOutputSpec.outputColumns)
+        wrapped =
+          ProjectExec(wrapped.output :+ Alias(bucketValueExpr.head, "__bucket_value__")(), wrapped)
         // TODO: to optimize, bucket value is computed twice here
       }
 
-      val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
       (GlutenMergeTreeWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
     }
 

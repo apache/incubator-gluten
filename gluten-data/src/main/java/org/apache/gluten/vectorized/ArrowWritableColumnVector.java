@@ -1256,7 +1256,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     }
 
     void setNotNull(int rowId) {
-      throw new UnsupportedOperationException();
+      // Arrow Java library doesn't usually expose this API from its vectors. So we have to
+      // allow no-op here than throwing exceptions which could fail caller. And basically it's
+      // acceptable because finally Spark will set value after this method returned,
+      // During which Arrow Java will set the validity buffer anyway. As if the call to
+      // `setNotNull` is just deferred.
     }
 
     void setNulls(int rowId, int count) {
@@ -1744,6 +1748,14 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     @Override
     final void setBytes(int rowId, BigDecimal value) {
       writer.setSafe(rowId, value);
+    }
+
+    final void setBytes(int rowId, int count, byte[] src, int srcIndex) {
+      if (count == src.length && srcIndex == 0) {
+        writer.setBigEndianSafe(rowId, src);
+        return;
+      }
+      throw new UnsupportedOperationException();
     }
   }
 

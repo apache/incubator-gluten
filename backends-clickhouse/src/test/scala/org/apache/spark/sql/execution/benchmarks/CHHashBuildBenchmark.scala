@@ -58,7 +58,7 @@ object CHHashBuildBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark w
                                  |select $scanSchema from parquet.`$parquetDir`
                                  |
                                  |""".stripMargin)
-    val rowCount: Int = chParquet.count().toInt
+    val rowCount = chParquet.count()
 
     val runs = Seq(1, 2, 4, 8, 16, 32, 64).reverse
       .map(num => rowCount / num)
@@ -79,13 +79,14 @@ object CHHashBuildBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark w
             s"build hash table with $num rows with $iteration hash tables",
             executedCnt) {
             _ =>
-              for (i <- 0 until iteration) {
+              for (i <- 0L until iteration) {
                 val table = StorageJoinBuilder.build(
                   bytes,
                   num,
                   relation,
                   new util.ArrayList[Expression](),
-                  new util.ArrayList[Attribute]())
+                  new util.ArrayList[Attribute](),
+                  false)
                 StorageJoinBuilder.nativeCleanBuildHashTable("", table)
               }
           }
@@ -94,7 +95,7 @@ object CHHashBuildBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark w
   }
 
   private def createBroadcastRelation(
-      child: SparkPlan): (Array[Byte], Int, BroadCastHashJoinContext) = {
+      child: SparkPlan): (Array[Byte], Long, BroadCastHashJoinContext) = {
     val dataSize = SQLMetrics.createSizeMetric(spark.sparkContext, "size of files read")
 
     val countsAndBytes = child
@@ -104,7 +105,7 @@ object CHHashBuildBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark w
     (
       countsAndBytes.flatMap(_._2),
       countsAndBytes.map(_._1).sum,
-      BroadCastHashJoinContext(Seq(child.output.head), Inner, false, false, child.output, "")
+      BroadCastHashJoinContext(Seq(child.output.head), Inner, true, false, false, child.output, "")
     )
   }
 }

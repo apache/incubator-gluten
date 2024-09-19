@@ -16,7 +16,7 @@ AdaptiveSparkPlan (40)
                                     +- ^ FlushableHashAggregateExecTransformer (11)
                                        +- ^ ProjectExecTransformer (10)
                                           +- ^ BroadcastHashJoinExecTransformer LeftAnti BuildRight (9)
-                                             :- ^ NoopFilter (2)
+                                             :- ^ FilterExecTransformer (2)
                                              :  +- ^ Scan parquet (1)
                                              +- ^ InputIteratorTransformer (8)
                                                 +- BroadcastQueryStage (6)
@@ -43,9 +43,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_acctbal)]
 ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
-Arguments: [c_custkey#X, c_phone#X, c_acctbal#X]
+Arguments: ((isnotnull(c_acctbal#X) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#X as decimal(16,6)) > Subquery subquery#X, [id=#X]))
 
 (3) Scan parquet
 Output [1]: [o_custkey#X]

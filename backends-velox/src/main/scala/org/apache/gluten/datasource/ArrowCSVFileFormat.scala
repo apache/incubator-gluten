@@ -19,10 +19,10 @@ package org.apache.gluten.datasource
 import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.SchemaMismatchException
 import org.apache.gluten.execution.RowToVeloxColumnarExec
+import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.memory.arrow.pool.ArrowNativeMemoryPool
 import org.apache.gluten.utils.ArrowUtil
-import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.TaskContext
@@ -34,7 +34,6 @@ import org.apache.spark.sql.catalyst.expressions.{AttributeReference, JoinedRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFileLinesReader, OutputWriterFactory, PartitionedFile}
 import org.apache.spark.sql.execution.datasources.csv.CSVDataSource
-import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.{DataSourceRegister, Filter}
 import org.apache.spark.sql.types.{StructField, StructType}
@@ -310,16 +309,9 @@ object ArrowCSVFileFormat {
       schema: StructType,
       batchSize: Int,
       it: Iterator[InternalRow]): Iterator[ColumnarBatch] = {
-    // note, these metrics are unused but just make `RowToVeloxColumnarExec` happy
-    val numInputRows = new SQLMetric("numInputRows")
-    val numOutputBatches = new SQLMetric("numOutputBatches")
-    val convertTime = new SQLMetric("convertTime")
     val veloxBatch = RowToVeloxColumnarExec.toColumnarBatchIterator(
       it,
       schema,
-      numInputRows,
-      numOutputBatches,
-      convertTime,
       batchSize
     )
     veloxBatch

@@ -343,22 +343,18 @@ class GlutenClickHouseDecimalSuite
               decimalTPCHTables.foreach {
                 dt =>
                   {
-                    val fallBack = (sql_num == 16 || sql_num == 21)
                     val compareResult = !dt._2.contains(sql_num)
-                    val native = if (fallBack) "fallback" else "native"
                     val compare = if (compareResult) "compare" else "noCompare"
                     val PrecisionLoss = s"allowPrecisionLoss=$allowPrecisionLoss"
                     val decimalType = dt._1
                     test(s"""TPCH Decimal(${decimalType.precision},${decimalType.scale})
-                            | Q$sql_num[$PrecisionLoss,$native,$compare]""".stripMargin) {
+                            | Q$sql_num[$PrecisionLoss,native,$compare]""".stripMargin) {
                       spark.sql(s"use decimal_${decimalType.precision}_${decimalType.scale}")
                       withSQLConf(
                         (SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key, allowPrecisionLoss)) {
-                        runTPCHQuery(
-                          sql_num,
-                          tpchQueries,
-                          compareResult = compareResult,
-                          noFallBack = !fallBack) { _ => {} }
+                        runTPCHQuery(sql_num, tpchQueries, compareResult = compareResult) {
+                          _ => {}
+                        }
                       }
                       spark.sql(s"use default")
                     }

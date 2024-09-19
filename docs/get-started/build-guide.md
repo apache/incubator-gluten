@@ -62,6 +62,7 @@ The below parameters can be set via `-P` for mvn.
 | uniffle             | Build Gluten with Uniffle.            | disabled      |
 | delta               | Build Gluten with Delta Lake support. | disabled      |
 | iceberg             | Build Gluten with Iceberg support.    | disabled      |
+| hudi                | Build Gluten with Hudi support.       | disabled      |
 | spark-3.2           | Build Gluten for Spark 3.2.           | enabled       |
 | spark-3.3           | Build Gluten for Spark 3.3.           | disabled      |
 | spark-3.4           | Build Gluten for Spark 3.4.           | disabled      |
@@ -75,5 +76,5 @@ It's name pattern is `gluten-<backend_type>-bundle-spark<spark.bundle.version>_<
 |---------------|----------------------|----------------------|
 | 3.2.2         | 3.2                  | 2.12                 |
 | 3.3.1         | 3.3                  | 2.12                 |
-| 3.4.2         | 3.4                  | 2.12                 |
+| 3.4.3         | 3.4                  | 2.12                 |
 | 3.5.1         | 3.5                  | 2.12                 |

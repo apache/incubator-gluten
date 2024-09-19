@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.runtime
 
-import org.apache.spark.util.{TaskResource, TaskResources}
+import org.apache.spark.task.{TaskResource, TaskResources}
 
 object Runtimes {
 

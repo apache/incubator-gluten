@@ -16,12 +16,15 @@
  */
 package org.apache.gluten.vectorized;
 
+import org.apache.gluten.execution.ColumnarNativeIterator;
+
 import java.io.IOException;
 
 public class CHShuffleSplitterJniWrapper {
   public CHShuffleSplitterJniWrapper() {}
 
   public long make(
+      ColumnarNativeIterator records,
       NativePartitioning part,
       int shuffleId,
       long mapId,
@@ -36,6 +39,7 @@ public class CHShuffleSplitterJniWrapper {
       long maxSortBufferSize,
       boolean forceMemorySort) {
     return nativeMake(
+        records,
         part.getShortName(),
         part.getNumPartitions(),
         part.getExprList(),
@@ -55,6 +59,7 @@ public class CHShuffleSplitterJniWrapper {
   }
 
   public long makeForRSS(
+      ColumnarNativeIterator records,
       NativePartitioning part,
       int shuffleId,
       long mapId,
@@ -66,6 +71,7 @@ public class CHShuffleSplitterJniWrapper {
       Object pusher,
       boolean forceMemorySort) {
     return nativeMakeForRSS(
+        records,
         part.getShortName(),
         part.getNumPartitions(),
         part.getExprList(),
@@ -82,6 +88,7 @@ public class CHShuffleSplitterJniWrapper {
   }
 
   public native long nativeMake(
+      ColumnarNativeIterator records,
       String shortName,
       int numPartitions,
       byte[] exprList,
@@ -100,6 +107,7 @@ public class CHShuffleSplitterJniWrapper {
       boolean forceMemorySort);
 
   public native long nativeMakeForRSS(
+      ColumnarNativeIterator records,
       String shortName,
       int numPartitions,
       byte[] exprList,
@@ -113,8 +121,6 @@ public class CHShuffleSplitterJniWrapper {
       String hashAlgorithm,
       Object pusher,
       boolean forceMemorySort);
-
-  public native void split(long splitterId, long block);
 
   public native CHSplitResult stop(long splitterId) throws IOException;
 

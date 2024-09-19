@@ -21,6 +21,7 @@
 #include <Interpreters/TableJoin.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
+#include <Columns/ColumnsCommon.h>
 
 #include <Common/logger_useful.h>
 
@@ -72,9 +73,12 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     const ColumnsDescription & columns,
     const ConstraintsDescription & constraints,
     const String & comment,
-    const bool overwrite_)
-    : key_names(key_names_), use_nulls(use_nulls_), row_count(row_count_), overwrite(overwrite_)
+    const bool overwrite_,
+    bool is_null_aware_anti_join_,
+    bool has_null_key_values_)
+    : key_names(key_names_), use_nulls(use_nulls_), row_count(row_count_), overwrite(overwrite_), is_null_aware_anti_join(is_null_aware_anti_join_), has_null_key_value(has_null_key_values_)
 {
+    is_empty_hash_table = row_count < 1;
     storage_metadata.setColumns(columns);
     storage_metadata.setConstraints(constraints);
     storage_metadata.setComment(comment);

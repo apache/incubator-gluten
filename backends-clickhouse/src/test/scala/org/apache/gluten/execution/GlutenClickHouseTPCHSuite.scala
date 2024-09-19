@@ -151,7 +151,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("TPCH Q16") {
-    runTPCHQuery(16, noFallBack = false) { df => }
+    runTPCHQuery(16) { df => }
   }
 
   test("TPCH Q17") {
@@ -175,7 +175,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
   }
 
   test("TPCH Q21") {
-    runTPCHQuery(21, noFallBack = false) { df => }
+    runTPCHQuery(21) { df => }
   }
 
   test("TPCH Q22") {
@@ -530,6 +530,38 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
 
     spark.sql("drop table t1")
     spark.sql("drop table t2")
+  }
+
+  test("gluten-7077 bug in cross broad cast join") {
+    spark.sql("create table cross_join_t(a bigint, b string, c string) using parquet");
+    var sql = """
+                | insert into cross_join_t
+                | select id as a, cast(id as string) as b,
+                |   concat('1231231232323232322', cast(id as string)) as c
+                | from range(0, 100000)
+                |""".stripMargin
+    spark.sql(sql)
+    sql = """
+            | select * from cross_join_t as t1 full join cross_join_t as t2 limit 10
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    spark.sql("drop table cross_join_t")
+  }
+
+  test("Pushdown aggregation pre-projection ahead expand") {
+    spark.sql("create table t1(a bigint, b bigint, c bigint, d bigint) using parquet")
+    spark.sql("insert into t1 values(1,2,3,4), (1,2,4,5), (1,3,4,5), (2,3,4,5)")
+    var sql = """
+                | select a, b , sum(d+c) from t1 group by a,b with cube
+                | order by a,b
+                |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    sql = """
+            | select a, b , sum(a+c), sum(b+d) from t1 group by a,b with cube
+            | order by a,b
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    spark.sql("drop table t1")
   }
 }
 // scalastyle:off line.size.limit

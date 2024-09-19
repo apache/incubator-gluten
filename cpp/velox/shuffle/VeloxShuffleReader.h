@@ -83,6 +83,8 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
  private:
   std::shared_ptr<ColumnarBatch> deserializeToBatch();
 
+  void readLargeRow(std::vector<std::shared_ptr<arrow::Buffer>>& arrowBuffers);
+
   std::shared_ptr<arrow::io::InputStream> in_;
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;

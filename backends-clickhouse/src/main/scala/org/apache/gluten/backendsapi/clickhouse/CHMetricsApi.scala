@@ -17,9 +17,9 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.MetricsApi
+import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.metrics._
 import org.apache.gluten.substrait.{AggregationParams, JoinParams}
-import org.apache.gluten.utils.LogLevelUtil
 
 import org.apache.spark.SparkContext
 import org.apache.spark.internal.Logging
@@ -128,7 +128,25 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
       "selectedMarksPk" -> SQLMetrics.createMetric(sparkContext, "selected marks primary"),
       "selectedMarks" -> SQLMetrics.createMetric(sparkContext, "selected marks"),
-      "totalMarksPk" -> SQLMetrics.createMetric(sparkContext, "total marks primary")
+      "totalMarksPk" -> SQLMetrics.createMetric(sparkContext, "total marks primary"),
+      "readCacheHits" -> SQLMetrics.createMetric(
+        sparkContext,
+        "Number of times the read from filesystem cache hit the cache"),
+      "missCacheHits" -> SQLMetrics.createMetric(
+        sparkContext,
+        "Number of times the read from filesystem cache miss the cache"),
+      "readCacheBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "Bytes read from filesystem cache"),
+      "readMissBytes" -> SQLMetrics.createSizeMetric(
+        sparkContext,
+        "Bytes read from filesystem cache source (from remote fs, etc)"),
+      "readCacheMillisecond" -> SQLMetrics.createTimingMetric(
+        sparkContext,
+        "Time reading from filesystem cache"),
+      "missCacheMillisecond" -> SQLMetrics.createTimingMetric(
+        sparkContext,
+        "Time reading from filesystem cache source (from remote filesystem, etc)")
     )
 
   override def genFileSourceScanTransformerMetricsUpdater(

@@ -36,7 +36,7 @@ struct Credential {
 };
 } // namespace
 
-void updateHdfsTokens(const facebook::velox::Config* veloxCfg) {
+void updateHdfsTokens(const facebook::velox::config::ConfigBase* veloxCfg) {
   static std::mutex mtx;
   std::lock_guard lock{mtx};
 

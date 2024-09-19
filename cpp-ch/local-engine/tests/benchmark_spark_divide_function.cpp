@@ -14,23 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Interpreters/ActionsDAG.h>
-#include <Interpreters/ActionsDAG.h>
 #include <Columns/IColumn.h>
 #include <Core/Block.h>
-#include <DataTypes/IDataType.h>
 #include <DataTypes/DataTypeFactory.h>
+#include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/SparkFunctionDivide.h>
-#include <Parser/SerializedPlanParser.h>
-#include <Processors/QueryPlan/ExpressionStep.h>
-#include <Processors/QueryPlan/IQueryPlanStep.h>
-#include <Processors/QueryPlan/BuildQueryPipelineSettings.h>
+#include <Interpreters/ActionsDAG.h>
+#include <Interpreters/ExpressionActions.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <Processors/Sources/BlocksSource.h>
-#include <QueryPipeline/Pipe.h>
-#include <QueryPipeline/QueryPipelineBuilder.h>
 #include <benchmark/benchmark.h>
+#include <Common/QueryContext.h>
 
 using namespace DB;
 
@@ -66,9 +61,10 @@ static std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
     return res;
 }
 
-static const ActionsDAG::Node * addFunction(ActionsDAG & actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
+static const ActionsDAG::Node *
+addFunction(ActionsDAG & actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
 {
-    auto function_builder = FunctionFactory::instance().get(function, local_engine::SerializedPlanParser::global_context);
+    auto function_builder = FunctionFactory::instance().get(function, local_engine::QueryContext::globalContext());
     std::string args_name = join(args, ',');
     auto result_name = function + "(" + args_name + ")";
     return &actions_dag.addFunction(function_builder, args, result_name);

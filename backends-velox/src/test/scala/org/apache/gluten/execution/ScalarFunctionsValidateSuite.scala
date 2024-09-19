@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.GlutenConfig
+
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.catalyst.optimizer.NullPropagation
 import org.apache.spark.sql.execution.ProjectExec
@@ -28,42 +30,12 @@ class ScalarFunctionsValidateSuiteRasOff extends ScalarFunctionsValidateSuite {
     super.sparkConf
       .set("spark.gluten.ras.enabled", "false")
   }
-
-  // Since https://github.com/apache/incubator-gluten/pull/6200.
-  test("Test input_file_name function") {
-    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from lineitem limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-
-    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from
-                         | (select l_orderkey from lineitem
-                         | union all
-                         | select o_orderkey as l_orderkey from orders)
-                         | limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[ProjectExecTransformer]
-    }
-  }
 }
 
 class ScalarFunctionsValidateSuiteRasOn extends ScalarFunctionsValidateSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.gluten.ras.enabled", "true")
-  }
-
-  // TODO: input_file_name is not yet supported in RAS
-  ignore("Test input_file_name function") {
-    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from lineitem limit 100""".stripMargin) { _ => }
-
-    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
-                         | from
-                         | (select l_orderkey from lineitem
-                         | union all
-                         | select o_orderkey as l_orderkey from orders)
-                         | limit 100""".stripMargin) { _ => }
   }
 }
 
@@ -1363,6 +1335,79 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   test("repeat") {
     runQueryAndCompare("select repeat(c_comment, 5) from customer limit 50") {
       checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("Test input_file_name function") {
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from lineitem limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    runQueryAndCompare("""SELECT input_file_name(), l_orderkey
+                         | from
+                         | (select l_orderkey from lineitem
+                         | union all
+                         | select o_orderkey as l_orderkey from orders)
+                         | limit 100""".stripMargin) {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+
+    withTempPath {
+      path =>
+        Seq(1, 2, 3).toDF("a").write.json(path.getCanonicalPath)
+        spark.read.json(path.getCanonicalPath).createOrReplaceTempView("json_table")
+        val sql =
+          """
+            |SELECT input_file_name(), a
+            |FROM
+            |(SELECT a FROM json_table
+            |UNION ALL
+            |SELECT l_orderkey as a FROM lineitem)
+            |LIMIT 100
+            |""".stripMargin
+        compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+
+    // Collapse project if scan is fallback and the outer project is cheap or fallback.
+    Seq("true", "false").foreach {
+      flag =>
+        withSQLConf(
+          GlutenConfig.COLUMNAR_PROJECT_ENABLED.key -> flag,
+          GlutenConfig.COLUMNAR_BATCHSCAN_ENABLED.key -> "false") {
+          runQueryAndCompare("SELECT l_orderkey, input_file_name() as name FROM lineitem") {
+            df =>
+              val plan = df.queryExecution.executedPlan
+              assert(collect(plan) { case f: ProjectExecTransformer => f }.size == 0)
+              assert(collect(plan) { case f: ProjectExec => f }.size == 1)
+          }
+        }
+    }
+  }
+
+  testWithSpecifiedSparkVersion("array insert", Some("3.4")) {
+    withTempPath {
+      path =>
+        Seq[Seq[Integer]](Seq(1, null, 5, 4), Seq(5, -1, 8, 9, -7, 2), Seq.empty, null)
+          .toDF("value")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        Seq("true", "false").foreach {
+          legacyNegativeIndex =>
+            withSQLConf("spark.sql.legacy.negativeIndexInArrayInsert" -> legacyNegativeIndex) {
+              runQueryAndCompare("""
+                                   |select
+                                   |  array_insert(value, 1, 0), array_insert(value, 10, 0),
+                                   |  array_insert(value, -1, 0), array_insert(value, -10, 0)
+                                   |from array_tbl
+                                   |""".stripMargin) {
+                checkGlutenOperatorMatch[ProjectExecTransformer]
+              }
+            }
+        }
     }
   }
 }

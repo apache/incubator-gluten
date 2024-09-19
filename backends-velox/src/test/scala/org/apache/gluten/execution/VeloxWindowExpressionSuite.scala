@@ -73,6 +73,20 @@ class VeloxWindowExpressionSuite extends WholeStageTransformerSuite {
     }
   }
 
+  test("test overlapping partition and sorting keys") {
+    runAndCompare(
+      """
+        |WITH t AS (
+        |SELECT
+        | l_linenumber,
+        | row_number() over (partition by l_linenumber order by l_linenumber) as rn
+        |FROM lineitem
+        |)
+        |SELECT * FROM t WHERE rn = 1
+        |""".stripMargin
+    ) {}
+  }
+
   test("collect_list / collect_set") {
     withTable("t") {
       val data = Seq(

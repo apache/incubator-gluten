@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
-import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.backend.Backend
 
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
@@ -89,7 +89,7 @@ object Transitions {
   }
 
   def toBackendBatchPlan(plan: SparkPlan): SparkPlan = {
-    val backendBatchType = BackendsApiManager.getSparkPlanExecApiInstance.batchType
+    val backendBatchType = Backend.get().batchType
     val out = toBatchPlan(plan, backendBatchType)
     out
   }

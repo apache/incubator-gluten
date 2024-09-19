@@ -24,6 +24,7 @@ import org.apache.spark.SparkConf
 class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPCDSAbstractSuite {
 
   override protected def excludedTpcdsQueries: Set[String] = Set(
+    "q72", // cause CI Pipeline to fail due to memory usage
     // fallback due to left semi/anti/existence join
     "q8",
     "q10",
@@ -49,9 +50,10 @@ class GlutenClickHouseTPCDSParquetSortMergeJoinSuite extends GlutenClickHouseTPC
       .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
-      .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.memory.offHeap.size", "8g")
+      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
+      .set("spark.memory.offHeap.size", "6g")
       .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "false")
+      .setMaster("local[2]")
   }
 
   executeTPCDSTest(false)

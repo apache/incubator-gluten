@@ -311,7 +311,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
 
   // see issue https://github.com/Kyligence/ClickHouse/issues/93
   test("TPCH Q16") {
-    runTPCHQuery(16, noFallBack = false) { df => }
+    runTPCHQuery(16) { df => }
   }
 
   test("TPCH Q17") {
@@ -335,7 +335,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("TPCH Q21") {
-    runTPCHQuery(21, noFallBack = false) { df => }
+    runTPCHQuery(21) { df => }
   }
 
   test("GLUTEN-2115: Fix wrong number of records shuffle written") {
@@ -1855,7 +1855,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         | ) t1
         |) t2 where rank = 1
     """.stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, isSparkVersionLE("3.3"))
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("GLUTEN-1874 not null in both streams") {
@@ -1873,7 +1873,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         | ) t1
         |) t2 where rank = 1
     """.stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, isSparkVersionLE("3.3"))
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
   test("GLUTEN-2095: test cast(string as binary)") {
@@ -2456,7 +2456,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |  ) t1
         |) t2 where rank = 1 order by p_partkey limit 100
         |""".stripMargin
-    runQueryAndCompare(sql, noFallBack = isSparkVersionLE("3.3"))({ _ => })
+    runQueryAndCompare(sql, noFallBack = true)({ _ => })
   }
 
   test("GLUTEN-4190: crush on flattening a const null column") {
@@ -2796,6 +2796,212 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
                 |) group by n_regionkey, x;
                 |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-341: Support BHJ + isNullAwareAntiJoin for the CH backend") {
+    def checkBHJWithIsNullAwareAntiJoin(df: DataFrame): Unit = {
+      val bhjs = df.queryExecution.executedPlan.collect {
+        case bhj: CHBroadcastHashJoinExecTransformer if bhj.isNullAwareAntiJoin => true
+      }
+      assert(bhjs.size == 1)
+    }
+
+    val sql =
+      s"""
+         |SELECT
+         |    p_brand,
+         |    p_type,
+         |    p_size,
+         |    count(DISTINCT ps_suppkey) AS supplier_cnt
+         |FROM
+         |    partsupp,
+         |    part
+         |WHERE
+         |    p_partkey = ps_partkey
+         |    AND p_brand <> 'Brand#45'
+         |    AND p_type NOT LIKE 'MEDIUM POLISHED%'
+         |    AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)
+         |    AND ps_suppkey NOT IN (
+         |        SELECT
+         |            s_suppkey
+         |        FROM
+         |            supplier
+         |        WHERE
+         |            s_comment is null)
+         |GROUP BY
+         |    p_brand,
+         |    p_type,
+         |    p_size
+         |ORDER BY
+         |    supplier_cnt DESC,
+         |    p_brand,
+         |    p_type,
+         |    p_size;
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql,
+      true,
+      df => {
+        checkBHJWithIsNullAwareAntiJoin(df)
+      })
+
+    val sql1 =
+      s"""
+         |SELECT
+         |    p_brand,
+         |    p_type,
+         |    p_size,
+         |    count(DISTINCT ps_suppkey) AS supplier_cnt
+         |FROM
+         |    partsupp,
+         |    part
+         |WHERE
+         |    p_partkey = ps_partkey
+         |    AND p_brand <> 'Brand#45'
+         |    AND p_type NOT LIKE 'MEDIUM POLISHED%'
+         |    AND p_size IN (49, 14, 23, 45, 19, 3, 36, 9)
+         |    AND ps_suppkey NOT IN (
+         |        SELECT
+         |            s_suppkey
+         |        FROM
+         |            supplier
+         |        WHERE
+         |            s_comment LIKE '%Customer%Complaints11%')
+         |GROUP BY
+         |    p_brand,
+         |    p_type,
+         |    p_size
+         |ORDER BY
+         |    supplier_cnt DESC,
+         |    p_brand,
+         |    p_type,
+         |    p_size;
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql1,
+      true,
+      df => {
+        checkBHJWithIsNullAwareAntiJoin(df)
+      })
+
+    val sql2 =
+      s"""
+         |select * from partsupp
+         |where
+         |ps_suppkey NOT IN (SELECT suppkey FROM VALUES (50), (null) sub(suppkey))
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql2,
+      true,
+      df => {
+        checkBHJWithIsNullAwareAntiJoin(df)
+      })
+
+    val sql3 =
+      s"""
+         |select * from partsupp
+         |where
+         |ps_suppkey NOT IN (SELECT suppkey FROM VALUES (50) sub(suppkey) WHERE suppkey > 100)
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql3,
+      true,
+      df => {
+        checkBHJWithIsNullAwareAntiJoin(df)
+      })
+
+    val sql4 =
+      s"""
+         |select * from partsupp
+         |where
+         |ps_suppkey NOT IN (SELECT suppkey FROM VALUES (50), (60) sub(suppkey))
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql4,
+      true,
+      df => {
+        checkBHJWithIsNullAwareAntiJoin(df)
+      })
+
+    val sql5 =
+      s"""
+         |select * from partsupp
+         |where
+         |ps_suppkey NOT IN (SELECT suppkey FROM VALUES (null) sub(suppkey))
+         |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      sql5,
+      true,
+      df => {
+        checkBHJWithIsNullAwareAntiJoin(df)
+      })
+
+    withSQLConf(("spark.sql.adaptive.enabled", "true")) {
+      def checkAQEBHJWithIsNullAwareAntiJoin(df: DataFrame, isNullAwareBhjCnt: Int = 1): Unit = {
+        val bhjs = collect(df.queryExecution.executedPlan) {
+          case bhj: CHBroadcastHashJoinExecTransformer if bhj.isNullAwareAntiJoin => true
+        }
+        assert(bhjs.size == isNullAwareBhjCnt)
+      }
+
+      val sql6 =
+        s"""
+           |select * from partsupp
+           |where
+           |ps_suppkey NOT IN (SELECT suppkey FROM VALUES (null), (6) sub(suppkey))
+           |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql6,
+        true,
+        df => {
+          checkAQEBHJWithIsNullAwareAntiJoin(df, 0)
+        })
+
+      val sql7 =
+        s"""
+           |select * from partsupp
+           |where
+           |cast(ps_suppkey AS INT) NOT IN (SELECT suppkey FROM VALUES (null), (6) sub(suppkey))
+           |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql7,
+        true,
+        df => {
+          checkAQEBHJWithIsNullAwareAntiJoin(df, 0)
+        })
+
+      val sql8 =
+        s"""
+           |select * from partsupp
+           |where
+           |ps_suppkey NOT IN (SELECT suppkey FROM VALUES (5), (6) sub(suppkey))
+           |""".stripMargin
+      compareResultsAgainstVanillaSpark(
+        sql8,
+        true,
+        df => {
+          checkAQEBHJWithIsNullAwareAntiJoin(df)
+        })
+    }
+
+  }
+
+  test("soundex") {
+    runQueryAndCompare("select soundex(c_mktsegment) from customer limit 50") {
+      checkGlutenOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
+  test("GLUTEN-7220: Fix bug of grouping sets") {
+    val table_create_sql = "create table test_tbl_7220(id bigint, name string) using parquet"
+    val insert_data_sql = "insert into test_tbl_7220 values(1, 'a123'), (2, 'a124'), (3, 'a125')"
+    val query_sql = "select '2024-08-26' as day, id,name from" +
+      " (select id, name from test_tbl_7220 group by id, name grouping sets((id),(id,name))) " +
+      " where name  = 'a124'"
+    spark.sql(table_create_sql)
+    spark.sql(insert_data_sql)
+    compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
+    spark.sql("drop table test_tbl_7220")
   }
 }
 // scalastyle:on line.size.limit

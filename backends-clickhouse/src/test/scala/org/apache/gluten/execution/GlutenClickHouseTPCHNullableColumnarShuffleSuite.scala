@@ -147,7 +147,7 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
   }
 
   test("TPCH Q16") {
-    runTPCHQuery(16, noFallBack = false) { df => }
+    runTPCHQuery(16) { df => }
   }
 
   test("TPCH Q17") {
@@ -171,7 +171,7 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
   }
 
   test("TPCH Q21") {
-    runTPCHQuery(21, noFallBack = false) { df => }
+    runTPCHQuery(21) { df => }
   }
 
   test("TPCH Q22") {
