@@ -591,5 +591,18 @@ class GlutenClickHouseMergeTreeCacheDataSuite
       })
     spark.sql("drop table lineitem_mergetree_hdfs purge")
   }
+
+  test("test disable cache files return") {
+    withSQLConf(s"$CH_CONFIG_PREFIX.gluten_cache.local.enabled" -> "false") {
+      runSql(
+        s"CACHE FILES select * from '$HDFS_URL_ENDPOINT/tpch-data/lineitem'",
+        noFallBack = false) {
+        df =>
+          val res = df.collect()
+          assert(res.length == 1)
+          assert(!res.apply(0).getBoolean(0))
+      }
+    }
+  }
 }
 // scalastyle:off line.size.limit
