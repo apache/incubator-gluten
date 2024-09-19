@@ -61,6 +61,10 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
 
   val CH_DEFAULT_STORAGE_DIR = "/data"
 
+  protected def spark32: Boolean = sparkVersion.equals("3.2")
+  protected def spark33: Boolean = sparkVersion.equals("3.3")
+  protected def spark35: Boolean = sparkVersion.equals("3.5")
+
   def AlmostEqualsIsRel(expected: Double, actual: Double, EPSILON: Double = DBL_EPSILON): Unit = {
     val diff = Math.abs(expected - actual)
     val epsilon = EPSILON * Math.max(Math.abs(expected), Math.abs(actual))

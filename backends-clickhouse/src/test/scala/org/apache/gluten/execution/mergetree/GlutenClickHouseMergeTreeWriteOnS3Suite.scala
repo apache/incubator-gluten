@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.execution.mergetree
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.execution.{BasicScanExecTransformer, FileSourceScanExecTransformer, GlutenClickHouseTPCHAbstractSuite}
 
 import org.apache.spark.SparkConf
@@ -683,8 +684,8 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
 
     withSQLConf(
       "spark.databricks.delta.optimize.minFileSize" -> "200000000",
-      "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.insert_without_local_storage" -> "true",
-      "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert" -> "true"
+      CHConf.settingsKey("mergetree.insert_without_local_storage") -> "true",
+      CHConf.settingsKey("mergetree.merge_after_insert") -> "true"
     ) {
       spark.sql(s"""
                    |DROP TABLE IF EXISTS $tableName;
@@ -756,8 +757,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
          |    AND l_quantity < 24
          |""".stripMargin
 
-    withSQLConf(
-      "spark.gluten.sql.columnar.backend.ch.runtime_settings.enabled_driver_filter_mergetree_index" -> "true") {
+    withSQLConf(CHConf.settingsKey("enabled_driver_filter_mergetree_index") -> "true") {
       runTPCHQueryBySQL(6, sqlStr) {
         df =>
           val scanExec = collect(df.queryExecution.executedPlan) {

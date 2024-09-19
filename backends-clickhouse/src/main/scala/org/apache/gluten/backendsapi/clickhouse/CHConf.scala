@@ -27,23 +27,26 @@ object CHConf {
   private val CH_CONFIG = CH + "runtime_config."
   implicit class GlutenCHConf(conf: SparkConf) {
     def setCHSettings(settings: (String, String)*): SparkConf = {
-      settings.foreach { case (k, v) => conf.set(CH_SETTINGS + k, v) }
+      settings.foreach { case (k, v) => conf.set(settingsKey(k), v) }
       conf
     }
 
     def setCHSettings[T](k: String, v: T): SparkConf = {
-      conf.set(CH_SETTINGS + k, v.toString)
+      conf.set(settingsKey(k), v.toString)
       conf
     }
 
     def setCHConfig(config: (String, String)*): SparkConf = {
-      config.foreach { case (k, v) => conf.set(CH_CONFIG + k, v) }
+      config.foreach { case (k, v) => conf.set(configKey(k), v) }
       conf
     }
 
     def setCHConfig[T](k: String, v: T): SparkConf = {
-      conf.set(CH_CONFIG + k, v.toString)
+      conf.set(configKey(k), v.toString)
       conf
     }
   }
+
+  def configKey(key: String): String = CH_CONFIG + key
+  def settingsKey(key: String): String = CH_SETTINGS + key
 }

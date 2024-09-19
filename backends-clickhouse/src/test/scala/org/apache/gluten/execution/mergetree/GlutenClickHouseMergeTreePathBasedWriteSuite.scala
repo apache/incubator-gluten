@@ -508,17 +508,23 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
           merge into clickhouse.`$dataPath`
           using (
 
-            select l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax,
-           'Z' as `l_returnflag`,
-            l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
-            from lineitem where l_orderkey in (select l_orderkey from lineitem group by l_orderkey having count(*) =1 ) and l_orderkey < 100000
+            select l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity,
+              l_extendedprice, l_discount, l_tax, 'Z' as `l_returnflag`,
+              l_linestatus, l_shipdate, l_commitdate, l_receiptdate,
+              l_shipinstruct, l_shipmode, l_comment
+            from lineitem where l_orderkey in
+              (select l_orderkey from lineitem group by l_orderkey having count(*) =1 )
+               and l_orderkey < 100000
 
             union
 
             select l_orderkey + 10000000,
-            l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag,
-            l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
-            from lineitem where l_orderkey in (select l_orderkey from lineitem group by l_orderkey having count(*) =1 ) and l_orderkey < 100000
+              l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice,
+              l_discount, l_tax, l_returnflag,l_linestatus, l_shipdate, l_commitdate,
+              l_receiptdate, l_shipinstruct, l_shipmode, l_comment
+            from lineitem where l_orderkey in
+              (select l_orderkey from lineitem group by l_orderkey having count(*) =1 )
+              and l_orderkey < 100000
 
           ) as updates
           on updates.l_orderkey = clickhouse.`$dataPath`.l_orderkey
@@ -921,15 +927,14 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     val dataPath = s"$basePath/lineitem_mergetree_ctas2"
     clearDataPath(dataPath)
 
-    spark.sql(
-      s"""
-         |CREATE TABLE clickhouse.`$dataPath`
-         |USING clickhouse
-         |PARTITIONED BY (l_shipdate)
-         |CLUSTERED BY (l_orderkey)
-         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey, l_returnflag)"} INTO 4 BUCKETS
-         | as select * from lineitem
-         |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE clickhouse.`$dataPath`
+                 |USING clickhouse
+                 |PARTITIONED BY (l_shipdate)
+                 |CLUSTERED BY (l_orderkey)
+                 |${if (spark32) "" else "SORTED BY (l_partkey, l_returnflag)"} INTO 4 BUCKETS
+                 | as select * from lineitem
+                 |""".stripMargin)
 
     val sqlStr =
       s"""

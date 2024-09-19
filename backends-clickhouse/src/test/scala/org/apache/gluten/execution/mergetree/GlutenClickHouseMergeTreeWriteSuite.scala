@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.execution.mergetree
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.execution._
-
 import org.apache.gluten.utils.Arm
 
 import org.apache.spark.SparkConf
@@ -482,18 +482,23 @@ class GlutenClickHouseMergeTreeWriteSuite
           merge into $tableName
           using (
 
-            select l_orderkey, l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax,
-           'Z' as `l_returnflag`,
-            l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
-            from lineitem where l_orderkey in (select l_orderkey from lineitem group by l_orderkey having count(*) =1 ) and l_orderkey < 100000
+            select l_orderkey, l_partkey, l_suppkey, l_linenumber,
+              l_quantity, l_extendedprice, l_discount, l_tax,
+               'Z' as `l_returnflag`,l_linestatus, l_shipdate, l_commitdate,
+                l_receiptdate, l_shipinstruct, l_shipmode, l_comment
+            from lineitem where l_orderkey in
+              (select l_orderkey from lineitem group by l_orderkey having count(*) =1 )
+              and l_orderkey < 100000
 
             union
 
             select l_orderkey + 10000000,
-            l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice, l_discount, l_tax, l_returnflag,
-            l_linestatus, l_shipdate, l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
-            from lineitem where l_orderkey in (select l_orderkey from lineitem group by l_orderkey having count(*) =1 ) and l_orderkey < 100000
-
+              l_partkey, l_suppkey, l_linenumber, l_quantity, l_extendedprice,
+              l_discount, l_tax, l_returnflag, l_linestatus, l_shipdate,
+              l_commitdate, l_receiptdate, l_shipinstruct, l_shipmode, l_comment
+            from lineitem where l_orderkey in
+             (select l_orderkey from lineitem group by l_orderkey having count(*) =1 )
+             and l_orderkey < 100000
           ) as updates
           on updates.l_orderkey = $tableName.l_orderkey
           when matched then update set *
@@ -1093,16 +1098,15 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |DROP TABLE IF EXISTS lineitem_mergetree_ctas2;
                  |""".stripMargin)
 
-    spark.sql(
-      s"""
-         |CREATE TABLE IF NOT EXISTS lineitem_mergetree_ctas2
-         |USING clickhouse
-         |PARTITIONED BY (l_shipdate)
-         |CLUSTERED BY (l_orderkey)
-         |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (l_partkey, l_returnflag)"} INTO 4 BUCKETS
-         |LOCATION '$basePath/lineitem_mergetree_ctas2'
-         | as select * from lineitem
-         |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_mergetree_ctas2
+                 |USING clickhouse
+                 |PARTITIONED BY (l_shipdate)
+                 |CLUSTERED BY (l_orderkey)
+                 |${if (spark32) "" else "SORTED BY (l_partkey, l_returnflag)"} INTO 4 BUCKETS
+                 |LOCATION '$basePath/lineitem_mergetree_ctas2'
+                 | as select * from lineitem
+                 |""".stripMargin)
 
     val sqlStr =
       s"""
@@ -1779,8 +1783,7 @@ class GlutenClickHouseMergeTreeWriteSuite
 
     Seq(("true", 2), ("false", 3)).foreach(
       conf => {
-        withSQLConf(
-          "spark.gluten.sql.columnar.backend.ch.runtime_settings.enabled_driver_filter_mergetree_index" -> conf._1) {
+        withSQLConf(CHConf.settingsKey("enabled_driver_filter_mergetree_index") -> conf._1) {
           runTPCHQueryBySQL(6, sqlStr) {
             df =>
               val scanExec = collect(df.queryExecution.executedPlan) {
@@ -1849,7 +1852,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | o_comment       string)
                  |USING clickhouse
                  |CLUSTERED by (o_orderkey)
-                 |${if (sparkVersion.equals("3.2")) "" else "SORTED BY (o_orderdate)"} INTO 2 BUCKETS
+                 |${if (spark32) "" else "SORTED BY (o_orderdate)"} INTO 2 BUCKETS
                  |LOCATION '$basePath/orders_mergetree_pk_pruning_by_driver_bucket'
                  |""".stripMargin)
 
@@ -1888,7 +1891,8 @@ class GlutenClickHouseMergeTreeWriteSuite
          |    AND l_shipmode IN ('MAIL', 'SHIP')
          |    AND l_commitdate < l_receiptdate
          |    AND l_shipdate < l_commitdate
-         |    AND l_receiptdate >= date'1994-01-01' AND l_receiptdate < date'1994-01-01' + interval 1 year
+         |    AND l_receiptdate >= date'1994-01-01'
+         |    AND l_receiptdate < date'1994-01-01' + interval 1 year
          |GROUP BY
          |    l_shipmode
          |ORDER BY
@@ -1897,8 +1901,7 @@ class GlutenClickHouseMergeTreeWriteSuite
 
     Seq(("true", 2), ("false", 2)).foreach(
       conf => {
-        withSQLConf(
-          "spark.gluten.sql.columnar.backend.ch.runtime_settings.enabled_driver_filter_mergetree_index" -> conf._1) {
+        withSQLConf(CHConf.settingsKey("enabled_driver_filter_mergetree_index") -> conf._1) {
           runTPCHQueryBySQL(12, sqlStr) {
             df =>
               val scanExec = collect(df.queryExecution.executedPlan) {
