@@ -43,7 +43,7 @@ case class VeloxResizeBatchesExec(
   extends GlutenPlan
   with UnaryExecNode {
 
-  override lazy val metrics: Map[String, SQLMVeloxListenetric] = Map(
+  override lazy val metrics: Map[String, SQLMetric] = Map(
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
