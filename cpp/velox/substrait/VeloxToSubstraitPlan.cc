@@ -336,7 +336,7 @@ void VeloxToSubstraitPlanConvertor::toSubstrait(
   sortRel->MergeFrom(
       processSortFields(arena, orderByNode->sortingKeys(), orderByNode->sortingOrders(), source->outputType()));
 
-  VELOX_CHECK(!orderByNode->isPartial(), "Substrait doesn't support partial order by yet")
+  VELOX_CHECK(!orderByNode->isPartial(), "Substrait doesn't support partial order by yet");
   sortRel->mutable_common()->mutable_direct();
 }
 
@@ -355,7 +355,7 @@ void VeloxToSubstraitPlanConvertor::toSubstrait(
 
   sortRel->mutable_common()->mutable_direct();
 
-  VELOX_CHECK(!topNNode->isPartial(), "Substrait doesn't support partial topN yet")
+  VELOX_CHECK(!topNNode->isPartial(), "Substrait doesn't support partial topN yet");
 
   fetchRel->set_offset(0);
   fetchRel->set_count(topNNode->count());
@@ -392,7 +392,7 @@ void VeloxToSubstraitPlanConvertor::toSubstrait(
   fetchRel->set_offset(limitNode->offset());
   fetchRel->set_count(limitNode->count());
 
-  VELOX_CHECK(!limitNode->isPartial(), "Substrait doesn't support partial limit yet")
+  VELOX_CHECK(!limitNode->isPartial(), "Substrait doesn't support partial limit yet");
 
   fetchRel->mutable_common()->mutable_direct();
 }
