@@ -80,7 +80,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-data</artifactId>
+      <artifactId>gluten-arrow</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
