@@ -101,7 +101,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     velox::memory::MemoryPool* candidate;
     {
       std::unique_lock guard{mutex_};
-      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool")
+      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool");
       candidate = candidates_.begin()->first;
     }
     VELOX_CHECK(pool->root() == candidate, "Illegal state in ListenableArbitrator");
@@ -116,7 +116,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     velox::memory::MemoryPool* pool;
     {
       std::unique_lock guard{mutex_};
-      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool")
+      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool");
       pool = candidates_.begin()->first;
     }
     pool->reclaim(targetBytes, 0, status); // ignore the output
