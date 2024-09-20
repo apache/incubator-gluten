@@ -173,8 +173,6 @@ if [ "$ENABLE_VCPKG" = "ON" ]; then
     # vcpkg will install static depends and init build environment
     BUILD_OPTIONS="--build_tests=$BUILD_TESTS --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS \
                    --enable_hdfs=$ENABLE_HDFS --enable_abfs=$ENABLE_ABFS"
-#    envs="$("$GLUTEN_DIR/dev/vcpkg/init.sh" ${BUILD_OPTIONS})"
-#    eval "$envs"
     source ./dev/vcpkg/env.sh ${BUILD_OPTIONS}
 fi
 
