@@ -797,9 +797,6 @@ class GlutenDynamicPartitionPruningV1SuiteAEOn
                        |JOIN dim_stats s
                        |ON f.store_id = s.store_id WHERE s.country = 'DE'
         """.stripMargin)
-        import org.apache.spark.sql.execution.GlutenImplicits._
-        val fallbackSummary = df.fallbackSummary
-        assert(fallbackSummary.numFallbackNodes == 0)
         checkAnswer(
           df,
           Row(1030, 2, 10, 3) ::
@@ -811,6 +808,14 @@ class GlutenDynamicPartitionPruningV1SuiteAEOn
             Row(1050, 2, 50, 3) ::
             Row(1060, 2, 50, 3) :: Nil
         )
+        val filters = collect(df.queryExecution.executedPlan) { case f: FilterExec => f }
+        assert(filters.isEmpty)
+        val filterTransformerWithDPPs = collect(df.queryExecution.executedPlan) {
+          case f: FilterExecTransformerBase
+              if f.cond.exists(_.isInstanceOf[DynamicPruningExpression]) =>
+            f
+        }
+        assert(filterTransformerWithDPPs.nonEmpty)
       }
     }
   }
