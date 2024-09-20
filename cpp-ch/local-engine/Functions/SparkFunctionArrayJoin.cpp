@@ -21,6 +21,7 @@
 #include <Functions/IFunction.h>
 #include <Functions/FunctionFactory.h>
 #include <DataTypes/DataTypeString.h>
+#include <iostream>
 
 using namespace DB;
 
@@ -46,7 +47,7 @@ public:
     size_t getNumberOfArguments() const override { return 0; }
     String getName() const override { return name; }
     bool isVariadic() const override { return true; }
-    bool useDefaultImplementationForNulls() const override { return false; }
+    bool useDefaultImplementationForConstants() const override { return true; }
 
     DB::DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName &) const override
     {
@@ -54,8 +55,8 @@ public:
         return makeNullable(data_type);
     }
 
-     ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr &, size_t input_rows_count) const override
-     {
+    ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr &, size_t input_rows_count) const override
+    {
         if (arguments.size() != 2 && arguments.size() != 3)
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} must have 2 or 3 arguments", getName());
         auto res_col = ColumnString::create();
@@ -64,67 +65,10 @@ public:
         if (input_rows_count == 0)
             return ColumnNullable::create(std::move(res_col), std::move(null_col));
         
-        const auto * arg_const_col = checkAndGetColumn<ColumnConst>(arguments[0].column.get());
-        const ColumnArray * array_col = nullptr;
-        const ColumnNullable * arg_null_col = nullptr;
-        if (arg_const_col)
-        {
-            if (arg_const_col->onlyNull())
-            {
-                null_result[0] = 1;
-                return ColumnNullable::create(std::move(res_col), std::move(null_col));
-            }
-            array_col = checkAndGetColumn<ColumnArray>(arg_const_col->getDataColumnPtr().get());
-        }
-        else
-        {
-            arg_null_col = checkAndGetColumn<ColumnNullable>(arguments[0].column.get());
-            if (!arg_null_col)
-                array_col = checkAndGetColumn<ColumnArray>(arguments[0].column.get());
-            else
-                array_col = checkAndGetColumn<ColumnArray>(arg_null_col->getNestedColumnPtr().get());
-        }
+        const ColumnArray * array_col = array_col = checkAndGetColumn<ColumnArray>(arguments[0].column.get());;
         if (!array_col)
             throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {} 1st argument must be array type", getName());
-
-        std::pair<bool, StringRef> delim_p, null_replacement_p;
-        bool return_result = false;
-        auto checkAndGetConstString = [&](const ColumnPtr & col) -> std::pair<bool, StringRef>
-        {
-            StringRef res;
-            const auto * str_null_col = checkAndGetColumnConstData<ColumnNullable>(col.get());
-            if (str_null_col)
-            {
-                if (str_null_col->isNullAt(0))
-                {
-                    for (size_t i = 0; i < array_col->size(); ++i)
-                    {
-                        res_col->insertDefault();
-                        null_result[i] = 1;
-                    }
-                    return_result = true;
-                    return std::pair<bool, StringRef>(false, res);
-                }
-            }
-            else
-            {
-                const auto * string_col = checkAndGetColumnConstData<ColumnString>(col.get());
-                if (!string_col)
-                    return std::pair<bool, StringRef>(false, res);
-                else
-                    return std::pair<bool, StringRef>(true, string_col->getDataAt(0));
-            }
-        };
-        delim_p = checkAndGetConstString(arguments[1].column);
-        if (return_result)
-            return ColumnNullable::create(std::move(res_col), std::move(null_col));
         
-        if (arguments.size() == 3)
-        {
-            null_replacement_p = checkAndGetConstString(arguments[2].column);
-            if (return_result)
-                return ColumnNullable::create(std::move(res_col), std::move(null_col));
-        }
         const ColumnNullable * array_nested_col = checkAndGetColumn<ColumnNullable>(&array_col->getData());
         const ColumnString * string_col;
         if (array_nested_col)
@@ -134,53 +78,38 @@ public:
         const ColumnArray::Offsets & array_offsets = array_col->getOffsets();
         const ColumnString::Offsets & string_offsets = string_col->getOffsets();
         const ColumnString::Chars & string_data = string_col->getChars();
-        const ColumnNullable * delim_col = checkAndGetColumn<ColumnNullable>(arguments[1].column.get());
-        const ColumnNullable * null_replacement_col = arguments.size() == 3 ? checkAndGetColumn<ColumnNullable>(arguments[2].column.get()) : nullptr;
+
+        auto extractColumnString = [&](const ColumnPtr & col) -> const ColumnString *
+        {
+            const ColumnString * res = nullptr;
+            if (col->isConst())
+            {
+                const ColumnConst * const_col = checkAndGetColumn<ColumnConst>(col.get());
+                if (const_col)
+                    res = checkAndGetColumn<ColumnString>(const_col->getDataColumnPtr().get());
+            }
+            else
+                res = checkAndGetColumn<ColumnString>(col.get());
+            return res;
+        };
+        bool const_delim_col = arguments[1].column->isConst();
+        bool const_null_replacement_col = false;
+        const ColumnString * delim_col = extractColumnString(arguments[1].column);
+        const ColumnString * null_replacement_col = nullptr;
+        if (arguments.size() == 3)
+        {
+            const_null_replacement_col = arguments[2].column->isConst();
+            null_replacement_col = extractColumnString(arguments[2].column);
+        }
         size_t current_offset = 0, array_pos = 0;
         for (size_t i = 0; i < array_col->size(); ++i)
         {
             String res;
-            auto setResultNull = [&]() -> void
+            const StringRef delim = const_delim_col ? delim_col->getDataAt(0) : delim_col->getDataAt(i);
+            StringRef null_replacement = StringRef(nullptr, 0);
+            if (null_replacement_col)
             {
-                res_col->insertDefault();
-                null_result[i] = 1;
-                current_offset = array_offsets[i];
-            };
-            auto getDelimiterOrNullReplacement = [&](const std::pair<bool, StringRef> & s, const ColumnNullable * col) -> StringRef
-            {
-                if (s.first)
-                    return s.second;
-                else
-                {
-                    if (col->isNullAt(i))
-                        return StringRef(nullptr, 0);
-                    else
-                    {
-                        const ColumnString * col_string = checkAndGetColumn<ColumnString>(col->getNestedColumnPtr().get());
-                        return col_string->getDataAt(i);
-                    }
-                }
-            };
-            if (arg_null_col && arg_null_col->isNullAt(i))
-            {
-                setResultNull();
-                continue;
-            }
-            const StringRef delim = getDelimiterOrNullReplacement(delim_p, delim_col);
-            if (!delim.data)
-            {
-                setResultNull();
-                continue;
-            }
-            StringRef null_replacement;
-            if (arguments.size() == 3)
-            {
-                null_replacement = getDelimiterOrNullReplacement(null_replacement_p, null_replacement_col);
-                if (!null_replacement.data)
-                {
-                    setResultNull();
-                    continue;
-                }
+                null_replacement = const_null_replacement_col ? null_replacement_col->getDataAt(0) : null_replacement_col->getDataAt(i);
             }
             size_t array_size = array_offsets[i] - current_offset;
             size_t data_pos = array_pos == 0 ? 0 : string_offsets[array_pos - 1];
@@ -213,7 +142,7 @@ public:
             current_offset = array_offsets[i];
         }
         return ColumnNullable::create(std::move(res_col), std::move(null_col));
-     }
+    }
 };
 
 REGISTER_FUNCTION(SparkArrayJoin)
