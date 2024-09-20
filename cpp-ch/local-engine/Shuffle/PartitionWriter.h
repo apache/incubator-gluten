@@ -29,6 +29,10 @@
 namespace DB
 {
 class MergingSortedAlgorithm;
+namespace Setting
+{
+extern const SettingsUInt64 prefer_external_sort_block_bytes;
+}
 }
 
 namespace local_engine
@@ -156,7 +160,7 @@ protected:
     {
         max_merge_block_size = options.split_size;
         max_sort_buffer_size = options.max_sort_buffer_size;
-        max_merge_block_bytes = QueryContext::globalContext()->getSettingsRef().prefer_external_sort_block_bytes;
+        max_merge_block_bytes = QueryContext::globalContext()->getSettingsRef()[DB::Setting::prefer_external_sort_block_bytes];
     }
 public:
     String getName() const override { return "SortBasedPartitionWriter"; }

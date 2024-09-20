@@ -26,6 +26,8 @@
 #include <base/phdr_cache.h>
 #include <base/sleep.h>
 #include <Poco/Exception.h>
+#include <Poco/Runnable.h>
+#include <Poco/Thread.h>
 #include <Common/CurrentThread.h>
 #include <Common/GlutenSignalHandler.h>
 #include <Common/MemoryTracker.h>

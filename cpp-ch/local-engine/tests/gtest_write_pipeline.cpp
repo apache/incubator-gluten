@@ -47,6 +47,16 @@
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
 
+namespace DB::Setting
+{
+extern const SettingsUInt64 max_parser_depth;
+extern const SettingsUInt64 max_parser_backtracks;
+extern const SettingsBool allow_settings_after_format_in_insert;
+extern const SettingsUInt64 max_query_size;
+extern const SettingsUInt64 min_insert_block_size_rows;
+extern const SettingsUInt64 min_insert_block_size_bytes;
+}
+
 using namespace local_engine;
 using namespace DB;
 
@@ -85,8 +95,8 @@ TEST(LocalExecutor, StorageObjectStorageSink)
         "QUERY TEST",
         /* allow_multi_statements = */ false,
         0,
-        settings.max_parser_depth,
-        settings.max_parser_backtracks,
+        settings[Setting::max_parser_depth],
+        settings[Setting::max_parser_backtracks],
         true);
     auto & create = ast->as<ASTCreateQuery &>();
     auto arg = create.storage->children[0];
@@ -312,9 +322,9 @@ TEST(WritePipeline, MergeTree)
 
     const char * begin = query.data();
     const char * end = query.data() + query.size();
-    ParserQuery parser(end, settings.allow_settings_after_format_in_insert);
+    ParserQuery parser(end, settings[Setting::allow_settings_after_format_in_insert]);
 
-    ASTPtr ast = parseQuery(parser, begin, end, "", settings.max_query_size, settings.max_parser_depth, settings.max_parser_backtracks);
+    ASTPtr ast = parseQuery(parser, begin, end, "", settings[Setting::max_query_size], settings[Setting::max_parser_depth], settings[Setting::max_parser_backtracks]);
 
     EXPECT_TRUE(ast->as<ASTCreateQuery>());
     auto & create = ast->as<ASTCreateQuery &>();
@@ -361,7 +371,7 @@ TEST(WritePipeline, MergeTree)
         std::move(storage_settings));
 
     Block header{{INT(), "id"}, {STRING(), "Name"}, {makeNullable(INT()), "Age"}};
-    DB::Squashing squashing(header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes);
+    DB::Squashing squashing(header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]);
     squashing.add(person_chunk());
     auto x = Squashing::squash(squashing.flush());
     x.getChunkInfos().add(std::make_shared<DeduplicationToken::TokenInfo>());

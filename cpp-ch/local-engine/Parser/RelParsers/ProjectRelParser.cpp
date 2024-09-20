@@ -18,12 +18,19 @@
 
 #include <Interpreters/ArrayJoin.h>
 #include <Operator/EmptyProjectStep.h>
+#include <Operator/ReplicateRowsStep.h>
 #include <Processors/QueryPlan/ArrayJoinStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Rewriter/ExpressionRewriter.h>
 #include <Common/CHUtil.h>
-#include <Operator/ReplicateRowsStep.h>
 
+namespace DB
+{
+namespace Setting
+{
+extern const SettingsUInt64 max_block_size;
+}
+}
 using namespace DB;
 
 namespace local_engine
@@ -204,7 +211,7 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
         array_join.columns = std::move(array_joined_columns);
         array_join.is_left = generate_rel.outer();
         auto array_join_step = std::make_unique<ArrayJoinStep>(
-            query_plan->getCurrentDataStream(), std::move(array_join), false, getContext()->getSettingsRef().max_block_size);
+            query_plan->getCurrentDataStream(), std::move(array_join), false, getContext()->getSettingsRef()[Setting::max_block_size]);
         array_join_step->setStepDescription("ARRAY JOIN In Generate");
         steps.emplace_back(array_join_step.get());
         query_plan->addStep(std::move(array_join_step));

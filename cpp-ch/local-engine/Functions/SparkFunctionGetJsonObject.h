@@ -18,19 +18,17 @@
 #include <memory>
 #include <string_view>
 #include <Columns/ColumnNullable.h>
+#include <Columns/ColumnTuple.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionSQLJSON.h>
 #include <Functions/IFunction.h>
-#include <Functions/JSONPath/ASTs/ASTJSONPath.h>
 #include <Functions/JSONPath/Generator/GeneratorJSONPath.h>
 #include <Functions/JSONPath/Parsers/ParserJSONPath.h>
 #include <Interpreters/Context.h>
-#include <Parsers/IAST.h>
 #include <Parsers/IParser.h>
-#include <Parsers/Lexer.h>
 #include <Parsers/TokenIterator.h>
 #include <base/find_symbols.h>
 #include <base/range.h>
@@ -44,6 +42,12 @@
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsBool allow_simdjson;
+extern const SettingsUInt64 max_parser_depth;
+extern const SettingsUInt64 max_parser_backtracks;
+}
 namespace ErrorCodes
 {
     extern const int LOGICAL_ERROR;
@@ -526,7 +530,7 @@ public:
         const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & /*result_type*/, size_t /*input_rows_count*/) const override
     {
 #if USE_SIMDJSON
-        if (context->getSettingsRef().allow_simdjson)
+        if (context->getSettingsRef()[DB::Setting::allow_simdjson])
         {
             return innerExecuteImpl<
                 DB::SimdJSONParser,
@@ -600,8 +604,8 @@ private:
                 const char * query_begin = reinterpret_cast<const char *>(required_fields.back().c_str());
                 const char * query_end = required_fields.back().c_str() + required_fields.back().size();
                 DB::Tokens tokens(query_begin, query_end);
-                UInt32 max_parser_depth = static_cast<UInt32>(context->getSettingsRef().max_parser_depth);
-                UInt32 max_parser_backtracks = static_cast<UInt32>(context->getSettingsRef().max_parser_backtracks);
+                UInt32 max_parser_depth = static_cast<UInt32>(context->getSettingsRef()[DB::Setting::max_parser_depth]);
+                UInt32 max_parser_backtracks = static_cast<UInt32>(context->getSettingsRef()[DB::Setting::max_parser_backtracks]);
                 DB::IParser::Pos token_iterator(tokens, max_parser_depth, max_parser_backtracks);
                 DB::ASTPtr json_path_ast;
                 DB::ParserJSONPath path_parser;
