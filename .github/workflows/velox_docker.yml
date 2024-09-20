@@ -71,12 +71,12 @@ jobs:
         run: |
           source dev/ci-velox-buildstatic.sh
       - name: Upload Artifact Native
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           path: ./cpp/build/releases/
           name: velox-native-lib-centos-7-${{github.sha}}
       - name: Upload Artifact Arrow Jar
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           path: /root/.m2/repository/org/apache/arrow/
           name: velox-arrow-jar-centos-7-${{github.sha}}
@@ -621,19 +621,19 @@ jobs:
         run: |
           cd ./cpp/build && \
           ctest -V
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: velox-native-lib-centos-8-${{github.sha}}
           path: ./cpp/build/releases/
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: udf-example-lib-centos-8-${{github.sha}}
           path: ./cpp/build/velox/udf/examples/
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: benchmark-centos-8-${{github.sha}}
           path: ./cpp/build/velox/benchmarks/
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: arrow-jars-centos-8-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
