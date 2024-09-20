@@ -59,7 +59,7 @@ void skipErrorChars(DB::ReadBuffer & buf, bool has_quote, char quote, String & e
 
 bool ExcelTextFormatFile::useThis(const DB::ContextPtr & context)
 {
-    return settingsEqual(context->getSettingsRef(), USE_EXCEL_PARSER, "'true'");
+    return settingsEqual(context->getSettingsRef(), USE_EXCEL_PARSER, "true");
 }
 
 FormatFile::InputFormatPtr ExcelTextFormatFile::createInputFormat(const DB::Block & header)
@@ -106,13 +106,13 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
 
     bool empty_as_null = true;
     if (context->getSettingsRef().has(EXCEL_EMPTY_AS_NULL))
-        empty_as_null = settingsEqual(context->getSettingsRef(), EXCEL_EMPTY_AS_NULL, "'true'");
+        empty_as_null = settingsEqual(context->getSettingsRef(), EXCEL_EMPTY_AS_NULL, "true");
 
     format_settings.try_infer_integers = false;
     if (!context->getSettingsRef().has(EXCEL_NUMBER_FORCE))
         format_settings.try_infer_integers = true;
 
-    if (settingsEqual(context->getSettingsRef(), EXCEL_NUMBER_FORCE, "'true'"))
+    if (settingsEqual(context->getSettingsRef(), EXCEL_NUMBER_FORCE, "true"))
         format_settings.try_infer_integers = true;
 
     if (format_settings.csv.null_representation.empty() || empty_as_null)
@@ -137,7 +137,7 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     {
         format_settings.csv.allow_single_quotes = false;
 
-        if (settingsEqual(context->getSettingsRef(), EXCEL_QUOTE_STRICT, "'true'"))
+        if (settingsEqual(context->getSettingsRef(), EXCEL_QUOTE_STRICT, "true"))
             format_settings.csv.allow_double_quotes = false;
         else
             format_settings.csv.allow_double_quotes = true;

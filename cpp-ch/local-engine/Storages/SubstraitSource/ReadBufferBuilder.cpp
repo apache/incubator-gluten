@@ -518,13 +518,7 @@ private:
     static FileCacheConcurrentMap files_cache_time_map;
     DB::FileCachePtr file_cache;
 
-    std::string & stripQuote(std::string & s)
-    {
-        s.erase(remove(s.begin(), s.end(), '\''), s.end());
-        return s;
-    }
-
-    std::string toBucketNameSetting(const std::string & bucket_name, const std::string & config_name)
+    static std::string toBucketNameSetting(const std::string & bucket_name, const std::string & config_name)
     {
         if (!config_name.starts_with(BackendInitializerUtil::S3A_PREFIX))
         {
@@ -536,7 +530,7 @@ private:
             + config_name.substr(BackendInitializerUtil::S3A_PREFIX.size());
     }
 
-    std::string getSetting(
+    static std::string getSetting(
         const DB::Settings & settings,
         const std::string & bucket_name,
         const std::string & config_name,
@@ -546,10 +540,10 @@ private:
         std::string ret;
         // if there's a bucket specific config, prefer it to non per bucket config
         if (tryGetString(settings, toBucketNameSetting(bucket_name, config_name), ret))
-            return stripQuote(ret);
+            return ret;
 
         if (!require_per_bucket && tryGetString(settings, config_name, ret))
-            return stripQuote(ret);
+            return ret;
 
         return default_value;
     }
@@ -640,8 +634,6 @@ private:
         std::string sk;
         tryGetString(settings, BackendInitializerUtil::HADOOP_S3_ACCESS_KEY, ak);
         tryGetString(settings, BackendInitializerUtil::HADOOP_S3_SECRET_KEY, sk);
-        stripQuote(ak);
-        stripQuote(sk);
         const DB::Settings & global_settings = context->getGlobalContext()->getSettingsRef();
         const DB::Settings & local_settings = context->getSettingsRef();
         DB::S3::ClientSettings client_settings{
