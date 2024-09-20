@@ -16,6 +16,7 @@
  */
 #include <Columns/ColumnString.h>
 #include <Columns/ColumnNullable.h>
+#include <Common/HashTable/HashSet.h>
 #include <Functions/IFunction.h>
 #include <Functions/FunctionFactory.h>
 #include <DataTypes/DataTypeString.h>
@@ -44,17 +45,16 @@ public:
     bool isSuitableForShortCircuitArgumentsExecution(const DataTypesWithConstInfo &) const override { return true; }
     size_t getNumberOfArguments() const override { return 2; }
     String getName() const override { return name; }
-    bool useDefaultImplementationForNulls() const override { return false; }
-    bool useDefaultImplementationForConstants() const override { return false; }
+    bool useDefaultImplementationForConstants() const override { return true; }
 
     DB::DataTypePtr getReturnTypeImpl(const ColumnsWithTypeAndName &) const override
     {
         auto data_type = std::make_shared<DataTypeUInt8>();
         return makeNullable(data_type);
     }
-
-     ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr &, size_t input_rows_count) const override
-     {
+    
+    ColumnPtr executeImpl(const ColumnsWithTypeAndName & arguments, const DataTypePtr &, size_t input_rows_count) const override
+    {
         if (arguments.size() != 2)
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} must have 2 arguments", getName());
         
@@ -65,28 +65,8 @@ public:
         if (input_rows_count == 0)
             return ColumnNullable::create(std::move(res), std::move(null_map));
         
-        const ColumnArray * array_col_1 = nullptr,  * array_col_2 = nullptr;
-        const ColumnConst * const_col_1 = checkAndGetColumn<ColumnConst>(arguments[0].column.get());
-        const ColumnConst * const_col_2 = checkAndGetColumn<ColumnConst>(arguments[1].column.get());
-        if ((const_col_1 && const_col_1->onlyNull()) || (const_col_2 && const_col_2->onlyNull()))
-        {
-            null_map_data[0] = 1;
-            return ColumnNullable::create(std::move(res), std::move(null_map));
-        }
-        if (const_col_1)
-            array_col_1 = checkAndGetColumn<ColumnArray>(const_col_1->getDataColumnPtr().get());
-        else
-        {
-            const auto * null_col_1 = checkAndGetColumn<ColumnNullable>(arguments[0].column.get());
-            array_col_1 = checkAndGetColumn<ColumnArray>(null_col_1->getNestedColumnPtr().get());
-        }
-        if (const_col_2)
-            array_col_2 = checkAndGetColumn<ColumnArray>(const_col_2->getDataColumnPtr().get());
-        else
-        {
-            const auto * null_col_2 = checkAndGetColumn<ColumnNullable>(arguments[1].column.get());
-            array_col_2 = checkAndGetColumn<ColumnArray>(null_col_2->getNestedColumnPtr().get());
-        }
+        const ColumnArray * array_col_1 = checkAndGetColumn<ColumnArray>(arguments[0].column.get());  
+        const ColumnArray * array_col_2 = checkAndGetColumn<ColumnArray>(arguments[1].column.get());
         if (!array_col_1 || !array_col_2)
             throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {} 1st/2nd argument must be array type", getName());
 
@@ -97,15 +77,10 @@ public:
         size_t array_pos_1 = 0, array_pos_2 = 0;
         for (size_t i = 0; i < array_col_1->size(); ++i)
         {
-            if (arguments[0].column->isNullAt(i) || arguments[1].column->isNullAt(i))
-            {
-                null_map_data[i] = 1;
-                continue;
-            }
             size_t array_size_1 = array_offsets_1[i] - current_offset_1;
             size_t array_size_2 = array_offsets_2[i] - current_offset_2;
             auto executeCompare = [&](const IColumn & col1, const IColumn & col2, const ColumnUInt8 * null_map1, const ColumnUInt8 * null_map2) -> void
-            {
+            {   
                 for (size_t j = 0; j < array_size_1 && !res_data[i]; ++j)
                 {
                     for (size_t k = 0; k < array_size_2; ++k)
@@ -154,7 +129,7 @@ public:
             array_pos_2 += array_size_2;
         }
         return ColumnNullable::create(std::move(res), std::move(null_map));
-     }
+    }
 };
 
 REGISTER_FUNCTION(SparkArraysOverlap)
