@@ -78,7 +78,7 @@ object Runtime {
 
     private val released: AtomicBoolean = new AtomicBoolean(false)
 
-    def getHandle: Long = handle
+    def getHandle(): Long = handle
 
     def addSpiller(spiller: Spiller): Unit = {
       spillers.append(spiller)

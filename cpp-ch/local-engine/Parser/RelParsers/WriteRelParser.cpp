@@ -17,16 +17,17 @@
 
 #include "WriteRelParser.h"
 
+#include <Core/Settings.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <Interpreters/Context.h>
 #include <Parser/TypeParser.h>
 #include <Processors/Transforms/ExpressionTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/Output/FileWriterWrappers.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <substrait/algebra.pb.h>
 #include <substrait/type.pb.h>
 #include <Poco/StringTokenizer.h>
-#include <Common/CHUtil.h>
 #include <Common/GlutenSettings.h>
 
 using namespace local_engine;

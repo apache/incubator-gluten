@@ -222,11 +222,11 @@ abstract class MergeTreeBaseDynamicPartitionDataWriter(
     customMetrics: Map[String, SQLMetric])
   extends MergeTreeFileFormatDataWriter(description, taskAttemptContext, committer, customMetrics) {
 
-  /** Flag saying whether or not the data to be written out is partitioned. */
-  protected val isPartitioned = description.partitionColumns.nonEmpty
+  /** Flag saying whether the data to be written out is partitioned. */
+  protected val isPartitioned: Boolean = description.partitionColumns.nonEmpty
 
-  /** Flag saying whether or not the data to be written out is bucketed. */
-  protected val isBucketed = description.bucketSpec.isDefined
+  /** Flag saying whether the data to be written out is bucketed. */
+  protected val isBucketed: Boolean = description.bucketSpec.isDefined
 
   assert(
     isPartitioned || isBucketed,

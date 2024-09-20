@@ -20,7 +20,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaParquetFileFormat
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
-import org.apache.spark.sql.execution.datasources.v1.GlutenMergeTreeWriterInjects
+import org.apache.spark.sql.execution.datasources.v1.{CHMergeTreeWriterInjects, GlutenMergeTreeWriterInjects}
 import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
@@ -106,6 +106,7 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
           context: TaskAttemptContext): OutputWriter = {
         GlutenMergeTreeWriterInjects
           .getInstance()
+          .asInstanceOf[CHMergeTreeWriterInjects]
           .createOutputWriter(
             path,
             database,

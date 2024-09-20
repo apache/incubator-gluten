@@ -16,7 +16,6 @@
  */
 #include <Core/Field.h>
 #include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/IDataType.h>
 #include <Parser/FunctionParser.h>
 #include <Common/BlockTypeUtils.h>

@@ -20,11 +20,11 @@
 #include <sstream>
 #include <Interpreters/Context.h>
 #include <base/unit.h>
-#include <Common/CHUtil.h>
 #include <Common/ConcurrentMap.h>
 #include <Common/CurrentThread.h>
 #include <Common/GlutenConfig.h>
 #include <Common/ThreadStatus.h>
+#include <Common/logger_useful.h>
 
 namespace DB
 {

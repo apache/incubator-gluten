@@ -20,8 +20,6 @@
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/SparkMergeTreeWriteSettings.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
-#include <Common/CHUtil.h>
-#include <Common/GlutenSettings.h>
 
 namespace local_engine
 {

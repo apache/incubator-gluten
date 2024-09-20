@@ -21,7 +21,6 @@
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
 #include <Common/BlockTypeUtils.h>
-#include <Common/CHUtil.h>
 #include <Common/GlutenSettings.h>
 
 namespace DB::ErrorCodes

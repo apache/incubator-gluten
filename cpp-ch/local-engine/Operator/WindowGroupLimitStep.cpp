@@ -16,12 +16,10 @@
  */
 
 #include "WindowGroupLimitStep.h"
-#include <memory>
+
 #include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Poco/Logger.h>
-#include <Common/CHUtil.h>
 #include <Common/logger_useful.h>
 
 namespace DB::ErrorCodes

@@ -15,9 +15,8 @@
  * limitations under the License.
  */
 #include "LeadLagParser.h"
-#include <Columns/ColumnNullable.h>
+
 #include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypesNumber.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>

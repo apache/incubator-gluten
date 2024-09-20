@@ -18,10 +18,7 @@
 #include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <AggregateFunctions/FactoryHelpers.h>
 #include <AggregateFunctions/Helpers.h>
-#include <DataTypes/DataTypeTuple.h>
-
-#include <algorithm>
-
+#include <Core/Settings.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenDecimalUtils.h>
 #include <Common/GlutenSettings.h>

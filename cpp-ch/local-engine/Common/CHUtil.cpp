@@ -32,6 +32,7 @@
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/Defines.h>
 #include <Core/NamesAndTypes.h>
+#include <Core/Settings.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeNullable.h>
@@ -49,7 +50,6 @@
 #include <Interpreters/JIT/CompiledExpressionCache.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Parser/SubstraitParserUtils.h>
 #include <Planner/PlannerActionsVisitor.h>
 #include <Processors/Chunk.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
@@ -509,59 +509,6 @@ String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
 
 using namespace DB;
 
-std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std::string_view plan)
-{
-    std::map<std::string, std::string> ch_backend_conf;
-    if (plan.empty())
-        return ch_backend_conf;
-
-    /// Parse backend configs from plan extensions
-    do
-    {
-        substrait::Plan sPlan;
-        auto success = sPlan.ParseFromString(plan);
-        if (!success)
-            break;
-
-        /// see initLoggers, logger == nullptr which meanas initLoggers is not called.
-        if (logger != nullptr)
-            logDebugMessage(sPlan, "Update Config Map Plan");
-
-        if (!sPlan.has_advanced_extensions() || !sPlan.advanced_extensions().has_enhancement())
-            break;
-        const auto & enhancement = sPlan.advanced_extensions().enhancement();
-
-        if (!enhancement.Is<substrait::Expression>())
-            break;
-
-        substrait::Expression expression;
-        if (!enhancement.UnpackTo(&expression) || !expression.has_literal() || !expression.literal().has_map())
-            break;
-
-        const auto & key_values = expression.literal().map().key_values();
-        for (const auto & key_value : key_values)
-        {
-            if (!key_value.has_key() || !key_value.has_value())
-                continue;
-
-            const auto & key = key_value.key();
-            const auto & value = key_value.value();
-            if (!key.has_string() || !value.has_string())
-                continue;
-
-            ch_backend_conf[key.string()] = value.string();
-        }
-    } while (false);
-
-    if (!ch_backend_conf.contains(CH_RUNTIME_CONFIG_FILE))
-    {
-        /// Try to get config path from environment variable
-        if (const char * config_path = std::getenv("CLICKHOUSE_BACKEND_CONFIG"))
-            ch_backend_conf[CH_RUNTIME_CONFIG_FILE] = config_path;
-    }
-    return ch_backend_conf;
-}
-
 std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
     const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config)
 {
@@ -604,18 +551,16 @@ std::vector<String> BackendInitializerUtil::wrapDiskPathConfig(
     return changed_paths;
 }
 
-DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::string, std::string> & backend_conf_map)
+DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(const std::map<std::string, std::string> & spark_conf_map)
 {
     DB::Context::ConfigurationPtr config;
 
-    /// Parse input substrait plan, and get native conf map from it.
-    if (backend_conf_map.contains(CH_RUNTIME_CONFIG_FILE))
+    if (const String config_file = tryGetConfigFile(spark_conf_map); !config_file.empty())
     {
-        const auto & config_file = backend_conf_map[CH_RUNTIME_CONFIG_FILE];
         if (fs::exists(config_file) && fs::is_regular_file(config_file))
         {
             ConfigProcessor config_processor(config_file, false, true);
-            config_processor.setConfigPath(fs::path(config_file).parent_path());
+            DB::ConfigProcessor::setConfigPath(fs::path(config_file).parent_path());
             const auto loaded_config = config_processor.loadConfig(false);
             config = loaded_config.configuration;
         }
@@ -625,7 +570,7 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
     else
         config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
 
-    for (const auto & [key, value] : backend_conf_map)
+    for (const auto & [key, value] : spark_conf_map)
     {
         if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX) && key != CH_RUNTIME_CONFIG_FILE)
         {
@@ -638,17 +583,13 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
         }
     }
 
-    if (backend_conf_map.contains(GLUTEN_TASK_OFFHEAP))
-    {
-        config->setString(MemoryConfig::CH_TASK_MEMORY, backend_conf_map.at(GLUTEN_TASK_OFFHEAP));
-    }
+    if (spark_conf_map.contains(GLUTEN_TASK_OFFHEAP))
+        config->setString(MemoryConfig::CH_TASK_MEMORY, spark_conf_map.at(GLUTEN_TASK_OFFHEAP));
 
     const bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
     char buffer[PATH_MAX];
     if (use_current_directory_as_tmp && getcwd(buffer, sizeof(buffer)) != nullptr)
-    {
         wrapDiskPathConfig(String(buffer), "", *config);
-    }
 
     const bool reuse_disk_cache = config->getBool("reuse_disk_cache", true);
 
@@ -661,6 +602,18 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
             BackendFinalizerUtil::paths_need_to_clean.end(), path_need_clean.begin(), path_need_clean.end());
     }
     return config;
+}
+
+String BackendInitializerUtil::tryGetConfigFile(const std::map<std::string, std::string> & spark_conf_map)
+{
+    if (spark_conf_map.contains(CH_RUNTIME_CONFIG_FILE))
+        return spark_conf_map.at(CH_RUNTIME_CONFIG_FILE);
+
+    /// Try to get config path from environment variable
+    if (const char * config_path = std::getenv("CLICKHOUSE_BACKEND_CONFIG"))
+        return config_path;
+
+    return String{};
 }
 
 
@@ -716,7 +669,7 @@ DB::Field BackendInitializerUtil::toField(const String & key, const String & val
         return DB::Field(value);
 }
 
-void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & backend_conf_map, DB::Settings & settings)
+void BackendInitializerUtil::initSettings(const std::map<std::string, std::string> & spark_conf_map, DB::Settings & settings)
 {
     /// Initialize default setting.
     settings.set("date_time_input_format", "best_effort");
@@ -725,7 +678,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set(DECIMAL_OPERATIONS_ALLOW_PREC_LOSS, true);
     settings.set("remote_filesystem_read_prefetch", false);
 
-    for (const auto & [key, value] : backend_conf_map)
+    for (const auto & [key, value] : spark_conf_map)
     {
         // Firstly apply spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.* to settings
         if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + "."))
@@ -797,14 +750,14 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("enable_named_columns_in_function_tuple", false);
     settings.set("datetime64_trim_suffix_zeros", true);
 
-    if (backend_conf_map.contains(GLUTEN_TASK_OFFHEAP))
+    if (spark_conf_map.contains(GLUTEN_TASK_OFFHEAP))
     {
-        auto task_memory = std::stoull(backend_conf_map.at(GLUTEN_TASK_OFFHEAP));
-        if (!backend_conf_map.contains(CH_RUNTIME_SETTINGS_PREFIX + "max_bytes_before_external_sort"))
+        auto task_memory = std::stoull(spark_conf_map.at(GLUTEN_TASK_OFFHEAP));
+        if (!spark_conf_map.contains(CH_RUNTIME_SETTINGS_PREFIX + "max_bytes_before_external_sort"))
         {
             settings[Setting::max_bytes_before_external_sort] = static_cast<size_t>(0.8 * task_memory);
         }
-        if (!backend_conf_map.contains(CH_RUNTIME_SETTINGS_PREFIX + "prefer_external_sort_block_bytes"))
+        if (!spark_conf_map.contains(CH_RUNTIME_SETTINGS_PREFIX + "prefer_external_sort_block_bytes"))
         {
             auto mem_gb = task_memory / static_cast<double>(1_GiB);
             // 2.8x+5, Heuristics calculate the block size of external sort, [8,16]
@@ -885,11 +838,6 @@ void BackendInitializerUtil::applyGlobalConfigAndSettings(const DB::Context::Con
     global_context->setSettings(settings);
 }
 
-void BackendInitializerUtil::updateNewSettings(const DB::ContextMutablePtr & context, const DB::Settings & settings)
-{
-    context->setSettings(settings);
-}
-
 extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCombinatorFactory &);
 extern void registerAggregateFunctionsBloomFilter(AggregateFunctionFactory &);
 extern void registerAggregateFunctionSparkAvg(AggregateFunctionFactory &);
@@ -947,10 +895,9 @@ void BackendInitializerUtil::initCompiledExpressionCache(DB::Context::Configurat
 #endif
 }
 
-void BackendInitializerUtil::init(const std::string_view plan)
+void BackendInitializerUtil::initBackend(const std::map<std::string, std::string> & spark_conf_map)
 {
-    std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
-    DB::Context::ConfigurationPtr config = initConfig(backend_conf_map);
+    DB::Context::ConfigurationPtr config = initConfig(spark_conf_map);
 
     initLoggers(config);
 
@@ -958,7 +905,7 @@ void BackendInitializerUtil::init(const std::string_view plan)
     LOG_INFO(logger, "Init environment variables.");
 
     DB::Settings settings;
-    initSettings(backend_conf_map, settings);
+    initSettings(spark_conf_map, settings);
     LOG_INFO(logger, "Init settings.");
 
     initContexts(config);
@@ -1006,18 +953,6 @@ void BackendInitializerUtil::init(const std::string_view plan)
             // Avoid using LD_PRELOAD in child process
             unsetenv("LD_PRELOAD");
         });
-}
-
-void BackendInitializerUtil::updateConfig(const DB::ContextMutablePtr & context, std::string_view plan)
-{
-    std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
-
-    // configs cannot be updated per query
-    // settings can be updated per query
-
-    auto settings = context->getSettingsCopy(); // make a copy
-    initSettings(backend_conf_map, settings);
-    updateNewSettings(context, settings);
 }
 
 void BackendFinalizerUtil::finalizeGlobally()
