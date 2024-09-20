@@ -1136,7 +1136,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
     jboolean is_existence_join,
     jbyteArray named_struct,
     jboolean is_null_aware_anti_join,
-    jboolean has_null_key_values)
+    jboolean has_null_key_values,
+    jboolean enable_pre_sort)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     const auto hash_table_id = jstring2string(env, key);
@@ -1158,7 +1159,8 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_StorageJoinBuilder_nativeBuild
         is_existence_join,
         struct_string,
         is_null_aware_anti_join,
-        has_null_key_values));
+        has_null_key_values,
+        enable_pre_sort));
     return obj->instance();
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }

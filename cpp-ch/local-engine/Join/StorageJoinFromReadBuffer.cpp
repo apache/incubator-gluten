@@ -77,13 +77,15 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     const String & comment,
     const bool overwrite_,
     bool is_null_aware_anti_join_,
-    bool has_null_key_values_)
+    bool has_null_key_values_,
+    bool enable_pre_sort_)
     : key_names(key_names_)
     , use_nulls(use_nulls_)
     , row_count(row_count_)
     , overwrite(overwrite_)
     , is_null_aware_anti_join(is_null_aware_anti_join_)
     , has_null_key_value(has_null_key_values_)
+    , enable_pre_sort(enable_pre_sort_)
 {
     is_empty_hash_table = row_count < 1;
     storage_metadata.setColumns(columns);
@@ -114,17 +116,27 @@ void StorageJoinFromReadBuffer::buildJoin(Blocks & data, const Block header, std
     auto build_join = [&]
     {
         join = std::make_shared<HashJoin>(analyzed_join, header, overwrite, row_count);
-        auto total_block = DB::concatenateBlocks(data);
-#if 1
-        for (Block block : data)
-            join->addBlockToJoin(std::move(block), true);
-#else
-        DB::SortColumnDescription sort_col_desc(*(analyzed_join->getOnlyClause().key_names_right.begin()));
-        DB::SortDescription sort_cols_desc;
-        sort_cols_desc.push_back(sort_col_desc);
-        DB::sortBlock(total_block, sort_cols_desc);
-        join->addBlockToJoin(std::move(total_block), true);
-#endif
+        // Sort the right table's blocks before building the hash table. This could reduce cache misses on joining
+        // left table's rows later.
+        if (enable_pre_sort && analyzed_join->getClauses().size() == 1
+            && analyzed_join->getOnlyClause().key_names_right.size() < header.columns())
+        {
+            auto total_block = DB::concatenateBlocks(data);
+            data.clear();
+            DB::SortDescription sort_cols_desc;
+            for (const auto & key : analyzed_join->getOnlyClause().key_names_right)
+            {
+                DB::SortColumnDescription sort_col_desc(key);
+                sort_cols_desc.push_back(sort_col_desc);
+            }
+            DB::sortBlock(total_block, sort_cols_desc);
+            join->addBlockToJoin(std::move(total_block), true);
+        }
+        else
+        {
+            for (Block block : data)
+                join->addBlockToJoin(std::move(block), true);
+        }
     };
     /// Record memory usage in Total Memory Tracker
     ThreadFromGlobalPoolNoTracingContextPropagation thread(build_join);

@@ -48,7 +48,8 @@ public:
         const String & comment,
         bool overwrite_,
         bool is_null_aware_anti_join_,
-        bool has_null_key_values_);
+        bool has_null_key_values_,
+        bool enable_pre_sort_);
 
     bool has_null_key_value = false;
     bool is_empty_hash_table = false;
@@ -70,6 +71,7 @@ private:
     std::list<DB::Block> input_blocks;
     std::shared_ptr<DB::HashJoin> join = nullptr;
     bool is_null_aware_anti_join;
+    bool enable_pre_sort;
 
     void readAllBlocksFromInput(DB::ReadBuffer & in);
     void buildJoin(DB::Blocks & data, const DB::Block header, std::shared_ptr<DB::TableJoin> analyzed_join);

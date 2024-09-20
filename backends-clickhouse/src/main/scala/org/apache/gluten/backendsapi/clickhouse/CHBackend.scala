@@ -378,6 +378,15 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  // Enable the pre-sort for broadcast hash join.
+  // Sort the blocks of left/right table could reduce cache misses.
+  def enablePreSortForBroadcastHashJoin(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConf.runtimeConfig("enable_pre_sort_for_broadcast_hash_join"),
+      defaultValue = true
+    )
+  }
+
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
   }

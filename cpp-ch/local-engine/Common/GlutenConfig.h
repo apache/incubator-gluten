@@ -48,9 +48,12 @@ struct GraceMergingAggregateConfig
 {
     inline static const String MAX_GRACE_AGGREGATE_MERGING_BUCKETS = "max_grace_aggregate_merging_buckets";
     inline static const String THROW_ON_OVERFLOW_GRACE_AGGREGATE_MERGING_BUCKETS = "throw_on_overflow_grace_aggregate_merging_buckets";
-    inline static const String AGGREGATED_KEYS_BEFORE_EXTEND_GRACE_AGGREGATE_MERGING_BUCKETS = "aggregated_keys_before_extend_grace_aggregate_merging_buckets";
-    inline static const String MAX_PENDING_FLUSH_BLOCKS_PER_GRACE_AGGREGATE_MERGING_BUCKET = "max_pending_flush_blocks_per_grace_aggregate_merging_bucket";
-    inline static const String MAX_ALLOWED_MEMORY_USAGE_RATIO_FOR_AGGREGATE_MERGING = "max_allowed_memory_usage_ratio_for_aggregate_merging";
+    inline static const String AGGREGATED_KEYS_BEFORE_EXTEND_GRACE_AGGREGATE_MERGING_BUCKETS
+        = "aggregated_keys_before_extend_grace_aggregate_merging_buckets";
+    inline static const String MAX_PENDING_FLUSH_BLOCKS_PER_GRACE_AGGREGATE_MERGING_BUCKET
+        = "max_pending_flush_blocks_per_grace_aggregate_merging_bucket";
+    inline static const String MAX_ALLOWED_MEMORY_USAGE_RATIO_FOR_AGGREGATE_MERGING
+        = "max_allowed_memory_usage_ratio_for_aggregate_merging";
 
     size_t max_grace_aggregate_merging_buckets = 32;
     bool throw_on_overflow_grace_aggregate_merging_buckets = false;
@@ -62,10 +65,14 @@ struct GraceMergingAggregateConfig
     {
         GraceMergingAggregateConfig config;
         config.max_grace_aggregate_merging_buckets = context->getConfigRef().getUInt64(MAX_GRACE_AGGREGATE_MERGING_BUCKETS, 32);
-        config.throw_on_overflow_grace_aggregate_merging_buckets = context->getConfigRef().getBool(THROW_ON_OVERFLOW_GRACE_AGGREGATE_MERGING_BUCKETS, false);
-        config.aggregated_keys_before_extend_grace_aggregate_merging_buckets = context->getConfigRef().getUInt64(AGGREGATED_KEYS_BEFORE_EXTEND_GRACE_AGGREGATE_MERGING_BUCKETS, 8192);
-        config.max_pending_flush_blocks_per_grace_aggregate_merging_bucket = context->getConfigRef().getUInt64(MAX_PENDING_FLUSH_BLOCKS_PER_GRACE_AGGREGATE_MERGING_BUCKET, 1_MiB);
-        config.max_allowed_memory_usage_ratio_for_aggregate_merging = context->getConfigRef().getDouble(MAX_ALLOWED_MEMORY_USAGE_RATIO_FOR_AGGREGATE_MERGING, 0.9);
+        config.throw_on_overflow_grace_aggregate_merging_buckets
+            = context->getConfigRef().getBool(THROW_ON_OVERFLOW_GRACE_AGGREGATE_MERGING_BUCKETS, false);
+        config.aggregated_keys_before_extend_grace_aggregate_merging_buckets
+            = context->getConfigRef().getUInt64(AGGREGATED_KEYS_BEFORE_EXTEND_GRACE_AGGREGATE_MERGING_BUCKETS, 8192);
+        config.max_pending_flush_blocks_per_grace_aggregate_merging_bucket
+            = context->getConfigRef().getUInt64(MAX_PENDING_FLUSH_BLOCKS_PER_GRACE_AGGREGATE_MERGING_BUCKET, 1_MiB);
+        config.max_allowed_memory_usage_ratio_for_aggregate_merging
+            = context->getConfigRef().getDouble(MAX_ALLOWED_MEMORY_USAGE_RATIO_FOR_AGGREGATE_MERGING, 0.9);
         return config;
     }
 };
@@ -74,7 +81,8 @@ struct StreamingAggregateConfig
 {
     inline static const String AGGREGATED_KEYS_BEFORE_STREAMING_AGGREGATING_EVICT = "aggregated_keys_before_streaming_aggregating_evict";
     inline static const String MAX_MEMORY_USAGE_RATIO_FOR_STREAMING_AGGREGATING = "max_memory_usage_ratio_for_streaming_aggregating";
-    inline static const String HIGH_CARDINALITY_THRESHOLD_FOR_STREAMING_AGGREGATING = "high_cardinality_threshold_for_streaming_aggregating";
+    inline static const String HIGH_CARDINALITY_THRESHOLD_FOR_STREAMING_AGGREGATING
+        = "high_cardinality_threshold_for_streaming_aggregating";
     inline static const String ENABLE_STREAMING_AGGREGATING = "enable_streaming_aggregating";
 
     size_t aggregated_keys_before_streaming_aggregating_evict = 1024;
@@ -85,9 +93,12 @@ struct StreamingAggregateConfig
     static StreamingAggregateConfig loadFromContext(const DB::ContextPtr & context)
     {
         StreamingAggregateConfig config;
-        config.aggregated_keys_before_streaming_aggregating_evict = context->getConfigRef().getUInt64(AGGREGATED_KEYS_BEFORE_STREAMING_AGGREGATING_EVICT, 1024);
-        config.max_memory_usage_ratio_for_streaming_aggregating = context->getConfigRef().getDouble(MAX_MEMORY_USAGE_RATIO_FOR_STREAMING_AGGREGATING, 0.9);
-        config.high_cardinality_threshold_for_streaming_aggregating = context->getConfigRef().getDouble(HIGH_CARDINALITY_THRESHOLD_FOR_STREAMING_AGGREGATING, 0.8);
+        config.aggregated_keys_before_streaming_aggregating_evict
+            = context->getConfigRef().getUInt64(AGGREGATED_KEYS_BEFORE_STREAMING_AGGREGATING_EVICT, 1024);
+        config.max_memory_usage_ratio_for_streaming_aggregating
+            = context->getConfigRef().getDouble(MAX_MEMORY_USAGE_RATIO_FOR_STREAMING_AGGREGATING, 0.9);
+        config.high_cardinality_threshold_for_streaming_aggregating
+            = context->getConfigRef().getDouble(HIGH_CARDINALITY_THRESHOLD_FOR_STREAMING_AGGREGATING, 0.8);
         config.enable_streaming_aggregating = context->getConfigRef().getBool(ENABLE_STREAMING_AGGREGATING, true);
         return config;
     }
@@ -104,12 +115,19 @@ struct JoinConfig
 
     bool prefer_multi_join_on_clauses = true;
     size_t multi_join_on_clauses_build_side_rows_limit = 10000000;
+    bool enable_pre_sort_for_broadcast_hash_join = true;
+    // If the keys of hash table is larger then this threshild, active pre-sort
+    size_t pre_sort_for_broadcast_hash_join_threshold = 100000;
 
     static JoinConfig loadFromContext(const DB::ContextPtr & context)
     {
         JoinConfig config;
         config.prefer_multi_join_on_clauses = context->getConfigRef().getBool(PREFER_MULTI_JOIN_ON_CLAUSES, true);
-        config.multi_join_on_clauses_build_side_rows_limit = context->getConfigRef().getUInt64(MULTI_JOIN_ON_CLAUSES_BUILD_SIDE_ROWS_LIMIT, 10000000);
+        config.multi_join_on_clauses_build_side_rows_limit
+            = context->getConfigRef().getUInt64(MULTI_JOIN_ON_CLAUSES_BUILD_SIDE_ROWS_LIMIT, 10000000);
+        config.enable_pre_sort_for_broadcast_hash_join = context->getConfigRef().getBool("enable_pre_sort_for_broadcast_hash_join", true);
+        config.pre_sort_for_broadcast_hash_join_threshold
+            = context->getConfigRef().getUInt64("pre_sort_for_broadcast_hash_join_threshold", 100000);
         return config;
     }
 };

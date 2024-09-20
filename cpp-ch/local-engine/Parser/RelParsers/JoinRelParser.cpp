@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "JoinRelParser.h"
+#include <memory>
 #include <optional>
 
 #include <Core/Block.h>
@@ -29,6 +30,7 @@
 #include <Join/BroadCastJoinBuilder.h>
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Operator/EarlyStopStep.h>
+#include <Operator/SortSingleBlockStep.h>
 #include <Parser/AdvancedParametersParseUtil.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
@@ -306,6 +308,23 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         }
         applyJoinFilter(*table_join, join, *left, *right, true);
         auto broadcast_hash_join = storage_join->getJoinLocked(table_join, context);
+
+        // add a pre-sort step, help to reduce cache misses.
+        if (table_join->getClauses().size() == 1 && table_join->getOnlyClause().key_names_right.size() < right_header.columns()
+            && join_config.enable_pre_sort_for_broadcast_hash_join
+            && join_config.pre_sort_for_broadcast_hash_join_threshold < broadcast_hash_join->getTotalRowCount())
+        {
+            DB::SortDescription sort_cols_desc;
+            for (const auto & left_key : table_join->getOnlyClause().key_names_left)
+            {
+                DB::SortColumnDescription sort_col_desc(left_key);
+                sort_cols_desc.push_back(sort_col_desc);
+            }
+            auto sort_step = std::make_unique<SortSingleBlockStep>(left->getCurrentDataStream(), sort_cols_desc);
+            sort_step->setStepDescription("pre-sort for broadcast hash join");
+            steps.push_back(sort_step.get());
+            left->addStep(std::move(sort_step));
+        }
 
         QueryPlanStepPtr join_step = std::make_unique<FilledJoinStep>(left->getCurrentDataStream(), broadcast_hash_join, 8192);
 
