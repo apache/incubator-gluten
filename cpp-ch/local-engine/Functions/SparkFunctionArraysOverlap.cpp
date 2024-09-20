@@ -16,7 +16,6 @@
  */
 #include <Columns/ColumnString.h>
 #include <Columns/ColumnNullable.h>
-#include <Common/HashTable/HashSet.h>
 #include <Functions/IFunction.h>
 #include <Functions/FunctionFactory.h>
 #include <DataTypes/DataTypeString.h>
