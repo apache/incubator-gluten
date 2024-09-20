@@ -1347,7 +1347,7 @@ object GlutenConfig {
           "planning to generate more efficient query plan. Note, this feature is still in " +
           "development and may not bring performance profits.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val RAS_COST_MODEL =
     buildConf("spark.gluten.ras.costModel")
