@@ -120,6 +120,10 @@ class VeloxRasSuite extends SharedSparkSession {
     }
   }
 
+  test("test") {
+    assert(1 == 2)
+  }
+
   test("User cost model") {
     withSQLConf(GlutenConfig.RAS_COST_MODEL.key -> classOf[UserCostModel1].getName) {
       val in = RowUnary(RowLeaf(TRIVIAL_SCHEMA))
