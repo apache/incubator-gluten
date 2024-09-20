@@ -39,9 +39,9 @@ for arg in "$@"; do
   esac
 done
 
-SCRIPT_ROOT="$(realpath "$(dirname "$0")")"
-VCPKG_ROOT="$SCRIPT_ROOT/.vcpkg"
-VCPKG="$SCRIPT_ROOT/.vcpkg/vcpkg"
+export SCRIPT_ROOT="$(realpath "$(dirname "$0")")"
+export VCPKG_ROOT="$SCRIPT_ROOT/.vcpkg"
+export VCPKG="$SCRIPT_ROOT/.vcpkg/vcpkg"
 VCPKG_TRIPLET=x64-linux-avx
 
 cd "$SCRIPT_ROOT"
@@ -71,10 +71,12 @@ if [ "$ENABLE_ABFS" = "ON" ]; then
   EXTRA_FEATURES+="--x-feature=velox-abfs"
 fi
 
+echo "%%%%%% execute vcpkg install"
+
 $VCPKG install --no-print-usage \
     --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" ${EXTRA_FEATURES}
-
-VCPKG_TRIPLET_INSTALL_DIR=${SCRIPT_ROOT}/vcpkg_installed/${VCPKG_TRIPLET}
+echo "%%%%%% after vcpkg install"
+export VCPKG_TRIPLET_INSTALL_DIR=${SCRIPT_ROOT}/vcpkg_installed/${VCPKG_TRIPLET}
 EXPORT_TOOLS_PATH=
 EXPORT_TOOLS_PATH="${VCPKG_TRIPLET_INSTALL_DIR}/tools/protobuf:${EXPORT_TOOLS_PATH}"
 
@@ -86,7 +88,7 @@ if [ -f "$VCPKG_CMAKE_BIN_DIR/cmake" ]; then
     EXPORT_TOOLS_PATH="${VCPKG_CMAKE_BIN_DIR}:${EXPORT_TOOLS_PATH}"
 fi
 
-EXPORT_TOOLS_PATH=${EXPORT_TOOLS_PATH/%:/}
+export EXPORT_TOOLS_PATH=${EXPORT_TOOLS_PATH/%:/}
 
 # For fixing a build error like below when gluten's build type is Debug:
 # No rule to make target '/root/gluten/dev/vcpkg/vcpkg_installed/x64-linux-avx/debug/lib/libz.a',
@@ -99,18 +101,3 @@ cp $VCPKG_TRIPLET_INSTALL_DIR/lib/liblzma.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib
 cp $VCPKG_TRIPLET_INSTALL_DIR/lib/libdwarf.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib
 cp $VCPKG_TRIPLET_INSTALL_DIR/lib/libhdfs3.a $VCPKG_TRIPLET_INSTALL_DIR/debug/lib || true
 
-cat <<EOF >&3
-if [ "\${GLUTEN_VCPKG_ENABLED:-}" != "${VCPKG_ROOT}" ]; then
-    export VCPKG_ROOT=${VCPKG_ROOT}
-    export VCPKG_MANIFEST_DIR=${SCRIPT_ROOT}
-    export VCPKG_TRIPLET=${VCPKG_TRIPLET}
-
-    export CMAKE_TOOLCHAIN_FILE=${SCRIPT_ROOT}/toolchain.cmake
-    export PKG_CONFIG_PATH=${VCPKG_TRIPLET_INSTALL_DIR}/lib/pkgconfig:${VCPKG_TRIPLET_INSTALL_DIR}/share/pkgconfig:\${PKG_CONFIG_PATH:-}
-    export PATH="${EXPORT_TOOLS_PATH}:\$PATH"
-
-    export GLUTEN_VCPKG_ENABLED=${VCPKG_ROOT}
-else
-    echo "Gluten's vcpkg environment is enabled" >&2
-fi
-EOF
