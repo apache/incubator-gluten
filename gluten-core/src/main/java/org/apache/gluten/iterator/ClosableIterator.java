@@ -55,8 +55,6 @@ public abstract class ClosableIterator
     }
   }
 
-  public abstract String id();
-
   protected abstract void close0();
 
   protected abstract boolean hasNext0() throws Exception;

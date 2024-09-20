@@ -51,7 +51,7 @@ public class ColumnarBatchJniWrapper implements RuntimeAware {
   public native void close(long batch);
 
   @Override
-  public long handle() {
+  public long rtHandle() {
     return runtime.getHandle();
   }
 }

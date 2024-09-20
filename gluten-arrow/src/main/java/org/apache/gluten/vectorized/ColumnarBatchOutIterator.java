@@ -36,14 +36,8 @@ public class ColumnarBatchOutIterator extends ClosableIterator implements Runtim
   }
 
   @Override
-  public long handle() {
+  public long rtHandle() {
     return runtime.getHandle();
-  }
-
-  @Override
-  public String id() {
-    // Using native iterHandle as identifier
-    return String.valueOf(iterHandle);
   }
 
   public long itrHandle() {

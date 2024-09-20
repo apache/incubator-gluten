@@ -37,7 +37,7 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
   }
 
   @Override
-  public long handle() {
+  public long rtHandle() {
     return runtime.getHandle();
   }
 
