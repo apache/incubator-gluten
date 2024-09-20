@@ -24,7 +24,7 @@ ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 ENABLE_ABFS=OFF
 ENABLE_EP_CACHE=OFF
-ENABLE_VCPKG=OFF
+ENABLE_VCPKG=ON
 RUN_SETUP_SCRIPT=ON
 VELOX_REPO=""
 VELOX_BRANCH=""
@@ -173,6 +173,8 @@ if [ "$ENABLE_VCPKG" = "ON" ]; then
     # vcpkg will install static depends and init build environment
     envs="$("$GLUTEN_DIR/dev/vcpkg/init.sh")"
     eval "$envs"
+else
+    echo "Dynamic linked libs based building is deprecated, please enabled VCPKG based building."
 fi
 
 if [ "$SPARK_VERSION" = "3.2" ] || [ "$SPARK_VERSION" = "3.3" ] \
