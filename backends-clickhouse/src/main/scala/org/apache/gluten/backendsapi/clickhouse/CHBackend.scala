@@ -352,23 +352,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       .getLong(GLUTEN_MAX_SHUFFLE_READ_BYTES, GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT)
   }
 
-  // Reorder hash join tables, make sure to use the smaller table to build the hash table.
-  // Need to enable AQE
-  def enableReorderHashJoinTables(): Boolean = {
-    SparkEnv.get.conf.getBoolean(
-      CHConf.prefixOf("enable_reorder_hash_join_tables"),
-      defaultValue = true
-    )
-  }
-  // The threshold to reorder hash join tables, if The result of dividing two tables' size is
-  // large then this threshold, reorder the tables. e.g. a/b > threshold or b/a > threshold
-  def reorderHashJoinTablesThreshold(): Int = {
-    SparkEnv.get.conf.getInt(
-      CHConf.prefixOf("reorder_hash_join_tables_thresdhold"),
-      10
-    )
-  }
-
   // Move the pre-prejection for a aggregation ahead of the expand node
   // for example, select a, b, sum(c+d) from t group by a, b with cube
   def enablePushdownPreProjectionAheadExpand(): Boolean = {
