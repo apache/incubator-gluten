@@ -154,7 +154,7 @@ class JNIUtils;
 class BackendInitializerUtil
 {
 public:
-    static DB::Field toField(const String key, const String value);
+    static DB::Field toField(const String & key, const String & value);
 
     /// Initialize two kinds of resources
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime
@@ -162,11 +162,6 @@ public:
     static void init(const std::string_view plan);
     static void updateConfig(const DB::ContextMutablePtr &, std::string_view);
 
-    // use excel text parser
-    inline static const std::string USE_EXCEL_PARSER = "use_excel_serialization";
-    inline static const std::string EXCEL_EMPTY_AS_NULL = "use_excel_serialization.empty_as_null";
-    inline static const std::string EXCEL_NUMBER_FORCE = "use_excel_serialization.number_force";
-    inline static const std::string EXCEL_QUOTE_STRICT = "use_excel_serialization.quote_strict";
     inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
 
     inline static const String CH_RUNTIME_CONFIG = "runtime_config";

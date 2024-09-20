@@ -32,11 +32,17 @@
 #include <Common/BlockTypeUtils.h>
 
 
-namespace DB::ErrorCodes
+namespace DB
+{
+namespace Setting
+{
+extern const SettingsMaxThreads max_threads;
+}
+namespace ErrorCodes
 {
 extern const int LOGICAL_ERROR;
 }
-
+}
 namespace local_engine
 {
 DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
@@ -56,7 +62,7 @@ DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substra
         steps.emplace_back(read_step.get());
         query_plan->addStep(std::move(read_step));
 
-        if (getContext()->getSettingsRef().max_threads > 1)
+        if (getContext()->getSettingsRef()[Setting::max_threads] > 1)
         {
             auto buffer_step = std::make_unique<BlocksBufferPoolStep>(query_plan->getCurrentDataStream());
             steps.emplace_back(buffer_step.get());

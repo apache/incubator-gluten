@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include <Formats/FormatFactory.h>
 #include <Formats/FormatSettings.h>
 #include <Processors/Formats/Impl/HiveTextRowInputFormat.h>
 #include <Poco/URI.h>

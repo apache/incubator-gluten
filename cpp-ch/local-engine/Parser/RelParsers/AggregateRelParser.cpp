@@ -33,6 +33,23 @@
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsUInt64 max_bytes_before_external_group_by;
+extern const SettingsBool optimize_group_by_constant_keys;
+extern const SettingsUInt64 min_free_disk_space_for_temporary_data;
+extern const SettingsMaxThreads max_threads;
+extern const SettingsBool empty_result_for_aggregation_by_empty_set;
+extern const SettingsUInt64 group_by_two_level_threshold_bytes;
+extern const SettingsOverflowModeGroupBy group_by_overflow_mode;
+extern const SettingsUInt64 max_rows_to_group_by;
+extern const SettingsBool enable_memory_bound_merging_of_aggregation_results;
+extern const SettingsUInt64 aggregation_in_order_max_block_bytes;
+extern const SettingsUInt64 group_by_two_level_threshold;
+extern const SettingsFloat min_hit_rate_to_use_consecutive_keys_optimization;
+extern const SettingsMaxThreads max_threads;
+extern const SettingsUInt64 max_block_size;
+}
 namespace ErrorCodes
 {
     extern const int LOGICAL_ERROR;
@@ -292,13 +309,13 @@ void AggregateRelParser::addMergingAggregatedStep()
         grouping_keys,
         aggregate_descriptions,
         false,
-        settings.max_threads,
-        PODArrayUtil::adjustMemoryEfficientSize(settings.max_block_size),
-        settings.min_hit_rate_to_use_consecutive_keys_optimization);
+        settings[Setting::max_threads],
+        PODArrayUtil::adjustMemoryEfficientSize(settings[Setting::max_block_size]),
+        settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization]);
     auto config = StreamingAggregateConfig::loadFromContext(getContext());
     if (config.enable_streaming_aggregating)
     {
-        params.group_by_two_level_threshold = settings.group_by_two_level_threshold;
+        params.group_by_two_level_threshold = settings[Setting::group_by_two_level_threshold];
         auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params, false);
         steps.emplace_back(merging_step.get());
         plan->addStep(std::move(merging_step));
@@ -316,10 +333,10 @@ void AggregateRelParser::addMergingAggregatedStep()
             1,
             1,
             false,
-            settings.max_block_size,
-            settings.aggregation_in_order_max_block_bytes,
+            settings[Setting::max_block_size],
+            settings[Setting::aggregation_in_order_max_block_bytes],
             SortDescription(),
-            settings.enable_memory_bound_merging_of_aggregation_results);
+            settings[Setting::enable_memory_bound_merging_of_aggregation_results]);
         steps.emplace_back(merging_step.get());
         plan->addStep(std::move(merging_step));
     }
@@ -337,22 +354,22 @@ void AggregateRelParser::addCompleteModeAggregatedStep()
             grouping_keys,
             aggregate_descriptions,
             false,
-            settings.max_rows_to_group_by,
-            settings.group_by_overflow_mode,
-            settings.group_by_two_level_threshold,
-            settings.group_by_two_level_threshold_bytes,
-            0, /*settings.max_bytes_before_external_group_by*/
-            settings.empty_result_for_aggregation_by_empty_set,
+            settings[Setting::max_rows_to_group_by],
+            settings[Setting::group_by_overflow_mode],
+            settings[Setting::group_by_two_level_threshold],
+            settings[Setting::group_by_two_level_threshold_bytes],
+            0, /*settings[Setting::max_bytes_before_external_group_by]*/
+            settings[Setting::empty_result_for_aggregation_by_empty_set],
             getContext()->getTempDataOnDisk(),
-            settings.max_threads,
-            settings.min_free_disk_space_for_temporary_data,
+            settings[Setting::max_threads],
+            settings[Setting::min_free_disk_space_for_temporary_data],
             true,
             3,
-            PODArrayUtil::adjustMemoryEfficientSize(settings.max_block_size),
+            PODArrayUtil::adjustMemoryEfficientSize(settings[Setting::max_block_size]),
             /*enable_prefetch*/ true,
             /*only_merge*/ false,
-            settings.optimize_group_by_constant_keys,
-            settings.min_hit_rate_to_use_consecutive_keys_optimization,
+            settings[Setting::optimize_group_by_constant_keys],
+            settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization],
             /*StatsCollectingParams*/{});
         auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params, true);
         steps.emplace_back(merging_step.get());
@@ -364,22 +381,22 @@ void AggregateRelParser::addCompleteModeAggregatedStep()
             grouping_keys,
             aggregate_descriptions,
             false,
-            settings.max_rows_to_group_by,
-            settings.group_by_overflow_mode,
-            settings.group_by_two_level_threshold,
-            settings.group_by_two_level_threshold_bytes,
-            settings.max_bytes_before_external_group_by,
-            settings.empty_result_for_aggregation_by_empty_set,
+            settings[Setting::max_rows_to_group_by],
+            settings[Setting::group_by_overflow_mode],
+            settings[Setting::group_by_two_level_threshold],
+            settings[Setting::group_by_two_level_threshold_bytes],
+            settings[Setting::max_bytes_before_external_group_by],
+            settings[Setting::empty_result_for_aggregation_by_empty_set],
             getContext()->getTempDataOnDisk(),
-            settings.max_threads,
-            settings.min_free_disk_space_for_temporary_data,
+            settings[Setting::max_threads],
+            settings[Setting::min_free_disk_space_for_temporary_data],
             true,
             3,
-            PODArrayUtil::adjustMemoryEfficientSize(settings.max_block_size),
+            PODArrayUtil::adjustMemoryEfficientSize(settings[Setting::max_block_size]),
             /*enable_prefetch*/ true,
             /*only_merge*/ false,
-            settings.optimize_group_by_constant_keys,
-            settings.min_hit_rate_to_use_consecutive_keys_optimization,
+            settings[Setting::optimize_group_by_constant_keys],
+            settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization],
             /*StatsCollectingParams*/{});
 
         auto aggregating_step = std::make_unique<AggregatingStep>(
@@ -387,8 +404,8 @@ void AggregateRelParser::addCompleteModeAggregatedStep()
             params,
             GroupingSetsParamsList(),
             true,
-            settings.max_block_size,
-            settings.aggregation_in_order_max_block_bytes,
+            settings[Setting::max_block_size],
+            settings[Setting::aggregation_in_order_max_block_bytes],
             1,
             1,
             false,
@@ -422,22 +439,22 @@ void AggregateRelParser::addAggregatingStep()
             grouping_keys,
             aggregate_descriptions,
             false,
-            settings.max_rows_to_group_by,
-            settings.group_by_overflow_mode,
-            settings.group_by_two_level_threshold,
+            settings[Setting::max_rows_to_group_by],
+            settings[Setting::group_by_overflow_mode],
+            settings[Setting::group_by_two_level_threshold],
             0, // group_by_two_level_threshold_bytes
             0,
-            settings.empty_result_for_aggregation_by_empty_set,
+            settings[Setting::empty_result_for_aggregation_by_empty_set],
             nullptr,
-            settings.max_threads,
-            settings.min_free_disk_space_for_temporary_data,
+            settings[Setting::max_threads],
+            settings[Setting::min_free_disk_space_for_temporary_data],
             true,
             3,
-            PODArrayUtil::adjustMemoryEfficientSize(settings.max_block_size),
+            PODArrayUtil::adjustMemoryEfficientSize(settings[Setting::max_block_size]),
             /*enable_prefetch*/ true,
             /*only_merge*/ false,
-            settings.optimize_group_by_constant_keys,
-            settings.min_hit_rate_to_use_consecutive_keys_optimization,
+            settings[Setting::optimize_group_by_constant_keys],
+            settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization],
             /*StatsCollectingParams*/{});
         auto aggregating_step = std::make_unique<StreamingAggregatingStep>(getContext(), plan->getCurrentDataStream(), params);
         steps.emplace_back(aggregating_step.get());
@@ -449,22 +466,22 @@ void AggregateRelParser::addAggregatingStep()
             grouping_keys,
             aggregate_descriptions,
             false,
-            settings.max_rows_to_group_by,
-            settings.group_by_overflow_mode,
-            settings.group_by_two_level_threshold,
-            settings.group_by_two_level_threshold_bytes,
-            settings.max_bytes_before_external_group_by,
-            settings.empty_result_for_aggregation_by_empty_set,
+            settings[Setting::max_rows_to_group_by],
+            settings[Setting::group_by_overflow_mode],
+            settings[Setting::group_by_two_level_threshold],
+            settings[Setting::group_by_two_level_threshold_bytes],
+            settings[Setting::max_bytes_before_external_group_by],
+            settings[Setting::empty_result_for_aggregation_by_empty_set],
             getContext()->getTempDataOnDisk(),
-            settings.max_threads,
-            settings.min_free_disk_space_for_temporary_data,
+            settings[Setting::max_threads],
+            settings[Setting::min_free_disk_space_for_temporary_data],
             true,
             3,
-            PODArrayUtil::adjustMemoryEfficientSize(settings.max_block_size),
+            PODArrayUtil::adjustMemoryEfficientSize(settings[Setting::max_block_size]),
             /*enable_prefetch*/ true,
             /*only_merge*/ false,
-            settings.optimize_group_by_constant_keys,
-            settings.min_hit_rate_to_use_consecutive_keys_optimization,
+            settings[Setting::optimize_group_by_constant_keys],
+            settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization],
             /*StatsCollectingParams*/{});
 
         auto aggregating_step = std::make_unique<AggregatingStep>(
@@ -472,8 +489,8 @@ void AggregateRelParser::addAggregatingStep()
             params,
             GroupingSetsParamsList(),
             false,
-            settings.max_block_size,
-            settings.aggregation_in_order_max_block_bytes,
+            settings[Setting::max_block_size],
+            settings[Setting::aggregation_in_order_max_block_bytes],
             1,
             1,
             false,

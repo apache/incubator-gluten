@@ -49,6 +49,7 @@
 #include <Common/CHUtil.h>
 #include <Common/FileCacheConcurrentMap.h>
 #include <Common/GlutenConfig.h>
+#include <Common/GlutenSettings.h>
 #include <Common/logger_useful.h>
 #include <Common/safe_cast.h>
 
@@ -66,6 +67,12 @@
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsUInt64 s3_max_redirects;
+extern const SettingsBool s3_disable_checksum;
+extern const SettingsUInt64 s3_retry_attempts;
+}
 namespace ErrorCodes
 {
     extern const int BAD_ARGUMENTS;
@@ -538,10 +545,10 @@ private:
     {
         std::string ret;
         // if there's a bucket specific config, prefer it to non per bucket config
-        if (settings.tryGetString(toBucketNameSetting(bucket_name, config_name), ret))
+        if (tryGetString(settings, toBucketNameSetting(bucket_name, config_name), ret))
             return stripQuote(ret);
 
-        if (!require_per_bucket && settings.tryGetString(config_name, ret))
+        if (!require_per_bucket && tryGetString(settings, config_name, ret))
             return stripQuote(ret);
 
         return default_value;
@@ -614,8 +621,8 @@ private:
         DB::S3::PocoHTTPClientConfiguration client_configuration = DB::S3::ClientFactory::instance().createClientConfiguration(
             region_name,
             context->getRemoteHostFilter(),
-            static_cast<unsigned>(context->getSettingsRef().s3_max_redirects),
-            static_cast<unsigned>(context->getSettingsRef().s3_retry_attempts),
+            static_cast<unsigned>(context->getSettingsRef()[DB::Setting::s3_max_redirects]),
+            static_cast<unsigned>(context->getSettingsRef()[DB::Setting::s3_retry_attempts]),
             false,
             false,
             nullptr,
@@ -631,15 +638,15 @@ private:
 
         std::string ak;
         std::string sk;
-        settings.tryGetString(BackendInitializerUtil::HADOOP_S3_ACCESS_KEY, ak);
-        settings.tryGetString(BackendInitializerUtil::HADOOP_S3_SECRET_KEY, sk);
+        tryGetString(settings, BackendInitializerUtil::HADOOP_S3_ACCESS_KEY, ak);
+        tryGetString(settings, BackendInitializerUtil::HADOOP_S3_SECRET_KEY, sk);
         stripQuote(ak);
         stripQuote(sk);
         const DB::Settings & global_settings = context->getGlobalContext()->getSettingsRef();
         const DB::Settings & local_settings = context->getSettingsRef();
         DB::S3::ClientSettings client_settings{
             .use_virtual_addressing = false,
-            .disable_checksum = local_settings.s3_disable_checksum,
+            .disable_checksum = local_settings[DB::Setting::s3_disable_checksum],
             .gcs_issue_compose_request = context->getConfigRef().getBool("s3.gcs_issue_compose_request", false),
         };
         if (use_assumed_role)

@@ -33,6 +33,11 @@
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsUInt64 hdfs_replication;
+}
+
 namespace ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
@@ -120,7 +125,7 @@ void registerGlutenHDFSObjectStorage(ObjectStorageFactory & factory)
 
             std::unique_ptr<HDFSObjectStorageSettings> settings = std::make_unique<HDFSObjectStorageSettings>(
                 config.getUInt64(config_prefix + ".min_bytes_for_seek", 1024 * 1024),
-                context->getSettingsRef().hdfs_replication
+                context->getSettingsRef()[Setting::hdfs_replication]
             );
             return std::make_shared<GlutenHDFSObjectStorage>(uri, std::move(settings), config);
         });

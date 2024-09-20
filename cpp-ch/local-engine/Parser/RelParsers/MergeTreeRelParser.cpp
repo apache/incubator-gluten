@@ -16,17 +16,23 @@
  */
 
 #include "MergeTreeRelParser.h"
+#include <Core/Settings.h>
 #include <Parser/FunctionParser.h>
+#include <Parser/InputFileNameParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
-#include <Parser/InputFileNameParser.h>
+#include <Common/GlutenSettings.h>
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsUInt64 max_block_size;
+}
 namespace ErrorCodes
 {
 extern const int NO_SUCH_DATA_PART;
@@ -126,7 +132,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
         storage_snapshot,
         *query_info,
         context,
-        context->getSettingsRef().max_block_size,
+        context->getSettingsRef()[Setting::max_block_size],
         1);
 
     auto * source_step_with_filter = static_cast<SourceStepWithFilter *>(read_step.get());
@@ -138,7 +144,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
 
     auto ranges = merge_tree_table.extractRange(selected_parts);
     std::string ret;
-    if (context->getSettingsRef().tryGetString("enabled_driver_filter_mergetree_index", ret) && ret == "'true'")
+    if (settingsEqual(context->getSettingsRef(), "enabled_driver_filter_mergetree_index", "'true'"))
         SparkStorageMergeTree::analysisPartsByRanges(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
     else
         SparkStorageMergeTree::wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
@@ -368,7 +374,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
         storage_snapshot,
         *query_info,
         context,
-        context->getSettingsRef().max_block_size,
+        context->getSettingsRef()[Setting::max_block_size],
         10); // TODO: Expect use driver cores.
 
     auto * read_from_mergetree = static_cast<ReadFromMergeTree *>(read_step.get());
