@@ -326,6 +326,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   override def supportStructType(): Boolean = true
 
+  override def structFieldToLowerCase(): Boolean = false
+
   override def supportExpandExec(): Boolean = true
 
   override def excludeScanExecFromCollapsedStage(): Boolean =
