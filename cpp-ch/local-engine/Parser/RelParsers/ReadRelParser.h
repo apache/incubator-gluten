@@ -15,24 +15,12 @@
  * limitations under the License.
  */
 #pragma once
-#include <Core/Block.h>
-#include <Core/Settings.h>
-#include <Interpreters/Context.h>
-#include <Operator/BlocksBufferPoolTransform.h>
-#include <Parser/RelParsers/MergeTreeRelParser.h>
-#include <Parser/SerializedPlanParser.h>
-#include <Parser/SubstraitParserUtils.h>
-#include <Parser/TypeParser.h>
-#include <Processors/QueryPlan/ReadFromPreparedSource.h>
-#include <Storages/SourceFromJavaIter.h>
-#include <Storages/SubstraitSource/SubstraitFileSource.h>
-#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
-#include <google/protobuf/wrappers.pb.h>
-#include <Common/BlockTypeUtils.h>
+#include <Parser/RelParsers/RelParser.h>
 #include <Common/JNIUtils.h>
 
 namespace local_engine
 {
+
 class ReadRelParser : public RelParser
 {
 public:

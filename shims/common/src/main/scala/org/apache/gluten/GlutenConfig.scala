@@ -650,9 +650,13 @@ object GlutenConfig {
     }
   }
 
+  def prefixOf(backendName: String): String = {
+    GLUTEN_CONFIG_PREFIX + backendName
+  }
+
   /** Get dynamic configs. */
   def getNativeSessionConf(
-      backendPrefix: String,
+      backendName: String,
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     val keys = Set(
@@ -704,8 +708,9 @@ object GlutenConfig {
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
     // Backend's dynamic session conf only.
+    val confPrefix = prefixOf(backendName)
     conf
-      .filter(entry => entry._1.startsWith(backendPrefix) && !SQLConf.isStaticConfigKey(entry._1))
+      .filter(entry => entry._1.startsWith(confPrefix) && !SQLConf.isStaticConfigKey(entry._1))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // Pass the latest tokens to native
@@ -725,7 +730,7 @@ object GlutenConfig {
    * gluten, these will be used to construct HiveConnector which intends reused in velox
    */
   def getNativeBackendConf(
-      backendPrefix: String,
+      backendName: String,
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
 
     val nativeConfMap = new util.HashMap[String, String]()
@@ -778,8 +783,9 @@ object GlutenConfig {
     )
     nativeConfMap.putAll(conf.filter(e => keys.contains(e._1)).asJava)
 
+    val confPrefix = prefixOf(backendName)
     conf
-      .filter(_._1.startsWith(backendPrefix))
+      .filter(_._1.startsWith(confPrefix))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // put in all S3 configs

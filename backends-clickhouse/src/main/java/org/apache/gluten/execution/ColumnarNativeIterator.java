@@ -17,16 +17,16 @@
 package org.apache.gluten.execution;
 
 import org.apache.gluten.vectorized.CHColumnVector;
-import org.apache.gluten.vectorized.GeneralInIterator;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
 
-public class ColumnarNativeIterator extends GeneralInIterator implements Iterator<byte[]> {
+public class ColumnarNativeIterator implements Iterator<byte[]> {
+  private final Iterator<ColumnarBatch> delegated;
 
   public ColumnarNativeIterator(Iterator<ColumnarBatch> delegated) {
-    super(delegated);
+    this.delegated = delegated;
   }
 
   private transient ColumnarBatch nextBatch = null;
@@ -56,13 +56,7 @@ public class ColumnarNativeIterator extends GeneralInIterator implements Iterato
   }
 
   @Override
-  public ColumnarBatch nextColumnarBatch() {
-    return nextBatch;
-  }
-
-  @Override
   public byte[] next() {
-    ColumnarBatch nextBatch = nextColumnarBatch();
     if (nextBatch.numRows() > 0) {
       CHColumnVector col = (CHColumnVector) nextBatch.column(0);
       return longtoBytes(col.getBlockAddress());

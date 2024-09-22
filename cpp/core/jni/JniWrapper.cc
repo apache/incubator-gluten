@@ -442,7 +442,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterat
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-JNIEXPORT jobject JNICALL Java_org_apache_gluten_vectorized_ColumnarBatchOutIterator_nativeFetchMetrics( // NOLINT
+JNIEXPORT jobject JNICALL Java_org_apache_gluten_metrics_IteratorMetricsJniWrapper_nativeFetchMetrics( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong iterHandle) {

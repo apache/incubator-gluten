@@ -30,7 +30,7 @@ AdaptiveSparkPlan (58)
                                                             +- ColumnarExchange (14)
                                                                +- VeloxResizeBatches (13)
                                                                   +- ^ ProjectExecTransformer (11)
-                                                                     +- ^ NoopFilter (10)
+                                                                     +- ^ FilterExecTransformer (10)
                                                                         +- ^ Scan parquet (9)
 +- == Initial Plan ==
    Sort (57)
@@ -91,9 +91,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_comment), IsNotNull(o_custkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_comment:string>
 
-(10) NoopFilter
+(10) FilterExecTransformer
 Input [3]: [o_orderkey#X, o_custkey#X, o_comment#X]
-Arguments: [o_orderkey#X, o_custkey#X, o_comment#X]
+Arguments: ((isnotnull(o_comment#X) AND NOT o_comment#X LIKE %special%requests%) AND isnotnull(o_custkey#X))
 
 (11) ProjectExecTransformer
 Output [3]: [hash(o_custkey#X, 42) AS hash_partition_key#X, o_orderkey#X, o_custkey#X]

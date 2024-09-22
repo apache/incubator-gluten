@@ -27,6 +27,11 @@
 #include <Common/CHUtil.h>
 #include <Common/QueryContext.h>
 
+namespace DB::Setting
+{
+extern const SettingsUInt64 min_insert_block_size_rows;
+extern const SettingsUInt64 min_insert_block_size_bytes;
+}
 using namespace DB;
 namespace
 {
@@ -62,9 +67,9 @@ std::unique_ptr<SparkMergeTreeWriter> SparkMergeTreeWriter::create(
     auto sink = dest_storage->write(none, metadata_snapshot, context, false);
     chain.addSink(sink);
     chain.addSource(
-        std::make_shared<ApplySquashingTransform>(header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes));
+        std::make_shared<ApplySquashingTransform>(header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
     chain.addSource(
-        std::make_shared<PlanSquashingTransform>(header, settings.min_insert_block_size_rows, settings.min_insert_block_size_bytes));
+        std::make_shared<PlanSquashingTransform>(header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
 
     std::unordered_map<String, String> partition_values;
     if (!write_settings_.partition_dir.empty())

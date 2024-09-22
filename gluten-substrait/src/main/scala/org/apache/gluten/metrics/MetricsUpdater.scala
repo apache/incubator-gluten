@@ -22,7 +22,7 @@ import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
  * A minimized controller for updating operator's metrics, which means it never persists the
  * SparkPlan instance of the operator then the serialized RDD's size can be therefore minimized.
  *
- * TODO: place it to some other where since it's used not only by whole stage facilities
+ * TODO: place it to somewhere else since it's used not only by whole stage facilities.
  */
 trait MetricsUpdater extends Serializable {
   def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {}

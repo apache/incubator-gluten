@@ -19,10 +19,11 @@
 
 #include <config.h>
 
-#include <Common/Throttler.h>
-#include <Disks/ObjectStorages/DiskObjectStorage.h>
 #include <Disks/ObjectStorages/Cached/CachedObjectStorage.h>
+#include <Disks/ObjectStorages/DiskObjectStorage.h>
 #include <Interpreters/Cache/FileCacheFactory.h>
+#include <Common/Throttler.h>
+#include <Common/typeid_cast.h>
 #if USE_HDFS
 #include <Disks/ObjectStorages/GlutenHDFSObjectStorage.h>
 #endif

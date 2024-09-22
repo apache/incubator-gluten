@@ -17,7 +17,6 @@
 #pragma once
 #include <optional>
 #include <Parser/RelParsers/RelParser.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>

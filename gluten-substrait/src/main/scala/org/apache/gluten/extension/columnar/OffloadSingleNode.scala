@@ -236,51 +236,6 @@ object OffloadJoin {
   }
 }
 
-// Filter transformation.
-case class OffloadFilter() extends OffloadSingleNode with LogLevelUtil {
-  import OffloadOthers._
-  private val replace = new ReplaceSingleNode()
-
-  override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case filter: FilterExec =>
-      genFilterExec(filter)
-    case other => other
-  }
-
-  /**
-   * Generate a plan for filter.
-   *
-   * @param filter
-   *   : the original Spark plan.
-   * @return
-   *   the actually used plan for execution.
-   */
-  private def genFilterExec(filter: FilterExec): SparkPlan = {
-    if (FallbackTags.nonEmpty(filter)) {
-      return filter
-    }
-
-    // FIXME: Filter push-down should be better done by Vanilla Spark's planner or by
-    //  a individual rule.
-    // Push down the left conditions in Filter into FileSourceScan.
-    val newChild: SparkPlan = filter.child match {
-      case scan @ (_: FileSourceScanExec | _: BatchScanExec) =>
-        if (FallbackTags.maybeOffloadable(scan)) {
-          val newScan =
-            FilterHandler.pushFilterToScan(filter.condition, scan)
-          newScan match {
-            case ts: TransformSupport if ts.doValidate().ok() => ts
-            case _ => scan
-          }
-        } else scan
-      case _ => filter.child
-    }
-    logDebug(s"Columnar Processing for ${filter.getClass} is currently supported.")
-    BackendsApiManager.getSparkPlanExecApiInstance
-      .genFilterExecTransformer(filter.condition, newChild)
-  }
-}
-
 // Other transformations.
 case class OffloadOthers() extends OffloadSingleNode with LogLevelUtil {
   import OffloadOthers._
@@ -313,6 +268,10 @@ object OffloadOthers {
         case plan: CoalesceExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           ColumnarCoalesceExec(plan.numPartitions, plan.child)
+        case plan: FilterExec =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          BackendsApiManager.getSparkPlanExecApiInstance
+            .genFilterExecTransformer(plan.condition, plan.child)
         case plan: ProjectExec =>
           val columnarChild = plan.child
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")

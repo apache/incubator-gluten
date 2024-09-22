@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.expression.ConverterUtils.FunctionConfig
 import org.apache.gluten.substrait.expression._
@@ -70,8 +70,7 @@ case class CHTruncTimestampTransformer(
     if (
       timeZoneIgnore && timeZoneId.nonEmpty &&
       !timeZoneId.get.equalsIgnoreCase(
-        SQLConf.get.getConfString(
-          s"${CHBackendSettings.getBackendConfigPrefix}.runtime_config.timezone")
+        SQLConf.get.getConfString(s"${CHConf.runtimeConfig("timezone")}")
       )
     ) {
       throw new GlutenNotSupportException(
@@ -158,23 +157,23 @@ case class CHPosExplodeTransformer(
         // Output (pos, col) when input is array type
         val structType = StructType(
           Array(
-            StructField("pos", IntegerType, false),
+            StructField("pos", IntegerType, nullable = false),
             StructField("col", a.elementType, a.containsNull)))
         ExpressionBuilder.makeScalarFunction(
           funcId,
           Lists.newArrayList(childNode),
-          ConverterUtils.getTypeNode(structType, false))
+          ConverterUtils.getTypeNode(structType, nullable = false))
       case m: MapType =>
         // Output (pos, key, value) when input is map type
         val structType = StructType(
           Array(
-            StructField("pos", IntegerType, false),
-            StructField("key", m.keyType, false),
+            StructField("pos", IntegerType, nullable = false),
+            StructField("key", m.keyType, nullable = false),
             StructField("value", m.valueType, m.valueContainsNull)))
         ExpressionBuilder.makeScalarFunction(
           funcId,
           Lists.newArrayList(childNode),
-          ConverterUtils.getTypeNode(structType, false))
+          ConverterUtils.getTypeNode(structType, nullable = false))
       case _ =>
         throw new GlutenNotSupportException(s"posexplode($childType) not supported yet.")
     }
@@ -226,7 +225,7 @@ case class GetArrayItemTransformer(
       Seq(IntegerType, getArrayItem.right.dataType),
       FunctionConfig.OPT)
     val addFunctionId = ExpressionBuilder.newScalarFunction(functionMap, addFunctionName)
-    val literalNode = ExpressionBuilder.makeLiteral(1.toInt, IntegerType, false)
+    val literalNode = ExpressionBuilder.makeLiteral(1, IntegerType, false)
     rightNode = ExpressionBuilder.makeScalarFunction(
       addFunctionId,
       Lists.newArrayList(literalNode, rightNode),

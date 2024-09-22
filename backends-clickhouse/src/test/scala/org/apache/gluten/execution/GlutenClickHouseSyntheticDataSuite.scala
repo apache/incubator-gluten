@@ -23,6 +23,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.delta.DeltaLog
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 
 import java.time.LocalDate
 
@@ -51,7 +52,7 @@ class GlutenClickHouseSyntheticDataSuite
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.gluten.sql.columnar.columnarToRow", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+      .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
@@ -136,7 +137,7 @@ class GlutenClickHouseSyntheticDataSuite
     prepareTables()
 
     var sqlStr: String = null
-    var expected: Seq[Row] = null;
+    var expected: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
       val supportedAggs = "count" :: "avg" :: "sum" :: "min" :: "max" :: Nil
       val selected = supportedAggs
@@ -173,7 +174,7 @@ class GlutenClickHouseSyntheticDataSuite
 
   test("test data function in https://github.com/Kyligence/ClickHouse/issues/88") {
     var sqlStr: String = null
-    var expected: Seq[Row] = null;
+    var expected: Seq[Row] = null
 
     val x = spark
     import x.implicits._
@@ -205,7 +206,7 @@ class GlutenClickHouseSyntheticDataSuite
 
   test("sql on Seq based(row based) DataFrame") {
     var sqlStr: String = null
-    var expected: Seq[Row] = null;
+    var expected: Seq[Row] = null
 
     val x = spark
     import x.implicits._

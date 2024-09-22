@@ -30,7 +30,6 @@
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Operator/EarlyStopStep.h>
 #include <Parser/AdvancedParametersParseUtil.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
@@ -44,6 +43,10 @@
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsJoinAlgorithm join_algorithm;
+}
 namespace ErrorCodes
 {
 extern const int LOGICAL_ERROR;
@@ -330,7 +333,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         }
 
         JoinPtr smj_join = std::make_shared<FullSortingMergeJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty(), -1);
-        MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef().join_algorithm;
+        MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef()[Setting::join_algorithm];
         QueryPlanStepPtr join_step
             = std::make_unique<DB::JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), smj_join, 8192, 1, false);
 
@@ -826,7 +829,7 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
     ///   data will be spilled to disk. Don't set the limitation too small, otherwise the buckets number
     ///   will be too large and the performance will be bad.
     JoinPtr hash_join = nullptr;
-    MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef().join_algorithm;
+    MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef()[Setting::join_algorithm];
     if (join_algorithm.isSet(DB::JoinAlgorithm::GRACE_HASH))
     {
         hash_join = std::make_shared<GraceHashJoin>(

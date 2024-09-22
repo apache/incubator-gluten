@@ -23,6 +23,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 
 import org.apache.commons.io.FileUtils
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -567,7 +568,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
       .set("spark.gluten.sql.columnar.columnarToRow", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+      .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
@@ -588,7 +589,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
       assert(CHBroadcastBuildSideCache.size() <= 10)
     }
 
-    ClickhouseSnapshot.clearAllFileStatusCache
+    ClickhouseSnapshot.clearAllFileStatusCache()
     DeltaLog.clearCache()
     super.afterAll()
     // init GlutenConfig in the next beforeAll

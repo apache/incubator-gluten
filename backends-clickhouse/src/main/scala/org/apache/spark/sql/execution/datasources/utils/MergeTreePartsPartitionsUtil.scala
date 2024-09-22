@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.utils
 
-import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.execution.{GlutenMergeTreePartition, MergeTreePartRange, MergeTreePartSplit}
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.softaffinity.SoftAffinityManager
@@ -171,9 +171,10 @@ object MergeTreePartsPartitionsUtil extends Logging {
               val ret = ClickhouseSnapshot.pathToAddMTPCache.getIfPresent(path)
               if (ret == null) {
                 val keys = ClickhouseSnapshot.pathToAddMTPCache.asMap().keySet()
-                val keySample = keys.isEmpty match {
-                  case true => "<empty>"
-                  case false => keys.iterator().next()
+                val keySample = if (keys.isEmpty) {
+                  "<empty>"
+                } else {
+                  keys.iterator().next()
                 }
                 throw new IllegalStateException(
                   "Can't find AddMergeTreeParts from cache pathToAddMTPCache for key: " +
@@ -418,7 +419,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       bucketId =>
         val currBucketParts: Seq[MergeTreePartRange] =
           prunedFilesGroupedToBuckets.getOrElse(bucketId, Seq.empty)
-        if (!currBucketParts.isEmpty) {
+        if (currBucketParts.nonEmpty) {
           val currentFiles = currBucketParts.map {
             part =>
               MergeTreePartSplit(
@@ -453,8 +454,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
   }
 
   private def useDriverFilter(filterExprs: Seq[Expression], sparkSession: SparkSession): Boolean = {
-    val enableDriverFilterKey = s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings" +
-      s".enabled_driver_filter_mergetree_index"
+    val enableDriverFilterKey = CHConf.runtimeSettings("enabled_driver_filter_mergetree_index")
 
     // When using soft affinity, disable driver filter
     filterExprs.nonEmpty && sparkSession.sessionState.conf.getConfString(

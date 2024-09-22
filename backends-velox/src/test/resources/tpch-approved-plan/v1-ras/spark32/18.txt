@@ -18,7 +18,7 @@ AdaptiveSparkPlan (110)
                   :                 :     +- ColumnarExchange (6)
                   :                 :        +- VeloxResizeBatches (5)
                   :                 :           +- ^ ProjectExecTransformer (3)
-                  :                 :              +- ^ NoopFilter (2)
+                  :                 :              +- ^ FilterExecTransformer (2)
                   :                 :                 +- ^ Scan parquet (1)
                   :                 +- ^ InputIteratorTransformer (38)
                   :                    +- ShuffleQueryStage (36)
@@ -31,7 +31,7 @@ AdaptiveSparkPlan (110)
                   :                                   :     +- ColumnarExchange (15)
                   :                                   :        +- VeloxResizeBatches (14)
                   :                                   :           +- ^ ProjectExecTransformer (12)
-                  :                                   :              +- ^ NoopFilter (11)
+                  :                                   :              +- ^ FilterExecTransformer (11)
                   :                                   :                 +- ^ Scan parquet (10)
                   :                                   +- ^ ProjectExecTransformer (30)
                   :                                      +- ^ FilterExecTransformer (29)
@@ -49,7 +49,7 @@ AdaptiveSparkPlan (110)
                      :     +- ColumnarExchange (52)
                      :        +- VeloxResizeBatches (51)
                      :           +- ^ ProjectExecTransformer (49)
-                     :              +- ^ NoopFilter (48)
+                     :              +- ^ FilterExecTransformer (48)
                      :                 +- ^ Scan parquet (47)
                      +- ^ ProjectExecTransformer (62)
                         +- ^ FilterExecTransformer (61)
@@ -106,9 +106,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_custkey)]
 ReadSchema: struct<c_custkey:bigint,c_name:string>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [2]: [c_custkey#X, c_name#X]
-Arguments: [c_custkey#X, c_name#X]
+Arguments: isnotnull(c_custkey#X)
 
 (3) ProjectExecTransformer
 Output [3]: [hash(c_custkey#X, 42) AS hash_partition_key#X, c_custkey#X, c_name#X]
@@ -143,9 +143,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_custkey), IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_totalprice:decimal(12,2),o_orderdate:date>
 
-(11) NoopFilter
+(11) FilterExecTransformer
 Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
-Arguments: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
+Arguments: (isnotnull(o_custkey#X) AND isnotnull(o_orderkey#X))
 
 (12) ProjectExecTransformer
 Output [5]: [hash(o_orderkey#X, 42) AS hash_partition_key#X, o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
@@ -296,9 +296,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_quantity:decimal(12,2)>
 
-(48) NoopFilter
+(48) FilterExecTransformer
 Input [2]: [l_orderkey#X, l_quantity#X]
-Arguments: [l_orderkey#X, l_quantity#X]
+Arguments: isnotnull(l_orderkey#X)
 
 (49) ProjectExecTransformer
 Output [3]: [hash(l_orderkey#X, 42) AS hash_partition_key#X, l_orderkey#X, l_quantity#X]

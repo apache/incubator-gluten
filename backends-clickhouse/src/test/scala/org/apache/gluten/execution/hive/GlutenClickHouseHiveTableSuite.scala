@@ -25,6 +25,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 
@@ -40,6 +41,8 @@ class GlutenClickHouseHiveTableSuite
   with AdaptiveSparkPlanHelper {
 
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     new SparkConf()
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
       .set("spark.memory.offHeap.enabled", "true")
@@ -52,7 +55,7 @@ class GlutenClickHouseHiveTableSuite
       .set("spark.sql.adaptive.enabled", "false")
       .set("spark.sql.files.minPartitionNum", "1")
       .set("spark.gluten.sql.columnar.columnartorow", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+      .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
@@ -60,10 +63,10 @@ class GlutenClickHouseHiveTableSuite
       .set("spark.gluten.sql.parquet.maxmin.index", "true")
       .set(
         "spark.sql.warehouse.dir",
-        getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
+        this.getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
       .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
       .set("spark.gluten.supported.hive.udfs", "my_add")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
+      .setCHConfig("use_local_format", true)
       .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
       .set(
         "spark.sql.catalog.spark_catalog",
@@ -1009,7 +1012,7 @@ class GlutenClickHouseHiveTableSuite
 
   def checkOperatorCount[T <: TransformSupport](count: Int)(df: DataFrame)(implicit
       tag: ClassTag[T]): Unit = {
-    if (sparkVersion.equals("3.3")) {
+    if (spark33) {
       assert(
         getExecutedPlan(df).count(
           plan => {
@@ -1350,7 +1353,7 @@ class GlutenClickHouseHiveTableSuite
     sql(insertSql)
 
     val selectSql = s"SELECT * FROM $tableName"
-    compareResultsAgainstVanillaSpark(selectSql, true, _ => {})
+    compareResultsAgainstVanillaSpark(selectSql, compareResult = true, _ => {})
     sql(s"drop table if exists $tableName")
   }
 
@@ -1415,4 +1418,5 @@ class GlutenClickHouseHiveTableSuite
     runQueryAndCompare(selectSql)(df => checkOperatorCount[ProjectExecTransformer](3)(df))
     spark.sql("DROP TABLE test_tbl_7054")
   }
+
 }

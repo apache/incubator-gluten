@@ -18,7 +18,6 @@ package org.apache.gluten.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
-import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
@@ -39,6 +38,8 @@ class GlutenClickHouseDeltaParquetWriteSuite
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "mergetree-queries-output"
 
+  import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -50,13 +51,8 @@ class GlutenClickHouseDeltaParquetWriteSuite
       .set("spark.sql.files.maxPartitionBytes", "20000000")
       .set("spark.gluten.sql.native.writer.enabled", "true")
       .set("spark.sql.storeAssignmentPolicy", "legacy")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.mergetree.merge_after_insert",
-        "false")
-      .set(
-        "spark.databricks.delta.retentionDurationCheck.enabled",
-        "false"
-      )
+      .setCHSettings("mergetree.merge_after_insert", false)
+      .set("spark.databricks.delta.retentionDurationCheck.enabled", "false")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -128,14 +124,14 @@ class GlutenClickHouseDeltaParquetWriteSuite
           case f: FileSourceScanExecTransformer => f
           case w: WholeStageTransformer => w
         }
-        assert(plans.size == 4)
+        assert(plans.size === 4)
 
         val parquetScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
         assert(parquetScan.nodeName.startsWith("Scan parquet "))
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
-        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-        assert(addFiles.size == 5)
+        val addFiles = fileIndex.matchingFiles(Nil, Nil)
+        assert(addFiles.size === 5)
     }
   }
 
@@ -183,7 +179,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
          |""".stripMargin
     assert(
       // total rows should remain unchanged
-      spark.sql(sql2).collect().apply(0).get(0) == 300001
+      spark.sql(sql2).collect().apply(0).get(0) === 300001
     )
   }
 
@@ -235,7 +231,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
          |""".stripMargin
     assert(
       // total rows should remain unchanged
-      spark.sql(sql2).collect().apply(0).get(0) == 2418
+      spark.sql(sql2).collect().apply(0).get(0) === 2418
     )
   }
 
@@ -288,7 +284,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
            |""".stripMargin
       assert(
         // total rows should remain unchanged
-        spark.sql(sql2).collect().apply(0).get(0) == 21875
+        spark.sql(sql2).collect().apply(0).get(0) === 21875
       )
     }
   }
@@ -343,19 +339,19 @@ class GlutenClickHouseDeltaParquetWriteSuite
       val result = df.collect()
       assert(
         // in test data, there are only 1 row with l_orderkey = 12647
-        result.apply(0).get(0) == 1
+        result.apply(0).get(0) === 1
       )
       val scanExec = collect(df.queryExecution.executedPlan) {
         case f: FileSourceScanExecTransformer => f
       }
-      assert(scanExec.size == 1)
+      assert(scanExec.size === 1)
 
       val parquetScan = scanExec.head
       assert(parquetScan.nodeName.startsWith("Scan parquet"))
 
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
-      val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-      assert(addFiles.size == 6)
+      val addFiles = fileIndex.matchingFiles(Nil, Nil)
+      assert(addFiles.size === 6)
     }
 
     val sql2 =
@@ -365,7 +361,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
          |""".stripMargin
     assert(
       // total rows should remain unchanged
-      spark.sql(sql2).collect().apply(0).get(0) == 600572
+      spark.sql(sql2).collect().apply(0).get(0) === 600572
     )
   }
 
@@ -412,15 +408,15 @@ class GlutenClickHouseDeltaParquetWriteSuite
                             |""".stripMargin)
       val result = df.collect()
       assert(
-        result.apply(0).get(0) == 1802445
+        result.apply(0).get(0) === 1802445
       )
       val scanExec = collect(df.queryExecution.executedPlan) {
         case f: FileSourceScanExecTransformer => f
       }
       val parquetScan = scanExec.head
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
-      val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-      assert(addFiles.size == 6)
+      val addFiles = fileIndex.matchingFiles(Nil, Nil)
+      assert(addFiles.size === 6)
     }
 
     {
@@ -431,7 +427,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                              | select sum(l_linenumber) from lineitem_delta_parquet_delete
                              |""".stripMargin)
       assert(
-        df3.collect().apply(0).get(0) == 1200671
+        df3.collect().apply(0).get(0) === 1200671
       )
     }
   }
@@ -475,7 +471,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                              | select sum(l_linenumber) from lineitem_delta_parquet_upsert
                              |""".stripMargin)
       assert(
-        df0.collect().apply(0).get(0) == 1802446
+        df0.collect().apply(0).get(0) === 1802446
       )
     }
 
@@ -514,7 +510,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                              | select count(*) from $tableName
                              |""".stripMargin)
       assert(
-        df1.collect().apply(0).get(0) == 600572 + 3506
+        df1.collect().apply(0).get(0) === 600572 + 3506
       )
     }
     {
@@ -523,7 +519,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                      | select count(*) from $tableName where l_returnflag = 'Z'
                      |""".stripMargin)
       assert(
-        df2.collect().apply(0).get(0) == 3506
+        df2.collect().apply(0).get(0) === 3506
       )
     }
 
@@ -533,7 +529,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                      | select count(*) from $tableName where l_orderkey > 10000000
                      |""".stripMargin)
       assert(
-        df3.collect().apply(0).get(0) == 3506
+        df3.collect().apply(0).get(0) === 3506
       )
     }
   }
@@ -666,34 +662,31 @@ class GlutenClickHouseDeltaParquetWriteSuite
     runTPCHQueryBySQL(1, sqlStr, compareResult = false) {
       df =>
         val result = df.collect()
-        assert(result.size == 2)
+        assert(result.length === 2)
         assert(result(0).getString(0).equals("A"))
         assert(result(0).getString(1).equals("F"))
-        assert(result(0).getDouble(2) == 368009.0)
+        assert(result(0).getDouble(2) === 368009.0)
 
         assert(result(1).getString(0).equals("R"))
         assert(result(1).getString(1).equals("F"))
-        assert(result(1).getDouble(2) == 312371.0)
+        assert(result(1).getDouble(2) === 312371.0)
 
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assert(scanExec.size === 1)
 
-        val parquetScan = scanExec(0)
+        val parquetScan = scanExec.head
         assert(parquetScan.nodeName.startsWith("Scan parquet"))
-        assert(parquetScan.metrics("numFiles").value == 201)
+        assert(parquetScan.metrics("numFiles").value === 201)
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
-        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
+        val addFiles = fileIndex.matchingFiles(Nil, Nil)
 
-        assert(addFiles.size == 201)
-        assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1993-03-31")).size == 2)
-        assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1993-01-01")).size == 4)
-        assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1993-02-21")).size == 3)
+        assert(addFiles.size === 201)
+        assert(addFiles.count(_.partitionValues("l_shipdate").equals("1993-03-31")) === 2)
+        assert(addFiles.count(_.partitionValues("l_shipdate").equals("1993-01-01")) === 4)
+        assert(addFiles.count(_.partitionValues("l_shipdate").equals("1993-02-21")) === 3)
     }
   }
 
@@ -739,14 +732,14 @@ class GlutenClickHouseDeltaParquetWriteSuite
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assert(scanExec.size === 1)
 
-        val parquetScan = scanExec(0)
+        val parquetScan = scanExec.head
         assert(parquetScan.nodeName.startsWith("Scan parquet"))
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
-        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-        assert(addFiles.size == 1)
+        val addFiles = fileIndex.matchingFiles(Nil, Nil)
+        assert(addFiles.size === 1)
     }
   }
 
@@ -866,14 +859,14 @@ class GlutenClickHouseDeltaParquetWriteSuite
           case f: FileSourceScanExecTransformer => f
           case w: WholeStageTransformer => w
         }
-        assert(plans.size == 4)
+        assert(plans.size === 4)
 
         val parquetScan = plans(3).asInstanceOf[FileSourceScanExecTransformer]
         assert(parquetScan.nodeName.startsWith("Scan parquet"))
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
-        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-        assert(addFiles.size == 1)
+        val addFiles = fileIndex.matchingFiles(Nil, Nil)
+        assert(addFiles.size === 1)
     }
 
     val result = spark.read
@@ -881,7 +874,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       .load(dataPath)
       .where("l_shipdate = date'1998-09-02'")
       .count()
-    assert(result == 183)
+    assert(result === 183)
   }
 
   test(
@@ -914,7 +907,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
       .format("delta")
       .load(dataPath)
       .count()
-    assert(result == 2418)
+    assert(result === 2418)
   }
 
   test(
@@ -948,7 +941,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
         .format("delta")
         .load(dataPath)
         .count()
-      assert(result == 21875)
+      assert(result === 21875)
     }
   }
 
@@ -974,18 +967,18 @@ class GlutenClickHouseDeltaParquetWriteSuite
         .format("delta")
         .load(dataPath)
         .where("l_returnflag = 'Z'")
-      assert(df.count() == 1)
+      assert(df.count() === 1)
       val scanExec = collect(df.queryExecution.executedPlan) {
         case f: FileSourceScanExecTransformer => f
       }
-      assert(scanExec.size == 1)
+      assert(scanExec.size === 1)
 
       val parquetScan = scanExec.head
       assert(parquetScan.nodeName.startsWith("Scan parquet"))
 
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
-      val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-      assert(addFiles.size == 6)
+      val addFiles = fileIndex.matchingFiles(Nil, Nil)
+      assert(addFiles.size === 6)
     }
 
     val clickhouseTable = DeltaTable.forPath(spark, dataPath)
@@ -996,24 +989,24 @@ class GlutenClickHouseDeltaParquetWriteSuite
         .format("delta")
         .load(dataPath)
         .where("l_returnflag = 'X'")
-      assert(df.count() == 1)
+      assert(df.count() === 1)
       val scanExec = collect(df.queryExecution.executedPlan) {
         case f: FileSourceScanExecTransformer => f
       }
-      assert(scanExec.size == 1)
+      assert(scanExec.size === 1)
 
       val parquetScan = scanExec.head
       assert(parquetScan.nodeName.startsWith("Scan parquet"))
 
       val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
-      val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-      assert(addFiles.size == 6)
+      val addFiles = fileIndex.matchingFiles(Nil, Nil)
+      assert(addFiles.size === 6)
     }
 
     val df = spark.read
       .format("delta")
       .load(dataPath)
-    assert(df.count() == 600572)
+    assert(df.count() === 600572)
   }
 
   test("test path based parquet delete with the delta") {
@@ -1035,21 +1028,21 @@ class GlutenClickHouseDeltaParquetWriteSuite
     val df = spark.read
       .format("delta")
       .load(dataPath)
-    assert(df.count() == 600571)
+    assert(df.count() === 600571)
     val scanExec = collect(df.queryExecution.executedPlan) {
       case f: FileSourceScanExecTransformer => f
     }
     val parquetScan = scanExec.head
     val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
-    val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
-    assert(addFiles.size == 6)
+    val addFiles = fileIndex.matchingFiles(Nil, Nil)
+    assert(addFiles.size === 6)
 
     val clickhouseTable = DeltaTable.forPath(spark, dataPath)
     clickhouseTable.delete("mod(l_orderkey, 3) = 2")
     val df1 = spark.read
       .format("delta")
       .load(dataPath)
-    assert(df1.count() == 400089)
+    assert(df1.count() === 400089)
   }
 
   test("test path based parquet upsert with the delta") {
@@ -1069,7 +1062,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                            | select count(*) from delta.`$dataPath`
                            |""".stripMargin)
     assert(
-      df0.collect().apply(0).get(0) == 600572
+      df0.collect().apply(0).get(0) === 600572
     )
     upsertPathBasedSourceTableAndCheck(dataPath)
   }
@@ -1106,7 +1099,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                              | select count(*) from delta.`$dataPath`
                              |""".stripMargin)
       assert(
-        df1.collect().apply(0).get(0) == 600572 + 3506
+        df1.collect().apply(0).get(0) === 600572 + 3506
       )
     }
     {
@@ -1115,7 +1108,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                      | select count(*) from delta.`$dataPath` where l_returnflag = 'Z'
                      |""".stripMargin)
       assert(
-        df2.collect().apply(0).get(0) == 3506
+        df2.collect().apply(0).get(0) === 3506
       )
     }
 
@@ -1125,7 +1118,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                      | select count(*) from delta.`$dataPath` where l_orderkey > 10000000
                      |""".stripMargin)
       assert(
-        df3.collect().apply(0).get(0) == 3506
+        df3.collect().apply(0).get(0) === 3506
       )
     }
   }
@@ -1183,32 +1176,30 @@ class GlutenClickHouseDeltaParquetWriteSuite
     runTPCHQueryBySQL(1, sqlStr, compareResult = false) {
       df =>
         val result = df.collect()
-        assert(result.size == 2)
+        assert(result.length === 2)
         assert(result(0).getString(0).equals("A"))
         assert(result(0).getString(1).equals("F"))
-        assert(result(0).getDouble(2) == 306633.0)
+        assert(result(0).getDouble(2) === 306633.0)
 
         assert(result(1).getString(0).equals("R"))
         assert(result(1).getString(1).equals("F"))
-        assert(result(1).getDouble(2) == 312371.0)
+        assert(result(1).getDouble(2) === 312371.0)
 
         val scanExec = collect(df.queryExecution.executedPlan) {
           case f: FileSourceScanExecTransformer => f
         }
-        assert(scanExec.size == 1)
+        assert(scanExec.size === 1)
 
-        val parquetScan = scanExec(0)
+        val parquetScan = scanExec.head
         assert(parquetScan.nodeName.startsWith("Scan parquet"))
-        assert(parquetScan.metrics("numFiles").value == 200)
+        assert(parquetScan.metrics("numFiles").value === 200)
 
         val fileIndex = parquetScan.relation.location.asInstanceOf[TahoeFileIndex]
-        val addFiles = fileIndex.matchingFiles(Nil, Nil).map(f => f.asInstanceOf[AddFile])
+        val addFiles = fileIndex.matchingFiles(Nil, Nil)
 
-        assert(addFiles.size == 200)
-        assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1993-03-31")).size == 2)
-        assert(
-          addFiles.filter(_.partitionValues.get("l_shipdate").get.equals("1993-01-01")).size == 4)
+        assert(addFiles.size === 200)
+        assert(addFiles.count(_.partitionValues("l_shipdate").equals("1993-03-31")) === 2)
+        assert(addFiles.count(_.partitionValues("l_shipdate").equals("1993-01-01")) === 4)
     }
   }
 
@@ -1266,10 +1257,10 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
       spark.sql("optimize lineitem_delta_parquet_optimize")
       val ret = spark.sql("select count(*) from lineitem_delta_parquet_optimize").collect()
-      assert(ret.apply(0).get(0) == 600572)
+      assert(ret.apply(0).get(0) === 600572)
 
       assert(
-        countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize")) == 24
+        countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize")) === 24
       )
     }
   }
@@ -1302,27 +1293,27 @@ class GlutenClickHouseDeltaParquetWriteSuite
     spark.sparkContext.setJobGroup("test3", "test3")
     spark.sql("optimize lineitem_delta_parquet_optimize_p2")
     val job_ids = spark.sparkContext.statusTracker.getJobIdsForGroup("test3")
-    if (sparkVersion.equals("3.2")) {
-      assert(job_ids.size == 7) // WILL trigger actual merge job
+    if (spark32) {
+      assert(job_ids.length === 7) // WILL trigger actual merge job
     } else {
-      assert(job_ids.size == 8) // WILL trigger actual merge job
+      assert(job_ids.length === 8) // WILL trigger actual merge job
     }
 
     spark.sparkContext.clearJobGroup()
 
     val ret = spark.sql("select count(*) from lineitem_delta_parquet_optimize_p2").collect()
-    assert(ret.apply(0).get(0) == 600572)
+    assert(ret.apply(0).get(0) === 600572)
 
-    assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) == 23)
+    assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) === 23)
     spark.sql("VACUUM lineitem_delta_parquet_optimize_p2 RETAIN 0 HOURS")
-    if (sparkVersion.equals("3.2")) {
-      assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) == 5)
+    if (spark32) {
+      assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) === 5)
     } else {
-      assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) == 7)
+      assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p2")) === 7)
     }
 
     val ret2 = spark.sql("select count(*) from lineitem_delta_parquet_optimize_p2").collect()
-    assert(ret2.apply(0).get(0) == 600572)
+    assert(ret2.apply(0).get(0) === 600572)
   }
 
   testSparkVersionLE33("test parquet optimize parallel delete") {
@@ -1341,18 +1332,18 @@ class GlutenClickHouseDeltaParquetWriteSuite
 
       spark.sql("optimize lineitem_delta_parquet_optimize_p4")
       val ret = spark.sql("select count(*) from lineitem_delta_parquet_optimize_p4").collect()
-      assert(ret.apply(0).get(0) == 600572)
+      assert(ret.apply(0).get(0) === 600572)
 
-      assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) == 149)
+      assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) === 149)
       spark.sql("VACUUM lineitem_delta_parquet_optimize_p4 RETAIN 0 HOURS")
-      if (sparkVersion.equals("3.2")) {
-        assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) == 23)
+      if (spark32) {
+        assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) === 23)
       } else {
-        assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) == 25)
+        assert(countFiles(new File(s"$basePath/lineitem_delta_parquet_optimize_p4")) === 25)
       }
 
       val ret2 = spark.sql("select count(*) from lineitem_delta_parquet_optimize_p4").collect()
-      assert(ret2.apply(0).get(0) == 600572)
+      assert(ret2.apply(0).get(0) === 600572)
     }
   }
 
@@ -1360,8 +1351,8 @@ class GlutenClickHouseDeltaParquetWriteSuite
     val dataPath = s"$basePath/lineitem_delta_parquet_optimize_path_based"
     clearDataPath(dataPath)
     withSQLConf(
-      ("spark.databricks.delta.optimize.maxFileSize" -> "1000000"),
-      ("spark.databricks.delta.optimize.minFileSize" -> "838000")) {
+      "spark.databricks.delta.optimize.maxFileSize" -> "1000000",
+      "spark.databricks.delta.optimize.minFileSize" -> "838000") {
 
       val sourceDF = spark.sql(s"""
                                   |select /*+ REPARTITION(50) */ * from lineitem
@@ -1378,32 +1369,32 @@ class GlutenClickHouseDeltaParquetWriteSuite
       clickhouseTable.optimize().executeCompaction()
 
       clickhouseTable.vacuum(0.0)
-      if (sparkVersion.equals("3.2")) {
+      if (spark32) {
         assert(countFiles(new File(dataPath)) === 27)
       } else {
         assert(countFiles(new File(dataPath)) === 29)
       }
 
       val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
-      assert(ret.apply(0).get(0) == 600572)
+      assert(ret.apply(0).get(0) === 600572)
     }
 
     withSQLConf(
-      ("spark.databricks.delta.optimize.maxFileSize" -> "10000000"),
-      ("spark.databricks.delta.optimize.minFileSize" -> "1000000")) {
+      "spark.databricks.delta.optimize.maxFileSize" -> "10000000",
+      "spark.databricks.delta.optimize.minFileSize" -> "1000000") {
 
       val clickhouseTable = DeltaTable.forPath(spark, dataPath)
       clickhouseTable.optimize().executeCompaction()
 
       clickhouseTable.vacuum(0.0)
-      if (sparkVersion.equals("3.2")) {
-        assert(countFiles(new File(dataPath)) == 6)
+      if (spark32) {
+        assert(countFiles(new File(dataPath)) === 6)
       } else {
-        assert(countFiles(new File(dataPath)) == 12)
+        assert(countFiles(new File(dataPath)) === 12)
       }
 
       val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
-      assert(ret.apply(0).get(0) == 600572)
+      assert(ret.apply(0).get(0) === 600572)
     }
 
     // now merge all parts (testing merging from merged parts)
@@ -1411,14 +1402,14 @@ class GlutenClickHouseDeltaParquetWriteSuite
     clickhouseTable.optimize().executeCompaction()
 
     clickhouseTable.vacuum(0.0)
-    if (sparkVersion.equals("3.2")) {
-      assert(countFiles(new File(dataPath)) == 5)
+    if (spark32) {
+      assert(countFiles(new File(dataPath)) === 5)
     } else {
-      assert(countFiles(new File(dataPath)) == 13)
+      assert(countFiles(new File(dataPath)) === 13)
     }
 
     val ret = spark.sql(s"select count(*) from clickhouse.`$dataPath`").collect()
-    assert(ret.apply(0).get(0) == 600572)
+    assert(ret.apply(0).get(0) === 600572)
   }
 }
 // scalastyle:off line.size.limit

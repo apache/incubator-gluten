@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{functions, DataFrame, Row}
 import org.apache.spark.sql.execution.LocalTableScanExec
@@ -64,12 +66,12 @@ class GlutenClickHouseFileFormatSuite
   override protected def createTPCHNotNullTables(): Unit = {}
 
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.sql.adaptive.enabled", "true")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings.date_time_input_format",
-        "best_effort_us")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_settings.use_excel_serialization", "true")
+      .setCHSettings("date_time_input_format", "best_effort_us")
+      .setCHSettings("use_excel_serialization", true)
   }
 
   // in this case, FakeRowAdaptor does R2C
@@ -877,10 +879,7 @@ class GlutenClickHouseFileFormatSuite
       .toDF()
       .createTempView("no_quote_table")
 
-    withSQLConf((
-      "spark.gluten.sql.columnar.backend.ch.runtime_settings.use_excel_serialization.quote_strict",
-      "true"
-    )) {
+    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.quote_strict"), "true")) {
       compareResultsAgainstVanillaSpark(
         "select * from no_quote_table",
         compareResult = true,
@@ -1186,11 +1185,7 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("issue-2881 null string test") {
-    withSQLConf(
-      (
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
-          "use_excel_serialization.empty_as_null",
-        "true")) {
+    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.empty_as_null"), "true")) {
       val file_path = csvDataPath + "/null_string.csv"
       val schema = StructType.apply(
         Seq(
@@ -1223,11 +1218,7 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("issue-3542 null string test") {
-    withSQLConf(
-      (
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
-          "use_excel_serialization.empty_as_null",
-        "false")) {
+    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.empty_as_null"), "false")) {
       val file_path = csvDataPath + "/null_string.csv"
       val schema = StructType.apply(
         Seq(
@@ -1312,11 +1303,7 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("issues-3609 int read test") {
-    withSQLConf(
-      (
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
-          "use_excel_serialization.number_force",
-        "false")) {
+    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.number_force"), "false")) {
       val csv_path = csvDataPath + "/int_special.csv"
       val options = new util.HashMap[String, String]()
       options.put("delimiter", ",")
@@ -1345,11 +1332,7 @@ class GlutenClickHouseFileFormatSuite
       checkAnswer(df, expectedAnswer)
     }
 
-    withSQLConf(
-      (
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
-          "use_excel_serialization.number_force",
-        "true")) {
+    withSQLConf((CHConf.runtimeSettings("use_excel_serialization.number_force"), "true")) {
       val csv_path = csvDataPath + "/int_special.csv"
       val options = new util.HashMap[String, String]()
       options.put("delimiter", ",")

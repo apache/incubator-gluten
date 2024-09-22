@@ -22,7 +22,7 @@
 #include <Core/ColumnsWithTypeAndName.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesNumber.h>
-#include <Operator/ExpandTransorm.h>
+#include <Operator/ExpandTransform.h>
 #include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
 #include <Processors/Transforms/AggregatingTransform.h>

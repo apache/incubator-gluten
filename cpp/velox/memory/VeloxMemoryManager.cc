@@ -156,7 +156,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
         "{} failed to grow {} bytes, current state {}",
         pool->name(),
         velox::succinctBytes(bytes),
-        pool->toString())
+        pool->toString());
   }
 
   uint64_t shrinkCapacity0(velox::memory::MemoryPool* pool, uint64_t bytes) {

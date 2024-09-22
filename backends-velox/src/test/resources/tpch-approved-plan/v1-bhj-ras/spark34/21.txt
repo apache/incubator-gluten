@@ -18,12 +18,12 @@ AdaptiveSparkPlan (92)
                               :     :     :- ^ InputIteratorTransformer (7)
                               :     :     :  +- BroadcastQueryStage (5), Statistics(X)
                               :     :     :     +- ColumnarBroadcastExchange (4)
-                              :     :     :        +- ^ NoopFilter (2)
+                              :     :     :        +- ^ FilterExecTransformer (2)
                               :     :     :           +- ^ Scan parquet (1)
                               :     :     +- ^ BroadcastHashJoinExecTransformer LeftAnti BuildRight (26)
                               :     :        :- ^ BroadcastHashJoinExecTransformer LeftSemi BuildRight (17)
                               :     :        :  :- ^ ProjectExecTransformer (10)
-                              :     :        :  :  +- ^ NoopFilter (9)
+                              :     :        :  :  +- ^ FilterExecTransformer (9)
                               :     :        :  :     +- ^ Scan parquet (8)
                               :     :        :  +- ^ InputIteratorTransformer (16)
                               :     :        :     +- BroadcastQueryStage (14), Statistics(X)
@@ -33,19 +33,19 @@ AdaptiveSparkPlan (92)
                               :     :           +- BroadcastQueryStage (23), Statistics(X)
                               :     :              +- ColumnarBroadcastExchange (22)
                               :     :                 +- ^ ProjectExecTransformer (20)
-                              :     :                    +- ^ NoopFilter (19)
+                              :     :                    +- ^ FilterExecTransformer (19)
                               :     :                       +- ^ Scan parquet (18)
                               :     +- ^ InputIteratorTransformer (36)
                               :        +- BroadcastQueryStage (34), Statistics(X)
                               :           +- ColumnarBroadcastExchange (33)
                               :              +- ^ ProjectExecTransformer (31)
-                              :                 +- ^ NoopFilter (30)
+                              :                 +- ^ FilterExecTransformer (30)
                               :                    +- ^ Scan parquet (29)
                               +- ^ InputIteratorTransformer (46)
                                  +- BroadcastQueryStage (44), Statistics(X)
                                     +- ColumnarBroadcastExchange (43)
                                        +- ^ ProjectExecTransformer (41)
-                                          +- ^ NoopFilter (40)
+                                          +- ^ FilterExecTransformer (40)
                                              +- ^ Scan parquet (39)
 +- == Initial Plan ==
    TakeOrderedAndProject (91)
@@ -89,9 +89,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_name:string,s_nationkey:bigint>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
-Arguments: [s_suppkey#X, s_name#X, s_nationkey#X]
+Arguments: (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
 (3) WholeStageCodegenTransformer (X)
 Input [3]: [s_suppkey#X, s_name#X, s_nationkey#X]
@@ -118,9 +118,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_receiptdate), IsNotNull(l_commitdate), IsNotNull(l_suppkey), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_commitdate:date,l_receiptdate:date>
 
-(9) NoopFilter
+(9) FilterExecTransformer
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
-Arguments: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: ((((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_receiptdate#X > l_commitdate#X)) AND isnotnull(l_suppkey#X)) AND isnotnull(l_orderkey#X))
 
 (10) ProjectExecTransformer
 Output [2]: [l_orderkey#X, l_suppkey#X]
@@ -163,9 +163,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_receiptdate), IsNotNull(l_commitdate)]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_commitdate:date,l_receiptdate:date>
 
-(19) NoopFilter
+(19) FilterExecTransformer
 Input [4]: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
-Arguments: [l_orderkey#X, l_suppkey#X, l_commitdate#X, l_receiptdate#X]
+Arguments: ((isnotnull(l_receiptdate#X) AND isnotnull(l_commitdate#X)) AND (l_receiptdate#X > l_commitdate#X))
 
 (20) ProjectExecTransformer
 Output [2]: [l_orderkey#X, l_suppkey#X]
@@ -212,9 +212,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_orderstatus), EqualTo(o_orderstatus,F), IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_orderstatus:string>
 
-(30) NoopFilter
+(30) FilterExecTransformer
 Input [2]: [o_orderkey#X, o_orderstatus#X]
-Arguments: [o_orderkey#X, o_orderstatus#X]
+Arguments: ((isnotnull(o_orderstatus#X) AND (o_orderstatus#X = F)) AND isnotnull(o_orderkey#X))
 
 (31) ProjectExecTransformer
 Output [1]: [o_orderkey#X]
@@ -255,9 +255,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_name), EqualTo(n_name,SAUDI ARABIA), IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(40) NoopFilter
+(40) FilterExecTransformer
 Input [2]: [n_nationkey#X, n_name#X]
-Arguments: [n_nationkey#X, n_name#X]
+Arguments: ((isnotnull(n_name#X) AND (n_name#X = SAUDI ARABIA)) AND isnotnull(n_nationkey#X))
 
 (41) ProjectExecTransformer
 Output [1]: [n_nationkey#X]
