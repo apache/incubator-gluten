@@ -23,8 +23,9 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <Functions/FunctionFactory.h>
-#include <Parser/SerializedPlanParser.h>
+#include <Parser/ExpressionParser.h>
 #include <Parser/ParserContext.h>
+#include <Parser/SerializedPlanParser.h>
 #include <Parser/TypeParser.h>
 #include <Poco/JSON/Parser.h>
 #include <Poco/MemoryStream.h>
@@ -45,9 +46,7 @@ PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t
 {
     if (use_external_sort_shuffle)
     {
-        return PartitionInfo{
-            .src_partition_num = std::move(selector),
-            .partition_num = partition_num};
+        return PartitionInfo{.src_partition_num = std::move(selector), .partition_num = partition_num};
     }
     else
     {
@@ -70,7 +69,6 @@ PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t
             .src_partition_num = std::move(selector),
             .partition_num = partition_num};
     }
-
 }
 
 PartitionInfo RoundRobinSelectorBuilder::build(DB::Block & block)
@@ -331,7 +329,7 @@ void RangeSelectorBuilder::initActionsDAG(const DB::Block & block)
         return;
 
     auto parser_context = ParserContext::build(QueryContext::globalContext(), *projection_plan_pb);
-    SerializedPlanParser plan_parser(parser_context);
+    ExpressionParser expression_parser(parser_context);
 
     const auto & expressions = projection_plan_pb->relations().at(0).root().input().project().expressions();
     std::vector<substrait::Expression> exprs;
@@ -339,7 +337,7 @@ void RangeSelectorBuilder::initActionsDAG(const DB::Block & block)
     for (const auto & expression : expressions)
         exprs.emplace_back(expression);
 
-    auto projection_actions_dag = plan_parser.expressionsToActionsDAG(exprs, block, block);
+    auto projection_actions_dag = expression_parser.expressionsToActionsDAG(exprs, block);
     projection_expression_actions = std::make_unique<DB::ExpressionActions>(std::move(projection_actions_dag));
     has_init_actions_dag = true;
 }
@@ -369,7 +367,8 @@ void RangeSelectorBuilder::computePartitionIdByBinarySearch(DB::Block & block, D
         selector.emplace_back(selected_partition);
     }
 }
-namespace {
+namespace
+{
 int doCompareAt(const ColumnPtr & lhs, size_t n, size_t m, const IColumn & rhs, int nan_direction_hint)
 {
     if (const auto * l_const = typeid_cast<const ColumnConst *>(lhs.get()))

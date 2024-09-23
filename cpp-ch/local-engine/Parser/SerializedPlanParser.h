@@ -68,18 +68,6 @@ private:
 class SerializedPlanParser
 {
 private:
-    friend class RelParser;
-    friend class RelRewriter;
-    friend class ASTParser;
-    friend class FunctionParser;
-    friend class AggregateFunctionParser;
-    friend class FunctionExecutor;
-    friend class NonNullableColumnsResolver;
-    friend class JoinRelParser;
-    friend class CrossRelParser;
-    friend class MergeTreeRelParser;
-    friend class ProjectRelParser;
-
     std::unique_ptr<LocalExecutor> createExecutor(DB::QueryPlanPtr query_plan, const substrait::Plan & s_plan);
 
 public:
@@ -124,68 +112,13 @@ public:
         return split_infos.at(next_index);
     }
 
-    DB::ActionsDAG expressionsToActionsDAG(
-        const std::vector<substrait::Expression> & expressions, const DB::Block & header, const DB::Block & read_schema);
     RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
-    const std::unordered_map<std::string, std::string> & getFunctionMapping() const;
-
-    std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
-    std::optional<std::string> getFunctionSignatureName(UInt32 function_ref) const;
-
-    IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
-
-    static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
-    ContextPtr getContext() const { return context; }
 
     std::vector<QueryPlanPtr> extra_plan_holder;
 
 private:
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
 
-    void parseFunctionOrExpression(
-        const substrait::Expression & rel, std::string & result_name, DB::ActionsDAG & actions_dag, bool keep_result = false);
-    void parseJsonTuple(
-        const substrait::Expression & rel,
-        std::vector<String> & result_names,
-        DB::ActionsDAG & actions_dag,
-        bool keep_result = false,
-        bool position = false);
-    const ActionsDAG::Node * parseFunctionWithDAG(
-        const substrait::Expression & rel, std::string & result_name, DB::ActionsDAG & actions_dag, bool keep_result = false);
-    ActionsDAG::NodeRawConstPtrs parseArrayJoinWithDAG(
-        const substrait::Expression & rel,
-        std::vector<String> & result_name,
-        DB::ActionsDAG & actions_dag,
-        bool keep_result = false,
-        bool position = false);
-    void parseFunctionArguments(
-        DB::ActionsDAG & actions_dag,
-        ActionsDAG::NodeRawConstPtrs & parsed_args,
-        const substrait::Expression_ScalarFunction & scalar_function);
-
-    void parseArrayJoinArguments(
-        DB::ActionsDAG & actions_dag,
-        const std::string & function_name,
-        const substrait::Expression_ScalarFunction & scalar_function,
-        bool position,
-        ActionsDAG::NodeRawConstPtrs & parsed_args,
-        bool & is_map);
-
-
-    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG & actions_dag, const substrait::Expression & rel);
-    const ActionsDAG::Node *
-    toFunctionNode(ActionsDAG & actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
-    // remove nullable after isNotNull
-    void removeNullableForRequiredColumns(const std::set<String> & require_columns, ActionsDAG & actions_dag) const;
-    std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
-    void wrapNullable(
-        const std::vector<String> & columns, ActionsDAG & actions_dag, std::map<std::string, std::string> & nullable_measure_names);
-    static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
-
-    bool isFunction(substrait::Expression_ScalarFunction rel, String function_name);
-
-    int name_no = 0;
-    std::unordered_map<std::string, std::string> function_mapping;
     std::vector<jobject> input_iters;
     std::vector<std::string> split_infos;
     int split_info_index = 0;
@@ -193,9 +126,6 @@ private:
     ContextPtr context;
     std::shared_ptr<const ParserContext> parser_context;
     std::vector<RelMetricPtr> metrics;
-
-public:
-    const ActionsDAG::Node * addColumn(DB::ActionsDAG & actions_dag, const DataTypePtr & type, const Field & field);
 };
 
 }

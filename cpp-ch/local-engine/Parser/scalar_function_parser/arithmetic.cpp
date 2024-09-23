@@ -192,7 +192,7 @@ protected:
             const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
                 result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
 
-            const auto & settings = plan_parser->getContext()->getSettingsRef();
+            const auto & settings = parser_context->queryContext()->getSettingsRef();
             auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalPlusEffect"
                 : "sparkDecimalPlus";
@@ -233,7 +233,7 @@ protected:
             const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
                 result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
 
-            const auto & settings = plan_parser->getContext()->getSettingsRef();
+            const auto & settings = parser_context->queryContext()->getSettingsRef();
             auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalMinusEffect"
                 : "sparkDecimalMinus";
@@ -273,7 +273,7 @@ protected:
             const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
                 result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
 
-            const auto & settings = plan_parser->getContext()->getSettingsRef();
+            const auto & settings = parser_context->queryContext()->getSettingsRef();
             auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalMultiplyEffect"
                 : "sparkDecimalMultiply";
@@ -313,7 +313,7 @@ protected:
             const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
                 result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
 
-            const auto & settings = plan_parser->getContext()->getSettingsRef();
+            const auto & settings = parser_context->queryContext()->getSettingsRef();
             auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "NameSparkDecimalModuloEffect"
                 : "NameSparkDecimalModulo";
@@ -354,7 +354,7 @@ protected:
             const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
                 result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
 
-            const auto & settings = plan_parser->getContext()->getSettingsRef();
+            const auto & settings = parser_context->queryContext()->getSettingsRef();
             auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalDivideEffect"
                 : "sparkDecimalDivide";

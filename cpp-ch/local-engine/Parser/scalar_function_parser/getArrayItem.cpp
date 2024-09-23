@@ -36,7 +36,7 @@ namespace local_engine
 class FunctionParserGetArrayItem : public FunctionParser
 {
 public:
-    explicit FunctionParserGetArrayItem(ParserContextPtr parser_context_) : FunctionParserArrayElement(parser_context_) { }
+    explicit FunctionParserGetArrayItem(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserGetArrayItem() override = default;
 
     static constexpr auto name = "get_array_item";
