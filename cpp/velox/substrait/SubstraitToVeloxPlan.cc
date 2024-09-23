@@ -2477,7 +2477,7 @@ core::TypedExprPtr SubstraitToVeloxPlanConverter::connectWithAnd(
       allFilters.emplace_back(filter);
     }
   }
-  VELOX_CHECK_GT(allFilters.size(), 0, "One filter should be valid.")
+  VELOX_CHECK_GT(allFilters.size(), 0, "One filter should be valid.");
   core::TypedExprPtr andFilter = allFilters[0];
   for (auto i = 1; i < allFilters.size(); i++) {
     andFilter = connectWithAnd(andFilter, allFilters[i]);
