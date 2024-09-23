@@ -35,5 +35,5 @@ if [ "${GLUTEN_VCPKG_ENABLED:-}" != "${VCPKG_ROOT}" ]; then
 
     export GLUTEN_VCPKG_ENABLED=${VCPKG_ROOT}
 else
-    echo "Gluten's vcpkg environment is enabled" >&2
+    echo "Gluten's vcpkg environment is already enabled" >&2
 fi
