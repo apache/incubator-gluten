@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <Core/Settings.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <Functions/FunctionHelpers.h>
@@ -193,8 +193,7 @@ protected:
                 result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
 
             const auto & settings = plan_parser->getContext()->getSettingsRef();
-            auto function_name
-                = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
+            auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalPlusEffect"
                 : "sparkDecimalPlus";
 
@@ -235,8 +234,7 @@ protected:
                 result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
 
             const auto & settings = plan_parser->getContext()->getSettingsRef();
-            auto function_name
-                = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
+            auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalMinusEffect"
                 : "sparkDecimalMinus";
 
@@ -276,8 +274,7 @@ protected:
                 result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
 
             const auto & settings = plan_parser->getContext()->getSettingsRef();
-            auto function_name
-                = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
+            auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalMultiplyEffect"
                 : "sparkDecimalMultiply";
 
@@ -318,8 +315,7 @@ protected:
                 result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
 
             const auto & settings = plan_parser->getContext()->getSettingsRef();
-            auto function_name
-                = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
+            auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "NameSparkDecimalModuloEffect"
                 : "NameSparkDecimalModulo";
             ;
@@ -360,8 +356,7 @@ protected:
                 result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
 
             const auto & settings = plan_parser->getContext()->getSettingsRef();
-            auto function_name
-                = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
+            auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalDivideEffect"
                 : "sparkDecimalDivide";
             ;
