@@ -22,6 +22,7 @@
 #include <Parser/TypeParser.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
+#include <Common/GlutenSettings.h>
 
 namespace DB::ErrorCodes
 {
@@ -194,7 +195,7 @@ protected:
 
             const auto & settings = plan_parser->getContext()->getSettingsRef();
             auto function_name
-                = settings.has("arithmetic.decimal.mode") && Poco::toUpper(settings.getString("arithmetic.decimal.mode")) == "'EFFECT'"
+                = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalPlusEffect"
                 : "sparkDecimalPlus";
 
@@ -236,7 +237,7 @@ protected:
 
             const auto & settings = plan_parser->getContext()->getSettingsRef();
             auto function_name
-                = settings.has("arithmetic.decimal.mode") && Poco::toUpper(settings.getString("arithmetic.decimal.mode")) == "'EFFECT'"
+                = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalMinusEffect"
                 : "sparkDecimalMinus";
 
@@ -277,7 +278,7 @@ protected:
 
             const auto & settings = plan_parser->getContext()->getSettingsRef();
             auto function_name
-                = settings.has("arithmetic.decimal.mode") && Poco::toUpper(settings.getString("arithmetic.decimal.mode")) == "'EFFECT'"
+                = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalMultiplyEffect"
                 : "sparkDecimalMultiply";
 
@@ -319,7 +320,7 @@ protected:
 
             const auto & settings = plan_parser->getContext()->getSettingsRef();
             auto function_name
-                = settings.has("arithmetic.decimal.mode") && Poco::toUpper(settings.getString("arithmetic.decimal.mode")) == "'EFFECT'"
+                = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "NameSparkDecimalModuloEffect"
                 : "NameSparkDecimalModulo";
             ;
@@ -361,7 +362,7 @@ protected:
 
             const auto & settings = plan_parser->getContext()->getSettingsRef();
             auto function_name
-                = settings.has("arithmetic.decimal.mode") && Poco::toUpper(settings.getString("arithmetic.decimal.mode")) == "'EFFECT'"
+                = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
                 ? "sparkDecimalDivideEffect"
                 : "sparkDecimalDivide";
             ;

@@ -24,6 +24,7 @@
 
 #include <Common/CHUtil.h>
 #include <Common/GlutenDecimalUtils.h>
+#include <Common/GlutenSettings.h>
 
 namespace DB
 {
@@ -156,7 +157,8 @@ AggregateFunctionPtr createAggregateFunctionSparkAvg(
         throw Exception(
             ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Illegal type {} of argument for aggregate function {}", data_type->getName(), name);
 
-    if (settings->getString("spark_version").starts_with("'3.5"))
+    std::string version;
+    if (tryGetString(*settings, "spark_version", version) && version.starts_with("3.5"))
     {
         res.reset(createWithDecimalType<true>(*data_type, argument_types, getDecimalScale(*data_type), 0));
         return res;
