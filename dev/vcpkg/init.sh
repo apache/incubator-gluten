@@ -37,11 +37,19 @@ for arg in "$@"; do
   esac
 done
 
-export SCRIPT_ROOT="$(realpath "$(dirname "$0")")"
-export VCPKG_ROOT="$SCRIPT_ROOT/.vcpkg"
-export VCPKG="$SCRIPT_ROOT/.vcpkg/vcpkg"
-VCPKG_TRIPLET=x64-linux-avx
+require_set() {
+  if [ -z "${!1}" ]; then
+    echo "Required variable $1 not found!"
+    exit 1
+  fi
+}
 
+require_set "VCPKG_ROOT"
+require_set "VCPKG"
+require_set "VCPKG_TRIPLET"
+require_set "VCPKG_TRIPLET_INSTALL_DIR"
+
+SCRIPT_ROOT="$(realpath "$(dirname "$0")")"
 cd "$SCRIPT_ROOT"
 
 if [ ! -d "$VCPKG_ROOT" ] || [ -z "$(ls "$VCPKG_ROOT")" ]; then
@@ -72,19 +80,6 @@ fi
 
 $VCPKG install --no-print-usage \
     --triplet="${VCPKG_TRIPLET}" --host-triplet="${VCPKG_TRIPLET}" ${EXTRA_FEATURES}
-
-export VCPKG_TRIPLET_INSTALL_DIR=${SCRIPT_ROOT}/vcpkg_installed/${VCPKG_TRIPLET}
-EXPORT_TOOLS_PATH="${VCPKG_TRIPLET_INSTALL_DIR}/tools/protobuf"
-
-# This scripts depends on environment $CMAKE_TOOLCHAIN_FILE, which requires
-# cmake >= 3.21. If system cmake < 3.25, vcpkg will download latest cmake. We
-# can use vcpkg's internal cmake if we find it.
-VCPKG_CMAKE_BIN_DIR=$(echo "${VCPKG_ROOT}"/downloads/tools/cmake-*/cmake-*/bin)
-if [ -f "$VCPKG_CMAKE_BIN_DIR/cmake" ]; then
-    EXPORT_TOOLS_PATH="${VCPKG_CMAKE_BIN_DIR}:${EXPORT_TOOLS_PATH}"
-fi
-
-export EXPORT_TOOLS_PATH=${EXPORT_TOOLS_PATH/%:/}
 
 # For fixing a build error like below when gluten's build type is Debug:
 # No rule to make target '/root/gluten/dev/vcpkg/vcpkg_installed/x64-linux-avx/debug/lib/libz.a',
