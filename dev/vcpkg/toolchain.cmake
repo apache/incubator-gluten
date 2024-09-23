@@ -8,7 +8,10 @@ set(ENABLE_GLUTEN_VCPKG ON)
 # in script `init.sh` will be used across all CMake sub-projects.
 #
 # Reference: https://learn.microsoft.com/en-us/vcpkg/users/buildsystems/cmake-integration
-set(VCPKG_MANIFEST_MODE OFF)
+#
+# Note: "CACHE BOOL" is required to make this successfully override the option defined in
+# vcpkg.cmake.
+set(VCPKG_MANIFEST_MODE OFF CACHE BOOL "Use manifest mode, as opposed to classic mode." FORCE)
 
 set(VCPKG_TARGET_TRIPLET $ENV{VCPKG_TRIPLET})
 set(VCPKG_HOST_TRIPLET $ENV{VCPKG_TRIPLET})
