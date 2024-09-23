@@ -471,16 +471,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           if !BackendsApiManager.getSettings.transformCheckOverflow &&
             DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         DecimalArithmeticUtil.checkAllowDecimalArithmetic()
-        val leftChild =
+        val arithmeticExprName = getAndCheckSubstraitName(b, expressionsMap)
+        val left =
           replaceWithExpressionTransformer0(b.left, attributeSeq, expressionsMap)
-        val rightChild =
+        val right =
           replaceWithExpressionTransformer0(b.right, attributeSeq, expressionsMap)
-        DecimalArithmeticExpressionTransformer(
-          getAndCheckSubstraitName(b, expressionsMap),
-          leftChild,
-          rightChild,
-          decimalType,
-          b)
+        DecimalArithmeticExpressionTransformer(arithmeticExprName, left, right, decimalType, b)
       case c: CheckOverflow =>
         CheckOverflowTransformer(
           substraitExprName,
