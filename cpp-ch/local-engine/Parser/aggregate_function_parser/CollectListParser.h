@@ -35,7 +35,7 @@ namespace local_engine
 class CollectFunctionParser : public AggregateFunctionParser
 {
 public:
-    explicit CollectFunctionParser(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
+    explicit CollectFunctionParser(ParserContextPtr parser_context_) : AggregateFunctionParser(parser_context_) { }
     ~CollectFunctionParser() override = default;
     virtual String getName() const override
     {
@@ -74,7 +74,7 @@ public:
 class CollectListParser : public CollectFunctionParser
 {
 public:
-    explicit CollectListParser(SerializedPlanParser * plan_parser_) : CollectFunctionParser(plan_parser_) { }
+    explicit CollectListParser(ParserContextPtr parser_context_) : CollectFunctionParser(parser_context_) { }
     ~CollectListParser() override = default;
     static constexpr auto name = "collect_list";
     String getName() const override { return name; }
@@ -85,7 +85,7 @@ public:
 class CollectSetParser : public CollectFunctionParser
 {
 public:
-    explicit CollectSetParser(SerializedPlanParser * plan_parser_) : CollectFunctionParser(plan_parser_) { }
+    explicit CollectSetParser(ParserContextPtr parser_context_) : CollectFunctionParser(parser_context_) { }
     ~CollectSetParser() override = default;
     static constexpr auto name = "collect_set";
     String getName() const override { return name; }

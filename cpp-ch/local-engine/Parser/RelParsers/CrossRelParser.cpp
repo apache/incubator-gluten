@@ -222,12 +222,12 @@ void CrossRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::
     if (!expression.has_scalar_function())
     {
         // It may be singular_or_list
-        const auto * in_node = expression_parser->parserExpression(actions_dag, expression);
+        const auto * in_node = expression_parser->parseExpression(actions_dag, expression);
         filter_name = in_node->result_name;
     }
     else
     {
-        const auto * func_node = expression_parser->parseFunction(actions_dag, expression.scalar_function(), true);
+        const auto * func_node = expression_parser->parseFunction(expression.scalar_function(), actions_dag, true);
         filter_name = func_node->result_name;
     }
     auto filter_step = std::make_unique<FilterStep>(query_plan.getCurrentDataStream(), std::move(actions_dag), filter_name, true);

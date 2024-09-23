@@ -48,7 +48,7 @@ public:
     std::vector<DB::QueryPlanPtr> extraPlans() override { return std::move(extra_plan_holder); }
 
 private:
-    ContextPtr & context;
+    ContextPtr context;
     std::vector<QueryPlanPtr> extra_plan_holder;
 
 
