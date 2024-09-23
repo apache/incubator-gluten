@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-#include "utils/qpl/qpl_job_pool.h"
-#include "utils/macros.h"
+#include "utils/qpl/QplJobPool.h"
+#include "utils/Macros.h"
 
 #include <arrow/util/logging.h>
 #include <iostream>

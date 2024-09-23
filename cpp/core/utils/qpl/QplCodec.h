@@ -18,7 +18,7 @@
 #pragma once
 
 #include <arrow/util/compression.h>
-#include <utils/qpl/qpl_job_pool.h>
+#include <utils/qpl/QplJobPool.h>
 
 namespace gluten {
 namespace qpl {

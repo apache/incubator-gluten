@@ -20,8 +20,8 @@
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/ShuffleSchema.h"
 #include "utils/Common.h"
+#include "utils/Macros.h"
 #include "utils/VeloxArrowUtils.h"
-#include "utils/macros.h"
 
 #include "velox/common/base/Nulls.h"
 #include "velox/type/Type.h"

@@ -16,7 +16,7 @@
  */
 
 #include "shuffle/Partitioning.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 namespace {
 static const std::string kSinglePartitioningName = "single";

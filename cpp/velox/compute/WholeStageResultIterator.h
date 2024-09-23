@@ -22,7 +22,7 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"
-#include "utils/metrics.h"
+#include "utils/Metrics.h"
 #include "velox/common/config/Config.h"
 #include "velox/connectors/hive/iceberg/IcebergSplit.h"
 #include "velox/core/PlanNode.h"

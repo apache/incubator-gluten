@@ -19,7 +19,7 @@
 
 #include "memory/ColumnarBatch.h"
 #include "memory/ColumnarBatchIterator.h"
-#include "utils/metrics.h"
+#include "utils/Metrics.h"
 
 namespace gluten {
 

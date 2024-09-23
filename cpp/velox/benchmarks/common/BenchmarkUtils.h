@@ -33,8 +33,8 @@
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/Options.h"
 #include "shuffle/ShuffleWriter.h"
+#include "utils/Exception.h"
 #include "utils/VeloxArrowUtils.h"
-#include "utils/exception.h"
 #include "velox/common/memory/Memory.h"
 
 DECLARE_int64(batch_size);

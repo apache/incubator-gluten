@@ -20,8 +20,8 @@
 #include <string_view>
 #include <vector>
 
+#include "Exception.h"
 #include "StringUtil.h"
-#include "exception.h"
 
 std::vector<std::string> gluten::splitByDelim(const std::string& s, const char delimiter) {
   if (s.empty()) {
