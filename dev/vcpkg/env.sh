@@ -13,7 +13,7 @@ export VCPKG="$SCRIPT_ROOT/.vcpkg/vcpkg"
 export VCPKG_TRIPLET=x64-linux-avx
 export VCPKG_TRIPLET_INSTALL_DIR=${SCRIPT_ROOT}/vcpkg_installed/${VCPKG_TRIPLET}
 
-${SCRIPT_ROOT}/init.sh $@
+${SCRIPT_ROOT}/init.sh "$@"
 
 if [ "${GLUTEN_VCPKG_ENABLED:-}" != "${VCPKG_ROOT}" ]; then
     EXPORT_TOOLS_PATH="${VCPKG_TRIPLET_INSTALL_DIR}/tools/protobuf"
