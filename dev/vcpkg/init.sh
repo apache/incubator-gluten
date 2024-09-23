@@ -2,8 +2,6 @@
 
 set -e
 
-exec 3>&1 >&2
-
 BUILD_TESTS=OFF
 ENABLE_S3=OFF
 ENABLE_GCS=OFF
