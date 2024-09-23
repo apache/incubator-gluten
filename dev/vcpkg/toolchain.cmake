@@ -3,11 +3,12 @@
 
 set(ENABLE_GLUTEN_VCPKG ON)
 
-# If this arg is set, `vcpkg install` will be executed according
-# to the manifest file exists in this given path, i.e., vcpkg.json,
-# which will not respect our setting for extra features through
-# `--x-feature`.
-#set(VCPKG_MANIFEST_DIR $ENV{VCPKG_MANIFEST_DIR})
+# Force the use of VCPKG classic mode to avoid reinstalling vcpkg features during
+# different CMake sub-projects. Which means, the features installed by `vcpkg install`
+# in script `init.sh` will be used across all CMake sub-projects.
+#
+# Reference: https://learn.microsoft.com/en-us/vcpkg/users/buildsystems/cmake-integration
+set(VCPKG_MANIFEST_MODE OFF)
 
 set(VCPKG_TARGET_TRIPLET $ENV{VCPKG_TRIPLET})
 set(VCPKG_HOST_TRIPLET $ENV{VCPKG_TRIPLET})
