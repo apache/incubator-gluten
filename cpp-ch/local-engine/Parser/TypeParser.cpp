@@ -31,9 +31,9 @@
 #include <DataTypes/DataTypesNumber.h>
 #include <Parser/AggregateFunctionParser.h>
 #include <Parser/FunctionParser.h>
+#include <Parser/ParserContext.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
-#include <Parser/ParserContext.h>
 #include <Parser/TypeParser.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/Exception.h>
@@ -276,13 +276,13 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
             AggregateFunctionProperties properties;
             auto tmp_ctx = DB::Context::createCopy(QueryContext::globalContext());
             auto parser_context = ParserContext::build(tmp_ctx);
-            SerializedPlanParser tmp_plan_parser(parser_context);
-            auto function_parser = AggregateFunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
+            auto function_parser = AggregateFunctionParserFactory::instance().get(name_parts[3], parser_context);
             /// This may remove elements from args_types, because some of them are used to determine CH function name, but not needed for the following
             /// call `AggregateFunctionFactory::instance().get`
             auto agg_function_name = function_parser->getCHFunctionName(args_types);
-            ch_type = RelParser::getAggregateFunction(agg_function_name, args_types, properties, function_parser->getDefaultFunctionParameters())
-                                 ->getStateType();
+            ch_type = RelParser::getAggregateFunction(
+                          agg_function_name, args_types, properties, function_parser->getDefaultFunctionParameters())
+                          ->getStateType();
         }
 
         internal_cols.push_back(ColumnWithTypeAndName(ch_type, name));

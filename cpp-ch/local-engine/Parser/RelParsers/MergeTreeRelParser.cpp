@@ -232,7 +232,7 @@ void MergeTreeRelParser::parseToAction(ActionsDAG & filter_action, const substra
 {
     if (rel.has_scalar_function())
     {
-        const auto * node = expression_parser->parseFunction(filter_action, rel.scalar_function(), true);
+        const auto * node = expression_parser->parseFunction(rel.scalar_function(), filter_action, true);
         filter_name = node->result_name;
     }
     else

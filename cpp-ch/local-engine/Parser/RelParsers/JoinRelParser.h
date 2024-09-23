@@ -50,8 +50,7 @@ public:
     std::vector<DB::QueryPlanPtr> extraPlans() override { return std::move(extra_plan_holder); }
 
 private:
-    std::unordered_map<std::string, std::string> & function_mapping;
-    ContextPtr & context;
+    ContextPtr context;
     std::vector<QueryPlanPtr> extra_plan_holder;
 
 

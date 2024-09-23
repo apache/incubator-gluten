@@ -606,12 +606,13 @@ void JoinRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::J
     if (!join.post_join_filter().has_scalar_function())
     {
         // It may be singular_or_list
-        auto * in_node = expression_parser->parseExpression(actions_dag, join.post_join_filter());
+        const auto * in_node = expression_parser->parseExpression(actions_dag, join.post_join_filter());
         filter_name = in_node->result_name;
     }
     else
     {
-        getPlanParser()->parseFunctionWithDAG(join.post_join_filter(), filter_name, actions_dag, true);
+        const auto * func_node = expression_parser->parseFunction(join.post_join_filter().scalar_function(), actions_dag, true);
+        filter_name = func_node->result_name;
     }
     auto filter_step = std::make_unique<FilterStep>(query_plan.getCurrentDataStream(), std::move(actions_dag), filter_name, true);
     filter_step->setStepDescription("Post Join Filter");
@@ -639,7 +640,7 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
     {
         if (!e.has_scalar_function())
             return false;
-        auto function_name = parseFunctionName(e.scalar_function().function_reference(), e.scalar_function());
+        auto function_name = parseFunctionName(e.scalar_function());
         return function_name.has_value() && *function_name == function_name_;
     };
 
