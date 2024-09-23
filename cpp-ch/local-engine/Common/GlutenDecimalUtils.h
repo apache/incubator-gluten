@@ -95,13 +95,6 @@ public:
         }
     }
 
-    static std::tuple<size_t, size_t> widerDecimalType(const size_t p1, const size_t s1, const size_t p2, const size_t s2)
-    {
-        // max(s1, s2) + max(p1-s1, p2-s2), max(s1, s2)
-        auto scale = std::max(s1, s2);
-        auto range = std::max(p1 - s1, p2 - s2);
-        return std::tuple(range + scale, scale);
-    }
 
 };
 
