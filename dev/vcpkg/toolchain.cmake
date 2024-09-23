@@ -1,5 +1,14 @@
+# This file will be used by cmake before cmake function `project(xxx)`
+# is executed, even though it's an external cmake project.
+
 set(ENABLE_GLUTEN_VCPKG ON)
-set(VCPKG_MANIFEST_DIR $ENV{VCPKG_MANIFEST_DIR})
+
+# If this arg is set, `vcpkg install` will be executed according
+# to the manifest file exists in this given path, i.e., vcpkg.json,
+# which will not respect our setting for extra features through
+# `--x-feature`.
+#set(VCPKG_MANIFEST_DIR $ENV{VCPKG_MANIFEST_DIR})
+
 set(VCPKG_TARGET_TRIPLET $ENV{VCPKG_TRIPLET})
 set(VCPKG_HOST_TRIPLET $ENV{VCPKG_TRIPLET})
 set(VCPKG_INSTALLED_DIR $ENV{VCPKG_MANIFEST_DIR}/vcpkg_installed)
