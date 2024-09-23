@@ -16,7 +16,7 @@ ${SCRIPT_ROOT}/init.sh $@
 
 if [ "${GLUTEN_VCPKG_ENABLED:-}" != "${VCPKG_ROOT}" ]; then
     EXPORT_TOOLS_PATH="${VCPKG_TRIPLET_INSTALL_DIR}/tools/protobuf"
-    # This scripts depends on environment $CMAKE_TOOLCHAIN_FILE, which requires
+    # The scripts depends on environment $CMAKE_TOOLCHAIN_FILE, which requires
     # cmake >= 3.21. If system cmake < 3.25, vcpkg will download latest cmake. We
     # can use vcpkg's internal cmake if we find it.
     VCPKG_CMAKE_BIN_DIR=$(echo "${VCPKG_ROOT}"/downloads/tools/cmake-*/cmake-*/bin)
