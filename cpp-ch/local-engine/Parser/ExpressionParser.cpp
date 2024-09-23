@@ -786,9 +786,9 @@ ExpressionParser::parseJsonTuple(const substrait::Expression_ScalarFunction & fu
     const auto * json_expr_node = parseExpression(actions_dag, first_arg);
     DB::WriteBufferFromOwnString write_buffer;
     write_buffer << "Tuple(";
-    for (int i = 0; i < pb_args.size(); ++i)
+    for (int i = 1; i < pb_args.size(); ++i)
     {
-        if (i > 0)
+        if (i > 1)
             write_buffer << ", ";
         const auto & arg = pb_args[i].value();
         if (!arg.has_literal() || !arg.literal().has_string())
