@@ -17,8 +17,7 @@
   "default-features": [
     "deprecated",
     "exceptions",
-    "threads",
-    "utf8-validation"
+    "threads"
   ],
   "features": {
     "deprecated": {

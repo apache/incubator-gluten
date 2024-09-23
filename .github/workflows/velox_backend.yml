@@ -337,7 +337,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q67,q95 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen=skip -m=OffHeapExecutionMemory \
+            -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
             -d=OFFHEAP_SIZE:6g,spark.memory.offHeap.size=6g \
             -d=OFFHEAP_SIZE:4g,spark.memory.offHeap.size=4g \
@@ -349,7 +349,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q67 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen=skip -m=OffHeapExecutionMemory \
+            -m=OffHeapExecutionMemory \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
             -d=OFFHEAP_SIZE:6g,spark.memory.offHeap.size=6g \
             -d=OFFHEAP_SIZE:4g,spark.memory.offHeap.size=4g \
@@ -361,7 +361,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q95 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen=skip -m=OffHeapExecutionMemory \
+            -m=OffHeapExecutionMemory \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
             -d=OFFHEAP_SIZE:6g,spark.memory.offHeap.size=6g \
             -d=OFFHEAP_SIZE:4g,spark.memory.offHeap.size=4g \
@@ -372,7 +372,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q23a,q23b -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen=skip -m=OffHeapExecutionMemory \
+            -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
             -d=OFFHEAP_SIZE:2g,spark.memory.offHeap.size=2g \
             -d=FLUSH_MODE:DISABLED,spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
@@ -383,7 +383,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q23a,q23b -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen=skip -m=OffHeapExecutionMemory \
+            -m=OffHeapExecutionMemory \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
             -d=OFFHEAP_SIZE:2g,spark.memory.offHeap.size=2g \
             -d=FLUSH_MODE:DISABLED,spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
@@ -394,7 +394,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q97 -s=30.0 --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen=skip -m=OffHeapExecutionMemory \
+            -m=OffHeapExecutionMemory \
             --extra-conf=spark.gluten.sql.columnar.backend.velox.IOThreads=0 \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
@@ -453,7 +453,7 @@ jobs:
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh queries \
             --local --preset=velox --benchmark-type=ds --error-on-memleak -s=30.0  --off-heap-size=8g --threads=12 --shuffle-partitions=72 --iterations=1 \
-            --data-gen=skip  --random-kill-tasks --no-session-reuse
+            --random-kill-tasks --no-session-reuse
 
   run-tpc-test-centos8-uniffle:
     needs: build-native-lib-centos-7
