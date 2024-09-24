@@ -33,7 +33,7 @@ namespace local_engine
 class FunctionParserSequence : public FunctionParser
 {
 public:
-    explicit FunctionParserSequence(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserSequence(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserSequence() override = default;
 
     static constexpr auto name = "sequence";

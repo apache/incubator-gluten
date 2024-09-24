@@ -24,7 +24,7 @@ namespace local_engine
 class AggregateFunctionParserBloomFilterAgg : public AggregateFunctionParser
 {
 public:
-    explicit AggregateFunctionParserBloomFilterAgg(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
+    explicit AggregateFunctionParserBloomFilterAgg(ParserContextPtr parser_context_) : AggregateFunctionParser(parser_context_) { }
     ~AggregateFunctionParserBloomFilterAgg() override = default;
     String getName() const override { return name; }
     static constexpr auto name = "bloom_filter_agg";

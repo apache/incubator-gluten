@@ -37,7 +37,8 @@ using namespace DB;
 class MergeTreeRelParser : public RelParser
 {
 public:
-    explicit MergeTreeRelParser(SerializedPlanParser * plan_paser_, const ContextPtr & context_) : RelParser(plan_paser_), context(context_)
+    explicit MergeTreeRelParser(ParserContextPtr parser_context_, const ContextPtr & context_)
+        : RelParser(parser_context_), context(context_)
     {
     }
 

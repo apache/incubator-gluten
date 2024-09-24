@@ -29,7 +29,7 @@ namespace local_engine
 class SparkFunctionExtractParser : public FunctionParser
 {
 public:
-    SparkFunctionExtractParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionExtractParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionExtractParser() override = default;
 
     static constexpr auto name = "extract";

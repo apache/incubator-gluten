@@ -25,7 +25,7 @@ class SerializedPlanParser;
 class ExpandRelParser : public RelParser
 {
 public:
-    explicit ExpandRelParser(SerializedPlanParser * plan_parser_);
+    explicit ExpandRelParser(ParserContextPtr parser_context_);
     ~ExpandRelParser() override = default;
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;

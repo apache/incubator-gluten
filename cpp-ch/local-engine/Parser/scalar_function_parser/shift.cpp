@@ -37,7 +37,7 @@ namespace local_engine
 class FunctionParserShiftBase : public FunctionParser
 {
 public:
-    explicit FunctionParserShiftBase(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserShiftBase(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserShiftBase() override = default;
 
     virtual String getCHFunctionName() const = 0;
@@ -78,7 +78,7 @@ public:
 class FunctionParserShiftLeft : public FunctionParserShiftBase
 {
 public:
-    explicit FunctionParserShiftLeft(SerializedPlanParser * plan_parser_) : FunctionParserShiftBase(plan_parser_) { }
+    explicit FunctionParserShiftLeft(ParserContextPtr parser_context_) : FunctionParserShiftBase(parser_context_) { }
     ~FunctionParserShiftLeft() override = default;
 
     static constexpr auto name = "shiftleft";
@@ -91,7 +91,7 @@ static FunctionParserRegister<FunctionParserShiftLeft> register_shiftleft;
 class FunctionParserShiftRight: public FunctionParserShiftBase
 {
 public:
-    explicit FunctionParserShiftRight(SerializedPlanParser * plan_parser_) : FunctionParserShiftBase(plan_parser_) { }
+    explicit FunctionParserShiftRight(ParserContextPtr parser_context_) : FunctionParserShiftBase(parser_context_) { }
     ~FunctionParserShiftRight() override = default;
 
     static constexpr auto name = "shiftright";

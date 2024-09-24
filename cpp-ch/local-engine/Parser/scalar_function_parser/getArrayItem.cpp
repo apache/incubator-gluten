@@ -22,7 +22,7 @@ namespace local_engine
     class FunctionParserGetArrayItem : public FunctionParserArrayElement
     {
     public:
-        explicit FunctionParserGetArrayItem(SerializedPlanParser * plan_parser_) : FunctionParserArrayElement(plan_parser_) { }
+        explicit FunctionParserGetArrayItem(ParserContextPtr parser_context_) : FunctionParserArrayElement(parser_context_) { }
         ~FunctionParserGetArrayItem() override = default;
         static constexpr auto name = "get_array_item";
         String getName() const override { return name; }

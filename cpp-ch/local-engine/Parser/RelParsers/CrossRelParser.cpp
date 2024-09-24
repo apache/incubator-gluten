@@ -24,6 +24,8 @@
 #include <Join/BroadCastJoinBuilder.h>
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Parser/AdvancedParametersParseUtil.h>
+#include <Parser/ExpressionParser.h>
+#include <Parser/SerializedPlanParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
@@ -59,11 +61,7 @@ std::shared_ptr<DB::TableJoin> createCrossTableJoin(substrait::CrossRel_JoinType
     return table_join;
 }
 
-CrossRelParser::CrossRelParser(SerializedPlanParser * plan_paser_)
-    : RelParser(plan_paser_)
-    , function_mapping(plan_paser_->function_mapping)
-    , context(plan_paser_->context)
-    , extra_plan_holder(plan_paser_->extra_plan_holder)
+CrossRelParser::CrossRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_), context(parser_context_->queryContext())
 {
 }
 
@@ -224,12 +222,13 @@ void CrossRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::
     if (!expression.has_scalar_function())
     {
         // It may be singular_or_list
-        auto * in_node = getPlanParser()->parseExpression(actions_dag, expression);
+        const auto * in_node = expression_parser->parseExpression(actions_dag, expression);
         filter_name = in_node->result_name;
     }
     else
     {
-        getPlanParser()->parseFunctionWithDAG(expression, filter_name, actions_dag, true);
+        const auto * func_node = expression_parser->parseFunction(expression.scalar_function(), actions_dag, true);
+        filter_name = func_node->result_name;
     }
     auto filter_step = std::make_unique<FilterStep>(query_plan.getCurrentDataStream(), std::move(actions_dag), filter_name, true);
     filter_step->setStepDescription("Post Join Filter");
@@ -306,7 +305,7 @@ void CrossRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left
 
 void registerCrossRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_paser) { return std::make_shared<CrossRelParser>(plan_paser); };
+    auto builder = [](ParserContextPtr parser_context) { return std::make_shared<CrossRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kCross, builder);
 }
 

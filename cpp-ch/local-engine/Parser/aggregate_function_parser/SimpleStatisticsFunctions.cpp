@@ -37,7 +37,7 @@ template <typename NameStruct>
 class AggregateFunctionParserStddev final : public AggregateFunctionParser
 {
 public:
-    AggregateFunctionParserStddev(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
+    AggregateFunctionParserStddev(ParserContextPtr parser_context_) : AggregateFunctionParser(parser_context_) { }
     ~AggregateFunctionParserStddev() override = default;
     String getName() const override { return NameStruct::spark_name; }
     static constexpr auto name = NameStruct::spark_name;

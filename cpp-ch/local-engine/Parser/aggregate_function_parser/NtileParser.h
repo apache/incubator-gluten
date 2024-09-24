@@ -22,7 +22,7 @@ namespace local_engine
 class NtileParser : public AggregateFunctionParser
 {
 public:
-    explicit NtileParser(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
+    explicit NtileParser(ParserContextPtr parser_context_) : AggregateFunctionParser(parser_context_) { }
     ~NtileParser() override = default;
     static constexpr auto name = "ntile";
     String getName() const override { return name; }

@@ -22,7 +22,7 @@ namespace local_engine
 class FunctionParserLog2 : public FunctionParserLogBase
 {
 public:
-    explicit FunctionParserLog2(SerializedPlanParser * plan_parser_) : FunctionParserLogBase(plan_parser_) {}
+    explicit FunctionParserLog2(ParserContextPtr parser_context_) : FunctionParserLogBase(parser_context_) {}
     ~FunctionParserLog2() override = default;
 
     static constexpr auto name = "log2";

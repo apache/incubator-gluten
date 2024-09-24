@@ -52,16 +52,16 @@ extern const SettingsUInt64 max_block_size;
 }
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
-    extern const int BAD_ARGUMENTS;
-    extern const int UNKNOWN_TYPE;
-    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+extern const int LOGICAL_ERROR;
+extern const int BAD_ARGUMENTS;
+extern const int UNKNOWN_TYPE;
+extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 }
 }
 namespace local_engine
 {
 
-AggregateRelParser::AggregateRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
+AggregateRelParser::AggregateRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_)
 {
 }
 
@@ -147,7 +147,7 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
         AggregateInfo agg_info;
         auto arg = measure.measure().arguments(0).value();
         agg_info.signature_function_name = *parseSignatureFunctionName(measure.measure().function_reference());
-        auto function_parser = AggregateFunctionParserFactory::instance().get(agg_info.signature_function_name, getPlanParser());
+        auto function_parser = AggregateFunctionParserFactory::instance().get(agg_info.signature_function_name, parser_context);
         if (!function_parser)
         {
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unsupported aggregate function: {}", agg_info.signature_function_name);
@@ -213,7 +213,9 @@ void AggregateRelParser::addPreProjection()
 void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & descriptions)
 {
     const auto & current_plan_header = plan->getCurrentDataStream().header;
-    auto build_result_column_name = [this, current_plan_header](const String & function_name, const Array & params, const Strings & arg_names, substrait::AggregationPhase phase)
+    auto build_result_column_name
+        = [this, current_plan_header](
+              const String & function_name, const Array & params, const Strings & arg_names, substrait::AggregationPhase phase)
     {
         if (phase == substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT)
         {
@@ -241,7 +243,8 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         auto res = this->getUniqueName(result);
         // Just a check for remining this issue.
         if (current_plan_header.findByName(res))
-            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Name ({}) collision in header: {}", res, current_plan_header.dumpStructure());
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR, "Name ({}) collision in header: {}", res, current_plan_header.dumpStructure());
         return res;
     };
 
@@ -270,7 +273,8 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
             // If the function is a state function, we don't need to apply `PartialMerge`.
             // In INITIAL_TO_INTERMEDIATE or INITIAL_TO_RESULT phase, we do arguments -> xxState.
             // In INTERMEDIATE_TO_RESULT phase, we do xxState -> xxState.
-            if (agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE || agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_RESULT)
+            if (agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
+                || agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_RESULT)
             {
                 description.function = getAggregateFunction(agg_info.function_name, agg_info.arg_column_types, properties, agg_info.params);
             }
@@ -550,7 +554,7 @@ void AggregateRelParser::addPostProjection()
 
 void registerAggregateParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_parser) { return std::make_shared<AggregateRelParser>(plan_parser); };
+    auto builder = [](ParserContextPtr parser_context) { return std::make_shared<AggregateRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kAggregate, builder);
 }
 }

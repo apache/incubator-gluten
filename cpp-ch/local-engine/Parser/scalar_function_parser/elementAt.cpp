@@ -24,7 +24,7 @@ namespace local_engine
 class FunctionParserElementAt : public FunctionParserArrayElement
 {
 public:
-    explicit FunctionParserElementAt(SerializedPlanParser * plan_parser_) : FunctionParserArrayElement(plan_parser_) { }
+    explicit FunctionParserElementAt(ParserContextPtr parser_context_) : FunctionParserArrayElement(parser_context_) { }
     ~FunctionParserElementAt() override = default;
     static constexpr auto name = "element_at";
     String getName() const override { return name; }

@@ -36,7 +36,7 @@ namespace local_engine
 class FunctionParserUnixTimestamp : public FunctionParser
 {
 public:
-    explicit FunctionParserUnixTimestamp(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserUnixTimestamp(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserUnixTimestamp() override = default;
 
     static constexpr auto name = "unix_timestamp";

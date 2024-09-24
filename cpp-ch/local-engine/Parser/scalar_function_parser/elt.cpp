@@ -34,7 +34,7 @@ namespace local_engine
 class FunctionParserElt : public FunctionParser
 {
 public:
-    explicit FunctionParserElt(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserElt(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserElt() override = default;
 
     static constexpr auto name = "elt";

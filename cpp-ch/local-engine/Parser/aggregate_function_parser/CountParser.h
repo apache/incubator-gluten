@@ -23,7 +23,7 @@ namespace local_engine
 class CountParser : public AggregateFunctionParser
 {
 public:
-    explicit CountParser(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
+    explicit CountParser(ParserContextPtr parser_context_) : AggregateFunctionParser(parser_context_) { }
     ~CountParser() override = default;
     static constexpr auto name = "count";
     String getName() const override { return name; }

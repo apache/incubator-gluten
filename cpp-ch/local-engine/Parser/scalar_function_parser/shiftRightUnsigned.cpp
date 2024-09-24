@@ -32,7 +32,7 @@ namespace local_engine
 class FunctionParserShiftRightUnsigned : public FunctionParser
 {
 public:
-    explicit FunctionParserShiftRightUnsigned(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserShiftRightUnsigned(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserShiftRightUnsigned() override = default;
 
     static constexpr auto name = "shiftrightunsigned";

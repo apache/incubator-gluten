@@ -22,7 +22,7 @@ namespace local_engine
 class FunctionParserMyAdd: public FunctionParser
 {
 public:
-    explicit FunctionParserMyAdd(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserMyAdd(ParserContextPtr ctx) : FunctionParser(ctx) { }
 
     static constexpr auto name = "my_add";
 

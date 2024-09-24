@@ -22,7 +22,7 @@ class ParseURLParser final : public FunctionParser
 {
 public:
     static constexpr auto name = "parse_url";
-    ParseURLParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    ParseURLParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~ParseURLParser() override = default;
     String getName() const override { return name; }
 
