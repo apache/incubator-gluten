@@ -17,13 +17,13 @@
 package org.apache.spark.sql.execution.datasources.v1
 
 import org.apache.gluten.expression.ConverterUtils
-import org.apache.gluten.jni.JniUtils
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.plan.PlanBuilder
 import org.apache.gluten.substrait.rel.RelBuilder
+import org.apache.gluten.utils.ConfigUtil
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, OutputWriter}
@@ -103,7 +103,7 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
         context.getTaskAttemptID.getTaskID.getId.toString,
         context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
         context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
-        JniUtils.toNativeConf(nativeConf)
+        ConfigUtil.serialize(nativeConf)
       )
 
     new MergeTreeOutputWriter(database, tableName, datasourceJniWrapper, instance, path)

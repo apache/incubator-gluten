@@ -20,8 +20,8 @@ import org.apache.gluten.GlutenConfig;
 import org.apache.gluten.backend.Backend;
 import org.apache.gluten.backendsapi.BackendsApiManager;
 import org.apache.gluten.execution.ColumnarNativeIterator;
-import org.apache.gluten.jni.JniUtils;
 import org.apache.gluten.memory.CHThreadGroup;
+import org.apache.gluten.utils.ConfigUtil;
 
 import org.apache.spark.sql.internal.SQLConf;
 
@@ -42,7 +42,7 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
     BackendsApiManager.getTransformerApiInstance()
         .postProcessNativeConfig(nativeConfMap, GlutenConfig.prefixOf(Backend.get().name()));
 
-    nativeInitNative(JniUtils.toNativeConf(nativeConfMap));
+    nativeInitNative(ConfigUtil.serialize(nativeConfMap));
   }
 
   public static void finalizeNative() {
@@ -76,7 +76,7 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
             wsPlan,
             splitInfo,
             iterList.toArray(new ColumnarNativeIterator[0]),
-            JniUtils.toNativeConf(getNativeBackendConf()),
+            ConfigUtil.serialize(getNativeBackendConf()),
             materializeInput);
     return createBatchIterator(handle);
   }
@@ -90,7 +90,7 @@ public class CHNativeExpressionEvaluator extends ExpressionEvaluatorJniWrapper {
             wsPlan,
             splitInfo,
             iterList.toArray(new ColumnarNativeIterator[0]),
-            JniUtils.toNativeConf(getNativeBackendConf()),
+            ConfigUtil.serialize(getNativeBackendConf()),
             false);
     return createBatchIterator(handle);
   }
