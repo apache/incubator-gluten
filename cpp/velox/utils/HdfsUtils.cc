@@ -18,7 +18,7 @@
 #include "HdfsUtils.h"
 #include <hdfs/hdfs.h>
 #include "config/GlutenConfig.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 namespace gluten {
 

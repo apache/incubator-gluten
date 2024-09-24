@@ -19,7 +19,7 @@
 
 #include <arrow/memory_pool.h>
 #include "memory/Reclaimable.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 #include "velox/common/base/Exceptions.h"
 
 namespace gluten {

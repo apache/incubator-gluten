@@ -21,7 +21,6 @@ import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;
-import org.apache.gluten.utils.ImplicitClass;
 import org.apache.gluten.utils.InternalRowUtl;
 import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 
@@ -168,10 +167,11 @@ public class ColumnarBatches {
       // Follow gluten input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
       IndicatorVector giv = (IndicatorVector) input.column(0);
-      ImplicitClass.ArrowColumnarBatchRetainer retainer =
-          new ImplicitClass.ArrowColumnarBatchRetainer(output);
       for (long i = 0; i < (giv.refCnt() - 1); i++) {
-        retainer.retain();
+        for (int j = 0; j < output.numCols(); j++) {
+          final ArrowWritableColumnVector col = (ArrowWritableColumnVector) output.column(j);
+          col.retain();
+        }
       }
 
       // close the input one

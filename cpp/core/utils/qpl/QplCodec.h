@@ -14,25 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils
 
-import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.vectorized.ArrowWritableColumnVector
+#pragma once
 
-import org.apache.spark.sql.vectorized.ColumnarBatch
+#include <arrow/util/compression.h>
+#include <utils/qpl/QplJobPool.h>
 
-object ImplicitClass {
+namespace gluten {
+namespace qpl {
 
-  implicit class ArrowColumnarBatchRetainer(val cb: ColumnarBatch) {
-    def retain(): Unit = {
-      (0 until cb.numCols).toList.foreach(
-        i =>
-          ColumnarBatches
-            .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
-            .column(i)
-            .asInstanceOf[ArrowWritableColumnVector]
-            .retain())
-    }
-  }
-}
+static const std::vector<std::string> qpl_supported_codec = {"gzip"};
+
+bool SupportsCodec(const std::string& codec);
+
+std::unique_ptr<arrow::util::Codec> MakeQplGZipCodec(int compressionLevel);
+
+std::unique_ptr<arrow::util::Codec> MakeDefaultQplGZipCodec();
+
+} // namespace qpl
+} // namespace gluten

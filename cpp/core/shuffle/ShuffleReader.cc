@@ -18,7 +18,7 @@
 #include "ShuffleReader.h"
 #include "arrow/ipc/reader.h"
 #include "arrow/record_batch.h"
-#include "utils/macros.h"
+#include "utils/Macros.h"
 
 #include <utility>
 
