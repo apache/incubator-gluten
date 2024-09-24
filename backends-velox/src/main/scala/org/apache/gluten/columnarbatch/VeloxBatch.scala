@@ -14,30 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi
+package org.apache.gluten.columnarbatch
 
-import org.apache.gluten.columnarbatch.ArrowBatch
 import org.apache.gluten.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
 import org.apache.gluten.extension.columnar.transition.{Convention, TransitionDef}
 
 import org.apache.spark.sql.execution.SparkPlan
 
-package object velox {
-  case object VeloxBatch extends Convention.BatchType {
-    fromRow(
-      () =>
-        (plan: SparkPlan) => {
-          RowToVeloxColumnarExec(plan)
-        })
+object VeloxBatch extends Convention.BatchType {
+  fromRow(
+    () =>
+      (plan: SparkPlan) => {
+        RowToVeloxColumnarExec(plan)
+      })
 
-    toRow(
-      () =>
-        (plan: SparkPlan) => {
-          VeloxColumnarToRowExec(plan)
-        })
+  toRow(
+    () =>
+      (plan: SparkPlan) => {
+        VeloxColumnarToRowExec(plan)
+      })
 
-    // Velox batch is considered one-way compatible with Arrow batch.
-    // This is practically achieved by utilizing C++ API VeloxColumnarBatch::from at runtime.
-    fromBatch(ArrowBatch, TransitionDef.empty)
-  }
+  // Velox batch is considered one-way compatible with Arrow batch.
+  // This is practically achieved by utilizing C++ API VeloxColumnarBatch::from at runtime.
+  fromBatch(ArrowBatch, TransitionDef.empty)
 }
