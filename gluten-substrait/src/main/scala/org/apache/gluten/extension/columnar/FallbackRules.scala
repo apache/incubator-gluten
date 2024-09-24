@@ -272,21 +272,15 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
     try {
       plan match {
         case plan: BatchScanExec =>
-          // If filter expressions aren't empty, we need to transform the inner operators.
-          if (plan.runtimeFilters.isEmpty) {
-            val transformer =
-              ScanTransformerFactory
-                .createBatchScanTransformer(plan, validation = true)
-                .asInstanceOf[BasicScanExecTransformer]
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer =
+            ScanTransformerFactory
+              .createBatchScanTransformer(plan, validation = true)
+              .asInstanceOf[BasicScanExecTransformer]
+          transformer.doValidate().tagOnFallback(plan)
         case plan: FileSourceScanExec =>
-          // If filter expressions aren't empty, we need to transform the inner operators.
-          if (plan.partitionFilters.isEmpty) {
-            val transformer =
-              ScanTransformerFactory.createFileSourceScanTransformer(plan)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer =
+            ScanTransformerFactory.createFileSourceScanTransformer(plan)
+          transformer.doValidate().tagOnFallback(plan)
         case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
           HiveTableScanExecTransformer.validate(plan).tagOnFallback(plan)
         case plan: ProjectExec =>
