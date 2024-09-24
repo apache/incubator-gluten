@@ -242,6 +242,8 @@ class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTr
     checkEvaluation(Round(-0.35, 1), -0.4)
     checkEvaluation(Round(-35, -1), -40)
     checkEvaluation(Round(BigDecimal("45.00"), -1), BigDecimal(50))
+    checkEvaluation(Round(44, -1), 44)
+    checkEvaluation(Round(78, 1), 78)
     checkEvaluation(BRound(2.5, 0), 2.0)
     checkEvaluation(BRound(3.5, 0), 4.0)
     checkEvaluation(BRound(-2.5, 0), -2.0)
