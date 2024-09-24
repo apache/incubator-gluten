@@ -32,6 +32,7 @@
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/Defines.h>
 #include <Core/NamesAndTypes.h>
+#include <Core/ServerSettings.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeNullable.h>
@@ -864,6 +865,13 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
 
         size_t mmap_cache_size = config->getUInt64("mmap_cache_size", DEFAULT_MMAP_CACHE_MAX_SIZE);
         global_context->setMMappedFileCache(mmap_cache_size);
+
+        ServerSettings server_settings;
+        server_settings.loadSettingsFromConfig(*config);
+        getIOThreadPool().initialize(
+            server_settings.max_io_thread_pool_size,
+            server_settings.max_io_thread_pool_free_size,
+            server_settings.io_thread_pool_queue_size);
 
         /// Initialize a dummy query cache.
         global_context->setQueryCache(0, 0, 0, 0);

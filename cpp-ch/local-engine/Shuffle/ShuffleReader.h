@@ -20,6 +20,7 @@
 #include <IO/BufferWithOwnMemory.h>
 #include <Storages/IO/NativeReader.h>
 #include <Common/BlockIterator.h>
+#include <Common/threadPoolCallbackRunner.h>
 
 namespace DB
 {
@@ -58,9 +59,15 @@ public:
     ~ReadBufferFromJavaInputStream() override;
 
 private:
-    jobject java_in;
-    int readFromJava() const;
+    int readFromJava(Position to, size_t size) const;
     bool nextImpl() override;
+
+    void prefetch(Priority) override;
+
+    DB::ThreadPoolCallbackRunnerUnsafe<size_t> async_runner;
+    std::optional<std::future<size_t>> async_future;
+    jobject java_in;
+    DB::Memory<> future_buffer;
 };
 
 class ReadBufferFromByteArray final : public DB::BufferWithOwnMemory<DB::ReadBuffer>

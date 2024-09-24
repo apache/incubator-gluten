@@ -18,6 +18,7 @@
 #include <Compression/CompressedReadBuffer.h>
 #include <Core/Block.h>
 #include <IO/ReadBuffer.h>
+#include <IO/SharedThreadPools.h>
 #include <jni/jni_common.h>
 #include <Common/DebugUtils.h>
 #include <Common/JNIUtils.h>
@@ -67,23 +68,44 @@ jmethodID ShuffleReader::input_stream_read = nullptr;
 
 bool ReadBufferFromJavaInputStream::nextImpl()
 {
-    int count = readFromJava();
-    if (count > 0)
+    int count = 0;
+    if (async_future.has_value())
+    {
+        count = async_future.value().get();
+        memory.swap(future_buffer);
+        set(memory.data(), memory.size());
+        async_future.reset();
+    }
+    else
+    {
+        count = readFromJava(internal_buffer.begin(), internal_buffer.size());
+    }
+    bool available = count > 0;
+    if (available)
+    {
         working_buffer.resize(count);
-    return count > 0;
+        prefetch({});
+    }
+    return available;
+}
+void ReadBufferFromJavaInputStream::prefetch(Priority priority)
+{
+    async_future = async_runner([&]() { return readFromJava(future_buffer.data(), future_buffer.size()); }, priority);
 }
 
-int ReadBufferFromJavaInputStream::readFromJava() const
+int ReadBufferFromJavaInputStream::readFromJava(Position to, size_t size) const
 {
     GET_JNIENV(env)
     jint count = safeCallIntMethod(
-        env, java_in, ShuffleReader::input_stream_read, reinterpret_cast<jlong>(internal_buffer.begin()), internal_buffer.size());
+        env, java_in, ShuffleReader::input_stream_read, reinterpret_cast<jlong>(to), size);
     CLEAN_JNIENV
     return count;
 }
 
-ReadBufferFromJavaInputStream::ReadBufferFromJavaInputStream(jobject input_stream) : java_in(input_stream)
+ReadBufferFromJavaInputStream::ReadBufferFromJavaInputStream(jobject input_stream) : java_in(input_stream), future_buffer(DBMS_DEFAULT_BUFFER_SIZE)
 {
+    async_runner = threadPoolCallbackRunnerUnsafe<size_t>(getIOThreadPool().get(), "shuffle read");
+    prefetch({});
 }
 
 ReadBufferFromJavaInputStream::~ReadBufferFromJavaInputStream()
