@@ -3,7 +3,7 @@
 
 set(ENABLE_GLUTEN_VCPKG ON)
 
-# Force the use of VCPKG classic mode to avoid reinstalling vcpkg features during
+# Force the use of VCPKG classic mode to avoid reinstalling vcpkg features during building
 # different CMake sub-projects. Which means, the features installed by `vcpkg install`
 # in script `init.sh` will be used across all CMake sub-projects.
 #
