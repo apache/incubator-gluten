@@ -14,38 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unordered_map>
-#include <Core/Block.h>
+
 #include <Interpreters/Aggregator.h>
 #include <Interpreters/Context.h>
-#include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
 #include <Processors/Port.h>
 #include <Processors/QueryPlan/IQueryPlanStep.h>
 #include <Processors/QueryPlan/ITransformingStep.h>
 #include <Processors/Transforms/AggregatingTransform.h>
-#include <QueryPipeline/SizeLimits.h>
-#include <Poco/Logger.h>
-#include <Common/AggregateUtil.h>
-#include <Common/logger_useful.h>
-#include "GraceAggregatingTransform.h"
+
 
 namespace local_engine
 {
-/// It's used to merged aggregated data from intermediate aggregate stages, it's the final stage of
-/// aggregating.
-/// It support spilling data into disk when the memory usage is overflow.
-class GraceMergingAggregatedStep : public DB::ITransformingStep
+/**
+ * GraceAggregatingStep is used for partial aggregating stages.
+ */
+class GraceAggregatingStep : public DB::ITransformingStep
 {
 public:
-    explicit GraceMergingAggregatedStep(
+    explicit GraceAggregatingStep(
         DB::ContextPtr context_,
         const DB::DataStream & input_stream_,
         DB::Aggregator::Params params_,
         bool no_pre_aggregated_);
-    ~GraceMergingAggregatedStep() override = default;
+    ~GraceAggregatingStep() override = default;
 
-    String getName() const override { return "GraceMergingAggregatedStep"; }
+    String getName() const override { return "GraceAggregatingStep"; }
 
     void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings &) override;
 
@@ -57,6 +51,4 @@ private:
     bool no_pre_aggregated;
     void updateOutputStream() override; 
 };
-
-
 }
