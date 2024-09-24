@@ -39,6 +39,7 @@ import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.MetadataBuilder
 
 import com.google.protobuf.{Any, StringValue}
+import io.substrait.proto.NamedStruct
 import org.apache.parquet.hadoop.ParquetOutputFormat
 
 import java.util.Locale
@@ -102,13 +103,13 @@ case class WriteFilesExecTransformer(
     for (i <- 0 until childSize) {
       val partitionCol = partitionColumns.find(_.exprId == childOutput(i).exprId)
       if (partitionCol.nonEmpty) {
-        columnTypeNodes.add(new ColumnTypeNode(1))
+        columnTypeNodes.add(new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL))
         // "aggregate with partition group by can be pushed down"
         // test partitionKey("p") is different with
         // data columns("P").
         inputAttributes.add(partitionCol.get)
       } else {
-        columnTypeNodes.add(new ColumnTypeNode(0))
+        columnTypeNodes.add(new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL))
         inputAttributes.add(originalInputAttributes(i))
       }
     }

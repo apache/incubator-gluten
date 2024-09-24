@@ -44,6 +44,7 @@ import org.apache.spark.util.collection.BitSet
 import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.{Any, StringValue}
+import io.substrait.proto.NamedStruct
 import io.substrait.proto.Plan
 
 import java.lang.{Long => JLong}
@@ -528,9 +529,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
       val columnTypeNodes = output.map {
         attr =>
           if (table.partitionColumns.exists(_.equals(attr.name))) {
-            new ColumnTypeNode(1)
+            new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL)
           } else {
-            new ColumnTypeNode(0)
+            new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL)
           }
       }.asJava
       val substraitContext = new SubstraitContext

@@ -34,6 +34,7 @@ import org.apache.spark.sql.types.StructType
 
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, StringValue}
+import io.substrait.proto.NamedStruct
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import java.util.{ArrayList => JList, Map => JMap, UUID}
@@ -139,9 +140,9 @@ object CHMergeTreeWriterInjects {
     val columnTypeNodes = output.map {
       attr =>
         if (partitionColumns.exists(_.equals(attr.name))) {
-          new ColumnTypeNode(1)
+          new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL)
         } else {
-          new ColumnTypeNode(0)
+          new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL)
         }
     }.asJava
 
