@@ -335,6 +335,24 @@ class GlutenClickHouseDecimalSuite
       spark.sql("drop table if exists decimals_test")
     }
   }
+
+  test("test castornull") {
+    // prepare
+    val createSql =
+      "create table decimals_cast_test(a decimal(18,8)) using parquet"
+    val inserts =
+      "insert into decimals_cast_test values(123456789.12345678)"
+    spark.sql(createSql)
+
+    try {
+      spark.sql(inserts)
+      val q1 = "select cast(a as decimal(9,2)) from decimals_cast_test"
+      compareResultsAgainstVanillaSpark(q1, compareResult = true, _ => {})
+    } finally {
+      spark.sql("drop table if exists decimals_cast_test")
+    }
+  }
+
   // FIXME: Support AVG for Decimal Type
   Seq("true", "false").foreach {
     allowPrecisionLoss =>

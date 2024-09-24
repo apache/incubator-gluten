@@ -1032,6 +1032,13 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG & acti
                 String function_name = "sparkCastFloatTo" + non_nullable_output_type->getName();
                 function_node = toFunctionNode(actions_dag, function_name, args);
             }
+            else if ((isDecimal(non_nullable_input_type) && substrait_type.has_decimal()))
+            {
+                args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeInt32>(), substrait_type.decimal().precision()));
+                args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeInt32>(), substrait_type.decimal().scale()));
+
+                function_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
+            }
             else
             {
                 if (isString(non_nullable_input_type) && isInt(non_nullable_output_type))
