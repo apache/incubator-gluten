@@ -286,6 +286,7 @@ object ExpressionMappings {
     Sig[PromotePrecision](PROMOTE_PRECISION),
     Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
+    Sig[AtLeastNNonNulls](AT_LEAST_N_NON_NULLS),
     Sig[WidthBucket](WIDTH_BUCKET),
     Sig[ReplicateRows](REPLICATE_ROWS),
     Sig[RaiseError](RAISE_ERROR),

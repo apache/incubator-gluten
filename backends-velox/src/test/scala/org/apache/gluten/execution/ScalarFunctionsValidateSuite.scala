@@ -1417,4 +1417,25 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
     // Scale < 0 should round down even on integral values
     compareResultsAgainstVanillaSpark("select round(44, -1)", true, { _ => })
   }
+
+  test("test internal function: AtLeastNNonNulls") {
+    // AtLeastNNonNulls is called by drop DataFrameNafunction
+    withTempPath {
+      path =>
+        val input = Seq[(String, java.lang.Integer, java.lang.Double)](
+          ("Bob", 16, 176.5),
+          ("Alice", null, 164.3),
+          ("David", 60, null),
+          ("Nina", 25, Double.NaN),
+          ("Amy", null, null),
+          (null, null, null)
+        ).toDF("name", "age", "height")
+        val rows = input.collect()
+        input.write.parquet(path.getCanonicalPath)
+
+        val df = spark.read.parquet(path.getCanonicalPath).na.drop(2, Seq("age", "height"))
+        checkAnswer(df, rows(0) :: Nil)
+        checkGlutenOperatorMatch[FilterExecTransformer](df)
+    }
+  }
 }

@@ -323,6 +323,7 @@ object ExpressionNames {
   final val REPLICATE_ROWS = "replicaterows"
   final val RAISE_ERROR = "raise_error"
   final val VERSION = "version"
+  final val AT_LEAST_N_NON_NULLS = "at_least_n_non_nulls"
 
   // Directly use child expression transformer
   final val KNOWN_NULLABLE = "known_nullable"
