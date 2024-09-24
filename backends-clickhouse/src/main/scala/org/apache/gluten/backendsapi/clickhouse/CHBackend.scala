@@ -133,6 +133,11 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   val GLUTEN_CLICKHOUSE_TABLE_PATH_TO_MTPS_CACHE_SIZE: String =
     CHConf.prefixOf("table.path.to.mtps.cache.size")
 
+  val GLUTEN_ALLOW_READ_JSON: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
+      ".runtime_settings.allow_read_json"
+  val GLUTEN_ALLOW_READ_JSON_DEFAULT = true
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(
@@ -175,6 +180,15 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       }
       !unsupportedDataTypes.isEmpty
     }
+
+    // ISSUE-7325: read json may get different result with spark, so add a config
+    def supportJsonFormat: Boolean = {
+      SparkEnv.get.conf.getBoolean(
+        GLUTEN_ALLOW_READ_JSON,
+        GLUTEN_ALLOW_READ_JSON_DEFAULT
+      )
+    }
+
     format match {
       case ParquetReadFormat =>
         if (validateFilePath) {
@@ -190,7 +204,12 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         } else {
           ValidationResult.failed("Has complex type.")
         }
-      case JsonReadFormat => ValidationResult.succeeded
+      case JsonReadFormat =>
+        if (supportJsonFormat) {
+          ValidationResult.succeeded
+        } else {
+          ValidationResult.failed("Json format diff with spark")
+        }
       case _ => ValidationResult.failed(s"Unsupported file format $format")
     }
   }
