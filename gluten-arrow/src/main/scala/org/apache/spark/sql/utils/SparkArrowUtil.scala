@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.utils
 
+import org.apache.gluten.expression.ConverterUtils
+
 import org.apache.spark.sql.types._
 
 import org.apache.arrow.vector.complex.MapVector
@@ -92,9 +94,16 @@ object SparkArrowUtil {
           name,
           fieldType,
           fields
-            .map(field => toArrowField(field.name, field.dataType, field.nullable, timeZoneId))
+            .map(
+              field =>
+                toArrowField(
+                  ConverterUtils.normalizeStructFieldName(field.name),
+                  field.dataType,
+                  field.nullable,
+                  timeZoneId))
             .toSeq
-            .asJava)
+            .asJava
+        )
       case MapType(keyType, valueType, valueContainsNull) =>
         val mapType = new FieldType(nullable, new ArrowType.Map(false), null)
         // Note: Map Type struct can not be null, Struct Type key field can not be null

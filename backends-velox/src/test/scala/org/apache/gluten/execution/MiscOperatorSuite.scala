@@ -2094,4 +2094,22 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       runQueryAndCompare("select col0 / (col1 + 1E-8) from t") { _ => }
     }
   }
+
+  test("Fix struct field case error") {
+    val excludedRules = "org.apache.spark.sql.catalyst.optimizer.PushDownPredicates," +
+      "org.apache.spark.sql.catalyst.optimizer.PushPredicateThroughNonJoin"
+    withSQLConf(SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> excludedRules) {
+      withTempPath {
+        path =>
+          sql("select named_struct('A', a) as c1 from values (1), (2) as data(a)").write.parquet(
+            path.getAbsolutePath)
+          val df = spark.read
+            .parquet(path.getAbsolutePath)
+            .union(spark.read.parquet(path.getAbsolutePath))
+            .filter("c1.A > 1")
+            .select("c1.A")
+          checkAnswer(df, Seq(Row(2), Row(2)))
+      }
+    }
+  }
 }
