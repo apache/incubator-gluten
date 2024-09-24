@@ -35,9 +35,9 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
+#include "utils/Macros.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
-#include "utils/macros.h"
 #include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;

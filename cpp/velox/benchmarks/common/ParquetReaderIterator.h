@@ -17,7 +17,7 @@
 
 #include "benchmarks/common/BenchmarkUtils.h"
 #include "benchmarks/common/FileReaderIterator.h"
-#include "utils/macros.h"
+#include "utils/Macros.h"
 
 #include <parquet/arrow/reader.h>
 

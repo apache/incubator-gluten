@@ -20,6 +20,7 @@
 #include <Interpreters/Context.h>
 #include <base/types.h>
 #include <base/unit.h>
+#include <Poco/Util/AbstractConfiguration.h>
 #include <Common/logger_useful.h>
 
 namespace local_engine

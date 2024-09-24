@@ -18,10 +18,8 @@ if [ "$LINUX_OS" == "centos" ]; then
   fi
 fi
 
-# prepare vcpkg environments
-source ./dev/vcpkg/env.sh
 
 # build gluten with velox backend, prompt always respond y
 export PROMPT_ALWAYS_RESPOND=y
 
-./dev/buildbundle-veloxbe.sh --build_tests=ON --build_arrow=OFF --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON "$@"
+./dev/buildbundle-veloxbe.sh --enable_vcpkg=ON --build_tests=ON --build_arrow=OFF --build_benchmarks=ON --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON "$@"

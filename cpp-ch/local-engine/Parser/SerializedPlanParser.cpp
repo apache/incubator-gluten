@@ -85,10 +85,14 @@
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
-#include "RelParsers/RelParser.h"
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsBool query_plan_enable_optimizations;
+extern const SettingsUInt64 priority;
+}
 namespace ErrorCodes
 {
 extern const int LOGICAL_ERROR;
@@ -419,7 +423,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
 
     std::vector<DB::IQueryPlanStep *> steps = rel_parser->getSteps();
 
-    if (!context->getSettingsRef().query_plan_enable_optimizations)
+    if (!context->getSettingsRef()[Setting::query_plan_enable_optimizations])
     {
         if (rel.rel_type_case() == substrait::Rel::RelTypeCase::kRead)
         {
@@ -1178,12 +1182,12 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         context,
         "",
         context->getClientInfo(),
-        priorities.insert(settings.priority),
+        priorities.insert(settings[Setting::priority]),
         CurrentThread::getGroup(),
         IAST::QueryKind::Select,
         settings,
         0);
-    const QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings.query_plan_enable_optimizations};
+    const QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings[Setting::query_plan_enable_optimizations]};
     return query_plan.buildQueryPipeline(
         optimization_settings,
         BuildQueryPipelineSettings{
@@ -1214,7 +1218,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
     LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
     LOG_DEBUG(
-        logger, "clickhouse plan [optimization={}]:\n{}", settings.query_plan_enable_optimizations, PlanUtil::explainPlan(*query_plan));
+        logger, "clickhouse plan [optimization={}]:\n{}", settings[Setting::query_plan_enable_optimizations], PlanUtil::explainPlan(*query_plan));
 
     auto config = ExecutorConfig::loadFromContext(context);
     return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(builder), config.dump_pipeline);

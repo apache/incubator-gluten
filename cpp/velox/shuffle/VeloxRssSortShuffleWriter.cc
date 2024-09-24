@@ -20,8 +20,8 @@
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/ShuffleSchema.h"
 #include "utils/Common.h"
+#include "utils/Macros.h"
 #include "utils/VeloxArrowUtils.h"
-#include "utils/macros.h"
 
 #include "velox/common/base/Nulls.h"
 #include "velox/type/Type.h"
@@ -134,7 +134,7 @@ arrow::Status VeloxRssSortShuffleWriter::evictRowVector(uint32_t partitionId) {
   if (options_.partitioning != Partitioning::kSingle) {
     if (auto it = rowVectorIndexMap_.find(partitionId); it != rowVectorIndexMap_.end()) {
       const auto& rowIndices = it->second;
-      VELOX_DCHECK(!rowIndices.empty())
+      VELOX_DCHECK(!rowIndices.empty());
 
       size_t idx = 0;
       const auto outputSize = rowIndices.size();

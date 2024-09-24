@@ -28,14 +28,14 @@ AdaptiveSparkPlan (71)
                                                                   :     +- ColumnarExchange (6)
                                                                   :        +- VeloxResizeBatches (5)
                                                                   :           +- ^ ProjectExecTransformer (3)
-                                                                  :              +- ^ NoopFilter (2)
+                                                                  :              +- ^ FilterExecTransformer (2)
                                                                   :                 +- ^ Scan parquet (1)
                                                                   +- ^ InputIteratorTransformer (18)
                                                                      +- ShuffleQueryStage (16), Statistics(X)
                                                                         +- ColumnarExchange (15)
                                                                            +- VeloxResizeBatches (14)
                                                                               +- ^ ProjectExecTransformer (12)
-                                                                                 +- ^ NoopFilter (11)
+                                                                                 +- ^ FilterExecTransformer (11)
                                                                                     +- ^ Scan parquet (10)
 +- == Initial Plan ==
    Sort (70)
@@ -70,9 +70,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(ps_partkey)]
 ReadSchema: struct<ps_partkey:bigint,ps_suppkey:bigint>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [2]: [ps_partkey#X, ps_suppkey#X]
-Arguments: [ps_partkey#X, ps_suppkey#X]
+Arguments: isnotnull(ps_partkey#X)
 
 (3) ProjectExecTransformer
 Output [3]: [hash(ps_partkey#X, 42) AS hash_partition_key#X, ps_partkey#X, ps_suppkey#X]
@@ -107,9 +107,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(p_brand), IsNotNull(p_type), Not(EqualTo(p_brand,Brand#X)), Not(StringStartsWith(p_type,MEDIUM POLISHED)), In(p_size, [14,19,23,3,36,45,49,9]), IsNotNull(p_partkey)]
 ReadSchema: struct<p_partkey:bigint,p_brand:string,p_type:string,p_size:int>
 
-(11) NoopFilter
+(11) FilterExecTransformer
 Input [4]: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
-Arguments: [p_partkey#X, p_brand#X, p_type#X, p_size#X]
+Arguments: (((((isnotnull(p_brand#X) AND isnotnull(p_type#X)) AND NOT (p_brand#X = Brand#X)) AND NOT StartsWith(p_type#X, MEDIUM POLISHED)) AND p_size#X IN (49,14,23,45,19,3,36,9)) AND isnotnull(p_partkey#X))
 
 (12) ProjectExecTransformer
 Output [5]: [hash(p_partkey#X, 42) AS hash_partition_key#X, p_partkey#X, p_brand#X, p_type#X, p_size#X]

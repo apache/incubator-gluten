@@ -25,7 +25,7 @@ import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.jni.JniLibLoader
 import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{SPARK_VERSION, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.listener.CHGlutenSQLAppStatusListener
@@ -81,17 +81,13 @@ class CHListenerApi extends ListenerApi with Logging {
       JniLibLoader.loadFromPath(executorLibPath, true)
     }
     // Add configs
-    conf.set(
-      s"${CHBackendSettings.getBackendConfigPrefix}.runtime_config.timezone",
-      conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
-    conf.set(
-      s"${CHBackendSettings.getBackendConfigPrefix}.runtime_config" +
-        s".local_engine.settings.log_processors_profiles",
-      "true")
-
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+    conf.setCHConfig(
+      "timezone" -> conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID),
+      "local_engine.settings.log_processors_profiles" -> "true")
+    conf.setCHSettings("spark_version", SPARK_VERSION)
     // add memory limit for external sort
-    val externalSortKey = s"${CHBackendSettings.getBackendConfigPrefix}.runtime_settings" +
-      s".max_bytes_before_external_sort"
+    val externalSortKey = CHConf.runtimeSettings("max_bytes_before_external_sort")
     if (conf.getLong(externalSortKey, -1) < 0) {
       if (conf.getBoolean("spark.memory.offHeap.enabled", defaultValue = false)) {
         val memSize = JavaUtils.byteStringAsBytes(conf.get("spark.memory.offHeap.size"))

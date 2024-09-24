@@ -68,6 +68,8 @@ trait BackendSettingsApi {
   }
   def supportStructType(): Boolean = false
 
+  def structFieldToLowerCase(): Boolean = true
+
   // Whether to fallback aggregate at the same time if its empty-output child is fallen back.
   def fallbackAggregateWithEmptyOutputChild(): Boolean = false
 
@@ -82,9 +84,6 @@ trait BackendSettingsApi {
   def excludeScanExecFromCollapsedStage(): Boolean = false
   def rescaleDecimalArithmetic: Boolean = false
 
-  /** Get the config prefix for each backend */
-  def getBackendConfigPrefix: String
-
   def allowDecimalArithmetic: Boolean = true
 
   /**
@@ -98,9 +97,6 @@ trait BackendSettingsApi {
   def shuffleSupportedCodec(): Set[String]
 
   def needOutputSchemaForPlan(): Boolean = false
-
-  /** Apply necessary conversions before passing to native side */
-  def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {}
 
   def insertPostProjectForGenerate(): Boolean = false
 

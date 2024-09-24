@@ -32,9 +32,6 @@ class GlutenClickHouseTPCHNotNullSkipIndexSuite extends GlutenClickHouseTPCHAbst
       .set("spark.io.compression.codec", "SNAPPY")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-//      .set("spark.ui.enabled", "true")
-//      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.dump_pipeline", "true")
-//      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
   }
 
   test("test simple minmax index") {
@@ -81,7 +78,7 @@ class GlutenClickHouseTPCHNotNullSkipIndexSuite extends GlutenClickHouseTPCHAbst
       case f: FileSourceScanExecTransformer => f
     }
     assert(scanExec.size == 1)
-    val mergetreeScan = scanExec(0)
+    val mergetreeScan = scanExec.head
     val ret = df.collect()
     assert(ret.apply(0).get(0) == 1)
     val marks = mergetreeScan.metrics("selectedMarks").value
@@ -139,7 +136,7 @@ class GlutenClickHouseTPCHNotNullSkipIndexSuite extends GlutenClickHouseTPCHAbst
       case f: FileSourceScanExecTransformer => f
     }
     assert(scanExec.size == 1)
-    val mergetreeScan = scanExec(0)
+    val mergetreeScan = scanExec.head
     val ret = df.collect()
     assert(ret.apply(0).get(0) == 2)
     val marks = mergetreeScan.metrics("selectedMarks").value
@@ -197,7 +194,7 @@ class GlutenClickHouseTPCHNotNullSkipIndexSuite extends GlutenClickHouseTPCHAbst
       case f: FileSourceScanExecTransformer => f
     }
     assert(scanExec.size == 1)
-    val mergetreeScan = scanExec(0)
+    val mergetreeScan = scanExec.head
     val ret = df.collect()
     assert(ret.apply(0).get(0) == 2)
     val marks = mergetreeScan.metrics("selectedMarks").value
@@ -255,7 +252,7 @@ class GlutenClickHouseTPCHNotNullSkipIndexSuite extends GlutenClickHouseTPCHAbst
       case f: FileSourceScanExecTransformer => f
     }
     assert(scanExec.size == 1)
-    val mergetreeScan = scanExec(0)
+    val mergetreeScan = scanExec.head
     val ret = df.collect()
     assert(ret.apply(0).get(0) == 1)
     val marks = mergetreeScan.metrics("selectedMarks").value

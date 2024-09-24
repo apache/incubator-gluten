@@ -28,13 +28,13 @@
 #include "utils/qat/QatCodec.h"
 #endif
 #ifdef GLUTEN_ENABLE_IAA
-#include "utils/qpl/qpl_codec.h"
+#include "utils/qpl/QplCodec.h"
 #endif
 #include "compute/VeloxRuntime.h"
 #include "config/VeloxConfig.h"
 #include "jni/JniFileSystem.h"
 #include "udf/UdfLoader.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 #include "velox/common/caching/SsdCache.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/connectors/hive/HiveConnector.h"
@@ -176,7 +176,7 @@ void VeloxBackend::initCache() {
     if (si.available < ssdCacheSize) {
       VELOX_FAIL(
           "not enough space for ssd cache in " + ssdCachePath + " cache size: " + std::to_string(ssdCacheSize) +
-          "free space: " + std::to_string(si.available))
+          "free space: " + std::to_string(si.available));
     }
 
     velox::memory::MmapAllocator::Options options;
@@ -191,7 +191,7 @@ void VeloxBackend::initCache() {
       asyncDataCache_ = velox::cache::AsyncDataCache::create(cacheAllocator_.get(), std::move(ssd));
     }
 
-    VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()))
+    VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()));
     LOG(INFO) << "STARTUP: Using AsyncDataCache memory cache size: " << memCacheSize
               << ", ssdCache prefix: " << ssdCachePath << ", ssdCache size: " << ssdCacheSize
               << ", ssdCache shards: " << ssdCacheShards << ", ssdCache IO threads: " << ssdCacheIOThreads;

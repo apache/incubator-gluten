@@ -18,12 +18,17 @@
 #include <incbin.h>
 #include <Core/Settings.h>
 #include <Interpreters/Context.h>
+#include <Parser/LocalExecutor.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <gtest/gtest.h>
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
 
+namespace DB::Setting
+{
+extern const SettingsBool enable_named_columns_in_function_tuple;
+}
 using namespace local_engine;
 
 using namespace DB;
@@ -35,7 +40,7 @@ TEST(Clickhouse, PR54881)
     const auto context1 = DB::Context::createCopy(QueryContext::globalContext());
     // context1->setSetting("enable_named_columns_in_function_tuple", DB::Field(true));
     auto settings = context1->getSettingsRef();
-    EXPECT_FALSE(settings.enable_named_columns_in_function_tuple) << "GLUTEN NEED set enable_named_columns_in_function_tuple to false";
+    EXPECT_FALSE(settings[Setting::enable_named_columns_in_function_tuple]) << "GLUTEN NEED set enable_named_columns_in_function_tuple to false";
 
     constexpr std::string_view split_template
         = R"({"items":[{"uriFile":"{replace_local_files}","partitionIndex":"0","length":"1529","parquet":{},"schema":{},"metadataColumns":[{}]}]})";

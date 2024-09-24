@@ -238,17 +238,23 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
       // As of now, non-zero running threads usually happens when:
       // 1. Task A spills task B;
       // 2. Task A trys to grow buffers created by task B, during which spill is requested on task A again;
-      VLOG(2) << logPrefix << "Spill is requested on a task " << task_->taskId()
-              << " that has non-zero running threads, which is not currently supported. Skipping.";
+      LOG(INFO) << fmt::format(
+          "{} spill is requested on a task {} that has non-zero running threads, which is not currently supported. Skipping.",
+          logPrefix,
+          task_->taskId());
       return shrunken;
     }
     int64_t remaining = size - shrunken;
-    LOG(INFO) << logPrefix << "Trying to request spill for " << remaining << " bytes...";
-    auto* mm = memoryManager_->getMemoryManager();
+    LOG(INFO) << fmt::format("{} trying to request spill for {}.", logPrefix, velox::succinctBytes(remaining));
+    auto mm = memoryManager_->getMemoryManager();
     uint64_t spilledOut = mm->arbitrator()->shrinkCapacity(remaining); // this conducts spill
-    LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
     uint64_t total = shrunken + spilledOut;
-    VLOG(2) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
+    LOG(INFO) << fmt::format(
+        "{} successfully reclaimed total {} with shrunken {} and spilled {}.",
+        logPrefix,
+        velox::succinctBytes(total),
+        velox::succinctBytes(shrunken),
+        velox::succinctBytes(spilledOut));
     return total;
   }
   LOG(WARNING) << "Spill-to-disk was disabled since " << kSpillStrategy << " was not configured.";

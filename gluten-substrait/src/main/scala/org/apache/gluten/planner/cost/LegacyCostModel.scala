@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.planner.cost
 
-import org.apache.gluten.extension.columnar.enumerated.RemoveFilter
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
@@ -33,9 +32,6 @@ class LegacyCostModel extends LongCostModel {
   // much as possible.
   override def selfLongCostOf(node: SparkPlan): Long = {
     node match {
-      case _: RemoveFilter.NoopFilter =>
-        // To make planner choose the tree that has applied rule PushFilterToScan.
-        0L
       case ColumnarToRowExec(_) => 10L
       case RowToColumnarExec(_) => 10L
       case ColumnarToRowLike(_) => 10L

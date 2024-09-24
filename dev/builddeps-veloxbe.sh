@@ -171,8 +171,9 @@ function concat_velox_param {
 
 if [ "$ENABLE_VCPKG" = "ON" ]; then
     # vcpkg will install static depends and init build environment
-    envs="$("$GLUTEN_DIR/dev/vcpkg/init.sh")"
-    eval "$envs"
+    BUILD_OPTIONS="--build_tests=$BUILD_TESTS --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS \
+                   --enable_hdfs=$ENABLE_HDFS --enable_abfs=$ENABLE_ABFS"
+    source ./dev/vcpkg/env.sh ${BUILD_OPTIONS}
 fi
 
 if [ "$SPARK_VERSION" = "3.2" ] || [ "$SPARK_VERSION" = "3.3" ] \
@@ -196,8 +197,8 @@ function build_velox {
   cd $GLUTEN_DIR/ep/build-velox/src
   # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
   ./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
-                   --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_test_utils=$BUILD_TESTS --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS \
-                   --num_threads=$NUM_THREADS
+                   --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_test_utils=$BUILD_TESTS \
+                   --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS --num_threads=$NUM_THREADS
 }
 
 function build_gluten_cpp {

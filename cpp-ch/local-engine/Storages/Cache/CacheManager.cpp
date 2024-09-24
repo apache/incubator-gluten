@@ -35,6 +35,10 @@
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsUInt64 max_block_size;
+}
 namespace ErrorCodes
 {
 extern const int INVALID_STATE;
@@ -107,7 +111,7 @@ Task CacheManager::cachePart(const MergeTreeTableInstance & table, const MergeTr
                 storage_snapshot,
                 *query_info,
                 context,
-                context->getSettingsRef().max_block_size,
+                context->getSettingsRef()[Setting::max_block_size],
                 1);
             QueryPlan plan;
             plan.addStep(std::move(read_step));

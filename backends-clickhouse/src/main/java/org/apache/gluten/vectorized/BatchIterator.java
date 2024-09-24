@@ -16,26 +16,20 @@
  */
 package org.apache.gluten.vectorized;
 
-import org.apache.gluten.metrics.IMetrics;
+import org.apache.gluten.iterator.ClosableIterator;
 import org.apache.gluten.metrics.NativeMetrics;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class BatchIterator extends GeneralOutIterator {
+public class BatchIterator extends ClosableIterator {
   private final long handle;
   private final AtomicBoolean cancelled = new AtomicBoolean(false);
 
   public BatchIterator(long handle) {
     super();
     this.handle = handle;
-  }
-
-  @Override
-  public String getId() {
-    // Using native handle as identifier
-    return String.valueOf(handle);
   }
 
   private native boolean nativeHasNext(long nativeHandle);
@@ -49,24 +43,23 @@ public class BatchIterator extends GeneralOutIterator {
   private native String nativeFetchMetrics(long nativeHandle);
 
   @Override
-  public boolean hasNextInternal() {
+  public boolean hasNext0() {
     return nativeHasNext(handle);
   }
 
   @Override
-  public ColumnarBatch nextInternal() {
+  public ColumnarBatch next0() {
     long block = nativeCHNext(handle);
     CHNativeBlock nativeBlock = new CHNativeBlock(block);
     return nativeBlock.toColumnarBatch();
   }
 
-  @Override
-  public IMetrics getMetricsInternal() {
+  public NativeMetrics getMetrics() {
     return new NativeMetrics(nativeFetchMetrics(handle));
   }
 
   @Override
-  public void closeInternal() {
+  public void close0() {
     nativeClose(handle);
   }
 

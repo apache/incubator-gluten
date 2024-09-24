@@ -25,7 +25,7 @@
 #include "memory/MemoryManager.h"
 #include "operators/writer/ArrowWriter.h"
 #include "utils/ArrowStatus.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 namespace gluten {
 

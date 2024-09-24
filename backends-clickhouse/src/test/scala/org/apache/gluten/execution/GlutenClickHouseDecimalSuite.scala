@@ -69,7 +69,7 @@ class GlutenClickHouseDecimalSuite
     (DecimalType.apply(18, 8), Seq()),
     // 3/10: all value is null and compare with limit
     // 1 Spark 3.5
-    (DecimalType.apply(38, 19), if (isSparkVersionLE("3.3")) Seq(3, 10) else Seq(1, 3, 10))
+    (DecimalType.apply(38, 19), if (isSparkVersionLE("3.3")) Seq(3, 10) else Seq(3, 10))
   )
 
   private def createDecimalTables(dataType: DecimalType): Unit = {
@@ -309,7 +309,10 @@ class GlutenClickHouseDecimalSuite
       "insert into decimals_test values(1, 100.0, 999.0)" +
         ", (2, 12345.123, 12345.123)" +
         ", (3, 0.1234567891011, 1234.1)" +
-        ", (4, 123456789123456789.0, 1.123456789123456789)"
+        ", (4, 123456789123456789.0, 1.123456789123456789)" +
+        ", (5, 0, 0)" +
+        ", (6, 0, 1.23)" +
+        ", (7, 1.23, 0)"
     spark.sql(createSql)
 
     try {

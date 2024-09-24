@@ -23,7 +23,7 @@
 #include <fstream>
 #endif
 
-#include "utils/exception.h"
+#include "utils/Exception.h"
 #include "velox/connectors/hive/HiveConfig.h"
 
 namespace {

@@ -74,7 +74,13 @@
     </dependency>
     <dependency>
       <groupId>org.apache.gluten</groupId>
-      <artifactId>gluten-data</artifactId>
+      <artifactId>gluten-substrait</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.gluten</groupId>
+      <artifactId>gluten-arrow</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>

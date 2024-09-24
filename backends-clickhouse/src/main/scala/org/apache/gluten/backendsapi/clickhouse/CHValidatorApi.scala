@@ -19,11 +19,11 @@ package org.apache.gluten.backendsapi.clickhouse
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.{BackendsApiManager, ValidatorApi}
 import org.apache.gluten.expression.ExpressionConverter
+import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.expression.SelectionNode
 import org.apache.gluten.substrait.plan.PlanNode
 import org.apache.gluten.utils.CHExpressionUtil
-import org.apache.gluten.validate.NativePlanValidationInfo
 import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.internal.Logging
@@ -37,11 +37,11 @@ import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 
 class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logging {
 
-  override def doNativeValidateWithFailureReason(plan: PlanNode): NativePlanValidationInfo = {
+  override def doNativeValidateWithFailureReason(plan: PlanNode): ValidationResult = {
     if (CHNativeExpressionEvaluator.doValidate(plan.toProtobuf.toByteArray)) {
-      new NativePlanValidationInfo(1, "")
+      ValidationResult.succeeded
     } else {
-      new NativePlanValidationInfo(0, "CH native check failed.")
+      ValidationResult.failed("CH native check failed.")
     }
   }
 

@@ -27,7 +27,7 @@
 #include "compute/VeloxBackend.h"
 #include "config/VeloxConfig.h"
 #include "memory/ArrowMemoryPool.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
 
@@ -101,7 +101,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     velox::memory::MemoryPool* candidate;
     {
       std::unique_lock guard{mutex_};
-      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool")
+      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool");
       candidate = candidates_.begin()->first;
     }
     VELOX_CHECK(pool->root() == candidate, "Illegal state in ListenableArbitrator");
@@ -116,7 +116,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     velox::memory::MemoryPool* pool;
     {
       std::unique_lock guard{mutex_};
-      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool")
+      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool");
       pool = candidates_.begin()->first;
     }
     pool->reclaim(targetBytes, 0, status); // ignore the output
@@ -156,7 +156,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
         "{} failed to grow {} bytes, current state {}",
         pool->name(),
         velox::succinctBytes(bytes),
-        pool->toString())
+        pool->toString());
   }
 
   uint64_t shrinkCapacity0(velox::memory::MemoryPool* pool, uint64_t bytes) {

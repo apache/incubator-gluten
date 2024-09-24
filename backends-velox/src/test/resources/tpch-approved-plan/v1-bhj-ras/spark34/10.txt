@@ -17,24 +17,24 @@ AdaptiveSparkPlan (68)
                                     :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (21)
                                     :     :- ^ ProjectExecTransformer (12)
                                     :     :  +- ^ BroadcastHashJoinExecTransformer Inner BuildRight (11)
-                                    :     :     :- ^ NoopFilter (2)
+                                    :     :     :- ^ FilterExecTransformer (2)
                                     :     :     :  +- ^ Scan parquet (1)
                                     :     :     +- ^ InputIteratorTransformer (10)
                                     :     :        +- BroadcastQueryStage (8), Statistics(X)
                                     :     :           +- ColumnarBroadcastExchange (7)
                                     :     :              +- ^ ProjectExecTransformer (5)
-                                    :     :                 +- ^ NoopFilter (4)
+                                    :     :                 +- ^ FilterExecTransformer (4)
                                     :     :                    +- ^ Scan parquet (3)
                                     :     +- ^ InputIteratorTransformer (20)
                                     :        +- BroadcastQueryStage (18), Statistics(X)
                                     :           +- ColumnarBroadcastExchange (17)
                                     :              +- ^ ProjectExecTransformer (15)
-                                    :                 +- ^ NoopFilter (14)
+                                    :                 +- ^ FilterExecTransformer (14)
                                     :                    +- ^ Scan parquet (13)
                                     +- ^ InputIteratorTransformer (29)
                                        +- BroadcastQueryStage (27), Statistics(X)
                                           +- ColumnarBroadcastExchange (26)
-                                             +- ^ NoopFilter (24)
+                                             +- ^ FilterExecTransformer (24)
                                                 +- ^ Scan parquet (23)
 +- == Initial Plan ==
    TakeOrderedAndProject (67)
@@ -69,9 +69,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_custkey), IsNotNull(c_nationkey)]
 ReadSchema: struct<c_custkey:bigint,c_name:string,c_address:string,c_nationkey:bigint,c_phone:string,c_acctbal:decimal(12,2),c_comment:string>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [7]: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X]
-Arguments: [c_custkey#X, c_name#X, c_address#X, c_nationkey#X, c_phone#X, c_acctbal#X, c_comment#X]
+Arguments: (isnotnull(c_custkey#X) AND isnotnull(c_nationkey#X))
 
 (3) Scan parquet
 Output [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
@@ -80,9 +80,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1993-10-01), LessThan(o_orderdate,1994-01-01), IsNotNull(o_custkey), IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_orderdate:date>
 
-(4) NoopFilter
+(4) FilterExecTransformer
 Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
-Arguments: [o_orderkey#X, o_custkey#X, o_orderdate#X]
+Arguments: ((((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1993-10-01)) AND (o_orderdate#X < 1994-01-01)) AND isnotnull(o_custkey#X)) AND isnotnull(o_orderkey#X))
 
 (5) ProjectExecTransformer
 Output [2]: [o_orderkey#X, o_custkey#X]
@@ -123,9 +123,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_returnflag), EqualTo(l_returnflag,R), IsNotNull(l_orderkey)]
 ReadSchema: struct<l_orderkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2),l_returnflag:string>
 
-(14) NoopFilter
+(14) FilterExecTransformer
 Input [4]: [l_orderkey#X, l_extendedprice#X, l_discount#X, l_returnflag#X]
-Arguments: [l_orderkey#X, l_extendedprice#X, l_discount#X, l_returnflag#X]
+Arguments: ((isnotnull(l_returnflag#X) AND (l_returnflag#X = R)) AND isnotnull(l_orderkey#X))
 
 (15) ProjectExecTransformer
 Output [3]: [l_orderkey#X, l_extendedprice#X, l_discount#X]
@@ -166,9 +166,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_nationkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string>
 
-(24) NoopFilter
+(24) FilterExecTransformer
 Input [2]: [n_nationkey#X, n_name#X]
-Arguments: [n_nationkey#X, n_name#X]
+Arguments: isnotnull(n_nationkey#X)
 
 (25) WholeStageCodegenTransformer (X)
 Input [2]: [n_nationkey#X, n_name#X]

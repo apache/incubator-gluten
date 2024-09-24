@@ -21,7 +21,6 @@
 #include <Core/Block.h>
 #include <Core/Settings.h>
 #include <Interpreters/TemporaryDataOnDisk.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Shuffle/ShuffleCommon.h>
 #include <jni/CelebornClient.h>
 #include <Common/GlutenConfig.h>
@@ -30,6 +29,10 @@
 namespace DB
 {
 class MergingSortedAlgorithm;
+namespace Setting
+{
+extern const SettingsUInt64 prefer_external_sort_block_bytes;
+}
 }
 
 namespace local_engine
@@ -68,7 +71,7 @@ public:
     PartitionWriter(const SplitOptions& options, LoggerPtr logger_);
     virtual ~PartitionWriter() = default;
 
-    void initialize(SplitResult * split_result_, const Block & output_header_)
+    void initialize(SplitResult * split_result_, const DB::Block & output_header_)
     {
         if (!init)
         {
@@ -107,8 +110,8 @@ protected:
 
     /// Only valid in celeborn partition writer
     size_t last_partition_id;
-    SplitResult* split_result = nullptr;
-    Block output_header;
+    SplitResult * split_result = nullptr;
+    DB::Block output_header;
     LoggerPtr logger = nullptr;
     bool init = false;
 };
@@ -157,7 +160,7 @@ protected:
     {
         max_merge_block_size = options.split_size;
         max_sort_buffer_size = options.max_sort_buffer_size;
-        max_merge_block_bytes = QueryContext::globalContext()->getSettingsRef().prefer_external_sort_block_bytes;
+        max_merge_block_bytes = QueryContext::globalContext()->getSettingsRef()[DB::Setting::prefer_external_sort_block_bytes];
     }
 public:
     String getName() const override { return "SortBasedPartitionWriter"; }

@@ -18,7 +18,6 @@
 
 #include <memory>
 #include <IO/ReadBufferFromFile.h>
-#include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/GlutenStringUtils.h>
 #include <Common/logger_useful.h>
@@ -36,8 +35,8 @@
 #include <Storages/SubstraitSource/TextFormatFile.h>
 #endif
 
-#include <Common/GlutenConfig.h>
 #include <Storages/SubstraitSource/JSONFormatFile.h>
+#include <Common/GlutenConfig.h>
 
 namespace DB
 {
@@ -91,8 +90,7 @@ FormatFilePtr FormatFileUtil::createFile(
 #if USE_HIVE
     if (file.has_text())
     {
-        if (context->getSettingsRef().has(BackendInitializerUtil::USE_EXCEL_PARSER)
-            && context->getSettingsRef().getString(BackendInitializerUtil::USE_EXCEL_PARSER) == "'true'")
+        if (ExcelTextFormatFile::useThis(context))
             return std::make_shared<ExcelTextFormatFile>(context, file, read_buffer_builder);
         else
             return std::make_shared<TextFormatFile>(context, file, read_buffer_builder);
@@ -102,6 +100,5 @@ FormatFilePtr FormatFileUtil::createFile(
     if (file.has_json())
         return std::make_shared<JSONFormatFile>(context, file, read_buffer_builder);
     throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Format not supported:{}", file.DebugString());
-    __builtin_unreachable();
 }
 }

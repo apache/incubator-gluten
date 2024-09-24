@@ -16,7 +16,15 @@
  */
 package org.apache.gluten.vectorized;
 
-public class CHSplitResult extends SplitResult {
+public class CHSplitResult {
+    private final long totalComputePidTime;
+    private final long totalWriteTime;
+    private final long totalEvictTime;
+    private final long totalCompressTime; // overlaps with totalEvictTime and totalWriteTime
+    private final long totalBytesWritten;
+    private final long totalBytesEvicted;
+    private final long[] partitionLengths;
+    private final long[] rawPartitionLengths;
     private final long splitTime;
     private final long diskWriteTime;
     private final long serializationTime;
@@ -38,20 +46,56 @@ public class CHSplitResult extends SplitResult {
                          long totalRows,
                          long totalBatches,
                          long wallTime) {
-        super(totalComputePidTime,
-                totalWriteTime,
-                totalEvictTime,
-                totalCompressTime,
-                totalBytesWritten,
-                totalBytesEvicted,
-                partitionLengths,
-                rawPartitionLengths);
+        this.totalComputePidTime = totalComputePidTime;
+        this.totalWriteTime = totalWriteTime;
+        this.totalEvictTime = totalEvictTime;
+        this.totalCompressTime = totalCompressTime;
+        this.totalBytesWritten = totalBytesWritten;
+        this.totalBytesEvicted = totalBytesEvicted;
+        this.partitionLengths = partitionLengths;
+        this.rawPartitionLengths = rawPartitionLengths;
         this.splitTime = splitTime;
         this.diskWriteTime = diskWriteTime;
         this.serializationTime = serializationTime;
         this.totalRows = totalRows;
         this.totalBatches = totalBatches;
         this.wallTime = wallTime;
+    }
+
+    public long getTotalComputePidTime() {
+        return totalComputePidTime;
+    }
+
+    public long getTotalWriteTime() {
+        return totalWriteTime;
+    }
+
+    public long getTotalSpillTime() {
+        return totalEvictTime;
+    }
+
+    public long getTotalCompressTime() {
+        return totalCompressTime;
+    }
+
+    public long getTotalBytesWritten() {
+        return totalBytesWritten;
+    }
+
+    public long getTotalBytesSpilled() {
+        return totalBytesEvicted;
+    }
+
+    public long getTotalPushTime() {
+        return totalEvictTime;
+    }
+
+    public long[] getPartitionLengths() {
+        return partitionLengths;
+    }
+
+    public long[] getRawPartitionLengths() {
+        return rawPartitionLengths;
     }
 
     public long getSplitTime() {

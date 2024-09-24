@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.execution
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
+
 import org.apache.spark.SparkConf
 
 // Some sqls' line length exceeds 100
@@ -31,6 +33,8 @@ class GlutenClickHouseS3SourceSuite extends GlutenClickHouseTPCHAbstractSuite {
   override protected val queriesResults: String = rootPath + "queries-output"
 
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
@@ -44,10 +48,8 @@ class GlutenClickHouseS3SourceSuite extends GlutenClickHouseTPCHAbstractSuite {
       .set("spark.hadoop.fs.s3a.path.style.access", "true")
       .set("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
       .set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.s3.local_cache.enabled", "true")
-      .set(
-        "spark.gluten.sql.columnar.backend.ch.runtime_config.s3.local_cache.cache_path",
-        "/data/gluten-ch-cache-dir")
+      .setCHConfig("s3.local_cache.enabled", true)
+      .setCHConfig("s3.local_cache.cache_path", "/data/gluten-ch-cache-dir")
   }
 
   override protected val createNullableTables = true
@@ -93,14 +95,13 @@ class GlutenClickHouseS3SourceSuite extends GlutenClickHouseTPCHAbstractSuite {
     println(s"currTime=$currTime")
     // scalastyle:on println
     spark.sparkContext.setLocalProperty(
-      "spark.gluten.sql.columnar.backend.ch." +
-        "runtime_settings.spark.kylin.local-cache.accept-cache-time",
+      CHConf.runtimeSettings("spark.kylin.local-cache.accept-cache-time"),
       currTime.toString)
     spark
       .sql("""
              |select * from supplier_s3
              |""".stripMargin)
-      .show(10, false)
+      .show(10, truncate = false)
 
     Thread.sleep(5000)
 
@@ -108,14 +109,13 @@ class GlutenClickHouseS3SourceSuite extends GlutenClickHouseTPCHAbstractSuite {
     println(s"currTime=$currTime")
     // scalastyle:on println
     spark.sparkContext.setLocalProperty(
-      "spark.gluten.sql.columnar.backend.ch." +
-        "runtime_settings.spark.kylin.local-cache.accept-cache-time",
+      CHConf.runtimeSettings("spark.kylin.local-cache.accept-cache-time"),
       currTime.toString)
     spark
       .sql("""
              |select * from supplier_s3
              |""".stripMargin)
-      .show(10, false)
+      .show(10, truncate = false)
 
     Thread.sleep(5000)
     currTime = System.currentTimeMillis()
@@ -123,14 +123,13 @@ class GlutenClickHouseS3SourceSuite extends GlutenClickHouseTPCHAbstractSuite {
     println(s"currTime=$currTime")
     // scalastyle:on println
     spark.sparkContext.setLocalProperty(
-      "spark.gluten.sql.columnar.backend.ch." +
-        "runtime_settings.spark.kylin.local-cache.accept-cache-time",
+      CHConf.runtimeSettings("spark.kylin.local-cache.accept-cache-time"),
       currTime.toString)
     spark
       .sql("""
              |select * from supplier_s3
              |""".stripMargin)
-      .show(10, false)
+      .show(10, truncate = false)
   }
 }
 // scalastyle:on line.size.limit

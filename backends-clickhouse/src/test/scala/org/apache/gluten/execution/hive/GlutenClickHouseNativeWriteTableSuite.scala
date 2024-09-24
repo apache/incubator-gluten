@@ -25,6 +25,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.gluten.NativeWriteChecker
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.types._
 
 import scala.reflect.runtime.universe.TypeTag
@@ -36,6 +37,8 @@ class GlutenClickHouseNativeWriteTableSuite
   with NativeWriteChecker {
 
   override protected def sparkConf: SparkConf = {
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+
     var sessionTimeZone = "GMT"
     if (isSparkVersionGE("3.5")) {
       sessionTimeZone = java.util.TimeZone.getDefault.getID
@@ -55,7 +58,7 @@ class GlutenClickHouseNativeWriteTableSuite
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
       .set("spark.databricks.delta.stalenessLimit", "3600000")
       .set("spark.gluten.sql.columnar.columnartorow", "true")
-      .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+      .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
@@ -64,7 +67,7 @@ class GlutenClickHouseNativeWriteTableSuite
       .set("spark.sql.storeAssignmentPolicy", "legacy")
       .set("spark.sql.warehouse.dir", getWarehouseDir)
       .set("spark.sql.session.timeZone", sessionTimeZone)
-      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "error")
+      .setCHConfig("logger.level", "error")
       .setMaster("local[1]")
   }
 

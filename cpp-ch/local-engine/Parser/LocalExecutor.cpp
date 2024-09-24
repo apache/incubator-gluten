@@ -18,11 +18,15 @@
 #include "LocalExecutor.h"
 
 #include <Core/Settings.h>
-#include <Parser/SerializedPlanParser.h>
+#include <Interpreters/Context.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <QueryPipeline/printPipeline.h>
 #include <Common/QueryContext.h>
 
+namespace DB::Setting
+{
+extern const SettingsMaxThreads max_threads;
+}
 using namespace DB;
 namespace local_engine
 {
@@ -123,7 +127,7 @@ void LocalExecutor::execute()
 {
     chassert(query_pipeline_builder);
     push_executor = query_pipeline_builder->execute();
-    push_executor->execute(local_engine::QueryContext::instance().currentQueryContext()->getSettingsRef().max_threads, false);
+    push_executor->execute(QueryContext::instance().currentQueryContext()->getSettingsRef()[Setting::max_threads], false);
 }
 
 Block LocalExecutor::getHeader()

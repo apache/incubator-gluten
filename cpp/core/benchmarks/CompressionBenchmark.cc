@@ -36,7 +36,7 @@
 
 #include "shuffle/ShuffleWriter.h"
 #include "utils/Compression.h"
-#include "utils/macros.h"
+#include "utils/Macros.h"
 
 void printTrace(void) {
   char** strings;

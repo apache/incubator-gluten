@@ -21,7 +21,6 @@
 #include <memory>
 #include <optional>
 #include <unistd.h>
-
 #include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
@@ -53,7 +52,6 @@
 #include <Parser/SubstraitParserUtils.h>
 #include <Planner/PlannerActionsVisitor.h>
 #include <Processors/Chunk.h>
-#include <Processors/Formats/IOutputFormat.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
@@ -79,6 +77,11 @@
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsUInt64 prefer_external_sort_block_bytes;
+extern const SettingsUInt64 max_bytes_before_external_sort;
+}
 namespace ErrorCodes
 {
 extern const int BAD_ARGUMENTS;
@@ -703,12 +706,12 @@ void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
         spark_user = spark_user_c_str;
 }
 
-DB::Field BackendInitializerUtil::toField(const String key, const String value)
+DB::Field BackendInitializerUtil::toField(const String & key, const String & value)
 {
     if (BOOL_VALUE_SETTINGS.contains(key))
         return DB::Field(value == "true" || value == "1");
     else if (LONG_VALUE_SETTINGS.contains(key))
-        return DB::Field(std::strtoll(value.c_str(), NULL, 10));
+        return DB::Field(std::strtoll(value.c_str(), nullptr, 10));
     else
         return DB::Field(value);
 }
@@ -799,13 +802,13 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         auto task_memory = std::stoull(backend_conf_map.at(GLUTEN_TASK_OFFHEAP));
         if (!backend_conf_map.contains(CH_RUNTIME_SETTINGS_PREFIX + "max_bytes_before_external_sort"))
         {
-            settings.max_bytes_before_external_sort = static_cast<size_t>(0.8 * task_memory);
+            settings[Setting::max_bytes_before_external_sort] = static_cast<size_t>(0.8 * task_memory);
         }
         if (!backend_conf_map.contains(CH_RUNTIME_SETTINGS_PREFIX + "prefer_external_sort_block_bytes"))
         {
             auto mem_gb = task_memory / static_cast<double>(1_GiB);
             // 2.8x+5, Heuristics calculate the block size of external sort, [8,16]
-            settings.prefer_external_sort_block_bytes = std::max(std::min(static_cast<size_t>(2.8 * mem_gb + 5), 16ul), 8ul) * 1024 * 1024;
+            settings[Setting::prefer_external_sort_block_bytes] = std::max(std::min(static_cast<size_t>(2.8 * mem_gb + 5), 16ul), 8ul) * 1024 * 1024;
         }
     }
 }

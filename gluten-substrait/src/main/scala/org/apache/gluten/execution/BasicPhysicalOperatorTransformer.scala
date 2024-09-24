@@ -357,28 +357,4 @@ object FilterHandler extends PredicateHelper {
    */
   def getRemainingFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] =
     (filters.toSet -- scanFilters.toSet).toSeq
-
-  // Separate and compare the filter conditions in Scan and Filter.
-  // Try to push down the remaining conditions in Filter into Scan.
-  def pushFilterToScan(condition: Expression, scan: SparkPlan): SparkPlan =
-    scan match {
-      case fileSourceScan: FileSourceScanExec =>
-        val pushDownFilters =
-          BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
-            splitConjunctivePredicates(condition),
-            fileSourceScan)
-        ScanTransformerFactory.createFileSourceScanTransformer(
-          fileSourceScan,
-          allPushDownFilters = Some(pushDownFilters))
-      case batchScan: BatchScanExec =>
-        val pushDownFilters =
-          BackendsApiManager.getSparkPlanExecApiInstance.postProcessPushDownFilter(
-            splitConjunctivePredicates(condition),
-            batchScan)
-        ScanTransformerFactory.createBatchScanTransformer(
-          batchScan,
-          allPushDownFilters = Some(pushDownFilters))
-      case other =>
-        throw new GlutenNotSupportException(s"${other.getClass.toString} is not supported.")
-    }
 }

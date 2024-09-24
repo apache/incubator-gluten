@@ -257,8 +257,7 @@ endif()
 if(ENABLE_IAA)
   include(BuildQpl)
   target_include_directories(gluten PUBLIC ${QPL_INCLUDE_DIR})
-  target_sources(gluten PRIVATE utils/qpl/qpl_job_pool.cc
-                                utils/qpl/qpl_codec.cc)
+  target_sources(gluten PRIVATE utils/qpl/QplJobPool.cc utils/qpl/QplCodec.cc)
   target_link_libraries(gluten PUBLIC qpl::qpl)
 endif()
 

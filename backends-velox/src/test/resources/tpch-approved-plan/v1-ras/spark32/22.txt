@@ -21,7 +21,7 @@ AdaptiveSparkPlan (52)
                                              :     +- ColumnarExchange (6)
                                              :        +- VeloxResizeBatches (5)
                                              :           +- ^ ProjectExecTransformer (3)
-                                             :              +- ^ NoopFilter (2)
+                                             :              +- ^ FilterExecTransformer (2)
                                              :                 +- ^ Scan parquet (1)
                                              +- ^ InputIteratorTransformer (17)
                                                 +- ShuffleQueryStage (15)
@@ -53,9 +53,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_acctbal)]
 ReadSchema: struct<c_custkey:bigint,c_phone:string,c_acctbal:decimal(12,2)>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [3]: [c_custkey#X, c_phone#X, c_acctbal#X]
-Arguments: [c_custkey#X, c_phone#X, c_acctbal#X]
+Arguments: ((isnotnull(c_acctbal#X) AND substring(c_phone#X, 1, 2) IN (13,31,23,29,30,18,17)) AND (cast(c_acctbal#X as decimal(16,6)) > Subquery subquery#X, [id=#X]))
 
 (3) ProjectExecTransformer
 Output [4]: [hash(c_custkey#X, 42) AS hash_partition_key#X, c_custkey#X, c_phone#X, c_acctbal#X]

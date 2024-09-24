@@ -26,7 +26,7 @@ import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
-import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
+import org.apache.gluten.utils.{CHAggUtil, CHJoinValidateUtil, UnknownJoinStrategy}
 import org.apache.gluten.vectorized.CHColumnarBatchSerializer
 
 import org.apache.spark.ShuffleDependency
@@ -160,7 +160,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       child: SparkPlan): HashAggregateExecBaseTransformer =
     CHHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
-      groupingExpressions.distinct,
+      CHAggUtil.distinctIgnoreQualifier(groupingExpressions),
       aggregateExpressions,
       aggregateAttributes,
       initialInputBufferOffset,
@@ -842,7 +842,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     // Let's make push down functionally same as vanilla Spark for now.
 
     sparkExecNode match {
-      case fileSourceScan: FileSourceScanExec
+      case fileSourceScan: FileSourceScanExecTransformerBase
           if isParquetFormat(fileSourceScan.relation.fileFormat) =>
         PushDownUtil.removeNotSupportPushDownFilters(
           fileSourceScan.conf,

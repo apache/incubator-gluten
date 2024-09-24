@@ -27,31 +27,31 @@ AdaptiveSparkPlan (102)
                                              :     :     :     :     :- ^ InputIteratorTransformer (7)
                                              :     :     :     :     :  +- BroadcastQueryStage (5)
                                              :     :     :     :     :     +- ColumnarBroadcastExchange (4)
-                                             :     :     :     :     :        +- ^ NoopFilter (2)
+                                             :     :     :     :     :        +- ^ FilterExecTransformer (2)
                                              :     :     :     :     :           +- ^ Scan parquet (1)
                                              :     :     :     :     +- ^ ProjectExecTransformer (10)
-                                             :     :     :     :        +- ^ NoopFilter (9)
+                                             :     :     :     :        +- ^ FilterExecTransformer (9)
                                              :     :     :     :           +- ^ Scan parquet (8)
                                              :     :     :     +- ^ InputIteratorTransformer (19)
                                              :     :     :        +- BroadcastQueryStage (17)
                                              :     :     :           +- ColumnarBroadcastExchange (16)
-                                             :     :     :              +- ^ NoopFilter (14)
+                                             :     :     :              +- ^ FilterExecTransformer (14)
                                              :     :     :                 +- ^ Scan parquet (13)
                                              :     :     +- ^ InputIteratorTransformer (28)
                                              :     :        +- BroadcastQueryStage (26)
                                              :     :           +- ColumnarBroadcastExchange (25)
-                                             :     :              +- ^ NoopFilter (23)
+                                             :     :              +- ^ FilterExecTransformer (23)
                                              :     :                 +- ^ Scan parquet (22)
                                              :     +- ^ InputIteratorTransformer (37)
                                              :        +- BroadcastQueryStage (35)
                                              :           +- ColumnarBroadcastExchange (34)
-                                             :              +- ^ NoopFilter (32)
+                                             :              +- ^ FilterExecTransformer (32)
                                              :                 +- ^ Scan parquet (31)
                                              +- ^ InputIteratorTransformer (47)
                                                 +- BroadcastQueryStage (45)
                                                    +- ColumnarBroadcastExchange (44)
                                                       +- ^ ProjectExecTransformer (42)
-                                                         +- ^ NoopFilter (41)
+                                                         +- ^ FilterExecTransformer (41)
                                                             +- ^ Scan parquet (40)
 +- == Initial Plan ==
    Sort (101)
@@ -97,9 +97,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(c_custkey), IsNotNull(c_nationkey)]
 ReadSchema: struct<c_custkey:bigint,c_nationkey:bigint>
 
-(2) NoopFilter
+(2) FilterExecTransformer
 Input [2]: [c_custkey#X, c_nationkey#X]
-Arguments: [c_custkey#X, c_nationkey#X]
+Arguments: (isnotnull(c_custkey#X) AND isnotnull(c_nationkey#X))
 
 (3) WholeStageCodegenTransformer (X)
 Input [2]: [c_custkey#X, c_nationkey#X]
@@ -126,9 +126,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(o_orderdate), GreaterThanOrEqual(o_orderdate,1994-01-01), LessThan(o_orderdate,1995-01-01), IsNotNull(o_custkey), IsNotNull(o_orderkey)]
 ReadSchema: struct<o_orderkey:bigint,o_custkey:bigint,o_orderdate:date>
 
-(9) NoopFilter
+(9) FilterExecTransformer
 Input [3]: [o_orderkey#X, o_custkey#X, o_orderdate#X]
-Arguments: [o_orderkey#X, o_custkey#X, o_orderdate#X]
+Arguments: ((((isnotnull(o_orderdate#X) AND (o_orderdate#X >= 1994-01-01)) AND (o_orderdate#X < 1995-01-01)) AND isnotnull(o_custkey#X)) AND isnotnull(o_orderkey#X))
 
 (10) ProjectExecTransformer
 Output [2]: [o_orderkey#X, o_custkey#X]
@@ -150,9 +150,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(l_orderkey), IsNotNull(l_suppkey)]
 ReadSchema: struct<l_orderkey:bigint,l_suppkey:bigint,l_extendedprice:decimal(12,2),l_discount:decimal(12,2)>
 
-(14) NoopFilter
+(14) FilterExecTransformer
 Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
-Arguments: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
+Arguments: (isnotnull(l_orderkey#X) AND isnotnull(l_suppkey#X))
 
 (15) WholeStageCodegenTransformer (X)
 Input [4]: [l_orderkey#X, l_suppkey#X, l_extendedprice#X, l_discount#X]
@@ -188,9 +188,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(s_suppkey), IsNotNull(s_nationkey)]
 ReadSchema: struct<s_suppkey:bigint,s_nationkey:bigint>
 
-(23) NoopFilter
+(23) FilterExecTransformer
 Input [2]: [s_suppkey#X, s_nationkey#X]
-Arguments: [s_suppkey#X, s_nationkey#X]
+Arguments: (isnotnull(s_suppkey#X) AND isnotnull(s_nationkey#X))
 
 (24) WholeStageCodegenTransformer (X)
 Input [2]: [s_suppkey#X, s_nationkey#X]
@@ -226,9 +226,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(n_nationkey), IsNotNull(n_regionkey)]
 ReadSchema: struct<n_nationkey:bigint,n_name:string,n_regionkey:bigint>
 
-(32) NoopFilter
+(32) FilterExecTransformer
 Input [3]: [n_nationkey#X, n_name#X, n_regionkey#X]
-Arguments: [n_nationkey#X, n_name#X, n_regionkey#X]
+Arguments: (isnotnull(n_nationkey#X) AND isnotnull(n_regionkey#X))
 
 (33) WholeStageCodegenTransformer (X)
 Input [3]: [n_nationkey#X, n_name#X, n_regionkey#X]
@@ -264,9 +264,9 @@ Location: InMemoryFileIndex [*]
 PushedFilters: [IsNotNull(r_name), EqualTo(r_name,ASIA), IsNotNull(r_regionkey)]
 ReadSchema: struct<r_regionkey:bigint,r_name:string>
 
-(41) NoopFilter
+(41) FilterExecTransformer
 Input [2]: [r_regionkey#X, r_name#X]
-Arguments: [r_regionkey#X, r_name#X]
+Arguments: ((isnotnull(r_name#X) AND (r_name#X = ASIA)) AND isnotnull(r_regionkey#X))
 
 (42) ProjectExecTransformer
 Output [1]: [r_regionkey#X]

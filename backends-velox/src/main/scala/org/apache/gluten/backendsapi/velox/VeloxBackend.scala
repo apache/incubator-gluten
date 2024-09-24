@@ -20,6 +20,7 @@ import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi._
+import org.apache.gluten.columnarbatch.VeloxBatch
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
@@ -71,17 +72,17 @@ class VeloxBackend extends SubstraitBackend {
 }
 
 object VeloxBackend {
-  val BACKEND_NAME = "velox"
+  val BACKEND_NAME: String = "velox"
+  val CONF_PREFIX: String = GlutenConfig.prefixOf(BACKEND_NAME)
 }
 
 object VeloxBackendSettings extends BackendSettingsApi {
 
   val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
-
-  val GLUTEN_VELOX_UDF_LIB_PATHS = getBackendConfigPrefix() + ".udfLibraryPaths"
-  val GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS = getBackendConfigPrefix() + ".driver.udfLibraryPaths"
-  val GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS = getBackendConfigPrefix() + ".internal.udfLibraryPaths"
-  val GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION = getBackendConfigPrefix() + ".udfAllowTypeConversion"
+  val GLUTEN_VELOX_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".udfLibraryPaths"
+  val GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".driver.udfLibraryPaths"
+  val GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".internal.udfLibraryPaths"
+  val GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION = VeloxBackend.CONF_PREFIX + ".udfAllowTypeConversion"
 
   val MAXIMUM_BATCH_SIZE: Int = 32768
 
@@ -93,7 +94,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
       paths: Seq[String]): ValidationResult = {
     val filteredRootPaths = distinctRootPaths(rootPaths)
     if (
-      !filteredRootPaths.isEmpty && !VeloxFileSystemValidationJniWrapper
+      filteredRootPaths.nonEmpty && !VeloxFileSystemValidationJniWrapper
         .allSupportedByRegisteredFileSystems(filteredRootPaths.toArray)
     ) {
       return ValidationResult.failed(
@@ -413,13 +414,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def recreateJoinExecOnFallback(): Boolean = true
   override def rescaleDecimalArithmetic(): Boolean = true
 
-  /** Get the config prefix for each backend */
-  override def getBackendConfigPrefix(): String =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + VeloxBackend.BACKEND_NAME
-
   override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
-
-  override def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {}
 
   override def insertPostProjectForGenerate(): Boolean = true
 
