@@ -58,9 +58,9 @@ DB::ProcessorPtr make_sink(
 
 bool need_fix_tuple(const DB::DataTypePtr & input, const DB::DataTypePtr & output)
 {
-    const auto orgial = typeid_cast<const DataTypeTuple *>(input.get());
+    const auto original = typeid_cast<const DataTypeTuple *>(input.get());
     const auto output_type = typeid_cast<const DataTypeTuple *>(output.get());
-    return orgial != nullptr && output_type != nullptr && !orgial->equals(*output_type);
+    return original != nullptr && output_type != nullptr && !original->equals(*output_type);
 }
 
 DB::ExpressionActionsPtr create_rename_action(const DB::Block & input, const DB::Block & output)

@@ -64,7 +64,7 @@ class MergeTreeOutputWriter(
     originPath
   }
 
-  def getAddFiles(): ArrayBuffer[AddFile] = {
+  def getAddFiles: ArrayBuffer[AddFile] = {
     addFiles
   }
 }

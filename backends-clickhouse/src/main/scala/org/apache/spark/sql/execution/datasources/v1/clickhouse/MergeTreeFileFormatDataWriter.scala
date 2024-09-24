@@ -71,7 +71,7 @@ abstract class MergeTreeFileFormatDataWriter(
       try {
         currentWriter.close()
         statsTrackers.foreach(_.closeFile(currentWriter.path()))
-        val ret = currentWriter.asInstanceOf[MergeTreeOutputWriter].getAddFiles()
+        val ret = currentWriter.asInstanceOf[MergeTreeOutputWriter].getAddFiles
         if (ret.nonEmpty) {
           ret.foreach(addFile => returnedMetrics.put(addFile.path, addFile))
         }
@@ -526,7 +526,7 @@ class MergeTreeDynamicPartitionDataConcurrentWriter(
         if (status.outputWriter != null) {
           try {
             status.outputWriter.close()
-            val ret = status.outputWriter.asInstanceOf[MergeTreeOutputWriter].getAddFiles()
+            val ret = status.outputWriter.asInstanceOf[MergeTreeOutputWriter].getAddFiles
             if (ret.nonEmpty) {
               ret.foreach(addFile => returnedMetrics.put(addFile.path, addFile))
             }
