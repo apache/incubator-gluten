@@ -20,6 +20,7 @@ import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi._
+import org.apache.gluten.columnarbatch.VeloxBatch
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder

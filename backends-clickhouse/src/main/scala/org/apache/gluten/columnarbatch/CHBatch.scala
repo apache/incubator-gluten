@@ -14,41 +14,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi
+package org.apache.gluten.columnarbatch
 
 import org.apache.gluten.extension.columnar.transition.Convention
 
 import org.apache.spark.sql.execution.{CHColumnarToRowExec, RowToCHNativeColumnarExec, SparkPlan}
 
-package object clickhouse {
+/**
+ * ClickHouse batch convention.
+ *
+ * [[fromRow]] and [[toRow]] need a [[TransitionDef]] instance. The scala allows an compact way to
+ * implement trait using a lambda function.
+ *
+ * Here the detail definition is given in [[CHBatch.fromRow]].
+ * {{{
+ *       fromRow(new TransitionDef {
+ *       override def create(): Transition = new Transition {
+ *         override protected def apply0(plan: SparkPlan): SparkPlan =
+ *           RowToCHNativeColumnarExec(plan)
+ *       }
+ *     })
+ * }}}
+ */
+object CHBatch extends Convention.BatchType {
+  fromRow(
+    () =>
+      (plan: SparkPlan) => {
+        RowToCHNativeColumnarExec(plan)
+      })
 
-  /**
-   * ClickHouse batch convention.
-   *
-   * [[fromRow]] and [[toRow]] need a [[TransitionDef]] instance. The scala allows an compact way to
-   * implement trait using a lambda function.
-   *
-   * Here the detail definition is given in [[CHBatch.fromRow]].
-   * {{{
-   *       fromRow(new TransitionDef {
-   *       override def create(): Transition = new Transition {
-   *         override protected def apply0(plan: SparkPlan): SparkPlan =
-   *           RowToCHNativeColumnarExec(plan)
-   *       }
-   *     })
-   * }}}
-   */
-  case object CHBatch extends Convention.BatchType {
-    fromRow(
-      () =>
-        (plan: SparkPlan) => {
-          RowToCHNativeColumnarExec(plan)
-        })
-
-    toRow(
-      () =>
-        (plan: SparkPlan) => {
-          CHColumnarToRowExec(plan)
-        })
-  }
+  toRow(
+    () =>
+      (plan: SparkPlan) => {
+        CHColumnarToRowExec(plan)
+      })
 }
