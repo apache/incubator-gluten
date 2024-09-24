@@ -1410,4 +1410,11 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
         }
     }
   }
+
+  test("round on integral types should return same values as spark") {
+    // Scale > 0 should return same value as input on integral values
+    compareResultsAgainstVanillaSpark("select round(78, 1)", true, { _ => })
+    // Scale < 0 should round down even on integral values
+    compareResultsAgainstVanillaSpark("select round(44, -1)", true, { _ => })
+  }
 }
