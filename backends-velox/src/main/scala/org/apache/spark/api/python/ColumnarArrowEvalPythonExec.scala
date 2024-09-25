@@ -47,7 +47,6 @@ import java.io.{DataInputStream, DataOutputStream}
 import java.net.Socket
 import java.util.concurrent.atomic.AtomicBoolean
 
-import scala.collection.immutable.Seq
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
