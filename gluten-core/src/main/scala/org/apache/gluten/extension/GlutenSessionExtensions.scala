@@ -20,9 +20,6 @@ import org.apache.gluten.backend.Backend
 import org.apache.gluten.extension.injector.RuleInjector
 
 import org.apache.spark.sql.SparkSessionExtensions
-import org.apache.spark.sql.internal.StaticSQLConf
-
-import java.util.Objects
 
 private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions => Unit) {
   override def apply(exts: SparkSessionExtensions): Unit = {
@@ -33,7 +30,5 @@ private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions =>
 }
 
 private[gluten] object GlutenSessionExtensions {
-  val SPARK_SESSION_EXTS_KEY: String = StaticSQLConf.SPARK_SESSION_EXTENSIONS.key
-  val GLUTEN_SESSION_EXTENSION_NAME: String =
-    Objects.requireNonNull(classOf[GlutenSessionExtensions].getCanonicalName)
+  val GLUTEN_SESSION_EXTENSION_NAME: String = classOf[GlutenSessionExtensions].getCanonicalName
 }
