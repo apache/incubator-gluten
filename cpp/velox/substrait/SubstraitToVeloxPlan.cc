@@ -179,16 +179,11 @@ RowTypePtr getJoinOutputType(
   VELOX_FAIL("Output should include left or right columns.");
 }
 
-// Returns the field name separators used to create Subfield.
-std::shared_ptr<common::Separators> getSeparators() {
-  auto separators = std::make_shared<common::Separators>();
-  // ']', '.', '[', '*', '^' are not separators in Spark.
-  separators->closeBracket = '\0';
-  separators->dot = '\0';
-  separators->openBracket = '\0';
-  separators->wildCard = '\0';
-  separators->unicodeCaret = '\0';
-  return separators;
+// Returns the path vector used to create Subfield.
+std::vector<std::unique_ptr<common::Subfield::PathElement>> getPath(const std::string& field) {
+  std::vector<std::unique_ptr<common::Subfield::PathElement>> path;
+  path.push_back(std::make_unique<common::Subfield::NestedField>(field));
+  return path;
 }
 
 } // namespace
@@ -2040,9 +2035,9 @@ void SubstraitToVeloxPlanConverter::setInFilter<TypeKind::BIGINT>(
     values.emplace_back(value);
   }
   if (negated) {
-    filters[common::Subfield(inputName, getSeparators())] = common::createNegatedBigintValues(values, nullAllowed);
+    filters[common::Subfield(std::move(getPath(inputName)))] = common::createNegatedBigintValues(values, nullAllowed);
   } else {
-    filters[common::Subfield(inputName, getSeparators())] = common::createBigintValues(values, nullAllowed);
+    filters[common::Subfield(std::move(getPath(inputName)))] = common::createBigintValues(values, nullAllowed);
   }
 }
 
@@ -2062,9 +2057,9 @@ void SubstraitToVeloxPlanConverter::setInFilter<TypeKind::INTEGER>(
     values.emplace_back(value);
   }
   if (negated) {
-    filters[common::Subfield(inputName, getSeparators())] = common::createNegatedBigintValues(values, nullAllowed);
+    filters[common::Subfield(std::move(getPath(inputName)))] = common::createNegatedBigintValues(values, nullAllowed);
   } else {
-    filters[common::Subfield(inputName, getSeparators())] = common::createBigintValues(values, nullAllowed);
+    filters[common::Subfield(std::move(getPath(inputName)))] = common::createBigintValues(values, nullAllowed);
   }
 }
 
@@ -2084,9 +2079,9 @@ void SubstraitToVeloxPlanConverter::setInFilter<TypeKind::SMALLINT>(
     values.emplace_back(value);
   }
   if (negated) {
-    filters[common::Subfield(inputName, getSeparators())] = common::createNegatedBigintValues(values, nullAllowed);
+    filters[common::Subfield(std::move(getPath(inputName)))] = common::createNegatedBigintValues(values, nullAllowed);
   } else {
-    filters[common::Subfield(inputName, getSeparators())] = common::createBigintValues(values, nullAllowed);
+    filters[common::Subfield(std::move(getPath(inputName)))] = common::createBigintValues(values, nullAllowed);
   }
 }
 
@@ -2106,9 +2101,9 @@ void SubstraitToVeloxPlanConverter::setInFilter<TypeKind::TINYINT>(
     values.emplace_back(value);
   }
   if (negated) {
-    filters[common::Subfield(inputName, getSeparators())] = common::createNegatedBigintValues(values, nullAllowed);
+    filters[common::Subfield(std::move(getPath(inputName)))] = common::createNegatedBigintValues(values, nullAllowed);
   } else {
-    filters[common::Subfield(inputName, getSeparators())] = common::createBigintValues(values, nullAllowed);
+    filters[common::Subfield(std::move(getPath(inputName)))] = common::createBigintValues(values, nullAllowed);
   }
 }
 
@@ -2126,10 +2121,11 @@ void SubstraitToVeloxPlanConverter::setInFilter<TypeKind::VARCHAR>(
     values.emplace_back(value);
   }
   if (negated) {
-    filters[common::Subfield(inputName, getSeparators())] =
+    filters[common::Subfield(std::move(getPath(inputName)))] =
         std::make_unique<common::NegatedBytesValues>(values, nullAllowed);
   } else {
-    filters[common::Subfield(inputName, getSeparators())] = std::make_unique<common::BytesValues>(values, nullAllowed);
+    filters[common::Subfield(std::move(getPath(inputName)))] =
+        std::make_unique<common::BytesValues>(values, nullAllowed);
   }
 }
 
@@ -2142,7 +2138,7 @@ void SubstraitToVeloxPlanConverter::setSubfieldFilter(
   using MultiRangeType = typename RangeTraits<KIND>::MultiRangeType;
 
   if (colFilters.size() == 1) {
-    filters[common::Subfield(inputName, getSeparators())] = std::move(colFilters[0]);
+    filters[common::Subfield(std::move(getPath(inputName)))] = std::move(colFilters[0]);
   } else if (colFilters.size() > 1) {
     // BigintMultiRange should have been sorted
     if (colFilters[0]->kind() == common::FilterKind::kBigintRange) {
@@ -2152,10 +2148,10 @@ void SubstraitToVeloxPlanConverter::setSubfieldFilter(
       });
     }
     if constexpr (std::is_same_v<MultiRangeType, common::MultiRange>) {
-      filters[common::Subfield(inputName, getSeparators())] =
+      filters[common::Subfield(std::move(getPath(inputName)))] =
           std::make_unique<common::MultiRange>(std::move(colFilters), nullAllowed, true /*nanAllowed*/);
     } else {
-      filters[common::Subfield(inputName, getSeparators())] =
+      filters[common::Subfield(std::move(getPath(inputName)))] =
           std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
     }
   }
@@ -2184,7 +2180,7 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
     // Handle bool type filters.
     // Not equal.
     if (filterInfo.notValue_) {
-      filters[common::Subfield(inputName, getSeparators())] =
+      filters[common::Subfield(std::move(getPath(inputName)))] =
           std::make_unique<common::BoolValue>(!filterInfo.notValue_.value().value<bool>(), nullAllowed);
     } else if (filterInfo.notValues_.size() > 0) {
       std::set<bool> notValues;
@@ -2192,18 +2188,18 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
         notValues.emplace(v.value<bool>());
       }
       if (notValues.size() == 1) {
-        filters[common::Subfield(inputName, getSeparators())] =
+        filters[common::Subfield(std::move(getPath(inputName)))] =
             std::make_unique<common::BoolValue>(!(*notValues.begin()), nullAllowed);
       } else {
         // if there are more than one distinct value in NOT IN list, the filter should be AlwaysFalse
-        filters[common::Subfield(inputName, getSeparators())] = std::make_unique<common::AlwaysFalse>();
+        filters[common::Subfield(std::move(getPath(inputName)))] = std::make_unique<common::AlwaysFalse>();
       }
     } else if (rangeSize == 0) {
       // IsNull/IsNotNull.
       if (!nullAllowed) {
-        filters[common::Subfield(inputName, getSeparators())] = std::make_unique<common::IsNotNull>();
+        filters[common::Subfield(std::move(getPath(inputName)))] = std::make_unique<common::IsNotNull>();
       } else if (isNull) {
-        filters[common::Subfield(inputName, getSeparators())] = std::make_unique<common::IsNull>();
+        filters[common::Subfield(std::move(getPath(inputName)))] = std::make_unique<common::IsNull>();
       } else {
         VELOX_NYI("Only IsNotNull and IsNull are supported in constructSubfieldFilters when no other filter ranges.");
       }
@@ -2212,7 +2208,8 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       // Equal.
       auto value = filterInfo.lowerBounds_[0].value().value<bool>();
       VELOX_CHECK(value == filterInfo.upperBounds_[0].value().value<bool>(), "invalid state of bool equal");
-      filters[common::Subfield(inputName, getSeparators())] = std::make_unique<common::BoolValue>(value, nullAllowed);
+      filters[common::Subfield(std::move(getPath(inputName)))] =
+          std::make_unique<common::BoolValue>(value, nullAllowed);
     }
   } else if constexpr (
       KIND == facebook::velox::TypeKind::ARRAY || KIND == facebook::velox::TypeKind::MAP ||
@@ -2220,9 +2217,9 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
     // Only IsNotNull and IsNull are supported for complex types.
     VELOX_CHECK_EQ(rangeSize, 0, "Only IsNotNull and IsNull are supported for complex type.");
     if (!nullAllowed) {
-      filters[common::Subfield(inputName, getSeparators())] = std::make_unique<common::IsNotNull>();
+      filters[common::Subfield(std::move(getPath(inputName)))] = std::make_unique<common::IsNotNull>();
     } else if (isNull) {
-      filters[common::Subfield(inputName, getSeparators())] = std::make_unique<common::IsNull>();
+      filters[common::Subfield(std::move(getPath(inputName)))] = std::make_unique<common::IsNull>();
     } else {
       VELOX_NYI("Only IsNotNull and IsNull are supported for input type '{}'.", inputType->toString());
     }
@@ -2266,16 +2263,16 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after not-equal filter.");
       if constexpr (std::is_same_v<MultiRangeType, common::MultiRange>) {
         if (colFilters.size() == 1) {
-          filters[common::Subfield(inputName, getSeparators())] = std::move(colFilters.front());
+          filters[common::Subfield(std::move(getPath(inputName)))] = std::move(colFilters.front());
         } else {
-          filters[common::Subfield(inputName, getSeparators())] =
+          filters[common::Subfield(std::move(getPath(inputName)))] =
               std::make_unique<common::MultiRange>(std::move(colFilters), nullAllowed, true /*nanAllowed*/);
         }
       } else {
         if (colFilters.size() == 1) {
-          filters[common::Subfield(inputName, getSeparators())] = std::move(colFilters.front());
+          filters[common::Subfield(std::move(getPath(inputName)))] = std::move(colFilters.front());
         } else {
-          filters[common::Subfield(inputName, getSeparators())] =
+          filters[common::Subfield(std::move(getPath(inputName)))] =
               std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
         }
       }
@@ -2286,11 +2283,11 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
     if (rangeSize == 0) {
       // handle is not null and is null exists at same time
       if (existIsNullAndIsNotNull) {
-        filters[common::Subfield(inputName, getSeparators())] = std::move(std::make_unique<common::AlwaysFalse>());
+        filters[common::Subfield(std::move(getPath(inputName)))] = std::move(std::make_unique<common::AlwaysFalse>());
       } else if (!nullAllowed) {
-        filters[common::Subfield(inputName, getSeparators())] = std::make_unique<common::IsNotNull>();
+        filters[common::Subfield(std::move(getPath(inputName)))] = std::make_unique<common::IsNotNull>();
       } else if (isNull) {
-        filters[common::Subfield(inputName, getSeparators())] = std::make_unique<common::IsNull>();
+        filters[common::Subfield(std::move(getPath(inputName)))] = std::make_unique<common::IsNull>();
       } else {
         VELOX_NYI("Only IsNotNull and IsNull are supported in constructSubfieldFilters when no other filter ranges.");
       }

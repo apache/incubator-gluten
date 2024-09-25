@@ -66,6 +66,30 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
   }
 
+  test("field names contain non-ASCII characters") {
+    withTempPath {
+      path =>
+        // scalastyle:off nonascii
+        Seq((1, 2, 3, 4)).toDF("товары", "овары", "国ⅵ", "中文").write.parquet(path.getCanonicalPath)
+        // scalastyle:on
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("select * from view") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+    }
+
+    withTempPath {
+      path =>
+        // scalastyle:off nonascii
+        spark.range(10).toDF("中文").write.parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).filter("`中文`>1").createOrReplaceTempView("view")
+        // scalastyle:on
+        runQueryAndCompare("select * from view") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+    }
+  }
+
   test("simple_select") {
     val df = runQueryAndCompare("select * from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
