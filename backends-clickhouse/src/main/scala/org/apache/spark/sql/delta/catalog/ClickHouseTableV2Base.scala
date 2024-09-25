@@ -32,7 +32,6 @@ trait ClickHouseTableV2Base {
 
   def deltaProperties: ju.Map[String, String]
 
-
   def deltaCatalog: Option[CatalogTable]
 
   def deltaPath: Path

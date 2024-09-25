@@ -32,8 +32,7 @@ class DeltaMergeTreeFileFormat(
     metadata: Metadata,
     val snapshotId: String,
     val deltaPath: String,
-    @transient val clickhouseTableConfigs: Map[String, String],
-    val partitionColumns: Seq[String])
+    @transient val clickhouseTableConfigs: Map[String, String])
   extends DeltaParquetFileFormat(protocol, metadata) {
 
   override def shortName(): String = "mergetree"

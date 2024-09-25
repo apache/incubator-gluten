@@ -101,8 +101,7 @@ class ClickHouseTableV2(
       meta,
       ClickhouseSnapshot.genSnapshotId(initialSnapshot),
       deltaLog.dataPath.toString,
-      clickhouseTableConfigs,
-      partitionColumns
+      clickhouseTableConfigs
     )
   }
 
