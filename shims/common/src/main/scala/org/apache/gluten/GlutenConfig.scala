@@ -600,6 +600,7 @@ object GlutenConfig {
   val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
   val GLUTEN_LOAD_LIB_OS = "spark.gluten.loadLibOS"
   val GLUTEN_LOAD_LIB_OS_VERSION = "spark.gluten.loadLibOSVersion"
+  val GLUTEN_LOAD_LIB_OS_VERSION_CODENAME = "spark.gluten.loadLibOSVersionCodename"
 
   // Expired time of execution with resource relation has cached
   val GLUTEN_RESOURCE_RELATION_EXPIRED_TIME = "spark.gluten.execution.resource.expired.time"
@@ -1821,8 +1822,8 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct")
       .internal()
       .doc(
-        "If partial aggregation input rows number greater than this value, "
-          + " partial aggregation may be early abandoned. Note: this option only works when " +
+        "If partial aggregation aggregationPct greater than this value, "
+          + "partial aggregation may be early abandoned. Note: this option only works when " +
           "flushable partial aggregation is enabled. Ignored when " +
           "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false.")
       .intConf
@@ -1832,8 +1833,8 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows")
       .internal()
       .doc(
-        "If partial aggregation aggregationPct greater than this value, "
-          + "partial aggregation may be early abandoned. Note: this option only works when " +
+        "If partial aggregation input rows number greater than this value, "
+          + " partial aggregation may be early abandoned. Note: this option only works when " +
           "flushable partial aggregation is enabled. Ignored when " +
           "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false.")
       .intConf
