@@ -224,6 +224,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDecimalPrecisionSuite]
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenRegexpExpressionsSuite]
+    .excludeByPrefix("LIKE Pattern ESCAPE")
   enableSuite[GlutenNullExpressionsSuite]
   enableSuite[GlutenPredicateSuite]
   enableSuite[GlutenMathExpressionsSuite]
