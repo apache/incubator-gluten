@@ -83,7 +83,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       (table.catalogTable.get.identifier.database.get, table.catalogTable.get.identifier.table)
     } else {
       // for file_format.`file_path`
-      ("default", "file_format")
+      (table.DEFAULT_DATABASE, table.deltaPath.toUri.getPath)
     }
     val engine = "MergeTree"
     val relativeTablePath = fileIndex.deltaLog.dataPath.toUri.getPath.substring(1)
