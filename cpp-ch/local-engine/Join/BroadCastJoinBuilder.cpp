@@ -61,32 +61,29 @@ DB::Block resetBuildTableBlockName(Block & block, bool only_one = false)
     int32_t seq = 0;
     for (const auto & col : block)
     {
-      // Add a prefix to avoid column name conflicts with left table.
-      std::stringstream new_name;
-      // add a sequence to avoid duplicate name in some rare cases
-      if (names.find(col.name) == names.end())
-      {
-         new_name << BlockUtil::RIHGT_COLUMN_PREFIX << col.name;
-         names.insert(col.name);
-      }
-      else
-      {
-        new_name << BlockUtil::RIHGT_COLUMN_PREFIX  << (seq++) << "_" << col.name;
-      }
-      new_cols.emplace_back(col.column, col.type, new_name.str());
+        // Add a prefix to avoid column name conflicts with left table.
+        std::stringstream new_name;
+        // add a sequence to avoid duplicate name in some rare cases
+        if (names.find(col.name) == names.end())
+        {
+            new_name << BlockUtil::RIHGT_COLUMN_PREFIX << col.name;
+            names.insert(col.name);
+        }
+        else
+        {
+            new_name << BlockUtil::RIHGT_COLUMN_PREFIX << (seq++) << "_" << col.name;
+        }
+        new_cols.emplace_back(col.column, col.type, new_name.str());
 
-      if (only_one)
-        break;
+        if (only_one)
+            break;
     }
     return DB::Block(new_cols);
 }
 
 void cleanBuildHashTable(const std::string & hash_table_id, jlong instance)
 {
-    auto clean_join = [&]
-    {
-        SharedPointerWrapper<StorageJoinFromReadBuffer>::dispose(instance);
-    };
+    auto clean_join = [&] { SharedPointerWrapper<StorageJoinFromReadBuffer>::dispose(instance); };
     /// Record memory usage in Total Memory Tracker
     ThreadFromGlobalPoolNoTracingContextPropagation thread(clean_join);
     thread.join();
@@ -117,7 +114,8 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     bool is_existence_join,
     const std::string & named_struct,
     bool is_null_aware_anti_join,
-    bool has_null_key_values)
+    bool has_null_key_values,
+    bool enable_pre_sort)
 {
     auto join_key_list = Poco::StringTokenizer(join_keys, ",");
     Names key_names;
@@ -130,7 +128,8 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     if (key.starts_with("BuiltBNLJBroadcastTable-"))
         std::tie(kind, strictness) = JoinUtil::getCrossJoinKindAndStrictness(static_cast<substrait::CrossRel_JoinType>(join_type));
     else
-        std::tie(kind, strictness) = JoinUtil::getJoinKindAndStrictness(static_cast<substrait::JoinRel_JoinType>(join_type), is_existence_join);
+        std::tie(kind, strictness)
+            = JoinUtil::getJoinKindAndStrictness(static_cast<substrait::JoinRel_JoinType>(join_type), is_existence_join);
 
 
     substrait::NamedStruct substrait_struct;
@@ -195,7 +194,8 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
         key,
         true,
         is_null_aware_anti_join,
-        has_null_key_values);
+        has_null_key_values,
+        enable_pre_sort);
 }
 
 void init(JNIEnv * env)

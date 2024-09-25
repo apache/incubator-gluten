@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.backendsapi.BackendsApiManager
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.utils.{BroadcastHashJoinStrategy, CHJoinValidateUtil, ShuffleHashJoinStrategy}
 
@@ -194,7 +195,8 @@ case class BroadCastHashJoinContext(
     isExistenceJoin: Boolean,
     buildSideStructure: Seq[Attribute],
     buildHashTableId: String,
-    isNullAwareAntiJoin: Boolean = false)
+    isNullAwareAntiJoin: Boolean = false,
+    enablePreSort: Boolean = false)
 
 case class CHBroadcastHashJoinExecTransformer(
     leftKeys: Seq[Expression],
@@ -255,7 +257,8 @@ case class CHBroadcastHashJoinExecTransformer(
         joinType.isInstanceOf[ExistenceJoin],
         buildPlan.output,
         buildHashTableId,
-        isNullAwareAntiJoin
+        isNullAwareAntiJoin,
+        CHBackendSettings.enablePreSortForBroadcastHashJoin
       )
     val broadcastRDD = CHBroadcastBuildSideRDD(sparkContext, broadcast, context)
     // FIXME: Do we have to make build side a RDD?

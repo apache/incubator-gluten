@@ -49,7 +49,8 @@ public class StorageJoinBuilder {
       boolean isExistenceJoin,
       byte[] namedStruct,
       boolean isNullAwareAntiJoin,
-      boolean hasNullKeyValues);
+      boolean hasNullKeyValues,
+      boolean enablePreSort);
 
   private StorageJoinBuilder() {}
 
@@ -99,7 +100,8 @@ public class StorageJoinBuilder {
         broadCastContext.isExistenceJoin(),
         toNameStruct(output).toByteArray(),
         broadCastContext.isNullAwareAntiJoin(),
-        hasNullKeyValues);
+        hasNullKeyValues,
+        broadCastContext.enablePreSort());
   }
 
   /** create table named struct */
