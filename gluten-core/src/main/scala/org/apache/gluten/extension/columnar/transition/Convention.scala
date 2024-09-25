@@ -69,7 +69,7 @@ object Convention {
     final case object VanillaRow extends RowType
   }
 
-  trait BatchType {
+  trait BatchType extends Serializable {
     final def fromRow(transitionDef: TransitionDef): Unit = {
       Transition.factory.update().defineFromRowTransition(this, transitionDef)
     }

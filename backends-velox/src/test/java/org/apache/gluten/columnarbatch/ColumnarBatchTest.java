@@ -44,10 +44,10 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           final ColumnarBatch batch = newArrowBatch("a boolean, b int", numRows);
           Assert.assertTrue(ColumnarBatches.isHeavyBatch(batch));
           final ColumnarBatch offloaded =
-              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch);
+              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
           Assert.assertTrue(ColumnarBatches.isLightBatch(offloaded));
           final ColumnarBatch loaded =
-              ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), offloaded);
+              ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), offloaded);
           Assert.assertTrue(ColumnarBatches.isHeavyBatch(loaded));
           long cnt =
               StreamSupport.stream(
@@ -69,7 +69,7 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           final ColumnarBatch batch = newArrowBatch("a boolean, b int", numRows);
           Assert.assertEquals(1, ColumnarBatches.getRefCnt(batch));
           final ColumnarBatch offloaded =
-              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch);
+              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
           Assert.assertEquals(1, ColumnarBatches.getRefCnt(offloaded));
           final long handle = ColumnarBatches.getNativeHandle(offloaded);
           final ColumnarBatch created = ColumnarBatches.create(handle);
@@ -110,10 +110,10 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           col1.putNull(numRows - 1);
           Assert.assertTrue(ColumnarBatches.isHeavyBatch(batch));
           final ColumnarBatch offloaded =
-              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch);
+              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
           Assert.assertTrue(ColumnarBatches.isLightBatch(offloaded));
           final ColumnarBatch loaded =
-              ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), offloaded);
+              ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), offloaded);
           Assert.assertTrue(ColumnarBatches.isHeavyBatch(loaded));
           long cnt =
               StreamSupport.stream(
