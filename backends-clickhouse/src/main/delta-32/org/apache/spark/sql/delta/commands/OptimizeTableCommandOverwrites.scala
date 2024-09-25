@@ -120,7 +120,6 @@ object OptimizeTableCommandOverwrites extends Logging {
         val datasourceJniWrapper = new CHDatasourceJniWrapper()
         val returnedMetrics =
           datasourceJniWrapper.nativeMergeMTParts(
-            planWithSplitInfo.plan,
             planWithSplitInfo.splitInfo,
             uuid,
             taskId.getId.toString,
@@ -172,7 +171,7 @@ object OptimizeTableCommandOverwrites extends Logging {
       bucketNum: String,
       bin: Seq[AddFile],
       maxFileSize: Long): Seq[FileAction] = {
-    val tableV2 = ClickHouseTableV2.getTable(txn.deltaLog);
+    val tableV2 = ClickHouseTableV2.getTable(txn.deltaLog)
 
     val sparkSession = SparkSession.getActiveSession.get
 

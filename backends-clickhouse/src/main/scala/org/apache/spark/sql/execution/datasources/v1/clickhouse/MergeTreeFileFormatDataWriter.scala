@@ -59,7 +59,7 @@ abstract class MergeTreeFileFormatDataWriter(
   protected val updatedPartitions: mutable.Set[String] = mutable.Set[String]()
   protected var currentWriter: OutputWriter = _
 
-  protected val returnedMetrics = mutable.HashMap[String, AddFile]()
+  protected val returnedMetrics: mutable.Map[String, AddFile] = mutable.HashMap[String, AddFile]()
 
   /** Trackers for computing various statistics on the data as it's being written out. */
   protected val statsTrackers: Seq[WriteTaskStatsTracker] =
@@ -71,10 +71,10 @@ abstract class MergeTreeFileFormatDataWriter(
       try {
         currentWriter.close()
         statsTrackers.foreach(_.closeFile(currentWriter.path()))
-        val ret = currentWriter.asInstanceOf[MergeTreeOutputWriter].getAddFiles
-        if (ret.nonEmpty) {
-          ret.foreach(addFile => returnedMetrics.put(addFile.path, addFile))
-        }
+        currentWriter
+          .asInstanceOf[MergeTreeOutputWriter]
+          .getAddFiles
+          .foreach(addFile => returnedMetrics.put(addFile.path, addFile))
       } finally {
         currentWriter = null
       }
@@ -117,12 +117,7 @@ abstract class MergeTreeFileFormatDataWriter(
     releaseResources()
     val (taskCommitMessage, taskCommitTime) = Utils.timeTakenMs {
       // committer.commitTask(taskAttemptContext)
-      val statuses = returnedMetrics
-        .map(
-          v => {
-            v._2
-          })
-        .toSeq
+      val statuses = returnedMetrics.map(_._2).toSeq
       new TaskCommitMessage(statuses)
     }
 
@@ -142,7 +137,7 @@ abstract class MergeTreeFileFormatDataWriter(
 
   override def close(): Unit = {}
 
-  def getReturnedMetrics(): mutable.Map[String, AddFile] = returnedMetrics
+  def getReturnedMetrics: mutable.Map[String, AddFile] = returnedMetrics
 }
 
 /** FileFormatWriteTask for empty partitions */
@@ -443,7 +438,11 @@ class MergeTreeDynamicPartitionDataSingleWriter(
       case fakeRow: FakeRow =>
         if (fakeRow.batch.numRows() > 0) {
           val blockStripes = GlutenRowSplitter.getInstance
-            .splitBlockByPartitionAndBucket(fakeRow, partitionColIndice, isBucketed, true)
+            .splitBlockByPartitionAndBucket(
+              fakeRow,
+              partitionColIndice,
+              isBucketed,
+              reserve_partition_columns = true)
 
           val iter = blockStripes.iterator()
           while (iter.hasNext) {
@@ -526,10 +525,10 @@ class MergeTreeDynamicPartitionDataConcurrentWriter(
         if (status.outputWriter != null) {
           try {
             status.outputWriter.close()
-            val ret = status.outputWriter.asInstanceOf[MergeTreeOutputWriter].getAddFiles
-            if (ret.nonEmpty) {
-              ret.foreach(addFile => returnedMetrics.put(addFile.path, addFile))
-            }
+            status.outputWriter
+              .asInstanceOf[MergeTreeOutputWriter]
+              .getAddFiles
+              .foreach(addFile => returnedMetrics.put(addFile.path, addFile))
           } finally {
             status.outputWriter = null
           }

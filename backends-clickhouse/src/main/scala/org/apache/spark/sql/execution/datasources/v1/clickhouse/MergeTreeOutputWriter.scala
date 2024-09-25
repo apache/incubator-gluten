@@ -42,12 +42,12 @@ class MergeTreeOutputWriter(
 
     if (nextBatch.numRows > 0) {
       val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
-      datasourceJniWrapper.writeToMergeTree(instance, col.getBlockAddress)
+      datasourceJniWrapper.write(instance, col.getBlockAddress)
     } // else ignore this empty block
   }
 
   override def close(): Unit = {
-    val returnedMetrics = datasourceJniWrapper.closeMergeTreeWriter(instance)
+    val returnedMetrics = datasourceJniWrapper.close(instance)
     if (returnedMetrics != null && returnedMetrics.nonEmpty) {
       addFiles.appendAll(
         AddFileTags.partsMetricsToAddFile(

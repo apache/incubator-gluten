@@ -49,7 +49,7 @@
 #include <IO/SharedThreadPools.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
 #include <Parser/RelParsers/RelParser.h>
-#include <Parser/SerializedPlanParser.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Planner/PlannerActionsVisitor.h>
 #include <Processors/Chunk.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
@@ -62,7 +62,6 @@
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
-#include <google/protobuf/util/json_util.h>
 #include <sys/resource.h>
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>

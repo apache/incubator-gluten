@@ -128,9 +128,9 @@ foreach(child ${children})
   add_headers_and_sources(function_parsers ${child})
 endforeach()
 
-# Notice: soures files under Parser/*_udf subdirectories must be built into
+# Notice: sources files under Parser/*_udf subdirectories must be built into
 # target ${LOCALENGINE_SHARED_LIB} directly to make sure all function parsers
-# are registered successly.
+# are registered successfully.
 add_library(
   ${LOCALENGINE_SHARED_LIB} SHARED
   local_engine_jni.cpp ${local_udfs_sources} ${function_parsers_sources}

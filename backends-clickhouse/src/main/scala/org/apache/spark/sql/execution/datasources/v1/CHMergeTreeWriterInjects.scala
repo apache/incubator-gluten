@@ -67,8 +67,7 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       splitInfo: Array[Byte]): OutputWriter = {
     val datasourceJniWrapper = new CHDatasourceJniWrapper()
     val instance =
-      datasourceJniWrapper.nativeInitMergeTreeWriterWrapper(
-        null,
+      datasourceJniWrapper.createMergeTreeWriter(
         splitInfo,
         UUID.randomUUID.toString,
         context.getTaskAttemptID.getTaskID.getId.toString,

@@ -47,10 +47,43 @@ Block removeColumnSuffix(const Block & block)
     }
     return Block(columns);
 }
+
 }
 
 namespace local_engine
 {
+
+std::string PartInfo::toJson(const std::vector<PartInfo> & part_infos)
+{
+    rapidjson::StringBuffer result;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(result);
+    writer.StartArray();
+    for (const auto & item : part_infos)
+    {
+        writer.StartObject();
+        writer.Key("part_name");
+        writer.String(item.part_name.c_str());
+        writer.Key("mark_count");
+        writer.Uint(item.mark_count);
+        writer.Key("disk_size");
+        writer.Uint(item.disk_size);
+        writer.Key("row_count");
+        writer.Uint(item.row_count);
+        writer.Key("bucket_id");
+        writer.String(item.bucket_id.c_str());
+        writer.Key("partition_values");
+        writer.StartObject();
+        for (const auto & key_value : item.partition_values)
+        {
+            writer.Key(key_value.first.c_str());
+            writer.String(key_value.second.c_str());
+        }
+        writer.EndObject();
+        writer.EndObject();
+    }
+    writer.EndArray();
+    return result.GetString();
+}
 
 std::unique_ptr<SparkMergeTreeWriter> SparkMergeTreeWriter::create(
     const MergeTreeTable & merge_tree_table,
@@ -86,7 +119,7 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
 {
 }
 
-void SparkMergeTreeWriter::write(const DB::Block & block)
+void SparkMergeTreeWriter::write(DB::Block & block)
 {
     auto new_block = removeColumnSuffix(block);
     auto converter = ActionsDAG::makeConvertingActions(
@@ -96,9 +129,10 @@ void SparkMergeTreeWriter::write(const DB::Block & block)
     executor.push(new_block);
 }
 
-void SparkMergeTreeWriter::finalize()
+std::string SparkMergeTreeWriter::close()
 {
     executor.finish();
+    return PartInfo::toJson(getAllPartInfo());
 }
 
 std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo() const
@@ -118,38 +152,6 @@ std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo() const
             sink_helper.write_settings.partition_settings.bucket_dir});
     }
     return res;
-}
-
-String SparkMergeTreeWriter::partInfosToJson(const std::vector<PartInfo> & part_infos)
-{
-    rapidjson::StringBuffer result;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(result);
-    writer.StartArray();
-    for (const auto & item : part_infos)
-    {
-        writer.StartObject();
-        writer.Key("part_name");
-        writer.String(item.part_name.c_str());
-        writer.Key("mark_count");
-        writer.Uint(item.mark_count);
-        writer.Key("disk_size");
-        writer.Uint(item.disk_size);
-        writer.Key("row_count");
-        writer.Uint(item.row_count);
-        writer.Key("bucket_id");
-        writer.String(item.bucket_id.c_str());
-        writer.Key("partition_values");
-        writer.StartObject();
-        for (const auto & key_value : item.partition_values)
-        {
-            writer.Key(key_value.first.c_str());
-            writer.String(key_value.second.c_str());
-        }
-        writer.EndObject();
-        writer.EndObject();
-    }
-    writer.EndArray();
-    return result.GetString();
 }
 
 }

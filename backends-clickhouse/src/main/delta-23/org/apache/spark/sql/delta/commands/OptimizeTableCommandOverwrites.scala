@@ -118,7 +118,6 @@ object OptimizeTableCommandOverwrites extends Logging {
         val datasourceJniWrapper = new CHDatasourceJniWrapper()
         val returnedMetrics =
           datasourceJniWrapper.nativeMergeMTParts(
-            planWithSplitInfo.plan,
             planWithSplitInfo.splitInfo,
             uuid,
             taskId.getId.toString,

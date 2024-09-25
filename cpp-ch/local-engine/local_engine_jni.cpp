@@ -45,9 +45,8 @@
 #include <Storages/MergeTree/SparkMergeTreeWriter.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Storages/Output/BlockStripeSplitter.h>
-#include <Storages/Output/FileWriterWrappers.h>
+#include <Storages/Output/NormalFileWriter.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
-#include <google/protobuf/wrappers.pb.h>
 #include <jni/SharedPointerWrapper.h>
 #include <jni/jni_common.h>
 #include <jni/jni_error.h>
@@ -906,7 +905,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_CHBlockWriterJniWrapper_nativeC
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeInitFileWriterWrapper(
+JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_createFilerWriter(
     JNIEnv * env, jobject, jstring file_uri_, jbyteArray preferred_schema_, jstring format_hint_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
@@ -918,8 +917,7 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
             reinterpret_cast<const char *>(preferred_schema_ref.elems()), static_cast<size_t>(preferred_schema_ref.length())};
 
         substrait::NamedStruct res;
-        bool ok = res.ParseFromString(view);
-        if (!ok)
+        if (!res.ParseFromString(view))
             return {};
         return std::move(res);
     };
@@ -933,15 +931,14 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     // for HiveFileFormat, the file url may not end with .parquet, so we pass in the format as a hint
     const auto format_hint = jstring2string(env, format_hint_);
     const auto context = local_engine::QueryContext::instance().currentQueryContext();
-    auto * writer = local_engine::createFileWriterWrapper(context, file_uri, preferred_schema, format_hint).release();
+    auto * writer = local_engine::NormalFileWriter::create(context, file_uri, preferred_schema, format_hint).release();
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
 
-JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeInitMergeTreeWriterWrapper(
+JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_createMergeTreeWriter(
     JNIEnv * env,
     jobject,
-    jbyteArray plan_,
     jbyteArray split_info_,
     jstring uuid_,
     jstring task_id_,
@@ -1003,54 +1000,24 @@ Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_write(JNI
 {
     LOCAL_ENGINE_JNI_METHOD_START
 
-    auto * writer = reinterpret_cast<local_engine::NormalFileWriter *>(instanceId);
+    auto * writer = reinterpret_cast<local_engine::NativeOutputWriter *>(instanceId);
     auto * block = reinterpret_cast<DB::Block *>(block_address);
-    writer->consume(*block);
-    LOCAL_ENGINE_JNI_METHOD_END(env, )
-}
-
-JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_close(JNIEnv * env, jobject, jlong instanceId)
-{
-    LOCAL_ENGINE_JNI_METHOD_START
-    auto * writer = reinterpret_cast<local_engine::NormalFileWriter *>(instanceId);
-    SCOPE_EXIT({ delete writer; });
-    writer->close();
-    LOCAL_ENGINE_JNI_METHOD_END(env, )
-}
-
-JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_writeToMergeTree(
-    JNIEnv * env, jobject, jlong instanceId, jlong block_address)
-{
-    LOCAL_ENGINE_JNI_METHOD_START
-    auto * writer = reinterpret_cast<local_engine::SparkMergeTreeWriter *>(instanceId);
-    const auto * block = reinterpret_cast<DB::Block *>(block_address);
     writer->write(*block);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-JNIEXPORT jstring
-Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_closeMergeTreeWriter(JNIEnv * env, jobject, jlong instanceId)
+JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_close(JNIEnv * env, jobject, jlong instanceId)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    auto * writer = reinterpret_cast<local_engine::SparkMergeTreeWriter *>(instanceId);
+    auto * writer = reinterpret_cast<local_engine::NativeOutputWriter *>(instanceId);
     SCOPE_EXIT({ delete writer; });
-
-    writer->finalize();
-    const auto part_infos = writer->getAllPartInfo();
-    const auto json_info = local_engine::SparkMergeTreeWriter::partInfosToJson(part_infos);
-    return local_engine::charTojstring(env, json_info.c_str());
+    const auto result = writer->close();
+    return local_engine::charTojstring(env, result.c_str());
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }
 
 JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeMergeMTParts(
-    JNIEnv * env,
-    jobject,
-    jbyteArray plan_,
-    jbyteArray split_info_,
-    jstring uuid_,
-    jstring task_id_,
-    jstring partition_dir_,
-    jstring bucket_dir_)
+    JNIEnv * env, jobject, jbyteArray split_info_, jstring uuid_, jstring task_id_, jstring partition_dir_, jstring bucket_dir_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
 
@@ -1089,8 +1056,7 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
             partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count, partition_values, bucket_dir});
     }
 
-    auto json_info = local_engine::SparkMergeTreeWriter::partInfosToJson(res);
-
+    auto json_info = local_engine::PartInfo::toJson(res);
     return local_engine::charTojstring(env, json_info.c_str());
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }
