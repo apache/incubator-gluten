@@ -29,6 +29,8 @@ import java.{util => ju}
 
 trait ClickHouseTableV2Base {
 
+  val DEFAULT_DATABASE = "clickhouse_db"
+
   def deltaProperties(): ju.Map[String, String]
 
   def deltaCatalog(): Option[CatalogTable]
@@ -39,7 +41,7 @@ trait ClickHouseTableV2Base {
 
   lazy val dataBaseName = deltaCatalog
     .map(_.identifier.database.getOrElse("default"))
-    .getOrElse("clickhouse")
+    .getOrElse(DEFAULT_DATABASE)
 
   lazy val tableName = deltaCatalog
     .map(_.identifier.table)

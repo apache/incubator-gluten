@@ -1337,4 +1337,63 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       assert(df.queryExecution.executedPlan.isInstanceOf[LocalTableScanExec])
     }
   }
+
+  test(
+    "GLUTEN-7344: Fix the error default database name and table " +
+      "name for the mergetree file format when using path based") {
+    val dataPath = s"$basePath/lineitem_filebased_7344"
+    clearDataPath(dataPath)
+    val dataPath1 = s"$basePath/lineitem_filebased_7344_1"
+    clearDataPath(dataPath1)
+
+    val sourceDF = spark.sql(s"""
+                                |select * from lineitem
+                                |""".stripMargin)
+
+    sourceDF.write
+      .format("clickhouse")
+      .mode(SaveMode.Append)
+      .option("clickhouse.orderByKey", "l_shipdate,l_orderkey")
+      .option("clickhouse.primaryKey", "l_shipdate")
+      .option("clickhouse.lowCardKey", "l_returnflag,l_linestatus")
+      .save(dataPath)
+
+    sourceDF.write
+      .format("clickhouse")
+      .mode(SaveMode.Append)
+      .option("clickhouse.orderByKey", "l_shipdate,l_orderkey")
+      .option("clickhouse.primaryKey", "l_shipdate")
+      .option("clickhouse.lowCardKey", "l_returnflag,l_linestatus")
+      .save(dataPath1)
+
+    val df = spark.read
+      .format("clickhouse")
+      .load(dataPath)
+    val result = df.collect()
+    assertResult(600572)(result.size)
+
+    val plans = collect(df.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    val partitions = plans(0).getPartitions
+    assert(partitions.nonEmpty)
+    assert(partitions(0).isInstanceOf[GlutenMergeTreePartition])
+    assert(partitions(0).asInstanceOf[GlutenMergeTreePartition].database.equals("clickhouse_db"))
+    assert(partitions(0).asInstanceOf[GlutenMergeTreePartition].table.equals(dataPath))
+
+    val df1 = spark.read
+      .format("clickhouse")
+      .load(dataPath1)
+    val result1 = df1.collect()
+    assertResult(600572)(result.size)
+
+    val plans1 = collect(df1.queryExecution.executedPlan) {
+      case f: FileSourceScanExecTransformer => f
+    }
+    val partitions1 = plans1(0).getPartitions
+    assert(partitions1.nonEmpty)
+    assert(partitions1(0).isInstanceOf[GlutenMergeTreePartition])
+    assert(partitions1(0).asInstanceOf[GlutenMergeTreePartition].database.equals("clickhouse_db"))
+    assert(partitions1(0).asInstanceOf[GlutenMergeTreePartition].table.equals(dataPath1))
+  }
 }
