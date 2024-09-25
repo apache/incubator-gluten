@@ -600,7 +600,6 @@ object GlutenConfig {
   val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
   val GLUTEN_LOAD_LIB_OS = "spark.gluten.loadLibOS"
   val GLUTEN_LOAD_LIB_OS_VERSION = "spark.gluten.loadLibOSVersion"
-  val GLUTEN_LOAD_LIB_OS_VERSION_CODENAME = "spark.gluten.loadLibOSVersionCodename"
 
   // Expired time of execution with resource relation has cached
   val GLUTEN_RESOURCE_RELATION_EXPIRED_TIME = "spark.gluten.execution.resource.expired.time"
