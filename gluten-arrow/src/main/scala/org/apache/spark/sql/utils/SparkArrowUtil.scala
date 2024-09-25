@@ -16,13 +16,14 @@
  */
 package org.apache.spark.sql.utils
 
-import org.apache.gluten.expression.ConverterUtils
-
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 import org.apache.arrow.vector.complex.MapVector
 import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, IntervalUnit, TimeUnit}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
+
+import java.util.Locale
 
 import scala.collection.JavaConverters._
 
@@ -97,7 +98,7 @@ object SparkArrowUtil {
             .map(
               field =>
                 toArrowField(
-                  ConverterUtils.normalizeStructFieldName(field.name),
+                  normalizeColName(field.name),
                   field.dataType,
                   field.nullable,
                   timeZoneId))
@@ -161,5 +162,10 @@ object SparkArrowUtil {
         val dt = fromArrowField(field)
         StructField(field.getName, dt, field.isNullable)
     })
+  }
+
+  private def normalizeColName(name: String): String = {
+    val caseSensitive = SQLConf.get.caseSensitiveAnalysis
+    if (caseSensitive) name else name.toLowerCase(Locale.ROOT)
   }
 }
