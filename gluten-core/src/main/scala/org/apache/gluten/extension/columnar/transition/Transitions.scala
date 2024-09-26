@@ -68,9 +68,9 @@ object RemoveTransitions extends Rule[SparkPlan] {
 
   @tailrec
   private[transition] def removeForNode(plan: SparkPlan): SparkPlan = plan match {
-    // TODO: Consider C2C transitions as well when we have some.
     case ColumnarToRowLike(child) => removeForNode(child)
     case RowToColumnarLike(child) => removeForNode(child)
+    case ColumnarToColumnarLike(child) => removeForNode(child)
     case other => other
   }
 }

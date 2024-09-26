@@ -16,9 +16,12 @@
  */
 package org.apache.spark.api.python
 
-import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxBatch}
+import org.apache.gluten.columnarbatch.ArrowBatches.ArrowJavaBatch
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
+import org.apache.gluten.extension.columnar.transition.ConventionReq.KnownChildrenConventions
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.utils.PullOutProjectHelper
@@ -209,8 +212,19 @@ case class ColumnarArrowEvalPythonExec(
     child: SparkPlan,
     evalType: Int)
   extends EvalPythonExec
-  with GlutenPlan {
+  with GlutenPlan
+  with KnownChildrenConventions {
   override def supportsColumnar: Boolean = true
+
+  override protected def batchType0(): Convention.BatchType = ArrowJavaBatch
+
+  // FIXME: Make this accepts ArrowJavaBatch as input. Before doing that, a weight-based
+  //  shortest patch algorithm should be added into transition factory. So that the factory
+  //  can find out row->velox->arrow-native->arrow-java as the possible viable transition.
+  //  Otherwise with current solution, any input (even already in Arrow Java format) will be
+  //  converted into Velox format then into Arrow Java format before entering python runner.
+  override def requiredChildrenConventions(): Seq[ConventionReq] = List(
+    ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(VeloxBatch)))
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
@@ -334,17 +348,17 @@ case class ColumnarArrowEvalPythonExec(
         val inputBatchIter = contextAwareIterator.map {
           inputCb =>
             start_time = System.nanoTime()
-            ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance, inputCb)
-            ColumnarBatches.retain(inputCb)
+            val loaded = ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), inputCb)
+            ColumnarBatches.retain(loaded)
             // 0. cache input for later merge
-            inputCbCache += inputCb
-            numInputRows += inputCb.numRows
+            inputCbCache += loaded
+            numInputRows += loaded.numRows
             // We only need to pass the referred cols data to python worker for evaluation.
             var colsForEval = new ArrayBuffer[ColumnVector]()
             for (i <- originalOffsets) {
-              colsForEval += inputCb.column(i)
+              colsForEval += loaded.column(i)
             }
-            new ColumnarBatch(colsForEval.toArray, inputCb.numRows())
+            new ColumnarBatch(colsForEval.toArray, loaded.numRows())
         }
 
         val outputColumnarBatchIterator =
@@ -366,11 +380,9 @@ case class ColumnarArrowEvalPythonExec(
               numOutputBatches += 1
               numOutputRows += numRows
               val batch = new ColumnarBatch(joinedVectors, numRows)
-              val offloaded =
-                ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
-              ColumnarBatches.release(outputCb)
+              ColumnarBatches.checkLoaded(batch)
               procTime += (System.nanoTime() - start_time) / 1000000
-              offloaded
+              batch
           }
         Iterators
           .wrap(res)
@@ -390,13 +402,13 @@ case class ColumnarArrowEvalPythonExec(
     if (from > to) {
       do {
         vector.close()
-      } while (vector.refCnt() == to)
+      } while (vector.refCnt() != to)
       return
     }
     // from < to
     do {
       vector.retain()
-    } while (vector.refCnt() == to)
+    } while (vector.refCnt() != to)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarArrowEvalPythonExec =

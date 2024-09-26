@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.extension.columnar
 
+import org.apache.gluten.execution.ColumnarToColumnarExec
+
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.debug.DebugExec
@@ -51,6 +53,17 @@ package object transition {
       plan match {
         case r2c: RowToColumnarTransition =>
           Some(r2c.child)
+        case _ => None
+      }
+    }
+  }
+
+  // Extractor for Gluten's C2C
+  object ColumnarToColumnarLike {
+    def unapply(plan: SparkPlan): Option[SparkPlan] = {
+      plan match {
+        case c2c: ColumnarToColumnarExec =>
+          Some(c2c.child)
         case _ => None
       }
     }
