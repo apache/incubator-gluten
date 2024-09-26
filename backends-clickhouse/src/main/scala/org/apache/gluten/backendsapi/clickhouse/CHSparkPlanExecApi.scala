@@ -26,7 +26,7 @@ import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
-import org.apache.gluten.utils.{CHAggUtil, CHJoinValidateUtil, UnknownJoinStrategy}
+import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
 import org.apache.gluten.vectorized.CHColumnarBatchSerializer
 
 import org.apache.spark.ShuffleDependency
@@ -160,7 +160,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       child: SparkPlan): HashAggregateExecBaseTransformer =
     CHHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
-      CHAggUtil.distinctIgnoreQualifier(groupingExpressions),
+      groupingExpressions.distinct,
       aggregateExpressions,
       aggregateAttributes,
       initialInputBufferOffset,
