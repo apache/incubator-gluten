@@ -25,59 +25,35 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
-import scala.collection.mutable
-
 /** Injector used to inject query planner rules into Spark. */
-class SparkInjector private[injector] {
-  private type RuleBuilder = SparkSession => Rule[LogicalPlan]
-  private type StrategyBuilder = SparkSession => Strategy
-  private type ParserBuilder = (SparkSession, ParserInterface) => ParserInterface
-  private type FunctionDescription = (FunctionIdentifier, ExpressionInfo, FunctionBuilder)
-  private type QueryStagePrepRuleBuilder = SparkSession => Rule[SparkPlan]
+class SparkInjector private[injector] (extensions: SparkSessionExtensions) {
 
-  private val queryStagePrepRuleBuilders = mutable.Buffer.empty[QueryStagePrepRuleBuilder]
-  private val parserBuilders = mutable.Buffer.empty[ParserBuilder]
-  private val resolutionRuleBuilders = mutable.Buffer.empty[RuleBuilder]
-  private val optimizerRules = mutable.Buffer.empty[RuleBuilder]
-  private val plannerStrategyBuilders = mutable.Buffer.empty[StrategyBuilder]
-  private val injectedFunctions = mutable.Buffer.empty[FunctionDescription]
-  private val postHocResolutionRuleBuilders = mutable.Buffer.empty[RuleBuilder]
-
-  def injectQueryStagePrepRule(builder: QueryStagePrepRuleBuilder): Unit = {
-    queryStagePrepRuleBuilders += builder
+  def injectQueryStagePrepRule(builder: SparkSession => Rule[SparkPlan]): Unit = {
+    extensions.injectQueryStagePrepRule(builder)
   }
 
-  def injectParser(builder: ParserBuilder): Unit = {
-    parserBuilders += builder
+  def injectResolutionRule(builder: SparkSession => Rule[LogicalPlan]): Unit = {
+    extensions.injectResolutionRule(builder)
   }
 
-  def injectResolutionRule(builder: RuleBuilder): Unit = {
-    resolutionRuleBuilders += builder
+  def injectPostHocResolutionRule(builder: SparkSession => Rule[LogicalPlan]): Unit = {
+    extensions.injectPostHocResolutionRule(builder)
   }
 
-  def injectOptimizerRule(builder: RuleBuilder): Unit = {
-    optimizerRules += builder
+  def injectOptimizerRule(builder: SparkSession => Rule[LogicalPlan]): Unit = {
+    extensions.injectOptimizerRule(builder)
   }
 
-  def injectPlannerStrategy(builder: StrategyBuilder): Unit = {
-    plannerStrategyBuilders += builder
+  def injectPlannerStrategy(builder: SparkSession => Strategy): Unit = {
+    extensions.injectPlannerStrategy(builder)
   }
 
-  def injectFunction(functionDescription: FunctionDescription): Unit = {
-    injectedFunctions += functionDescription
+  def injectParser(builder: (SparkSession, ParserInterface) => ParserInterface): Unit = {
+    extensions.injectParser(builder)
   }
 
-  def injectPostHocResolutionRule(builder: RuleBuilder): Unit = {
-    postHocResolutionRuleBuilders += builder
-  }
-
-  private[injector] def inject(extensions: SparkSessionExtensions): Unit = {
-    queryStagePrepRuleBuilders.foreach(extensions.injectQueryStagePrepRule)
-    parserBuilders.foreach(extensions.injectParser)
-    resolutionRuleBuilders.foreach(extensions.injectResolutionRule)
-    optimizerRules.foreach(extensions.injectOptimizerRule)
-    plannerStrategyBuilders.foreach(extensions.injectPlannerStrategy)
-    injectedFunctions.foreach(extensions.injectFunction)
-    postHocResolutionRuleBuilders.foreach(extensions.injectPostHocResolutionRule)
+  def injectFunction(
+      functionDescription: (FunctionIdentifier, ExpressionInfo, FunctionBuilder)): Unit = {
+    extensions.injectFunction(functionDescription)
   }
 }

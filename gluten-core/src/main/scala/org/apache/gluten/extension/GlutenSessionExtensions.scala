@@ -23,9 +23,9 @@ import org.apache.spark.sql.SparkSessionExtensions
 
 private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions => Unit) {
   override def apply(exts: SparkSessionExtensions): Unit = {
-    val injector = new RuleInjector()
+    val injector = new RuleInjector(exts)
     Backend.get().injectRules(injector)
-    injector.inject(exts)
+    injector.inject()
   }
 }
 
