@@ -31,6 +31,7 @@ import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.softaffinity.SoftAffinityListener
 import org.apache.spark.sql.execution.ui.{GlutenEventUtils, GlutenSQLAppStatusListener}
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.StaticSQLConf.SPARK_SESSION_EXTENSIONS
 import org.apache.spark.task.TaskResources
 import org.apache.spark.util.SparkResourceUtil
 
@@ -127,14 +128,14 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
   }
 
   private def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
-    // sql extensions
-    val extensions = if (conf.contains(GlutenSessionExtensions.SPARK_SESSION_EXTS_KEY)) {
-      s"${conf.get(GlutenSessionExtensions.SPARK_SESSION_EXTS_KEY)}," +
+    // Spark SQL extensions
+    val extensions = if (conf.contains(SPARK_SESSION_EXTENSIONS.key)) {
+      s"${conf.get(SPARK_SESSION_EXTENSIONS.key)}," +
         s"${GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME}"
     } else {
       s"${GlutenSessionExtensions.GLUTEN_SESSION_EXTENSION_NAME}"
     }
-    conf.set(GlutenSessionExtensions.SPARK_SESSION_EXTS_KEY, extensions)
+    conf.set(SPARK_SESSION_EXTENSIONS.key, extensions)
 
     // adaptive custom cost evaluator class
     if (GlutenConfig.getConf.enableGluten && GlutenConfig.getConf.enableGlutenCostEvaluator) {
