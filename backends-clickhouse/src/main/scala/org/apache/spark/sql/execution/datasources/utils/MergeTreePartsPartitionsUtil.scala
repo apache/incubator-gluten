@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.utils
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.backendsapi.clickhouse.{CHBackendSettings, CHConf}
 import org.apache.gluten.execution.{GlutenMergeTreePartition, MergeTreePartRange, MergeTreePartSplit}
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.softaffinity.SoftAffinityManager
@@ -39,6 +39,7 @@ import org.apache.spark.sql.execution.datasources.clickhouse.{ExtensionTableBuil
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.types.BooleanType
+import org.apache.spark.util.SparkResourceUtil
 import org.apache.spark.util.collection.BitSet
 
 import com.fasterxml.jackson.core.`type`.TypeReference
@@ -114,6 +115,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       )
     } else {
       genInputPartitionSeq(
+        relation,
         engine,
         database,
         tableName,
@@ -135,6 +137,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
   }
 
   def genInputPartitionSeq(
+      relation: HadoopFsRelation,
       engine: String,
       database: String,
       tableName: String,
@@ -213,53 +216,142 @@ object MergeTreePartsPartitionsUtil extends Logging {
     }
 
     val maxSplitBytes = getMaxSplitBytes(sparkSession, selectRanges)
-    val total_marks = selectRanges.map(p => p.marks).sum
-    val total_Bytes = selectRanges.map(p => p.size).sum
-    // maxSplitBytes / (total_Bytes / total_marks) + 1
-    val markCntPerPartition = maxSplitBytes * total_marks / total_Bytes + 1
+    val totalCores = SparkResourceUtil.getTotalCores(relation.sparkSession.sessionState.conf)
+    val isAllSmallFiles = selectRanges.forall(_.size < maxSplitBytes)
+    val fileCntThreshold = relation.sparkSession.sessionState.conf
+      .getConfString(
+        CHBackendSettings.GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD,
+        CHBackendSettings.GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD_DEFAULT
+      )
+      .toInt
+    val totalMarksThreshold = totalCores * fileCntThreshold
+    if (fileCntThreshold > 0 && isAllSmallFiles && selectRanges.size <= totalMarksThreshold) {
+      var fileCnt = math.round((selectRanges.size * 1.0) / totalCores).toInt
+      if (fileCnt < 1) fileCnt = 1
+      val splitFiles = selectRanges
+        .map {
+          part =>
+            MergeTreePartSplit(part.name, part.dirName, part.targetNode, 0, part.marks, part.size)
+        }
+      genInputPartitionSeqByFileCnt(
+        engine,
+        database,
+        tableName,
+        snapshotId,
+        relativeTablePath,
+        absoluteTablePath,
+        tableSchemaJson,
+        partitions,
+        table,
+        clickhouseTableConfigs,
+        splitFiles,
+        fileCnt
+      )
+    } else {
+      val openCostInBytes = sparkSession.sessionState.conf.filesOpenCostInBytes
+      val totalMarks = selectRanges.map(p => p.marks).sum
+      val totalBytes = selectRanges.map(p => p.size).sum
+      // maxSplitBytes / (total_Bytes / total_marks) + 1
+      val markCntPerPartition = maxSplitBytes * totalMarks / totalBytes + 1
 
-    logInfo(s"Planning scan with bin packing, max mark: $markCntPerPartition")
-    val splitFiles = selectRanges
-      .flatMap {
-        part =>
-          val end = part.marks + part.start
-          (part.start until end by markCntPerPartition).map {
-            offset =>
-              val remaining = end - offset
-              val size = if (remaining > markCntPerPartition) markCntPerPartition else remaining
-              MergeTreePartSplit(
-                part.name,
-                part.dirName,
-                part.targetNode,
-                offset,
-                size,
-                size * part.size / part.marks)
-          }
-      }
+      logInfo(s"Planning scan with bin packing, max mark: $markCntPerPartition")
+      val splitFiles = selectRanges
+        .flatMap {
+          part =>
+            val end = part.marks + part.start
+            (part.start until end by markCntPerPartition).map {
+              offset =>
+                val remaining = end - offset
+                val size = if (remaining > markCntPerPartition) markCntPerPartition else remaining
+                MergeTreePartSplit(
+                  part.name,
+                  part.dirName,
+                  part.targetNode,
+                  offset,
+                  size,
+                  size * part.size / part.marks)
+            }
+        }
 
-    val openCostInBytes = sparkSession.sessionState.conf.filesOpenCostInBytes
-    val (partNameWithLocation, locationDistinct) =
-      calculatedLocationForSoftAffinity(splitFiles, relativeTablePath)
+      val (partNameWithLocation, locationDistinct) =
+        calculatedLocationForSoftAffinity(splitFiles, relativeTablePath)
 
-    genInputPartitionSeqBySplitFiles(
-      engine,
-      database,
-      tableName,
-      snapshotId,
-      relativeTablePath,
-      absoluteTablePath,
-      tableSchemaJson,
-      partitions,
-      table,
-      clickhouseTableConfigs,
-      splitFiles,
-      openCostInBytes,
-      maxSplitBytes,
-      partNameWithLocation,
-      locationDistinct
-    )
+      genInputPartitionSeqBySplitFiles(
+        engine,
+        database,
+        tableName,
+        snapshotId,
+        relativeTablePath,
+        absoluteTablePath,
+        tableSchemaJson,
+        partitions,
+        table,
+        clickhouseTableConfigs,
+        splitFiles,
+        openCostInBytes,
+        maxSplitBytes,
+        partNameWithLocation,
+        locationDistinct
+      )
+    }
   }
 
+  def genInputPartitionSeqByFileCnt(
+      engine: String,
+      database: String,
+      tableName: String,
+      snapshotId: String,
+      relativeTablePath: String,
+      absoluteTablePath: String,
+      tableSchemaJson: String,
+      partitions: ArrayBuffer[InputPartition],
+      table: ClickHouseTableV2,
+      clickhouseTableConfigs: Map[String, String],
+      splitFiles: Seq[MergeTreePartSplit],
+      fileCnt: Int): Unit = {
+    val currentFiles = new ArrayBuffer[MergeTreePartSplit]
+    var currentFileCnt = 0L
+
+    /** Close the current partition and move to the next. */
+    def closePartition(): Unit = {
+      if (currentFiles.nonEmpty) {
+        // Copy to a new Array.
+        val newPartition = GlutenMergeTreePartition(
+          partitions.size,
+          engine,
+          database,
+          tableName,
+          snapshotId,
+          relativeTablePath,
+          absoluteTablePath,
+          table.orderByKey(),
+          table.lowCardKey(),
+          table.minmaxIndexKey(),
+          table.bfIndexKey(),
+          table.setIndexKey(),
+          table.primaryKey(),
+          currentFiles.toArray,
+          tableSchemaJson,
+          clickhouseTableConfigs
+        )
+        partitions += newPartition
+      }
+      currentFiles.clear()
+      currentFileCnt = 0L
+    }
+
+    splitFiles.foreach {
+      file =>
+        if (currentFileCnt >= fileCnt) {
+          closePartition()
+        }
+        // Add the given file to the current partition.
+        currentFileCnt += 1L
+        currentFiles += file
+    }
+    closePartition()
+    partitions.toSeq
+  }
   def genInputPartitionSeqBySplitFiles(
       engine: String,
       database: String,
