@@ -210,6 +210,11 @@ VeloxMemoryManager::VeloxMemoryManager(std::unique_ptr<AllocationListener> liste
   listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), blockListener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
 
+  std::unordered_map<std::string, std::string> extraArbitratorConfigs;
+  extraArbitratorConfigs["memory-pool-initial-capacity"] = folly::to<std::string>(memInitCapacity) + "B";
+  extraArbitratorConfigs["memory-pool-transfer-capacity"] = folly::to<std::string>(reservationBlockSize) + "B";
+  extraArbitratorConfigs["memory-reclaim-max-wait-time"] = folly::to<std::string>(0) + "ms";
+
   ArbitratorFactoryRegister afr(listener_.get());
   velox::memory::MemoryManagerOptions mmOptions{
       .alignment = velox::memory::MemoryAllocator::kMaxAlignment,
@@ -219,9 +224,7 @@ VeloxMemoryManager::VeloxMemoryManager(std::unique_ptr<AllocationListener> liste
       .coreOnAllocationFailureEnabled = false,
       .allocatorCapacity = velox::memory::kMaxMemory,
       .arbitratorKind = afr.getKind(),
-      .memoryPoolInitCapacity = memInitCapacity,
-      .memoryPoolTransferCapacity = reservationBlockSize,
-      .memoryReclaimWaitMs = 0};
+      .extraArbitratorConfigs = extraArbitratorConfigs};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(
