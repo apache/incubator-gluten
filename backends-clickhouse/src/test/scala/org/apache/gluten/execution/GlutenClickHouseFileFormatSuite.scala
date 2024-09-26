@@ -1301,6 +1301,95 @@ class GlutenClickHouseFileFormatSuite
       _ => {}
     )
   }
+  test("GLUTEN-7367: Memory limit exceeded") {
+    val file_TEST_MEASURE = csvDataPath + "/default/TEST_MEASURE.csv"
+    val TEST_MEASURE = StructType.apply(
+      Seq(
+        StructField.apply("ID1", LongType, nullable = false),
+        StructField.apply("ID2", LongType, nullable = false),
+        StructField.apply("ID3", LongType, nullable = false),
+        StructField.apply("ID4", IntegerType, nullable = false),
+        StructField.apply("PRICE1", FloatType, nullable = false),
+        StructField.apply("PRICE2", DoubleType, nullable = false),
+        StructField.apply("PRICE3", DecimalType(19, 4), nullable = false),
+        StructField.apply("PRICE5", ShortType, nullable = false),
+        StructField.apply("PRICE6", ByteType, nullable = false),
+        StructField.apply("PRICE7", ShortType, nullable = false),
+        StructField.apply("NAME1", StringType, nullable = true),
+        StructField.apply("NAME2", StringType, nullable = true),
+        StructField.apply("NAME3", StringType, nullable = true),
+        StructField.apply("NAME4", ByteType, nullable = false),
+        StructField.apply("TIME1", DateType, nullable = false),
+        StructField.apply("TIME2", TimestampType, nullable = false),
+        StructField.apply("FLAG", BooleanType, nullable = false)
+      ))
+    spark.read
+      .schema(TEST_MEASURE)
+      .csv(file_TEST_MEASURE)
+      .toDF()
+      .createTempView("TEST_MEASURE")
+    val file_TEST_MEASURE1 = csvDataPath + "/default/TEST_MEASURE1.csv"
+    val TEST_MEASURE1 = StructType.apply(
+      Seq(
+        StructField.apply("ID1", LongType, nullable = false),
+        StructField.apply("ID2", LongType, nullable = false),
+        StructField.apply("ID3", LongType, nullable = false),
+        StructField.apply("ID4", IntegerType, nullable = false),
+        StructField.apply("PRICE1", FloatType, nullable = false),
+        StructField.apply("PRICE2", DoubleType, nullable = false),
+        StructField.apply("PRICE3", DecimalType(19, 4), nullable = false),
+        StructField.apply("PRICE5", ShortType, nullable = false),
+        StructField.apply("PRICE6", ByteType, nullable = false),
+        StructField.apply("PRICE7", ShortType, nullable = false),
+        StructField.apply("NAME1", StringType, nullable = false),
+        StructField.apply("NAME2", StringType, nullable = false),
+        StructField.apply("NAME3", StringType, nullable = false),
+        StructField.apply("NAME4", ByteType, nullable = false),
+        StructField.apply("TIME1", DateType, nullable = false),
+        StructField.apply("TIME2", TimestampType, nullable = false),
+        StructField.apply("FLAG", BooleanType, nullable = false)
+      ))
+    spark.read
+      .schema(TEST_MEASURE1)
+      .csv(file_TEST_MEASURE1)
+      .toDF()
+      .createTempView("TEST_MEASURE1")
+
+    withSQLConf(
+      (CHConf.runtimeSettings("use_excel_serialization"), "false"),
+      ("spark.gluten.sql.text.input.empty.as.default", "true")) {
+      compareResultsAgainstVanillaSpark(
+        """
+          | select * from TEST_MEASURE
+          |""".stripMargin,
+        compareResult = true,
+        _ => {}
+      )
+
+      compareResultsAgainstVanillaSpark(
+        """
+          | select * from TEST_MEASURE1
+          |""".stripMargin,
+        compareResult = true,
+        _ => {}
+      )
+
+      val sqlStr =
+        """select `TEST_MEASURE`.`ID1`,
+          | count(distinct `TEST_MEASURE`.`ID1`, `TEST_MEASURE`.`ID2`, `TEST_MEASURE`.`ID3`,
+          |  `TEST_MEASURE`.`ID4`,`TEST_MEASURE`.`PRICE1`, `TEST_MEASURE`.`PRICE2`,
+          |  `TEST_MEASURE`.`PRICE3`, `TEST_MEASURE`.`PRICE5`,`TEST_MEASURE`.`PRICE6`,
+          |  `TEST_MEASURE`.`PRICE7`, `TEST_MEASURE`.`NAME1`, `TEST_MEASURE`.`NAME2`,
+          |  `TEST_MEASURE`.`NAME3`, `TEST_MEASURE`.`NAME4`, `TEST_MEASURE`.`TIME1`,
+          |  `TEST_MEASURE`.`TIME2`,`TEST_MEASURE`.`FLAG`),
+          | 1
+          |from `TEST_MEASURE`
+          |         left join `TEST_MEASURE1` on `TEST_MEASURE`.`ID1` = `TEST_MEASURE1`.`ID1`
+          |group by `TEST_MEASURE`.`ID1`""".stripMargin
+
+      compareResultsAgainstVanillaSpark(sqlStr, compareResult = true, _ => {})
+    }
+  }
 
   test("issues-3609 int read test") {
     withSQLConf((CHConf.runtimeSettings("use_excel_serialization.number_force"), "false")) {

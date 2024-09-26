@@ -26,7 +26,6 @@ import org.apache.gluten.substrait.{AggregationParams, SubstraitContext}
 import org.apache.gluten.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
-import org.apache.gluten.utils.CHAggUtil
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -428,15 +427,6 @@ case class CHHashAggregateExecPullOutHelper(
       resIndex = getAttrForAggregateExpr(exp, aggregateAttributes, aggregateAttr, resIndex)
     }
     aggregateAttr.toList
-  }
-
-  override def allAggregateResultAttributes(
-      groupingExpressions: Seq[NamedExpression]): List[Attribute] = {
-    if (aggregateExpressions.nonEmpty) {
-      super.allAggregateResultAttributes(groupingExpressions)
-    } else {
-      super.allAggregateResultAttributes(CHAggUtil.distinctIgnoreQualifier(groupingExpressions))
-    }
   }
 
   protected def getAttrForAggregateExpr(
