@@ -145,7 +145,9 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
     for (const auto & measure : aggregate_rel->measures())
     {
         AggregateInfo agg_info;
-        auto arg = measure.measure().arguments(0).value();
+        // auto arg = measure.measure().arguments(0).value();
+        bool is_distinct = measure.measure().is_distinct();
+        std::cout << "is_distinct:" << is_distinct << std::endl;
         agg_info.signature_function_name = *parseSignatureFunctionName(measure.measure().function_reference());
         auto function_parser = AggregateFunctionParserFactory::instance().get(agg_info.signature_function_name, getPlanParser());
         if (!function_parser)

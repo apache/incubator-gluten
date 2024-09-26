@@ -1409,6 +1409,9 @@ message AggregateFunction {
   // considered to be a valid anchor/reference.
   uint32 function_reference = 1;
 
+  // Whether the aggregate function is a distinct one.
+  bool is_distinct = 9;
+
   // The arguments to be bound to the function. This must have exactly the
   // number of arguments specified in the function definition, and the
   // argument types must also match exactly:
