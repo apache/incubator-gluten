@@ -533,7 +533,7 @@ object GlutenConfig {
   val GLUTEN_IAA_BACKEND_NAME = "iaa"
   val GLUTEN_IAA_SUPPORTED_CODEC: Set[String] = Set("gzip")
 
-  val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
+  private val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // Private Spark configs.
   val SPARK_ONHEAP_SIZE_KEY = "spark.executor.memory"
