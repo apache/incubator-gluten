@@ -40,7 +40,8 @@ object MiscColumnarRules {
           OffloadOthers(),
           OffloadAggregate(),
           OffloadExchange(),
-          OffloadJoin()
+          OffloadJoin(),
+          OffloadProjectPartial()
         )
       )
     }
