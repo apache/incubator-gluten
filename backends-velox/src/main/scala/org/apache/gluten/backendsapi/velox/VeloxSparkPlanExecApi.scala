@@ -84,6 +84,16 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       newExpr)
   }
 
+  override def genAtLeastNNonNullsTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      original: AtLeastNNonNulls): ExpressionTransformer = {
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(LiteralTransformer(Literal(original.n))) ++ children,
+      original)
+  }
+
   /** Transform Uuid to Substrait. */
   override def genUuidTransformer(
       substraitExprName: String,
