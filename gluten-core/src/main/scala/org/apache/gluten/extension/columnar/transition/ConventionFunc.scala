@@ -26,13 +26,27 @@ import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 /** ConventionFunc is a utility to derive [[Convention]] or [[ConventionReq]] from a query plan. */
-trait ConventionFunc {
+sealed trait ConventionFunc {
   def conventionOf(plan: SparkPlan): Convention
   def conventionReqOf(plan: SparkPlan): ConventionReq
 }
 
 object ConventionFunc {
-  type BatchOverride = PartialFunction[SparkPlan, Convention.BatchType]
+  trait Override {
+    def rowTypeOf: PartialFunction[SparkPlan, Convention.RowType]
+    def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType]
+    def conventionReqOf: PartialFunction[SparkPlan, ConventionReq]
+  }
+
+  object Override {
+    object Empty extends Override {
+      override def rowTypeOf: PartialFunction[SparkPlan, Convention.RowType] = PartialFunction.empty
+      override def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] =
+        PartialFunction.empty
+      override def conventionReqOf: PartialFunction[SparkPlan, ConventionReq] =
+        PartialFunction.empty
+    }
+  }
 
   // For testing, to make things work without a backend loaded.
   private var ignoreBackend: Boolean = false
@@ -53,17 +67,17 @@ object ConventionFunc {
     new BuiltinFunc(batchOverride)
   }
 
-  private def newOverride(): BatchOverride = {
+  private def newOverride(): Override = {
     synchronized {
       if (ignoreBackend) {
         // For testing
-        return PartialFunction.empty
+        return Override.Empty
       }
     }
-    Backend.get().batchTypeFunc()
+    Backend.get().convFuncOverride()
   }
 
-  private class BuiltinFunc(o: BatchOverride) extends ConventionFunc {
+  private class BuiltinFunc(o: Override) extends ConventionFunc {
     import BuiltinFunc._
     override def conventionOf(plan: SparkPlan): Convention = {
       val conv = conventionOf0(plan)
@@ -98,6 +112,11 @@ object ConventionFunc {
     }
 
     private def rowTypeOf(plan: SparkPlan): Convention.RowType = {
+      val out = o.rowTypeOf.applyOrElse(plan, rowTypeOf0)
+      out
+    }
+
+    private def rowTypeOf0(plan: SparkPlan): Convention.RowType = {
       val out = plan match {
         case k: Convention.KnownRowType =>
           k.rowType()
@@ -113,25 +132,26 @@ object ConventionFunc {
     }
 
     private def batchTypeOf(plan: SparkPlan): Convention.BatchType = {
-      val out = o.applyOrElse(
-        plan,
-        (p: SparkPlan) =>
-          p match {
-            case k: Convention.KnownBatchType =>
-              k.batchType()
-            case _ if plan.supportsColumnar =>
-              Convention.BatchType.VanillaBatch
-            case _ =>
-              Convention.BatchType.None
-          }
-      )
+      val out = o.batchTypeOf.applyOrElse(plan, batchTypeOf0)
+      out
+    }
+
+    private def batchTypeOf0(plan: SparkPlan): Convention.BatchType = {
+      val out = plan match {
+        case k: Convention.KnownBatchType =>
+          k.batchType()
+        case _ if plan.supportsColumnar =>
+          Convention.BatchType.VanillaBatch
+        case _ =>
+          Convention.BatchType.None
+      }
       assert(out == Convention.BatchType.None || plan.supportsColumnar)
       out
     }
 
     override def conventionReqOf(plan: SparkPlan): ConventionReq = {
-      val out = conventionReqOf0(plan)
-      out
+      val req = o.conventionReqOf.applyOrElse(plan, conventionReqOf0)
+      req
     }
 
     private def conventionReqOf0(plan: SparkPlan): ConventionReq = plan match {
