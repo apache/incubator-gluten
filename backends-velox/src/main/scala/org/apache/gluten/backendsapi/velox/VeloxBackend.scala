@@ -72,14 +72,12 @@ object VeloxBackend {
   val CONF_PREFIX: String = GlutenConfig.prefixOf(BACKEND_NAME)
 
   private class ConvFunc() extends ConventionFunc.Override {
-    override def rowTypeOf: PartialFunction[SparkPlan, Convention.RowType] = PartialFunction.empty
     override def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] = {
       case i: InMemoryTableScanExec
           if i.supportsColumnar && i.relation.cacheBuilder.serializer
             .isInstanceOf[ColumnarCachedBatchSerializer] =>
         VeloxBatch
     }
-    override def conventionReqOf: PartialFunction[SparkPlan, ConventionReq] = PartialFunction.empty
   }
 }
 

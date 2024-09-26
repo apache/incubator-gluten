@@ -33,19 +33,13 @@ sealed trait ConventionFunc {
 
 object ConventionFunc {
   trait Override {
-    def rowTypeOf: PartialFunction[SparkPlan, Convention.RowType]
-    def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType]
-    def conventionReqOf: PartialFunction[SparkPlan, ConventionReq]
+    def rowTypeOf: PartialFunction[SparkPlan, Convention.RowType] = PartialFunction.empty
+    def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] = PartialFunction.empty
+    def conventionReqOf: PartialFunction[SparkPlan, ConventionReq] = PartialFunction.empty
   }
 
   object Override {
-    object Empty extends Override {
-      override def rowTypeOf: PartialFunction[SparkPlan, Convention.RowType] = PartialFunction.empty
-      override def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] =
-        PartialFunction.empty
-      override def conventionReqOf: PartialFunction[SparkPlan, ConventionReq] =
-        PartialFunction.empty
-    }
+    object Empty extends Override
   }
 
   // For testing, to make things work without a backend loaded.
