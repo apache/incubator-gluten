@@ -55,6 +55,8 @@ object TransitionDef {
 }
 
 object Transition {
+  trait Vertex
+
   val empty: Transition = (plan: SparkPlan) => plan
   val factory: Factory = Factory.newBuiltin()
 
