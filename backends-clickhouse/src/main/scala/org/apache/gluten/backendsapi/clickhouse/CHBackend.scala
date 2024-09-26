@@ -48,7 +48,7 @@ import java.util.Locale
 import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends SubstraitBackend {
-  override def name(): String = CHBackend.BACKEND_NAME
+  override def name(): String = CHConf.BACKEND_NAME
   override def batchType: Convention.BatchType = CHBatch
   override def buildInfo(): Backend.BuildInfo =
     Backend.BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
@@ -60,10 +60,6 @@ class CHBackend extends SubstraitBackend {
   override def listenerApi(): ListenerApi = new CHListenerApi
   override def ruleApi(): RuleApi = new CHRuleApi
   override def settings(): BackendSettingsApi = CHBackendSettings
-}
-
-object CHBackend {
-  val BACKEND_NAME: String = CHConf.BACKEND_NAME
 }
 
 object CHBackendSettings extends BackendSettingsApi with Logging {
