@@ -29,7 +29,7 @@ macro(build_jemalloc)
     )
   endif()
 
-  set(JEMALLOC_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/jemalloc_ep-install")
+  set(JEMALLOC_PREFIX "/usr/local")
   set(JEMALLOC_LIB_DIR "${JEMALLOC_PREFIX}/lib")
   set(JEMALLOC_INCLUDE_DIR "${JEMALLOC_PREFIX}/include")
   set(JEMALLOC_STATIC_LIB
@@ -41,10 +41,10 @@ macro(build_jemalloc)
       "CC=${CMAKE_C_COMPILER}"
       "--prefix=${JEMALLOC_PREFIX}"
       "--libdir=${JEMALLOC_LIB_DIR}"
-      "--with-jemalloc-prefix=je_gluten_"
-      "--with-private-namespace=je_gluten_private_"
-      "--without-export"
-      "--disable-shared"
+      # The below prefix can be enabled if jemalloc is used in some selective
+      # code for debugging or profiling. "--with-jemalloc-prefix=je_gluten_"
+      # "--with-private-namespace=je_gluten_private_" This should be commented
+      # for dynamically linking. "--without-export"
       "--disable-cxx"
       "--disable-libdl"
       # For fixing an issue when loading native lib: cannot allocate memory in
@@ -64,11 +64,11 @@ macro(build_jemalloc)
     INSTALL_COMMAND make install)
 
   file(MAKE_DIRECTORY "${JEMALLOC_INCLUDE_DIR}")
-  add_library(jemalloc::libjemalloc STATIC IMPORTED)
+  add_library(jemalloc::jemalloc SHARED IMPORTED)
   set_target_properties(
-    jemalloc::libjemalloc
+    jemalloc::jemalloc
     PROPERTIES INTERFACE_LINK_LIBRARIES Threads::Threads
-               IMPORTED_LOCATION "${JEMALLOC_STATIC_LIB}"
+               IMPORTED_LOCATION "${JEMALLOC_LIB_DIR}/libjemalloc.so"
                INTERFACE_INCLUDE_DIRECTORIES "${JEMALLOC_INCLUDE_DIR}")
-  add_dependencies(jemalloc::libjemalloc jemalloc_ep)
+  add_dependencies(jemalloc::jemalloc jemalloc_ep)
 endmacro()
