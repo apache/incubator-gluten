@@ -133,7 +133,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   val GLUTEN_CLICKHOUSE_TABLE_PATH_TO_MTPS_CACHE_SIZE: String =
     CHConf.prefixOf("table.path.to.mtps.cache.size")
 
-  val GLUTEN_ALLOW_READ_JSON: String = CHConf.runtimeSettings("settings.allow_read_json")
+  val GLUTEN_ALLOW_READ_JSON: String = CHConf.runtimeSettings("allow_read_json")
   val GLUTEN_ALLOW_READ_JSON_DEFAULT = true
 
   def affinityMode: String = {
