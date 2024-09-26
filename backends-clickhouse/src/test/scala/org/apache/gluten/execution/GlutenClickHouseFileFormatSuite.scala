@@ -1355,7 +1355,8 @@ class GlutenClickHouseFileFormatSuite
       .toDF()
       .createTempView("TEST_MEASURE1")
 
-    withSQLConf((CHConf.runtimeSettings("use_excel_serialization"), "false"),
+    withSQLConf(
+      (CHConf.runtimeSettings("use_excel_serialization"), "false"),
       ("spark.gluten.sql.text.input.empty.as.default", "true")) {
       compareResultsAgainstVanillaSpark(
         """
@@ -1374,18 +1375,19 @@ class GlutenClickHouseFileFormatSuite
       )
 
       val sqlStr =
-      """select `TEST_MEASURE`.`ID1`,
-        |       count(distinct `TEST_MEASURE`.`ID1`, `TEST_MEASURE`.`ID2`, `TEST_MEASURE`.`ID3`, `TEST_MEASURE`.`ID4`,
-        |             `TEST_MEASURE`.`PRICE1`, `TEST_MEASURE`.`PRICE2`, `TEST_MEASURE`.`PRICE3`, `TEST_MEASURE`.`PRICE5`,
-        |             `TEST_MEASURE`.`PRICE6`, `TEST_MEASURE`.`PRICE7`, `TEST_MEASURE`.`NAME1`, `TEST_MEASURE`.`NAME2`,
-        |             `TEST_MEASURE`.`NAME3`, `TEST_MEASURE`.`NAME4`, `TEST_MEASURE`.`TIME1`, `TEST_MEASURE`.`TIME2`,
-        |             `TEST_MEASURE`.`FLAG`),
-        |       1
-        |from `TEST_MEASURE`
-        |         left join `TEST_MEASURE1` on `TEST_MEASURE`.`ID1` = `TEST_MEASURE1`.`ID1`
-        |group by `TEST_MEASURE`.`ID1`""".stripMargin
+        """select `TEST_MEASURE`.`ID1`,
+          | count(distinct `TEST_MEASURE`.`ID1`, `TEST_MEASURE`.`ID2`, `TEST_MEASURE`.`ID3`,
+          |  `TEST_MEASURE`.`ID4`,`TEST_MEASURE`.`PRICE1`, `TEST_MEASURE`.`PRICE2`,
+          |  `TEST_MEASURE`.`PRICE3`, `TEST_MEASURE`.`PRICE5`,`TEST_MEASURE`.`PRICE6`,
+          |  `TEST_MEASURE`.`PRICE7`, `TEST_MEASURE`.`NAME1`, `TEST_MEASURE`.`NAME2`,
+          |  `TEST_MEASURE`.`NAME3`, `TEST_MEASURE`.`NAME4`, `TEST_MEASURE`.`TIME1`,
+          |  `TEST_MEASURE`.`TIME2`,`TEST_MEASURE`.`FLAG`),
+          | 1
+          |from `TEST_MEASURE`
+          |         left join `TEST_MEASURE1` on `TEST_MEASURE`.`ID1` = `TEST_MEASURE1`.`ID1`
+          |group by `TEST_MEASURE`.`ID1`""".stripMargin
 
-      compareResultsAgainstVanillaSpark(sqlStr, compareResult = true,_ => {})
+      compareResultsAgainstVanillaSpark(sqlStr, compareResult = true, _ => {})
     }
   }
 
