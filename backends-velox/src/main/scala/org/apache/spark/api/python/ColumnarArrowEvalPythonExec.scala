@@ -16,8 +16,8 @@
  */
 package org.apache.spark.api.python
 
-import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxBatch}
 import org.apache.gluten.columnarbatch.ArrowBatches.ArrowJavaBatch
+import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.transition.{Convention, ConventionReq}
@@ -218,13 +218,8 @@ case class ColumnarArrowEvalPythonExec(
 
   override protected def batchType0(): Convention.BatchType = ArrowJavaBatch
 
-  // FIXME: Make this accepts ArrowJavaBatch as input. Before doing that, a weight-based
-  //  shortest patch algorithm should be added into transition factory. So that the factory
-  //  can find out row->velox->arrow-native->arrow-java as the possible viable transition.
-  //  Otherwise with current solution, any input (even already in Arrow Java format) will be
-  //  converted into Velox format then into Arrow Java format before entering python runner.
   override def requiredChildrenConventions(): Seq[ConventionReq] = List(
-    ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(VeloxBatch)))
+    ConventionReq.of(ConventionReq.RowType.Any, ConventionReq.BatchType.Is(ArrowJavaBatch)))
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
@@ -348,17 +343,17 @@ case class ColumnarArrowEvalPythonExec(
         val inputBatchIter = contextAwareIterator.map {
           inputCb =>
             start_time = System.nanoTime()
-            val loaded = ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), inputCb)
-            ColumnarBatches.retain(loaded)
+            ColumnarBatches.checkLoaded(inputCb)
+            ColumnarBatches.retain(inputCb)
             // 0. cache input for later merge
-            inputCbCache += loaded
-            numInputRows += loaded.numRows
+            inputCbCache += inputCb
+            numInputRows += inputCb.numRows
             // We only need to pass the referred cols data to python worker for evaluation.
             var colsForEval = new ArrayBuffer[ColumnVector]()
             for (i <- originalOffsets) {
-              colsForEval += loaded.column(i)
+              colsForEval += inputCb.column(i)
             }
-            new ColumnarBatch(colsForEval.toArray, loaded.numRows())
+            new ColumnarBatch(colsForEval.toArray, inputCb.numRows())
         }
 
         val outputColumnarBatchIterator =

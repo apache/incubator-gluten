@@ -20,8 +20,6 @@ import org.apache.gluten.exception.GlutenException
 
 import org.apache.spark.sql.execution.SparkPlan
 
-import scala.collection.mutable
-
 /**
  * Transition is a simple function to convert a query plan to interested [[ConventionReq]].
  *
@@ -55,10 +53,10 @@ object TransitionDef {
 }
 
 object Transition {
-  trait Vertex
-
   val empty: Transition = (plan: SparkPlan) => plan
-  val factory: Factory = Factory.newBuiltin()
+  private[transition] val graph: TransitionGraph.Builder = TransitionGraph.builder()
+
+  def factory(): Factory = Factory.newBuiltin(graph.build())
 
   def notFound(plan: SparkPlan): GlutenException = {
     new GlutenException(s"No viable transition found from plan's child to itself: $plan")
@@ -66,19 +64,6 @@ object Transition {
 
   def notFound(plan: SparkPlan, required: ConventionReq): GlutenException = {
     new GlutenException(s"No viable transition to [$required] found for plan: $plan")
-  }
-
-  private class ChainedTransition(first: Transition, second: Transition) extends Transition {
-    override def apply0(plan: SparkPlan): SparkPlan = {
-      second(first(plan))
-    }
-  }
-
-  private def chain(first: Transition, second: Transition): Transition = {
-    if (first.isEmpty && second.isEmpty) {
-      return Transition.empty
-    }
-    new ChainedTransition(first, second)
   }
 
   trait Factory {
@@ -102,53 +87,14 @@ object Transition {
 
     protected def findTransition(from: Convention, to: ConventionReq)(
         orElse: => Transition): Transition
-    private[transition] def update(): MutableFactory
-  }
-
-  trait MutableFactory extends Factory {
-    def defineFromRowTransition(to: Convention.BatchType, transitionDef: TransitionDef): Unit
-    def defineToRowTransition(from: Convention.BatchType, transitionDef: TransitionDef): Unit
-    def defineBatchTransition(
-        from: Convention.BatchType,
-        to: Convention.BatchType,
-        transitionDef: TransitionDef): Unit
   }
 
   private object Factory {
-    def newBuiltin(): Factory = {
-      new BuiltinFactory
+    def newBuiltin(graph: TransitionGraph): Factory = {
+      new BuiltinFactory(graph)
     }
 
-    private class BuiltinFactory extends MutableFactory {
-      private val fromRowTransitions: mutable.Map[Convention.BatchType, TransitionDef] =
-        mutable.Map()
-      private val toRowTransitions: mutable.Map[Convention.BatchType, TransitionDef] = mutable.Map()
-      private val batchTransitions
-          : mutable.Map[(Convention.BatchType, Convention.BatchType), TransitionDef] =
-        mutable.Map()
-
-      override def defineFromRowTransition(
-          to: Convention.BatchType,
-          transitionDef: TransitionDef): Unit = {
-        assert(!fromRowTransitions.contains(to))
-        fromRowTransitions += to -> transitionDef
-      }
-
-      override def defineToRowTransition(
-          from: Convention.BatchType,
-          transitionDef: TransitionDef): Unit = {
-        assert(!toRowTransitions.contains(from))
-        toRowTransitions += from -> transitionDef
-      }
-
-      override def defineBatchTransition(
-          from: Convention.BatchType,
-          to: Convention.BatchType,
-          transitionDef: TransitionDef): Unit = {
-        assert(!batchTransitions.contains((from, to)))
-        batchTransitions += (from, to) -> transitionDef
-      }
-
+    private class BuiltinFactory(graph: TransitionGraph) extends Factory {
       override def findTransition(from: Convention, to: ConventionReq)(
           orElse: => Transition): Transition = {
         assert(
@@ -167,7 +113,7 @@ object Transition {
           case (ConventionReq.RowType.Is(toRowType), ConventionReq.BatchType.Any) =>
             from.rowType match {
               case Convention.RowType.None =>
-                toRowTransitions.get(from.batchType).map(_.create()).getOrElse(orElse)
+                graph.transitionOfOption(from.batchType, toRowType).getOrElse(orElse)
               case fromRowType =>
                 // We have only one single built-in row type.
                 assert(toRowType == fromRowType)
@@ -176,27 +122,12 @@ object Transition {
           case (ConventionReq.RowType.Any, ConventionReq.BatchType.Is(toBatchType)) =>
             from.batchType match {
               case Convention.BatchType.None =>
-                fromRowTransitions.get(toBatchType).map(_.create()).getOrElse(orElse)
+                graph.transitionOfOption(from.rowType, toBatchType).getOrElse(orElse)
               case fromBatchType =>
                 if (toBatchType == fromBatchType) {
                   Transition.empty
                 } else {
-                  // Batch type conversion needed.
-                  //
-                  // We first look up for batch-to-batch transition. If found one, return that
-                  // transition to caller. Otherwise, look for from/to row transitions, then
-                  // return a bridged batch-to-row-to-batch transition.
-                  if (batchTransitions.contains((fromBatchType, toBatchType))) {
-                    // 1. Found batch-to-batch transition.
-                    batchTransitions((fromBatchType, toBatchType)).create()
-                  } else {
-                    // 2. Otherwise, build up batch-to-row-to-batch transition.
-                    val batchToRow =
-                      toRowTransitions.get(fromBatchType).map(_.create()).getOrElse(orElse)
-                    val rowToBatch =
-                      fromRowTransitions.get(toBatchType).map(_.create()).getOrElse(orElse)
-                    chain(batchToRow, rowToBatch)
-                  }
+                  graph.transitionOfOption(fromBatchType, toBatchType).getOrElse(orElse)
                 }
             }
           case (ConventionReq.RowType.Any, ConventionReq.BatchType.Any) =>
@@ -207,8 +138,6 @@ object Transition {
         }
         out
       }
-
-      override private[transition] def update(): MutableFactory = this
     }
   }
 }

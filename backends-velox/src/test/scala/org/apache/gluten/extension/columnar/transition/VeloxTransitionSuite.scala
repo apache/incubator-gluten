@@ -92,11 +92,12 @@ class VeloxTransitionSuite extends SharedSparkSession {
 
   test("Vanilla-to-ArrowNative C2C") {
     val in = BatchUnary(ArrowNativeBatch, BatchLeaf(VanillaBatch))
-    assertThrows[GlutenException] {
-      // No viable transitions.
-      // FIXME: Support this case.
-      Transitions.insertTransitions(in, outputsColumnar = false)
-    }
+    val out = Transitions.insertTransitions(in, outputsColumnar = false)
+    assert(
+      out == ColumnarToRowExec(
+        LoadArrowDataExec(BatchUnary(
+          ArrowNativeBatch,
+          RowToVeloxColumnarExec(ColumnarToRowExec(BatchLeaf(VanillaBatch)))))))
   }
 
   test("ArrowNative-to-Vanilla C2C") {
@@ -121,11 +122,10 @@ class VeloxTransitionSuite extends SharedSparkSession {
 
   test("ArrowJava R2C - requires Arrow input") {
     val in = BatchUnary(ArrowJavaBatch, RowLeaf())
-    assertThrows[GlutenException] {
-      // No viable transitions.
-      // FIXME: Support this case.
-      Transitions.insertTransitions(in, outputsColumnar = false)
-    }
+    val out = Transitions.insertTransitions(in, outputsColumnar = false)
+    assert(
+      out == ColumnarToRowExec(
+        BatchUnary(ArrowJavaBatch, LoadArrowDataExec(RowToVeloxColumnarExec(RowLeaf())))))
   }
 
   test("ArrowJava-to-Velox C2C") {
@@ -146,11 +146,12 @@ class VeloxTransitionSuite extends SharedSparkSession {
 
   test("Vanilla-to-ArrowJava C2C") {
     val in = BatchUnary(ArrowJavaBatch, BatchLeaf(VanillaBatch))
-    assertThrows[GlutenException] {
-      // No viable transitions.
-      // FIXME: Support this case.
-      Transitions.insertTransitions(in, outputsColumnar = false)
-    }
+    val out = Transitions.insertTransitions(in, outputsColumnar = false)
+    assert(
+      out == ColumnarToRowExec(
+        BatchUnary(
+          ArrowJavaBatch,
+          LoadArrowDataExec(RowToVeloxColumnarExec(ColumnarToRowExec(BatchLeaf(VanillaBatch)))))))
   }
 
   test("ArrowJava-to-Vanilla C2C") {
@@ -195,8 +196,7 @@ class VeloxTransitionSuite extends SharedSparkSession {
     val in = BatchUnary(VanillaBatch, BatchLeaf(VeloxBatch))
     val out = Transitions.insertTransitions(in, outputsColumnar = false)
     assert(
-      out == ColumnarToRowExec(
-        BatchUnary(VanillaBatch, RowToColumnarExec(VeloxColumnarToRowExec(BatchLeaf(VeloxBatch))))))
+      out == ColumnarToRowExec(BatchUnary(VanillaBatch, LoadArrowDataExec(BatchLeaf(VeloxBatch)))))
   }
 
   override protected def beforeAll(): Unit = {

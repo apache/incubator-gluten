@@ -89,7 +89,7 @@ object Transitions {
   }
 
   def toBackendBatchPlan(plan: SparkPlan): SparkPlan = {
-    val backendBatchType = Backend.get().batchType
+    val backendBatchType = Backend.get().defaultBatchType
     val out = toBatchPlan(plan, backendBatchType)
     out
   }

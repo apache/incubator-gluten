@@ -39,8 +39,8 @@ trait Backend {
   def onExecutorStart(pc: PluginContext): Unit = {}
   def onExecutorShutdown(): Unit = {}
 
-  /** The columnar-batch type this backend is using. */
-  def batchType: Convention.BatchType
+  /** The columnar-batch type this backend is by default using. */
+  def defaultBatchType: Convention.BatchType
 
   /**
    * Overrides [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using to

@@ -17,12 +17,51 @@
 
 package org.apache.gluten.extension.columnar.transition
 
-type TransitionGraph = FloydWarshallGraph[Transition.Vertex, Transition]
-type TransitionGraphBuilder = FloydWarshallGraph.Builder[Transition.Vertex, Transition]
+import org.apache.spark.sql.execution.SparkPlan
 
 object TransitionGraph {
-  def builder(): TransitionGraphBuilder = {
+  trait Vertex
+  type Builder = FloydWarshallGraph.Builder[TransitionGraph.Vertex, Transition]
+
+  def builder(): Builder = {
     FloydWarshallGraph.builder(TransitionCostModel)
+  }
+
+  implicit class TransitionGraphOps(val graph: TransitionGraph) {
+    import TransitionGraphOps._
+    def hasTransition(from: TransitionGraph.Vertex, to: TransitionGraph.Vertex): Boolean = {
+      graph.hasPath(from, to)
+    }
+
+    def transitionOf(from: TransitionGraph.Vertex, to: TransitionGraph.Vertex): Transition = {
+      val path = graph.pathOf(from, to)
+      val out = path.edges().reduceOption((l, r) => chain(l, r)).getOrElse(Transition.empty)
+      out
+    }
+
+    def transitionOfOption(
+        from: TransitionGraph.Vertex,
+        to: TransitionGraph.Vertex): Option[Transition] = {
+      if (!hasTransition(from, to)) {
+        return None
+      }
+      Some(transitionOf(from, to))
+    }
+  }
+
+  private object TransitionGraphOps {
+    private class ChainedTransition(first: Transition, second: Transition) extends Transition {
+      override def apply0(plan: SparkPlan): SparkPlan = {
+        second(first(plan))
+      }
+    }
+
+    private def chain(first: Transition, second: Transition): Transition = {
+      if (first.isEmpty && second.isEmpty) {
+        return Transition.empty
+      }
+      new ChainedTransition(first, second)
+    }
   }
 
   private case class TransitionCost(count: Int) extends FloydWarshallGraph.Cost {

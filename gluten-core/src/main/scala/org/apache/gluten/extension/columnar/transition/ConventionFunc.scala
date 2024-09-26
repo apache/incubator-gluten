@@ -94,7 +94,7 @@ object ConventionFunc {
         val batchType = if (a.supportsColumnar) {
           // By default, we execute columnar AQE with backend batch output.
           // See org.apache.gluten.extension.columnar.transition.InsertTransitions.apply
-          Backend.get().batchType
+          Backend.get().defaultBatchType
         } else {
           Convention.BatchType.None
         }

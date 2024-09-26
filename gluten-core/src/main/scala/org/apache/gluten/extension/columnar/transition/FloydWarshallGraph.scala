@@ -86,27 +86,33 @@ object FloydWarshallGraph {
   }
 
   private object Builder {
+    // Thread safe.
     private class Impl[V <: AnyRef, E <: AnyRef](costModel: CostModel[E]) extends Builder[V, E] {
       private val pathTable: mutable.Map[V, mutable.Map[V, Path[E]]] = mutable.Map()
+      private var graph: Option[FloydWarshallGraph[V, E]] = None
 
-      override def addVertex(v: V): Builder[V, E] = {
+      override def addVertex(v: V): Builder[V, E] = synchronized {
         assert(!pathTable.contains(v), s"Vertex $v already exists in graph")
         pathTable.getOrElseUpdate(v, mutable.Map()).getOrElseUpdate(v, Path(costModel, Nil))
+        graph = None
         this
       }
 
-      override def addEdge(from: V, to: V, edge: E): Builder[V, E] = {
+      override def addEdge(from: V, to: V, edge: E): Builder[V, E] = synchronized {
         assert(from != to, s"Input vertices $from and $to should be different")
         assert(pathTable.contains(from), s"Vertex $from not exists in graph")
         assert(pathTable.contains(to), s"Vertex $to not exists in graph")
         assert(!hasPath(from, to), s"Path from $from to $to already exists in graph")
         pathTable(from) += to -> Path(costModel, Seq(edge))
+        graph = None
         this
       }
 
-      override def build(): FloydWarshallGraph[V, E] = {
-        compile()
-        new FloydWarshallGraph.Impl(pathTable.map { case (k, m) => (k, m.toMap) }.toMap)
+      override def build(): FloydWarshallGraph[V, E] = synchronized {
+        if (graph.isEmpty) {
+          graph = Some(compile())
+        }
+        return graph.get
       }
 
       private def hasPath(from: V, to: V): Boolean = {
@@ -120,7 +126,7 @@ object FloydWarshallGraph {
         true
       }
 
-      private def compile(): Unit = {
+      private def compile(): FloydWarshallGraph[V, E] = {
         val vertices = pathTable.keys
         for (k <- vertices) {
           for (i <- vertices) {
@@ -141,6 +147,7 @@ object FloydWarshallGraph {
             }
           }
         }
+        new FloydWarshallGraph.Impl(pathTable.map { case (k, m) => (k, m.toMap) }.toMap)
       }
     }
 

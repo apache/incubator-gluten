@@ -52,7 +52,7 @@ import scala.util.control.Breaks.breakable
 class VeloxBackend extends SubstraitBackend {
   import VeloxBackend._
   override def name(): String = VeloxBackend.BACKEND_NAME
-  override def batchType: Convention.BatchType = VeloxBatch
+  override def defaultBatchType: Convention.BatchType = VeloxBatch
   override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
   override def buildInfo(): Backend.BuildInfo =
     Backend.BuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
