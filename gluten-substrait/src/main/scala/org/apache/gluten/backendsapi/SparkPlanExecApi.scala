@@ -19,6 +19,7 @@ package org.apache.gluten.backendsapi
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
+import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 
@@ -71,6 +72,8 @@ trait SparkPlanExecApi {
       projectList: Seq[NamedExpression],
       child: SparkPlan): ProjectExecTransformer =
     ProjectExecTransformer.createUnsafe(projectList, child)
+
+  def genSparkPartialProjectColumnarExec(original: ProjectExec): GlutenPlan = null
 
   /** Generate HashAggregateExecTransformer. */
   def genHashAggregateExecTransformer(

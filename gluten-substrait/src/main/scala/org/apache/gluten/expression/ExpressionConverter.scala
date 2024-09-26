@@ -717,7 +717,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
   }
 
-  private def getAndCheckSubstraitName(expr: Expression, expressionsMap: Map[Class[_], String]) = {
+  private def getAndCheckSubstraitName(
+      expr: Expression,
+      expressionsMap: Map[Class[_], String]) = {
     TestStats.addExpressionClassName(expr.getClass.getName)
     // Check whether Gluten supports this expression
     val substraitExprNameOpt = expressionsMap.get(expr.getClass)

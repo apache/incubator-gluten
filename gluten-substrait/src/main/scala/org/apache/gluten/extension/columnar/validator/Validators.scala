@@ -116,7 +116,7 @@ object Validators {
     }
   }
 
-  private class FallbackComplexExpressions(threshold: Int) extends Validator {
+  class FallbackComplexExpressions(threshold: Int) extends Validator {
     override def validate(plan: SparkPlan): Validator.OutCome = {
       if (plan.expressions.exists(e => ExpressionUtils.getExpressionTreeDepth(e) > threshold)) {
         return fail(
