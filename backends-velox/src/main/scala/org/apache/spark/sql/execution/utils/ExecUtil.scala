@@ -145,7 +145,7 @@ object ExecUtil {
                     val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
                     pidVec.putInt(i, pid)
                 }
-                val pidBatch = ColumnarBatches.ensureOffloaded(
+                val pidBatch = ColumnarBatches.offload(
                   ArrowBufferAllocators.contextInstance(),
                   new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows))
                 val newHandle = ColumnarBatches.compose(pidBatch, cb)

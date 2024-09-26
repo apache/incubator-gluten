@@ -22,7 +22,6 @@
 #include <Processors/QueryPlan/ArrayJoinStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Rewriter/ExpressionRewriter.h>
-#include <Common/CHUtil.h>
 
 namespace DB
 {

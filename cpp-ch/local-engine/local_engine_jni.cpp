@@ -203,7 +203,8 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     LOCAL_ENGINE_JNI_METHOD_START
     const auto conf_plan_a = local_engine::getByteArrayElementsSafe(env, conf_plan);
     const std::string::size_type plan_buf_size = conf_plan_a.length();
-    local_engine::BackendInitializerUtil::init({reinterpret_cast<const char *>(conf_plan_a.elems()), plan_buf_size});
+    local_engine::BackendInitializerUtil::initBackend(
+        local_engine::SparkConfigs::load({reinterpret_cast<const char *>(conf_plan_a.elems()), plan_buf_size}, true));
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
@@ -247,8 +248,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     // by task update new configs ( in case of dynamic config update )
     const auto conf_plan_a = local_engine::getByteArrayElementsSafe(env, conf_plan);
     const std::string::size_type conf_plan_size = conf_plan_a.length();
-    local_engine::BackendInitializerUtil::updateConfig(
-        query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), conf_plan_size});
+    local_engine::SparkConfigs::updateConfig(query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), conf_plan_size});
 
     local_engine::SerializedPlanParser parser(query_context);
     jsize iter_num = env->GetArrayLength(iter_arr);
@@ -588,9 +588,7 @@ local_engine::SplitterHolder * buildAndExecuteShuffle(
             first_block = std::nullopt;
             // in fallback mode, spark's whole stage code gen operator uses TaskContext and needs to be executed in the task thread.
             while (auto block = local_engine::SourceFromJavaIter::peekBlock(env, iter))
-            {
                 splitter->exchange_manager->pushBlock(block.value());
-            }
         }
         else
             // empty iterator
@@ -956,8 +954,8 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     // by task update new configs ( in case of dynamic config update )
     const auto conf_plan_a = local_engine::getByteArrayElementsSafe(env, conf_plan);
     const std::string::size_type conf_plan_size = conf_plan_a.length();
-    local_engine::BackendInitializerUtil::updateConfig(
-        query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), conf_plan_size});
+
+    local_engine::SparkConfigs::updateConfig(query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), conf_plan_size});
 
     const auto uuid_str = jstring2string(env, uuid_);
     const auto task_id = jstring2string(env, task_id_);

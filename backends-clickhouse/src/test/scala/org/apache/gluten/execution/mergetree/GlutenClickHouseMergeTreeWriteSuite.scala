@@ -69,6 +69,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |DROP TABLE IF EXISTS lineitem_mergetree;
                  |""".stripMargin)
 
+    // write.format.default = mergetree
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS lineitem_mergetree
                  |(
@@ -90,6 +91,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | l_comment       string
                  |)
                  |USING clickhouse
+                 |TBLPROPERTIES (write.format.default = 'mergetree')
                  |LOCATION '$basePath/lineitem_mergetree'
                  |""".stripMargin)
 

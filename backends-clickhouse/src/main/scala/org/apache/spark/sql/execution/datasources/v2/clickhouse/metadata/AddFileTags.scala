@@ -94,7 +94,7 @@ class AddMergeTreeParts(
 
 object AddFileTags {
   // scalastyle:off argcount
-  def partsInfoToAddFile(
+  private def partsInfoToAddFile(
       database: String,
       table: String,
       engine: String,
@@ -156,33 +156,33 @@ object AddFileTags {
   }
 
   def addFileToAddMergeTreeParts(addFile: AddFile): AddMergeTreeParts = {
-    assert(addFile.tags != null && !addFile.tags.isEmpty)
+    assert(addFile.tags != null && addFile.tags.nonEmpty)
     new AddMergeTreeParts(
-      addFile.tags.get("database").get,
-      addFile.tags.get("table").get,
-      addFile.tags.get("engine").get,
-      addFile.tags.get("path").get,
-      addFile.tags.get("targetNode").get,
+      addFile.tags("database"),
+      addFile.tags("table"),
+      addFile.tags("engine"),
+      addFile.tags("path"),
+      addFile.tags("targetNode"),
       addFile.path,
-      addFile.tags.get("uuid").get,
-      addFile.tags.get("rows").get.toLong,
+      addFile.tags("uuid"),
+      addFile.tags("rows").toLong,
       addFile.size,
-      addFile.tags.get("dataCompressedBytes").get.toLong,
-      addFile.tags.get("dataUncompressedBytes").get.toLong,
+      addFile.tags("dataCompressedBytes").toLong,
+      addFile.tags("dataUncompressedBytes").toLong,
       addFile.modificationTime,
-      addFile.tags.get("partitionId").get,
-      addFile.tags.get("minBlockNumber").get.toLong,
-      addFile.tags.get("maxBlockNumber").get.toLong,
-      addFile.tags.get("level").get.toInt,
-      addFile.tags.get("dataVersion").get.toLong,
-      addFile.tags.get("bucketNum").get,
-      addFile.tags.get("dirName").get,
+      addFile.tags("partitionId"),
+      addFile.tags("minBlockNumber").toLong,
+      addFile.tags("maxBlockNumber").toLong,
+      addFile.tags("level").toInt,
+      addFile.tags("dataVersion").toLong,
+      addFile.tags("bucketNum"),
+      addFile.tags("dirName"),
       addFile.dataChange,
-      addFile.tags.get("partition").get,
-      addFile.tags.get("defaultCompressionCodec").get,
+      addFile.tags("partition"),
+      addFile.tags("defaultCompressionCodec"),
       addFile.stats,
       addFile.partitionValues,
-      marks = addFile.tags.get("marks").get.toLong,
+      marks = addFile.tags("marks").toLong,
       tags = addFile.tags
     )
   }
@@ -222,7 +222,7 @@ object AddFileTags {
             -1L,
             value.getBucketId,
             path.toString,
-            true,
+            dataChange = true,
             "",
             partitionValues = value.getPartitionValues.asScala.toMap,
             marks = value.getMarkCount

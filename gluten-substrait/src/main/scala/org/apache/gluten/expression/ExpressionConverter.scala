@@ -446,7 +446,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             LiteralTransformer(m.nullOnOverflow)),
           m
         )
-      case _: NormalizeNaNAndZero | _: PromotePrecision | _: TaggingExpression =>
+      case PromotePrecision(_ @Cast(child, _: DecimalType, _, _))
+          if child.dataType
+            .isInstanceOf[DecimalType] && !BackendsApiManager.getSettings.transformCheckOverflow =>
+        replaceWithExpressionTransformer0(child, attributeSeq, expressionsMap)
+      case _: NormalizeNaNAndZero | _: PromotePrecision | _: TaggingExpression |
+          _: DynamicPruningExpression =>
         ChildTransformer(
           substraitExprName,
           replaceWithExpressionTransformer0(expr.children.head, attributeSeq, expressionsMap),
@@ -466,16 +471,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           if !BackendsApiManager.getSettings.transformCheckOverflow &&
             DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         DecimalArithmeticUtil.checkAllowDecimalArithmetic()
-        val leftChild =
+        val arithmeticExprName = getAndCheckSubstraitName(b, expressionsMap)
+        val left =
           replaceWithExpressionTransformer0(b.left, attributeSeq, expressionsMap)
-        val rightChild =
+        val right =
           replaceWithExpressionTransformer0(b.right, attributeSeq, expressionsMap)
-        DecimalArithmeticExpressionTransformer(
-          getAndCheckSubstraitName(b, expressionsMap),
-          leftChild,
-          rightChild,
-          decimalType,
-          b)
+        DecimalArithmeticExpressionTransformer(arithmeticExprName, left, right, decimalType, b)
       case c: CheckOverflow =>
         CheckOverflowTransformer(
           substraitExprName,
@@ -504,6 +505,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer0(n.left, attributeSeq, expressionsMap),
           replaceWithExpressionTransformer0(n.right, attributeSeq, expressionsMap),
           n
+        )
+      case a: AtLeastNNonNulls =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genAtLeastNNonNullsTransformer(
+          substraitExprName,
+          a.children.map(replaceWithExpressionTransformer0(_, attributeSeq, expressionsMap)),
+          a
         )
       case m: MakeTimestamp =>
         BackendsApiManager.getSparkPlanExecApiInstance.genMakeTimestampTransformer(

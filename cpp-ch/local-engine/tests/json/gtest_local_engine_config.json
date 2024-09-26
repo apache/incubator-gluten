@@ -1,365 +1,48 @@
 {
-  "advancedExtensions": {
-    "enhancement": {
-      "@type": "type.googleapis.com/substrait.Expression",
-      "literal": {
-        "map": {
-          "keyValues": [
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level"
-              },
-              "value": {
-                "string": "test"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_settings.max_bytes_before_external_sort"
-              },
-              "value": {
-                "string": "5368709120"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.hadoop.fs.s3a.endpoint"
-              },
-              "value": {
-                "string": "localhost:9000"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.velox.IOThreads"
-              },
-              "value": {
-                "string": "0"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.input_read_timeout"
-              },
-              "value": {
-                "string": "180000"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_settings.query_plan_enable_optimizations"
-              },
-              "value": {
-                "string": "false"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.worker.id"
-              },
-              "value": {
-                "string": "1"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.memory.offHeap.enabled"
-              },
-              "value": {
-                "string": "true"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.hadoop.fs.s3a.iam.role.session.name"
-              },
-              "value": {
-                "string": ""
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.input_connect_timeout"
-              },
-              "value": {
-                "string": "180000"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.shuffle.codec"
-              },
-              "value": {
-                "string": ""
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.log_processors_profiles"
-              },
-              "value": {
-                "string": "true"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.memory.offHeap.size.in.bytes"
-              },
-              "value": {
-                "string": "10737418240"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.shuffle.codecBackend"
-              },
-              "value": {
-                "string": ""
-              }
-            },
-            {
-              "key": {
-                "string": "spark.sql.orc.compression.codec"
-              },
-              "value": {
-                "string": "snappy"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_settings.max_bytes_before_external_group_by"
-              },
-              "value": {
-                "string": "5368709120"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.hadoop.input.write.timeout"
-              },
-              "value": {
-                "string": "180000"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.hadoop.fs.s3a.secret.key"
-              },
-              "value": {
-                "string": ""
-              }
-            },
-            {
-              "key": {
-                "string": "spark.hadoop.fs.s3a.access.key"
-              },
-              "value": {
-                "string": ""
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_client_log_severity"
-              },
-              "value": {
-                "string": "INFO"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.hadoop.fs.s3a.path.style.access"
-              },
-              "value": {
-                "string": "true"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.timezone"
-              },
-              "value": {
-                "string": "Asia/Shanghai"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.hadoop.input.read.timeout"
-              },
-              "value": {
-                "string": "180000"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.hadoop.fs.s3a.use.instance.credentials"
-              },
-              "value": {
-                "string": "false"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_settings.output_format_orc_compression_method"
-              },
-              "value": {
-                "string": "snappy"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.hadoop.fs.s3a.iam.role"
-              },
-              "value": {
-                "string": ""
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.memory.task.offHeap.size.in.bytes"
-              },
-              "value": {
-                "string": "10737418240"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.hadoop.input.connect.timeout"
-              },
-              "value": {
-                "string": "180000"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.hadoop.dfs.client.log.severity"
-              },
-              "value": {
-                "string": "INFO"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver"
-              },
-              "value": {
-                "string": "2"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.input_write_timeout"
-              },
-              "value": {
-                "string": "180000"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.hadoop.fs.s3a.connection.ssl.enabled"
-              },
-              "value": {
-                "string": "false"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format"
-              },
-              "value": {
-                "string": "true"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.type"
-              },
-              "value": {
-                "string": "hdfs_gluten"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.path"
-              },
-              "value": {
-                "string": "/tmp/hdfs_cache/3.5/"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.type"
-              },
-              "value": {
-                "string": "cache"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.max_size"
-              },
-              "value": {
-                "string": "10Gi"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes.main.disk"
-              },
-              "value": {
-                "string": "hdfs_cache"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_client_read_shortcircuit"
-              },
-              "value": {
-                "string": "false"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_default_replica"
-              },
-              "value": {
-                "string": "1"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.metadata_path"
-              },
-              "value": {
-                "string": "/tmp/metadata/hdfs/3.5/"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.endpoint"
-              },
-              "value": {
-                "string": "hdfs://127.0.0.1:8020/"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes"
-              },
-              "value": {
-                "string": "main"
-              }
-            },
-            {
-              "key": {
-                "string": "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.disk"
-              },
-              "value": {
-                "string": "hdfs"
-              }
-            }
-          ]
-        }
-      }
-    }
+  "configs": {
+    "spark.hadoop.input.write.timeout": "180000",
+    "spark.hadoop.fs.s3a.connection.ssl.enabled": "false",
+    "spark.hadoop.dfs.client.log.severity": "INFO",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format": "true",
+    "spark.hadoop.fs.s3a.access.key": "",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.input_read_timeout": "180000",
+    "spark.gluten.sql.columnar.backend.velox.IOThreads": "0",
+    "spark.gluten.sql.columnar.backend.ch.worker.id": "1",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.type": "cache",
+    "spark.hadoop.fs.s3a.use.instance.credentials": "false",
+    "spark.gluten.memory.offHeap.size.in.bytes": "10737418240",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level": "test",
+    "spark.gluten.sql.columnar.shuffle.codec": "",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.type": "hdfs_gluten",
+    "spark.hadoop.fs.s3a.path.style.access": "true",
+    "spark.hadoop.fs.s3a.iam.role.session.name": "",
+    "spark.hadoop.input.read.timeout": "180000",
+    "spark.hadoop.fs.s3a.secret.key": "",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_client_log_severity": "INFO",
+    "spark.gluten.sql.columnar.backend.ch.runtime_settings.query_plan_enable_optimizations": "false",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.disk": "hdfs",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes": "main",
+    "spark.gluten.sql.columnar.backend.ch.runtime_settings.max_bytes_before_external_sort": "5368709120",
+    "spark.gluten.sql.columnar.backend.ch.runtime_settings.output_format_orc_compression_method": "snappy",
+    "spark.sql.orc.compression.codec": "snappy",
+    "spark.hadoop.fs.s3a.iam.role": "",
+    "spark.hadoop.input.connect.timeout": "180000",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.input_connect_timeout": "180000",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_client_read_shortcircuit": "false",
+    "spark.hadoop.fs.s3a.endpoint": "localhost:9000",
+    "spark.memory.offHeap.enabled": "true",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.path": "/tmp/hdfs_cache/3.5/",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.dfs_default_replica": "1",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.timezone": "Asia/Shanghai",
+    "spark.gluten.sql.columnar.backend.ch.runtime_settings.max_bytes_before_external_group_by": "5368709120",
+    "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver": "2",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.endpoint": "hdfs://127.0.0.1:8020/",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs_cache.max_size": "10Gi",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.disks.hdfs.metadata_path": "/tmp/metadata/hdfs/3.5/",
+    "spark.gluten.sql.columnar.shuffle.codecBackend": "",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.input_write_timeout": "180000",
+    "spark.gluten.memory.task.offHeap.size.in.bytes": "10737418240",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.storage_configuration.policies.__hdfs_main.volumes.main.disk": "hdfs_cache",
+    "spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.log_processors_profiles": "true"
   }
 }

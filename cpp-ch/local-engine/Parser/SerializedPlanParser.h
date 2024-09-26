@@ -135,6 +135,7 @@ public:
     IQueryPlanStep * addRollbackFilterHeaderStep(QueryPlanPtr & query_plan, const Block & input_header);
 
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
+    ContextPtr getContext() const { return context; }
 
     std::vector<QueryPlanPtr> extra_plan_holder;
 

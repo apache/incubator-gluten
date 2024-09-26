@@ -16,18 +16,14 @@
  * limitations under the License.
  */
 #pragma once
-
-#include <filesystem>
+#include <unordered_set>
 #include <Core/Block.h>
-#include <Core/ColumnWithTypeAndName.h>
-#include <Core/NamesAndTypes.h>
-#include <Core/Settings.h>
+#include <Core/Joins.h>
 #include <Functions/CastOverloadResolver.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context.h>
 #include <Processors/Chunk.h>
 #include <base/types.h>
-#include <google/protobuf/wrappers.pb.h>
 #include <substrait/algebra.pb.h>
 #include <Common/CurrentThread.h>
 
@@ -159,8 +155,8 @@ public:
     /// Initialize two kinds of resources
     /// 1. global level resources like global_context/shared_context, notice that they can only be initialized once in process lifetime
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
-    static void init(const std::string_view plan);
-    static void updateConfig(const DB::ContextMutablePtr &, std::string_view);
+    static void initBackend(const std::map<std::string, std::string> & spark_conf_map);
+    static void initSettings(const std::map<std::string, std::string> & spark_conf_map, DB::Settings & settings);
 
     inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
 
@@ -200,21 +196,18 @@ private:
     friend class BackendFinalizerUtil;
     friend class JNIUtils;
 
-    static DB::Context::ConfigurationPtr initConfig(std::map<std::string, std::string> & backend_conf_map);
+    static DB::Context::ConfigurationPtr initConfig(const std::map<std::string, std::string> & spark_conf_map);
+    static String tryGetConfigFile(const std::map<std::string, std::string> & spark_conf_map);
     static void initLoggers(DB::Context::ConfigurationPtr config);
     static void initEnvs(DB::Context::ConfigurationPtr config);
-    static void initSettings(std::map<std::string, std::string> & backend_conf_map, DB::Settings & settings);
 
     static void initContexts(DB::Context::ConfigurationPtr config);
     static void initCompiledExpressionCache(DB::Context::ConfigurationPtr config);
     static void registerAllFactories();
     static void applyGlobalConfigAndSettings(const DB::Context::ConfigurationPtr & config, const DB::Settings & settings);
-    static void updateNewSettings(const DB::ContextMutablePtr &, const DB::Settings &);
     static std::vector<String>
     wrapDiskPathConfig(const String & path_prefix, const String & path_suffix, Poco::Util::AbstractConfiguration & config);
 
-
-    static std::map<std::string, std::string> getBackendConfMap(std::string_view plan);
 
     inline static std::once_flag init_flag;
     inline static Poco::Logger * logger;

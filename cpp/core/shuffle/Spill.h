@@ -23,7 +23,7 @@
 #include <list>
 
 #include "shuffle/Payload.h"
-#include "utils/macros.h"
+#include "utils/Macros.h"
 
 namespace gluten {
 

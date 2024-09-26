@@ -66,6 +66,30 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
   }
 
+  test("field names contain non-ASCII characters") {
+    withTempPath {
+      path =>
+        // scalastyle:off nonascii
+        Seq((1, 2, 3, 4)).toDF("товары", "овары", "国ⅵ", "中文").write.parquet(path.getCanonicalPath)
+        // scalastyle:on
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("select * from view") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+    }
+
+    withTempPath {
+      path =>
+        // scalastyle:off nonascii
+        spark.range(10).toDF("中文").write.parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).filter("`中文`>1").createOrReplaceTempView("view")
+        // scalastyle:on
+        runQueryAndCompare("select * from view") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+    }
+  }
+
   test("simple_select") {
     val df = runQueryAndCompare("select * from lineitem limit 1") { _ => }
     checkLengthAndPlan(df, 1)
@@ -2092,6 +2116,24 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       sql("create table t (col0 decimal(10, 0), col1 decimal(10, 0)) using parquet")
       sql("insert into t values (0, 0)")
       runQueryAndCompare("select col0 / (col1 + 1E-8) from t") { _ => }
+    }
+  }
+
+  test("Fix struct field case error") {
+    val excludedRules = "org.apache.spark.sql.catalyst.optimizer.PushDownPredicates," +
+      "org.apache.spark.sql.catalyst.optimizer.PushPredicateThroughNonJoin"
+    withSQLConf(SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> excludedRules) {
+      withTempPath {
+        path =>
+          sql("select named_struct('A', a) as c1 from values (1), (2) as data(a)").write.parquet(
+            path.getAbsolutePath)
+          val df = spark.read
+            .parquet(path.getAbsolutePath)
+            .union(spark.read.parquet(path.getAbsolutePath))
+            .filter("c1.A > 1")
+            .select("c1.A")
+          checkAnswer(df, Seq(Row(2), Row(2)))
+      }
     }
   }
 }

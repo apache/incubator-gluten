@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 #include "FormatFile.h"
-
 #include <memory>
+#include <Core/Settings.h>
 #include <IO/ReadBufferFromFile.h>
-#include <Common/Exception.h>
+#include <Storages/SubstraitSource/JSONFormatFile.h>
+#include <Common/GlutenConfig.h>
 #include <Common/GlutenStringUtils.h>
 #include <Common/logger_useful.h>
 
@@ -34,9 +35,6 @@
 #include <Storages/SubstraitSource/ExcelTextFormatFile.h>
 #include <Storages/SubstraitSource/TextFormatFile.h>
 #endif
-
-#include <Storages/SubstraitSource/JSONFormatFile.h>
-#include <Common/GlutenConfig.h>
 
 namespace DB
 {

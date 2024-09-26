@@ -83,7 +83,7 @@ class TransitionSuite extends SharedSparkSession {
   }
 }
 
-object TransitionSuite {
+object TransitionSuite extends TransitionSuiteBase {
   object TypeA extends Convention.BatchType {
     fromRow(
       () =>
@@ -177,58 +177,4 @@ object TransitionSuite {
     override def output: Seq[Attribute] = child.output
   }
 
-  case class BatchLeaf(override val batchType0: Convention.BatchType)
-    extends LeafExecNode
-    with GlutenPlan {
-    override def supportsColumnar: Boolean = true
-    override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-    override def output: Seq[Attribute] = List.empty
-  }
-
-  case class BatchUnary(
-      override val batchType0: Convention.BatchType,
-      override val child: SparkPlan)
-    extends UnaryExecNode
-    with GlutenPlan {
-    override def supportsColumnar: Boolean = true
-    override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
-      copy(child = newChild)
-    override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-    override def output: Seq[Attribute] = child.output
-  }
-
-  case class BatchBinary(
-      override val batchType0: Convention.BatchType,
-      override val left: SparkPlan,
-      override val right: SparkPlan)
-    extends BinaryExecNode
-    with GlutenPlan {
-    override def supportsColumnar: Boolean = true
-    override protected def withNewChildrenInternal(
-        newLeft: SparkPlan,
-        newRight: SparkPlan): SparkPlan = copy(left = newLeft, right = newRight)
-    override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-    override def output: Seq[Attribute] = left.output ++ right.output
-  }
-
-  case class RowLeaf() extends LeafExecNode {
-    override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-    override def output: Seq[Attribute] = List.empty
-  }
-
-  case class RowUnary(override val child: SparkPlan) extends UnaryExecNode {
-    override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
-      copy(child = newChild)
-    override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-    override def output: Seq[Attribute] = child.output
-  }
-
-  case class RowBinary(override val left: SparkPlan, override val right: SparkPlan)
-    extends BinaryExecNode {
-    override protected def withNewChildrenInternal(
-        newLeft: SparkPlan,
-        newRight: SparkPlan): SparkPlan = copy(left = newLeft, right = newRight)
-    override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-    override def output: Seq[Attribute] = left.output ++ right.output
-  }
 }

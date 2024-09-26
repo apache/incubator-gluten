@@ -617,12 +617,12 @@ jobs:
           $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg \
           -Pdelta -Phudi -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
-      - name: Upload golden files
-        if: failure()
+      - name: Upload test report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: golden-files-spark32
-          path: /tmp/tpch-approved-plan/**
+          name: test-report-spark32
+          path: '**/surefire-reports/TEST-*.xml'
 
   run-spark-test-spark32-slow:
     needs: build-native-lib-centos-7
@@ -667,6 +667,12 @@ jobs:
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean test -Pspark-3.2 -Pspark-ut -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark32/spark_home/" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-spark32-slow
+          path: '**/surefire-reports/TEST-*.xml'
 
   run-spark-test-spark33:
     needs: build-native-lib-centos-7
@@ -718,12 +724,12 @@ jobs:
           $MVN_CMD clean test -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
-      - name: Upload golden files
-        if: failure()
+      - name: Upload test report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: golden-files-spark33
-          path: /tmp/tpch-approved-plan/**
+          name: test-report-spark33
+          path: '**/surefire-reports/TEST-*.xml'
 
 
   run-spark-test-spark33-slow:
@@ -770,6 +776,12 @@ jobs:
           $MVN_CMD clean test -Pspark-3.3 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark33/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-spark33-slow
+          path: '**/surefire-reports/TEST-*.xml'
 
   run-spark-test-spark34:
     needs: build-native-lib-centos-7
@@ -821,12 +833,12 @@ jobs:
           $MVN_CMD clean test -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
-      - name: Upload golden files
-        if: failure()
+      - name: Upload test report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: golden-files-spark34
-          path: /tmp/tpch-approved-plan/**
+          name: test-report-spark34
+          path: '**/surefire-reports/TEST-*.xml'
 
 
   run-spark-test-spark34-slow:
@@ -873,6 +885,12 @@ jobs:
           $MVN_CMD clean test -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark34/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-spark34-slow
+          path: '**/surefire-reports/TEST-*.xml'
 
   run-spark-test-spark35:
     needs: build-native-lib-centos-7
@@ -924,12 +942,12 @@ jobs:
           $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
-      - name: Upload golden files
-        if: failure()
+      - name: Upload test report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: golden-files-spark35
-          path: /tmp/tpch-approved-plan/**
+          name: test-report-spark35
+          path: '**/surefire-reports/TEST-*.xml'
 
   run-spark-test-spark35-scala213:
     needs: build-native-lib-centos-7
@@ -981,6 +999,12 @@ jobs:
           $MVN_CMD clean test -Pspark-3.5 -Pscala-2.13 -Pbackends-velox -Pceleborn -Piceberg \
           -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-spark35-scala213
+          path: '**/surefire-reports/TEST-*.xml'
 
   run-spark-test-spark35-slow:
     needs: build-native-lib-centos-7
@@ -1026,6 +1050,12 @@ jobs:
           $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-spark35-slow
+          path: '**/surefire-reports/TEST-*.xml'
 
   run-cpp-test-udf-test:
     runs-on: ubuntu-20.04

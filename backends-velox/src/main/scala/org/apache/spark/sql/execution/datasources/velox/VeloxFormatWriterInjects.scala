@@ -82,9 +82,8 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
             // the operation will find a zero column batch from a task-local pool
             ColumnarBatchJniWrapper.create(runtime).getForEmptySchema(batch.numRows)
           } else {
-            val offloaded =
-              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance, batch)
-            ColumnarBatches.getNativeHandle(offloaded)
+            ColumnarBatches.checkOffloaded(batch)
+            ColumnarBatches.getNativeHandle(batch)
           }
         }
         datasourceJniWrapper.writeBatch(dsHandle, batchHandle)

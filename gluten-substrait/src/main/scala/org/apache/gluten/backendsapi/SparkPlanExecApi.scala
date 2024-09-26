@@ -178,6 +178,13 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
 
+  def genAtLeastNNonNullsTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      original: AtLeastNNonNulls): ExpressionTransformer = {
+    throw new GlutenNotSupportException("AtLeastNNonNulls is not supported")
+  }
+
   def genUuidTransformer(substraitExprName: String, original: Uuid): ExpressionTransformer = {
     GenericExpressionTransformer(substraitExprName, Seq(), original)
   }

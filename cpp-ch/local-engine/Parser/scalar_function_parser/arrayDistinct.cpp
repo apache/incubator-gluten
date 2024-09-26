@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 #include <Parser/FunctionParser.h>
-#include <Common/CHUtil.h>
+
 #include <Core/Field.h>
 #include <DataTypes/IDataType.h>
 

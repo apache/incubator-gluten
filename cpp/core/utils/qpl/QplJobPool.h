@@ -26,7 +26,7 @@
 #include <vector>
 
 #include <qpl/qpl.h>
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 namespace gluten {
 namespace qpl {

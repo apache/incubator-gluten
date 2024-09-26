@@ -34,10 +34,10 @@
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/RssPartitionWriter.h"
+#include "utils/Exception.h"
 #include "utils/StringUtil.h"
 #include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
-#include "utils/exception.h"
 #include "utils/tests/LocalRssClient.h"
 #include "velox/exec/PlanNodeStats.h"
 

@@ -15,7 +15,9 @@
  * limitations under the License.
  */
 #include "FileWriterWrappers.h"
+
 #include <QueryPipeline/QueryPipeline.h>
+#include <Poco/URI.h>
 
 namespace local_engine
 {

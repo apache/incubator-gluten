@@ -875,6 +875,7 @@
           <artifactId>scalatest-maven-plugin</artifactId>
           <version>${scalatest-maven-plugin.version}</version>
           <configuration>
+            <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
             <testFailureIgnore>false</testFailureIgnore>
             <junitxml>.</junitxml>
           </configuration>

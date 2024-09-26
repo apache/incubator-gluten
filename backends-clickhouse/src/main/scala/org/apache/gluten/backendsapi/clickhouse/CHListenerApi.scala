@@ -25,7 +25,7 @@ import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.jni.JniLibLoader
 import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{SPARK_VERSION, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.listener.CHGlutenSQLAppStatusListener
@@ -85,7 +85,7 @@ class CHListenerApi extends ListenerApi with Logging {
     conf.setCHConfig(
       "timezone" -> conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID),
       "local_engine.settings.log_processors_profiles" -> "true")
-
+    conf.setCHSettings("spark_version", SPARK_VERSION)
     // add memory limit for external sort
     val externalSortKey = CHConf.runtimeSettings("max_bytes_before_external_sort")
     if (conf.getLong(externalSortKey, -1) < 0) {
@@ -103,7 +103,7 @@ class CHListenerApi extends ListenerApi with Logging {
     // Load supported hive/python/scala udfs
     UDFMappings.loadFromSparkConf(conf)
 
-    CHNativeExpressionEvaluator.initNative(conf)
+    CHNativeExpressionEvaluator.initNative(conf.getAll.toMap)
 
     // inject backend-specific implementations to override spark classes
     // FIXME: The following set instances twice in local mode?

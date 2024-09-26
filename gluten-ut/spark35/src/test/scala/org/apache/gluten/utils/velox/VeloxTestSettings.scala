@@ -883,11 +883,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenInnerJoinSuiteForceShjOff]
   enableSuite[GlutenOuterJoinSuiteForceShjOn]
   enableSuite[GlutenOuterJoinSuiteForceShjOff]
-    // Caused by Velox SMJ result mismatches with Spark.
-    .exclude("basic right outer join using SortMergeJoin (whole-stage-codegen off)")
-    .exclude("basic right outer join using SortMergeJoin (whole-stage-codegen on)")
-    .exclude("right outer join with unique keys using SortMergeJoin (whole-stage-codegen off)")
-    .exclude("right outer join with unique keys using SortMergeJoin (whole-stage-codegen on)")
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenLocalBroadcastExchangeSuite]

@@ -20,6 +20,7 @@ import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi._
+import org.apache.gluten.columnarbatch.CHBatch
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
@@ -47,7 +48,7 @@ import java.util.Locale
 import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends SubstraitBackend {
-  override def name(): String = CHBackend.BACKEND_NAME
+  override def name(): String = CHConf.BACKEND_NAME
   override def batchType: Convention.BatchType = CHBatch
   override def buildInfo(): Backend.BuildInfo =
     Backend.BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
@@ -59,10 +60,6 @@ class CHBackend extends SubstraitBackend {
   override def listenerApi(): ListenerApi = new CHListenerApi
   override def ruleApi(): RuleApi = new CHRuleApi
   override def settings(): BackendSettingsApi = CHBackendSettings
-}
-
-object CHBackend {
-  val BACKEND_NAME: String = CHConf.BACKEND_NAME
 }
 
 object CHBackendSettings extends BackendSettingsApi with Logging {
@@ -325,6 +322,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   }
 
   override def supportStructType(): Boolean = true
+
+  override def structFieldToLowerCase(): Boolean = false
 
   override def supportExpandExec(): Boolean = true
 

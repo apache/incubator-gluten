@@ -18,7 +18,7 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/IDataType.h>
 #include <Parser/FunctionParser.h>
-#include <Common/CHUtil.h>
+
 
 namespace DB
 {

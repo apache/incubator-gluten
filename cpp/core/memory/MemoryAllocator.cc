@@ -17,7 +17,7 @@
 
 #include "MemoryAllocator.h"
 #include "HbwAllocator.h"
-#include "utils/macros.h"
+#include "utils/Macros.h"
 
 namespace gluten {
 

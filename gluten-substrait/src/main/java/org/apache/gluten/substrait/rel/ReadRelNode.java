@@ -20,12 +20,12 @@ import org.apache.gluten.substrait.expression.ExpressionNode;
 import org.apache.gluten.substrait.extensions.AdvancedExtensionNode;
 import org.apache.gluten.substrait.type.ColumnTypeNode;
 import org.apache.gluten.substrait.type.TypeNode;
+import org.apache.gluten.utils.SubstraitUtil;
 
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
-import io.substrait.proto.Type;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -56,22 +56,8 @@ public class ReadRelNode implements RelNode, Serializable {
     RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
     relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
 
-    Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
-    for (TypeNode typeNode : types) {
-      structBuilder.addTypes(typeNode.toProtobuf());
-    }
-
-    NamedStruct.Builder nStructBuilder = NamedStruct.newBuilder();
-    nStructBuilder.setStruct(structBuilder.build());
-    for (String name : names) {
-      nStructBuilder.addNames(name);
-    }
-
-    if (!columnTypeNodes.isEmpty()) {
-      for (ColumnTypeNode columnTypeNode : columnTypeNodes) {
-        nStructBuilder.addColumnTypes(columnTypeNode.toProtobuf());
-      }
-    }
+    NamedStruct.Builder nStructBuilder =
+        SubstraitUtil.createNameStructBuilder(types, names, columnTypeNodes);
 
     ReadRel.Builder readBuilder = ReadRel.newBuilder();
     readBuilder.setCommon(relCommonBuilder.build());

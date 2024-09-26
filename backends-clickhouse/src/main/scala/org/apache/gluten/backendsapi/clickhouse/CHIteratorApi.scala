@@ -36,6 +36,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.CHColumnarShuffleWriter
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
+import org.apache.spark.sql.execution.datasources.clickhouse.{ExtensionTableBuilder, ExtensionTableNode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper

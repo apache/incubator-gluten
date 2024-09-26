@@ -18,6 +18,7 @@
 #include "SparkMergeTreeWriteSettings.h"
 
 #include <Core/Settings.h>
+#include <Interpreters/Context.h>
 #include <Common/CHUtil.h>
 
 namespace local_engine

@@ -21,11 +21,11 @@ import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.Runtimes;
 import org.apache.gluten.utils.ArrowAbiUtil;
 import org.apache.gluten.utils.ArrowUtil;
-import org.apache.gluten.utils.ImplicitClass;
 import org.apache.gluten.utils.InternalRowUtl;
 import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import org.apache.arrow.c.ArrowArray;
 import org.apache.arrow.c.ArrowSchema;
 import org.apache.arrow.c.CDataDictionaryProvider;
@@ -122,7 +122,7 @@ public class ColumnarBatches {
    * Ensure the input batch is offloaded as native-based columnar batch (See {@link IndicatorVector}
    * and {@link PlaceholderVector}). This method will close the input column batch after offloaded.
    */
-  public static ColumnarBatch ensureOffloaded(BufferAllocator allocator, ColumnarBatch batch) {
+  private static ColumnarBatch ensureOffloaded(BufferAllocator allocator, ColumnarBatch batch) {
     if (ColumnarBatches.isLightBatch(batch)) {
       return batch;
     }
@@ -134,14 +134,22 @@ public class ColumnarBatches {
    * take place if loading is required, which means when the input batch is not loaded yet. This
    * method will close the input column batch after loaded.
    */
-  public static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
+  private static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
     if (isHeavyBatch(batch)) {
       return batch;
     }
     return load(allocator, batch);
   }
 
-  private static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
+  public static void checkLoaded(ColumnarBatch batch) {
+    Preconditions.checkArgument(isHeavyBatch(batch), "Input batch is not loaded");
+  }
+
+  public static void checkOffloaded(ColumnarBatch batch) {
+    Preconditions.checkArgument(isLightBatch(batch), "Input batch is not offloaded");
+  }
+
+  public static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
     if (!ColumnarBatches.isLightBatch(input)) {
       throw new IllegalArgumentException(
           "Input is not light columnar batch. "
@@ -168,10 +176,11 @@ public class ColumnarBatches {
       // Follow gluten input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
       IndicatorVector giv = (IndicatorVector) input.column(0);
-      ImplicitClass.ArrowColumnarBatchRetainer retainer =
-          new ImplicitClass.ArrowColumnarBatchRetainer(output);
       for (long i = 0; i < (giv.refCnt() - 1); i++) {
-        retainer.retain();
+        for (int j = 0; j < output.numCols(); j++) {
+          final ArrowWritableColumnVector col = (ArrowWritableColumnVector) output.column(j);
+          col.retain();
+        }
       }
 
       // close the input one
@@ -186,7 +195,7 @@ public class ColumnarBatches {
     }
   }
 
-  private static ColumnarBatch offload(BufferAllocator allocator, ColumnarBatch input) {
+  public static ColumnarBatch offload(BufferAllocator allocator, ColumnarBatch input) {
     if (!isHeavyBatch(input)) {
       throw new IllegalArgumentException("batch is not Arrow columnar batch");
     }

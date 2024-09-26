@@ -18,7 +18,7 @@
 #include "JniUdf.h"
 #include "jni/JniCommon.h"
 #include "udf/UdfLoader.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 namespace {
 

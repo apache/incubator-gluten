@@ -143,7 +143,6 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     }
 
     auto ranges = merge_tree_table.extractRange(selected_parts);
-    std::string ret;
     if (settingsEqual(context->getSettingsRef(), "enabled_driver_filter_mergetree_index", "true"))
         SparkStorageMergeTree::analysisPartsByRanges(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
     else

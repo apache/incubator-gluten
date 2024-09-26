@@ -17,8 +17,8 @@
 
 #include <arrow/util/compression.h>
 #include <arrow/util/logging.h>
-#include <utils/qpl/qpl_codec.h>
-#include <utils/qpl/qpl_job_pool.h>
+#include <utils/qpl/QplCodec.h>
+#include <utils/qpl/QplJobPool.h>
 #include <iostream>
 #include <map>
 

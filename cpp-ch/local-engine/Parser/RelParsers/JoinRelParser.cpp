@@ -16,8 +16,8 @@
  */
 #include "JoinRelParser.h"
 #include <optional>
-
 #include <Core/Block.h>
+#include <Core/Settings.h>
 #include <Functions/FunctionFactory.h>
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
@@ -37,9 +37,7 @@
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
-
 #include <Common/logger_useful.h>
-
 
 namespace DB
 {
@@ -87,9 +85,7 @@ std::vector<const substrait::Rel *> JoinRelParser::getInputs(const substrait::Re
 {
     const auto & join = rel.join();
     if (!join.has_left() || !join.has_right())
-    {
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "left table or right table is missing.");
-    }
 
     return {&join.left(), &join.right()};
 }
@@ -122,13 +118,9 @@ std::unordered_set<DB::JoinTableSide> JoinRelParser::extractTableSidesFromExpres
     {
         auto pos = expr.selection().direct_reference().struct_field().field();
         if (pos < left_header.columns())
-        {
             table_sides.insert(DB::JoinTableSide::Left);
-        }
         else
-        {
             table_sides.insert(DB::JoinTableSide::Right);
-        }
     }
     else if (expr.has_singular_or_list())
     {
@@ -190,16 +182,10 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
     const auto & right_header = right.getCurrentDataStream().header;
     auto left_prefix = getUniqueName("left");
     for (const auto & col : left.getCurrentDataStream().header)
-    {
         if (right_header.has(col.name))
-        {
             new_left_cols.emplace_back(col.column, col.type, left_prefix + col.name);
-        }
         else
-        {
             new_left_cols.emplace_back(col.column, col.type, col.name);
-        }
-    }
     ActionsDAG left_project = ActionsDAG::makeConvertingActions(
         left.getCurrentDataStream().header.getColumnsWithTypeAndName(), new_left_cols, ActionsDAG::MatchColumnsMode::Position);
 
@@ -218,9 +204,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
     LOG_DEBUG(getLogger("JoinRelParser"), "optimization info:{}", optimization_info.value());
     auto storage_join = join_opt_info.is_broadcast ? BroadCastJoinBuilder::getJoin(join_opt_info.storage_join_key) : nullptr;
     if (storage_join)
-    {
         renamePlanColumns(*left, *right, *storage_join);
-    }
 
     auto table_join = createDefaultTableJoin(join.type(), join_opt_info.is_existence_join, context);
     DB::Block right_header_before_convert_step = right->getCurrentDataStream().header;
@@ -328,9 +312,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         /// It should be a inner join.
         /// TODO: make smj support mixed conditions
         if (need_post_filter && table_join->kind() != DB::JoinKind::Inner)
-        {
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Sort merge join doesn't support mixed join conditions, except inner join.");
-        }
 
         JoinPtr smj_join = std::make_shared<FullSortingMergeJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty(), -1);
         MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef()[Setting::join_algorithm];
@@ -370,9 +352,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
     JoinUtil::reorderJoinOutput(*query_plan, after_join_names);
     /// Need to project the right table column into boolean type
     if (join_opt_info.is_existence_join)
-    {
         existenceJoinPostProject(*query_plan, left_names);
-    }
 
     return query_plan;
 }
@@ -415,9 +395,7 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
         auto origin_name = right.getCurrentDataStream().header.getByPosition(idx).name;
         auto dedup_name = table_join.columnsFromJoinedTable().getNames().at(idx);
         if (origin_name != dedup_name)
-        {
             right_table_alias.emplace_back(NameWithAlias(origin_name, dedup_name));
-        }
     }
     if (!right_table_alias.empty())
     {
@@ -440,9 +418,7 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
     }
 
     for (const auto & column : table_join.columnsFromJoinedTable())
-    {
         table_join.addJoinedColumn(column);
-    }
     std::optional<ActionsDAG> left_convert_actions;
     std::optional<ActionsDAG> right_convert_actions;
     std::tie(left_convert_actions, right_convert_actions) = table_join.createConvertingActions(
@@ -599,9 +575,7 @@ bool JoinRelParser::applyJoinFilter(
 
             /// clear unused columns in actions_dag
             for (const auto & col : left_header.getColumnsWithTypeAndName())
-            {
                 actions_dag.removeUnusedResult(col.name);
-            }
             actions_dag.removeUnusedActions();
 
             table_join.getClauses().back().analyzer_right_filter_condition_column_name = actions_dag.getOutputs().back()->result_name;
@@ -667,9 +641,7 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
     auto check_function = [&](const String function_name_, const substrait::Expression & e)
     {
         if (!e.has_scalar_function())
-        {
             return false;
-        }
         auto function_name = parseFunctionName(e.scalar_function().function_reference(), e.scalar_function());
         return function_name.has_value() && *function_name == function_name_;
     };
@@ -677,9 +649,7 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
     auto get_field_ref = [](const substrait::Expression & e) -> std::optional<Int32>
     {
         if (e.has_selection() && e.selection().has_direct_reference() && e.selection().direct_reference().has_struct_field())
-        {
             return std::optional<Int32>(e.selection().direct_reference().struct_field().field());
-        }
         return {};
     };
 

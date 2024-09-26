@@ -17,14 +17,14 @@
 
 #include "utils/Compression.h"
 
-#include "exception.h"
+#include "Exception.h"
 
 #ifdef GLUTEN_ENABLE_QAT
 #include "utils/qat/QatCodec.h"
 #endif
 
 #ifdef GLUTEN_ENABLE_IAA
-#include "utils/qpl/qpl_codec.h"
+#include "utils/qpl/QplCodec.h"
 #endif
 
 namespace gluten {

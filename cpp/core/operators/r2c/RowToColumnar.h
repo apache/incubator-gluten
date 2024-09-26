@@ -19,7 +19,7 @@
 
 #include <arrow/c/abi.h>
 #include "memory/ColumnarBatch.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 namespace gluten {
 

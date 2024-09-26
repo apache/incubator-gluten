@@ -25,9 +25,9 @@
 #include "Udaf.h"
 #include "Udf.h"
 #include "UdfLoader.h"
+#include "utils/Exception.h"
+#include "utils/Macros.h"
 #include "utils/StringUtil.h"
-#include "utils/exception.h"
-#include "utils/macros.h"
 
 namespace {
 

@@ -19,11 +19,11 @@ package org.apache.gluten.runtime
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.exception.GlutenException
-import org.apache.gluten.init.JniUtils
 import org.apache.gluten.memory.MemoryUsageStatsBuilder
 import org.apache.gluten.memory.listener.ReservationListeners
 import org.apache.gluten.memory.memtarget.{KnownNameAndStats, MemoryTarget, Spiller, Spillers}
 import org.apache.gluten.proto.MemoryUsageStats
+import org.apache.gluten.utils.ConfigUtil
 
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.sql.internal.{GlutenConfigUtil, SQLConf}
@@ -57,7 +57,7 @@ object Runtime {
     private val handle = RuntimeJniWrapper.createRuntime(
       Backend.get().name(),
       rl,
-      JniUtils.toNativeConf(
+      ConfigUtil.serialize(
         GlutenConfig.getNativeSessionConf(
           Backend.get().name(),
           GlutenConfigUtil.parseConfig(SQLConf.get.getAllConfs)))
@@ -78,7 +78,7 @@ object Runtime {
 
     private val released: AtomicBoolean = new AtomicBoolean(false)
 
-    def getHandle: Long = handle
+    def getHandle(): Long = handle
 
     def addSpiller(spiller: Spiller): Unit = {
       spillers.append(spiller)

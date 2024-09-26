@@ -68,6 +68,8 @@ trait BackendSettingsApi {
   }
   def supportStructType(): Boolean = false
 
+  def structFieldToLowerCase(): Boolean = true
+
   // Whether to fallback aggregate at the same time if its empty-output child is fallen back.
   def fallbackAggregateWithEmptyOutputChild(): Boolean = false
 

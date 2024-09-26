@@ -18,13 +18,9 @@ package org.apache.gluten.vectorized;
 
 import org.apache.gluten.execution.BroadCastHashJoinContext;
 import org.apache.gluten.execution.JoinTypeTransform;
-import org.apache.gluten.expression.ConverterUtils;
 import org.apache.gluten.expression.ConverterUtils$;
-import org.apache.gluten.substrait.type.TypeNode;
 import org.apache.gluten.utils.SubstraitUtil;
 
-import io.substrait.proto.NamedStruct;
-import io.substrait.proto.Type;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 
@@ -97,24 +93,8 @@ public class StorageJoinBuilder {
         joinType,
         broadCastContext.hasMixedFiltCondition(),
         broadCastContext.isExistenceJoin(),
-        toNameStruct(output).toByteArray(),
+        SubstraitUtil.toNameStruct(output).toByteArray(),
         broadCastContext.isNullAwareAntiJoin(),
         hasNullKeyValues);
-  }
-
-  /** create table named struct */
-  private static NamedStruct toNameStruct(List<Attribute> output) {
-    List<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(output);
-    List<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(output);
-    Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
-    for (TypeNode typeNode : typeList) {
-      structBuilder.addTypes(typeNode.toProtobuf());
-    }
-    NamedStruct.Builder nStructBuilder = NamedStruct.newBuilder();
-    nStructBuilder.setStruct(structBuilder.build());
-    for (String name : nameList) {
-      nStructBuilder.addNames(name);
-    }
-    return nStructBuilder.build();
   }
 }
