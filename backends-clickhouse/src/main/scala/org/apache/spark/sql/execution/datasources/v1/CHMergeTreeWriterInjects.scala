@@ -16,27 +16,25 @@
  */
 package org.apache.spark.sql.execution.datasources.v1
 
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
-import org.apache.gluten.substrait.expression.{ExpressionBuilder, StringMapNode}
-import org.apache.gluten.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
+import org.apache.gluten.substrait.extensions.ExtensionBuilder
 import org.apache.gluten.substrait.plan.PlanBuilder
-import org.apache.gluten.substrait.rel.{ExtensionTableBuilder, RelBuilder}
+import org.apache.gluten.substrait.rel.RelBuilder
+import org.apache.gluten.utils.ConfigUtil
 
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, GlutenFormatWriterInjectsBase, OutputWriter}
-import org.apache.spark.sql.execution.datasources.orc.OrcUtils
+import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, OutputWriter}
+import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableBuilder
 import org.apache.spark.sql.execution.datasources.utils.MergeTreeDeltaUtil
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputWriter
 import org.apache.spark.sql.types.StructType
 
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, StringValue}
-import org.apache.hadoop.fs.FileStatus
+import io.substrait.proto.NamedStruct
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import java.util.{ArrayList => JList, Map => JMap, UUID}
@@ -45,7 +43,7 @@ import scala.collection.JavaConverters._
 
 case class PlanWithSplitInfo(plan: Array[Byte], splitInfo: Array[Byte])
 
-class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
+class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
 
   override def nativeConf(
       options: Map[String, String],
@@ -76,6 +74,7 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
       clickhouseTableConfigs: Map[String, String],
       context: TaskAttemptContext,
       nativeConf: JMap[String, String]): OutputWriter = {
+
     val uuid = UUID.randomUUID.toString
 
     val planWithSplitInfo = CHMergeTreeWriterInjects.genMergeTreeWriteRel(
@@ -105,30 +104,15 @@ class CHMergeTreeWriterInjects extends GlutenFormatWriterInjectsBase {
         context.getTaskAttemptID.getTaskID.getId.toString,
         context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
         context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
-        buildNativeConf(nativeConf)
+        ConfigUtil.serialize(nativeConf)
       )
 
     new MergeTreeOutputWriter(database, tableName, datasourceJniWrapper, instance, path)
   }
   // scalastyle:on argcount
 
-  override def inferSchema(
-      sparkSession: SparkSession,
-      options: Map[String, String],
-      files: Seq[FileStatus]): Option[StructType] = {
-    OrcUtils.inferSchema(sparkSession, files, options)
-  }
+  override val formatName: String = "mergetree"
 
-  override def getFormatName(): String = {
-    "mergetree"
-  }
-
-  private def buildNativeConf(confs: JMap[String, String]): Array[Byte] = {
-    val stringMapNode: StringMapNode = ExpressionBuilder.makeStringMap(confs)
-    val extensionNode: AdvancedExtensionNode = ExtensionBuilder.makeAdvancedExtension(
-      BackendsApiManager.getTransformerApiInstance.packPBMessage(stringMapNode.toProtobuf))
-    PlanBuilder.makePlan(extensionNode).toProtobuf.toByteArray
-  }
 }
 
 object CHMergeTreeWriterInjects {
@@ -156,9 +140,9 @@ object CHMergeTreeWriterInjects {
     val columnTypeNodes = output.map {
       attr =>
         if (partitionColumns.exists(_.equals(attr.name))) {
-          new ColumnTypeNode(1)
+          new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL)
         } else {
-          new ColumnTypeNode(0)
+          new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL)
         }
     }.asJava
 

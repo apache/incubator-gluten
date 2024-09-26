@@ -20,6 +20,7 @@
 #include <vector>
 #include <Core/Block.h>
 #include <Core/Settings.h>
+#include <Interpreters/Context.h>
 #include <Interpreters/TemporaryDataOnDisk.h>
 #include <Shuffle/ShuffleCommon.h>
 #include <jni/CelebornClient.h>
@@ -165,7 +166,7 @@ protected:
 public:
     String getName() const override { return "SortBasedPartitionWriter"; }
     void write(const PartitionInfo & info, DB::Block & block) override;
-    size_t adaptiveBlockSize()
+    size_t adaptiveBlockSize() const
     {
         size_t res = max_merge_block_size;
         if (max_merge_block_bytes)

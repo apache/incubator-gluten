@@ -63,7 +63,6 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .setCHConfig("logger.level", "error")
-      .setCHConfig("path", "/data")
   }
 
   override protected def beforeEach(): Unit = {

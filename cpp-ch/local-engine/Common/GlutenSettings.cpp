@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
 #include "GlutenSettings.h"
 #include <Core/Settings.h>
 
@@ -24,8 +23,7 @@ namespace local_engine
 
 bool tryGetString(const DB::Settings & settings, std::string_view name, std::string & value)
 {
-    Field field;
-    if (settings.tryGet(name, field))
+    if (Field field; settings.tryGet(name, field))
     {
         value = field.safeGet<String>();
         return true;

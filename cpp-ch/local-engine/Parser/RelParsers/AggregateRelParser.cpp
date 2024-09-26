@@ -17,6 +17,7 @@
 #include "AggregateRelParser.h"
 #include <memory>
 #include <AggregateFunctions/Combinators/AggregateFunctionIf.h>
+#include <Core/Settings.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <Functions/FunctionFactory.h>

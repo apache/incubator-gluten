@@ -103,7 +103,7 @@ class CHListenerApi extends ListenerApi with Logging {
     // Load supported hive/python/scala udfs
     UDFMappings.loadFromSparkConf(conf)
 
-    CHNativeExpressionEvaluator.initNative(conf)
+    CHNativeExpressionEvaluator.initNative(conf.getAll.toMap)
 
     // inject backend-specific implementations to override spark classes
     // FIXME: The following set instances twice in local mode?

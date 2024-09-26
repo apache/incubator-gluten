@@ -14,17 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.init;
+package org.apache.gluten.utils;
 
 import org.apache.gluten.proto.ConfigMap;
 
 import java.util.Map;
 
-public class JniUtils {
+public class ConfigUtil {
 
-  public static byte[] toNativeConf(Map<String, String> confs) {
+  public static byte[] serialize(Map<String, String> conf) {
     ConfigMap.Builder builder = ConfigMap.newBuilder();
-    builder.putAllConfigs(confs);
+    builder.putAllConfigs(conf);
     return builder.build().toByteArray();
   }
 }

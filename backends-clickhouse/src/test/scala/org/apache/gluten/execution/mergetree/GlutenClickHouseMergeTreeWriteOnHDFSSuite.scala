@@ -59,7 +59,6 @@ class GlutenClickHouseMergeTreeWriteOnHDFSSuite
       .set("spark.sql.adaptive.enabled", "true")
       .setCHConfig("logger.level", "error")
       .setCHSettings("mergetree.merge_after_insert", false)
-      .setCHConfig("path", "/data")
   }
 
   override protected def beforeEach(): Unit = {

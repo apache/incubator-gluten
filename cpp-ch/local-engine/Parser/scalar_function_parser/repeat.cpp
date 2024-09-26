@@ -15,12 +15,10 @@
  * limitations under the License.
  */
 #include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypeNumberBase.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
-#include <Common/Exception.h>
 
 namespace local_engine
 {

@@ -14,9 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.substrait.rel;
+package org.apache.spark.sql.execution.datasources.clickhouse;
 
 import org.apache.gluten.backendsapi.BackendsApiManager;
+import org.apache.gluten.substrait.rel.SplitInfo;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.StringValue;

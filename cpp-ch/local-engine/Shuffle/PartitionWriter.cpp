@@ -28,10 +28,8 @@
 #include <Storages/IO/CompressedWriteBuffer.h>
 #include <Storages/IO/NativeWriter.h>
 #include <boost/algorithm/string/case_conv.hpp>
-#include <Common/CHUtil.h>
 #include <Common/Stopwatch.h>
 #include <Common/ThreadPool.h>
-
 
 namespace DB
 {

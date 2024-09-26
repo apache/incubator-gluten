@@ -21,7 +21,7 @@ import org.apache.gluten.substrait.expression.ExpressionNode
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.{DataType, DecimalType, StructType}
 import org.apache.spark.util.collection.BitSet
 
@@ -44,7 +44,7 @@ trait TransformerApi {
       filterExprs: Seq[Expression] = Seq.empty): Seq[InputPartition]
 
   /**
-   * Post process native config For example, for ClickHouse backend, sync 'spark.executor.cores' to
+   * Post-process native config, For example, for ClickHouse backend, sync 'spark.executor.cores' to
    * 'spark.gluten.sql.columnar.backend.ch.runtime_settings.max_threads'
    */
   def postProcessNativeConfig(
@@ -74,4 +74,6 @@ trait TransformerApi {
 
   /** This method is only used for CH backend tests */
   def invalidateSQLExecutionResource(executionId: String): Unit = {}
+
+  def genWriteParameters(fileFormat: FileFormat, writeOptions: Map[String, String]): Any
 }

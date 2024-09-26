@@ -34,26 +34,6 @@ trait GlutenFormatWriterInjects {
       context: TaskAttemptContext,
       nativeConf: java.util.Map[String, String]): OutputWriter
 
-  // scalastyle:off argcount
-  /** For CH MergeTree format */
-  def createOutputWriter(
-      path: String,
-      database: String,
-      tableName: String,
-      snapshotId: String,
-      orderByKeyOption: Option[Seq[String]],
-      lowCardKeyOption: Option[Seq[String]],
-      minmaxIndexKeyOption: Option[Seq[String]],
-      bfIndexKeyOption: Option[Seq[String]],
-      setIndexKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]],
-      partitionColumns: Seq[String],
-      tableSchema: StructType,
-      clickhouseTableConfigs: Map[String, String],
-      context: TaskAttemptContext,
-      nativeConf: java.util.Map[String, String]): OutputWriter = null
-  // scalastyle:on argcount
-
   def inferSchema(
       sparkSession: SparkSession,
       options: Map[String, String],
@@ -65,7 +45,7 @@ trait GlutenFormatWriterInjects {
       options: Map[String, String],
       compressionCodec: String): java.util.Map[String, String]
 
-  def getFormatName(): String
+  def formatName: String
 
   def getExtendedColumnarPostRule(session: SparkSession): Rule[SparkPlan]
 }

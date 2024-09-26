@@ -18,7 +18,6 @@
 #include <DataTypes/DataTypesNumber.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Parser/aggregate_function_parser/CountParser.h>
-#include <Common/CHUtil.h>
 
 namespace DB
 {

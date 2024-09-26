@@ -23,7 +23,7 @@ import org.apache.gluten.softaffinity.SoftAffinityManager
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
-import org.apache.gluten.substrait.rel.{ExtensionTableBuilder, RelBuilder}
+import org.apache.gluten.substrait.rel.RelBuilder
 
 import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.internal.Logging
@@ -35,7 +35,7 @@ import org.apache.spark.sql.delta.ClickhouseSnapshot
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.clickhouse.MergeTreePartFilterReturnedRange
+import org.apache.spark.sql.execution.datasources.clickhouse.{ExtensionTableBuilder, MergeTreePartFilterReturnedRange}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.types.BooleanType
@@ -44,6 +44,7 @@ import org.apache.spark.util.collection.BitSet
 import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.{Any, StringValue}
+import io.substrait.proto.NamedStruct
 import io.substrait.proto.Plan
 
 import java.lang.{Long => JLong}
@@ -528,9 +529,9 @@ object MergeTreePartsPartitionsUtil extends Logging {
       val columnTypeNodes = output.map {
         attr =>
           if (table.partitionColumns.exists(_.equals(attr.name))) {
-            new ColumnTypeNode(1)
+            new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL)
           } else {
-            new ColumnTypeNode(0)
+            new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL)
           }
       }.asJava
       val substraitContext = new SubstraitContext

@@ -162,7 +162,7 @@ object ConverterUtils extends Logging {
     val namedStructJson = SubstraitPlanPrinterUtil.substraitNamedStructToJson(
       nStructBuilder
         .build())
-    namedStructJson.replaceAll("\\\n", "").replaceAll(" ", "")
+    namedStructJson.replaceAll("\n", "").replaceAll(" ", "")
   }
 
   def isNullable(nullability: Type.Nullability): Boolean = {

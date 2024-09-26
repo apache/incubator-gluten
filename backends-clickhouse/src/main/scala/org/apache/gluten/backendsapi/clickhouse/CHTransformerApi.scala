@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi.clickhouse
 
 import org.apache.gluten.backendsapi.TransformerApi
-import org.apache.gluten.execution.CHHashAggregateExecTransformer
+import org.apache.gluten.execution.{CHHashAggregateExecTransformer, WriteFilesExecTransformer}
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
 import org.apache.gluten.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
@@ -30,13 +30,14 @@ import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
+import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types._
 import org.apache.spark.util.collection.BitSet
 
 import com.google.common.collect.Lists
-import com.google.protobuf.{Any, Message}
+import com.google.protobuf.{Any, Message, StringValue}
 
 import java.util
 
@@ -232,5 +233,26 @@ class CHTransformerApi extends TransformerApi with Logging {
 
   override def invalidateSQLExecutionResource(executionId: String): Unit = {
     GlutenDriverEndpoint.invalidateResourceRelation(executionId)
+  }
+
+  override def genWriteParameters(
+      fileFormat: FileFormat,
+      writeOptions: Map[String, String]): Any = {
+    val fileFormatStr = fileFormat match {
+      case register: DataSourceRegister =>
+        register.shortName
+      case _ => "UnknownFileFormat"
+    }
+    val compressionCodec =
+      WriteFilesExecTransformer.getCompressionCodec(writeOptions).capitalize
+    val writeParametersStr = new StringBuffer("WriteParameters:")
+    writeParametersStr.append("is").append(compressionCodec).append("=1")
+    writeParametersStr.append(";format=").append(fileFormatStr).append("\n")
+
+    packPBMessage(
+      StringValue
+        .newBuilder()
+        .setValue(writeParametersStr.toString)
+        .build())
   }
 }

@@ -20,7 +20,6 @@
 #include <Parser/AggregateFunctionParser.h>
 #include <Parser/aggregate_function_parser/BloomFilterAggParser.h>
 #include <Poco/StringTokenizer.h>
-#include <Common/CHUtil.h>
 #include "substrait/algebra.pb.h"
 
 namespace DB

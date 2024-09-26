@@ -16,6 +16,7 @@
  */
 #include "SparkMergeTreeWriter.h"
 
+#include <Core/Settings.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Processors/Transforms/ApplySquashingTransform.h>
 #include <Processors/Transforms/PlanSquashingTransform.h>
@@ -24,8 +25,6 @@
 #include <Storages/MergeTree/SparkMergeTreeSink.h>
 #include <rapidjson/prettywriter.h>
 #include <Poco/StringTokenizer.h>
-#include <Common/CHUtil.h>
-#include <Common/QueryContext.h>
 
 namespace DB::Setting
 {
