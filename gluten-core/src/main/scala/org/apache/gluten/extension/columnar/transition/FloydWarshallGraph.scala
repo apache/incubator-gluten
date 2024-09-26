@@ -16,6 +16,8 @@
  */
 package org.apache.gluten.extension.columnar.transition
 
+import scala.collection.mutable
+
 /**
  * Floyd–Warshall algorithm for finding e.g., cheapest transition between query plan nodes.
  *
@@ -33,6 +35,7 @@ object FloydWarshallGraph {
   }
 
   trait CostModel[E <: AnyRef] {
+    def zero(): Cost
     def costOf(edge: E): Cost
     def costComparator(): Ordering[Cost]
   }
@@ -47,9 +50,13 @@ object FloydWarshallGraph {
   }
 
   private object Path {
-    def apply[E <: AnyRef](edges: Seq[E], cost: Cost): Path[E] = new Impl(edges, cost)
-    private class Impl[E <: AnyRef](override val edges: Seq[E], override val cost: Cost)
-      extends Path[E]
+    def apply[E <: AnyRef](costModel: CostModel[E], edges: Seq[E]): Path[E] = Impl(edges)(costModel)
+    private case class Impl[E <: AnyRef](override val edges: Seq[E])(costModel: CostModel[E])
+      extends Path[E] {
+      override val cost: Cost = {
+        edges.map(costModel.costOf).reduceOption(_ :+ _).getOrElse(costModel.zero())
+      }
+    }
   }
 
   private class Impl[V <: AnyRef, E <: AnyRef](pathTable: Map[V, Map[V, Path[E]]])
@@ -80,9 +87,61 @@ object FloydWarshallGraph {
 
   private object Builder {
     private class Impl[V <: AnyRef, E <: AnyRef](costModel: CostModel[E]) extends Builder[V, E] {
-      override def addVertex(v: V): Builder[V, E] = ???
-      override def addEdge(from: V, to: V, edge: E): Builder[V, E] = ???
-      override def build(): FloydWarshallGraph[V, E] = ???
+      private val pathTable: mutable.Map[V, mutable.Map[V, Path[E]]] = mutable.Map()
+
+      override def addVertex(v: V): Builder[V, E] = {
+        assert(!pathTable.contains(v), s"Vertex $v already exists in graph")
+        pathTable.getOrElseUpdate(v, mutable.Map()).getOrElseUpdate(v, Path(costModel, Nil))
+        this
+      }
+
+      override def addEdge(from: V, to: V, edge: E): Builder[V, E] = {
+        assert(from != to, s"Input vertices $from and $to should be different")
+        assert(pathTable.contains(from), s"Vertex $from not exists in graph")
+        assert(pathTable.contains(to), s"Vertex $to not exists in graph")
+        assert(!hasPath(from, to), s"Path from $from to $to already exists in graph")
+        pathTable(from) += to -> Path(costModel, Seq(edge))
+        this
+      }
+
+      override def build(): FloydWarshallGraph[V, E] = {
+        compile()
+        new FloydWarshallGraph.Impl(pathTable.map { case (k, m) => (k, m.toMap) }.toMap)
+      }
+
+      private def hasPath(from: V, to: V): Boolean = {
+        if (!pathTable.contains(from)) {
+          return false
+        }
+        val vec = pathTable(from)
+        if (!vec.contains(to)) {
+          return false
+        }
+        true
+      }
+
+      private def compile(): Unit = {
+        val vertices = pathTable.keys
+        for (k <- vertices) {
+          for (i <- vertices) {
+            for (j <- vertices) {
+              if (hasPath(i, k) && hasPath(k, j)) {
+                val pathIk = pathTable(i)(k)
+                val pathKj = pathTable(k)(j)
+                val newPath = Path(costModel, pathIk.edges() ++ pathKj.edges())
+                if (!hasPath(i, j)) {
+                  pathTable(i) += j -> newPath
+                } else {
+                  val path = pathTable(i)(j)
+                  if (costModel.costComparator().compare(newPath.cost(), path.cost()) < 0) {
+                    pathTable(i) += j -> newPath
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
 
     def create[V <: AnyRef, E <: AnyRef](costModel: CostModel[E]): Builder[V, E] = {

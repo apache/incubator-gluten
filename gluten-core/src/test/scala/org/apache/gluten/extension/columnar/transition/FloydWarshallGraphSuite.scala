@@ -55,6 +55,8 @@ class FloydWarshallGraphSuite extends AnyFunSuite {
     assert(!graph.hasPath(v1, v0))
     assert(!graph.hasPath(v2, v0))
 
+    assert(graph.pathOf(v0, v0).edges() == Nil)
+
     assert(graph.pathOf(v0, v1).edges() == Seq(e01))
     assert(graph.pathOf(v1, v2).edges() == Seq(e12))
     assert(graph.pathOf(v0, v3).edges() == Seq(e03))
@@ -62,7 +64,6 @@ class FloydWarshallGraphSuite extends AnyFunSuite {
     assert(graph.pathOf(v4, v2).edges() == Seq(e42))
 
     assert(graph.pathOf(v0, v2).edges() == Seq(e03, e34, e42))
-
   }
 }
 
@@ -94,6 +95,7 @@ private object FloydWarshallGraphSuite {
   }
 
   private object CostModel extends FloydWarshallGraph.CostModel[Edge] {
+    override def zero(): FloydWarshallGraph.Cost = LongCost(0)
     override def costOf(edge: Edge): FloydWarshallGraph.Cost = LongCost(edge.distance * 10)
     override def costComparator(): Ordering[FloydWarshallGraph.Cost] = Ordering.Long.on {
       case LongCost(c) => c
