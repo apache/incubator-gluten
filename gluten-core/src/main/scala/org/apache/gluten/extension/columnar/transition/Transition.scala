@@ -80,11 +80,15 @@ object Transition {
     }
 
     final def satisfies(conv: Convention, req: ConventionReq): Boolean = {
-      val none = new Transition {
+      val abort = new Transition {
         override protected def apply0(plan: SparkPlan): SparkPlan =
           throw new UnsupportedOperationException()
       }
-      val transition = findTransition(conv, req)(none)
+      val transition = findTransition(conv, req)(abort)
+      if (transition == abort) {
+        // Not found.
+        return false
+      }
       transition.isEmpty
     }
 
