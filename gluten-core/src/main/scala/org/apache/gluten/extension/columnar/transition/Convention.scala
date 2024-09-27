@@ -74,20 +74,20 @@ object Convention {
   trait BatchType extends TransitionGraph.Vertex with Serializable {
     Transition.graph.addVertex(this)
 
-    protected final def fromRow(transitionDef: TransitionDef): Unit = {
+    final protected def fromRow(transitionDef: TransitionDef): Unit = {
       Transition.graph.addEdge(RowType.VanillaRow, this, transitionDef.create())
     }
 
-    protected final def toRow(transitionDef: TransitionDef): Unit = {
+    final protected def toRow(transitionDef: TransitionDef): Unit = {
       Transition.graph.addEdge(this, RowType.VanillaRow, transitionDef.create())
     }
 
-    protected final def fromBatch(from: BatchType, transitionDef: TransitionDef): Unit = {
+    final protected def fromBatch(from: BatchType, transitionDef: TransitionDef): Unit = {
       assert(from != this)
       Transition.graph.addEdge(from, this, transitionDef.create())
     }
 
-    protected final def toBatch(to: BatchType, transitionDef: TransitionDef): Unit = {
+    final protected def toBatch(to: BatchType, transitionDef: TransitionDef): Unit = {
       assert(to != this)
       Transition.graph.addEdge(this, to, transitionDef.create())
     }
