@@ -2051,4 +2051,57 @@ class GlutenClickHouseMergeTreeWriteSuite
          |""".stripMargin
     runSql(sqlStr) { _ => }
   }
+
+  test("GLUTEN-7358: Optimize the strategy of the partition split according to the files count") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_split;
+                 |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_split
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |LOCATION '$basePath/lineitem_split'
+                 |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table lineitem_split
+                 | select * from lineitem
+                 |""".stripMargin)
+    Seq(("-1", 3), ("3", 3), ("6", 1)).foreach(
+      conf => {
+        withSQLConf(
+          ("spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold" -> conf._1)) {
+          val sql =
+            s"""
+               |select count(1), min(l_returnflag) from lineitem_split
+               |""".stripMargin
+          runSql(sql) {
+            df =>
+              val result = df.collect()
+              assertResult(1)(result.length)
+              assertResult("600572")(result(0).getLong(0).toString)
+              val scanExec = collect(df.queryExecution.executedPlan) {
+                case f: FileSourceScanExecTransformer => f
+              }
+              assert(scanExec(0).getPartitions.size == conf._2)
+          }
+        }
+      })
+  }
 }
