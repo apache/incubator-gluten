@@ -21,9 +21,9 @@ import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
 import org.apache.gluten.extension.columnar.validator.Validator.Passed
 import org.apache.gluten.extension.columnar.validator.Validators.FallbackComplexExpressions
+import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.utils.iterator.Iterators
 import org.apache.gluten.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.rdd.RDD
@@ -280,7 +280,7 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
     val numRows = childData.numRows()
     val start = System.currentTimeMillis()
     val arrowBatch =
-      ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), childData)
+      ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), childData)
     c2r += System.currentTimeMillis() - start
 
     val schema =
@@ -300,7 +300,7 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
     val targetBatch = new ColumnarBatch(vectors.map(_.asInstanceOf[ColumnVector]), numRows)
     val start2 = System.currentTimeMillis()
     val veloxBatch =
-      ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), targetBatch)
+      ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), targetBatch)
     r2c += System.currentTimeMillis() - start2
     Iterators
       .wrap(Iterator.single(veloxBatch))
