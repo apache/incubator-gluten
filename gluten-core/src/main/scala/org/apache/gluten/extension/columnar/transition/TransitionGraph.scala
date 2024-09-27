@@ -84,7 +84,7 @@ object TransitionGraph {
     private def costOf0(transition: Transition): TransitionCost = transition match {
       case t if t.isEmpty => TransitionCost(0)
       case ChainedTransition(f, s) => costOf0(f) + costOf0(s)
-      case _ => TransitionCost(0)
+      case _ => TransitionCost(1)
     }
   }
 }

@@ -198,10 +198,6 @@ class VeloxTransitionSuite extends SharedSparkSession {
   }
 
   override protected def beforeAll(): Unit = {
-    // Force object initializations.
-    VeloxBatch.getClass
-    ArrowJavaBatch.getClass
-    ArrowNativeBatch.getClass
     api.onExecutorStart(MockVeloxBackend.mockPluginContext())
     super.beforeAll()
   }
