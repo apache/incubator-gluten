@@ -273,15 +273,17 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
 
   private def getProjectedBatchArrow(
       childData: ColumnarBatch,
-      c2r: SQLMetric,
-      r2c: SQLMetric): Iterator[ColumnarBatch] = {
+      c2a: SQLMetric,
+      a2c: SQLMetric): Iterator[ColumnarBatch] = {
     // select part of child output and child data
     val proj = MutableProjection.create(replacedAliasUdf, projectAttributes)
     val numRows = childData.numRows()
     val start = System.currentTimeMillis()
-    val arrowBatch =
-      ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), childData)
-    c2r += System.currentTimeMillis() - start
+    if (childData.numCols() == 0) {
+      return Iterator.single(childData)
+    }
+    val arrowBatch = ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), childData)
+    c2a += System.currentTimeMillis() - start
 
     val schema =
       SparkShimLoader.getSparkShims.structFromAttributes(replacedAliasUdf.map(_.toAttribute))
@@ -301,7 +303,7 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
     val start2 = System.currentTimeMillis()
     val veloxBatch =
       ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), targetBatch)
-    r2c += System.currentTimeMillis() - start2
+    a2c += System.currentTimeMillis() - start2
     Iterators
       .wrap(Iterator.single(veloxBatch))
       .recycleIterator({
