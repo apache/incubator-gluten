@@ -105,7 +105,7 @@ class ClickHouseTableV2(
     )
   }
 
-  override def deltaProperties: ju.Map[String, String] = properties()
+  override def deltaProperties: Map[String, String] = properties().asScala.toMap
 
   override def deltaCatalog: Option[CatalogTable] = catalogTable
 

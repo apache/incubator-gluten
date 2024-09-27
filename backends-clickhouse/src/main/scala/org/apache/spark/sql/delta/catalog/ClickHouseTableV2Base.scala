@@ -18,25 +18,29 @@ package org.apache.spark.sql.delta.catalog
 
 import org.apache.gluten.expression.ConverterUtils.normalizeColName
 
-import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable}
+import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.delta.Snapshot
+import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
+import org.apache.spark.sql.execution.datasources.mergetree.TablePropertiesReader
 
 import org.apache.hadoop.fs.Path
 
-import java.{util => ju}
-
-trait ClickHouseTableV2Base {
+trait ClickHouseTableV2Base extends TablePropertiesReader {
 
   val DEFAULT_DATABASE = "clickhouse_db"
 
-  def deltaProperties: ju.Map[String, String]
+  def deltaProperties: Map[String, String]
 
   def deltaCatalog: Option[CatalogTable]
 
   def deltaPath: Path
 
   def deltaSnapshot: Snapshot
+
+  def configuration: Map[String, String] = deltaProperties
+
+  def metadata: Metadata = deltaSnapshot.metadata
 
   lazy val dataBaseName: String = deltaCatalog
     .map(_.identifier.database.getOrElse("default"))
@@ -46,112 +50,13 @@ trait ClickHouseTableV2Base {
     .map(_.identifier.table)
     .getOrElse(deltaPath.toUri.getPath)
 
-  lazy val bucketOption: Option[BucketSpec] = {
-    val tableProperties = deltaProperties
-    if (tableProperties.containsKey("numBuckets")) {
-      val numBuckets = tableProperties.get("numBuckets").trim.toInt
-      val bucketColumnNames: Seq[String] =
-        getCommaSeparatedColumns("bucketColumnNames").getOrElse(Seq.empty[String])
-      val sortColumnNames: Seq[String] =
-        getCommaSeparatedColumns("orderByKey").getOrElse(Seq.empty[String])
-      Some(BucketSpec(numBuckets, bucketColumnNames, sortColumnNames))
-    } else {
-      None
-    }
-  }
-
-  lazy val lowCardKeyOption: Option[Seq[String]] = {
-    getCommaSeparatedColumns("lowCardKey")
-  }
-
-  lazy val minmaxIndexKeyOption: Option[Seq[String]] = {
-    getCommaSeparatedColumns("minmaxIndexKey")
-  }
-
-  lazy val bfIndexKeyOption: Option[Seq[String]] = {
-    getCommaSeparatedColumns("bloomfilterIndexKey")
-  }
-
-  lazy val setIndexKeyOption: Option[Seq[String]] = {
-    getCommaSeparatedColumns("setIndexKey")
-  }
-
-  private def getCommaSeparatedColumns(keyName: String) = {
-    val tableProperties = deltaProperties
-    if (tableProperties.containsKey(keyName)) {
-      if (tableProperties.get(keyName).nonEmpty) {
-        val keys = tableProperties
-          .get(keyName)
-          .split(",")
-          .map(n => normalizeColName(n.trim))
-          .toSeq
-        keys.foreach(
-          s => {
-            if (s.contains(".")) {
-              throw new IllegalStateException(
-                s"$keyName $s can not contain '.' (not support nested column yet)")
-            }
-          })
-        Some(keys)
-      } else {
-        None
-      }
-    } else {
-      None
-    }
-  }
-
-  lazy val orderByKeyOption: Option[Seq[String]] = {
-    if (bucketOption.isDefined && bucketOption.get.sortColumnNames.nonEmpty) {
-      val orderByKeys = bucketOption.get.sortColumnNames.map(normalizeColName).toSeq
-      val invalidKeys = orderByKeys.intersect(partitionColumns)
-      if (invalidKeys.nonEmpty) {
-        throw new IllegalStateException(
-          s"partition cols $invalidKeys can not be in the order by keys.")
-      }
-      Some(orderByKeys)
-    } else {
-      val orderByKeys = getCommaSeparatedColumns("orderByKey")
-      if (orderByKeys.isDefined) {
-        val invalidKeys = orderByKeys.get.intersect(partitionColumns)
-        if (invalidKeys.nonEmpty) {
-          throw new IllegalStateException(
-            s"partition cols $invalidKeys can not be in the order by keys.")
-        }
-        orderByKeys
-      } else {
-        None
-      }
-    }
-  }
-
-  lazy val primaryKeyOption: Option[Seq[String]] = {
-    if (orderByKeyOption.isDefined) {
-      val primaryKeys = getCommaSeparatedColumns("primaryKey")
-      if (
-        primaryKeys.isDefined && !orderByKeyOption.get
-          .mkString(",")
-          .startsWith(primaryKeys.get.mkString(","))
-      ) {
-        throw new IllegalStateException(
-          s"Primary key $primaryKeys must be a prefix of the sorting key")
-      }
-      primaryKeys
-    } else {
-      None
-    }
-  }
-
-  lazy val partitionColumns: Seq[String] =
-    deltaSnapshot.metadata.partitionColumns.map(normalizeColName).toSeq
-
   lazy val clickhouseTableConfigs: Map[String, String] = {
     val (orderByKey0, primaryKey0) = MergeTreeDeltaUtil.genOrderByAndPrimaryKeyStr(
       orderByKeyOption,
       primaryKeyOption
     )
     Map(
-      "storage_policy" -> deltaProperties.getOrDefault("storage_policy", "default"),
+      "storage_policy" -> deltaProperties.getOrElse("storage_policy", "default"),
       "storage_db" -> dataBaseName,
       "storage_table" -> tableName,
       "storage_orderByKey" -> orderByKey0,
