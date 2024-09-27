@@ -36,7 +36,7 @@ trait Transition {
     out
   }
 
-  final val isEmpty: Boolean = {
+  final lazy val isEmpty: Boolean = {
     // Tests if a transition is actually no-op.
     val plan = DummySparkPlan()
     val out = apply0(plan)
@@ -57,6 +57,7 @@ object TransitionDef {
 
 object Transition {
   val empty: Transition = (plan: SparkPlan) => plan
+  private val abort: Transition = (_: SparkPlan) => throw new UnsupportedOperationException("Abort")
   private[transition] val graph: TransitionGraph.Builder = TransitionGraph.builder()
 
   def factory(): Factory = Factory.newBuiltin(graph.build())
@@ -80,15 +81,7 @@ object Transition {
     }
 
     final def satisfies(conv: Convention, req: ConventionReq): Boolean = {
-      val abort = new Transition {
-        override protected def apply0(plan: SparkPlan): SparkPlan =
-          throw new UnsupportedOperationException()
-      }
       val transition = findTransition(conv, req)(abort)
-      if (transition == abort) {
-        // Not found.
-        return false
-      }
       transition.isEmpty
     }
 
