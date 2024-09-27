@@ -17,6 +17,7 @@
 package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.exception.GlutenException
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -35,7 +36,7 @@ trait Transition {
     out
   }
 
-  final lazy val isEmpty: Boolean = {
+  final val isEmpty: Boolean = {
     // Tests if a transition is actually no-op.
     val plan = DummySparkPlan()
     val out = apply0(plan)

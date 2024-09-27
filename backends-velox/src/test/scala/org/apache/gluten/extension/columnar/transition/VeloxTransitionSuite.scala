@@ -19,7 +19,6 @@ package org.apache.gluten.extension.columnar.transition
 import org.apache.gluten.backendsapi.velox.VeloxListenerApi
 import org.apache.gluten.columnarbatch.ArrowBatches.{ArrowJavaBatch, ArrowNativeBatch}
 import org.apache.gluten.columnarbatch.VeloxBatch
-import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.{LoadArrowDataExec, OffloadArrowDataExec, RowToVeloxColumnarExec, VeloxColumnarToRowExec}
 import org.apache.gluten.extension.columnar.transition.Convention.BatchType.VanillaBatch
 import org.apache.gluten.test.MockVeloxBackend
@@ -64,11 +63,10 @@ class VeloxTransitionSuite extends SharedSparkSession {
 
   test("ArrowNative R2C - requires Arrow input") {
     val in = BatchUnary(ArrowNativeBatch, RowLeaf())
-    assertThrows[GlutenException] {
-      // No viable transitions.
-      // FIXME: Support this case.
-      Transitions.insertTransitions(in, outputsColumnar = false)
-    }
+    val out = Transitions.insertTransitions(in, outputsColumnar = false)
+    assert(
+      out == ColumnarToRowExec(
+        LoadArrowDataExec(BatchUnary(ArrowNativeBatch, RowToVeloxColumnarExec(RowLeaf())))))
   }
 
   test("ArrowNative-to-Velox C2C") {
@@ -200,6 +198,10 @@ class VeloxTransitionSuite extends SharedSparkSession {
   }
 
   override protected def beforeAll(): Unit = {
+    // Force object initializations.
+    VeloxBatch.getClass
+    ArrowJavaBatch.getClass
+    ArrowNativeBatch.getClass
     api.onExecutorStart(MockVeloxBackend.mockPluginContext())
     super.beforeAll()
   }
