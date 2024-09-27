@@ -82,14 +82,14 @@ case class FilterExprsAsKey(
 
 object ClickhouseSnapshot {
   val deltaScanCache: Cache[FilterExprsAsKey, DeltaScan] = CacheBuilder.newBuilder
-    .maximumSize(100)
-    .expireAfterAccess(3600L, TimeUnit.SECONDS)
+    .maximumSize(1000000)
+    .expireAfterAccess(7200L, TimeUnit.SECONDS)
     .recordStats()
     .build()
 
   val addFileToAddMTPCache: LoadingCache[AddFileAsKey, AddMergeTreeParts] = CacheBuilder.newBuilder
     .maximumSize(1000000)
-    .expireAfterAccess(3600L, TimeUnit.SECONDS)
+    .expireAfterAccess(7200L, TimeUnit.SECONDS)
     .recordStats
     .build[AddFileAsKey, AddMergeTreeParts](new CacheLoader[AddFileAsKey, AddMergeTreeParts]() {
       @throws[Exception]
@@ -100,7 +100,7 @@ object ClickhouseSnapshot {
 
   val pathToAddMTPCache: Cache[String, AddMergeTreeParts] = CacheBuilder.newBuilder
     .maximumSize(1000000)
-    .expireAfterAccess(3600L, TimeUnit.SECONDS)
+    .expireAfterAccess(7200L, TimeUnit.SECONDS)
     .recordStats()
     .build()
 
