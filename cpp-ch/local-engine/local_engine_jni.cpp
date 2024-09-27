@@ -1310,10 +1310,11 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_SimpleExpressionEval_nativeNex
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
-JNIEXPORT jlong Java_org_apache_gluten_memory_CHThreadGroup_createThreadGroup(JNIEnv * env, jclass)
+JNIEXPORT jlong Java_org_apache_gluten_memory_CHThreadGroup_createThreadGroup(JNIEnv * env, jclass, jstring task_id_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    return local_engine::QueryContext::instance().initializeQuery();
+    auto task_id = jstring2string(env, task_id_);
+    return local_engine::QueryContext::instance().initializeQuery(task_id);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0l)
 }
 

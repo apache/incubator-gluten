@@ -40,10 +40,10 @@ public:
         static QueryContext instance;
         return instance;
     }
-    int64_t initializeQuery();
+    int64_t initializeQuery(String task_id);
     DB::ContextMutablePtr currentQueryContext();
     static std::shared_ptr<DB::ThreadGroup> currentThreadGroup();
-    void logCurrentPerformanceCounters(ProfileEvents::Counters & counters) const;
+    void logCurrentPerformanceCounters(ProfileEvents::Counters & counters, String task_id) const;
     size_t currentPeakMemory(int64_t id);
     void finalizeQuery(int64_t id);
 
