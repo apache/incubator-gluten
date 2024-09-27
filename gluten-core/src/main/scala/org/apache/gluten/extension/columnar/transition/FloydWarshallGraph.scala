@@ -19,7 +19,7 @@ package org.apache.gluten.extension.columnar.transition
 import scala.collection.mutable
 
 /**
- * Floyd–Warshall algorithm for finding e.g., cheapest transition between query plan nodes.
+ * Floyd-Warshall algorithm for finding e.g., cheapest transition between query plan nodes.
  *
  * https://en.wikipedia.org/wiki/Floyd%E2%80%93Warshall_algorithm
  */
