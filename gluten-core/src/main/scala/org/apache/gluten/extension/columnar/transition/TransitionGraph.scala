@@ -17,9 +17,13 @@
 package org.apache.gluten.extension.columnar.transition
 
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.util.SparkReflectionUtil
 
 object TransitionGraph {
-  trait Vertex
+  trait Vertex {
+    override def toString: String = SparkReflectionUtil.getSimpleClassName(this.getClass)
+  }
+
   type Builder = FloydWarshallGraph.Builder[TransitionGraph.Vertex, Transition]
 
   def builder(): Builder = {
