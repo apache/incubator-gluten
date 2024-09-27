@@ -88,7 +88,7 @@ private object FloydWarshallGraphSuite {
   }
 
   private case class LongCost(c: Long) extends FloydWarshallGraph.Cost {
-    override def :+(other: FloydWarshallGraph.Cost): FloydWarshallGraph.Cost = other match {
+    override def +(other: FloydWarshallGraph.Cost): FloydWarshallGraph.Cost = other match {
       case LongCost(o) => LongCost(c + o)
     }
   }

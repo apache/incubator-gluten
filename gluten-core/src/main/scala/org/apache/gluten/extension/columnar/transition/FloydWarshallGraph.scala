@@ -31,7 +31,7 @@ trait FloydWarshallGraph[V <: AnyRef, E <: AnyRef] {
 
 object FloydWarshallGraph {
   trait Cost {
-    def :+(other: Cost): Cost
+    def +(other: Cost): Cost
   }
 
   trait CostModel[E <: AnyRef] {
@@ -54,7 +54,7 @@ object FloydWarshallGraph {
     private case class Impl[E <: AnyRef](override val edges: Seq[E])(costModel: CostModel[E])
       extends Path[E] {
       override val cost: Cost = {
-        edges.map(costModel.costOf).reduceOption(_ :+ _).getOrElse(costModel.zero())
+        edges.map(costModel.costOf).reduceOption(_ + _).getOrElse(costModel.zero())
       }
     }
   }

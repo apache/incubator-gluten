@@ -52,23 +52,23 @@ object TransitionGraph {
     }
   }
 
-  private object TransitionGraphOps {
-    private class ChainedTransition(first: Transition, second: Transition) extends Transition {
-      override def apply0(plan: SparkPlan): SparkPlan = {
-        second(first(plan))
-      }
+  private case class ChainedTransition(first: Transition, second: Transition) extends Transition {
+    override def apply0(plan: SparkPlan): SparkPlan = {
+      second(first(plan))
     }
+  }
 
+  private object TransitionGraphOps {
     private def chain(first: Transition, second: Transition): Transition = {
       if (first.isEmpty && second.isEmpty) {
         return Transition.empty
       }
-      new ChainedTransition(first, second)
+      ChainedTransition(first, second)
     }
   }
 
   private case class TransitionCost(count: Int) extends FloydWarshallGraph.Cost {
-    override def :+(other: FloydWarshallGraph.Cost): FloydWarshallGraph.Cost = {
+    override def +(other: FloydWarshallGraph.Cost): TransitionCost = {
       other match {
         case TransitionCost(otherCount) => TransitionCost(count + otherCount)
       }
@@ -77,9 +77,14 @@ object TransitionGraph {
 
   private object TransitionCostModel extends FloydWarshallGraph.CostModel[Transition] {
     override def zero(): FloydWarshallGraph.Cost = TransitionCost(0)
-    override def costOf(edge: Transition): FloydWarshallGraph.Cost = TransitionCost(1)
+    override def costOf(transition: Transition): FloydWarshallGraph.Cost = costOf0(transition)
     override def costComparator(): Ordering[FloydWarshallGraph.Cost] = Ordering.Int.on {
       case TransitionCost(c) => c
+    }
+    private def costOf0(transition: Transition): TransitionCost = transition match {
+      case t if t.isEmpty => TransitionCost(0)
+      case ChainedTransition(f, s) => costOf0(f) + costOf0(s)
+      case _ => TransitionCost(0)
     }
   }
 }
