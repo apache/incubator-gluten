@@ -316,7 +316,6 @@ abstract class WholeStageTransformerSuite
       }
     }
     checkDataFrame(noFallBack, customCheck, df)
-    df.explain(true)
     df
   }
 
