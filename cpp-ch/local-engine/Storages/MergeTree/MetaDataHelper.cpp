@@ -118,7 +118,7 @@ void restoreMetaData<ROCKSDB>(const SparkStorageMergeTreePtr & storage, const Me
                     transaction->createDirectoryRecursive(part_path);
                 auto key = s3->generateObjectKeyForPath(metadata_file_path.generic_string(), std::nullopt);
                 StoredObject metadata_object(key.serialize());
-                auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object));
+                auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object, ReadSettings{}));
                 for (const auto & item : part_metadata)
                 {
                     auto item_path = part_path / item.first;
@@ -180,7 +180,7 @@ void restoreMetaData<LOCAL>(
                     metadata_disk->createDirectories(part_path);
                 auto key = s3->generateObjectKeyForPath(metadata_file_path.generic_string(), std::nullopt);
                 StoredObject metadata_object(key.serialize());
-                auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object));
+                auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object, ReadSettings{}));
                 for (const auto & item : part_metadata)
                 {
                     auto item_path = part_path / item.first;
