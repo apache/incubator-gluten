@@ -36,7 +36,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.CHColumnarShuffleWriter
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
-import org.apache.spark.sql.execution.datasources.clickhouse.{ExtensionTableBuilder, ExtensionTableNode}
+import org.apache.spark.sql.execution.datasources.clickhouse.{ClickhousePartSerializer, ExtensionTableBuilder, ExtensionTableNode}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
@@ -131,20 +131,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       properties: Map[String, String]): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>
-        val partLists = new JArrayList[String]()
-        val starts = new JArrayList[JLong]()
-        val lengths = new JArrayList[JLong]()
-        p.partList
-          .foreach(
-            parts => {
-              partLists.add(parts.name)
-              starts.add(parts.start)
-              lengths.add(parts.length)
-            })
         ExtensionTableBuilder
           .makeExtensionTable(
-            -1L,
-            -1L,
             p.database,
             p.table,
             p.snapshotId,
@@ -156,9 +144,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             p.bfIndexKey,
             p.setIndexKey,
             p.primaryKey,
-            partLists,
-            starts,
-            lengths,
+            ClickhousePartSerializer.fromMergeTreePartSplits(p.partList.toSeq),
             p.tableSchemaJson,
             p.clickhouseTableConfigs.asJava,
             CHAffinity.getNativeMergeTreePartitionLocations(p).toList.asJava
@@ -222,27 +208,23 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val planByteArray = wsCtx.root.toProtobuf.toByteArray
     splitInfos.zipWithIndex.map {
       case (splits, index) =>
-        val files = ArrayBuffer[String]()
-        val splitInfosByteArray = splits.zipWithIndex.map {
+        val (splitInfosByteArray, files) = splits.zipWithIndex.map {
           case (split, i) =>
             split match {
               case filesNode: LocalFilesNode =>
                 setFileSchemaForLocalFiles(filesNode, scans(i))
-                filesNode.getPaths.forEach(f => files += f)
-                filesNode.toProtobuf.toByteArray
+                (filesNode.toProtobuf.toByteArray, filesNode.getPaths.asScala.toSeq)
               case extensionTableNode: ExtensionTableNode =>
-                extensionTableNode.getPartList.forEach(
-                  name => files += extensionTableNode.getAbsolutePath + "/" + name)
-                extensionTableNode.toProtobuf.toByteArray
+                (extensionTableNode.toProtobuf.toByteArray, extensionTableNode.getPartList)
             }
-        }
+        }.unzip
 
         GlutenPartition(
           index,
           planByteArray,
           splitInfosByteArray.toArray,
           locations = splits.flatMap(_.preferredLocations().asScala).toArray,
-          files.toArray
+          files.flatten.toArray
         )
     }
   }

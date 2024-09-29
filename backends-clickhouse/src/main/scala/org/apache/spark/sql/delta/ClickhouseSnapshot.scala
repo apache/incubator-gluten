@@ -125,11 +125,6 @@ object ClickhouseSnapshot {
   // use timestamp + version as the snapshot id for ch backend
   def genSnapshotId(snapshot: Snapshot): String = {
     // When CTAS, there is no latest timestamp in the Snapshot
-    val ts = if (snapshot.metadata.createdTime.isDefined) {
-      snapshot.metadata.createdTime.get
-    } else {
-      System.currentTimeMillis()
-    }
-    ts.toString + "_" + snapshot.version.toString
+    s"${snapshot.metadata.createdTime.getOrElse(System.currentTimeMillis())}_${snapshot.version}"
   }
 }

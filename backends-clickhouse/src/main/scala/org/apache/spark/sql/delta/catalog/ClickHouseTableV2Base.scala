@@ -16,12 +16,11 @@
  */
 package org.apache.spark.sql.delta.catalog
 
-import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.expression.ConverterUtils.normalizeColName
 
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable}
 import org.apache.spark.sql.delta.Snapshot
-import org.apache.spark.sql.execution.datasources.utils.MergeTreeDeltaUtil
+import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
 
 import org.apache.hadoop.fs.Path
 
@@ -31,19 +30,20 @@ trait ClickHouseTableV2Base {
 
   val DEFAULT_DATABASE = "clickhouse_db"
 
-  def deltaProperties(): ju.Map[String, String]
+  def deltaProperties: ju.Map[String, String]
 
-  def deltaCatalog(): Option[CatalogTable]
 
-  def deltaPath(): Path
+  def deltaCatalog: Option[CatalogTable]
 
-  def deltaSnapshot(): Snapshot
+  def deltaPath: Path
 
-  lazy val dataBaseName = deltaCatalog
+  def deltaSnapshot: Snapshot
+
+  lazy val dataBaseName: String = deltaCatalog
     .map(_.identifier.database.getOrElse("default"))
     .getOrElse(DEFAULT_DATABASE)
 
-  lazy val tableName = deltaCatalog
+  lazy val tableName: String = deltaCatalog
     .map(_.identifier.table)
     .getOrElse(deltaPath.toUri.getPath)
 
@@ -84,7 +84,7 @@ trait ClickHouseTableV2Base {
         val keys = tableProperties
           .get(keyName)
           .split(",")
-          .map(n => ConverterUtils.normalizeColName(n.trim))
+          .map(n => normalizeColName(n.trim))
           .toSeq
         keys.foreach(
           s => {
@@ -143,13 +143,27 @@ trait ClickHouseTableV2Base {
     }
   }
 
-  lazy val partitionColumns = deltaSnapshot.metadata.partitionColumns.map(normalizeColName).toSeq
+  lazy val partitionColumns: Seq[String] =
+    deltaSnapshot.metadata.partitionColumns.map(normalizeColName).toSeq
 
   lazy val clickhouseTableConfigs: Map[String, String] = {
-    val tableProperties = deltaProperties()
-    val configs = scala.collection.mutable.Map[String, String]()
-    configs += ("storage_policy" -> tableProperties.getOrDefault("storage_policy", "default"))
-    configs.toMap
+    val (orderByKey0, primaryKey0) = MergeTreeDeltaUtil.genOrderByAndPrimaryKeyStr(
+      orderByKeyOption,
+      primaryKeyOption
+    )
+    Map(
+      "storage_policy" -> deltaProperties.getOrDefault("storage_policy", "default"),
+      "storage_db" -> dataBaseName,
+      "storage_table" -> tableName,
+      "storage_orderByKey" -> orderByKey0,
+      "storage_lowCardKey" -> lowCardKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
+      "storage_minmaxIndexKey" -> minmaxIndexKeyOption
+        .map(MergeTreeDeltaUtil.columnsToStr)
+        .getOrElse(""),
+      "storage_bfIndexKey" -> bfIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
+      "storage_setIndexKey" -> setIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
+      "storage_primaryKey" -> primaryKey0
+    )
   }
 
   def primaryKey(): String = MergeTreeDeltaUtil.columnsToStr(primaryKeyOption)
