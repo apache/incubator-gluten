@@ -75,10 +75,11 @@ public final class VeloxColumnarBatches {
    * Combine multiple columnar batches horizontally, assuming each of them is already offloaded.
    * Otherwise {@link UnsupportedOperationException} will be thrown.
    */
-  public static long compose(ColumnarBatch... batches) {
+  public static ColumnarBatch compose(ColumnarBatch... batches) {
     final Runtime runtime = Runtimes.contextInstance("VeloxColumnarBatches#compose");
     final long[] handles =
         Arrays.stream(batches).mapToLong(ColumnarBatches::getNativeHandle).toArray();
-    return VeloxColumnarBatchJniWrapper.create(runtime).compose(handles);
+    final long handle = VeloxColumnarBatchJniWrapper.create(runtime).compose(handles);
+    return ColumnarBatches.create(handle);
   }
 }

@@ -28,6 +28,7 @@
 #include "config/GlutenConfig.h"
 #include "jni/JniError.h"
 #include "jni/JniFileSystem.h"
+#include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
 #include "utils/ObjectStore.h"
@@ -150,6 +151,29 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
     return env->NewObject(infoCls, method, isSupported, env->NewStringUTF(""));
   }
   JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJniWrapper_compose( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlongArray batchHandles) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto runtime = dynamic_cast<gluten::VeloxRuntime*>(ctx);
+
+  int handleCount = env->GetArrayLength(batchHandles);
+  auto safeArray = gluten::getLongArrayElementsSafe(env, batchHandles);
+
+  std::vector<std::shared_ptr<gluten::ColumnarBatch>> batches;
+  for (int i = 0; i < handleCount; ++i) {
+    int64_t handle = safeArray.elems()[i];
+    auto batch = gluten::ObjectStore::retrieve<gluten::ColumnarBatch>(handle);
+    batches.push_back(batch);
+  }
+  auto newBatch =
+      gluten::VeloxColumnarBatch::compose(runtime->memoryManager()->getLeafMemoryPool().get(), std::move(batches));
+  return ctx->saveObject(newBatch);
+  JNI_METHOD_END(gluten::kInvalidObjectHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_utils_VeloxBloomFilterJniWrapper_empty( // NOLINT
