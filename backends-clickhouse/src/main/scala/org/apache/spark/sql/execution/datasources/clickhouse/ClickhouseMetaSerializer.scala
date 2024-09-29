@@ -20,6 +20,7 @@ import org.apache.gluten.execution.MergeTreePartSplit
 import org.apache.gluten.expression.ConverterUtils
 
 import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
+import org.apache.spark.sql.execution.datasources.mergetree.{DeltaMetaReader, StorageMeta}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.types.StructType
 
@@ -80,16 +81,10 @@ object ClickhousePartSerializer {
 }
 
 object ClickhouseMetaSerializer {
-  private val MERGE_TREE = "MergeTree;"
 
-  def forWrite(
-      snapshotId: String,
-      path: String,
-      dataSchema: StructType,
-      clickhouseTableConfigs: Map[String, String]): ReadRel.ExtensionTable = {
+  def forWrite(deltaMetaReader: DeltaMetaReader, dataSchema: StructType): ReadRel.ExtensionTable = {
+    val clickhouseTableConfigs = deltaMetaReader.writeConfiguration
 
-    val database = clickhouseTableConfigs("storage_db")
-    val tableName = clickhouseTableConfigs("storage_table")
     val orderByKey = clickhouseTableConfigs("storage_orderByKey")
     val lowCardKey = clickhouseTableConfigs("storage_lowCardKey")
     val minmaxIndexKey = clickhouseTableConfigs("storage_minmaxIndexKey")
@@ -98,11 +93,11 @@ object ClickhouseMetaSerializer {
     val primaryKey = clickhouseTableConfigs("storage_primaryKey")
 
     val result = apply(
-      database,
-      tableName,
-      snapshotId,
-      path,
-      "",
+      deltaMetaReader.storageDB,
+      deltaMetaReader.storageTable,
+      deltaMetaReader.storageSnapshotId,
+      deltaMetaReader.storagePath,
+      "", // absolutePath
       orderByKey,
       lowCardKey,
       minmaxIndexKey,
@@ -176,7 +171,7 @@ object ClickhouseMetaSerializer {
 
     // New: MergeTree;{database}\n{table}\n{orderByKey}\n{primaryKey}\n{relative_path}\n
     // {part_path1}\n{part_path2}\n...
-    val extensionTableStr = new StringBuilder(MERGE_TREE)
+    val extensionTableStr = new StringBuilder(StorageMeta.SERIALIZER_HEADER)
 
     val orderByKey = ConverterUtils.normalizeColName(orderByKey0)
     val lowCardKey = ConverterUtils.normalizeColName(lowCardKey0)

@@ -51,23 +51,10 @@ trait ClickHouseTableV2Base extends TablePropertiesReader {
     .getOrElse(deltaPath.toUri.getPath)
 
   lazy val clickhouseTableConfigs: Map[String, String] = {
-    val (orderByKey0, primaryKey0) = MergeTreeDeltaUtil.genOrderByAndPrimaryKeyStr(
-      orderByKeyOption,
-      primaryKeyOption
-    )
-    Map(
-      "storage_policy" -> deltaProperties.getOrElse("storage_policy", "default"),
-      "storage_db" -> dataBaseName,
-      "storage_table" -> tableName,
-      "storage_orderByKey" -> orderByKey0,
-      "storage_lowCardKey" -> lowCardKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      "storage_minmaxIndexKey" -> minmaxIndexKeyOption
-        .map(MergeTreeDeltaUtil.columnsToStr)
-        .getOrElse(""),
-      "storage_bfIndexKey" -> bfIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      "storage_setIndexKey" -> setIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      "storage_primaryKey" -> primaryKey0
-    )
+    deltaProperties.get("storage_policy") match {
+      case Some(_) => deltaProperties
+      case None => deltaProperties ++ Seq("storage_policy" -> "default")
+    }
   }
 
   def primaryKey(): String = MergeTreeDeltaUtil.columnsToStr(primaryKeyOption)

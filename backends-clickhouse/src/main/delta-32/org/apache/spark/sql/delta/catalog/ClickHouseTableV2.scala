@@ -31,6 +31,7 @@ import org.apache.spark.sql.delta.actions.{Metadata, Protocol}
 import org.apache.spark.sql.delta.sources.DeltaDataSource
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreePartsPartitionsUtil
+import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSourceUtils
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -98,11 +99,12 @@ class ClickHouseTableV2(
   def getFileFormat(protocol: Protocol, meta: Metadata): DeltaMergeTreeFileFormat = {
     new DeltaMergeTreeFileFormat(
       protocol,
-      meta,
-      ClickhouseSnapshot.genSnapshotId(initialSnapshot),
-      deltaLog.dataPath.toString,
-      clickhouseTableConfigs
-    )
+      StorageMeta.withMoreStorageInfo(
+        meta,
+        ClickhouseSnapshot.genSnapshotId(initialSnapshot),
+        deltaLog.dataPath,
+        dataBaseName,
+        tableName))
   }
 
   override def deltaProperties: Map[String, String] = properties().asScala.toMap

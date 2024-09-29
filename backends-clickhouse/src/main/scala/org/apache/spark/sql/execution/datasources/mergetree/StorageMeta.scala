@@ -20,9 +20,12 @@ import org.apache.gluten.expression.ConverterUtils.normalizeColName
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.delta.actions.Metadata
+import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
+
+import org.apache.hadoop.fs.Path
 
 /** Reserved table property for MergeTree table. */
-object TableProperties {
+object StorageMeta {
   val Provider: String = "clickhouse"
   val DEFAULT_FILE_FORMAT: String = "write.format.default"
   val DEFAULT_FILE_FORMAT_DEFAULT: String = "mergetree"
@@ -31,8 +34,26 @@ object TableProperties {
   val DefaultStorageDB: String = "default"
   val STORAGE_DB: String = "storage_db"
   val STORAGE_TABLE: String = "storage_table"
+  val STORAGE_SNAPSHOT_ID: String = "storage_snapshot_id"
+  val STORAGE_PATH: String = "storage_path"
 
   val SERIALIZER_HEADER: String = "MergeTree;"
+
+  def withMoreStorageInfo(
+      metadata: Metadata,
+      snapshotId: String,
+      deltaPath: Path,
+      database: String,
+      tableName: String): Metadata = {
+    val newOptions =
+      metadata.configuration ++ Seq(
+        STORAGE_DB -> database,
+        STORAGE_SNAPSHOT_ID -> snapshotId,
+        STORAGE_TABLE -> tableName,
+        STORAGE_PATH -> deltaPath.toString
+      )
+    metadata.copy(configuration = newOptions)
+  }
 }
 
 trait TablePropertiesReader {
@@ -41,12 +62,6 @@ trait TablePropertiesReader {
 
   /** delta */
   def metadata: Metadata
-
-  def storageDB: String =
-    configuration.getOrElse(TableProperties.STORAGE_DB, TableProperties.DefaultStorageDB)
-
-  def storageTable: String =
-    configuration.getOrElse(TableProperties.STORAGE_TABLE, "")
 
   private def getCommaSeparatedColumns(keyName: String): Option[Seq[String]] = {
     configuration.get(keyName).map {
@@ -127,5 +142,23 @@ trait TablePropertiesReader {
                 s"Primary key $primaryKey must be a prefix of the sorting key $orderBy"))
         primaryKeys
     }
+  }
+
+  lazy val writeConfiguration: Map[String, String] = {
+    val (orderByKey0, primaryKey0) = MergeTreeDeltaUtil.genOrderByAndPrimaryKeyStr(
+      orderByKeyOption,
+      primaryKeyOption
+    )
+    Map(
+      "storage_policy" -> configuration.getOrElse("storage_policy", "default"),
+      "storage_orderByKey" -> orderByKey0,
+      "storage_lowCardKey" -> lowCardKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
+      "storage_minmaxIndexKey" -> minmaxIndexKeyOption
+        .map(MergeTreeDeltaUtil.columnsToStr)
+        .getOrElse(""),
+      "storage_bfIndexKey" -> bfIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
+      "storage_setIndexKey" -> setIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
+      "storage_primaryKey" -> primaryKey0
+    )
   }
 }

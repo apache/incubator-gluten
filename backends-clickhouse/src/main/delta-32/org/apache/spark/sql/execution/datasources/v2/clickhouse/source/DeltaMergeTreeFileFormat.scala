@@ -21,18 +21,14 @@ import org.apache.spark.sql.delta.DeltaParquetFileFormat
 import org.apache.spark.sql.delta.actions.{Metadata, Protocol}
 import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
 import org.apache.spark.sql.execution.datasources.clickhouse.ClickhouseMetaSerializer
+import org.apache.spark.sql.execution.datasources.mergetree.DeltaMetaReader
 import org.apache.spark.sql.execution.datasources.v1.{CHMergeTreeWriterInjects, GlutenMergeTreeWriterInjects}
 import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 
 @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
-class DeltaMergeTreeFileFormat(
-    protocol: Protocol,
-    metadata: Metadata,
-    val snapshotId: String,
-    val deltaPath: String,
-    @transient val clickhouseTableConfigs: Map[String, String])
+class DeltaMergeTreeFileFormat(protocol: Protocol, metadata: Metadata)
   extends DeltaParquetFileFormat(protocol, metadata) {
 
   override def shortName(): String = "mergetree"
@@ -63,16 +59,15 @@ class DeltaMergeTreeFileFormat(
         .getInstance()
         .nativeConf(options, "")
 
-    val database = clickhouseTableConfigs("storage_db")
-    val tableName = clickhouseTableConfigs("storage_table")
+    @transient val deltaMetaReader = DeltaMetaReader(metadata)
+
+    val database = deltaMetaReader.storageDB
+    val tableName = deltaMetaReader.storageTable
+    val deltaPath = deltaMetaReader.storagePath
+
     val extensionTableBC = sparkSession.sparkContext.broadcast(
       ClickhouseMetaSerializer
-        .forWrite(
-          snapshotId,
-          deltaPath,
-          metadata.schema,
-          clickhouseTableConfigs
-        )
+        .forWrite(deltaMetaReader, metadata.schema)
         .toByteArray)
 
     new OutputWriterFactory {
