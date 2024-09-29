@@ -39,15 +39,16 @@ trait Backend {
   def onExecutorStart(pc: PluginContext): Unit = {}
   def onExecutorShutdown(): Unit = {}
 
-  /** The columnar-batch type this backend is using. */
-  def batchType: Convention.BatchType
+  /** The columnar-batch type this backend is by default using. */
+  def defaultBatchType: Convention.BatchType
 
   /**
    * Overrides [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using to
    * determine the convention (its row-based processing / columnar-batch processing support) of a
-   * plan with a user-defined function that accepts a plan then returns batch type it outputs.
+   * plan with a user-defined function that accepts a plan then returns convention type it outputs,
+   * and input conventions it requires.
    */
-  def batchTypeFunc(): ConventionFunc.BatchOverride = PartialFunction.empty
+  def convFuncOverride(): ConventionFunc.Override = ConventionFunc.Override.Empty
 
   /** Query planner rules. */
   def injectRules(injector: RuleInjector): Unit

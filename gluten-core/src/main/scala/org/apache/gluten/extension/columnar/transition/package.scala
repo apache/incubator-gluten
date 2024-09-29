@@ -23,6 +23,7 @@ import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.debug.DebugExec
 
 package object transition {
+  type TransitionGraph = FloydWarshallGraph[TransitionGraph.Vertex, Transition]
   // These 5 plan operators (as of Spark 3.5) are operators that have the
   // same convention with their children.
   //

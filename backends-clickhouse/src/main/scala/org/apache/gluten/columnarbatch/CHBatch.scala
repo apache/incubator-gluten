@@ -23,8 +23,9 @@ import org.apache.spark.sql.execution.{CHColumnarToRowExec, RowToCHNativeColumna
 /**
  * ClickHouse batch convention.
  *
- * [[fromRow]] and [[toRow]] need a [[TransitionDef]] instance. The scala allows an compact way to
- * implement trait using a lambda function.
+ * [[fromRow]] and [[toRow]] need a
+ * [[org.apache.gluten.extension.columnar.transition.TransitionDef]] instance. The scala allows an
+ * compact way to implement trait using a lambda function.
  *
  * Here the detail definition is given in [[CHBatch.fromRow]].
  * {{{

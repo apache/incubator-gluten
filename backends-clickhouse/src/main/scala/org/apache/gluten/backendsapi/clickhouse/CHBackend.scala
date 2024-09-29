@@ -49,7 +49,7 @@ import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends SubstraitBackend {
   override def name(): String = CHConf.BACKEND_NAME
-  override def batchType: Convention.BatchType = CHBatch
+  override def defaultBatchType: Convention.BatchType = CHBatch
   override def buildInfo(): Backend.BuildInfo =
     Backend.BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
   override def iteratorApi(): IteratorApi = new CHIteratorApi

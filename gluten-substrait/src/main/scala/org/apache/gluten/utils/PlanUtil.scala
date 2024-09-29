@@ -27,7 +27,7 @@ import scala.annotation.tailrec
 
 object PlanUtil {
   private def isGlutenTableCacheInternal(i: InMemoryTableScanExec): Boolean = {
-    Convention.get(i).batchType == Backend.get().batchType
+    Convention.get(i).batchType == Backend.get().defaultBatchType
   }
 
   @tailrec
@@ -47,6 +47,6 @@ object PlanUtil {
   }
 
   def isGlutenColumnarOp(plan: SparkPlan): Boolean = {
-    Convention.get(plan).batchType == Backend.get().batchType
+    Convention.get(plan).batchType == Backend.get().defaultBatchType
   }
 }
