@@ -17,6 +17,7 @@
 package org.apache.gluten.execution.mergetree
 
 import org.apache.gluten.execution._
+import org.apache.gluten.utils.Arm
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SaveMode
@@ -24,6 +25,7 @@ import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.functions._
 
@@ -162,7 +164,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         val planNodeJson = wholeStageTransformer.substraitPlanJson
         assert(
           !planNodeJson
-            .replaceAll("\\\n", "")
+            .replaceAll("\n", "")
             .replaceAll(" ", "")
             .contains("\"input\":{\"filter\":{"))
     }
@@ -269,7 +271,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
         val planNodeJson = wholeStageTransformer.substraitPlanJson
         assert(
           !planNodeJson
-            .replaceAll("\\\n", "")
+            .replaceAll("\n", "")
             .replaceAll(" ", "")
             .contains("\"input\":{\"filter\":{"))
     }
@@ -1006,7 +1008,7 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
     // find a folder whose name is like 48b70783-b3b8-4bf8-9c52-5261aead8e3e_0_006
     val partDir = directory.listFiles().filter(f => f.getName.length > 20).head
     val columnsFile = new File(partDir, "columns.txt")
-    val columns = Source.fromFile(columnsFile).getLines().mkString
+    val columns = Arm.withResource(Source.fromFile(columnsFile))(_.getLines().mkString)
     assert(columns.contains("`l_returnflag` LowCardinality(Nullable(String))"))
     assert(columns.contains("`l_linestatus` LowCardinality(Nullable(String))"))
 
@@ -1366,34 +1368,39 @@ class GlutenClickHouseMergeTreePathBasedWriteSuite
       .option("clickhouse.lowCardKey", "l_returnflag,l_linestatus")
       .save(dataPath1)
 
-    val df = spark.read
-      .format("clickhouse")
-      .load(dataPath)
-    val result = df.collect()
-    assertResult(600572)(result.size)
+    {
+      val df = spark.read
+        .format("clickhouse")
+        .load(dataPath)
+      val result = df.collect()
+      assertResult(600572)(result.length)
 
-    val plans = collect(df.queryExecution.executedPlan) {
-      case f: FileSourceScanExecTransformer => f
+      val plans = collect(df.queryExecution.executedPlan) {
+        case f: FileSourceScanExecTransformer => f
+      }
+      val partitions = plans.head.getPartitions
+      assert(partitions.nonEmpty)
+      assert(partitions.head.isInstanceOf[GlutenMergeTreePartition])
+      val mergeTreePartition = partitions.head.asInstanceOf[GlutenMergeTreePartition]
+      assertResult(mergeTreePartition.database)(StorageMeta.DEFAULT_PATH_BASED_DATABASE)
+      assertResult(mergeTreePartition.table)(dataPath)
     }
-    val partitions = plans(0).getPartitions
-    assert(partitions.nonEmpty)
-    assert(partitions(0).isInstanceOf[GlutenMergeTreePartition])
-    assert(partitions(0).asInstanceOf[GlutenMergeTreePartition].database.equals("clickhouse_db"))
-    assert(partitions(0).asInstanceOf[GlutenMergeTreePartition].table.equals(dataPath))
+    {
+      val df1 = spark.read
+        .format("clickhouse")
+        .load(dataPath1)
+      val result1 = df1.collect()
+      assertResult(600572)(result1.length)
 
-    val df1 = spark.read
-      .format("clickhouse")
-      .load(dataPath1)
-    val result1 = df1.collect()
-    assertResult(600572)(result.size)
-
-    val plans1 = collect(df1.queryExecution.executedPlan) {
-      case f: FileSourceScanExecTransformer => f
+      val plans1 = collect(df1.queryExecution.executedPlan) {
+        case f: FileSourceScanExecTransformer => f
+      }
+      val partitions1 = plans1.head.getPartitions
+      assert(partitions1.nonEmpty)
+      assert(partitions1.head.isInstanceOf[GlutenMergeTreePartition])
+      val mergeTreePartition1 = partitions1.head.asInstanceOf[GlutenMergeTreePartition]
+      assertResult(mergeTreePartition1.database)(StorageMeta.DEFAULT_PATH_BASED_DATABASE)
+      assertResult(mergeTreePartition1.table)(dataPath1)
     }
-    val partitions1 = plans1(0).getPartitions
-    assert(partitions1.nonEmpty)
-    assert(partitions1(0).isInstanceOf[GlutenMergeTreePartition])
-    assert(partitions1(0).asInstanceOf[GlutenMergeTreePartition].database.equals("clickhouse_db"))
-    assert(partitions1(0).asInstanceOf[GlutenMergeTreePartition].table.equals(dataPath1))
   }
 }

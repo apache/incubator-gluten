@@ -24,6 +24,8 @@ import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDelt
 
 import org.apache.hadoop.fs.Path
 
+import scala.collection.mutable.ListBuffer
+
 /** Reserved table property for MergeTree table. */
 object StorageMeta {
   val Provider: String = "clickhouse"
@@ -31,12 +33,12 @@ object StorageMeta {
   val DEFAULT_FILE_FORMAT_DEFAULT: String = "mergetree"
 
   // Storage properties
-  val DefaultStorageDB: String = "default"
+  val DEFAULT_PATH_BASED_DATABASE: String = "clickhouse_db"
+  val DEFAULT_CREATE_TABLE_DATABASE: String = "default"
   val STORAGE_DB: String = "storage_db"
   val STORAGE_TABLE: String = "storage_table"
   val STORAGE_SNAPSHOT_ID: String = "storage_snapshot_id"
   val STORAGE_PATH: String = "storage_path"
-
   val SERIALIZER_HEADER: String = "MergeTree;"
 
   def withMoreStorageInfo(
@@ -45,14 +47,28 @@ object StorageMeta {
       deltaPath: Path,
       database: String,
       tableName: String): Metadata = {
-    val newOptions =
-      metadata.configuration ++ Seq(
-        STORAGE_DB -> database,
-        STORAGE_SNAPSHOT_ID -> snapshotId,
-        STORAGE_TABLE -> tableName,
-        STORAGE_PATH -> deltaPath.toString
-      )
-    metadata.copy(configuration = newOptions)
+    val moreOptions = Seq(
+      STORAGE_DB -> database,
+      STORAGE_SNAPSHOT_ID -> snapshotId,
+      STORAGE_TABLE -> tableName,
+      STORAGE_PATH -> deltaPath.toString)
+    withMoreOptions(metadata, moreOptions)
+  }
+  def withMoreStorageInfo(metadata: Metadata, snapshotId: String, deltaPath: Path): Metadata = {
+    val moreOptions =
+      ListBuffer(STORAGE_SNAPSHOT_ID -> snapshotId, STORAGE_PATH -> deltaPath.toString)
+    // Path-based create table statement does not have storage_db and storage_table
+    if (!metadata.configuration.contains(STORAGE_DB)) {
+      moreOptions += STORAGE_DB -> DEFAULT_PATH_BASED_DATABASE
+    }
+    if (!metadata.configuration.contains(STORAGE_TABLE)) {
+      moreOptions += STORAGE_TABLE -> deltaPath.toUri.getPath
+    }
+    withMoreOptions(metadata, moreOptions.toSeq)
+  }
+
+  private def withMoreOptions(metadata: Metadata, newOptions: Seq[(String, String)]): Metadata = {
+    metadata.copy(configuration = metadata.configuration ++ newOptions)
   }
 }
 

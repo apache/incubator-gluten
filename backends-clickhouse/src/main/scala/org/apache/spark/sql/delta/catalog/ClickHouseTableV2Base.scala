@@ -22,13 +22,11 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.delta.Snapshot
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
-import org.apache.spark.sql.execution.datasources.mergetree.TablePropertiesReader
+import org.apache.spark.sql.execution.datasources.mergetree.{StorageMeta, TablePropertiesReader}
 
 import org.apache.hadoop.fs.Path
 
 trait ClickHouseTableV2Base extends TablePropertiesReader {
-
-  val DEFAULT_DATABASE = "clickhouse_db"
 
   def deltaProperties: Map[String, String]
 
@@ -43,18 +41,15 @@ trait ClickHouseTableV2Base extends TablePropertiesReader {
   def metadata: Metadata = deltaSnapshot.metadata
 
   lazy val dataBaseName: String = deltaCatalog
-    .map(_.identifier.database.getOrElse("default"))
-    .getOrElse(DEFAULT_DATABASE)
+    .map(_.identifier.database.getOrElse(StorageMeta.DEFAULT_CREATE_TABLE_DATABASE))
+    .getOrElse(StorageMeta.DEFAULT_PATH_BASED_DATABASE)
 
   lazy val tableName: String = deltaCatalog
     .map(_.identifier.table)
     .getOrElse(deltaPath.toUri.getPath)
 
   lazy val clickhouseTableConfigs: Map[String, String] = {
-    deltaProperties.get("storage_policy") match {
-      case Some(_) => deltaProperties
-      case None => deltaProperties ++ Seq("storage_policy" -> "default")
-    }
+    Map("storage_policy" -> deltaProperties.getOrElse("storage_policy", "default"))
   }
 
   def primaryKey(): String = MergeTreeDeltaUtil.columnsToStr(primaryKeyOption)

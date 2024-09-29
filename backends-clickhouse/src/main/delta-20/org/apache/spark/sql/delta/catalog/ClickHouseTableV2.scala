@@ -104,13 +104,13 @@ class ClickHouseTableV2(
         tableName))
   }
 
-  override def deltaProperties(): Map[String, String] = properties().asScala.toMap
+  override def deltaProperties: Map[String, String] = properties().asScala.toMap
 
-  override def deltaCatalog(): Option[CatalogTable] = catalogTable
+  override def deltaCatalog: Option[CatalogTable] = catalogTable
 
-  override def deltaPath(): Path = path
+  override def deltaPath: Path = path
 
-  override def deltaSnapshot(): Snapshot = snapshot
+  override def deltaSnapshot: Snapshot = snapshot
 
   def cacheThis(): Unit = {
     deltaLog2Table.put(deltaLog, this)

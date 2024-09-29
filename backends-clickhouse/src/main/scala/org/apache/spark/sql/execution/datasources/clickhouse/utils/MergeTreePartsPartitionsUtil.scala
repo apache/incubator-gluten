@@ -36,6 +36,7 @@ import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.clickhouse.{ClickhousePartSerializer, ExtensionTableBuilder, MergeTreePartFilterReturnedRange}
+import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.types.BooleanType
@@ -85,7 +86,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       (table.catalogTable.get.identifier.database.get, table.catalogTable.get.identifier.table)
     } else {
       // for file_format.`file_path`
-      (table.DEFAULT_DATABASE, table.deltaPath.toUri.getPath)
+      (StorageMeta.DEFAULT_PATH_BASED_DATABASE, table.deltaPath.toUri.getPath)
     }
     val engine = "MergeTree"
     val relativeTablePath = fileIndex.deltaLog.dataPath.toUri.getPath.substring(1)
