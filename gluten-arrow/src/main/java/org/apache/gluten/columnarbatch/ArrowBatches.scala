@@ -20,7 +20,7 @@ import org.apache.gluten.execution.{LoadArrowDataExec, OffloadArrowDataExec}
 import org.apache.gluten.extension.columnar.transition.{Convention, TransitionDef}
 import org.apache.gluten.extension.columnar.transition.Convention.BatchType.VanillaBatch
 
-import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
+import org.apache.spark.sql.execution.SparkPlan
 
 object ArrowBatches {
 
@@ -35,12 +35,6 @@ object ArrowBatches {
    * implementations.
    */
   object ArrowJavaBatch extends Convention.BatchType {
-    toRow(
-      () =>
-        (plan: SparkPlan) => {
-          ColumnarToRowExec(plan)
-        })
-
     toBatch(VanillaBatch, TransitionDef.empty)
   }
 
@@ -52,19 +46,6 @@ object ArrowBatches {
    * [[ColumnarBatches]].
    */
   object ArrowNativeBatch extends Convention.BatchType {
-    toRow(
-      () =>
-        (plan: SparkPlan) => {
-          ColumnarToRowExec(LoadArrowDataExec(plan))
-        })
-
-    toBatch(
-      VanillaBatch,
-      () =>
-        (plan: SparkPlan) => {
-          LoadArrowDataExec(plan)
-        })
-
     fromBatch(
       ArrowJavaBatch,
       () =>
