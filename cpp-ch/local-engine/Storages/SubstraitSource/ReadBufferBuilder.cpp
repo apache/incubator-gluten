@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+#include "IO/SharedThreadPools.h"
 #include "config.h"
 
 #include <memory>
@@ -72,6 +73,9 @@ namespace Setting
 extern const SettingsUInt64 s3_max_redirects;
 extern const SettingsBool s3_disable_checksum;
 extern const SettingsUInt64 s3_retry_attempts;
+extern const SettingsMaxThreads max_download_threads;
+extern const SettingsUInt64 max_download_buffer_size;
+extern const SettingsBool input_format_allow_seeks;
 }
 namespace ErrorCodes
 {
@@ -169,6 +173,8 @@ class LocalFileReadBufferBuilder : public ReadBufferBuilder
 public:
     explicit LocalFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~LocalFileReadBufferBuilder() override = default;
+
+    bool isRemote() const override { return false; }
 
     std::unique_ptr<DB::ReadBuffer>
     build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
@@ -794,11 +800,51 @@ std::unique_ptr<DB::ReadBuffer>
 ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position)
 {
     auto in = build(file_info, set_read_util_position);
+    in = wrapParallelReadBufferIfNeeded(file_info, std::move(in));
 
     /// Wrap the read buffer with compression method if exists
     Poco::URI file_uri(file_info.uri_file());
     DB::CompressionMethod compression = DB::chooseCompressionMethod(file_uri.getPath(), "auto");
     return compression != DB::CompressionMethod::None ? DB::wrapReadBufferWithCompressionMethod(std::move(in), compression) : std::move(in);
+}
+
+std::unique_ptr<DB::ReadBuffer> ReadBufferBuilder::wrapParallelReadBufferIfNeeded(
+    const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, std::unique_ptr<DB::ReadBuffer> in)
+{
+    /// Only use parallel downloading for text and json format because data are read serially in those formats.
+    if (!file_info.has_text() && !file_info.has_json())
+        return std::move(in);
+
+    const auto & settings = context->getSettingsRef();
+    auto max_download_threads = settings[DB::Setting::max_download_threads];
+    auto max_download_buffer_size = settings[DB::Setting::max_download_buffer_size];
+    bool allow_seeks = settings[DB::Setting::input_format_allow_seeks];
+    bool parallel_read = isRemote() && max_download_threads > 1 && allow_seeks && isBufferWithFileSize(*in);
+
+    size_t file_size = 0;
+    if (parallel_read)
+    {
+        file_size = getFileSizeFromReadBuffer(*in);
+        parallel_read = file_size >= 2 * settings[DB::Setting::max_download_buffer_size];
+    }
+
+    if (parallel_read)
+    {
+        LOG_TRACE(
+            getLogger("ReadBufferBuilder"),
+            "Using ParallelReadBuffer with {} workers with chunks of {} bytes",
+            max_download_threads,
+            max_download_buffer_size);
+
+        return wrapInParallelReadBufferIfSupported(
+            {std::move(in)},
+            DB::threadPoolCallbackRunnerUnsafe<void>(DB::getIOThreadPool().get(), "ParallelRead"),
+            max_download_threads,
+            max_download_buffer_size,
+            file_size);
+    }
+
+    return std::move(in);
 }
 
 

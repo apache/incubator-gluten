@@ -20,6 +20,7 @@
 #include <memory>
 #include <IO/ReadBuffer.h>
 #include <substrait/plan.pb.h>
+#include <IO/CompressionMethod.h>
 
 
 namespace local_engine
@@ -32,6 +33,8 @@ public:
 
     virtual ~ReadBufferBuilder() = default;
 
+    virtual bool isRemote() const { return true; }
+
     /// build a new read buffer
     virtual std::unique_ptr<DB::ReadBuffer>
     build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position = false) = 0;
@@ -40,7 +43,11 @@ public:
     std::unique_ptr<DB::ReadBuffer> buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position = false);
 
 protected:
-    DB::ReadSettings getReadSettings(DB::ContextPtr context) const;
+    std::unique_ptr<DB::ReadBuffer>
+    wrapParallelReadBufferIfNeeded(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, std::unique_ptr<DB::ReadBuffer> in);
+
+    DB::ReadSettings
+        getReadSettings(DB::ContextPtr context) const;
     DB::ContextPtr context;
 
 public:
