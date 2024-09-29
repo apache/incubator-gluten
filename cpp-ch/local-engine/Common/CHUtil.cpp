@@ -33,6 +33,7 @@
 #include <Core/Defines.h>
 #include <Core/NamesAndTypes.h>
 #include <Core/Settings.h>
+#include <Core/ServerSettings.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeNullable.h>
@@ -672,11 +673,38 @@ DB::Field BackendInitializerUtil::toField(const String & key, const String & val
 void BackendInitializerUtil::initSettings(const std::map<std::string, std::string> & spark_conf_map, DB::Settings & settings)
 {
     /// Initialize default setting.
+    settings.set("join_use_nulls", true);
+    settings.set("input_format_orc_allow_missing_columns", true);
+    settings.set("input_format_orc_case_insensitive_column_matching", true);
+    settings.set("input_format_orc_import_nested", true);
+    settings.set("input_format_orc_skip_columns_with_unsupported_types_in_schema_inference", true);
+    settings.set("input_format_parquet_allow_missing_columns", true);
+    settings.set("input_format_parquet_case_insensitive_column_matching", true);
+    settings.set("input_format_parquet_import_nested", true);
+    settings.set("input_format_json_read_numbers_as_strings", true);
+    settings.set("input_format_json_read_bools_as_numbers", false);
+    settings.set("input_format_csv_trim_whitespaces", false);
+    settings.set("input_format_csv_allow_cr_end_of_line", true);
+    settings.set("output_format_orc_string_as_string", true);
+    settings.set("output_format_parquet_version", "1.0");
+    settings.set("output_format_parquet_compression_method", "snappy");
+    settings.set("output_format_parquet_string_as_string", true);
+    settings.set("output_format_parquet_fixed_string_as_fixed_byte_array", false);
+    settings.set("output_format_json_quote_64bit_integers", false);
+    settings.set("output_format_json_quote_denormals", true);
+    settings.set("output_format_json_skip_null_value_in_named_tuples", true);
+    settings.set("output_format_json_escape_forward_slashes", false);
+    settings.set("function_json_value_return_type_allow_complex", true);
+    settings.set("function_json_value_return_type_allow_nullable", true);
+    settings.set("precise_float_parsing", true);
+    settings.set("enable_named_columns_in_function_tuple", false);
+    settings.set("datetime64_trim_suffix_zeros", true);
     settings.set("date_time_input_format", "best_effort");
+    settings.set("remote_filesystem_read_prefetch", false);
+
     settings.set(MERGETREE_MERGE_AFTER_INSERT, true);
     settings.set(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, false);
     settings.set(DECIMAL_OPERATIONS_ALLOW_PREC_LOSS, true);
-    settings.set("remote_filesystem_read_prefetch", false);
 
     for (const auto & [key, value] : spark_conf_map)
     {
@@ -722,33 +750,6 @@ void BackendInitializerUtil::initSettings(const std::map<std::string, std::strin
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
     }
-    /// Finally apply some fixed kvs to settings.
-    settings.set("join_use_nulls", true);
-    settings.set("input_format_orc_allow_missing_columns", true);
-    settings.set("input_format_orc_case_insensitive_column_matching", true);
-    settings.set("input_format_orc_import_nested", true);
-    settings.set("input_format_orc_skip_columns_with_unsupported_types_in_schema_inference", true);
-    settings.set("input_format_parquet_allow_missing_columns", true);
-    settings.set("input_format_parquet_case_insensitive_column_matching", true);
-    settings.set("input_format_parquet_import_nested", true);
-    settings.set("input_format_json_read_numbers_as_strings", true);
-    settings.set("input_format_json_read_bools_as_numbers", false);
-    settings.set("input_format_csv_trim_whitespaces", false);
-    settings.set("input_format_csv_allow_cr_end_of_line", true);
-    settings.set("output_format_orc_string_as_string", true);
-    settings.set("output_format_parquet_version", "1.0");
-    settings.set("output_format_parquet_compression_method", "snappy");
-    settings.set("output_format_parquet_string_as_string", true);
-    settings.set("output_format_parquet_fixed_string_as_fixed_byte_array", false);
-    settings.set("output_format_json_quote_64bit_integers", false);
-    settings.set("output_format_json_quote_denormals", true);
-    settings.set("output_format_json_skip_null_value_in_named_tuples", true);
-    settings.set("output_format_json_escape_forward_slashes", false);
-    settings.set("function_json_value_return_type_allow_complex", true);
-    settings.set("function_json_value_return_type_allow_nullable", true);
-    settings.set("precise_float_parsing", true);
-    settings.set("enable_named_columns_in_function_tuple", false);
-    settings.set("datetime64_trim_suffix_zeros", true);
 
     if (spark_conf_map.contains(GLUTEN_TASK_OFFHEAP))
     {
@@ -817,6 +818,14 @@ void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
 
         size_t mmap_cache_size = config->getUInt64("mmap_cache_size", DEFAULT_MMAP_CACHE_MAX_SIZE);
         global_context->setMMappedFileCache(mmap_cache_size);
+
+        /// Initialize global IO thread pool
+        ServerSettings server_settings;
+        server_settings.loadSettingsFromConfig(*config);
+        getIOThreadPool().initialize(
+            server_settings.max_io_thread_pool_size,
+            server_settings.max_io_thread_pool_free_size,
+            server_settings.io_thread_pool_queue_size);
 
         /// Initialize a dummy query cache.
         global_context->setQueryCache(0, 0, 0, 0);
