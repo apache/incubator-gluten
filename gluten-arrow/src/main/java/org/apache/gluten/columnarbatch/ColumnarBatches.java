@@ -45,11 +45,11 @@ import java.util.NoSuchElementException;
 
 import scala.collection.JavaConverters;
 
-public class ColumnarBatches {
+public final class ColumnarBatches {
 
   private ColumnarBatches() {}
 
-  enum BatchType {
+  private enum BatchType {
     LIGHT,
     HEAVY
   }
@@ -173,22 +173,22 @@ public class ColumnarBatches {
       ColumnarBatch output =
           ArrowAbiUtil.importToSparkColumnarBatch(allocator, arrowSchema, cArray);
 
-      // Follow gluten input's reference count. This might be optimized using
-      // automatic clean-up or once the extensibility of ColumnarBatch is enriched
-      IndicatorVector giv = (IndicatorVector) input.column(0);
-      for (long i = 0; i < (giv.refCnt() - 1); i++) {
+      // Follow input's reference count. This might be optimized using
+      // automatic clean-up or once the extensibility of ColumnarBatch is enriched.
+      long refCnt = getRefCntLight(input);
+      for (long i = 0; i < (refCnt - 1); i++) {
         for (int j = 0; j < output.numCols(); j++) {
           final ArrowWritableColumnVector col = (ArrowWritableColumnVector) output.column(j);
           col.retain();
         }
       }
 
-      // close the input one
-      for (long i = 0; i < giv.refCnt(); i++) {
+      // Close the input one.
+      for (long i = 0; i < refCnt; i++) {
         input.close();
       }
 
-      // populate new vectors to input
+      // Populate new vectors to input.
       ColumnarBatchUtil.transferVectors(output, input);
 
       return output;
@@ -212,19 +212,19 @@ public class ColumnarBatches {
       ColumnarBatch output = ColumnarBatches.create(handle);
 
       // Follow input's reference count. This might be optimized using
-      // automatic clean-up or once the extensibility of ColumnarBatch is enriched
+      // automatic clean-up or once the extensibility of ColumnarBatch is enriched.
       long refCnt = getRefCntHeavy(input);
       final IndicatorVector giv = (IndicatorVector) output.column(0);
       for (long i = 0; i < (refCnt - 1); i++) {
         giv.retain();
       }
 
-      // close the input one
+      // Close the input one.
       for (long i = 0; i < refCnt; i++) {
         input.close();
       }
 
-      // populate new vectors to input
+      // Populate new vectors to input.
       ColumnarBatchUtil.transferVectors(output, input);
       return input;
     }
@@ -251,7 +251,7 @@ public class ColumnarBatches {
     };
   }
 
-  private static long getRefCntLight(ColumnarBatch input) {
+  static long getRefCntLight(ColumnarBatch input) {
     if (!isLightBatch(input)) {
       throw new UnsupportedOperationException("Input batch is not light batch");
     }
@@ -259,7 +259,7 @@ public class ColumnarBatches {
     return iv.refCnt();
   }
 
-  private static long getRefCntHeavy(ColumnarBatch input) {
+  static long getRefCntHeavy(ColumnarBatch input) {
     if (!isHeavyBatch(input)) {
       throw new UnsupportedOperationException("Input batch is not heavy batch");
     }
@@ -303,27 +303,6 @@ public class ColumnarBatches {
     }
   }
 
-  private static IndicatorVector getIndicatorVector(ColumnarBatch input) {
-    if (!isLightBatch(input)) {
-      throw new UnsupportedOperationException("Input batch is not light batch");
-    }
-    return (IndicatorVector) input.column(0);
-  }
-
-  /**
-   * Combine multiple columnar batches horizontally, assuming each of them is already offloaded.
-   * Otherwise {@link UnsupportedOperationException} will be thrown.
-   */
-  public static long compose(ColumnarBatch... batches) {
-    IndicatorVector[] ivs =
-        Arrays.stream(batches)
-            .map(ColumnarBatches::getIndicatorVector)
-            .toArray(IndicatorVector[]::new);
-    final long[] handles = Arrays.stream(ivs).mapToLong(IndicatorVector::handle).toArray();
-    return ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatches#compose"))
-        .compose(handles);
-  }
-
   private static ColumnarBatch create(IndicatorVector iv) {
     int numColumns = Math.toIntExact(iv.getNumColumns());
     int numRows = Math.toIntExact(iv.getNumRows());
@@ -365,14 +344,28 @@ public class ColumnarBatches {
     b.close();
   }
 
+  private static IndicatorVector getIndicatorVector(ColumnarBatch input) {
+    if (!isLightBatch(input)) {
+      throw new UnsupportedOperationException("Input batch is not light batch");
+    }
+    return (IndicatorVector) input.column(0);
+  }
+
   public static long getNativeHandle(ColumnarBatch batch) {
     return getIndicatorVector(batch).handle();
+  }
+
+  static String getComprehensiveLightBatchType(ColumnarBatch batch) {
+    return getIndicatorVector(batch).getType();
   }
 
   public static String toString(ColumnarBatch batch, int start, int length) {
     ColumnarBatch loadedBatch = ensureLoaded(ArrowBufferAllocators.contextInstance(), batch);
     StructType type = SparkArrowUtil.fromArrowSchema(ArrowUtil.toSchema(loadedBatch));
     return InternalRowUtl.toString(
-        type, JavaConverters.asScalaIterator(loadedBatch.rowIterator()), start, length);
+        type,
+        JavaConverters.<InternalRow>asScalaIterator(loadedBatch.rowIterator()),
+        start,
+        length);
   }
 }

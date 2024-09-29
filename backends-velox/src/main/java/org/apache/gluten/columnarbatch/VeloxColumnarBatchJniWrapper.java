@@ -19,34 +19,20 @@ package org.apache.gluten.columnarbatch;
 import org.apache.gluten.runtime.Runtime;
 import org.apache.gluten.runtime.RuntimeAware;
 
-public class ColumnarBatchJniWrapper implements RuntimeAware {
+public class VeloxColumnarBatchJniWrapper implements RuntimeAware {
   private final Runtime runtime;
 
-  private ColumnarBatchJniWrapper(Runtime runtime) {
+  private VeloxColumnarBatchJniWrapper(Runtime runtime) {
     this.runtime = runtime;
   }
 
-  public static ColumnarBatchJniWrapper create(Runtime runtime) {
-    return new ColumnarBatchJniWrapper(runtime);
+  public static VeloxColumnarBatchJniWrapper create(Runtime runtime) {
+    return new VeloxColumnarBatchJniWrapper(runtime);
   }
 
-  public native long createWithArrowArray(long cSchema, long cArray);
+  public native long from(long batch);
 
-  public native long getForEmptySchema(int numRows);
-
-  public native String getType(long batch);
-
-  public native long numColumns(long batch);
-
-  public native long numRows(long batch);
-
-  public native long numBytes(long batch);
-
-  public native void exportToArrow(long batch, long cSchema, long cArray);
-
-  public native long select(long batch, int[] columnIndices);
-
-  public native void close(long batch);
+  public native long compose(long[] batches);
 
   @Override
   public long rtHandle() {

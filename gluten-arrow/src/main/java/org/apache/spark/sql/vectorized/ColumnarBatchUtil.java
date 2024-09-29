@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.vectorized;
 
-import org.apache.gluten.columnarbatch.ColumnarBatches;
 import org.apache.gluten.exception.GlutenException;
 
 import java.lang.reflect.Field;
@@ -61,10 +60,7 @@ public class ColumnarBatchUtil {
         newVectors[i] = from.column(i);
       }
       FIELD_COLUMNS.set(target, newVectors);
-      // Light batch does not need the row.
-      if (ColumnarBatches.isHeavyBatch(target)) {
-        setColumnarBatchRow(from, newVectors, target);
-      }
+      setColumnarBatchRow(from, newVectors, target);
     } catch (IllegalAccessException e) {
       throw new GlutenException(e);
     }
