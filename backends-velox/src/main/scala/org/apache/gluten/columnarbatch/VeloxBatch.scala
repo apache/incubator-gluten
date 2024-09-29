@@ -17,25 +17,13 @@
 package org.apache.gluten.columnarbatch
 
 import org.apache.gluten.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
-import org.apache.gluten.extension.columnar.transition.{Convention, TransitionDef}
-
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.gluten.extension.columnar.transition.{Convention, Transition}
 
 object VeloxBatch extends Convention.BatchType {
-  fromRow(
-    () =>
-      (plan: SparkPlan) => {
-        RowToVeloxColumnarExec(plan)
-      })
-
-  toRow(
-    () =>
-      (plan: SparkPlan) => {
-        VeloxColumnarToRowExec(plan)
-      })
-
+  fromRow(RowToVeloxColumnarExec.apply)
+  toRow(VeloxColumnarToRowExec.apply)
   // TODO: Add explicit transitions between Arrow native batch and Velox batch.
   //  See https://github.com/apache/incubator-gluten/issues/7313.
-  fromBatch(ArrowBatches.ArrowNativeBatch, TransitionDef.empty)
-  toBatch(ArrowBatches.ArrowNativeBatch, TransitionDef.empty)
+  fromBatch(ArrowBatches.ArrowNativeBatch, Transition.empty)
+  toBatch(ArrowBatches.ArrowNativeBatch, Transition.empty)
 }

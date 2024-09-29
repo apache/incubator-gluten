@@ -47,14 +47,6 @@ trait Transition {
   protected def apply0(plan: SparkPlan): SparkPlan
 }
 
-trait TransitionDef {
-  def create(): Transition
-}
-
-object TransitionDef {
-  val empty: TransitionDef = () => Transition.empty
-}
-
 object Transition {
   val empty: Transition = (plan: SparkPlan) => plan
   private val abort: Transition = (_: SparkPlan) => throw new UnsupportedOperationException("Abort")

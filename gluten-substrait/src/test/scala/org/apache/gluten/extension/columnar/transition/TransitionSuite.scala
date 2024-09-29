@@ -85,59 +85,20 @@ class TransitionSuite extends SharedSparkSession {
 
 object TransitionSuite extends TransitionSuiteBase {
   object TypeA extends Convention.BatchType {
-    fromRow(
-      () =>
-        (plan: SparkPlan) => {
-          RowToBatch(this, plan)
-        })
-
-    toRow(
-      () =>
-        (plan: SparkPlan) => {
-          BatchToRow(this, plan)
-        })
+    fromRow(RowToBatch(this, _))
+    toRow(BatchToRow(this, _))
   }
 
   object TypeB extends Convention.BatchType {
-    fromRow(
-      () =>
-        (plan: SparkPlan) => {
-          RowToBatch(this, plan)
-        })
-
-    toRow(
-      () =>
-        (plan: SparkPlan) => {
-          BatchToRow(this, plan)
-        })
+    fromRow(RowToBatch(this, _))
+    toRow(BatchToRow(this, _))
   }
 
   object TypeC extends Convention.BatchType {
-    fromRow(
-      () =>
-        (plan: SparkPlan) => {
-          RowToBatch(this, plan)
-        })
-
-    toRow(
-      () =>
-        (plan: SparkPlan) => {
-          BatchToRow(this, plan)
-        })
-
-    fromBatch(
-      TypeA,
-      () =>
-        (plan: SparkPlan) => {
-          BatchToBatch(TypeA, this, plan)
-        })
-
-    toBatch(
-      TypeA,
-      () =>
-        (plan: SparkPlan) => {
-          BatchToBatch(this, TypeA, plan)
-        })
+    fromRow(RowToBatch(this, _))
+    toRow(BatchToRow(this, _))
+    fromBatch(TypeA, BatchToBatch(TypeA, this, _))
+    toBatch(TypeA, BatchToBatch(this, TypeA, _))
   }
 
   object TypeD extends Convention.BatchType {}

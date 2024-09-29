@@ -18,7 +18,7 @@ package org.apache.gluten.columnarbatch
 
 import org.apache.gluten.extension.columnar.transition.Convention
 
-import org.apache.spark.sql.execution.{CHColumnarToRowExec, RowToCHNativeColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.{CHColumnarToRowExec, RowToCHNativeColumnarExec}
 
 /**
  * ClickHouse batch convention.
@@ -38,15 +38,6 @@ import org.apache.spark.sql.execution.{CHColumnarToRowExec, RowToCHNativeColumna
  * }}}
  */
 object CHBatch extends Convention.BatchType {
-  fromRow(
-    () =>
-      (plan: SparkPlan) => {
-        RowToCHNativeColumnarExec(plan)
-      })
-
-  toRow(
-    () =>
-      (plan: SparkPlan) => {
-        CHColumnarToRowExec(plan)
-      })
+  fromRow(RowToCHNativeColumnarExec.apply)
+  toRow(CHColumnarToRowExec.apply)
 }
