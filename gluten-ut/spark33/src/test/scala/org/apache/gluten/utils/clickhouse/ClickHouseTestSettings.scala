@@ -692,11 +692,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-36740: ArrayMin/ArrayMax/SortArray should handle NaN greater then non-NaN value")
     .excludeGlutenTest("Shuffle")
   enableSuite[GlutenComplexTypeSuite]
-//    .exclude("SPARK-33386: GetArrayItem ArrayIndexOutOfBoundsException")
-//    .exclude("SPARK-33460: GetMapValue NoSuchElementException")
-//    .exclude("GetArrayStructFields")
-//    .exclude("CreateMap")
-//    .exclude("MapFromArrays")
   enableSuite[GlutenConditionalExpressionSuite]
     .exclude("case when")
     .exclude("if/case when - null flags of non-primitive types")

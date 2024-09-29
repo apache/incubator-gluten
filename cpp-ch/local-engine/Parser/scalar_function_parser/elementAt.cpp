@@ -15,29 +15,70 @@
  * limitations under the License.
  */
 
-#include <Parser/scalar_function_parser/arrayElement.h>
 #include <DataTypes/DataTypeMap.h>
 #include <DataTypes/IDataType.h>
+#include <Parser/FunctionParser.h>
+
+namespace DB
+{
+namespace ErrorCodes
+{
+extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
+extern const int BAD_ARGUMENTS;
+}
+}
 
 namespace local_engine
 {
-class FunctionParserElementAt : public FunctionParserArrayElement
+class FunctionParserElementAt : public FunctionParser
 {
 public:
-    explicit FunctionParserElementAt(SerializedPlanParser * plan_parser_) : FunctionParserArrayElement(plan_parser_) { }
+    explicit FunctionParserElementAt(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
     ~FunctionParserElementAt() override = default;
+
     static constexpr auto name = "element_at";
     String getName() const override { return name; }
 
     const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const override
     {
+        /*
+            parse element_at(arr, idx) as
+            if (idx == 0)
+                throwIf(idx == 0)
+            else
+                arrayElementOrNull(arr, idx)
+
+            parse element_at(map, key) as arrayElementOrNull(map, key)
+        */
         auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
         if (parsed_args.size() != 2)
-            throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
-        if (isMap(removeNullable(parsed_args[0]->result_type)))
-            return toFunctionNode(actions_dag, "arrayElement", parsed_args);
-        else
-            return FunctionParserArrayElement::parse(substrait_func, actions_dag);
+            throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
+
+        auto arg_type = removeNullable(parsed_args[0]->result_type);
+        if (isMap(arg_type))
+        {
+            const auto * map_arg = parsed_args[0];
+            const auto * key_arg = parsed_args[1];
+            const auto * result_node = toFunctionNode(actions_dag, "arrayElementOrNull", {map_arg, key_arg});
+            return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
+        }
+        else if (isArray(arg_type))
+        {
+            const auto * arr_arg = parsed_args[0];
+            const auto * idx_arg = parsed_args[1];
+
+            /// idx == 0
+            const auto * zero_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeInt32>(), 0);
+            const auto * equal_zero_node = toFunctionNode(actions_dag, "equals", {idx_arg, zero_node});
+            const auto * throw_message
+                = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), "SQL array indices start at 1");
+            const auto * throw_if_node = toFunctionNode(actions_dag, "throwIf", {equal_zero_node, throw_message});
+
+            const auto * array_element_node = toFunctionNode(actions_dag, "arrayElementOrNull", {arr_arg, idx_arg});
+            const auto * if_node = toFunctionNode(actions_dag, "if", {equal_zero_node, throw_if_node, array_element_node});
+            return convertNodeTypeIfNeeded(substrait_func, if_node, actions_dag);
+        }
+        throw Exception(ErrorCodes::BAD_ARGUMENTS, "First argument of function {} must be an array or a map", getName());
     }
 };
 

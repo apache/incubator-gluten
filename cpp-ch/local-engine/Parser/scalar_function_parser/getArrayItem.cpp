@@ -26,7 +26,6 @@ namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int BAD_ARGUMENTS;
     extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
 }
 }
@@ -36,16 +35,14 @@ namespace local_engine
 
 class FunctionParserGetArrayItem : public FunctionParser
 {
-
 public:
     explicit FunctionParserGetArrayItem(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
     ~FunctionParserGetArrayItem() override = default;
 
-    String getName() const override { return "get_array_item"; }
+    static constexpr auto name = "get_array_item";
+    String getName() const override { return name; }
 
-    const ActionsDAG::Node * parse(
-    const substrait::Expression_ScalarFunction & substrait_func,
-    ActionsDAG & actions_dag) const override
+    const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const override
     {
         /**
             parse get_array_item(arr, idx) as
@@ -58,21 +55,25 @@ public:
         if (parsed_args.size() != 2)
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
 
+        const auto * arr_arg = parsed_args[0];
+        const auto * idx_arg = parsed_args[1];
+        const DataTypeArray * arr_type = checkAndGetDataType<DataTypeArray>(removeNullable(arr_arg->result_type).get());
+        if (!arr_type)
+            throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "First argument of function {} must be an array", getName());
+
         /// arrayElementOrNull(arrary, idx)
-        auto * array_element_node = toFunctionNode(actions_dag, "arrayElementOrNull", parsed_args);
+        const auto * array_element_node = toFunctionNode(actions_dag, "arrayElementOrNull", {arr_arg, idx_arg});
 
         /// idx <= 0
         const auto * zero_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeInt32>(), 0);
-        auto * greater_or_equals_node = toFunctionNode(actions_dag, "greater", {parsed_args[1], length_node});
-        const DataTypeArray * array_type = checkAndGetDataType<DataTypeArray>(removeNullable(parsed_args[0]->result_type).get());
-        if (!array_type)
-            throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "First argument for function {} must be an array", getName());
-        const DataTypePtr element_type = array_type->getNestedType();
-        const auto * null_const_node = addColumnToActionsDAG(actions_dag, makeNullable(element_type), Field{});
-        //if(idx > length(array), NULL, arrayElement(array, idx))
-        auto * if_node = toFunctionNode(actions_dag, "if", {greater_or_equals_node, null_const_node, array_element_node});
-        return if_node;
+        const auto * idx_le_zero_node = toFunctionNode(actions_dag, "lessOrEquals", {idx_arg, zero_node});
+
+        const auto * null_node = addColumnToActionsDAG(actions_dag, makeNullable(arr_type->getNestedType()), Field{});
+        const auto * if_node = toFunctionNode(actions_dag, "if", {idx_le_zero_node, null_node, array_element_node});
+        return convertNodeTypeIfNeeded(substrait_func, if_node, actions_dag);
     }
 };
+
+static FunctionParserRegister<FunctionParserGetArrayItem> register_get_array_item;
 
 }
