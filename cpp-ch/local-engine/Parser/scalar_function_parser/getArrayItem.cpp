@@ -14,19 +14,65 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <DataTypes/IDataType.h>
+#include <Parser/FunctionParser.h>
 
-#include <Parser/scalar_function_parser/arrayElement.h>
+#include <Core/Field.h>
+#include <DataTypes/DataTypeArray.h>
+#include <DataTypes/DataTypeNullable.h>
+#include <Functions/FunctionHelpers.h>
+
+namespace DB
+{
+namespace ErrorCodes
+{
+    extern const int BAD_ARGUMENTS;
+    extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
+}
+}
 
 namespace local_engine
 {
-    class FunctionParserGetArrayItem : public FunctionParserArrayElement
-    {
-    public:
-        explicit FunctionParserGetArrayItem(SerializedPlanParser * plan_parser_) : FunctionParserArrayElement(plan_parser_) { }
-        ~FunctionParserGetArrayItem() override = default;
-        static constexpr auto name = "get_array_item";
-        String getName() const override { return name; }
-    };
 
-    static FunctionParserRegister<FunctionParserGetArrayItem> register_get_array_item;
+class FunctionParserGetArrayItem : public FunctionParser
+{
+
+public:
+    explicit FunctionParserGetArrayItem(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    ~FunctionParserGetArrayItem() override = default;
+
+    String getName() const override { return "get_array_item"; }
+
+    const ActionsDAG::Node * parse(
+    const substrait::Expression_ScalarFunction & substrait_func,
+    ActionsDAG & actions_dag) const override
+    {
+        /**
+            parse get_array_item(arr, idx) as
+            if (idx <= 0)
+                null
+            else
+                arrayElementOrNull(arr, idx)
+        */
+        auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
+        if (parsed_args.size() != 2)
+            throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
+
+        /// arrayElementOrNull(arrary, idx)
+        auto * array_element_node = toFunctionNode(actions_dag, "arrayElementOrNull", parsed_args);
+
+        /// idx <= 0
+        const auto * zero_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeInt32>(), 0);
+        auto * greater_or_equals_node = toFunctionNode(actions_dag, "greater", {parsed_args[1], length_node});
+        const DataTypeArray * array_type = checkAndGetDataType<DataTypeArray>(removeNullable(parsed_args[0]->result_type).get());
+        if (!array_type)
+            throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "First argument for function {} must be an array", getName());
+        const DataTypePtr element_type = array_type->getNestedType();
+        const auto * null_const_node = addColumnToActionsDAG(actions_dag, makeNullable(element_type), Field{});
+        //if(idx > length(array), NULL, arrayElement(array, idx))
+        auto * if_node = toFunctionNode(actions_dag, "if", {greater_or_equals_node, null_const_node, array_element_node});
+        return if_node;
+    }
+};
+
 }
