@@ -55,51 +55,6 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       context: TaskAttemptContext,
       nativeConf: JMap[String, String]): OutputWriter = null
 
-  // scalastyle:off argcount
-  def createOutputWriter(
-      path: String,
-      database: String,
-      tableName: String,
-      snapshotId: String,
-      orderByKeyOption: Option[Seq[String]],
-      lowCardKeyOption: Option[Seq[String]],
-      minmaxIndexKeyOption: Option[Seq[String]],
-      bfIndexKeyOption: Option[Seq[String]],
-      setIndexKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]],
-      partitionColumns: Seq[String],
-      tableSchema: StructType,
-      clickhouseTableConfigs: Map[String, String],
-      context: TaskAttemptContext,
-      nativeConf: JMap[String, String]): OutputWriter = {
-
-    val extensionTable = ClickhouseMetaSerializer.apply1(
-      database,
-      tableName,
-      snapshotId,
-      path,
-      "",
-      orderByKeyOption,
-      lowCardKeyOption,
-      minmaxIndexKeyOption,
-      bfIndexKeyOption,
-      setIndexKeyOption,
-      primaryKeyOption,
-      ClickhousePartSerializer.fromPartNames(Seq()),
-      ConverterUtils.convertNamedStructJson(tableSchema),
-      clickhouseTableConfigs.asJava
-    )
-    createOutputWriter(
-      path,
-      tableSchema,
-      context,
-      nativeConf,
-      database,
-      tableName,
-      extensionTable.toByteArray)
-  }
-  // scalastyle:on argcount
-
   override val formatName: String = "mergetree"
 
   def createOutputWriter(
