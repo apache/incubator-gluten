@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Profiling gluten with velox
+title: Profile memory consumption of Gluten
 nav_order: 15
 has_children: true
 parent: /developer-overview/
@@ -66,11 +66,19 @@ Generate a GIF of the analysis result:
 pprof --show_bytes --gif --lib_prefix=/path/to/gluten_lib_prefix /usr/bin/java /path/to/gluten_heap_perf_XXX > result.gif
 ```
 
+Result like:
+
+<img src="../image/velox_profile_memory_gif.gif" width="200" />
+
 Or display analysis result in TEXT:
 
 ```bash
 pprof --text --lib_prefix=/path/to/gluten_lib_prefix /usr/bin/java /path/to/gluten_heap_perf_XXX
 ```
+
+Result like:
+
+<img src="../image/velox_profile_memory_text.png" width="400" />
 
 **\*\*** Get more help from https://github.com/gperftools/gperftools/wiki#documentation.
 
