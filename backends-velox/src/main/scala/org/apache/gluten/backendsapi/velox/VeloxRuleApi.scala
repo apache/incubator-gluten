@@ -46,7 +46,7 @@ class VeloxRuleApi extends RuleApi {
 
 private object VeloxRuleApi {
   def injectSpark(injector: SparkInjector): Unit = {
-    // Regular Spark rules.
+    // Inject the regular Spark rules directly.
     injector.injectOptimizerRule(CollectRewriteRule.apply)
     injector.injectOptimizerRule(HLLRewriteRule.apply)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)

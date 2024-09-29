@@ -35,8 +35,7 @@ class GlutenInjector private[injector] {
   val ras: RasInjector = new RasInjector()
 
   private[injector] def inject(extensions: SparkSessionExtensions): Unit = {
-    val ruleBuilder = (session: SparkSession) => new GlutenColumnarRule(session, applier)
-    extensions.injectColumnar(session => ruleBuilder(session))
+    extensions.injectColumnar(session => new GlutenColumnarRule(session, applier))
   }
 
   private def applier(session: SparkSession): ColumnarRuleApplier = {
