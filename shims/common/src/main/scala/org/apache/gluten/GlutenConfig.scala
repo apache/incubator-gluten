@@ -1323,11 +1323,11 @@ object GlutenConfig {
   val COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO =
     buildConf("spark.gluten.memory.overAcquiredMemoryRatio")
       .internal()
-      .doc("If larger than 0, Velox backend will try over-acquire this ratio of the total " +
-        "allocated memory as backup to avoid OOM.")
+      .doc("(Deprecated) If larger than 0, Velox backend will try over-acquire this ratio " +
+        "of the total allocated memory as backup to avoid OOM.")
       .doubleConf
       .checkValue(d => d >= 0.0d, "Over-acquired ratio should be larger than or equals 0")
-      .createWithDefault(0.3d)
+      .createWithDefault(0.0d)
 
   val COLUMNAR_MEMORY_RESERVATION_BLOCK_SIZE =
     buildConf("spark.gluten.memory.reservationBlockSize")
