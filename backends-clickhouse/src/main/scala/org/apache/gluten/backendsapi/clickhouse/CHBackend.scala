@@ -127,6 +127,12 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   val GLUTEN_AQE_PROPAGATEEMPTY: String = CHConf.prefixOf("aqe.propagate.empty.relation")
 
+  val GLUTEN_CLICKHOUSE_DELTA_SCAN_CACHE_SIZE: String = CHConf.prefixOf("deltascan.cache.size")
+  val GLUTEN_CLICKHOUSE_ADDFILES_TO_MTPS_CACHE_SIZE: String =
+    CHConf.prefixOf("addfiles.to.mtps.cache.size")
+  val GLUTEN_CLICKHOUSE_TABLE_PATH_TO_MTPS_CACHE_SIZE: String =
+    CHConf.prefixOf("table.path.to.mtps.cache.size")
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(
