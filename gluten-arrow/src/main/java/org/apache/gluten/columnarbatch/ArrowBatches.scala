@@ -23,13 +23,13 @@ import org.apache.gluten.extension.columnar.transition.Convention.BatchType.Vani
 object ArrowBatches {
 
   /**
-   * JavaArrowBatch stands for Gluten's Java Arrow-based columnar batch implementation.
+   * ArrowJavaBatch stands for Gluten's Java Arrow-based columnar batch implementation.
    *
-   * JavaArrowBatch should have [[org.apache.gluten.vectorized.ArrowWritableColumnVector]]s
-   * populated in it. JavaArrowBatch can be offloaded to NativeArrowBatch through API in
+   * ArrowJavaBatch should have [[org.apache.gluten.vectorized.ArrowWritableColumnVector]]s
+   * populated in it. ArrowJavaBatch can be offloaded to ArrowNativeBatch through API in
    * [[ColumnarBatches]].
    *
-   * JavaArrowBatch is compatible with vanilla batch since it provides valid #get<type>(...)
+   * ArrowJavaBatch is compatible with vanilla batch since it provides valid #get<type>(...)
    * implementations.
    */
   object ArrowJavaBatch extends Convention.BatchType {
@@ -37,10 +37,10 @@ object ArrowBatches {
   }
 
   /**
-   * NativeArrowBatch stands for Gluten's native Arrow-based columnar batch implementation.
+   * ArrowNativeBatch stands for Gluten's native Arrow-based columnar batch implementation.
    *
-   * NativeArrowBatch should have [[org.apache.gluten.columnarbatch.IndicatorVector]] set as the
-   * first vector. NativeArrowBatch can be loaded to JavaArrowBatch through API in
+   * ArrowNativeBatch should have [[org.apache.gluten.columnarbatch.IndicatorVector]] set as the
+   * first vector. ArrowNativeBatch can be loaded to ArrowJavaBatch through API in
    * [[ColumnarBatches]].
    */
   object ArrowNativeBatch extends Convention.BatchType {
