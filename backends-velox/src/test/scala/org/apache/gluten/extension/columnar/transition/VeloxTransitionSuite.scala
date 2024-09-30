@@ -52,24 +52,21 @@ class VeloxTransitionSuite extends SharedSparkSession {
   test("ArrowNative C2R - outputs row") {
     val in = BatchLeaf(ArrowNativeBatch)
     val out = Transitions.insertTransitions(in, outputsColumnar = false)
-    assert(
-      out == VeloxColumnarToRowExec(ArrowColumnarToVeloxColumnarExec(BatchLeaf(ArrowNativeBatch))))
+    assert(out == ColumnarToRowExec(LoadArrowDataExec(BatchLeaf(ArrowNativeBatch))))
   }
 
   test("ArrowNative C2R - requires row input") {
     val in = RowUnary(BatchLeaf(ArrowNativeBatch))
     val out = Transitions.insertTransitions(in, outputsColumnar = false)
-    assert(
-      out == RowUnary(
-        VeloxColumnarToRowExec(ArrowColumnarToVeloxColumnarExec(BatchLeaf(ArrowNativeBatch)))))
+    assert(out == RowUnary(ColumnarToRowExec(LoadArrowDataExec(BatchLeaf(ArrowNativeBatch)))))
   }
 
   test("ArrowNative R2C - requires Arrow input") {
     val in = BatchUnary(ArrowNativeBatch, RowLeaf())
     val out = Transitions.insertTransitions(in, outputsColumnar = false)
     assert(
-      out == VeloxColumnarToRowExec(ArrowColumnarToVeloxColumnarExec(
-        BatchUnary(ArrowNativeBatch, RowToVeloxColumnarExec(RowLeaf())))))
+      out == ColumnarToRowExec(
+        LoadArrowDataExec(BatchUnary(ArrowNativeBatch, RowToVeloxColumnarExec(RowLeaf())))))
   }
 
   test("ArrowNative-to-Velox C2C") {
@@ -87,16 +84,16 @@ class VeloxTransitionSuite extends SharedSparkSession {
     val in = BatchUnary(ArrowNativeBatch, BatchLeaf(VeloxBatch))
     val out = Transitions.insertTransitions(in, outputsColumnar = false)
     assert(
-      out == VeloxColumnarToRowExec(
-        ArrowColumnarToVeloxColumnarExec(BatchUnary(ArrowNativeBatch, BatchLeaf(VeloxBatch)))))
+      out == ColumnarToRowExec(
+        LoadArrowDataExec(BatchUnary(ArrowNativeBatch, BatchLeaf(VeloxBatch)))))
   }
 
   test("Vanilla-to-ArrowNative C2C") {
     val in = BatchUnary(ArrowNativeBatch, BatchLeaf(VanillaBatch))
     val out = Transitions.insertTransitions(in, outputsColumnar = false)
     assert(
-      out == VeloxColumnarToRowExec(
-        ArrowColumnarToVeloxColumnarExec(BatchUnary(
+      out == ColumnarToRowExec(
+        LoadArrowDataExec(BatchUnary(
           ArrowNativeBatch,
           RowToVeloxColumnarExec(ColumnarToRowExec(BatchLeaf(VanillaBatch)))))))
   }
