@@ -84,7 +84,7 @@ bool ListenableMemoryAllocator::reallocateAligned(
 bool ListenableMemoryAllocator::free(void* p, int64_t size) {
   bool succeed = delegated_->free(p, size);
   if (succeed) {
-    updateUsage(-diff);
+    updateUsage(-size);
   }
   return succeed;
 }
