@@ -151,7 +151,9 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           VeloxColumnarBatches.toVeloxBatch(batch1);
           VeloxColumnarBatches.toVeloxBatch(batch2);
           final ColumnarBatch batch3 = VeloxColumnarBatches.compose(batch1, batch2);
-          Assert.assertEquals(VeloxColumnarBatches.COMPREHENSIVE_TYPE_VELOX, ColumnarBatches.getComprehensiveLightBatchType(batch3));
+          Assert.assertEquals(
+              VeloxColumnarBatches.COMPREHENSIVE_TYPE_VELOX,
+              ColumnarBatches.getComprehensiveLightBatchType(batch3));
           return null;
         });
   }
@@ -174,7 +176,9 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           structType = structType.add("b", DataTypes.IntegerType, true);
           ColumnarBatch veloxBatch =
               RowToVeloxColumnarExec.toColumnarBatchIterator(
-                      JavaConverters.<InternalRow>asScalaIterator(batch.rowIterator()), structType, numRows)
+                      JavaConverters.<InternalRow>asScalaIterator(batch.rowIterator()),
+                      structType,
+                      numRows)
                   .next();
           Assert.assertEquals("[true,15]\n[false,14]", ColumnarBatches.toString(veloxBatch, 0, 2));
           Assert.assertEquals(

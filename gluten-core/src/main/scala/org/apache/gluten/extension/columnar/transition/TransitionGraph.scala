@@ -87,9 +87,9 @@ object TransitionGraph {
       val leaf = DummySparkPlan()
 
       /**
-       * The calculation considers C2C's cost as half of C2R / R2C's cost.
-       * So query planner prefers C2C than C2R / R2C.
-       **/
+       * The calculation considers C2C's cost as half of C2R / R2C's cost. So query planner prefers
+       * C2C than C2R / R2C.
+       */
       def costOfPlan(plan: SparkPlan): TransitionCost = plan match {
         case p if p == leaf => TransitionCost(0)
         case RowToColumnarLike(child) => TransitionCost(2) + costOfPlan(child)
