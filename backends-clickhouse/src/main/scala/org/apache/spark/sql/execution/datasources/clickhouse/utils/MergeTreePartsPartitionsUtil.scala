@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.utils
+package org.apache.spark.sql.execution.datasources.clickhouse.utils
 
 import org.apache.gluten.backendsapi.clickhouse.{CHBackendSettings, CHConf}
 import org.apache.gluten.execution.{GlutenMergeTreePartition, MergeTreePartRange, MergeTreePartSplit}
@@ -35,7 +35,8 @@ import org.apache.spark.sql.delta.ClickhouseSnapshot
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.clickhouse.{ExtensionTableBuilder, MergeTreePartFilterReturnedRange}
+import org.apache.spark.sql.execution.datasources.clickhouse.{ClickhousePartSerializer, ExtensionTableBuilder, MergeTreePartFilterReturnedRange}
+import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.types.BooleanType
@@ -48,7 +49,6 @@ import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.NamedStruct
 import io.substrait.proto.Plan
 
-import java.lang.{Long => JLong}
 import java.util
 import java.util.{ArrayList => JArrayList}
 
@@ -78,14 +78,15 @@ object MergeTreePartsPartitionsUtil extends Logging {
     val fileIndex = relation.location.asInstanceOf[TahoeFileIndex]
 
     // when querying, use deltaLog.update(true) to get the staleness acceptable snapshot
-    val snapshotId = ClickhouseSnapshot.genSnapshotId(table.deltaLog.update(true))
+    val snapshotId =
+      ClickhouseSnapshot.genSnapshotId(table.deltaLog.update(stalenessAcceptable = true))
 
     val partitions = new ArrayBuffer[InputPartition]
     val (database, tableName) = if (table.catalogTable.isDefined) {
       (table.catalogTable.get.identifier.database.get, table.catalogTable.get.identifier.table)
     } else {
       // for file_format.`file_path`
-      (table.DEFAULT_DATABASE, table.deltaPath.toUri.getPath)
+      (StorageMeta.DEFAULT_PATH_BASED_DATABASE, table.deltaPath.toUri.getPath)
     }
     val engine = "MergeTree"
     val relativeTablePath = fileIndex.deltaLog.dataPath.toUri.getPath.substring(1)
@@ -457,9 +458,10 @@ object MergeTreePartsPartitionsUtil extends Logging {
               val ret = ClickhouseSnapshot.pathToAddMTPCache.getIfPresent(path)
               if (ret == null) {
                 val keys = ClickhouseSnapshot.pathToAddMTPCache.asMap().keySet()
-                val keySample = keys.isEmpty() match {
-                  case true => "<empty>"
-                  case false => keys.iterator().next()
+                val keySample = if (keys.isEmpty) {
+                  "<empty>"
+                } else {
+                  keys.iterator().next()
                 }
                 throw new IllegalStateException(
                   "Can't find AddMergeTreeParts from cache pathToAddMTPCache for key: " +
@@ -574,20 +576,8 @@ object MergeTreePartsPartitionsUtil extends Logging {
         case (l1, l2) => l1.sum / l2.sum
       }
 
-      val partLists = new JArrayList[String]()
-      val starts = new JArrayList[JLong]()
-      val lengths = new JArrayList[JLong]()
-      selectPartsFiles.foreach(
-        part => {
-          partLists.add(part.name)
-          starts.add(0)
-          lengths.add(part.marks)
-        })
-
       val extensionTableNode = ExtensionTableBuilder
         .makeExtensionTable(
-          -1L,
-          -1L,
           database,
           tableName,
           snapshotId,
@@ -599,9 +589,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
           table.bfIndexKey(),
           table.setIndexKey(),
           table.primaryKey(),
-          partLists,
-          starts,
-          lengths,
+          ClickhousePartSerializer.fromAddMergeTreeParts(selectPartsFiles),
           tableSchemaJson,
           clickhouseTableConfigs.asJava,
           new JArrayList[String]()

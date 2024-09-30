@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.utils
+package org.apache.spark.sql.execution.datasources.clickhouse.utils
 
 import org.apache.gluten.expression.ConverterUtils.normalizeColName
 
@@ -25,18 +25,13 @@ object MergeTreeDeltaUtil {
   def genOrderByAndPrimaryKeyStr(
       orderByKeyOption: Option[Seq[String]],
       primaryKeyOption: Option[Seq[String]]): (String, String) = {
-    val orderByKey =
-      if (orderByKeyOption.isDefined && orderByKeyOption.get.nonEmpty) {
-        columnsToStr(orderByKeyOption)
-      } else DEFAULT_ORDER_BY_KEY
 
-    val primaryKey =
-      if (
-        !orderByKey.equals(DEFAULT_ORDER_BY_KEY) && primaryKeyOption.isDefined &&
-        primaryKeyOption.get.nonEmpty
-      ) {
-        columnsToStr(primaryKeyOption)
-      } else ""
+    val orderByKey =
+      orderByKeyOption.filter(_.nonEmpty).map(columnsToStr).getOrElse(DEFAULT_ORDER_BY_KEY)
+    val primaryKey = primaryKeyOption
+      .filter(p => orderByKey != DEFAULT_ORDER_BY_KEY && p.nonEmpty)
+      .map(columnsToStr)
+      .getOrElse("")
 
     (orderByKey, primaryKey)
   }
@@ -44,5 +39,9 @@ object MergeTreeDeltaUtil {
   def columnsToStr(option: Option[Seq[String]]): String = option match {
     case Some(keys) => keys.map(normalizeColName).mkString(",")
     case None => ""
+  }
+
+  def columnsToStr(keys: Seq[String]): String = {
+    keys.map(normalizeColName).mkString(",")
   }
 }

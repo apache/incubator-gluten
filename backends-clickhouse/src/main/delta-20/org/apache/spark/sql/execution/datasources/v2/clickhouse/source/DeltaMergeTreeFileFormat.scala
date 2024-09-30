@@ -20,6 +20,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaParquetFileFormat
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
+import org.apache.spark.sql.execution.datasources.clickhouse.ClickhouseMetaSerializer
+import org.apache.spark.sql.execution.datasources.mergetree.DeltaMetaReader
 import org.apache.spark.sql.execution.datasources.v1.{CHMergeTreeWriterInjects, GlutenMergeTreeWriterInjects}
 import org.apache.spark.sql.types.StructType
 
@@ -27,47 +29,6 @@ import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 
 class DeltaMergeTreeFileFormat(metadata: Metadata)
   extends DeltaParquetFileFormat(metadata.columnMappingMode, metadata.schema) {
-
-  protected var database = ""
-  protected var tableName = ""
-  protected var snapshotId = ""
-  protected var orderByKeyOption: Option[Seq[String]] = None
-  protected var lowCardKeyOption: Option[Seq[String]] = None
-  protected var minmaxIndexKeyOption: Option[Seq[String]] = None
-  protected var bfIndexKeyOption: Option[Seq[String]] = None
-  protected var setIndexKeyOption: Option[Seq[String]] = None
-  protected var primaryKeyOption: Option[Seq[String]] = None
-  protected var partitionColumns: Seq[String] = Seq.empty[String]
-  protected var clickhouseTableConfigs: Map[String, String] = Map.empty
-
-  // scalastyle:off argcount
-  def this(
-      metadata: Metadata,
-      database: String,
-      tableName: String,
-      snapshotId: String,
-      orderByKeyOption: Option[Seq[String]],
-      lowCardKeyOption: Option[Seq[String]],
-      minmaxIndexKeyOption: Option[Seq[String]],
-      bfIndexKeyOption: Option[Seq[String]],
-      setIndexKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]],
-      clickhouseTableConfigs: Map[String, String],
-      partitionColumns: Seq[String]) {
-    this(metadata)
-    this.database = database
-    this.tableName = tableName
-    this.snapshotId = snapshotId
-    this.orderByKeyOption = orderByKeyOption
-    this.lowCardKeyOption = lowCardKeyOption
-    this.minmaxIndexKeyOption = minmaxIndexKeyOption
-    this.bfIndexKeyOption = bfIndexKeyOption
-    this.setIndexKeyOption = setIndexKeyOption
-    this.primaryKeyOption = primaryKeyOption
-    this.clickhouseTableConfigs = clickhouseTableConfigs
-    this.partitionColumns = partitionColumns
-  }
-  // scalastyle:on argcount
 
   override def shortName(): String = "mergetree"
 
@@ -95,6 +56,17 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
         .getInstance()
         .nativeConf(options, "")
 
+    @transient val deltaMetaReader = DeltaMetaReader(metadata)
+
+    val database = deltaMetaReader.storageDB
+    val tableName = deltaMetaReader.storageTable
+    val deltaPath = deltaMetaReader.storagePath
+
+    val extensionTableBC = sparkSession.sparkContext.broadcast(
+      ClickhouseMetaSerializer
+        .forWrite(deltaMetaReader, metadata.schema)
+        .toByteArray)
+
     new OutputWriterFactory {
       override def getFileExtension(context: TaskAttemptContext): String = {
         ".mergetree"
@@ -104,25 +76,18 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
           path: String,
           dataSchema: StructType,
           context: TaskAttemptContext): OutputWriter = {
+        require(path == deltaPath)
         GlutenMergeTreeWriterInjects
           .getInstance()
           .asInstanceOf[CHMergeTreeWriterInjects]
           .createOutputWriter(
             path,
+            metadata.schema,
+            context,
+            nativeConf,
             database,
             tableName,
-            snapshotId,
-            orderByKeyOption,
-            lowCardKeyOption,
-            minmaxIndexKeyOption,
-            bfIndexKeyOption,
-            setIndexKeyOption,
-            primaryKeyOption,
-            partitionColumns,
-            metadata.schema,
-            clickhouseTableConfigs,
-            context,
-            nativeConf
+            extensionTableBC.value
           )
       }
     }

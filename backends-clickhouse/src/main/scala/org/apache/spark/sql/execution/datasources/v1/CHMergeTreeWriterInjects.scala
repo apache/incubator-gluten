@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution.datasources.v1
 
 import org.apache.gluten.expression.ConverterUtils
-import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
@@ -27,8 +26,7 @@ import org.apache.gluten.utils.ConfigUtil
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, OutputWriter}
-import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableBuilder
-import org.apache.spark.sql.execution.datasources.utils.MergeTreeDeltaUtil
+import org.apache.spark.sql.execution.datasources.clickhouse.{ClickhouseMetaSerializer, ClickhousePartSerializer}
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputWriter
 import org.apache.spark.sql.types.StructType
 
@@ -37,7 +35,7 @@ import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.NamedStruct
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import java.util.{ArrayList => JList, Map => JMap, UUID}
+import java.util.{Map => JMap, UUID}
 
 import scala.collection.JavaConverters._
 
@@ -57,50 +55,22 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       context: TaskAttemptContext,
       nativeConf: JMap[String, String]): OutputWriter = null
 
-  // scalastyle:off argcount
-  override def createOutputWriter(
+  override val formatName: String = "mergetree"
+
+  def createOutputWriter(
       path: String,
+      dataSchema: StructType,
+      context: TaskAttemptContext,
+      nativeConf: JMap[String, String],
       database: String,
       tableName: String,
-      snapshotId: String,
-      orderByKeyOption: Option[Seq[String]],
-      lowCardKeyOption: Option[Seq[String]],
-      minmaxIndexKeyOption: Option[Seq[String]],
-      bfIndexKeyOption: Option[Seq[String]],
-      setIndexKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]],
-      partitionColumns: Seq[String],
-      tableSchema: StructType,
-      clickhouseTableConfigs: Map[String, String],
-      context: TaskAttemptContext,
-      nativeConf: JMap[String, String]): OutputWriter = {
-
-    val uuid = UUID.randomUUID.toString
-
-    val planWithSplitInfo = CHMergeTreeWriterInjects.genMergeTreeWriteRel(
-      path,
-      database,
-      tableName,
-      snapshotId,
-      orderByKeyOption,
-      lowCardKeyOption,
-      minmaxIndexKeyOption,
-      bfIndexKeyOption,
-      setIndexKeyOption,
-      primaryKeyOption,
-      partitionColumns,
-      Seq(),
-      ConverterUtils.convertNamedStructJson(tableSchema),
-      clickhouseTableConfigs,
-      // use table schema instead of data schema
-      SparkShimLoader.getSparkShims.attributesFromStruct(tableSchema)
-    )
+      splitInfo: Array[Byte]): OutputWriter = {
     val datasourceJniWrapper = new CHDatasourceJniWrapper()
     val instance =
       datasourceJniWrapper.nativeInitMergeTreeWriterWrapper(
-        planWithSplitInfo.plan,
-        planWithSplitInfo.splitInfo,
-        uuid,
+        null,
+        splitInfo,
+        UUID.randomUUID.toString,
         context.getTaskAttemptID.getTaskID.getId.toString,
         context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
         context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
@@ -109,10 +79,6 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
 
     new MergeTreeOutputWriter(database, tableName, datasourceJniWrapper, instance, path)
   }
-  // scalastyle:on argcount
-
-  override val formatName: String = "mergetree"
-
 }
 
 object CHMergeTreeWriterInjects {
@@ -146,39 +112,23 @@ object CHMergeTreeWriterInjects {
         }
     }.asJava
 
-    val (orderByKey, primaryKey) = MergeTreeDeltaUtil.genOrderByAndPrimaryKeyStr(
-      orderByKeyOption,
-      primaryKeyOption
-    )
-
-    val lowCardKey = MergeTreeDeltaUtil.columnsToStr(lowCardKeyOption)
-    val minmaxIndexKey = MergeTreeDeltaUtil.columnsToStr(minmaxIndexKeyOption)
-    val bfIndexKey = MergeTreeDeltaUtil.columnsToStr(bfIndexKeyOption)
-    val setIndexKey = MergeTreeDeltaUtil.columnsToStr(setIndexKeyOption)
-
     val substraitContext = new SubstraitContext
-    val extensionTableNode = ExtensionTableBuilder.makeExtensionTable(
-      -1,
-      -1,
+
+    val extensionTable = ClickhouseMetaSerializer.apply1(
       database,
       tableName,
       snapshotId,
       path,
       "",
-      orderByKey,
-      lowCardKey,
-      minmaxIndexKey,
-      bfIndexKey,
-      setIndexKey,
-      primaryKey,
-      scala.collection.JavaConverters.seqAsJavaList(partList),
-      scala.collection.JavaConverters.seqAsJavaList(
-        Seq.range(0L, partList.length).map(long2Long)
-      ), // starts and lengths is useless for write
-      scala.collection.JavaConverters.seqAsJavaList(Seq.range(0L, partList.length).map(long2Long)),
+      orderByKeyOption,
+      lowCardKeyOption,
+      minmaxIndexKeyOption,
+      bfIndexKeyOption,
+      setIndexKeyOption,
+      primaryKeyOption,
+      ClickhousePartSerializer.fromPartNames(partList),
       tableSchemaJson,
-      clickhouseTableConfigs.asJava,
-      new JList[String]()
+      clickhouseTableConfigs.asJava
     )
 
     val optimizationContent = "isMergeTree=1\n"
@@ -197,6 +147,6 @@ object CHMergeTreeWriterInjects {
     val plan =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode), nameList).toProtobuf
 
-    PlanWithSplitInfo(plan.toByteArray, extensionTableNode.toProtobuf.toByteArray)
+    PlanWithSplitInfo(plan.toByteArray, extensionTable.toByteArray)
   }
 }

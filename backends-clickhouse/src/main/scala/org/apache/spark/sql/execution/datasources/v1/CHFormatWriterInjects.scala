@@ -83,26 +83,6 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     // TODO: parquet and mergetree
     OrcUtils.inferSchema(sparkSession, files, options)
   }
-
-  // scalastyle:off argcount
-  /** For CH MergeTree format */
-  def createOutputWriter(
-      path: String,
-      database: String,
-      tableName: String,
-      snapshotId: String,
-      orderByKeyOption: Option[Seq[String]],
-      lowCardKeyOption: Option[Seq[String]],
-      minmaxIndexKeyOption: Option[Seq[String]],
-      bfIndexKeyOption: Option[Seq[String]],
-      setIndexKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]],
-      partitionColumns: Seq[String],
-      tableSchema: StructType,
-      clickhouseTableConfigs: Map[String, String],
-      context: TaskAttemptContext,
-      nativeConf: java.util.Map[String, String]): OutputWriter = null
-  // scalastyle:on argcount
 }
 
 class CHRowSplitter extends GlutenRowSplitter {
