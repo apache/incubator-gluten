@@ -142,7 +142,7 @@ std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::compose(
 
 std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::select(
     facebook::velox::memory::MemoryPool* pool,
-    std::vector<int32_t> columnIndices) {
+    const std::vector<int32_t>& columnIndices) {
   std::vector<std::string> childNames;
   std::vector<VectorPtr> childVectors;
   childNames.reserve(columnIndices.size());

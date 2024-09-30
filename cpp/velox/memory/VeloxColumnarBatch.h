@@ -48,7 +48,7 @@ class VeloxColumnarBatch final : public ColumnarBatch {
   std::vector<char> toUnsafeRow(int32_t rowId) const override;
   std::shared_ptr<VeloxColumnarBatch> select(
       facebook::velox::memory::MemoryPool* pool,
-      std::vector<int32_t> columnIndices);
+      const std::vector<int32_t>& columnIndices);
   facebook::velox::RowVectorPtr getRowVector() const;
   facebook::velox::RowVectorPtr getFlattenedRowVector();
 
