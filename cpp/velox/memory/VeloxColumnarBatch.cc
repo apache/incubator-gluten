@@ -119,7 +119,7 @@ std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::compose(
     }
     auto vb = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch);
     auto rv = vb->getRowVector();
-    GLUTEN_CHECK(rv->nulls() != nullptr, "Vectors to compose contain null bits");
+    GLUTEN_CHECK(rv->nulls() == nullptr, "Vectors to compose contain null bits");
   }
 
   GLUTEN_CHECK(numRows > 0, "Illegal state");
