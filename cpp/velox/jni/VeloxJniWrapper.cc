@@ -153,6 +153,20 @@ Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFail
   JNI_METHOD_END(nullptr)
 }
 
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJniWrapper_from( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong handle) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto runtime = dynamic_cast<gluten::VeloxRuntime*>(ctx);
+
+  auto batch = gluten::ObjectStore::retrieve<gluten::ColumnarBatch>(handle);
+  auto newBatch = gluten::VeloxColumnarBatch::from(runtime->memoryManager()->getLeafMemoryPool().get(), batch);
+  return ctx->saveObject(newBatch);
+  JNI_METHOD_END(gluten::kInvalidObjectHandle)
+}
+
 JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJniWrapper_compose( // NOLINT
     JNIEnv* env,
     jobject wrapper,
