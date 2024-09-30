@@ -76,15 +76,23 @@ object TransitionGraph {
   }
 
   private object TransitionCostModel extends FloydWarshallGraph.CostModel[Transition] {
-    override def zero(): FloydWarshallGraph.Cost = TransitionCost(0)
-    override def costOf(transition: Transition): FloydWarshallGraph.Cost = costOf0(transition)
+    override def zero(): TransitionCost = TransitionCost(0)
+    override def costOf(transition: Transition): TransitionCost = {
+      costOf0(transition)
+    }
     override def costComparator(): Ordering[FloydWarshallGraph.Cost] = Ordering.Int.on {
       case TransitionCost(c) => c
     }
-    private def costOf0(transition: Transition): TransitionCost = transition match {
-      case t if t.isEmpty => TransitionCost(0)
-      case ChainedTransition(f, s) => costOf0(f) + costOf0(s)
-      case _ => TransitionCost(1)
+    private def costOf0(transition: Transition): TransitionCost = {
+      val leaf = DummySparkPlan()
+      def costOfPlan(plan: SparkPlan): TransitionCost = plan match {
+        case p if p == leaf => TransitionCost(0)
+        case RowToColumnarLike(child) => TransitionCost(2) + costOfPlan(child)
+        case ColumnarToRowLike(child) => TransitionCost(2) + costOfPlan(child)
+        case ColumnarToColumnarLike(child) => TransitionCost(1) + costOfPlan(child)
+      }
+      val cost = costOfPlan(transition.apply(leaf))
+      cost
     }
   }
 }
