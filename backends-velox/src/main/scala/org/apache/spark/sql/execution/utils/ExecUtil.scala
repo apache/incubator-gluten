@@ -149,10 +149,10 @@ object ExecUtil {
                   ColumnarBatches.offload(
                     ArrowBufferAllocators.contextInstance(),
                     new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows)))
-                val newHandle = VeloxColumnarBatches.compose(pidBatch, cb)
+                val newBatch = VeloxColumnarBatches.compose(pidBatch, cb)
                 // Composed batch already hold pidBatch's shared ref, so close is safe.
                 ColumnarBatches.forceClose(pidBatch)
-                (0, ColumnarBatches.create(newHandle))
+                (0, newBatch)
             })
         .recyclePayload(p => ColumnarBatches.forceClose(p._2)) // FIXME why force close?
         .create()

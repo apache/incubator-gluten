@@ -33,6 +33,7 @@ RowVectorPtr makeRowVector(
     velox::memory::MemoryPool* pool,
     int32_t numRows,
     std::vector<std::string> childNames,
+    BufferPtr nulls,
     const std::vector<VectorPtr>& children) {
   std::vector<std::shared_ptr<const Type>> childTypes;
   childTypes.resize(children.size());
@@ -40,7 +41,7 @@ RowVectorPtr makeRowVector(
     childTypes[i] = children[i]->type();
   }
   auto rowType = ROW(std::move(childNames), std::move(childTypes));
-  return std::make_shared<RowVector>(pool, rowType, BufferPtr(nullptr), numRows, std::move(children));
+  return std::make_shared<RowVector>(pool, rowType, nulls, numRows, std::move(children));
 }
 } // namespace
 
@@ -116,6 +117,9 @@ std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::compose(
     if (batch->numRows() != numRows) {
       throw GlutenException("Mismatched row counts among the input batches during composing columnar batches");
     }
+    auto vb = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch);
+    auto rv = vb->getRowVector();
+    GLUTEN_CHECK(rv->nulls() != nullptr, "Vectors to compose contain null bits");
   }
 
   GLUTEN_CHECK(numRows > 0, "Illegal state");
@@ -132,7 +136,7 @@ std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::compose(
       children.push_back(vec);
     }
   }
-  RowVectorPtr outRv = makeRowVector(pool, numRows, std::move(childNames), std::move(children));
+  RowVectorPtr outRv = makeRowVector(pool, numRows, std::move(childNames), nullptr, std::move(children));
   return std::make_shared<VeloxColumnarBatch>(outRv);
 }
 
@@ -153,7 +157,7 @@ std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::select(
     childVectors.push_back(child);
   }
 
-  auto rowVector = makeRowVector(pool, numRows(), std::move(childNames), std::move(childVectors));
+  auto rowVector = makeRowVector(pool, numRows(), std::move(childNames), vector->nulls(), std::move(childVectors));
   return std::make_shared<VeloxColumnarBatch>(rowVector);
 }
 
