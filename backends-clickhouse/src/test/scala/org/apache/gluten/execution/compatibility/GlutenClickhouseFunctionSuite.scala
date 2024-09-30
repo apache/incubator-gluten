@@ -255,4 +255,18 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-7389: cast map to string diff with spark") {
+    withTable("test_7389") {
+      sql("create table test_7389(a map<string, int>) using parquet")
+      sql("insert into test_7389 values(map('a', 1, 'b', 2))")
+      compareResultsAgainstVanillaSpark(
+        """
+          |select cast(a as string) from test_7389
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
 }

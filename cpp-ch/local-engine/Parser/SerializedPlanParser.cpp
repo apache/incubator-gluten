@@ -1030,6 +1030,14 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG & acti
 
                 function_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
             }
+	    else if (isMap(non_nullable_input_type) && isString(non_nullable_output_type))
+            {
+                // ISSUE-7389: spark cast(map to string) has different behavior with CH cast(map to string)
+                auto map_input_type = std::static_pointer_cast<const DataTypeMap>(non_nullable_input_type);
+                args.emplace_back(addColumn(actions_dag, map_input_type->getKeyType(), map_input_type->getKeyType()->getDefault()));
+                args.emplace_back(addColumn(actions_dag, map_input_type->getValueType(), map_input_type->getValueType()->getDefault()));
+                function_node = toFunctionNode(actions_dag, "sparkCastMapToString", args);
+            }
             else
             {
                 if (isString(non_nullable_input_type) && isInt(non_nullable_output_type))
