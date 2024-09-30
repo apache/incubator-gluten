@@ -157,8 +157,8 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
 
           Assert.assertEquals(numRows, batch3.numRows());
           Assert.assertEquals(4, batch3.numCols());
-          Assert.assertEquals("[false,14,14,false]\n[true,13,13,true]",
-              ColumnarBatches.toString(batch3, 1, 2));
+          Assert.assertEquals(
+              "[false,14,14,false]\n[true,13,13,true]", ColumnarBatches.toString(batch3, 1, 2));
           return null;
         });
   }
