@@ -20,7 +20,7 @@ import org.apache.gluten.exception.GlutenException;
 
 import java.lang.reflect.Field;
 
-public class ColumnarBatchUtil {
+public class SparkColumnarBatchUtil {
 
   private static final Field FIELD_COLUMNS;
   private static final Field FIELD_COLUMNAR_BATCH_ROW;

@@ -37,7 +37,7 @@ import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.utils.SparkArrowUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
-import org.apache.spark.sql.vectorized.ColumnarBatchUtil;
+import org.apache.spark.sql.vectorized.SparkColumnarBatchUtil;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -189,7 +189,7 @@ public final class ColumnarBatches {
       }
 
       // Populate new vectors to input.
-      ColumnarBatchUtil.transferVectors(output, input);
+      SparkColumnarBatchUtil.transferVectors(output, input);
 
       return output;
     }
@@ -225,7 +225,7 @@ public final class ColumnarBatches {
       }
 
       // Populate new vectors to input.
-      ColumnarBatchUtil.transferVectors(output, input);
+      SparkColumnarBatchUtil.transferVectors(output, input);
       return input;
     }
   }

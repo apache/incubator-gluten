@@ -21,7 +21,7 @@ import org.apache.gluten.runtime.Runtimes;
 
 import com.google.common.base.Preconditions;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
-import org.apache.spark.sql.vectorized.ColumnarBatchUtil;
+import org.apache.spark.sql.vectorized.SparkColumnarBatchUtil;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -66,7 +66,7 @@ public final class VeloxColumnarBatches {
     }
 
     // Populate new vectors to input.
-    ColumnarBatchUtil.transferVectors(output, input);
+    SparkColumnarBatchUtil.transferVectors(output, input);
 
     return input;
   }
