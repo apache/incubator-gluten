@@ -260,12 +260,12 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
       val external_path = basePath + "/text-data/json_without_quota/"
       sql(
         s"""
-          | create table test_7325(`apps` string)
-          | ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
-          | STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'
-          | OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
-          | LOCATION '$external_path'
-          |""".stripMargin
+           | create table test_7325(`apps` string)
+           | ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'
+           | STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'
+           | OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+           | LOCATION '$external_path'
+           |""".stripMargin
       )
       withSQLConf(
         "spark.gluten.sql.columnar.backend.ch.runtime_settings.allow_read_json" -> "false") {
