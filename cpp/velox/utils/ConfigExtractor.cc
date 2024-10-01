@@ -169,7 +169,7 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
         auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile.value());
         stream.exceptions(std::ios::badbit);
         std::string gsAuthServiceAccountJson = std::string(std::istreambuf_iterator<char>(stream.rdbuf()), {});
-        hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSCredentials] = gsAuthServiceAccountJson;
+        hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSCredentialsPath] = gsAuthServiceAccountJson;
       } else {
         LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
                         "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
