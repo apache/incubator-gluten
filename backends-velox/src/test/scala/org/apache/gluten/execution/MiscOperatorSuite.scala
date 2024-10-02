@@ -1957,6 +1957,17 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
   }
 
+  test("Cast string to date") {
+    withTempView("view") {
+      Seq("2023-01-01", "2023-01-02", "-1", "-111-01-01")
+        .toDF("dateColumn")
+        .createOrReplaceTempView("view")
+      runQueryAndCompare("SELECT cast(dateColumn as date) from view") {
+        checkGlutenOperatorMatch[ProjectExecTransformer]
+      }
+    }
+  }
+
   test("Cast date to timestamp") {
     withTempPath {
       path =>
