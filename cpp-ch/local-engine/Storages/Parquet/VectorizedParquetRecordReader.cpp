@@ -367,18 +367,10 @@ void VectorizedParquetBlockInputFormat::resetParser()
 {
     IInputFormat::resetParser();
     record_reader_.reset();
-    block_missing_values.clear();
-}
-
-const DB::BlockMissingValues & VectorizedParquetBlockInputFormat::getMissingValues() const
-{
-    return block_missing_values;
-}
+ }
 
 DB::Chunk VectorizedParquetBlockInputFormat::read()
 {
-    block_missing_values.clear();
-
     if (is_stopped != 0)
         return {};
 
