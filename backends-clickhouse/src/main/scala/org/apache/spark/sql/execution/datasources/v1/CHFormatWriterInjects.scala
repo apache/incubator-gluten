@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.datasources.v1
 import org.apache.gluten.execution.datasource.GlutenRowSplitter
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.memory.CHThreadGroup
+import org.apache.gluten.utils.SubstraitUtil.createNameStructBuilder
 import org.apache.gluten.vectorized.CHColumnVector
 
 import org.apache.spark.sql.SparkSession
@@ -27,32 +28,48 @@ import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.orc.OrcUtils
 import org.apache.spark.sql.types.StructType
 
-import io.substrait.proto.{NamedStruct, Type}
+import com.google.protobuf.Any
+import io.substrait.proto
+import io.substrait.proto.{AdvancedExtension, NamedObjectWrite}
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
+import java.{util => ju}
+
+import scala.collection.JavaConverters.seqAsJavaListConverter
+
 trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
+  private def createWriteRel(dataSchema: StructType): proto.WriteRel = {
+    proto.WriteRel
+      .newBuilder()
+      .setTableSchema(
+        createNameStructBuilder(
+          ConverterUtils.collectAttributeTypeNodes(dataSchema),
+          dataSchema.fieldNames.toSeq.asJava,
+          ju.Collections.emptyList()).build())
+      .setNamedTable(
+        NamedObjectWrite.newBuilder
+          .setAdvancedExtension(
+            AdvancedExtension
+              .newBuilder()
+              .setOptimization(Any.pack(createNativeWrite()))
+              .build())
+          .build())
+      .build()
+  }
+
+  def createNativeWrite(): Write
+
   override def createOutputWriter(
-      path: String,
+      outputPath: String,
       dataSchema: StructType,
       context: TaskAttemptContext,
-      nativeConf: java.util.Map[String, String]): OutputWriter = {
-    val originPath = path
-    val datasourceJniWrapper = new CHDatasourceJniWrapper()
+      nativeConf: ju.Map[String, String]): OutputWriter = {
     CHThreadGroup.registerNewThreadGroup()
 
-    val namedStructBuilder = NamedStruct.newBuilder
-    val structBuilder = Type.Struct.newBuilder
-    for (field <- dataSchema.fields) {
-      namedStructBuilder.addNames(field.name)
-      structBuilder.addTypes(ConverterUtils.getTypeNode(field.dataType, field.nullable).toProtobuf)
-    }
-    namedStructBuilder.setStruct(structBuilder.build)
-    val namedStruct = namedStructBuilder.build
-
-    val instance =
-      datasourceJniWrapper.createFilerWriter(path, namedStruct.toByteArray, formatName)
+    val datasourceJniWrapper =
+      new CHDatasourceJniWrapper(outputPath, createWriteRel(dataSchema))
 
     new OutputWriter {
       override def write(row: InternalRow): Unit = {
@@ -61,17 +78,17 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
         if (nextBatch.numRows > 0) {
           val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
-          datasourceJniWrapper.write(instance, col.getBlockAddress)
+          datasourceJniWrapper.write(col.getBlockAddress)
         } // else just ignore this empty block
       }
 
       override def close(): Unit = {
-        datasourceJniWrapper.close(instance)
+        datasourceJniWrapper.close()
       }
 
       // Do NOT add override keyword for compatibility on spark 3.1.
       def path(): String = {
-        originPath
+        outputPath
       }
     }
   }

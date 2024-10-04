@@ -30,7 +30,6 @@
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parser/SubstraitParserUtils.h>
-#include <Processors/Executors/PipelineExecutor.h>
 #include <Shuffle/NativeSplitter.h>
 #include <Shuffle/NativeWriterInMemory.h>
 #include <Shuffle/PartitionWriter.h>
@@ -50,6 +49,7 @@
 #include <jni/SharedPointerWrapper.h>
 #include <jni/jni_common.h>
 #include <jni/jni_error.h>
+#include <write_optimization.pb.h>
 #include <Poco/Logger.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
@@ -906,55 +906,40 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_CHBlockWriterJniWrapper_nativeC
 }
 
 JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_createFilerWriter(
-    JNIEnv * env, jobject, jstring file_uri_, jbyteArray preferred_schema_, jstring format_hint_)
+    JNIEnv * env, jobject, jstring file_uri_, jbyteArray writeRel)
 {
     LOCAL_ENGINE_JNI_METHOD_START
 
-    const auto preferred_schema_ref = local_engine::getByteArrayElementsSafe(env, preferred_schema_);
-    auto parse_named_struct = [&]() -> std::optional<substrait::NamedStruct>
-    {
-        std::string_view view{
-            reinterpret_cast<const char *>(preferred_schema_ref.elems()), static_cast<size_t>(preferred_schema_ref.length())};
+    const auto writeRelBytes = local_engine::getByteArrayElementsSafe(env, writeRel);
+    substrait::WriteRel write_rel = local_engine::BinaryToMessage<substrait::WriteRel>(
+        {reinterpret_cast<const char *>(writeRelBytes.elems()), static_cast<size_t>(writeRelBytes.length())});
 
-        substrait::NamedStruct res;
-        if (!res.ParseFromString(view))
-            return {};
-        return std::move(res);
-    };
+    assert(write_rel.has_named_table());
+    const substrait::NamedObjectWrite & named_table = write_rel.named_table();
+    local_engine::Write write_opt;
+    named_table.advanced_extension().optimization().UnpackTo(&write_opt);
+    DB::Block preferred_schema = local_engine::TypeParser::buildBlockFromNamedStructWithoutDFS(write_rel.table_schema());
 
-    auto named_struct = parse_named_struct();
-    if (!named_struct.has_value())
-        throw DB::Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse schema from substrait protobuf failed");
-
-    DB::Block preferred_schema = local_engine::TypeParser::buildBlockFromNamedStructWithoutDFS(*named_struct);
     const auto file_uri = jstring2string(env, file_uri_);
+
     // for HiveFileFormat, the file url may not end with .parquet, so we pass in the format as a hint
-    const auto format_hint = jstring2string(env, format_hint_);
     const auto context = local_engine::QueryContext::instance().currentQueryContext();
-    auto * writer = local_engine::NormalFileWriter::create(context, file_uri, preferred_schema, format_hint).release();
+    auto * writer = local_engine::NormalFileWriter::create(context, file_uri, preferred_schema, write_opt.common().format()).release();
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
 
 JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_createMergeTreeWriter(
-    JNIEnv * env,
-    jobject,
-    jbyteArray split_info_,
-    jstring uuid_,
-    jstring task_id_,
-    jstring partition_dir_,
-    jstring bucket_dir_,
-    jbyteArray conf_plan)
+    JNIEnv * env, jobject, jbyteArray split_info_, jstring task_id_, jstring partition_dir_, jstring bucket_dir_, jbyteArray conf_plan)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto query_context = local_engine::QueryContext::instance().currentQueryContext();
     // by task update new configs ( in case of dynamic config update )
     const auto conf_plan_a = local_engine::getByteArrayElementsSafe(env, conf_plan);
-    const std::string::size_type conf_plan_size = conf_plan_a.length();
+    local_engine::SparkConfigs::updateConfig(
+        query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), static_cast<size_t>(conf_plan_a.length())});
 
-    local_engine::SparkConfigs::updateConfig(query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), conf_plan_size});
-
-    const auto uuid_str = jstring2string(env, uuid_);
+    const auto uuid_str = toString(DB::UUIDHelpers::generateV4());
     const auto task_id = jstring2string(env, task_id_);
     const auto partition_dir = jstring2string(env, partition_dir_);
     const auto bucket_dir = jstring2string(env, bucket_dir_);
@@ -1017,12 +1002,11 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 }
 
 JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeMergeMTParts(
-    JNIEnv * env, jobject, jbyteArray split_info_, jstring uuid_, jstring task_id_, jstring partition_dir_, jstring bucket_dir_)
+    JNIEnv * env, jclass, jbyteArray split_info_, jstring partition_dir_, jstring bucket_dir_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
 
-    const auto uuid_str = jstring2string(env, uuid_);
-
+    const auto uuid_str = toString(DB::UUIDHelpers::generateV4());
     const auto partition_dir = jstring2string(env, partition_dir_);
     const auto bucket_dir = jstring2string(env, bucket_dir_);
 
@@ -1041,8 +1025,8 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     DB::StorageID storage_id = temp_storage->getStorageID();
     SCOPE_EXIT({ local_engine::StorageMergeTreeFactory::freeStorage(storage_id); });
 
-    std::vector<DB::DataPartPtr> selected_parts = local_engine::StorageMergeTreeFactory::instance().getDataPartsByNames(
-        temp_storage->getStorageID(), "", merge_tree_table.getPartNames());
+    std::vector<DB::DataPartPtr> selected_parts
+        = local_engine::StorageMergeTreeFactory::getDataPartsByNames(temp_storage->getStorageID(), "", merge_tree_table.getPartNames());
 
     std::unordered_map<String, String> partition_values;
     std::vector<DB::MergeTreeDataPartPtr> loaded

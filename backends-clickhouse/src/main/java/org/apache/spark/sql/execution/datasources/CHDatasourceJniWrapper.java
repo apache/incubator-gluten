@@ -16,26 +16,42 @@
  */
 package org.apache.spark.sql.execution.datasources;
 
+import io.substrait.proto.WriteRel;
+
 public class CHDatasourceJniWrapper {
 
-  public native void write(long instanceId, long blockAddress);
+  private final long instance;
 
-  public native String close(long instanceId);
+  public CHDatasourceJniWrapper(String filePath, WriteRel write) {
+    this.instance = createFilerWriter(filePath, write.toByteArray());
+  }
+
+  public CHDatasourceJniWrapper(
+      byte[] splitInfo, String taskId, String partition_dir, String bucket_dir, byte[] confArray) {
+    this.instance = createMergeTreeWriter(splitInfo, taskId, partition_dir, bucket_dir, confArray);
+  }
+
+  public void write(long blockAddress) {
+    write(instance, blockAddress);
+  }
+
+  public String close() {
+    return close(instance);
+  }
+
+  private native void write(long instanceId, long blockAddress);
+
+  private native String close(long instanceId);
 
   /// FileWriter
-  public native long createFilerWriter(String filePath, byte[] preferredSchema, String formatHint);
+  private native long createFilerWriter(String filePath, byte[] writeRelBytes);
 
   /// MergeTreeWriter
-  public native long createMergeTreeWriter(
-      byte[] splitInfo,
-      String uuid,
-      String taskId,
-      String partition_dir,
-      String bucket_dir,
-      byte[] confArray);
+  private native long createMergeTreeWriter(
+      byte[] splitInfo, String taskId, String partition_dir, String bucket_dir, byte[] confArray);
 
-  public native String nativeMergeMTParts(
-      byte[] splitInfo, String uuid, String taskId, String partition_dir, String bucket_dir);
+  public static native String nativeMergeMTParts(
+      byte[] splitInfo, String partition_dir, String bucket_dir);
 
   public static native String filterRangesOnDriver(byte[] plan, byte[] read);
 

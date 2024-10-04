@@ -35,7 +35,7 @@ import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.NamedStruct
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import java.util.{Map => JMap, UUID}
+import java.{util => ju}
 
 import scala.collection.JavaConverters._
 
@@ -45,15 +45,20 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
 
   override def nativeConf(
       options: Map[String, String],
-      compressionCodec: String): JMap[String, String] = {
+      compressionCodec: String): ju.Map[String, String] = {
     options.asJava
+  }
+
+  override def createNativeWrite(): Write = {
+    throw new UnsupportedOperationException(
+      "createNativeWrite is not supported in CHMergeTreeWriterInjects")
   }
 
   override def createOutputWriter(
       path: String,
       dataSchema: StructType,
       context: TaskAttemptContext,
-      nativeConf: JMap[String, String]): OutputWriter = null
+      nativeConf: ju.Map[String, String]): OutputWriter = null
 
   override val formatName: String = "mergetree"
 
@@ -61,22 +66,19 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       path: String,
       dataSchema: StructType,
       context: TaskAttemptContext,
-      nativeConf: JMap[String, String],
+      nativeConf: ju.Map[String, String],
       database: String,
       tableName: String,
       splitInfo: Array[Byte]): OutputWriter = {
-    val datasourceJniWrapper = new CHDatasourceJniWrapper()
-    val instance =
-      datasourceJniWrapper.createMergeTreeWriter(
-        splitInfo,
-        UUID.randomUUID.toString,
-        context.getTaskAttemptID.getTaskID.getId.toString,
-        context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
-        context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
-        ConfigUtil.serialize(nativeConf)
-      )
+    val datasourceJniWrapper = new CHDatasourceJniWrapper(
+      splitInfo,
+      context.getTaskAttemptID.getTaskID.getId.toString,
+      context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
+      context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
+      ConfigUtil.serialize(nativeConf)
+    )
 
-    new MergeTreeOutputWriter(database, tableName, datasourceJniWrapper, instance, path)
+    new MergeTreeOutputWriter(datasourceJniWrapper, database, tableName, path)
   }
 }
 

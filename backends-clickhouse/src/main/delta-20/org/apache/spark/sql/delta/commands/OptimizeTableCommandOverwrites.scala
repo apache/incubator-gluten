@@ -42,7 +42,7 @@ import org.apache.hadoop.fs.{FileAlreadyExistsException, Path}
 import org.apache.hadoop.mapreduce.{TaskAttemptContext, TaskAttemptID, TaskID, TaskType}
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 
-import java.util.{Date, UUID}
+import java.util.Date
 import scala.collection.mutable.ArrayBuffer
 
 object OptimizeTableCommandOverwrites extends Logging {
@@ -95,8 +95,6 @@ object OptimizeTableCommandOverwrites extends Logging {
     try {
       Utils.tryWithSafeFinallyAndFailureCallbacks(block = {
 
-        val uuid = UUID.randomUUID.toString
-
         val planWithSplitInfo = CHMergeTreeWriterInjects.genMergeTreeWriteRel(
           description.path,
           description.database,
@@ -115,12 +113,9 @@ object OptimizeTableCommandOverwrites extends Logging {
           description.tableSchema.toAttributes
         )
 
-        val datasourceJniWrapper = new CHDatasourceJniWrapper()
         val returnedMetrics =
-          datasourceJniWrapper.nativeMergeMTParts(
+          CHDatasourceJniWrapper.nativeMergeMTParts(
             planWithSplitInfo.splitInfo,
-            uuid,
-            taskId.getId.toString,
             description.partitionDir.getOrElse(""),
             description.bucketDir.getOrElse("")
           )

@@ -16,17 +16,23 @@
  */
 package org.apache.spark.sql.execution.datasources.v1
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.mutable
+import java.{util => ju}
 
 class CHOrcWriterInjects extends CHFormatWriterInjects {
+
   override def nativeConf(
       options: Map[String, String],
-      compressionCodec: String): java.util.Map[String, String] = {
-    val sparkOptions = new mutable.HashMap[String, String]()
+      compressionCodec: String): ju.Map[String, String] = {
+
     // TODO: implement it
-    sparkOptions.asJava
+    ju.Collections.emptyMap()
   }
+
+  override def createNativeWrite(): Write = Write
+    .newBuilder()
+    .setCommon(Write.Common.newBuilder().setFormat(formatName).build())
+    .setOrc(Write.OrcWrite.newBuilder().build())
+    .build()
 
   override val formatName: String = "orc"
 }
