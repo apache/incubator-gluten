@@ -20,16 +20,15 @@ import org.apache.gluten.events.{GlutenBuildInfoEvent, GlutenPlanFallbackEvent}
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.internal.Logging
-import org.apache.spark.scheduler._
-import org.apache.spark.sql.internal.StaticSQLConf._
+import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
+import org.apache.spark.sql.internal.StaticSQLConf.UI_RETAINED_EXECUTIONS
 import org.apache.spark.status.{ElementTrackingStore, KVUtils}
 
 import scala.collection.mutable
 
-class GlutenSQLAppStatusListener(conf: SparkConf, kvstore: ElementTrackingStore)
+private class GlutenSQLAppStatusListener(conf: SparkConf, kvstore: ElementTrackingStore)
   extends SparkListener
   with Logging {
-
   private val executionIdToDescription = new mutable.HashMap[Long, String]
   private val executionIdToFallbackEvent = new mutable.HashMap[Long, GlutenPlanFallbackEvent]
 
@@ -78,14 +77,14 @@ class GlutenSQLAppStatusListener(conf: SparkConf, kvstore: ElementTrackingStore)
     executionIdToDescription.put(event.executionId, event.description)
   }
 
-  private def onSQLExtensionEnd(event: SparkListenerSQLExecutionEnd): Unit = {
+  private def onSQLExecutionEnd(event: SparkListenerSQLExecutionEnd): Unit = {
     executionIdToDescription.remove(event.executionId)
     executionIdToFallbackEvent.remove(event.executionId)
   }
 
   override def onOtherEvent(event: SparkListenerEvent): Unit = event match {
     case e: SparkListenerSQLExecutionStart => onSQLExecutionStart(e)
-    case e: SparkListenerSQLExecutionEnd => onSQLExtensionEnd(e)
+    case e: SparkListenerSQLExecutionEnd => onSQLExecutionEnd(e)
     case e: GlutenBuildInfoEvent => onGlutenBuildInfo(e)
     case e: GlutenPlanFallbackEvent => onGlutenPlanFallback(e)
     case _ => // Ignore
@@ -99,7 +98,7 @@ class GlutenSQLAppStatusListener(conf: SparkConf, kvstore: ElementTrackingStore)
 
     val view = kvstore.view(classOf[GlutenSQLExecutionUIData]).first(0L)
     val toDelete = KVUtils.viewToSeq(view, countToDelete.toInt)(_ => true)
-    toDelete.foreach(e => kvstore.delete(e.getClass(), e.executionId))
+    toDelete.foreach(e => kvstore.delete(e.getClass, e.executionId))
   }
 }
 
