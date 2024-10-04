@@ -10,6 +10,7 @@ ARCH=`uname -m`
 
 if [[ -n "$JAVA_HOME" ]]; then
   echo "JAVA_HOME needs to be set for Gluten Compilation"
+  exit 1
 fi
 
 cd "$GLUTEN_DIR"
