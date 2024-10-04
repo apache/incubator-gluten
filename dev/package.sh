@@ -8,6 +8,10 @@ LINUX_OS=$(. /etc/os-release && echo ${ID})
 VERSION=$(. /etc/os-release && echo ${VERSION_ID})
 ARCH=`uname -m`
 
+if [[ -n "$JAVA_HOME" ]]; then
+  echo "JAVA_HOME needs to be set for Gluten Compilation"
+fi
+
 cd "$GLUTEN_DIR"
 
 # build gluten with velox backend, prompt always respond y

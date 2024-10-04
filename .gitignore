@@ -5,6 +5,7 @@
 
 # logs
 *.log
+**/core
 
 # cache files
 *.cache
