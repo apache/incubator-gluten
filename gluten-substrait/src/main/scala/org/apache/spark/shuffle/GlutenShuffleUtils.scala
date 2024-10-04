@@ -22,7 +22,10 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.vectorized.NativePartitioning
 
 import org.apache.spark.SparkConf
+import org.apache.spark.TaskContext
 import org.apache.spark.internal.config._
+import org.apache.spark.shuffle.api.ShuffleExecutorComponents
+import org.apache.spark.shuffle.sort._
 import org.apache.spark.storage.{BlockId, BlockManagerId}
 import org.apache.spark.util.random.XORShiftRandom
 
@@ -121,5 +124,18 @@ object GlutenShuffleUtils {
       endMapIndex,
       startPartition,
       endPartition)
+  }
+
+  def getSortShuffleWriter[K, V](
+      handle: ShuffleHandle,
+      mapId: Long,
+      context: TaskContext,
+      metrics: ShuffleWriteMetricsReporter,
+      shuffleExecutorComponents: ShuffleExecutorComponents
+  ): ShuffleWriter[K, V] = {
+    handle match {
+      case other: BaseShuffleHandle[K @unchecked, V @unchecked, _] =>
+        new SortShuffleWriterWrapper(other, mapId, context, metrics, shuffleExecutorComponents)
+    }
   }
 }
