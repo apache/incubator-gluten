@@ -189,7 +189,9 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                   case _ => pn.toString
                 }
               }
-              partitionColumn.put(partitionSchema.names(i), partitionColumnValue)
+              partitionColumn.put(
+                ConverterUtils.normalizeColName(partitionSchema.names(i)),
+                partitionColumnValue)
             }
             partitionColumns.add(partitionColumn)
 
