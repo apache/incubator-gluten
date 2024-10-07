@@ -65,7 +65,7 @@ void gluten::JniErrorState::close() {
   if (closed_) {
     return;
   }
-  JNIEnv* env;
+  JNIEnv* env = nullptr;
   attachCurrentThreadAsDaemonOrThrow(vm_, &env);
   env->DeleteGlobalRef(glutenExceptionClass_);
   env->DeleteGlobalRef(ioExceptionClass_);
