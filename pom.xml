@@ -126,6 +126,7 @@
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
+    <argLine/> <!-- Required since there is extensive setting of spark home through argLine-->
     <extraJavaTestArgs>
       -XX:+IgnoreUnrecognizedVMOptions <!-- For compatibility with java 8 and 11-->
       --add-opens=java.base/java.lang=ALL-UNNAMED
@@ -897,7 +898,7 @@
             <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
             <testFailureIgnore>false</testFailureIgnore>
             <junitxml>.</junitxml>
-            <argLine>${extraJavaTestArgs}</argLine>
+            <argLine>${argLine} ${extraJavaTestArgs}</argLine>
           </configuration>
           <executions>
             <execution>
