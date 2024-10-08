@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.extension.columnar
 
-import org.apache.gluten.execution.ColumnarToColumnarExec
+import org.apache.gluten.execution.ColumnarToColumnarTransition
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -66,7 +66,7 @@ package object transition {
   object ColumnarToColumnarLike {
     def unapply(plan: SparkPlan): Option[SparkPlan] = {
       plan match {
-        case c2c: ColumnarToColumnarExec =>
+        case c2c: ColumnarToColumnarTransition =>
           Some(c2c.child)
         case _ => None
       }

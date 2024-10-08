@@ -31,7 +31,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import java.util.concurrent.atomic.AtomicLong
 
 abstract class ColumnarToColumnarExec(from: Convention.BatchType, to: Convention.BatchType)
-  extends UnaryExecNode
+  extends ColumnarToColumnarTransition
   with KnownBatchType
   with KnownChildrenConventions {
 
