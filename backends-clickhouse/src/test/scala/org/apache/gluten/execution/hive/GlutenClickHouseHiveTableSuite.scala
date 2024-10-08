@@ -1442,7 +1442,7 @@ class GlutenClickHouseHiveTableSuite
             |""".stripMargin,
           true,
           { _ => },
-          flase
+          false
         )
       }
     }
