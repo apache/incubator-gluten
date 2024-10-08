@@ -16,21 +16,28 @@
  */
 package org.apache.spark.sql.execution.datasources.mergetree
 
+import org.apache.gluten.expression.ConverterUtils.normalizeColName
+
 import org.apache.spark.sql.delta.actions.Metadata
 
-class DeltaMetaReader(
-    override val metadata: Metadata,
-    override val configuration: Map[String, String])
-  extends TablePropertiesReader {
+import org.apache.hadoop.conf.Configuration
 
-  def storageDB: String = configuration(StorageMeta.STORAGE_DB)
-  def storageTable: String = configuration(StorageMeta.STORAGE_TABLE)
-  def storageSnapshotId: String = configuration(StorageMeta.STORAGE_SNAPSHOT_ID)
+case class DeltaMetaReader(metadata: Metadata) extends TablePropertiesReader {
+
+  def storageDB: String = configuration(StorageMeta.DB)
+  def storageTable: String = configuration(StorageMeta.TABLE)
+  def storageSnapshotId: String = configuration(StorageMeta.SNAPSHOT_ID)
   def storagePath: String = configuration(StorageMeta.STORAGE_PATH)
-}
 
-object DeltaMetaReader {
-  def apply(metadata: Metadata): DeltaMetaReader = {
-    new DeltaMetaReader(metadata, metadata.configuration)
+  def updateToHadoopConf(conf: Configuration): Unit = {
+    conf.set(StorageMeta.DB, storageDB)
+    conf.set(StorageMeta.TABLE, storageTable)
+    conf.set(StorageMeta.SNAPSHOT_ID, storageSnapshotId)
+    writeConfiguration.foreach { case (k, v) => conf.set(k, v) }
   }
+
+  override lazy val partitionColumns: Seq[String] =
+    metadata.partitionColumns.map(normalizeColName)
+
+  override lazy val configuration: Map[String, String] = metadata.configuration
 }

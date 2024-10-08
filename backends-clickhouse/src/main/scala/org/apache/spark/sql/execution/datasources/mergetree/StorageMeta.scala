@@ -30,10 +30,17 @@ object StorageMeta {
   // Storage properties
   val DEFAULT_PATH_BASED_DATABASE: String = "clickhouse_db"
   val DEFAULT_CREATE_TABLE_DATABASE: String = "default"
-  val STORAGE_DB: String = "storage_db"
-  val STORAGE_TABLE: String = "storage_table"
-  val STORAGE_SNAPSHOT_ID: String = "storage_snapshot_id"
+  val DB: String = "storage_db"
+  val TABLE: String = "storage_table"
+  val SNAPSHOT_ID: String = "storage_snapshot_id"
   val STORAGE_PATH: String = "storage_path"
+  val POLICY: String = "storage_policy"
+  val ORDER_BY_KEY: String = "storage_orderByKey"
+  val LOW_CARD_KEY: String = "storage_lowCardKey"
+  val MINMAX_INDEX_KEY: String = "storage_minmaxIndexKey"
+  val BF_INDEX_KEY: String = "storage_bfIndexKey"
+  val SET_INDEX_KEY: String = "storage_setIndexKey"
+  val PRIMARY_KEY: String = "storage_primaryKey"
   val SERIALIZER_HEADER: String = "MergeTree;"
 
   def withMoreStorageInfo(
@@ -43,9 +50,9 @@ object StorageMeta {
       database: String,
       tableName: String): Metadata = {
     val moreOptions = Seq(
-      STORAGE_DB -> database,
-      STORAGE_SNAPSHOT_ID -> snapshotId,
-      STORAGE_TABLE -> tableName,
+      DB -> database,
+      SNAPSHOT_ID -> snapshotId,
+      TABLE -> tableName,
       STORAGE_PATH -> deltaPath.toString)
     withMoreOptions(metadata, moreOptions)
   }
@@ -55,12 +62,15 @@ object StorageMeta {
   }
 }
 
-trait TablePropertiesReader {
+trait WriteConfiguration {
+  val writeConfiguration: Map[String, String]
+}
+
+trait TablePropertiesReader extends WriteConfiguration {
 
   def configuration: Map[String, String]
 
-  /** delta */
-  def metadata: Metadata
+  val partitionColumns: Seq[String]
 
   private def getCommaSeparatedColumns(keyName: String): Option[Seq[String]] = {
     configuration.get(keyName).map {
@@ -107,9 +117,6 @@ trait TablePropertiesReader {
     getCommaSeparatedColumns("setIndexKey")
   }
 
-  lazy val partitionColumns: Seq[String] =
-    metadata.partitionColumns.map(normalizeColName)
-
   lazy val orderByKeyOption: Option[Seq[String]] = {
     val orderByKeys =
       if (bucketOption.exists(_.sortColumnNames.nonEmpty)) {
@@ -149,15 +156,21 @@ trait TablePropertiesReader {
       primaryKeyOption
     )
     Map(
-      "storage_policy" -> configuration.getOrElse("storage_policy", "default"),
-      "storage_orderByKey" -> orderByKey0,
-      "storage_lowCardKey" -> lowCardKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      "storage_minmaxIndexKey" -> minmaxIndexKeyOption
+      StorageMeta.POLICY -> configuration.getOrElse(StorageMeta.POLICY, "default"),
+      StorageMeta.ORDER_BY_KEY -> orderByKey0,
+      StorageMeta.LOW_CARD_KEY -> lowCardKeyOption
         .map(MergeTreeDeltaUtil.columnsToStr)
         .getOrElse(""),
-      "storage_bfIndexKey" -> bfIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      "storage_setIndexKey" -> setIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      "storage_primaryKey" -> primaryKey0
+      StorageMeta.MINMAX_INDEX_KEY -> minmaxIndexKeyOption
+        .map(MergeTreeDeltaUtil.columnsToStr)
+        .getOrElse(""),
+      StorageMeta.BF_INDEX_KEY -> bfIndexKeyOption
+        .map(MergeTreeDeltaUtil.columnsToStr)
+        .getOrElse(""),
+      StorageMeta.SET_INDEX_KEY -> setIndexKeyOption
+        .map(MergeTreeDeltaUtil.columnsToStr)
+        .getOrElse(""),
+      StorageMeta.PRIMARY_KEY -> primaryKey0
     )
   }
 }

@@ -20,7 +20,6 @@ import org.apache.gluten.expression.ConverterUtils.normalizeColName
 
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.delta.Snapshot
-import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
 import org.apache.spark.sql.execution.datasources.mergetree.{StorageMeta, TablePropertiesReader}
 
@@ -38,7 +37,8 @@ trait ClickHouseTableV2Base extends TablePropertiesReader {
 
   def configuration: Map[String, String] = deltaProperties
 
-  def metadata: Metadata = deltaSnapshot.metadata
+  override lazy val partitionColumns: Seq[String] =
+    deltaSnapshot.metadata.partitionColumns.map(normalizeColName)
 
   lazy val dataBaseName: String = deltaCatalog
     .map(_.identifier.database.getOrElse(StorageMeta.DEFAULT_CREATE_TABLE_DATABASE))
