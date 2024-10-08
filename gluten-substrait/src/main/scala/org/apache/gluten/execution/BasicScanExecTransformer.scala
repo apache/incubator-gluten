@@ -50,16 +50,6 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   /** This can be used to report FileFormat for a file based scan operator. */
   val fileFormat: ReadFileFormat
 
-  // TODO: Remove this expensive call when CH support scan custom partition location.
-  def getInputFilePaths: Seq[String] = {
-    // This is a heavy operation, and only the required backend executes the corresponding logic.
-    if (BackendsApiManager.getSettings.requiredInputFilePaths()) {
-      getInputFilePathsInternal
-    } else {
-      Seq.empty
-    }
-  }
-
   def getRootFilePaths: Seq[String] = {
     if (GlutenConfig.getConf.scanFileSchemeValidationEnabled) {
       getRootPathsInternal
@@ -101,12 +91,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
 
     val validationResult = BackendsApiManager.getSettings
-      .validateScan(
-        fileFormat,
-        fields,
-        getPartitionSchema.nonEmpty,
-        getRootFilePaths,
-        getInputFilePaths)
+      .validateScan(fileFormat, fields, getRootFilePaths)
     if (!validationResult.ok()) {
       return validationResult
     }

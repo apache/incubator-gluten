@@ -145,18 +145,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def validateScan(
       format: ReadFileFormat,
       fields: Array[StructField],
-      partTable: Boolean,
-      rootPaths: Seq[String],
-      paths: Seq[String]): ValidationResult = {
-
-    def validateFilePath: Boolean = {
-      // Fallback to vanilla spark when the input path
-      // does not contain the partition info.
-      if (partTable && !paths.forall(_.contains("="))) {
-        return false
-      }
-      true
-    }
+      rootPaths: Seq[String]): ValidationResult = {
 
     // Validate if all types are supported.
     def hasComplexType: Boolean = {
@@ -176,12 +165,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       !unsupportedDataTypes.isEmpty
     }
     format match {
-      case ParquetReadFormat =>
-        if (validateFilePath) {
-          ValidationResult.succeeded
-        } else {
-          ValidationResult.failed("Validate file path failed.")
-        }
+      case ParquetReadFormat => ValidationResult.succeeded
       case OrcReadFormat => ValidationResult.succeeded
       case MergeTreeReadFormat => ValidationResult.succeeded
       case TextReadFormat =>
@@ -342,8 +326,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def needOutputSchemaForPlan(): Boolean = true
 
   override def transformCheckOverflow: Boolean = false
-
-  override def requiredInputFilePaths(): Boolean = true
 
   override def requireBloomFilterAggMightContainJointFallback(): Boolean = false
 

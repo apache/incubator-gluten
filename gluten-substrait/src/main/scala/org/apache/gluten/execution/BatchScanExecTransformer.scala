@@ -125,13 +125,6 @@ abstract class BatchScanExecTransformerBase(
     case _ => new StructType()
   }
 
-  override def getInputFilePathsInternal: Seq[String] = {
-    scan match {
-      case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
-      case _ => Seq.empty
-    }
-  }
-
   override def getRootPathsInternal: Seq[String] = {
     scan match {
       case fileScan: FileScan =>

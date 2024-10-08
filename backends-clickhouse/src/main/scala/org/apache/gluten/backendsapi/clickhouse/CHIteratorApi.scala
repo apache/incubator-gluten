@@ -34,16 +34,20 @@ import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.executor.InputMetrics
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.CHColumnarShuffleWriter
+import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
+import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.datasources.clickhouse.{ClickhousePartSerializer, ExtensionTableBuilder, ExtensionTableNode}
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.lang.{Long => JLong}
 import java.net.URI
+import java.nio.charset.StandardCharsets
+import java.time.ZoneOffset
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
 
 import scala.collection.JavaConverters._
@@ -156,14 +160,41 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         val fileSizes = new JArrayList[JLong]()
         val modificationTimes = new JArrayList[JLong]()
         val partitionColumns = new JArrayList[JMap[String, String]]
+        val metadataColumns = new JArrayList[JMap[String, String]]
         f.files.foreach {
           file =>
             paths.add(new URI(file.filePath.toString()).toASCIIString)
             starts.add(JLong.valueOf(file.start))
             lengths.add(JLong.valueOf(file.length))
-            // TODO: Support custom partition location
+            val metadataColumn =
+              SparkShimLoader.getSparkShims.generateMetadataColumns(file, metadataColumnNames)
+            metadataColumns.add(metadataColumn)
             val partitionColumn = new JHashMap[String, String]()
+            for (i <- 0 until file.partitionValues.numFields) {
+              val partitionColumnValue = if (file.partitionValues.isNullAt(i)) {
+                ExternalCatalogUtils.DEFAULT_PARTITION_NAME
+              } else {
+                val pn = file.partitionValues.get(i, partitionSchema.fields(i).dataType)
+                partitionSchema.fields(i).dataType match {
+                  case _: BinaryType =>
+                    new String(pn.asInstanceOf[Array[Byte]], StandardCharsets.UTF_8)
+                  case _: DateType =>
+                    DateFormatter.apply().format(pn.asInstanceOf[Integer])
+                  case _: DecimalType =>
+                    pn.asInstanceOf[Decimal].toJavaBigInteger.toString
+                  case _: TimestampType =>
+                    TimestampFormatter
+                      .getFractionFormatter(ZoneOffset.UTC)
+                      .format(pn.asInstanceOf[java.lang.Long])
+                  case _ => pn.toString
+                }
+              }
+              partitionColumn.put(
+                ConverterUtils.normalizeColName(partitionSchema.names(i)),
+                partitionColumnValue)
+            }
             partitionColumns.add(partitionColumn)
+
             val (fileSize, modificationTime) =
               SparkShimLoader.getSparkShims.getFileSizeAndModificationTime(file)
             (fileSize, modificationTime) match {
@@ -185,7 +216,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           fileSizes,
           modificationTimes,
           partitionColumns,
-          new JArrayList[JMap[String, String]](),
+          metadataColumns,
           fileFormat,
           preferredLocations.toList.asJava,
           mapAsJavaMap(properties)

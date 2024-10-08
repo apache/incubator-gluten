@@ -93,9 +93,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def validateScan(
       format: ReadFileFormat,
       fields: Array[StructField],
-      partTable: Boolean,
-      rootPaths: Seq[String],
-      paths: Seq[String]): ValidationResult = {
+      rootPaths: Seq[String]): ValidationResult = {
     val filteredRootPaths = distinctRootPaths(rootPaths)
     if (
       filteredRootPaths.nonEmpty && !VeloxFileSystemValidationJniWrapper
