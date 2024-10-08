@@ -258,8 +258,10 @@ public class ExpressionBuilder {
       Long functionId,
       List<ExpressionNode> expressionNodes,
       String phase,
-      TypeNode outputTypeNode) {
-    return new AggregateFunctionNode(functionId, expressionNodes, phase, outputTypeNode);
+      TypeNode outputTypeNode,
+      boolean isDistinct) {
+    return new AggregateFunctionNode(
+        functionId, expressionNodes, phase, outputTypeNode, isDistinct);
   }
 
   public static CastNode makeCast(

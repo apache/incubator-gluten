@@ -31,16 +31,19 @@ public class AggregateFunctionNode implements Serializable {
   private final List<ExpressionNode> expressionNodes = new ArrayList<>();
   private final String phase;
   private final TypeNode outputTypeNode;
+  private final boolean isDistinct;
 
   AggregateFunctionNode(
       Long functionId,
       List<ExpressionNode> expressionNodes,
       String phase,
-      TypeNode outputTypeNode) {
+      TypeNode outputTypeNode,
+      boolean isDistinct) {
     this.functionId = functionId;
     this.expressionNodes.addAll(expressionNodes);
     this.phase = phase;
     this.outputTypeNode = outputTypeNode;
+    this.isDistinct = isDistinct;
   }
 
   public AggregateFunction toProtobuf() {
@@ -53,9 +56,11 @@ public class AggregateFunctionNode implements Serializable {
       switch (phase) {
         case "PARTIAL":
           aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE);
+          aggBuilder.setIsDistinct(isDistinct);
           break;
         case "PARTIAL_MERGE":
           aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE);
+          aggBuilder.setIsDistinct(isDistinct);
           break;
         case "COMPLETE":
           aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INITIAL_TO_RESULT);

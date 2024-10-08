@@ -253,7 +253,8 @@ case class CHHashAggregateExecTransformer(
           CHExpressions.createAggregateFunction(args, aggregateFunc),
           childrenNodeList,
           modeToKeyWord(aggExpr.mode),
-          ConverterUtils.getTypeNode(aggregateFunc.dataType, aggregateFunc.nullable)
+          ConverterUtils.getTypeNode(aggregateFunc.dataType, aggregateFunc.nullable),
+          aggExpr.isDistinct
         )
         aggregateFunctionList.add(aggFunctionNode)
       })
