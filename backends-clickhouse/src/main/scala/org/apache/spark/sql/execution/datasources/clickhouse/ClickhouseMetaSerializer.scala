@@ -20,7 +20,7 @@ import org.apache.gluten.execution.MergeTreePartSplit
 import org.apache.gluten.expression.ConverterUtils
 
 import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
-import org.apache.spark.sql.execution.datasources.mergetree.{DeltaMetaReader, StorageMeta}
+import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.types.StructType
 
@@ -81,22 +81,23 @@ object ClickhousePartSerializer {
 }
 
 object ClickhouseMetaSerializer {
+  def forWrite(
+      relativePath: String,
+      clickhouseTableConfigs: Map[String, String],
+      dataSchema: StructType): ReadRel.ExtensionTable = {
 
-  def forWrite(deltaMetaReader: DeltaMetaReader, dataSchema: StructType): ReadRel.ExtensionTable = {
-    val clickhouseTableConfigs = deltaMetaReader.writeConfiguration
-
-    val orderByKey = clickhouseTableConfigs("storage_orderByKey")
-    val lowCardKey = clickhouseTableConfigs("storage_lowCardKey")
-    val minmaxIndexKey = clickhouseTableConfigs("storage_minmaxIndexKey")
-    val bfIndexKey = clickhouseTableConfigs("storage_bfIndexKey")
-    val setIndexKey = clickhouseTableConfigs("storage_setIndexKey")
-    val primaryKey = clickhouseTableConfigs("storage_primaryKey")
+    val orderByKey = clickhouseTableConfigs(StorageMeta.ORDER_BY_KEY)
+    val lowCardKey = clickhouseTableConfigs(StorageMeta.LOW_CARD_KEY)
+    val minmaxIndexKey = clickhouseTableConfigs(StorageMeta.MINMAX_INDEX_KEY)
+    val bfIndexKey = clickhouseTableConfigs(StorageMeta.BF_INDEX_KEY)
+    val setIndexKey = clickhouseTableConfigs(StorageMeta.SET_INDEX_KEY)
+    val primaryKey = clickhouseTableConfigs(StorageMeta.PRIMARY_KEY)
 
     val result = apply(
-      deltaMetaReader.storageDB,
-      deltaMetaReader.storageTable,
-      deltaMetaReader.storageSnapshotId,
-      deltaMetaReader.storagePath,
+      clickhouseTableConfigs(StorageMeta.DB),
+      clickhouseTableConfigs(StorageMeta.TABLE),
+      clickhouseTableConfigs(StorageMeta.SNAPSHOT_ID),
+      relativePath,
       "", // absolutePath
       orderByKey,
       lowCardKey,
@@ -106,7 +107,7 @@ object ClickhouseMetaSerializer {
       primaryKey,
       ClickhousePartSerializer.fromPartNames(Seq()),
       ConverterUtils.convertNamedStructJson(dataSchema),
-      clickhouseTableConfigs.filter(_._1 == "storage_policy").asJava
+      clickhouseTableConfigs.filter(_._1 == StorageMeta.POLICY).asJava
     )
     ExtensionTableNode.toProtobuf(result)
 

@@ -27,12 +27,14 @@ import org.apache.gluten.utils.ConfigUtil
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, OutputWriter}
 import org.apache.spark.sql.execution.datasources.clickhouse.{ClickhouseMetaSerializer, ClickhousePartSerializer}
+import org.apache.spark.sql.execution.datasources.mergetree.{StorageMeta, WriteConfiguration}
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputWriter
 import org.apache.spark.sql.types.StructType
 
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.NamedStruct
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import java.{util => ju}
@@ -40,6 +42,17 @@ import java.{util => ju}
 import scala.collection.JavaConverters._
 
 case class PlanWithSplitInfo(plan: Array[Byte], splitInfo: Array[Byte])
+
+case class HadoopConfReader(conf: Configuration) extends WriteConfiguration {
+  lazy val writeConfiguration: Map[String, String] = {
+    conf
+      .iterator()
+      .asScala
+      .filter(_.getKey.startsWith("storage_"))
+      .map(entry => entry.getKey -> entry.getValue)
+      .toMap
+  }
+}
 
 class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
 
@@ -58,28 +71,25 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       path: String,
       dataSchema: StructType,
       context: TaskAttemptContext,
-      nativeConf: ju.Map[String, String]): OutputWriter = null
+      nativeConf: ju.Map[String, String]): OutputWriter = {
 
-  override val formatName: String = "mergetree"
+    val storage = HadoopConfReader(context.getConfiguration)
+    val database = storage.writeConfiguration(StorageMeta.DB)
+    val tableName = storage.writeConfiguration(StorageMeta.TABLE)
+    val extensionTable =
+      ClickhouseMetaSerializer.forWrite(path, storage.writeConfiguration, dataSchema)
 
-  def createOutputWriter(
-      path: String,
-      dataSchema: StructType,
-      context: TaskAttemptContext,
-      nativeConf: ju.Map[String, String],
-      database: String,
-      tableName: String,
-      splitInfo: Array[Byte]): OutputWriter = {
     val datasourceJniWrapper = new CHDatasourceJniWrapper(
-      splitInfo,
+      extensionTable.toByteArray,
       context.getTaskAttemptID.getTaskID.getId.toString,
       context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
       context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
       ConfigUtil.serialize(nativeConf)
     )
-
     new MergeTreeOutputWriter(datasourceJniWrapper, database, tableName, path)
   }
+
+  override val formatName: String = "mergetree"
 }
 
 object CHMergeTreeWriterInjects {

@@ -20,9 +20,8 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaParquetFileFormat
 import org.apache.spark.sql.delta.actions.{Metadata, Protocol}
 import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
-import org.apache.spark.sql.execution.datasources.clickhouse.ClickhouseMetaSerializer
 import org.apache.spark.sql.execution.datasources.mergetree.DeltaMetaReader
-import org.apache.spark.sql.execution.datasources.v1.{CHMergeTreeWriterInjects, GlutenMergeTreeWriterInjects}
+import org.apache.spark.sql.execution.datasources.v1.GlutenMergeTreeWriterInjects
 import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
@@ -53,22 +52,15 @@ class DeltaMergeTreeFileFormat(protocol: Protocol, metadata: Metadata)
       options: Map[String, String],
       dataSchema: StructType): OutputWriterFactory = {
     // pass compression to job conf so that the file extension can be aware of it.
-    // val conf = ContextUtil.getConfiguration(job)
+    val conf = job.getConfiguration
+
     val nativeConf =
       GlutenMergeTreeWriterInjects
         .getInstance()
         .nativeConf(options, "")
 
     @transient val deltaMetaReader = DeltaMetaReader(metadata)
-
-    val database = deltaMetaReader.storageDB
-    val tableName = deltaMetaReader.storageTable
-    val deltaPath = deltaMetaReader.storagePath
-
-    val extensionTableBC = sparkSession.sparkContext.broadcast(
-      ClickhouseMetaSerializer
-        .forWrite(deltaMetaReader, metadata.schema)
-        .toByteArray)
+    deltaMetaReader.updateToHadoopConf(conf)
 
     new OutputWriterFactory {
       override def getFileExtension(context: TaskAttemptContext): String = {
@@ -79,19 +71,10 @@ class DeltaMergeTreeFileFormat(protocol: Protocol, metadata: Metadata)
           path: String,
           dataSchema: StructType,
           context: TaskAttemptContext): OutputWriter = {
-        require(path == deltaPath)
+
         GlutenMergeTreeWriterInjects
           .getInstance()
-          .asInstanceOf[CHMergeTreeWriterInjects]
-          .createOutputWriter(
-            path,
-            metadata.schema,
-            context,
-            nativeConf,
-            database,
-            tableName,
-            extensionTableBC.value
-          )
+          .createOutputWriter(path, metadata.schema, context, nativeConf)
       }
     }
   }
