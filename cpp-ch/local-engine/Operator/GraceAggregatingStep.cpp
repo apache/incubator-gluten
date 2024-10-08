@@ -59,7 +59,7 @@ GraceAggregatingStep::GraceAggregatingStep(
     DB::Aggregator::Params params_,
     bool no_pre_aggregated_)
     : DB::ITransformingStep(
-        input_stream_, buildOutputHeader(input_stream_.header, params_, true), getTraits())
+        input_stream_, buildOutputHeader(input_stream_.header, params_, false), getTraits())
     , context(context_)
     , params(std::move(params_))
     , no_pre_aggregated(no_pre_aggregated_)
@@ -80,7 +80,7 @@ void GraceAggregatingStep::transformPipeline(DB::QueryPipelineBuilder & pipeline
         DB::Processors new_processors;
         for (auto & output : outputs)
         {
-            auto op = std::make_shared<GraceAggregatingTransform>(pipeline.getHeader(), transform_params, context, no_pre_aggregated, true);
+            auto op = std::make_shared<GraceAggregatingTransform>(pipeline.getHeader(), transform_params, context, no_pre_aggregated, false);
             new_processors.push_back(op);
             DB::connect(*output, op->getInputs().front());
         }
@@ -102,7 +102,7 @@ void GraceAggregatingStep::describeActions(DB::JSONBuilder::JSONMap & map) const
 
 void GraceAggregatingStep::updateOutputStream()
 {
-    output_stream = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params, true), getDataStreamTraits());
+    output_stream = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params, false), getDataStreamTraits());
 }
 
 
