@@ -1420,6 +1420,9 @@ class GlutenClickHouseHiveTableSuite
   }
 
   test("GLUTEN-7325: enable fallback to spark for read json") {
+    val jarPath = "jars/json-serde-1.3.7-SNAPSHOT-jar-with-dependencies.jar"
+    val jarUrl = s"file://$rootPath/$jarPath"
+    spark.sql(s"ADD JAR '$jarUrl'")
     withTable("test_7325") {
       val external_path = basePath + "/text-data/json_without_quota/"
       sql(
