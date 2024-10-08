@@ -67,15 +67,16 @@ public:
             const auto * arr_arg = parsed_args[0];
             const auto * idx_arg = parsed_args[1];
 
-            /// idx == 0
             const auto * zero_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeInt32>(), 0);
             const auto * equal_zero_node = toFunctionNode(actions_dag, "equals", {idx_arg, zero_node});
             const auto * throw_message
                 = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), "SQL array indices start at 1");
+            /// throwIf(idx == 0, 'SQL array indices start at 1')
             const auto * throw_if_node = toFunctionNode(actions_dag, "throwIf", {equal_zero_node, throw_message});
 
             const auto * array_element_node = toFunctionNode(actions_dag, "arrayElementOrNull", {arr_arg, idx_arg});
-            const auto * if_node = toFunctionNode(actions_dag, "if", {equal_zero_node, throw_if_node, array_element_node});
+            /// if(throwIf(idx == 0, 'SQL array indices start at 1'), arrayElementOrNull(arr, idx), arrayElementOrNull(arr, idx))
+            const auto * if_node = toFunctionNode(actions_dag, "if", {throw_if_node, array_element_node, array_element_node});
             return convertNodeTypeIfNeeded(substrait_func, if_node, actions_dag);
         }
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "First argument of function {} must be an array or a map", getName());
