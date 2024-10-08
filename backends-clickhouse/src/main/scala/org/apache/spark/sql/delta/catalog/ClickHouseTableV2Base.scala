@@ -56,7 +56,7 @@ trait ClickHouseTableV2Base extends TablePropertiesReader {
 
   def orderByKey(): String = orderByKeyOption match {
     case Some(keys) => keys.map(normalizeColName).mkString(",")
-    case None => "tuple()"
+    case None => StorageMeta.DEFAULT_ORDER_BY_KEY
   }
 
   def lowCardKey(): String = MergeTreeDeltaUtil.columnsToStr(lowCardKeyOption)

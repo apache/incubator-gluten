@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution.datasources.v1
 
+import org.apache.hadoop.mapreduce.TaskAttemptContext
+
 import java.{util => ju}
 
 class CHOrcWriterInjects extends CHFormatWriterInjects {
@@ -28,7 +30,7 @@ class CHOrcWriterInjects extends CHFormatWriterInjects {
     ju.Collections.emptyMap()
   }
 
-  override def createNativeWrite(): Write = Write
+  override def createNativeWrite(outputPath: String, context: TaskAttemptContext): Write = Write
     .newBuilder()
     .setCommon(Write.Common.newBuilder().setFormat(formatName).build())
     .setOrc(Write.OrcWrite.newBuilder().build())

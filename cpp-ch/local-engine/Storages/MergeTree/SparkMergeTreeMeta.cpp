@@ -29,6 +29,8 @@
 #include <rapidjson/document.h>
 #include <Poco/StringTokenizer.h>
 
+#include <write_optimization.pb.h>
+
 using namespace DB;
 using namespace local_engine;
 namespace
@@ -139,11 +141,8 @@ void doParseMergeTreeTableString(MergeTreeTable & table, ReadBufferFromString & 
     assertChar('\n', in);
     readString(table.order_by_key, in);
     assertChar('\n', in);
-    if (table.order_by_key != MergeTreeTable::TUPLE)
-    {
-        readString(table.primary_key, in);
-        assertChar('\n', in);
-    }
+    readString(table.primary_key, in);
+    assertChar('\n', in);
     readString(table.low_card_key, in);
     assertChar('\n', in);
     readString(table.minmax_index_key, in);
@@ -204,7 +203,7 @@ SparkStorageMergeTreePtr MergeTreeTable::copyToVirtualStorage(const ContextMutab
     return merge_tree_table.getStorage(context);
 }
 
-MergeTreeTableInstance::MergeTreeTableInstance(const std::string & info)
+MergeTreeTableInstance::MergeTreeTableInstance(const std::string & info) : MergeTreeTable()
 {
     ReadBufferFromString in(info);
     doParseMergeTreeTableString(*this, in);
@@ -242,6 +241,29 @@ SparkStorageMergeTreePtr MergeTreeTableInstance::restoreStorage(const ContextMut
 std::shared_ptr<DB::StorageInMemoryMetadata> MergeTreeTable::buildMetaData(const DB::Block & header, const ContextPtr & context) const
 {
     return doBuildMetadata(header.getNamesAndTypesList(), context, *this);
+}
+
+MergeTreeTable::MergeTreeTable(const substrait::WriteRel & write_rel)
+{
+    assert(write_rel.has_named_table());
+    const substrait::NamedObjectWrite & named_table = write_rel.named_table();
+    local_engine::Write write_opt;
+    named_table.advanced_extension().optimization().UnpackTo(&write_opt);
+    assert(write_opt.has_mergetree());
+    const Write_MergeTreeWrite & write = write_opt.mergetree();
+    database = write.database();
+    table = write.table();
+    snapshot_id = write.snapshot_id();
+    schema = write_rel.table_schema();
+    order_by_key = write.order_by_key();
+    low_card_key = write.low_card_key();
+    minmax_index_key = write.minmax_index_key();
+    bf_index_key = write.bf_index_key();
+    set_index_key = write.set_index_key();
+    primary_key = write.primary_key();
+    relative_path = write.relative_path();
+    absolute_path = write.absolute_path(); // always empty, see createNativeWrite in java
+    table_configs.storage_policy = write.storage_policy();
 }
 
 std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings(const MergeTreeTableSettings & config)

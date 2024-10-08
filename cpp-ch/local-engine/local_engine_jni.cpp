@@ -930,7 +930,7 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
 }
 
 JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_createMergeTreeWriter(
-    JNIEnv * env, jobject, jbyteArray split_info_, jstring task_id_, jstring partition_dir_, jstring bucket_dir_, jbyteArray conf_plan)
+    JNIEnv * env, jobject, jstring task_id_, jstring partition_dir_, jstring bucket_dir_, jbyteArray writeRel, jbyteArray conf_plan)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto query_context = local_engine::QueryContext::instance().currentQueryContext();
@@ -948,10 +948,10 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
         .part_name_prefix{uuid}, .partition_dir{partition_dir}, .bucket_dir{bucket_dir}};
     settings.set(query_context);
 
-    const auto split_info_a = local_engine::getByteArrayElementsSafe(env, split_info_);
-    auto extension_table = local_engine::BinaryToMessage<substrait::ReadRel::ExtensionTable>(
-        {reinterpret_cast<const char *>(split_info_a.elems()), static_cast<size_t>(split_info_a.length())});
-    local_engine::MergeTreeTableInstance merge_tree_table(extension_table);
+    const auto writeRelBytes = local_engine::getByteArrayElementsSafe(env, writeRel);
+    substrait::WriteRel write_rel = local_engine::BinaryToMessage<substrait::WriteRel>(
+        {reinterpret_cast<const char *>(writeRelBytes.elems()), static_cast<size_t>(writeRelBytes.length())});
+    local_engine::MergeTreeTable merge_tree_table(write_rel);
     auto * writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, settings, query_context).release();
 
     return reinterpret_cast<jlong>(writer);

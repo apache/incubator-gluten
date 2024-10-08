@@ -24,6 +24,8 @@ message Write {
     string primary_key = 9;
     string relative_path = 10;
     string absolute_path = 11;
+
+    string storage_policy = 12;
   }
 
   Common common = 1;

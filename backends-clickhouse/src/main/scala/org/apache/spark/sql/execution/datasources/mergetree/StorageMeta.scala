@@ -24,12 +24,15 @@ import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDelt
 
 import org.apache.hadoop.fs.Path
 
+import java.net.URI
+
 /** Reserved table property for MergeTree table. */
 object StorageMeta {
 
   // Storage properties
   val DEFAULT_PATH_BASED_DATABASE: String = "clickhouse_db"
   val DEFAULT_CREATE_TABLE_DATABASE: String = "default"
+  val DEFAULT_ORDER_BY_KEY = "tuple()"
   val DB: String = "storage_db"
   val TABLE: String = "storage_table"
   val SNAPSHOT_ID: String = "storage_snapshot_id"
@@ -59,6 +62,13 @@ object StorageMeta {
 
   private def withMoreOptions(metadata: Metadata, newOptions: Seq[(String, String)]): Metadata = {
     metadata.copy(configuration = metadata.configuration ++ newOptions)
+  }
+
+  def normalizeRelativePath(relativePath: String): String = {
+    val table_uri = URI.create(relativePath)
+    if (table_uri.getPath.startsWith("/")) {
+      table_uri.getPath.substring(1)
+    } else table_uri.getPath
   }
 }
 

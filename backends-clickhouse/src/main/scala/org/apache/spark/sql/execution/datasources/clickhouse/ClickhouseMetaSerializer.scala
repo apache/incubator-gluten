@@ -22,15 +22,11 @@ import org.apache.gluten.expression.ConverterUtils
 import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
 import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
-import org.apache.spark.sql.types.StructType
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.substrait.proto.ReadRel
 
-import java.net.URI
 import java.util.{Map => jMap}
-
-import scala.collection.JavaConverters._
 
 case class ClickhousePartSerializer(
     partList: Seq[String],
@@ -81,37 +77,6 @@ object ClickhousePartSerializer {
 }
 
 object ClickhouseMetaSerializer {
-  def forWrite(
-      relativePath: String,
-      clickhouseTableConfigs: Map[String, String],
-      dataSchema: StructType): ReadRel.ExtensionTable = {
-
-    val orderByKey = clickhouseTableConfigs(StorageMeta.ORDER_BY_KEY)
-    val lowCardKey = clickhouseTableConfigs(StorageMeta.LOW_CARD_KEY)
-    val minmaxIndexKey = clickhouseTableConfigs(StorageMeta.MINMAX_INDEX_KEY)
-    val bfIndexKey = clickhouseTableConfigs(StorageMeta.BF_INDEX_KEY)
-    val setIndexKey = clickhouseTableConfigs(StorageMeta.SET_INDEX_KEY)
-    val primaryKey = clickhouseTableConfigs(StorageMeta.PRIMARY_KEY)
-
-    val result = apply(
-      clickhouseTableConfigs(StorageMeta.DB),
-      clickhouseTableConfigs(StorageMeta.TABLE),
-      clickhouseTableConfigs(StorageMeta.SNAPSHOT_ID),
-      relativePath,
-      "", // absolutePath
-      orderByKey,
-      lowCardKey,
-      minmaxIndexKey,
-      bfIndexKey,
-      setIndexKey,
-      primaryKey,
-      ClickhousePartSerializer.fromPartNames(Seq()),
-      ConverterUtils.convertNamedStructJson(dataSchema),
-      clickhouseTableConfigs.filter(_._1 == StorageMeta.POLICY).asJava
-    )
-    ExtensionTableNode.toProtobuf(result)
-
-  }
   // scalastyle:off argcount
   def apply1(
       database: String,
@@ -193,7 +158,9 @@ object ClickhouseMetaSerializer {
       .append(orderByKey)
       .append("\n")
 
-    if (orderByKey.nonEmpty && !(orderByKey == "tuple()")) {
+    if (orderByKey.isEmpty || orderByKey == StorageMeta.DEFAULT_ORDER_BY_KEY) {
+      extensionTableStr.append("").append("\n")
+    } else {
       extensionTableStr.append(primaryKey).append("\n")
     }
 
@@ -201,19 +168,12 @@ object ClickhouseMetaSerializer {
     extensionTableStr.append(minmaxIndexKey).append("\n")
     extensionTableStr.append(bfIndexKey).append("\n")
     extensionTableStr.append(setIndexKey).append("\n")
-    extensionTableStr.append(normalizeRelativePath(relativePath)).append("\n")
+    extensionTableStr.append(StorageMeta.normalizeRelativePath(relativePath)).append("\n")
     extensionTableStr.append(absolutePath).append("\n")
     appendConfigs(extensionTableStr, clickhouseTableConfigs)
     extensionTableStr.append(partSerializer())
 
     extensionTableStr.toString()
-  }
-
-  private def normalizeRelativePath(relativePath: String): String = {
-    val table_uri = URI.create(relativePath)
-    if (table_uri.getPath.startsWith("/")) {
-      table_uri.getPath.substring(1)
-    } else table_uri.getPath
   }
 
   private def appendConfigs(

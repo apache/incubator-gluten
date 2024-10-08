@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.datasources.v1
 import org.apache.gluten.execution.datasource.GlutenRowSplitter
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.memory.CHThreadGroup
-import org.apache.gluten.utils.SubstraitUtil.createNameStructBuilder
+import org.apache.gluten.utils.SubstraitUtil
 import org.apache.gluten.vectorized.CHColumnVector
 
 import org.apache.spark.sql.SparkSession
@@ -30,7 +30,7 @@ import org.apache.spark.sql.types.StructType
 
 import com.google.protobuf.Any
 import io.substrait.proto
-import io.substrait.proto.{AdvancedExtension, NamedObjectWrite}
+import io.substrait.proto.{AdvancedExtension, NamedObjectWrite, NamedStruct}
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
@@ -40,26 +40,35 @@ import scala.collection.JavaConverters.seqAsJavaListConverter
 
 trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
-  private def createWriteRel(dataSchema: StructType): proto.WriteRel = {
+  // TODO: move to SubstraitUtil
+  private def toNameStruct(dataSchema: StructType): NamedStruct = {
+    SubstraitUtil
+      .createNameStructBuilder(
+        ConverterUtils.collectAttributeTypeNodes(dataSchema),
+        dataSchema.fieldNames.map(ConverterUtils.normalizeColName).toSeq.asJava,
+        ju.Collections.emptyList()
+      )
+      .build()
+  }
+  def createWriteRel(
+      outputPath: String,
+      dataSchema: StructType,
+      context: TaskAttemptContext): proto.WriteRel = {
     proto.WriteRel
       .newBuilder()
-      .setTableSchema(
-        createNameStructBuilder(
-          ConverterUtils.collectAttributeTypeNodes(dataSchema),
-          dataSchema.fieldNames.toSeq.asJava,
-          ju.Collections.emptyList()).build())
+      .setTableSchema(toNameStruct(dataSchema))
       .setNamedTable(
         NamedObjectWrite.newBuilder
           .setAdvancedExtension(
             AdvancedExtension
               .newBuilder()
-              .setOptimization(Any.pack(createNativeWrite()))
+              .setOptimization(Any.pack(createNativeWrite(outputPath, context)))
               .build())
           .build())
       .build()
   }
 
-  def createNativeWrite(): Write
+  def createNativeWrite(outputPath: String, context: TaskAttemptContext): Write
 
   override def createOutputWriter(
       outputPath: String,
@@ -69,7 +78,7 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     CHThreadGroup.registerNewThreadGroup()
 
     val datasourceJniWrapper =
-      new CHDatasourceJniWrapper(outputPath, createWriteRel(dataSchema))
+      new CHDatasourceJniWrapper(outputPath, createWriteRel(outputPath, dataSchema, context))
 
     new OutputWriter {
       override def write(row: InternalRow): Unit = {

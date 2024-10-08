@@ -20,6 +20,8 @@ import org.apache.gluten.GlutenConfig
 
 import org.apache.spark.sql.internal.SQLConf
 
+import org.apache.hadoop.mapreduce.TaskAttemptContext
+
 import java.{util => ju}
 
 class CHParquetWriterInjects extends CHFormatWriterInjects {
@@ -41,7 +43,7 @@ class CHParquetWriterInjects extends CHFormatWriterInjects {
     sparkOptions
   }
 
-  override def createNativeWrite(): Write = Write
+  override def createNativeWrite(outputPath: String, context: TaskAttemptContext): Write = Write
     .newBuilder()
     .setCommon(Write.Common.newBuilder().setFormat(formatName).build())
     .setParquet(Write.ParquetWrite.newBuilder().build())

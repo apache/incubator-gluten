@@ -62,13 +62,32 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
     options.asJava
   }
 
-  override def createNativeWrite(): Write = {
-    throw new UnsupportedOperationException(
-      "createNativeWrite is not supported in CHMergeTreeWriterInjects")
+  override def createNativeWrite(outputPath: String, context: TaskAttemptContext): Write = {
+    val conf = HadoopConfReader(context.getConfiguration).writeConfiguration
+    Write
+      .newBuilder()
+      .setCommon(Write.Common.newBuilder().setFormat(formatName).build())
+      .setMergetree(
+        Write.MergeTreeWrite
+          .newBuilder()
+          .setDatabase(conf(StorageMeta.DB))
+          .setTable(conf(StorageMeta.TABLE))
+          .setSnapshotId(conf(StorageMeta.SNAPSHOT_ID))
+          .setOrderByKey(conf(StorageMeta.ORDER_BY_KEY))
+          .setLowCardKey(conf(StorageMeta.LOW_CARD_KEY))
+          .setMinmaxIndexKey(conf(StorageMeta.MINMAX_INDEX_KEY))
+          .setBfIndexKey(conf(StorageMeta.BF_INDEX_KEY))
+          .setSetIndexKey(conf(StorageMeta.SET_INDEX_KEY))
+          .setPrimaryKey(conf(StorageMeta.PRIMARY_KEY))
+          .setRelativePath(StorageMeta.normalizeRelativePath(outputPath))
+          .setAbsolutePath("")
+          .setStoragePolicy(conf(StorageMeta.POLICY))
+          .build())
+      .build()
   }
 
   override def createOutputWriter(
-      path: String,
+      outputPath: String,
       dataSchema: StructType,
       context: TaskAttemptContext,
       nativeConf: ju.Map[String, String]): OutputWriter = {
@@ -76,17 +95,15 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
     val storage = HadoopConfReader(context.getConfiguration)
     val database = storage.writeConfiguration(StorageMeta.DB)
     val tableName = storage.writeConfiguration(StorageMeta.TABLE)
-    val extensionTable =
-      ClickhouseMetaSerializer.forWrite(path, storage.writeConfiguration, dataSchema)
 
     val datasourceJniWrapper = new CHDatasourceJniWrapper(
-      extensionTable.toByteArray,
       context.getTaskAttemptID.getTaskID.getId.toString,
       context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
       context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
+      createWriteRel(outputPath, dataSchema, context),
       ConfigUtil.serialize(nativeConf)
     )
-    new MergeTreeOutputWriter(datasourceJniWrapper, database, tableName, path)
+    new MergeTreeOutputWriter(datasourceJniWrapper, database, tableName, outputPath)
   }
 
   override val formatName: String = "mergetree"

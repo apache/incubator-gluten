@@ -18,9 +18,9 @@ package org.apache.spark.sql.execution.datasources.clickhouse.utils
 
 import org.apache.gluten.expression.ConverterUtils.normalizeColName
 
-object MergeTreeDeltaUtil {
+import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta.DEFAULT_ORDER_BY_KEY
 
-  val DEFAULT_ORDER_BY_KEY = "tuple()"
+object MergeTreeDeltaUtil {
 
   def genOrderByAndPrimaryKeyStr(
       orderByKeyOption: Option[Seq[String]],
@@ -36,10 +36,7 @@ object MergeTreeDeltaUtil {
     (orderByKey, primaryKey)
   }
 
-  def columnsToStr(option: Option[Seq[String]]): String = option match {
-    case Some(keys) => keys.map(normalizeColName).mkString(",")
-    case None => ""
-  }
+  def columnsToStr(option: Option[Seq[String]]): String = option.map(columnsToStr).getOrElse("")
 
   def columnsToStr(keys: Seq[String]): String = {
     keys.map(normalizeColName).mkString(",")
