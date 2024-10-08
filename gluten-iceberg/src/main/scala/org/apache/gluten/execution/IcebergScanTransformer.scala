@@ -53,8 +53,6 @@ case class IcebergScanTransformer(
 
   override def getDataSchema: StructType = new StructType()
 
-  override def getInputFilePathsInternal: Seq[String] = Seq.empty
-
   // TODO: get root paths from table.
   override def getRootPathsInternal: Seq[String] = Seq.empty
 

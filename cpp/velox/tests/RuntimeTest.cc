@@ -89,7 +89,7 @@ class DummyRuntime final : public Runtime {
   std::unique_ptr<ColumnarBatchSerializer> createColumnarBatchSerializer(struct ArrowSchema* cSchema) override {
     throw GlutenException("Not yet implemented");
   }
-  std::shared_ptr<ColumnarBatch> select(std::shared_ptr<ColumnarBatch>, std::vector<int32_t>) override {
+  std::shared_ptr<ColumnarBatch> select(std::shared_ptr<ColumnarBatch>, const std::vector<int32_t>&) override {
     throw GlutenException("Not yet implemented");
   }
   std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) override {

@@ -671,7 +671,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               dwio::common::FileFormat::PARQUET, // Currently only support parquet format.
               compressionCodec)),
       (!partitionedKey.empty()),
-      false, /*hasBucketProperty_*/
       exec::TableWriteTraits::outputType(nullptr),
       connector::CommitStrategy::kNoCommit,
       childNode);

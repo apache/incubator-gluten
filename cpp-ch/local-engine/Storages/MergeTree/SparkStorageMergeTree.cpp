@@ -176,8 +176,6 @@ std::vector<MergeTreeDataPartPtr> SparkStorageMergeTree::loadDataPartsWithNames(
         data_parts.emplace_back(res.part);
     }
 
-    // without it "test mergetree optimize partitioned by one low card column" will log ERROR
-    calculateColumnAndSecondaryIndexSizesImpl();
     return data_parts;
 }
 
@@ -251,6 +249,9 @@ MergeTreeData::LoadPartResult SparkStorageMergeTree::loadDataPart(
 
     if (res.part->hasLightweightDelete())
         has_lightweight_delete_parts.store(true);
+
+    // without it "test mergetree optimize partitioned by one low card column" will log ERROR
+    calculateColumnAndSecondaryIndexSizesImpl();
 
     LOG_TRACE(log, "Finished loading {} part {} on disk {}", magic_enum::enum_name(to_state), part_name, part_disk_ptr->getName());
     return res;

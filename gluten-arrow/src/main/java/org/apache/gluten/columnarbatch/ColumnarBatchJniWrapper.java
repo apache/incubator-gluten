@@ -42,8 +42,6 @@ public class ColumnarBatchJniWrapper implements RuntimeAware {
 
   public native long numBytes(long batch);
 
-  public native long compose(long[] batches);
-
   public native void exportToArrow(long batch, long cSchema, long cArray);
 
   public native long select(long batch, int[] columnIndices);
