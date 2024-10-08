@@ -1424,7 +1424,7 @@ class GlutenClickHouseHiveTableSuite
     val jarUrl = s"file://$rootPath/$jarPath"
     spark.sql(s"ADD JAR '$jarUrl'")
     withTable("test_7325") {
-      val external_path = basePath + "/text-data/json_without_quota/"
+      val external_path = rootPath + "/text-data/json-without-quote/"
       sql(
         s"""
            | create table test_7325(`apps` string)
@@ -1434,16 +1434,17 @@ class GlutenClickHouseHiveTableSuite
            | LOCATION '$external_path'
            |""".stripMargin
       )
-    }
-    withSQLConf(
-      "spark.gluten.sql.columnar.backend.ch.runtime_settings.allow_read_json" -> "false") {
-      compareResultsAgainstVanillaSpark(
-        """
-          |select apps from test_7325
-          |""".stripMargin,
-        true,
-        { _ => }
-      )
+      withSQLConf(
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings.allow_read_json" -> "false") {
+        compareResultsAgainstVanillaSpark(
+          """
+            |select apps from test_7325
+            |""".stripMargin,
+          true,
+          { _ => },
+          flase
+        )
+      }
     }
   }
 }
