@@ -667,27 +667,6 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWra
   JNI_METHOD_END(kInvalidObjectHandle)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_compose( // NOLINT
-    JNIEnv* env,
-    jobject wrapper,
-    jlongArray batchHandles) {
-  JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
-
-  int handleCount = env->GetArrayLength(batchHandles);
-  auto safeArray = gluten::getLongArrayElementsSafe(env, batchHandles);
-
-  std::vector<std::shared_ptr<ColumnarBatch>> batches;
-  for (int i = 0; i < handleCount; ++i) {
-    int64_t handle = safeArray.elems()[i];
-    auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
-    batches.push_back(batch);
-  }
-  auto newBatch = CompositeColumnarBatch::create(std::move(batches));
-  return ctx->saveObject(newBatch);
-  JNI_METHOD_END(kInvalidObjectHandle)
-}
-
 JNIEXPORT void JNICALL Java_org_apache_gluten_columnarbatch_ColumnarBatchJniWrapper_exportToArrow( // NOLINT
     JNIEnv* env,
     jobject wrapper,

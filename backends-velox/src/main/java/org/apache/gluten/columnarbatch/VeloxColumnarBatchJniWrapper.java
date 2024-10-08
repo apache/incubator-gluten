@@ -14,14 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.columnarbatch
+package org.apache.gluten.columnarbatch;
 
-import org.apache.gluten.execution.{ArrowColumnarToVeloxColumnarExec, RowToVeloxColumnarExec, VeloxColumnarToRowExec}
-import org.apache.gluten.extension.columnar.transition.{Convention, Transition}
+import org.apache.gluten.runtime.Runtime;
+import org.apache.gluten.runtime.RuntimeAware;
 
-object VeloxBatch extends Convention.BatchType {
-  fromRow(RowToVeloxColumnarExec.apply)
-  toRow(VeloxColumnarToRowExec.apply)
-  fromBatch(ArrowBatches.ArrowNativeBatch, ArrowColumnarToVeloxColumnarExec.apply)
-  toBatch(ArrowBatches.ArrowNativeBatch, Transition.empty)
+public class VeloxColumnarBatchJniWrapper implements RuntimeAware {
+  private final Runtime runtime;
+
+  private VeloxColumnarBatchJniWrapper(Runtime runtime) {
+    this.runtime = runtime;
+  }
+
+  public static VeloxColumnarBatchJniWrapper create(Runtime runtime) {
+    return new VeloxColumnarBatchJniWrapper(runtime);
+  }
+
+  public native long from(long batch);
+
+  public native long compose(long[] batches);
+
+  @Override
+  public long rtHandle() {
+    return runtime.getHandle();
+  }
 }

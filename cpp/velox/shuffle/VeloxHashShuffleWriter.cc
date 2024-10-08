@@ -262,11 +262,11 @@ arrow::Status VeloxHashShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, i
     }
     RETURN_NOT_OK(evictBuffers(0, rv.size(), std::move(buffers), false));
   } else if (options_.partitioning == Partitioning::kRange) {
-    auto compositeBatch = std::dynamic_pointer_cast<CompositeColumnarBatch>(cb);
-    VELOX_CHECK_NOT_NULL(compositeBatch);
-    auto batches = compositeBatch->getBatches();
-    VELOX_CHECK_EQ(batches.size(), 2);
-    auto pidBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[0]);
+    auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
+    VELOX_CHECK_NOT_NULL(veloxColumnBatch);
+    const int32_t numColumns = veloxColumnBatch->numColumns();
+    VELOX_CHECK(numColumns >= 2);
+    auto pidBatch = veloxColumnBatch->select(veloxPool_.get(), {0});
     auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
     START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
     std::fill(std::begin(partition2RowCount_), std::end(partition2RowCount_), 0);
@@ -275,7 +275,11 @@ arrow::Status VeloxHashShuffleWriter::write(std::shared_ptr<ColumnarBatch> cb, i
       partition2RowCount_[pid]++;
     }
     END_TIMING();
-    auto rvBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[1]);
+    std::vector<int32_t> range;
+    for (int32_t i = 1; i < numColumns; i++) {
+      range.push_back(i);
+    }
+    auto rvBatch = veloxColumnBatch->select(veloxPool_.get(), range);
     auto& rv = *rvBatch->getFlattenedRowVector();
     RETURN_NOT_OK(initFromRowVector(rv));
     RETURN_NOT_OK(doSplit(rv, memLimit));

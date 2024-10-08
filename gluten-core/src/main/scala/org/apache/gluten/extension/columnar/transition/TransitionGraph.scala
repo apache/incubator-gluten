@@ -67,24 +67,53 @@ object TransitionGraph {
     }
   }
 
-  private case class TransitionCost(count: Int) extends FloydWarshallGraph.Cost {
+  private case class TransitionCost(count: Int, nodeNames: Seq[String])
+    extends FloydWarshallGraph.Cost {
     override def +(other: FloydWarshallGraph.Cost): TransitionCost = {
       other match {
-        case TransitionCost(otherCount) => TransitionCost(count + otherCount)
+        case TransitionCost(otherCount, otherNodeNames) =>
+          TransitionCost(count + otherCount, nodeNames ++ otherNodeNames)
       }
     }
   }
 
   private object TransitionCostModel extends FloydWarshallGraph.CostModel[Transition] {
-    override def zero(): FloydWarshallGraph.Cost = TransitionCost(0)
-    override def costOf(transition: Transition): FloydWarshallGraph.Cost = costOf0(transition)
-    override def costComparator(): Ordering[FloydWarshallGraph.Cost] = Ordering.Int.on {
-      case TransitionCost(c) => c
+    override def zero(): TransitionCost = TransitionCost(0, Nil)
+    override def costOf(transition: Transition): TransitionCost = {
+      costOf0(transition)
     }
-    private def costOf0(transition: Transition): TransitionCost = transition match {
-      case t if t.isEmpty => TransitionCost(0)
-      case ChainedTransition(f, s) => costOf0(f) + costOf0(s)
-      case _ => TransitionCost(1)
+    override def costComparator(): Ordering[FloydWarshallGraph.Cost] = {
+      (x: FloydWarshallGraph.Cost, y: FloydWarshallGraph.Cost) =>
+        (x, y) match {
+          case (TransitionCost(count, nodeNames), TransitionCost(otherCount, otherNodeNames)) =>
+            if (count != otherCount) {
+              count - otherCount
+            } else {
+              // To make the output order stable.
+              nodeNames.hashCode() - otherNodeNames.hashCode()
+            }
+        }
+    }
+
+    private def costOf0(transition: Transition): TransitionCost = {
+      val leaf = DummySparkPlan()
+
+      /**
+       * The calculation considers C2C's cost as half of C2R / R2C's cost. So query planner prefers
+       * C2C than C2R / R2C.
+       */
+      def costOfPlan(plan: SparkPlan): TransitionCost = plan
+        .map {
+          case p if p == leaf => TransitionCost(0, Nil)
+          case node @ RowToColumnarLike(_) => TransitionCost(2, Seq(node.nodeName))
+          case node @ ColumnarToRowLike(_) => TransitionCost(2, Seq(node.nodeName))
+          case node @ ColumnarToColumnarLike(_) => TransitionCost(1, Seq(node.nodeName))
+        }
+        .reduce((l, r) => l + r)
+
+      val plan = transition.apply(leaf)
+      val cost = costOfPlan(plan)
+      cost
     }
   }
 }
