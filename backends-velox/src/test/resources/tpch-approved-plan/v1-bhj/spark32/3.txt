@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (54)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (35)
+   VeloxColumnarToRow (35)
    +- TakeOrderedAndProjectExecTransformer (34)
       +- ^ ProjectExecTransformer (32)
          +- ^ RegularHashAggregateExecTransformer (31)
@@ -197,7 +197,7 @@ Arguments: false
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
 Arguments: X, [revenue#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X], 0
 
-(35) VeloxColumnarToRowExec
+(35) VeloxColumnarToRow
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
 
 (36) Scan parquet

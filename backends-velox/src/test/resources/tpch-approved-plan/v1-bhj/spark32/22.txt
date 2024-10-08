@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (40)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (28)
+   VeloxColumnarToRow (28)
    +- ^ SortExecTransformer (26)
       +- ^ InputIteratorTransformer (25)
          +- ShuffleQueryStage (23)
@@ -150,7 +150,7 @@ Arguments: [cntrycode#X ASC NULLS FIRST], true, 0
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 
-(28) VeloxColumnarToRowExec
+(28) VeloxColumnarToRow
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 
 (29) Scan parquet

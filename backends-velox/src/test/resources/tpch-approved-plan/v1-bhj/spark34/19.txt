@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (34)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (22)
+   VeloxColumnarToRow (22)
    +- ^ RegularHashAggregateExecTransformer (20)
       +- ^ InputIteratorTransformer (19)
          +- ShuffleQueryStage (17), Statistics(X)
@@ -126,7 +126,7 @@ Results [1]: [sum((l_extendedprice#X * (1 - l_discount#X)))#X AS revenue#X]
 Input [1]: [revenue#X]
 Arguments: false
 
-(22) VeloxColumnarToRowExec
+(22) VeloxColumnarToRow
 Input [1]: [revenue#X]
 
 (23) Scan parquet
