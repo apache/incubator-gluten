@@ -140,6 +140,7 @@ std::shared_ptr<arrow::RecordBatchReader> createReader(const std::string& path) 
 #endif
 
 void setCpu(uint32_t cpuindex) {
+#ifndef __APPLE__
   static const auto kTotalCores = std::thread::hardware_concurrency();
   cpuindex = cpuindex % kTotalCores;
   cpu_set_t cs;
@@ -149,6 +150,10 @@ void setCpu(uint32_t cpuindex) {
     LOG(WARNING) << "Error binding CPU " << std::to_string(cpuindex);
     exit(EXIT_FAILURE);
   }
+#else
+  LOG(WARNING) << "Binding CPU is currently not supported on macOS." << std::endl;
+  exit(EXIT_FAILURE);
+#endif
 }
 
 arrow::Status

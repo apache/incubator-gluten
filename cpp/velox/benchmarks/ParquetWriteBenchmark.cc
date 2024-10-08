@@ -92,10 +92,15 @@ class GoogleBenchmarkParquetWrite {
 
  protected:
   long setCpu(uint32_t cpuindex) {
+#ifndef __APPLE__
     cpu_set_t cs;
     CPU_ZERO(&cs);
     CPU_SET(cpuindex, &cs);
     return sched_setaffinity(0, sizeof(cs), &cs);
+#else
+    LOG(WARNING) << "Binding CPU is currently not supported on macOS." << std::endl;
+    exit(EXIT_FAILURE);
+#endif
   }
 
   std::shared_ptr<ColumnarBatch> recordBatch2VeloxColumnarBatch(const arrow::RecordBatch& rb) {

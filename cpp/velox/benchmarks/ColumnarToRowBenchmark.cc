@@ -87,10 +87,15 @@ class GoogleBenchmarkColumnarToRow {
 
  protected:
   long setCpu(uint32_t cpuindex) {
+#ifndef __APPLE__
     cpu_set_t cs;
     CPU_ZERO(&cs);
     CPU_SET(cpuindex, &cs);
     return sched_setaffinity(0, sizeof(cs), &cs);
+#else
+    LOG(WARNING) << "Binding CPU is currently not supported on macOS." << std::endl;
+    exit(EXIT_FAILURE);
+#endif
   }
 
   velox::VectorPtr recordBatch2RowVector(const arrow::RecordBatch& rb) {
