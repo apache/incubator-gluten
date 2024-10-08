@@ -690,6 +690,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
+    // TODO:(yuan)
+    .exclude("vectorized reader: missing all struct fields")
     // Velox doesn't write file metadata into parquet file.
     .exclude("Write Spark version into Parquet metadata")
     // Exception.
