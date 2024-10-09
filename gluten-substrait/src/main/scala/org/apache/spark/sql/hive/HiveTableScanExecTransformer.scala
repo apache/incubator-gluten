@@ -25,7 +25,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, AttributeSeq, Expression}
-import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.catalyst.plans.QueryPlanWrapper
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -165,9 +165,9 @@ case class HiveTableScanExecTransformer(
   override def doCanonicalize(): HiveTableScanExecTransformer = {
     val input: AttributeSeq = relation.output
     HiveTableScanExecTransformer(
-      requestedAttributes.map(QueryPlan.normalizeExpressions(_, input)),
+      requestedAttributes.map(QueryPlanWrapper.normalizeExpressions(_, input)),
       relation.canonicalized.asInstanceOf[HiveTableRelation],
-      QueryPlan.normalizePredicates(partitionPruningPred, input)
+      QueryPlanWrapper.normalizePredicates(partitionPruningPred, input)
     )(sparkSession)
   }
 }
