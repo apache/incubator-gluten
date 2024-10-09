@@ -24,13 +24,8 @@ import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDelt
 
 import org.apache.hadoop.fs.Path
 
-import scala.collection.mutable.ListBuffer
-
 /** Reserved table property for MergeTree table. */
 object StorageMeta {
-  val Provider: String = "clickhouse"
-  val DEFAULT_FILE_FORMAT: String = "write.format.default"
-  val DEFAULT_FILE_FORMAT_DEFAULT: String = "mergetree"
 
   // Storage properties
   val DEFAULT_PATH_BASED_DATABASE: String = "clickhouse_db"
@@ -53,18 +48,6 @@ object StorageMeta {
       STORAGE_TABLE -> tableName,
       STORAGE_PATH -> deltaPath.toString)
     withMoreOptions(metadata, moreOptions)
-  }
-  def withMoreStorageInfo(metadata: Metadata, snapshotId: String, deltaPath: Path): Metadata = {
-    val moreOptions =
-      ListBuffer(STORAGE_SNAPSHOT_ID -> snapshotId, STORAGE_PATH -> deltaPath.toString)
-    // Path-based create table statement does not have storage_db and storage_table
-    if (!metadata.configuration.contains(STORAGE_DB)) {
-      moreOptions += STORAGE_DB -> DEFAULT_PATH_BASED_DATABASE
-    }
-    if (!metadata.configuration.contains(STORAGE_TABLE)) {
-      moreOptions += STORAGE_TABLE -> deltaPath.toUri.getPath
-    }
-    withMoreOptions(metadata, moreOptions.toSeq)
   }
 
   private def withMoreOptions(metadata: Metadata, newOptions: Seq[(String, String)]): Metadata = {
