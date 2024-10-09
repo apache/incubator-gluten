@@ -54,9 +54,6 @@ class GlutenClickHouseHiveSuite
       .set("spark.gluten.supported.hive.udfs", "my_add")
       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
       .set("spark.gluten.sql.columnar.backend.ch.runtime_settings.allow_read_json", "false")
-      .set(
-        "spark.sql.catalog.spark_catalog",
-        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
       .setMaster("local[*]")
   }
 
