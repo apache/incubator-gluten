@@ -562,3 +562,170 @@ BM_SumWithConditionNew<Decimal128>      88954 ns        88952 ns         8002
 BM_SumWithCondition<Decimal256>        515128 ns       515111 ns         1371
 BM_SumWithConditionNew<Decimal256>     223425 ns       223420 ns         3184
 */
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wbit-int-extension"
+using NewInt128 = signed _BitInt(128);
+using NewUInt128 = unsigned _BitInt(128);
+using NewInt256 = signed _BitInt(256);
+using NewUInt256 = unsigned _BitInt(256);
+#pragma clang diagnostic pop
+
+using OldInt128 = Int128;
+using OldUInt128 = UInt128;
+using OldInt256 = Int256;
+using OldUInt256 = UInt256;
+
+template <typename T>
+static T generateRandomValue()
+{
+    T value;
+    for (size_t i = 0; i < sizeof(T); ++i)
+    {
+        reinterpret_cast<uint8_t *>(&value)[i] = static_cast<uint8_t>(std::rand() % 256);
+    }
+    return value;
+}
+
+
+template <typename T>
+static void BM_Addition(benchmark::State & state)
+{
+    T a = generateRandomValue<T>();
+    T b = generateRandomValue<T>();
+    for (auto _ : state)
+    {
+        T result = a + b;
+        benchmark::DoNotOptimize(&result);
+    }
+}
+
+template <typename T>
+static void BM_Subtraction(benchmark::State & state)
+{
+    T a = generateRandomValue<T>();
+    T b = generateRandomValue<T>();
+    for (auto _ : state)
+    {
+        T result = a - b;
+        benchmark::DoNotOptimize(&result);
+    }
+}
+
+template <typename T>
+static void BM_Multiplication(benchmark::State & state)
+{
+    T a = generateRandomValue<T>();
+    T b = generateRandomValue<T>();
+    for (auto _ : state)
+    {
+        T result = a * b;
+        benchmark::DoNotOptimize(&result);
+    }
+}
+
+template <typename T>
+static void BM_Division(benchmark::State & state)
+{
+    T a = generateRandomValue<T>();
+    T b = generateRandomValue<T>() + 1; // Avoid division by zero
+    for (auto _ : state)
+    {
+        T result = a / b;
+        benchmark::DoNotOptimize(&result);
+    }
+}
+BENCHMARK_TEMPLATE(BM_Addition, OldInt128);
+BENCHMARK_TEMPLATE(BM_Subtraction, OldInt128);
+BENCHMARK_TEMPLATE(BM_Multiplication, OldInt128);
+BENCHMARK_TEMPLATE(BM_Division, OldInt128);
+
+BENCHMARK_TEMPLATE(BM_Addition, NewInt128);
+BENCHMARK_TEMPLATE(BM_Subtraction, NewInt128);
+BENCHMARK_TEMPLATE(BM_Multiplication, NewInt128);
+BENCHMARK_TEMPLATE(BM_Division, NewInt128);
+
+BENCHMARK_TEMPLATE(BM_Addition, OldUInt128);
+BENCHMARK_TEMPLATE(BM_Subtraction, OldUInt128);
+BENCHMARK_TEMPLATE(BM_Multiplication, OldUInt128);
+BENCHMARK_TEMPLATE(BM_Division, OldUInt128);
+
+BENCHMARK_TEMPLATE(BM_Addition, NewUInt128);
+BENCHMARK_TEMPLATE(BM_Subtraction, NewUInt128);
+BENCHMARK_TEMPLATE(BM_Multiplication, NewUInt128);
+BENCHMARK_TEMPLATE(BM_Division, NewUInt128);
+
+BENCHMARK_TEMPLATE(BM_Addition, OldInt256);
+BENCHMARK_TEMPLATE(BM_Subtraction, OldInt256);
+BENCHMARK_TEMPLATE(BM_Multiplication, OldInt256);
+BENCHMARK_TEMPLATE(BM_Division, OldInt256);
+
+BENCHMARK_TEMPLATE(BM_Addition, NewInt256);
+BENCHMARK_TEMPLATE(BM_Subtraction, NewInt256);
+BENCHMARK_TEMPLATE(BM_Multiplication, NewInt256);
+BENCHMARK_TEMPLATE(BM_Division, NewInt256);
+
+BENCHMARK_TEMPLATE(BM_Addition, OldUInt256);
+BENCHMARK_TEMPLATE(BM_Subtraction, OldUInt256);
+BENCHMARK_TEMPLATE(BM_Multiplication, OldUInt256);
+BENCHMARK_TEMPLATE(BM_Division, OldUInt256);
+
+BENCHMARK_TEMPLATE(BM_Addition, NewUInt256);
+BENCHMARK_TEMPLATE(BM_Subtraction, NewUInt256);
+BENCHMARK_TEMPLATE(BM_Multiplication, NewUInt256);
+BENCHMARK_TEMPLATE(BM_Division, NewUInt256);
+
+/*
+Running ./build_gcc/utils/extern-local-engine/tests/benchmark_local_engine
+Run on (32 X 2100 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x16)
+  L1 Instruction 32 KiB (x16)
+  L2 Unified 1024 KiB (x16)
+  L3 Unified 11264 KiB (x2)
+Load Average: 4.79, 5.12, 5.49
+
+./build_gcc/utils/extern-local-engine/tests/benchmark_local_engine --benchmark_filter="(Addition|Subtraction|Multiplication|Division)<New.*>"
+------------------------------------------------------------------------
+Benchmark                              Time             CPU   Iterations
+------------------------------------------------------------------------
+BM_Addition<NewInt128>              1.43 ns         1.43 ns    488198747
+BM_Subtraction<NewInt128>           1.51 ns         1.51 ns    486720421
+BM_Multiplication<NewInt128>        1.52 ns         1.52 ns    450071487
+BM_Division<NewInt128>              1.48 ns         1.48 ns    471973890
+BM_Addition<NewUInt128>             1.46 ns         1.46 ns    480687874
+BM_Subtraction<NewUInt128>          1.46 ns         1.46 ns    488204076
+BM_Multiplication<NewUInt128>       1.45 ns         1.45 ns    468576127
+BM_Division<NewUInt128>             1.48 ns         1.48 ns    477379447
+BM_Addition<NewInt256>              2.49 ns         2.48 ns    291377319
+BM_Subtraction<NewInt256>           2.52 ns         2.52 ns    284595240
+BM_Multiplication<NewInt256>        2.48 ns         2.48 ns    276363723
+BM_Division<NewInt256>              2.44 ns         2.44 ns    286877215
+BM_Addition<NewUInt256>             2.53 ns         2.53 ns    266497385
+BM_Subtraction<NewUInt256>          2.48 ns         2.48 ns    287899525
+BM_Multiplication<NewUInt256>       2.45 ns         2.45 ns    287882140
+BM_Division<NewUInt256>             2.47 ns         2.47 ns    288479037
+*/
+
+/*
+./build_gcc/utils/extern-local-engine/tests/benchmark_local_engine --benchmark_filter="(Addition|Subtraction|Multiplication|Division)<Old.*>"
+------------------------------------------------------------------------
+Benchmark                              Time             CPU   Iterations
+------------------------------------------------------------------------
+BM_Addition<OldInt128>              1.45 ns         1.45 ns    484711423
+BM_Subtraction<OldInt128>           1.45 ns         1.45 ns    475188736
+BM_Multiplication<OldInt128>        1.47 ns         1.47 ns    483199322
+BM_Division<OldInt128>              1.49 ns         1.49 ns    488830649
+BM_Addition<OldUInt128>             1.45 ns         1.45 ns    487019006
+BM_Subtraction<OldUInt128>          1.45 ns         1.45 ns    477626299
+BM_Multiplication<OldUInt128>       1.47 ns         1.47 ns    475294481
+BM_Division<OldUInt128>             1.48 ns         1.48 ns    461236815
+BM_Addition<OldInt256>              4.39 ns         4.39 ns    159221253
+BM_Subtraction<OldInt256>           5.01 ns         5.01 ns    100000000
+BM_Multiplication<OldInt256>        11.3 ns         11.3 ns     54204439
+BM_Division<OldInt256>              48.5 ns         48.5 ns     18505649
+BM_Addition<OldUInt256>             4.37 ns         4.37 ns    180812154
+BM_Subtraction<OldUInt256>          5.41 ns         5.41 ns    133516077
+BM_Multiplication<OldUInt256>       2.47 ns         2.47 ns    286377591
+BM_Division<OldUInt256>             21.8 ns         21.8 ns     25876643
+*/
