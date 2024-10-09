@@ -46,7 +46,7 @@ object StorageMeta {
   val PRIMARY_KEY: String = prefixOf("primaryKey")
   val SERIALIZER_HEADER: String = "MergeTree;"
 
-  private def prefixOf(key: String): String = s"$STORAGE_PREFIX.$key"
+  private def prefixOf(key: String): String = s"$STORAGE_PREFIX$key"
 
   def withMoreStorageInfo(
       metadata: Metadata,

@@ -48,7 +48,7 @@ trait ClickHouseTableV2Base extends TablePropertiesReader {
     .getOrElse(deltaPath.toUri.getPath)
 
   lazy val clickhouseTableConfigs: Map[String, String] = {
-    Map("storage_policy" -> deltaProperties.getOrElse("storage_policy", "default"))
+    Map(StorageMeta.POLICY -> configuration.getOrElse(StorageMeta.POLICY, "default"))
   }
 
   def primaryKey(): String = StorageMeta.columnsToStr(primaryKeyOption)
