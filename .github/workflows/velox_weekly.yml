@@ -71,6 +71,7 @@ jobs:
           export MAVEN_HOME=/usr/lib/maven && \
           export PATH=${PATH}:${MAVEN_HOME}/bin && \
           cd $GITHUB_WORKSPACE/ && \
+          echo "test" && \
           ./dev/package.sh
 
   build-on-ubuntu:
