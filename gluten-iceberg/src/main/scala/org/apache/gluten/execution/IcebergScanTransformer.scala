@@ -22,7 +22,7 @@ import org.apache.gluten.substrait.rel.SplitInfo
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, DynamicPruningExpression, Expression, Literal}
-import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.catalyst.plans.QueryPlanWrapper
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -71,8 +71,8 @@ case class IcebergScanTransformer(
 
   override def doCanonicalize(): IcebergScanTransformer = {
     this.copy(
-      output = output.map(QueryPlan.normalizeExpressions(_, output)),
-      runtimeFilters = QueryPlan.normalizePredicates(
+      output = output.map(QueryPlanWrapper.normalizeExpressions(_, output)),
+      runtimeFilters = QueryPlanWrapper.normalizePredicates(
         runtimeFilters.filterNot(_ == DynamicPruningExpression(Literal.TrueLiteral)),
         output)
     )
