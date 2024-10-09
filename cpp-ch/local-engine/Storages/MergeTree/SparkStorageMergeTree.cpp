@@ -153,11 +153,15 @@ void SparkStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string>
         return;
     std::vector<String> meta_paths;
     std::ranges::for_each(parts, [&](const String & name) { meta_paths.emplace_back(fs::path(relative_data_path) / name / "meta.bin"); });
+    auto read_settings = ReadSettings{};
+    // read_settings.enable_filesystem_cache = false;
+    read_settings.remote_fs_method = RemoteFSReadMethod::read;
     for (const auto & meta_path : meta_paths)
     {
         if (!disk->exists(meta_path))
             continue;
-        auto in = disk->readFile(meta_path, ReadSettings{});
+
+        auto in = disk->readFile(meta_path, read_settings);
         String ignore_data;
         readStringUntilEOF(ignore_data, *in);
     }

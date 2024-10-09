@@ -19,6 +19,8 @@
 #include <functional>
 #include <memory>
 #include <IO/ReadBuffer.h>
+#include <IO/ReadBufferFromFileBase.h>
+#include <Disks/ObjectStorages/StoredObject.h>
 #include <substrait/plan.pb.h>
 
 
@@ -40,7 +42,12 @@ public:
     std::unique_ptr<DB::ReadBuffer> buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position = false);
 
 protected:
-    DB::ReadSettings getReadSettings(DB::ContextPtr context) const;
+    using ReadBufferCreator = std::function<std::unique_ptr<DB::ReadBufferFromFileBase>(bool restricted_seek, const DB::StoredObject & object)>;
+
+    ReadBufferCreator
+    wrapWithCache(ReadBufferCreator read_buffer_creator, DB::ReadSettings & read_settings);
+
+    DB::ReadSettings getReadSettings() const;
     DB::ContextPtr context;
 
 public:
