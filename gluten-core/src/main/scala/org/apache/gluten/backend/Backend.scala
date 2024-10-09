@@ -55,23 +55,23 @@ trait Backend {
 }
 
 object Backend {
-  private val be: Backend = {
+  private val backend: Backend = {
     val discoveredBackends =
-      JavaConverters.iterableAsScalaIterable(ServiceLoader.load(classOf[Backend])).toSeq
-    if (discoveredBackends.isEmpty) {
-      throw new IllegalStateException("Backend implementation not discovered from JVM classpath")
+      JavaConverters.iterableAsScalaIterable(ServiceLoader.load(classOf[Backend])).toList
+    discoveredBackends match {
+      case Nil =>
+        throw new IllegalStateException("Backend implementation not discovered from JVM classpath")
+      case head :: Nil =>
+        head
+      case backends =>
+        val backendNames = backends.map(_.name())
+        throw new IllegalStateException(
+          s"More than one Backend implementation discovered from JVM classpath: $backendNames")
     }
-    if (discoveredBackends.size != 1) {
-      throw new IllegalStateException(
-        s"More than one Backend implementation discovered from JVM classpath: " +
-          s"${discoveredBackends.map(_.name()).toList}")
-    }
-    val backend = discoveredBackends.head
-    backend
   }
 
   def get(): Backend = {
-    be
+    backend
   }
 
   case class BuildInfo(name: String, branch: String, revision: String, revisionTime: String)

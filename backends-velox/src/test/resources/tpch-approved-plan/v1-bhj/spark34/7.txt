@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (95)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (62)
+   VeloxColumnarToRow (62)
    +- ^ SortExecTransformer (60)
       +- ^ InputIteratorTransformer (59)
          +- ShuffleQueryStage (57), Statistics(X)
@@ -344,7 +344,7 @@ Arguments: [supp_nation#X ASC NULLS FIRST, cust_nation#X ASC NULLS FIRST, l_year
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]
 Arguments: false
 
-(62) VeloxColumnarToRowExec
+(62) VeloxColumnarToRow
 Input [4]: [supp_nation#X, cust_nation#X, l_year#X, revenue#X]
 
 (63) Scan parquet

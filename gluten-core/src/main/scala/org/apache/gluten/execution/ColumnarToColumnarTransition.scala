@@ -14,10 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.backendsapi.clickhouse
+package org.apache.gluten.execution
 
-import org.apache.gluten.extension.injector.SparkInjector
+import org.apache.spark.sql.execution.UnaryExecNode
 
-object CHExtendRule {
-  def injectSpark(injector: SparkInjector): Unit = {}
-}
+trait ColumnarToColumnarTransition extends UnaryExecNode

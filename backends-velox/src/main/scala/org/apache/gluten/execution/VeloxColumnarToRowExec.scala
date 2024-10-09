@@ -36,8 +36,6 @@ import scala.collection.JavaConverters._
 
 case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBase(child = child) {
 
-  override def nodeName: String = "VeloxColumnarToRowExec"
-
   override protected def doValidateInternal(): ValidationResult = {
     val schema = child.schema
     // Depending on the input type, VeloxColumnarToRowConverter.

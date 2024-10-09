@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (98)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (62)
+   VeloxColumnarToRow (62)
    +- AQEShuffleRead (61)
       +- ShuffleQueryStage (60), Statistics(X)
          +- ColumnarExchange (59)
@@ -351,7 +351,7 @@ Arguments: X
 Input [2]: [s_name#X, s_address#X]
 Arguments: local
 
-(62) VeloxColumnarToRowExec
+(62) VeloxColumnarToRow
 Input [2]: [s_name#X, s_address#X]
 
 (63) Scan parquet
