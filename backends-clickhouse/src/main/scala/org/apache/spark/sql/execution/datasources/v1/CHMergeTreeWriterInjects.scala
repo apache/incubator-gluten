@@ -26,7 +26,7 @@ import org.apache.gluten.utils.ConfigUtil
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, OutputWriter}
-import org.apache.spark.sql.execution.datasources.mergetree.{MetaSerializer, PartSerializer, StorageMeta, WriteConfiguration}
+import org.apache.spark.sql.execution.datasources.mergetree.{MetaSerializer, PartSerializer, StorageConfigProvider, StorageMeta}
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputWriter
 import org.apache.spark.sql.types.StructType
 
@@ -42,12 +42,12 @@ import scala.collection.JavaConverters._
 
 case class PlanWithSplitInfo(plan: Array[Byte], splitInfo: Array[Byte])
 
-case class HadoopConfReader(conf: Configuration) extends WriteConfiguration {
-  lazy val writeConfiguration: Map[String, String] = {
+case class HadoopConfReader(conf: Configuration) extends StorageConfigProvider {
+  lazy val storageConf: Map[String, String] = {
     conf
       .iterator()
       .asScala
-      .filter(_.getKey.startsWith("storage_"))
+      .filter(_.getKey.startsWith(StorageMeta.STORAGE_PREFIX))
       .map(entry => entry.getKey -> entry.getValue)
       .toMap
   }
@@ -62,7 +62,7 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
   }
 
   override def createNativeWrite(outputPath: String, context: TaskAttemptContext): Write = {
-    val conf = HadoopConfReader(context.getConfiguration).writeConfiguration
+    val conf = HadoopConfReader(context.getConfiguration).storageConf
     Write
       .newBuilder()
       .setCommon(Write.Common.newBuilder().setFormat(formatName).build())
@@ -92,8 +92,8 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       nativeConf: ju.Map[String, String]): OutputWriter = {
 
     val storage = HadoopConfReader(context.getConfiguration)
-    val database = storage.writeConfiguration(StorageMeta.DB)
-    val tableName = storage.writeConfiguration(StorageMeta.TABLE)
+    val database = storage.storageConf(StorageMeta.DB)
+    val tableName = storage.storageConf(StorageMeta.TABLE)
 
     val datasourceJniWrapper = new CHDatasourceJniWrapper(
       context.getTaskAttemptID.getTaskID.getId.toString,

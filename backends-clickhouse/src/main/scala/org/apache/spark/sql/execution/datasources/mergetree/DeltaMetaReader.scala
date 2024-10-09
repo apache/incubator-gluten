@@ -32,7 +32,7 @@ case class DeltaMetaReader(metadata: Metadata) extends TablePropertiesReader {
     conf.set(StorageMeta.DB, storageDB)
     conf.set(StorageMeta.TABLE, storageTable)
     conf.set(StorageMeta.SNAPSHOT_ID, storageSnapshotId)
-    writeConfiguration.foreach { case (k, v) => conf.set(k, v) }
+    storageConf.foreach { case (k, v) => conf.set(k, v) }
   }
 
   override lazy val partitionColumns: Seq[String] =

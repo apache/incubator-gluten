@@ -32,18 +32,21 @@ object StorageMeta {
   val DEFAULT_PATH_BASED_DATABASE: String = "clickhouse_db"
   val DEFAULT_CREATE_TABLE_DATABASE: String = "default"
   val DEFAULT_ORDER_BY_KEY = "tuple()"
-  val DB: String = "storage_db"
-  val TABLE: String = "storage_table"
-  val SNAPSHOT_ID: String = "storage_snapshot_id"
-  val STORAGE_PATH: String = "storage_path"
-  val POLICY: String = "storage_policy"
-  val ORDER_BY_KEY: String = "storage_orderByKey"
-  val LOW_CARD_KEY: String = "storage_lowCardKey"
-  val MINMAX_INDEX_KEY: String = "storage_minmaxIndexKey"
-  val BF_INDEX_KEY: String = "storage_bfIndexKey"
-  val SET_INDEX_KEY: String = "storage_setIndexKey"
-  val PRIMARY_KEY: String = "storage_primaryKey"
+  val STORAGE_PREFIX: String = "storage_"
+  val DB: String = prefixOf("db")
+  val TABLE: String = prefixOf("table")
+  val SNAPSHOT_ID: String = prefixOf("snapshot_id")
+  val STORAGE_PATH: String = prefixOf("path")
+  val POLICY: String = prefixOf("policy")
+  val ORDER_BY_KEY: String = prefixOf("orderByKey")
+  val LOW_CARD_KEY: String = prefixOf("lowCardKey")
+  val MINMAX_INDEX_KEY: String = prefixOf("minmaxIndexKey")
+  val BF_INDEX_KEY: String = prefixOf("bfIndexKey")
+  val SET_INDEX_KEY: String = prefixOf("setIndexKey")
+  val PRIMARY_KEY: String = prefixOf("primaryKey")
   val SERIALIZER_HEADER: String = "MergeTree;"
+
+  private def prefixOf(key: String): String = s"$STORAGE_PREFIX.$key"
 
   def withMoreStorageInfo(
       metadata: Metadata,
@@ -87,11 +90,12 @@ object StorageMeta {
       .getOrElse(default)
 }
 
-trait WriteConfiguration {
-  val writeConfiguration: Map[String, String]
+/** all properties start with 'storage_' */
+trait StorageConfigProvider {
+  val storageConf: Map[String, String]
 }
 
-trait TablePropertiesReader extends WriteConfiguration {
+trait TablePropertiesReader extends StorageConfigProvider {
 
   def configuration: Map[String, String]
 
@@ -175,7 +179,7 @@ trait TablePropertiesReader extends WriteConfiguration {
     }
   }
 
-  lazy val writeConfiguration: Map[String, String] = {
+  lazy val storageConf: Map[String, String] = {
     val (orderByKey0, primaryKey0) = StorageMeta.genOrderByAndPrimaryKeyStr(
       orderByKeyOption,
       primaryKeyOption
