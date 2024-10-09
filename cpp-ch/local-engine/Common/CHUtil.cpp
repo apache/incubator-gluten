@@ -676,8 +676,6 @@ void BackendInitializerUtil::initSettings(const std::map<std::string, std::strin
     settings.set(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, false);
     settings.set(DECIMAL_OPERATIONS_ALLOW_PREC_LOSS, true);
     settings.set("remote_filesystem_read_prefetch", false);
-    settings.set("remote_filesystem_read_method", "read");
-    settings.set("local_filesystem_read_method", "pread");
 
     for (const auto & [key, value] : spark_conf_map)
     {
