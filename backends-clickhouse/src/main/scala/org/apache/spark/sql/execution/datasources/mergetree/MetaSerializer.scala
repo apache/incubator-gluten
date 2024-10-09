@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.clickhouse
+package org.apache.spark.sql.execution.datasources.mergetree
 
 import org.apache.gluten.execution.MergeTreePartSplit
 import org.apache.gluten.expression.ConverterUtils
 
+import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableNode
 import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
-import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -28,7 +28,7 @@ import io.substrait.proto.ReadRel
 
 import java.util.{Map => jMap}
 
-case class ClickhousePartSerializer(
+case class PartSerializer(
     partList: Seq[String],
     starts: Seq[Long],
     lengths: Seq[Long]
@@ -54,29 +54,29 @@ case class ClickhousePartSerializer(
   }
 }
 
-object ClickhousePartSerializer {
-  def fromMergeTreePartSplits(partLists: Seq[MergeTreePartSplit]): ClickhousePartSerializer = {
+object PartSerializer {
+  def fromMergeTreePartSplits(partLists: Seq[MergeTreePartSplit]): PartSerializer = {
     val partList = partLists.map(_.name)
     val starts = partLists.map(_.start)
     val lengths = partLists.map(_.length)
-    ClickhousePartSerializer(partList, starts, lengths)
+    PartSerializer(partList, starts, lengths)
   }
 
-  def fromAddMergeTreeParts(parts: Seq[AddMergeTreeParts]): ClickhousePartSerializer = {
+  def fromAddMergeTreeParts(parts: Seq[AddMergeTreeParts]): PartSerializer = {
     val partList = parts.map(_.name)
     val starts = parts.map(_ => 0L)
     val lengths = parts.map(_.marks)
-    ClickhousePartSerializer(partList, starts, lengths)
+    PartSerializer(partList, starts, lengths)
   }
 
-  def fromPartNames(partNames: Seq[String]): ClickhousePartSerializer = {
+  def fromPartNames(partNames: Seq[String]): PartSerializer = {
     // starts and lengths is useless for writing
     val partRanges = Seq.range(0L, partNames.length)
-    ClickhousePartSerializer(partNames, partRanges, partRanges)
+    PartSerializer(partNames, partRanges, partRanges)
   }
 }
 
-object ClickhouseMetaSerializer {
+object MetaSerializer {
   // scalastyle:off argcount
   def apply1(
       database: String,
@@ -90,7 +90,7 @@ object ClickhouseMetaSerializer {
       bfIndexKeyOption: Option[Seq[String]],
       setIndexKeyOption: Option[Seq[String]],
       primaryKeyOption: Option[Seq[String]],
-      partSerializer: ClickhousePartSerializer,
+      partSerializer: PartSerializer,
       tableSchemaJson: String,
       clickhouseTableConfigs: jMap[String, String]): ReadRel.ExtensionTable = {
 
@@ -130,7 +130,7 @@ object ClickhouseMetaSerializer {
       bfIndexKey0: String,
       setIndexKey0: String,
       primaryKey0: String,
-      partSerializer: ClickhousePartSerializer,
+      partSerializer: PartSerializer,
       tableSchemaJson: String,
       clickhouseTableConfigs: jMap[String, String]): String = {
     // scalastyle:on argcount

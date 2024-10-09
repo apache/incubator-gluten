@@ -16,6 +16,9 @@
  */
 package org.apache.spark.sql.execution.datasources.clickhouse;
 
+import org.apache.spark.sql.execution.datasources.mergetree.MetaSerializer;
+import org.apache.spark.sql.execution.datasources.mergetree.PartSerializer;
+
 import java.util.List;
 import java.util.Map;
 
@@ -34,13 +37,13 @@ public class ExtensionTableBuilder {
       String bfIndexKey,
       String setIndexKey,
       String primaryKey,
-      ClickhousePartSerializer partSerializer,
+      PartSerializer partSerializer,
       String tableSchemaJson,
       Map<String, String> clickhouseTableConfigs,
       List<String> preferredLocations) {
 
     String result =
-        ClickhouseMetaSerializer.apply(
+        MetaSerializer.apply(
             database,
             tableName,
             snapshotId,

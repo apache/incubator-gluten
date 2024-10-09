@@ -26,8 +26,7 @@ import org.apache.gluten.utils.ConfigUtil
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, OutputWriter}
-import org.apache.spark.sql.execution.datasources.clickhouse.{ClickhouseMetaSerializer, ClickhousePartSerializer}
-import org.apache.spark.sql.execution.datasources.mergetree.{StorageMeta, WriteConfiguration}
+import org.apache.spark.sql.execution.datasources.mergetree.{MetaSerializer, PartSerializer, StorageMeta, WriteConfiguration}
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputWriter
 import org.apache.spark.sql.types.StructType
 
@@ -142,7 +141,7 @@ object CHMergeTreeWriterInjects {
 
     val substraitContext = new SubstraitContext
 
-    val extensionTable = ClickhouseMetaSerializer.apply1(
+    val extensionTable = MetaSerializer.apply1(
       database,
       tableName,
       snapshotId,
@@ -154,7 +153,7 @@ object CHMergeTreeWriterInjects {
       bfIndexKeyOption,
       setIndexKeyOption,
       primaryKeyOption,
-      ClickhousePartSerializer.fromPartNames(partList),
+      PartSerializer.fromPartNames(partList),
       tableSchemaJson,
       clickhouseTableConfigs.asJava
     )

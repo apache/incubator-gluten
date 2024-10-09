@@ -35,8 +35,8 @@ import org.apache.spark.sql.delta.ClickhouseSnapshot
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.clickhouse.{ClickhousePartSerializer, ExtensionTableBuilder, MergeTreePartFilterReturnedRange}
-import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
+import org.apache.spark.sql.execution.datasources.clickhouse.{ExtensionTableBuilder, MergeTreePartFilterReturnedRange}
+import org.apache.spark.sql.execution.datasources.mergetree.{PartSerializer, StorageMeta}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.types.BooleanType
@@ -589,7 +589,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
           table.bfIndexKey(),
           table.setIndexKey(),
           table.primaryKey(),
-          ClickhousePartSerializer.fromAddMergeTreeParts(selectPartsFiles),
+          PartSerializer.fromAddMergeTreeParts(selectPartsFiles),
           tableSchemaJson,
           clickhouseTableConfigs.asJava,
           new JArrayList[String]()

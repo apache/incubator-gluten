@@ -27,8 +27,8 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference,
 import org.apache.spark.sql.delta._
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.execution.commands.GlutenCacheBase._
-import org.apache.spark.sql.execution.datasources.clickhouse.{ClickhousePartSerializer, ExtensionTableBuilder}
-import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
+import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableBuilder
+import org.apache.spark.sql.execution.datasources.mergetree.{PartSerializer, StorageMeta}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.types.{BooleanType, StringType}
 
@@ -182,7 +182,7 @@ case class GlutenCHCacheDataCommand(
             snapshot.metadata.configuration.getOrElse("bloomfilterIndexKey", ""),
             snapshot.metadata.configuration.getOrElse("setIndexKey", ""),
             snapshot.metadata.configuration.getOrElse("primaryKey", ""),
-            ClickhousePartSerializer.fromPartNames(parts.map(_.name).toSeq),
+            PartSerializer.fromPartNames(parts.map(_.name).toSeq),
             ConverterUtils.convertNamedStructJson(snapshot.metadata.schema),
             snapshot.metadata.configuration.asJava,
             new JList[String]()
