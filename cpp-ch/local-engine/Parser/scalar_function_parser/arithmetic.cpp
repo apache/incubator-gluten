@@ -305,7 +305,6 @@ protected:
         const DB::ActionsDAG::NodeRawConstPtrs & new_args,
         DataTypePtr result_type) const override
     {
-        assert(func_name == name);
         const auto * left_arg = new_args[0];
         const auto * right_arg = new_args[1];
 
