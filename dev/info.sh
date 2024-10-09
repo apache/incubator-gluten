@@ -14,7 +14,7 @@
 # limitations under the License.
 set -e
 
-version='0.0.2'
+version='1.3.0-SNAPSHOT'
 cb='```'
 
 if [ ! -x "$(command -v cmake)" ]; then
@@ -33,7 +33,7 @@ echo "$info" | grep -e "$1" | ext
 }
 
 result="
-Velox System Info v${version}
+Gluten Version: ${version}
 Commit: $(git rev-parse HEAD 2> /dev/null || echo "Not in a git repo.")
 CMake Version: $(cmake --version | grep -oE '[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+')
 System: $(print_info 'CMAKE_SYSTEM "')
@@ -45,31 +45,4 @@ C Compiler: $(print_info 'CMAKE_C_COMPILER ==')
 C Compiler Version: $(print_info 'CMAKE_C_COMPILER_VERSION')
 CMake Prefix Path: $(print_info '_PREFIX_PATH ')
 "
-if [ "$CONDA_SHLVL" == 1 ]; then
-  conda="
-Conda Env
-<details>
-
-$cb
-$(conda list)
-$cb
-
-</details>
-"
-fi
-
-all="$result  $conda"
-echo "$all"
-
-if [ -x "$(command -v xclip)" ]; then
- clip="xclip -selection c"
-elif [ -x "$(command -v pbcopy)" ]; then
-  clip="pbcopy"
-else
-  echo "\nThe results will be copied to your clipboard if xclip is installed."
-fi
-
-if [ ! -z "$clip" ]; then
-  echo "$all" | $clip
-  echo "Result copied to clipboard!"
-fi
+echo "$result"
