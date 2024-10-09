@@ -27,7 +27,6 @@ case class DeltaMetaReader(metadata: Metadata) extends TablePropertiesReader {
   def storageDB: String = configuration(StorageMeta.DB)
   def storageTable: String = configuration(StorageMeta.TABLE)
   def storageSnapshotId: String = configuration(StorageMeta.SNAPSHOT_ID)
-  def storagePath: String = configuration(StorageMeta.STORAGE_PATH)
 
   def updateToHadoopConf(conf: Configuration): Unit = {
     conf.set(StorageMeta.DB, storageDB)

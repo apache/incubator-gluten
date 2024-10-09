@@ -16,11 +16,10 @@
  */
 package org.apache.spark.sql.execution.datasources.mergetree
 
-import org.apache.gluten.expression.ConverterUtils.normalizeColName
+import org.apache.gluten.expression.ConverterUtils
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.delta.actions.Metadata
-import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
 
 import org.apache.hadoop.fs.Path
 
@@ -70,6 +69,22 @@ object StorageMeta {
       table_uri.getPath.substring(1)
     } else table_uri.getPath
   }
+
+  // TODO: remove this method
+  def genOrderByAndPrimaryKeyStr(
+      orderByKeyOption: Option[Seq[String]],
+      primaryKeyOption: Option[Seq[String]]): (String, String) = {
+
+    val orderByKey = columnsToStr(orderByKeyOption, DEFAULT_ORDER_BY_KEY)
+    val primaryKey = if (orderByKey == DEFAULT_ORDER_BY_KEY) "" else columnsToStr(primaryKeyOption)
+    (orderByKey, primaryKey)
+  }
+
+  def columnsToStr(option: Option[Seq[String]], default: String = ""): String =
+    option
+      .filter(_.nonEmpty)
+      .map(keys => keys.map(ConverterUtils.normalizeColName).mkString(","))
+      .getOrElse(default)
 }
 
 trait WriteConfiguration {
@@ -85,7 +100,7 @@ trait TablePropertiesReader extends WriteConfiguration {
   private def getCommaSeparatedColumns(keyName: String): Option[Seq[String]] = {
     configuration.get(keyName).map {
       v =>
-        val keys = v.split(",").map(n => normalizeColName(n.trim)).toSeq
+        val keys = v.split(",").map(n => ConverterUtils.normalizeColName(n.trim)).toSeq
         keys.foreach {
           s =>
             if (s.contains(".")) {
@@ -130,7 +145,7 @@ trait TablePropertiesReader extends WriteConfiguration {
   lazy val orderByKeyOption: Option[Seq[String]] = {
     val orderByKeys =
       if (bucketOption.exists(_.sortColumnNames.nonEmpty)) {
-        bucketOption.map(_.sortColumnNames.map(normalizeColName))
+        bucketOption.map(_.sortColumnNames.map(ConverterUtils.normalizeColName))
       } else {
         getCommaSeparatedColumns("orderByKey")
       }
@@ -161,25 +176,17 @@ trait TablePropertiesReader extends WriteConfiguration {
   }
 
   lazy val writeConfiguration: Map[String, String] = {
-    val (orderByKey0, primaryKey0) = MergeTreeDeltaUtil.genOrderByAndPrimaryKeyStr(
+    val (orderByKey0, primaryKey0) = StorageMeta.genOrderByAndPrimaryKeyStr(
       orderByKeyOption,
       primaryKeyOption
     )
     Map(
       StorageMeta.POLICY -> configuration.getOrElse(StorageMeta.POLICY, "default"),
       StorageMeta.ORDER_BY_KEY -> orderByKey0,
-      StorageMeta.LOW_CARD_KEY -> lowCardKeyOption
-        .map(MergeTreeDeltaUtil.columnsToStr)
-        .getOrElse(""),
-      StorageMeta.MINMAX_INDEX_KEY -> minmaxIndexKeyOption
-        .map(MergeTreeDeltaUtil.columnsToStr)
-        .getOrElse(""),
-      StorageMeta.BF_INDEX_KEY -> bfIndexKeyOption
-        .map(MergeTreeDeltaUtil.columnsToStr)
-        .getOrElse(""),
-      StorageMeta.SET_INDEX_KEY -> setIndexKeyOption
-        .map(MergeTreeDeltaUtil.columnsToStr)
-        .getOrElse(""),
+      StorageMeta.LOW_CARD_KEY -> StorageMeta.columnsToStr(lowCardKeyOption),
+      StorageMeta.MINMAX_INDEX_KEY -> StorageMeta.columnsToStr(minmaxIndexKeyOption),
+      StorageMeta.BF_INDEX_KEY -> StorageMeta.columnsToStr(bfIndexKeyOption),
+      StorageMeta.SET_INDEX_KEY -> StorageMeta.columnsToStr(setIndexKeyOption),
       StorageMeta.PRIMARY_KEY -> primaryKey0
     )
   }

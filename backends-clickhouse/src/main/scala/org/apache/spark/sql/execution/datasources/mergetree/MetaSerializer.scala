@@ -20,7 +20,6 @@ import org.apache.gluten.execution.MergeTreePartSplit
 import org.apache.gluten.expression.ConverterUtils
 
 import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableNode
-import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -94,7 +93,7 @@ object MetaSerializer {
       tableSchemaJson: String,
       clickhouseTableConfigs: jMap[String, String]): ReadRel.ExtensionTable = {
 
-    val (orderByKey0, primaryKey0) = MergeTreeDeltaUtil.genOrderByAndPrimaryKeyStr(
+    val (orderByKey0, primaryKey0) = StorageMeta.genOrderByAndPrimaryKeyStr(
       orderByKeyOption,
       primaryKeyOption
     )
@@ -106,10 +105,10 @@ object MetaSerializer {
       relativePath,
       absolutePath,
       orderByKey0,
-      lowCardKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      minmaxIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      bfIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      setIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
+      StorageMeta.columnsToStr(lowCardKeyOption),
+      StorageMeta.columnsToStr(minmaxIndexKeyOption),
+      StorageMeta.columnsToStr(bfIndexKeyOption),
+      StorageMeta.columnsToStr(setIndexKeyOption),
       primaryKey0,
       partSerializer,
       tableSchemaJson,
