@@ -90,7 +90,7 @@ object TransitionGraph {
               count - otherCount
             } else {
               // To make the output order stable.
-              nodeNames.map(_.hashCode()).sum - otherNodeNames.map(_.hashCode()).sum
+              nodeNames.mkString("|").hashCode - otherNodeNames.mkString("|").hashCode
             }
         }
     }
