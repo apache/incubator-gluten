@@ -35,10 +35,9 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.MetadataBuilder
 
-import com.google.protobuf.{Any, StringValue}
+import io.substrait.proto.NamedStruct
 import org.apache.parquet.hadoop.ParquetOutputFormat
 
 import java.util.Locale
@@ -46,8 +45,8 @@ import java.util.Locale
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 /**
- * Note that, the output staging path is set by `VeloxColumnarWriteFilesExec`, each task should have
- * its own staging path.
+ * Note that, the output staging path is set by `ColumnarWriteFilesExec`, each task should have its
+ * own staging path.
  */
 case class WriteFilesExecTransformer(
     child: SparkPlan,
@@ -68,25 +67,6 @@ case class WriteFilesExecTransformer(
 
   private val caseInsensitiveOptions = CaseInsensitiveMap(options)
 
-  private def genWriteParameters(): Any = {
-    val fileFormatStr = fileFormat match {
-      case register: DataSourceRegister =>
-        register.shortName
-      case _ => "UnknownFileFormat"
-    }
-    val compressionCodec =
-      WriteFilesExecTransformer.getCompressionCodec(caseInsensitiveOptions).capitalize
-    val writeParametersStr = new StringBuffer("WriteParameters:")
-    writeParametersStr.append("is").append(compressionCodec).append("=1")
-    writeParametersStr.append(";format=").append(fileFormatStr).append("\n")
-
-    val message = StringValue
-      .newBuilder()
-      .setValue(writeParametersStr.toString)
-      .build()
-    BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
-  }
-
   def getRelNode(
       context: SubstraitContext,
       originalInputAttributes: Seq[Attribute],
@@ -102,13 +82,13 @@ case class WriteFilesExecTransformer(
     for (i <- 0 until childSize) {
       val partitionCol = partitionColumns.find(_.exprId == childOutput(i).exprId)
       if (partitionCol.nonEmpty) {
-        columnTypeNodes.add(new ColumnTypeNode(1))
+        columnTypeNodes.add(new ColumnTypeNode(NamedStruct.ColumnType.PARTITION_COL))
         // "aggregate with partition group by can be pushed down"
         // test partitionKey("p") is different with
         // data columns("P").
         inputAttributes.add(partitionCol.get)
       } else {
-        columnTypeNodes.add(new ColumnTypeNode(0))
+        columnTypeNodes.add(new ColumnTypeNode(NamedStruct.ColumnType.NORMAL_COL))
         inputAttributes.add(originalInputAttributes(i))
       }
     }
@@ -117,10 +97,12 @@ case class WriteFilesExecTransformer(
       ConverterUtils.collectAttributeNames(inputAttributes.toSeq)
     val extensionNode = if (!validation) {
       ExtensionBuilder.makeAdvancedExtension(
-        genWriteParameters(),
-        SubstraitUtil.createEnhancement(originalInputAttributes))
+        BackendsApiManager.getTransformerApiInstance
+          .genWriteParameters(fileFormat, caseInsensitiveOptions),
+        SubstraitUtil.createEnhancement(originalInputAttributes)
+      )
     } else {
-      // Use a extension node to send the input types through Substrait plan for validation.
+      // Use an extension node to send the input types through Substrait plan for validation.
       ExtensionBuilder.makeAdvancedExtension(
         SubstraitUtil.createEnhancement(originalInputAttributes))
     }

@@ -15,22 +15,17 @@
  * limitations under the License.
  */
 #include "DefaultHashAggregateResult.h"
-#include <memory>
+
 #include <Columns/ColumnNullable.h>
-#include <Columns/ColumnsNumber.h>
 #include <Core/ColumnWithTypeAndName.h>
-#include <Core/ColumnsWithTypeAndName.h>
 #include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypesNumber.h>
 #include <Operator/ExpandTransform.h>
 #include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Poco/Logger.h>
 #include <Common/CHUtil.h>
-#include <Common/logger_useful.h>
 
 namespace local_engine
 {

@@ -22,7 +22,6 @@
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
 #include <Parser/scalar_function_parser/lambdaFunction.h>
-#include <Poco/Logger.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>

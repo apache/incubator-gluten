@@ -14,17 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.init;
 
-import org.apache.gluten.proto.ConfigMap;
+#pragma once
 
-import java.util.Map;
+#include <arrow/util/compression.h>
+#include <utils/qpl/QplJobPool.h>
 
-public class JniUtils {
+namespace gluten {
+namespace qpl {
 
-  public static byte[] toNativeConf(Map<String, String> confs) {
-    ConfigMap.Builder builder = ConfigMap.newBuilder();
-    builder.putAllConfigs(confs);
-    return builder.build().toByteArray();
-  }
-}
+static const std::vector<std::string> qpl_supported_codec = {"gzip"};
+
+bool SupportsCodec(const std::string& codec);
+
+std::unique_ptr<arrow::util::Codec> MakeQplGZipCodec(int compressionLevel);
+
+std::unique_ptr<arrow::util::Codec> MakeDefaultQplGZipCodec();
+
+} // namespace qpl
+} // namespace gluten

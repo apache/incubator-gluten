@@ -22,7 +22,7 @@
 #include <google/protobuf/util/type_resolver_util.h>
 #include <fstream>
 
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 namespace gluten {
 

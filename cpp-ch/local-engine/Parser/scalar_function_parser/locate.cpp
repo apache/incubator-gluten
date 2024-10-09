@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-#include <DataTypes/IDataType.h>
 #include <Parser/FunctionParser.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>

@@ -42,7 +42,6 @@ class CHParquetWriterInjects extends CHFormatWriterInjects {
     sparkOptions.asJava
   }
 
-  override def getFormatName(): String = {
-    "parquet"
-  }
+  override val formatName: String = "parquet"
+
 }

@@ -43,7 +43,7 @@ class MergeTreeOutputWriter(
     if (nextBatch.numRows > 0) {
       val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
       datasourceJniWrapper.writeToMergeTree(instance, col.getBlockAddress)
-    } // else just ignore this empty block
+    } // else ignore this empty block
   }
 
   override def close(): Unit = {
@@ -64,7 +64,7 @@ class MergeTreeOutputWriter(
     originPath
   }
 
-  def getAddFiles(): ArrayBuffer[AddFile] = {
+  def getAddFiles: ArrayBuffer[AddFile] = {
     addFiles
   }
 }

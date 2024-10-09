@@ -17,16 +17,17 @@
 
 #include "WriteRelParser.h"
 
+#include <Core/Settings.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <Interpreters/Context.h>
 #include <Parser/TypeParser.h>
 #include <Processors/Transforms/ExpressionTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/Output/FileWriterWrappers.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <substrait/algebra.pb.h>
 #include <substrait/type.pb.h>
 #include <Poco/StringTokenizer.h>
-#include <Common/CHUtil.h>
 #include <Common/GlutenSettings.h>
 
 using namespace local_engine;
@@ -57,9 +58,9 @@ DB::ProcessorPtr make_sink(
 
 bool need_fix_tuple(const DB::DataTypePtr & input, const DB::DataTypePtr & output)
 {
-    const auto orgial = typeid_cast<const DataTypeTuple *>(input.get());
+    const auto original = typeid_cast<const DataTypeTuple *>(input.get());
     const auto output_type = typeid_cast<const DataTypeTuple *>(output.get());
-    return orgial != nullptr && output_type != nullptr && !orgial->equals(*output_type);
+    return original != nullptr && output_type != nullptr && !original->equals(*output_type);
 }
 
 DB::ExpressionActionsPtr create_rename_action(const DB::Block & input, const DB::Block & output)

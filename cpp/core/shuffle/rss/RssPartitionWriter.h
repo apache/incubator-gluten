@@ -22,7 +22,7 @@
 
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/rss/RssClient.h"
-#include "utils/macros.h"
+#include "utils/Macros.h"
 
 namespace gluten {
 

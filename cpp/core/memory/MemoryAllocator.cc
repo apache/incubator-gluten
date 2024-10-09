@@ -17,7 +17,7 @@
 
 #include "MemoryAllocator.h"
 #include "HbwAllocator.h"
-#include "utils/macros.h"
+#include "utils/Macros.h"
 
 namespace gluten {
 
@@ -107,24 +107,36 @@ void ListenableMemoryAllocator::updateUsage(int64_t size) {
 
 bool StdMemoryAllocator::allocate(int64_t size, void** out) {
   *out = std::malloc(size);
+  if (*out == nullptr) {
+    return false;
+  }
   bytes_ += size;
   return true;
 }
 
 bool StdMemoryAllocator::allocateZeroFilled(int64_t nmemb, int64_t size, void** out) {
   *out = std::calloc(nmemb, size);
+  if (*out == nullptr) {
+    return false;
+  }
   bytes_ += size;
   return true;
 }
 
 bool StdMemoryAllocator::allocateAligned(uint64_t alignment, int64_t size, void** out) {
   *out = aligned_alloc(alignment, size);
+  if (*out == nullptr) {
+    return false;
+  }
   bytes_ += size;
   return true;
 }
 
 bool StdMemoryAllocator::reallocate(void* p, int64_t size, int64_t newSize, void** out) {
   *out = std::realloc(p, newSize);
+  if (*out == nullptr) {
+    return false;
+  }
   bytes_ += (newSize - size);
   return true;
 }
@@ -141,7 +153,7 @@ bool StdMemoryAllocator::reallocateAligned(void* p, uint64_t alignment, int64_t 
     }
   }
   void* reallocatedP = std::aligned_alloc(alignment, newSize);
-  if (!reallocatedP) {
+  if (reallocatedP == nullptr) {
     return false;
   }
   memcpy(reallocatedP, p, std::min(size, newSize));

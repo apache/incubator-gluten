@@ -83,6 +83,7 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .setCHConfig("user_defined_path", "/tmp/user_defined")
+      .setCHConfig("path", UTSystemParameters.diskOutputDataPath)
     if (UTSystemParameters.testMergeTreeOnObjectStorage) {
       conf
         .set("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
@@ -157,7 +158,9 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   }
 
   final protected val rootPath: String = this.getClass.getResource("/").getPath
-  final protected val basePath: String = rootPath + "tests-working-home"
+  final protected val basePath: String =
+    if (UTSystemParameters.diskOutputDataPath.equals("/")) rootPath + "tests-working-home"
+    else UTSystemParameters.diskOutputDataPath + "/" + rootPath + "tests-working-home"
   final protected val warehouse: String = basePath + "/spark-warehouse"
   final protected val metaStorePathAbsolute: String = basePath + "/meta"
 

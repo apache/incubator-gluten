@@ -17,14 +17,26 @@
 
 #pragma once
 
-#include <Interpreters/Context.h>
-#include <base/types.h>
+#include <Interpreters/Context_fwd.h>
 #include <base/unit.h>
-#include <Poco/Util/AbstractConfiguration.h>
-#include <Common/logger_useful.h>
 
+namespace Poco::Util
+{
+class AbstractConfiguration;
+}
+namespace DB
+{
+struct ReadSettings;
+}
 namespace local_engine
 {
+
+struct SparkConfigs
+{
+    static void updateConfig(const DB::ContextMutablePtr &, std::string_view);
+    static std::map<std::string, std::string> load(std::string_view plan, bool processStart = false);
+};
+
 struct MemoryConfig
 {
     inline static const String EXTRA_MEMORY_HARD_LIMIT = "extra_memory_hard_limit";
@@ -35,14 +47,7 @@ struct MemoryConfig
     size_t off_heap_per_task = 0;
     double spill_mem_ratio = 0.9;
 
-    static MemoryConfig loadFromContext(const DB::ContextPtr & context)
-    {
-        MemoryConfig config;
-        config.extra_memory_hard_limit = context->getConfigRef().getUInt64(EXTRA_MEMORY_HARD_LIMIT, 0);
-        config.off_heap_per_task = context->getConfigRef().getUInt64(CH_TASK_MEMORY, 0);
-        config.spill_mem_ratio = context->getConfigRef().getDouble(SPILL_MEM_RATIO, 0.9);
-        return config;
-    }
+    static MemoryConfig loadFromContext(const DB::ContextPtr & context);
 };
 
 struct GraceMergingAggregateConfig
@@ -59,16 +64,7 @@ struct GraceMergingAggregateConfig
     size_t max_pending_flush_blocks_per_grace_aggregate_merging_bucket = 1_MiB;
     double max_allowed_memory_usage_ratio_for_aggregate_merging = 0.9;
 
-    static GraceMergingAggregateConfig loadFromContext(const DB::ContextPtr & context)
-    {
-        GraceMergingAggregateConfig config;
-        config.max_grace_aggregate_merging_buckets = context->getConfigRef().getUInt64(MAX_GRACE_AGGREGATE_MERGING_BUCKETS, 32);
-        config.throw_on_overflow_grace_aggregate_merging_buckets = context->getConfigRef().getBool(THROW_ON_OVERFLOW_GRACE_AGGREGATE_MERGING_BUCKETS, false);
-        config.aggregated_keys_before_extend_grace_aggregate_merging_buckets = context->getConfigRef().getUInt64(AGGREGATED_KEYS_BEFORE_EXTEND_GRACE_AGGREGATE_MERGING_BUCKETS, 8192);
-        config.max_pending_flush_blocks_per_grace_aggregate_merging_bucket = context->getConfigRef().getUInt64(MAX_PENDING_FLUSH_BLOCKS_PER_GRACE_AGGREGATE_MERGING_BUCKET, 1_MiB);
-        config.max_allowed_memory_usage_ratio_for_aggregate_merging = context->getConfigRef().getDouble(MAX_ALLOWED_MEMORY_USAGE_RATIO_FOR_AGGREGATE_MERGING, 0.9);
-        return config;
-    }
+    static GraceMergingAggregateConfig loadFromContext(const DB::ContextPtr & context);
 };
 
 struct StreamingAggregateConfig
@@ -83,15 +79,7 @@ struct StreamingAggregateConfig
     double high_cardinality_threshold_for_streaming_aggregating = 0.8;
     bool enable_streaming_aggregating = true;
 
-    static StreamingAggregateConfig loadFromContext(const DB::ContextPtr & context)
-    {
-        StreamingAggregateConfig config;
-        config.aggregated_keys_before_streaming_aggregating_evict = context->getConfigRef().getUInt64(AGGREGATED_KEYS_BEFORE_STREAMING_AGGREGATING_EVICT, 1024);
-        config.max_memory_usage_ratio_for_streaming_aggregating = context->getConfigRef().getDouble(MAX_MEMORY_USAGE_RATIO_FOR_STREAMING_AGGREGATING, 0.9);
-        config.high_cardinality_threshold_for_streaming_aggregating = context->getConfigRef().getDouble(HIGH_CARDINALITY_THRESHOLD_FOR_STREAMING_AGGREGATING, 0.8);
-        config.enable_streaming_aggregating = context->getConfigRef().getBool(ENABLE_STREAMING_AGGREGATING, true);
-        return config;
-    }
+    static StreamingAggregateConfig loadFromContext(const DB::ContextPtr & context);
 };
 
 struct JoinConfig
@@ -106,13 +94,7 @@ struct JoinConfig
     bool prefer_multi_join_on_clauses = true;
     size_t multi_join_on_clauses_build_side_rows_limit = 10000000;
 
-    static JoinConfig loadFromContext(const DB::ContextPtr & context)
-    {
-        JoinConfig config;
-        config.prefer_multi_join_on_clauses = context->getConfigRef().getBool(PREFER_MULTI_JOIN_ON_CLAUSES, true);
-        config.multi_join_on_clauses_build_side_rows_limit = context->getConfigRef().getUInt64(MULTI_JOIN_ON_CLAUSES_BUILD_SIDE_ROWS_LIMIT, 10000000);
-        return config;
-    }
+    static JoinConfig loadFromContext(const DB::ContextPtr & context);
 };
 
 struct ExecutorConfig
@@ -123,13 +105,7 @@ struct ExecutorConfig
     bool dump_pipeline = false;
     bool use_local_format = false;
 
-    static ExecutorConfig loadFromContext(const DB::ContextPtr & context)
-    {
-        ExecutorConfig config;
-        config.dump_pipeline = context->getConfigRef().getBool(DUMP_PIPELINE, false);
-        config.use_local_format = context->getConfigRef().getBool(USE_LOCAL_FORMAT, false);
-        return config;
-    }
+    static ExecutorConfig loadFromContext(const DB::ContextPtr & context);
 };
 
 struct HdfsConfig
@@ -138,16 +114,7 @@ struct HdfsConfig
 
     bool hdfs_async;
 
-    static HdfsConfig loadFromContext(const Poco::Util::AbstractConfiguration & config, const DB::ReadSettings & read_settings)
-    {
-        HdfsConfig hdfs;
-        if (read_settings.enable_filesystem_cache)
-            hdfs.hdfs_async = false;
-        else
-            hdfs.hdfs_async = config.getBool(HDFS_ASYNC, true);
-
-        return hdfs;
-    }
+    static HdfsConfig loadFromContext(const Poco::Util::AbstractConfiguration & config, const DB::ReadSettings & read_settings);
 };
 
 struct S3Config
@@ -162,22 +129,7 @@ struct S3Config
     String s3_local_cache_cache_path = "";
     bool s3_gcs_issue_compose_request = false;
 
-    static S3Config loadFromContext(const DB::ContextPtr & context)
-    {
-        S3Config config;
-
-        if (context->getConfigRef().has("S3_LOCAL_CACHE_ENABLE"))
-        {
-            LOG_WARNING(&Poco::Logger::get("S3Config"), "Config {} has deprecated.", S3_LOCAL_CACHE_ENABLE);
-
-            config.s3_local_cache_enabled = context->getConfigRef().getBool(S3_LOCAL_CACHE_ENABLE, false);
-            config.s3_local_cache_max_size = context->getConfigRef().getUInt64(S3_LOCAL_CACHE_MAX_SIZE, 100_GiB);
-            config.s3_local_cache_cache_path = context->getConfigRef().getString(S3_LOCAL_CACHE_CACHE_PATH, "");
-            config.s3_gcs_issue_compose_request = context->getConfigRef().getBool(S3_GCS_ISSUE_COMPOSE_REQUEST, false);
-        }
-
-        return config;
-    }
+    static S3Config loadFromContext(const DB::ContextPtr & context);
 };
 
 struct MergeTreeConfig
@@ -188,13 +140,7 @@ struct MergeTreeConfig
     size_t table_part_metadata_cache_max_count = 5000;
     size_t table_metadata_cache_max_count = 500;
 
-    static MergeTreeConfig loadFromContext(const DB::ContextPtr & context)
-    {
-        MergeTreeConfig config;
-        config.table_part_metadata_cache_max_count = context->getConfigRef().getUInt64(TABLE_PART_METADATA_CACHE_MAX_COUNT, 5000);
-        config.table_metadata_cache_max_count = context->getConfigRef().getUInt64(TABLE_METADATA_CACHE_MAX_COUNT, 500);
-        return config;
-    }
+    static MergeTreeConfig loadFromContext(const DB::ContextPtr & context);
 };
 
 struct GlutenJobSchedulerConfig
@@ -203,11 +149,6 @@ struct GlutenJobSchedulerConfig
 
     size_t job_scheduler_max_threads = 10;
 
-    static GlutenJobSchedulerConfig loadFromContext(const DB::ContextPtr & context)
-    {
-        GlutenJobSchedulerConfig config;
-        config.job_scheduler_max_threads = context->getConfigRef().getUInt64(JOB_SCHEDULER_MAX_THREADS, 10);
-        return config;
-    }
+    static GlutenJobSchedulerConfig loadFromContext(const DB::ContextPtr & context);
 };
 }

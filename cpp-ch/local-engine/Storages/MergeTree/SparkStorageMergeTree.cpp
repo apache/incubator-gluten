@@ -157,7 +157,7 @@ void SparkStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string>
     {
         if (!disk->exists(meta_path))
             continue;
-        auto in = disk->readFile(meta_path);
+        auto in = disk->readFile(meta_path, ReadSettings{});
         String ignore_data;
         readStringUntilEOF(ignore_data, *in);
     }

@@ -41,6 +41,7 @@
 #include <Storages/ObjectStorage/HDFS/Configuration.h>
 #include <Storages/ObjectStorage/StorageObjectStorageSink.h>
 #include <Storages/Output/FileWriterWrappers.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <gtest/gtest.h>
 #include <substrait/plan.pb.h>
 #include <Common/CHUtil.h>

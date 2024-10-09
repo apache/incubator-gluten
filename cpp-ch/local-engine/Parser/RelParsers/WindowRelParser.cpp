@@ -18,6 +18,7 @@
 #include <exception>
 #include <memory>
 #include <valarray>
+#include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/ColumnsWithTypeAndName.h>
@@ -25,7 +26,6 @@
 #include <Core/SortDescription.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/IDataType.h>
-#include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <IO/WriteBufferFromString.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/WindowDescription.h>
@@ -34,10 +34,8 @@
 #include <Parser/TypeParser.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/WindowStep.h>
-#include <base/sort.h>
 #include <base/types.h>
 #include <google/protobuf/util/json_util.h>
-#include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
 

@@ -17,7 +17,7 @@
 
 #include "VeloxToSubstraitPlan.h"
 #include <google/protobuf/wrappers.pb.h>
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 namespace gluten {
 

@@ -50,7 +50,7 @@ SortRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, st
         return currentThreadGroupMemoryUsageRatio() > spill_mem_ratio;
     };
     auto sorting_step = std::make_unique<DB::SortingStep>(
-        query_plan->getCurrentDataStream(), sort_descr, limit, settings, false);
+        query_plan->getCurrentDataStream(), sort_descr, limit, settings);
     sorting_step->setStepDescription("Sorting step");
     steps.emplace_back(sorting_step.get());
     query_plan->addStep(std::move(sorting_step));

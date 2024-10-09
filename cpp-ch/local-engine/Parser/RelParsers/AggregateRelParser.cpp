@@ -17,6 +17,7 @@
 #include "AggregateRelParser.h"
 #include <memory>
 #include <AggregateFunctions/Combinators/AggregateFunctionIf.h>
+#include <Core/Settings.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <Functions/FunctionFactory.h>
@@ -336,7 +337,6 @@ void AggregateRelParser::addMergingAggregatedStep()
             false,
             settings[Setting::max_block_size],
             settings[Setting::aggregation_in_order_max_block_bytes],
-            SortDescription(),
             settings[Setting::enable_memory_bound_merging_of_aggregation_results]);
         steps.emplace_back(merging_step.get());
         plan->addStep(std::move(merging_step));

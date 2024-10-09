@@ -174,7 +174,7 @@ std::shared_ptr<ColumnarBatch> VeloxRuntime::createOrGetEmptySchemaBatch(int32_t
 
 std::shared_ptr<ColumnarBatch> VeloxRuntime::select(
     std::shared_ptr<ColumnarBatch> batch,
-    std::vector<int32_t> columnIndices) {
+    const std::vector<int32_t>& columnIndices) {
   auto veloxPool = vmm_->getLeafMemoryPool();
   auto veloxBatch = gluten::VeloxColumnarBatch::from(veloxPool.get(), batch);
   auto outputBatch = veloxBatch->select(veloxPool.get(), std::move(columnIndices));

@@ -39,7 +39,7 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
       context: TaskAttemptContext,
       nativeConf: java.util.Map[String, String]): OutputWriter = {
     val originPath = path
-    val datasourceJniWrapper = new CHDatasourceJniWrapper();
+    val datasourceJniWrapper = new CHDatasourceJniWrapper()
     CHThreadGroup.registerNewThreadGroup()
 
     val namedStructBuilder = NamedStruct.newBuilder
@@ -49,13 +49,10 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
       structBuilder.addTypes(ConverterUtils.getTypeNode(field.dataType, field.nullable).toProtobuf)
     }
     namedStructBuilder.setStruct(structBuilder.build)
-    var namedStruct = namedStructBuilder.build
+    val namedStruct = namedStructBuilder.build
 
     val instance =
-      datasourceJniWrapper.nativeInitFileWriterWrapper(
-        path,
-        namedStruct.toByteArray,
-        getFormatName());
+      datasourceJniWrapper.nativeInitFileWriterWrapper(path, namedStruct.toByteArray, formatName)
 
     new OutputWriter {
       override def write(row: InternalRow): Unit = {
@@ -83,6 +80,7 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
       sparkSession: SparkSession,
       options: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
+    // TODO: parquet and mergetree
     OrcUtils.inferSchema(sparkSession, files, options)
   }
 }

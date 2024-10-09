@@ -22,13 +22,13 @@ import java.io.Serializable;
 
 public class ColumnTypeNode implements Serializable {
 
-  private int columnType = -1;
+  private final ColumnType columnType;
 
-  public ColumnTypeNode(int columnType) {
+  public ColumnTypeNode(ColumnType columnType) {
     this.columnType = columnType;
   }
 
   public ColumnType toProtobuf() {
-    return ColumnType.forNumber(this.columnType);
+    return columnType;
   }
 }

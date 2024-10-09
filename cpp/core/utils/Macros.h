@@ -23,7 +23,7 @@
 #include <glog/logging.h>
 #include <chrono>
 
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 #define GLUTEN_EXPAND(x) x
 #define GLUTEN_STRINGIFY(x) #x

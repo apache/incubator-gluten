@@ -21,6 +21,7 @@ import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 import org.apache.gluten.test.VeloxBackendTestBase;
 import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -44,10 +45,10 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           final ColumnarBatch batch = newArrowBatch("a boolean, b int", numRows);
           Assert.assertTrue(ColumnarBatches.isHeavyBatch(batch));
           final ColumnarBatch offloaded =
-              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch);
+              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
           Assert.assertTrue(ColumnarBatches.isLightBatch(offloaded));
           final ColumnarBatch loaded =
-              ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), offloaded);
+              ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), offloaded);
           Assert.assertTrue(ColumnarBatches.isHeavyBatch(loaded));
           long cnt =
               StreamSupport.stream(
@@ -69,7 +70,7 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           final ColumnarBatch batch = newArrowBatch("a boolean, b int", numRows);
           Assert.assertEquals(1, ColumnarBatches.getRefCnt(batch));
           final ColumnarBatch offloaded =
-              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch);
+              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
           Assert.assertEquals(1, ColumnarBatches.getRefCnt(offloaded));
           final long handle = ColumnarBatches.getNativeHandle(offloaded);
           final ColumnarBatch created = ColumnarBatches.create(handle);
@@ -110,10 +111,10 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           col1.putNull(numRows - 1);
           Assert.assertTrue(ColumnarBatches.isHeavyBatch(batch));
           final ColumnarBatch offloaded =
-              ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), batch);
+              ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch);
           Assert.assertTrue(ColumnarBatches.isLightBatch(offloaded));
           final ColumnarBatch loaded =
-              ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance(), offloaded);
+              ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), offloaded);
           Assert.assertTrue(ColumnarBatches.isHeavyBatch(loaded));
           long cnt =
               StreamSupport.stream(
@@ -124,6 +125,40 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           Assert.assertEquals(numRows, cnt);
           Assert.assertEquals(loaded.getRow(0).getInt(1), 15);
           loaded.close();
+          return null;
+        });
+  }
+
+  @Test
+  public void testCompose() {
+    TaskResources$.MODULE$.runUnsafe(
+        () -> {
+          final int numRows = 20;
+          final ColumnarBatch batch1 = newArrowBatch("a boolean, b int", numRows);
+          final ColumnarBatch batch2 = newArrowBatch("b int, a boolean", numRows);
+          final ArrowWritableColumnVector col0 = (ArrowWritableColumnVector) batch1.column(0);
+          final ArrowWritableColumnVector col1 = (ArrowWritableColumnVector) batch1.column(1);
+          final ArrowWritableColumnVector col2 = (ArrowWritableColumnVector) batch2.column(0);
+          final ArrowWritableColumnVector col3 = (ArrowWritableColumnVector) batch2.column(1);
+          for (int j = 0; j < numRows; j++) {
+            col0.putBoolean(j, j % 2 == 0);
+            col1.putInt(j, 15 - j);
+            col2.putInt(j, 15 - j);
+            col3.putBoolean(j, j % 2 == 0);
+          }
+          ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch1);
+          ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), batch2);
+          VeloxColumnarBatches.toVeloxBatch(batch1);
+          VeloxColumnarBatches.toVeloxBatch(batch2);
+          final ColumnarBatch batch3 = VeloxColumnarBatches.compose(batch1, batch2);
+          Assert.assertEquals(
+              VeloxColumnarBatches.COMPREHENSIVE_TYPE_VELOX,
+              ColumnarBatches.getComprehensiveLightBatchType(batch3));
+
+          Assert.assertEquals(numRows, batch3.numRows());
+          Assert.assertEquals(4, batch3.numCols());
+          Assert.assertEquals(
+              "[false,14,14,false]\n[true,13,13,true]", ColumnarBatches.toString(batch3, 1, 2));
           return null;
         });
   }
@@ -146,7 +181,9 @@ public class ColumnarBatchTest extends VeloxBackendTestBase {
           structType = structType.add("b", DataTypes.IntegerType, true);
           ColumnarBatch veloxBatch =
               RowToVeloxColumnarExec.toColumnarBatchIterator(
-                      JavaConverters.asScalaIterator(batch.rowIterator()), structType, numRows)
+                      JavaConverters.<InternalRow>asScalaIterator(batch.rowIterator()),
+                      structType,
+                      numRows)
                   .next();
           Assert.assertEquals("[true,15]\n[false,14]", ColumnarBatches.toString(veloxBatch, 0, 2));
           Assert.assertEquals(

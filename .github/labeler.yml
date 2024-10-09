@@ -78,7 +78,8 @@ DATA_LAKE:
   - changed-files:
     - any-glob-to-any-file: [
       'gluten-iceberg/**/*',
-      'gluten-delta/**/*'
+      'gluten-delta/**/*',
+      'gluten-hudi/**/*'
     ]
 
 RSS:

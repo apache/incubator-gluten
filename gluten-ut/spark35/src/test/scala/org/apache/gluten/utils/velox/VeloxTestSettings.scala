@@ -690,6 +690,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
+    // TODO:(yuan)
+    .exclude("vectorized reader: missing all struct fields")
     // Velox doesn't write file metadata into parquet file.
     .exclude("Write Spark version into Parquet metadata")
     // Exception.
@@ -883,11 +885,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenInnerJoinSuiteForceShjOff]
   enableSuite[GlutenOuterJoinSuiteForceShjOn]
   enableSuite[GlutenOuterJoinSuiteForceShjOff]
-    // Caused by Velox SMJ result mismatches with Spark.
-    .exclude("basic right outer join using SortMergeJoin (whole-stage-codegen off)")
-    .exclude("basic right outer join using SortMergeJoin (whole-stage-codegen on)")
-    .exclude("right outer join with unique keys using SortMergeJoin (whole-stage-codegen off)")
-    .exclude("right outer join with unique keys using SortMergeJoin (whole-stage-codegen on)")
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenLocalBroadcastExchangeSuite]

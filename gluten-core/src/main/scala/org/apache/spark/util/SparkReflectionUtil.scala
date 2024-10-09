@@ -14,22 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.util
 
-#pragma once
-
-#include <arrow/util/compression.h>
-#include <utils/qpl/qpl_job_pool.h>
-
-namespace gluten {
-namespace qpl {
-
-static const std::vector<std::string> qpl_supported_codec = {"gzip"};
-
-bool SupportsCodec(const std::string& codec);
-
-std::unique_ptr<arrow::util::Codec> MakeQplGZipCodec(int compressionLevel);
-
-std::unique_ptr<arrow::util::Codec> MakeDefaultQplGZipCodec();
-
-} // namespace qpl
-} // namespace gluten
+object SparkReflectionUtil {
+  def getSimpleClassName(cls: Class[_]): String = {
+    Utils.getSimpleName(cls)
+  }
+}

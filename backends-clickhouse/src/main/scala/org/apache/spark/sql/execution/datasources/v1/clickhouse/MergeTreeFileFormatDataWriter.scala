@@ -71,7 +71,7 @@ abstract class MergeTreeFileFormatDataWriter(
       try {
         currentWriter.close()
         statsTrackers.foreach(_.closeFile(currentWriter.path()))
-        val ret = currentWriter.asInstanceOf[MergeTreeOutputWriter].getAddFiles()
+        val ret = currentWriter.asInstanceOf[MergeTreeOutputWriter].getAddFiles
         if (ret.nonEmpty) {
           ret.foreach(addFile => returnedMetrics.put(addFile.path, addFile))
         }
@@ -222,11 +222,11 @@ abstract class MergeTreeBaseDynamicPartitionDataWriter(
     customMetrics: Map[String, SQLMetric])
   extends MergeTreeFileFormatDataWriter(description, taskAttemptContext, committer, customMetrics) {
 
-  /** Flag saying whether or not the data to be written out is partitioned. */
-  protected val isPartitioned = description.partitionColumns.nonEmpty
+  /** Flag saying whether the data to be written out is partitioned. */
+  protected val isPartitioned: Boolean = description.partitionColumns.nonEmpty
 
-  /** Flag saying whether or not the data to be written out is bucketed. */
-  protected val isBucketed = description.bucketSpec.isDefined
+  /** Flag saying whether the data to be written out is bucketed. */
+  protected val isBucketed: Boolean = description.bucketSpec.isDefined
 
   assert(
     isPartitioned || isBucketed,
@@ -526,7 +526,7 @@ class MergeTreeDynamicPartitionDataConcurrentWriter(
         if (status.outputWriter != null) {
           try {
             status.outputWriter.close()
-            val ret = status.outputWriter.asInstanceOf[MergeTreeOutputWriter].getAddFiles()
+            val ret = status.outputWriter.asInstanceOf[MergeTreeOutputWriter].getAddFiles
             if (ret.nonEmpty) {
               ret.foreach(addFile => returnedMetrics.put(addFile.path, addFile))
             }

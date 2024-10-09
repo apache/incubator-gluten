@@ -29,7 +29,6 @@
 #include <Functions/FunctionHelpers.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
-#include <Common/DebugUtils.h>
 
 namespace DB
 {

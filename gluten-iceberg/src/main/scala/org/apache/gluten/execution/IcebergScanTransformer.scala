@@ -48,11 +48,10 @@ case class IcebergScanTransformer(
 
   override def filterExprs(): Seq[Expression] = pushdownFilters.getOrElse(Seq.empty)
 
-  override def getPartitionSchema: StructType = GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
+  override lazy val getPartitionSchema: StructType =
+    GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
 
   override def getDataSchema: StructType = new StructType()
-
-  override def getInputFilePathsInternal: Seq[String] = Seq.empty
 
   // TODO: get root paths from table.
   override def getRootPathsInternal: Seq[String] = Seq.empty
@@ -80,6 +79,8 @@ case class IcebergScanTransformer(
   }
   // Needed for tests
   private[execution] def getKeyGroupPartitioning: Option[Seq[Expression]] = keyGroupedPartitioning
+
+  override def nodeName: String = "Iceberg" + super.nodeName
 }
 
 object IcebergScanTransformer {

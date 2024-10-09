@@ -18,7 +18,7 @@
 #include <DataTypes/DataTypeNumberBase.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
-#include <Common/CHUtil.h>
+
 #include <Common/Exception.h>
 
 namespace local_engine

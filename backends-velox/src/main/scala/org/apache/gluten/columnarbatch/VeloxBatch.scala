@@ -14,25 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils
+package org.apache.gluten.columnarbatch
 
-import org.apache.gluten.columnarbatch.ColumnarBatches
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
-import org.apache.gluten.vectorized.ArrowWritableColumnVector
+import org.apache.gluten.execution.{ArrowColumnarToVeloxColumnarExec, RowToVeloxColumnarExec, VeloxColumnarToRowExec}
+import org.apache.gluten.extension.columnar.transition.{Convention, Transition}
 
-import org.apache.spark.sql.vectorized.ColumnarBatch
-
-object ImplicitClass {
-
-  implicit class ArrowColumnarBatchRetainer(val cb: ColumnarBatch) {
-    def retain(): Unit = {
-      (0 until cb.numCols).toList.foreach(
-        i =>
-          ColumnarBatches
-            .ensureLoaded(ArrowBufferAllocators.contextInstance(), cb)
-            .column(i)
-            .asInstanceOf[ArrowWritableColumnVector]
-            .retain())
-    }
-  }
+object VeloxBatch extends Convention.BatchType {
+  fromRow(RowToVeloxColumnarExec.apply)
+  toRow(VeloxColumnarToRowExec.apply)
+  fromBatch(ArrowBatches.ArrowNativeBatch, ArrowColumnarToVeloxColumnarExec.apply)
+  toBatch(ArrowBatches.ArrowNativeBatch, Transition.empty)
 }
