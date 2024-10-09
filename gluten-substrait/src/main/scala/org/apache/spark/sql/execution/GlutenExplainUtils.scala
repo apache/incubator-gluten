@@ -151,8 +151,8 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
   // scalastyle:off
   /**
    * Given a input physical plan, performs the following tasks.
-   *   1. Generates the explain output for the input plan excluding the subquery plans.
-   *   2. Generates the explain output for each subquery referenced in the plan.
+   *   1. Generates the explain output for the input plan excluding the subquery plans. 2. Generates
+   *      the explain output for each subquery referenced in the plan.
    */
   // scalastyle:on
   // spotless:on
@@ -164,8 +164,8 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
       SparkShimLoader.getSparkShims.withOperatorIdMap(
         new java.util.IdentityHashMap[QueryPlan[_], Int]()) {
         try {
-          // Initialize a reference-unique set of Operators to avoid accdiental overwrites and to allow
-          // intentional overwriting of IDs generated in previous AQE iteration
+          // Initialize a reference-unique set of Operators to avoid accdiental overwrites and to
+          // allow intentional overwriting of IDs generated in previous AQE iteration
           val operators = newSetFromMap[QueryPlan[_]](new util.IdentityHashMap())
           // Initialize an array of ReusedExchanges to help find Adaptively Optimized Out
           // Exchanges as part of SPARK-42753
