@@ -16,21 +16,26 @@
  */
 
 #include "GraceAggregatingTransform.h"
-#include <Common/CHUtil.h>
-#include <Common/QueryContext.h>
-#include <Common/CurrentThread.h>
-#include <Common/formatReadable.h>
 #include <Common/BitHelpers.h>
+#include <Common/CHUtil.h>
+#include <Common/CurrentThread.h>
 #include <Common/GlutenConfig.h>
+#include <Common/QueryContext.h>
+#include <Common/formatReadable.h>
 
 namespace DB::ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
+extern const int LOGICAL_ERROR;
 }
 
 namespace local_engine
 {
-GraceAggregatingTransform::GraceAggregatingTransform(const DB::Block &header_, DB::AggregatingTransformParamsPtr params_, DB::ContextPtr context_, bool no_pre_aggregated_, bool final_output_)
+GraceAggregatingTransform::GraceAggregatingTransform(
+    const DB::Block & header_,
+    DB::AggregatingTransformParamsPtr params_,
+    DB::ContextPtr context_,
+    bool no_pre_aggregated_,
+    bool final_output_)
     : IProcessor({header_}, {params_->getHeader()})
     , header(header_)
     , params(params_)
@@ -160,7 +165,7 @@ void GraceAggregatingTransform::work()
             return;
         }
 
-        while(block_converter->hasNext())
+        while (block_converter->hasNext())
         {
             auto block = block_converter->next();
             if (!block.rows())
@@ -195,7 +200,7 @@ bool GraceAggregatingTransform::extendBuckets()
                 "Too many buckets, limit is {}. Please consider increate offhead size or partitoin number",
                 max_buckets);
         else
-         return false;
+            return false;
     }
     LOG_DEBUG(logger, "Extend buckets num from {} to {}", current_size, next_size);
     for (size_t i = current_size; i < next_size; ++i)
@@ -214,7 +219,7 @@ void GraceAggregatingTransform::rehashDataVariants()
     no_more_keys = false;
 
     size_t bucket_n = 0;
-    while(converter->hasNext())
+    while (converter->hasNext())
     {
         auto block = converter->next();
         if (!block.rows())
@@ -227,7 +232,11 @@ void GraceAggregatingTransform::rehashDataVariants()
         for (size_t i = 0; i < current_bucket_index; ++i)
         {
             if (scattered_blocks[i].rows())
-                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Scattered blocks should not belong to buckets with index({}) < current_bucket_index({})", i, current_bucket_index);
+                throw DB::Exception(
+                    DB::ErrorCodes::LOGICAL_ERROR,
+                    "Scattered blocks should not belong to buckets with index({}) < current_bucket_index({})",
+                    i,
+                    current_bucket_index);
         }
         for (size_t i = current_bucket_index + 1; i < getBucketsNum(); ++i)
         {
@@ -270,7 +279,8 @@ void GraceAggregatingTransform::addBlockIntoFileBucket(size_t bucket_index, cons
         return;
     if (roundUpToPowerOfTwoOrZero(bucket_index + 1) > static_cast<size_t>(block.info.bucket_num))
     {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Add invalid block with bucket_num {} into bucket {}", block.info.bucket_num, bucket_index);
+        throw DB::Exception(
+            DB::ErrorCodes::LOGICAL_ERROR, "Add invalid block with bucket_num {} into bucket {}", block.info.bucket_num, bucket_index);
     }
     auto & file_stream = buckets[bucket_index];
     file_stream.pending_bytes += block.allocatedBytes();
@@ -443,7 +453,7 @@ void GraceAggregatingTransform::checkAndSetupCurrentDataVariants()
     }
 }
 
-void GraceAggregatingTransform::mergeOneBlock(const DB::Block &block, bool is_original_block)
+void GraceAggregatingTransform::mergeOneBlock(const DB::Block & block, bool is_original_block)
 {
     if (!block.rows())
         return;
@@ -504,7 +514,8 @@ void GraceAggregatingTransform::mergeOneBlock(const DB::Block &block, bool is_or
 
         if (is_original_block && no_pre_aggregated)
         {
-            params->aggregator.executeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, key_columns, aggregate_columns, no_more_keys);
+            params->aggregator.executeOnBlock(
+                scattered_blocks[current_bucket_index], *current_data_variants, key_columns, aggregate_columns, no_more_keys);
         }
         else
         {
@@ -531,7 +542,8 @@ bool GraceAggregatingTransform::isMemoryOverflow()
         {
             LOG_INFO(
                 logger,
-                "Memory is overflow. current_mem_used: {}, max_mem_used: {}, per_key_memory_usage: {}, aggregator keys: {}, buckets: {}, hash table type: {}",
+                "Memory is overflow. current_mem_used: {}, max_mem_used: {}, per_key_memory_usage: {}, aggregator keys: {}, buckets: {}, "
+                "hash table type: {}",
                 ReadableSize(current_mem_used),
                 ReadableSize(max_mem_used),
                 ReadableSize(per_key_memory_usage),
@@ -547,7 +559,8 @@ bool GraceAggregatingTransform::isMemoryOverflow()
         {
             LOG_INFO(
                 logger,
-                "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}, aggregator keys: {}, buckets: {}, hash table type: {}",
+                "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}, aggregator keys: {}, buckets: {}, hash "
+                "table type: {}",
                 ReadableSize(current_mem_used),
                 ReadableSize(max_mem_used),
                 current_result_rows,

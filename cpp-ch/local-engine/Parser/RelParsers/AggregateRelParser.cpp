@@ -23,6 +23,7 @@
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Operator/DefaultHashAggregateResult.h>
+#include <Operator/GraceAggregatingStep.h>
 #include <Operator/GraceMergingAggregatedStep.h>
 #include <Operator/StreamingAggregatingStep.h>
 #include <Parser/AggregateFunctionParser.h>
@@ -131,11 +132,6 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
         /// requiredChildDistributionExpressions is None, but in final stage it is Some(Seq[Expression]).
         auto configs = parseFormattedRelAdvancedOptimization(aggregate_rel->advanced_extension());
         has_final_stage = getStringConfig(configs, "has_required_child_distribution_expressions") == "true";
-        LOG_ERROR(
-            getLogger("AggregateRelParser"),
-            "xxx has_final_stage: {}\n{}",
-            has_final_stage,
-            aggregate_rel->advanced_extension().DebugString());
     }
 
     if (phase_set.size() > 1 && has_final_stage)
@@ -225,7 +221,8 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         = [this, current_plan_header](
               const String & function_name, const Array & params, const Strings & arg_names, substrait::AggregationPhase phase)
     {
-        if (phase == substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT)
+        if (phase == substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT
+            || phase == substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE)
         {
             assert(arg_names.size() == 1);
             return arg_names[0];
@@ -439,15 +436,13 @@ void AggregateRelParser::addAggregatingStep()
 
     auto config = StreamingAggregateConfig::loadFromContext(getContext());
     bool is_distinct_aggreate = false;
+    /// For aggregation which involve distinct. It could have 4 steps in general.
     if (!rel_stack->empty())
     {
         const auto & next_rel = *(rel_stack->back());
         if (next_rel.rel_type_case() == substrait::Rel::RelTypeCase::kAggregate)
         {
-            LOG_ERROR(getLogger("AggregateRelParser"), "next input is a aggregate step");
-            const auto & next_agg_rel = next_rel.aggregate();
-            if (next_agg_rel.groupings_size() < aggregate_rel->groupings_szie())
-                is_distinct_aggreate = true;
+            is_distinct_aggreate = true;
         }
     }
 
@@ -488,6 +483,23 @@ void AggregateRelParser::addAggregatingStep()
         }
         else
         {
+            /// If it's an aggregation query involves distinct, for example,
+            ///     select n_regionkey, count(distinct(n_name)), sum(n_nationkey) from nation group by n_regionkey
+            /// The running steps are as follow in general.
+            ///   step1: partial aggregation on keys (n_regionkey, n_name) with empty aggregation functions.
+            ///   step2: exchagne shuffle
+            ///   step3: aggregation on keys (n_regionkey, n_name) with partial aggregation sum(n_nationkey)
+            ///   step4: aggregation on keys (n_regionkey) with partial aggregation merge sum(n_nationkey), and partial aggregation count(n_name)
+            ///   step5: exchange shuffle
+            ///   step6: aggregation on keys (n_regionkey) with final aggregation merge sum(n_nationkey) and count(n_name)
+            /// We cannot use streaming aggregating strategy in step3. Otherwise it will generate multiple blocks with same n_name in them. This
+            /// will make the result for count(distinct(n_name)) wrong. step3 must finish all inputs before it puts any block into step4.
+            /// So we introduce GraceAggregatingStep here, it can handle mass data with high cardinality.
+            /// FIXME:: Should no_pre_aggregated_ always be false ?
+            auto aggregating_step
+                = std::make_unique<GraceAggregatingStep>(getContext(), plan->getCurrentDataStream(), params, has_first_stage);
+            steps.emplace_back(aggregating_step.get());
+            plan->addStep(std::move(aggregating_step));
         }
     }
     else
