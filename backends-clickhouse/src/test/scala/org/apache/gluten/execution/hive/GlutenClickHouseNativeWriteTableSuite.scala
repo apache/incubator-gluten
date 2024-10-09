@@ -25,7 +25,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.gluten.NativeWriteChecker
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.execution.datasources.mergetree.ClickHouseConfig
 import org.apache.spark.sql.types._
 
 import scala.reflect.runtime.universe.TypeTag

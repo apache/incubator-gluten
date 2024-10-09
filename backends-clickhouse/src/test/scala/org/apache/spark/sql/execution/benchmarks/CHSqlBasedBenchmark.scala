@@ -35,9 +35,6 @@ trait CHSqlBasedBenchmark extends SqlBasedBenchmark {
       .setIfMissing(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
       .setIfMissing("spark.master", s"local[$thrdNum]")
       .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
-      .set(
-        "spark.sql.catalog.spark_catalog",
-        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
       .set("spark.databricks.delta.snapshotPartitions", "1")

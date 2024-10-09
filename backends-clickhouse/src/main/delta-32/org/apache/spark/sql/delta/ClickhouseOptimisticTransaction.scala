@@ -33,8 +33,7 @@ import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
 import org.apache.spark.sql.execution.{CHDelayedCommitProtocol, QueryExecution, SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FakeRowAdaptor, FileFormatWriter, WriteFiles, WriteJobStatsTracker}
-import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeFileFormatWriter
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.execution.datasources.mergetree.{ClickHouseConfig, MergeTreeFileFormatWriter}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.SerializableConfiguration
 

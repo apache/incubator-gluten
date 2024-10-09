@@ -32,7 +32,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.listener.CHGlutenSQLAppStatusListener
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
-import org.apache.spark.sql.execution.datasources.v1._
+import org.apache.spark.sql.execution.datasources.ch._
 import org.apache.spark.sql.utils.ExpressionUtil
 import org.apache.spark.util.SparkDirectoryUtil
 

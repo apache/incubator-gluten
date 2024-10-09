@@ -37,7 +37,7 @@ import org.apache.hadoop.fs.{FileStatus, Path}
 
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.execution.datasources.mergetree.ClickHouseConfig
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.Utils

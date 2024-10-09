@@ -23,7 +23,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaLog}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.execution.datasources.mergetree.ClickHouseConfig
 
 import org.apache.commons.io.FileUtils
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
@@ -559,9 +559,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.adaptive.enabled", "false")
       .set("spark.sql.files.minPartitionNum", "1")
-      .set(
-        "spark.sql.catalog.spark_catalog",
-        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
+      .set("spark.sql.catalog.spark_catalog", ClickHouseConfig.MERGETREE_CATALOG_CLASSNAME)
       .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
       .set("spark.databricks.delta.snapshotPartitions", "1")
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")

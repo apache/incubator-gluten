@@ -25,7 +25,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.execution.datasources.mergetree.ClickHouseConfig
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 
@@ -68,9 +68,7 @@ class GlutenClickHouseHiveTableSuite
       .set("spark.gluten.supported.hive.udfs", "my_add")
       .setCHConfig("use_local_format", true)
       .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-      .set(
-        "spark.sql.catalog.spark_catalog",
-        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
+      .set("spark.sql.catalog.spark_catalog", ClickHouseConfig.MERGETREE_CATALOG_CLASSNAME)
       .setMaster("local[*]")
   }
 

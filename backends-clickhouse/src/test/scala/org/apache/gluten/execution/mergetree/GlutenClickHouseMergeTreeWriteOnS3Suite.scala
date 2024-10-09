@@ -24,7 +24,7 @@ import org.apache.spark.sql.SaveMode
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.files.TahoeFileIndex
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
+import org.apache.spark.sql.execution.datasources.mergetree.metadata.AddMergeTreeParts
 
 import _root_.org.apache.commons.io.FileUtils
 import io.minio._

@@ -19,9 +19,6 @@ package org.apache.spark.sql.execution.datasources.mergetree
 import org.apache.gluten.execution.MergeTreePartSplit
 import org.apache.gluten.expression.ConverterUtils
 
-import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableNode
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
-
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.substrait.proto.ReadRel
 
@@ -61,7 +58,7 @@ object PartSerializer {
     PartSerializer(partList, starts, lengths)
   }
 
-  def fromAddMergeTreeParts(parts: Seq[AddMergeTreeParts]): PartSerializer = {
+  def fromAddMergeTreeParts(parts: Seq[metadata.AddMergeTreeParts]): PartSerializer = {
     val partList = parts.map(_.name)
     val starts = parts.map(_ => 0L)
     val lengths = parts.map(_.marks)

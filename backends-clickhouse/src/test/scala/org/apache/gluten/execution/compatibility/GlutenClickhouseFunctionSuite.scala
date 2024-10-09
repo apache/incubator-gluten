@@ -21,7 +21,7 @@ import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.execution.datasources.mergetree.ClickHouseConfig
 
 class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
   override protected val needCopyParquetToTablePath = true

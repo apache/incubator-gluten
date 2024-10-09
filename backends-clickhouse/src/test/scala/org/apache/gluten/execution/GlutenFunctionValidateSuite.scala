@@ -22,7 +22,7 @@ import org.apache.gluten.utils.UTSystemParameters
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.execution.datasources.mergetree.ClickHouseConfig
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
@@ -47,9 +47,6 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.adaptive.enabled", "false")
       .set("spark.sql.files.minPartitionNum", "1")
-      .set(
-        "spark.sql.catalog.spark_catalog",
-        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
       .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
       .set("spark.databricks.delta.snapshotPartitions", "1")
       .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")

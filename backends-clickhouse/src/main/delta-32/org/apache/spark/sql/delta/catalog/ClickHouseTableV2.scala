@@ -30,10 +30,8 @@ import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaErrors, DeltaLog, De
 import org.apache.spark.sql.delta.actions.{Metadata, Protocol}
 import org.apache.spark.sql.delta.sources.DeltaDataSource
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreePartsPartitionsUtil
-import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSourceUtils
+import org.apache.spark.sql.execution.datasources.mergetree.{DeltaMergeTreeFileFormat, StorageMeta}
+import org.apache.spark.sql.execution.datasources.mergetree.utils.{CHDataSourceUtils, MergeTreePartsPartitionsUtil}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.collection.BitSet
 

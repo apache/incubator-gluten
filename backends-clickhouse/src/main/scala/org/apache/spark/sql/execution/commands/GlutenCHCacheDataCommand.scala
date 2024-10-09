@@ -27,9 +27,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference,
 import org.apache.spark.sql.delta._
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.execution.commands.GlutenCacheBase._
-import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableBuilder
-import org.apache.spark.sql.execution.datasources.mergetree.{PartSerializer, StorageMeta}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
+import org.apache.spark.sql.execution.datasources.mergetree._
 import org.apache.spark.sql.types.{BooleanType, StringType}
 
 import org.apache.hadoop.fs.Path
@@ -134,12 +132,12 @@ case class GlutenCHCacheDataCommand(
     }
 
     val executorIdsToAddFiles =
-      scala.collection.mutable.Map[String, ArrayBuffer[AddMergeTreeParts]]()
+      scala.collection.mutable.Map[String, ArrayBuffer[metadata.AddMergeTreeParts]]()
     val executorIdsToParts = scala.collection.mutable.Map[String, String]()
-    executorIdsToAddFiles.put(ALL_EXECUTORS, new ArrayBuffer[AddMergeTreeParts]())
+    executorIdsToAddFiles.put(ALL_EXECUTORS, new ArrayBuffer[metadata.AddMergeTreeParts]())
     selectedAddFiles.foreach(
       addFile => {
-        val mergeTreePart = addFile.asInstanceOf[AddMergeTreeParts]
+        val mergeTreePart = addFile.asInstanceOf[metadata.AddMergeTreeParts]
         val partName = mergeTreePart.name
         val tableUri = URI.create(mergeTreePart.tablePath)
         val relativeTablePath = if (tableUri.getPath.startsWith("/")) {
@@ -156,7 +154,7 @@ case class GlutenCHCacheDataCommand(
           locations.foreach(
             executor => {
               if (!executorIdsToAddFiles.contains(executor)) {
-                executorIdsToAddFiles.put(executor, new ArrayBuffer[AddMergeTreeParts]())
+                executorIdsToAddFiles.put(executor, new ArrayBuffer[metadata.AddMergeTreeParts]())
               }
               executorIdsToAddFiles(executor).append(mergeTreePart)
             })

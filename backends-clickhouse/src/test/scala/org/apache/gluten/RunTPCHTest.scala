@@ -20,7 +20,7 @@ import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.benchmarks.GenTPCHTableScripts
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.execution.datasources.mergetree.ClickHouseConfig
 
 import org.apache.commons.io.FileUtils
 
@@ -83,9 +83,6 @@ object RunTPCHTest {
       .config("spark.memory.fraction", "0.6")
       .config("spark.memory.storageFraction", "0.3")
       .config("spark.plugins", "org.apache.gluten.GlutenPlugin")
-      .config(
-        "spark.sql.catalog.spark_catalog",
-        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
       .config("spark.shuffle.manager", shuffleManager)
       .config("spark.io.compression.codec", ioCompressionCodec)
       .config("spark.databricks.delta.maxSnapshotLineageLength", 20)

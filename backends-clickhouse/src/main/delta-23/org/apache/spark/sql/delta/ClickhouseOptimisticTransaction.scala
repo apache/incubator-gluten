@@ -30,8 +30,7 @@ import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FakeRowAdaptor, FileFormatWriter, WriteJobStatsTracker}
-import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeFileFormatWriter
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.execution.datasources.mergetree.{ClickHouseConfig, MergeTreeFileFormatWriter}
 import org.apache.spark.util.{Clock, SerializableConfiguration}
 
 import org.apache.commons.lang3.exception.ExceptionUtils

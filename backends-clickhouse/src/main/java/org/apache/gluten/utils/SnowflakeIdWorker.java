@@ -19,7 +19,7 @@ package org.apache.gluten.utils;
 import org.apache.gluten.exception.GlutenException;
 
 import org.apache.spark.SparkEnv;
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig;
+import org.apache.spark.sql.execution.datasources.mergetree.ClickHouseConfig;
 
 /**
  * An object that generates IDs. This is broken into a separate class in case we ever want to
