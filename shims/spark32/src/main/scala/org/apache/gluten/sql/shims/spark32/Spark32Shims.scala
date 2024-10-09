@@ -29,6 +29,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BinaryExpression, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName}
 import org.apache.spark.sql.catalyst.expressions.aggregate.TypedImperativeAggregate
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -282,5 +283,17 @@ class Spark32Shims extends SparkShims {
     val p = decimalType.precision
     val s = decimalType.scale
     DecimalType(p, if (toScale > s) s else toScale)
+  }
+
+  override def getOperatorId(plan: QueryPlan[_]): Option[Int] = {
+    plan.getTagValue(QueryPlan.OP_ID_TAG)
+  }
+
+  override def setOperatorId(plan: QueryPlan[_], opId: Int): Unit = {
+    plan.setTagValue(QueryPlan.OP_ID_TAG, opId)
+  }
+
+  override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
+    plan.unsetTagValue(QueryPlan.OP_ID_TAG)
   }
 }

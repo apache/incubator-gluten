@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.execution.WholeStageTransformer
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.FallbackTags
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.AnalysisException
@@ -49,7 +50,7 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
       p: SparkPlan,
       reason: String,
       fallbackNodeToReason: mutable.HashMap[String, String]): Unit = {
-    p.getTagValue(QueryPlan.OP_ID_TAG).foreach {
+    SparkShimLoader.getSparkShims.getOperatorId(p).foreach {
       opId =>
         // e.g., 002 project, it is used to help analysis by `substring(4)`
         val formattedNodeName = f"$opId%03d ${p.nodeName}"
@@ -288,7 +289,7 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
       }
       visited.add(plan)
       currentOperationID += 1
-      plan.setTagValue(QueryPlan.OP_ID_TAG, currentOperationID)
+      SparkShimLoader.getSparkShims.setOperatorId(plan, currentOperationID)
     }
 
     plan.foreachUp {
@@ -358,12 +359,12 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
    * value.
    */
   private def getOpId(plan: QueryPlan[_]): String = {
-    plan.getTagValue(QueryPlan.OP_ID_TAG).map(v => s"$v").getOrElse("unknown")
+    SparkShimLoader.getSparkShims.getOperatorId(plan).map(v => s"$v").getOrElse("unknown")
   }
 
   private def removeTags(plan: QueryPlan[_]): Unit = {
     def remove(p: QueryPlan[_], children: Seq[QueryPlan[_]]): Unit = {
-      p.unsetTagValue(QueryPlan.OP_ID_TAG)
+      SparkShimLoader.getSparkShims.unsetOperatorId(p)
       children.foreach(removeTags)
     }
 
