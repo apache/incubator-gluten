@@ -492,13 +492,13 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
 
     auto pid1 = makeRowVector({makeFlatVector<int32_t>({0, 1, 0, 1, 0, 1, 0, 1, 0, 1})});
     auto rangeVector1 = makeRowVector(inputVector1_->children());
-    compositeBatch1_ = CompositeColumnarBatch::create(
-        {std::make_shared<VeloxColumnarBatch>(pid1), std::make_shared<VeloxColumnarBatch>(rangeVector1)});
+    compositeBatch1_ = VeloxColumnarBatch::compose(
+        pool(), {std::make_shared<VeloxColumnarBatch>(pid1), std::make_shared<VeloxColumnarBatch>(rangeVector1)});
 
     auto pid2 = makeRowVector({makeFlatVector<int32_t>({0, 1})});
     auto rangeVector2 = makeRowVector(inputVector2_->children());
-    compositeBatch2_ = CompositeColumnarBatch::create(
-        {std::make_shared<VeloxColumnarBatch>(pid2), std::make_shared<VeloxColumnarBatch>(rangeVector2)});
+    compositeBatch2_ = VeloxColumnarBatch::compose(
+        pool(), {std::make_shared<VeloxColumnarBatch>(pid2), std::make_shared<VeloxColumnarBatch>(rangeVector2)});
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(arrow::MemoryPool* arrowPool) override {

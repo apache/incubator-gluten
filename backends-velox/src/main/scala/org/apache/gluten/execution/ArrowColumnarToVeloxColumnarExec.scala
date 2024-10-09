@@ -14,18 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <gtest/gtest.h>
-#include <Common/GlutenStringUtils.h>
+package org.apache.gluten.execution
 
-using namespace local_engine;
+import org.apache.gluten.columnarbatch.{VeloxBatch, VeloxColumnarBatches}
+import org.apache.gluten.columnarbatch.ArrowBatches.ArrowNativeBatch
 
-TEST(TestStringUtils, TestExtractPartitionValues)
-{
-    std::string path = "/tmp/col1=1/col2=test/a.parquet";
-    auto values = GlutenStringUtils::parsePartitionTablePath(path);
-    ASSERT_EQ(2, values.size());
-    ASSERT_EQ("col1", values[0].first);
-    ASSERT_EQ("1", values[0].second);
-    ASSERT_EQ("col2", values[1].first);
-    ASSERT_EQ("test", values[1].second);
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.vectorized.ColumnarBatch
+
+case class ArrowColumnarToVeloxColumnarExec(override val child: SparkPlan)
+  extends ColumnarToColumnarExec(ArrowNativeBatch, VeloxBatch) {
+  override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
+    in.map {
+      b =>
+        val out = VeloxColumnarBatches.toVeloxBatch(b)
+        out
+    }
+  }
+  override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
+    ArrowColumnarToVeloxColumnarExec(child = newChild)
 }

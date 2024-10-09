@@ -53,7 +53,7 @@ class VeloxRuntime final : public Runtime {
 
   std::shared_ptr<ColumnarBatch> createOrGetEmptySchemaBatch(int32_t numRows) override;
 
-  std::shared_ptr<ColumnarBatch> select(std::shared_ptr<ColumnarBatch> batch, std::vector<int32_t> columnIndices)
+  std::shared_ptr<ColumnarBatch> select(std::shared_ptr<ColumnarBatch> batch, const std::vector<int32_t>& columnIndices)
       override;
 
   std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(struct ArrowSchema* cSchema) override;
