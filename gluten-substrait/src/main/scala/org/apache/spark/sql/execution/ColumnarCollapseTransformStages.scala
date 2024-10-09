@@ -49,7 +49,7 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
 
   @transient
   override lazy val metrics: Map[String, SQLMetric] =
-    BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetrics(sparkContext)
+    BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetrics(child, sparkContext)
 
   override def simpleString(maxFields: Int): String = {
     s"$nodeName${truncatedString(output, "[", ", ", "]", maxFields)}"
@@ -57,7 +57,7 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance
-      .genInputIteratorTransformerMetricsUpdater(child, metrics)
+      .genInputIteratorTransformerMetricsUpdater(metrics)
 
   override def output: Seq[Attribute] = child.output
   override def outputPartitioning: Partitioning = child.outputPartitioning

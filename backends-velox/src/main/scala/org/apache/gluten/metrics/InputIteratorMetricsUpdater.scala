@@ -15,29 +15,22 @@
  * limitations under the License.
  */
 package org.apache.gluten.metrics
-import org.apache.spark.TaskContext
 import org.apache.spark.sql.execution.metric.SQLMetric
 
-case class InputIteratorMetricsUpdater(
-    metrics: Map[String, SQLMetric],
-    forBroadcast: Boolean = false)
-  extends MetricsUpdater {
+case class InputIteratorMetricsUpdater(metrics: Map[String, SQLMetric]) extends MetricsUpdater {
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
     if (opMetrics != null) {
       val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
       metrics("cpuCount") += operatorMetrics.cpuCount
       metrics("wallNanos") += operatorMetrics.wallNanos
-      // For broadcast exchange, we only collect the metrics once.
-      if (!forBroadcast || TaskContext.getPartitionId() == 0) {
-        if (operatorMetrics.outputRows == 0 && operatorMetrics.outputVectors == 0) {
-          // Sometimes, velox does not update metrics for intermediate operator,
-          // here we try to use the input metrics
-          metrics("numOutputRows") += operatorMetrics.inputRows
-          metrics("outputVectors") += operatorMetrics.inputVectors
-        } else {
-          metrics("numOutputRows") += operatorMetrics.outputRows
-          metrics("outputVectors") += operatorMetrics.outputVectors
-        }
+      if (operatorMetrics.outputRows == 0 && operatorMetrics.outputVectors == 0) {
+        // Sometimes, velox does not update metrics for intermediate operator,
+        // here we try to use the input metrics
+        metrics("numOutputRowsConsumed") += operatorMetrics.inputRows
+        metrics("outputVectorsConsumed") += operatorMetrics.inputVectors
+      } else {
+        metrics("numOutputRowsConsumed") += operatorMetrics.outputRows
+        metrics("outputVectorsConsumed") += operatorMetrics.outputVectors
       }
     }
   }

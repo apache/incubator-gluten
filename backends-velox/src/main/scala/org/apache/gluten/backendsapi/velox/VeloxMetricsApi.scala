@@ -23,8 +23,7 @@ import org.apache.gluten.substrait.{AggregationParams, JoinParams}
 import org.apache.spark.SparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.{ColumnarInputAdapter, SparkPlan}
-import org.apache.spark.sql.execution.adaptive.BroadcastQueryStageExec
-import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
+import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
 import java.lang.{Long => JLong}
@@ -40,24 +39,34 @@ class VeloxMetricsApi extends MetricsApi with Logging {
   }
 
   override def genInputIteratorTransformerMetrics(
+      child: SparkPlan,
       sparkContext: SparkContext): Map[String, SQLMetric] = {
+    def metricsPlan(plan: SparkPlan): SparkPlan = {
+      plan match {
+        case ColumnarInputAdapter(child) => metricsPlan(child)
+        case q: QueryStageExec => metricsPlan(q.plan)
+        case _ => plan
+      }
+    }
+
+    val outputMetrics = metricsPlan(child).metrics
+      .filterKeys(key => key.equals("numOutputRows") || key.equals("outputVectors"))
+
     Map(
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of input iterator"),
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors")
-    )
+      "numOutputRowsConsumed" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of output rows being consumed"),
+      "outputVectorsConsumed" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of output vectors being consumed")
+    ) ++ outputMetrics
   }
 
   override def genInputIteratorTransformerMetricsUpdater(
-      child: SparkPlan,
       metrics: Map[String, SQLMetric]): MetricsUpdater = {
-    val forBroadcast = child match {
-      case ColumnarInputAdapter(c) if c.isInstanceOf[BroadcastQueryStageExec] => true
-      case ColumnarInputAdapter(c) if c.isInstanceOf[BroadcastExchangeLike] => true
-      case _ => false
-    }
-    InputIteratorMetricsUpdater(metrics, forBroadcast = forBroadcast)
+    InputIteratorMetricsUpdater(metrics)
   }
 
   override def genBatchScanTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
