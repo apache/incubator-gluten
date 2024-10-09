@@ -111,7 +111,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   uint64_t shrinkCapacity(uint64_t targetBytes, bool allowSpill, bool allowAbort) override {
-    velox::memory::ScopedMemoryArbitrationContext ctx();
+    velox::memory::ScopedMemoryArbitrationContext ctx{};
     facebook::velox::exec::MemoryReclaimer::Stats status;
     velox::memory::MemoryPool* pool;
     {
