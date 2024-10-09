@@ -80,7 +80,10 @@ function process_setup_ubuntu {
   ensure_pattern_matched 'libgmock-dev' scripts/setup-ubuntu.sh
   sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
   ensure_pattern_matched 'function install_folly' scripts/setup-ubuntu.sh
-  sed -i '/^function install_folly.*/i function install_protobuf {\n  wget_and_untar https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz protobuf\n  (\n    cd protobuf\n    ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n    make "-j$(nproc)"\n    sudo make install\n    sudo ldconfig\n  )\n}\n' scripts/setup-ubuntu.sh
+  sed -i '/^function install_folly.*/i function install_protobuf {\
+  wget_and_untar https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz protobuf\
+  (\n    cd ${DEPENDENCY_DIR}/protobuf\n    ./configure CXXFLAGS="-fPIC" --prefix=${INSTALL_PREFIX}\n    make "-j$(nproc)"\
+    sudo make install\n    sudo ldconfig\n  )\n}\n' scripts/setup-ubuntu.sh
   ensure_pattern_matched '  run_and_time install_folly' scripts/setup-ubuntu.sh
   sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-ubuntu.sh
   # Required by lib hdfs.
@@ -111,7 +114,7 @@ function process_setup_centos9 {
 
   ensure_pattern_matched 'install_fbthrift' scripts/setup-centos9.sh
   sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos9.sh
-  sed -i '/cd protobuf/{n;s/\.\/configure --prefix=\/usr/\.\/configure CXXFLAGS="-fPIC" --prefix=\/usr\/local/;}' scripts/setup-centos9.sh
+  sed -i '/cd ${DEPENDENCY_DIR}\/protobuf/{n;s/\.\/configure --prefix=${INSTALL_PREFIX}/\.\/configure CXXFLAGS="-fPIC" --prefix=${INSTALL_PREFIX}/;}' scripts/setup-centos9.sh
 
   # Required by lib hdfs.
   ensure_pattern_matched 'dnf_install ninja-build' scripts/setup-centos9.sh
