@@ -21,8 +21,6 @@ import org.apache.gluten.expression.ConverterUtils
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.delta.actions.Metadata
 
-import org.apache.hadoop.fs.Path
-
 import java.net.URI
 
 /** Reserved table property for MergeTree table. */
@@ -48,17 +46,12 @@ object StorageMeta {
 
   private def prefixOf(key: String): String = s"$STORAGE_PREFIX$key"
 
-  def withMoreStorageInfo(
+  def withStorageID(
       metadata: Metadata,
-      snapshotId: String,
-      deltaPath: Path,
       database: String,
-      tableName: String): Metadata = {
-    val moreOptions = Seq(
-      DB -> database,
-      SNAPSHOT_ID -> snapshotId,
-      TABLE -> tableName,
-      STORAGE_PATH -> deltaPath.toString)
+      tableName: String,
+      snapshotId: String): Metadata = {
+    val moreOptions = Seq(DB -> database, SNAPSHOT_ID -> snapshotId, TABLE -> tableName)
     withMoreOptions(metadata, moreOptions)
   }
 

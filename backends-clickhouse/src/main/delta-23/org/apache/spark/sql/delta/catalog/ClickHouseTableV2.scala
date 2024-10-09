@@ -96,12 +96,8 @@ class ClickHouseTableV2(
 
   def getFileFormat(meta: Metadata): DeltaMergeTreeFileFormat = {
     new DeltaMergeTreeFileFormat(
-      StorageMeta.withMoreStorageInfo(
-        meta,
-        ClickhouseSnapshot.genSnapshotId(snapshot),
-        deltaLog.dataPath,
-        dataBaseName,
-        tableName))
+      StorageMeta
+        .withStorageID(meta, dataBaseName, tableName, ClickhouseSnapshot.genSnapshotId(snapshot)))
   }
 
   override def deltaProperties: Map[String, String] = properties().asScala.toMap
