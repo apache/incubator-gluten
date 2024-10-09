@@ -523,6 +523,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     // Enable Spark legacy date formatter if spark.sql.legacy.timeParserPolicy is set to 'LEGACY'.
     if (veloxCfg_->get<std::string>(kSparkLegacyTimeParserPolicy, "") == "LEGACY") {
       configs[velox::core::QueryConfig::kSparkLegacyDateFormatter] = "true";
+    } else {
+      configs[velox::core::QueryConfig::kSparkLegacyDateFormatter] = "false";
     }
 
   } catch (const std::invalid_argument& err) {
