@@ -95,7 +95,7 @@ trait StorageConfigProvider {
   val storageConf: Map[String, String]
 }
 
-trait TablePropertiesReader extends StorageConfigProvider {
+trait TablePropertiesReader {
 
   def configuration: Map[String, String]
 
@@ -177,21 +177,5 @@ trait TablePropertiesReader extends StorageConfigProvider {
                 s"Primary key $primaryKey must be a prefix of the sorting key $orderBy"))
         primaryKeys
     }
-  }
-
-  lazy val storageConf: Map[String, String] = {
-    val (orderByKey0, primaryKey0) = StorageMeta.genOrderByAndPrimaryKeyStr(
-      orderByKeyOption,
-      primaryKeyOption
-    )
-    Map(
-      StorageMeta.POLICY -> configuration.getOrElse(StorageMeta.POLICY, "default"),
-      StorageMeta.ORDER_BY_KEY -> orderByKey0,
-      StorageMeta.LOW_CARD_KEY -> StorageMeta.columnsToStr(lowCardKeyOption),
-      StorageMeta.MINMAX_INDEX_KEY -> StorageMeta.columnsToStr(minmaxIndexKeyOption),
-      StorageMeta.BF_INDEX_KEY -> StorageMeta.columnsToStr(bfIndexKeyOption),
-      StorageMeta.SET_INDEX_KEY -> StorageMeta.columnsToStr(setIndexKeyOption),
-      StorageMeta.PRIMARY_KEY -> primaryKey0
-    )
   }
 }

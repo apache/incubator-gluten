@@ -16,27 +16,35 @@
  */
 package org.apache.spark.sql.execution.datasources.mergetree
 
-import org.apache.gluten.expression.ConverterUtils.normalizeColName
+import org.apache.gluten.expression.ConverterUtils
 
 import org.apache.spark.sql.delta.actions.Metadata
 
-import org.apache.hadoop.conf.Configuration
-
-case class DeltaMetaReader(metadata: Metadata) extends TablePropertiesReader {
-
-  def storageDB: String = configuration(StorageMeta.DB)
-  def storageTable: String = configuration(StorageMeta.TABLE)
-  def storageSnapshotId: String = configuration(StorageMeta.SNAPSHOT_ID)
-
-  def updateToHadoopConf(conf: Configuration): Unit = {
-    conf.set(StorageMeta.DB, storageDB)
-    conf.set(StorageMeta.TABLE, storageTable)
-    conf.set(StorageMeta.SNAPSHOT_ID, storageSnapshotId)
-    storageConf.foreach { case (k, v) => conf.set(k, v) }
-  }
+case class DeltaMetaReader(metadata: Metadata)
+  extends TablePropertiesReader
+  with StorageConfigProvider {
 
   override lazy val partitionColumns: Seq[String] =
-    metadata.partitionColumns.map(normalizeColName)
+    metadata.partitionColumns.map(ConverterUtils.normalizeColName)
 
   override lazy val configuration: Map[String, String] = metadata.configuration
+
+  lazy val storageConf: Map[String, String] = {
+    val (orderByKey0, primaryKey0) = StorageMeta.genOrderByAndPrimaryKeyStr(
+      orderByKeyOption,
+      primaryKeyOption
+    )
+    Map(
+      StorageMeta.DB -> configuration(StorageMeta.DB),
+      StorageMeta.TABLE -> configuration(StorageMeta.TABLE),
+      StorageMeta.SNAPSHOT_ID -> configuration(StorageMeta.SNAPSHOT_ID),
+      StorageMeta.POLICY -> configuration.getOrElse(StorageMeta.POLICY, "default"),
+      StorageMeta.ORDER_BY_KEY -> orderByKey0,
+      StorageMeta.LOW_CARD_KEY -> StorageMeta.columnsToStr(lowCardKeyOption),
+      StorageMeta.MINMAX_INDEX_KEY -> StorageMeta.columnsToStr(minmaxIndexKeyOption),
+      StorageMeta.BF_INDEX_KEY -> StorageMeta.columnsToStr(bfIndexKeyOption),
+      StorageMeta.SET_INDEX_KEY -> StorageMeta.columnsToStr(setIndexKeyOption),
+      StorageMeta.PRIMARY_KEY -> primaryKey0
+    )
+  }
 }

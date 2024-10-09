@@ -57,7 +57,7 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
         .nativeConf(options, "")
 
     @transient val deltaMetaReader = DeltaMetaReader(metadata)
-    deltaMetaReader.updateToHadoopConf(conf)
+    deltaMetaReader.storageConf.foreach { case (k, v) => conf.set(k, v) }
 
     new OutputWriterFactory {
       override def getFileExtension(context: TaskAttemptContext): String = {
