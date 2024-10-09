@@ -8,7 +8,6 @@ LINUX_OS=$(. /etc/os-release && echo ${ID})
 VERSION=$(. /etc/os-release && echo ${VERSION_ID})
 ARCH=`uname -m`
 
-
 cd "$GLUTEN_DIR"
 
 # build gluten with velox backend, prompt always respond y
