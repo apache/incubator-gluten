@@ -120,32 +120,43 @@ case class CHHashAggregateExecTransformer(
             nameList.addAll(ConverterUtils.collectStructFieldNames(attr.dataType))
           }
           (child.output, output)
-        } else if (!modes.contains(Partial)) {
-          // non-partial mode
+        } else {
           var resultAttrIndex = 0
           for (attr <- aggregateResultAttributes) {
-            val colName = getIntermediateAggregateResultColumnName(
-              resultAttrIndex,
-              aggregateResultAttributes,
-              groupingExpressions,
-              aggregateExpressions)
-            nameList.add(colName)
-            val (dataType, nullable) =
-              getIntermediateAggregateResultType(attr, aggregateExpressions)
-            nameList.addAll(ConverterUtils.collectStructFieldNames(dataType))
-            typeList.add(ConverterUtils.getTypeNode(dataType, nullable))
+            val aggregateExpression = aggregateExpressions.find(_.resultAttribute == attr)
+            if (aggregateExpression.isEmpty) {
+              // These should be grouping keys
+              typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+              nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
+              nameList.addAll(ConverterUtils.collectStructFieldNames(attr.dataType))
+            } else {
+              // It's an aggregate expression
+              // There could be multiple aggregate mode in the same step. We need to adjust
+              // the input schema according to the AggregateMode.
+              if (aggregateExpression.get.mode != Partial) {
+                val colName = getIntermediateAggregateResultColumnName(
+                  resultAttrIndex,
+                  aggregateResultAttributes,
+                  groupingExpressions,
+                  aggregateExpressions)
+                nameList.add(colName)
+                val (dataType, nullable) =
+                  getIntermediateAggregateResultType(attr, aggregateExpressions)
+                nameList.addAll(ConverterUtils.collectStructFieldNames(dataType))
+                typeList.add(ConverterUtils.getTypeNode(dataType, nullable))
+              } else {
+                typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+                nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
+                nameList.addAll(ConverterUtils.collectStructFieldNames(attr.dataType))
+              }
+            }
             resultAttrIndex += 1
           }
-          (aggregateResultAttributes, output)
-        } else {
-          // partial mode
-          for (attr <- child.output) {
-            typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-            nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
-            nameList.addAll(ConverterUtils.collectStructFieldNames(attr.dataType))
+          if (modes.forall(_ == Partial)) {
+            (child.output, aggregateResultAttributes)
+          } else {
+            (aggregateResultAttributes, output)
           }
-
-          (child.output, aggregateResultAttributes)
         }
       }
 

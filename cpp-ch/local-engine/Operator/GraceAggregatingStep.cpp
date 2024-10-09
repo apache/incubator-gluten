@@ -16,36 +16,34 @@
  */
 
 #include "GraceAggregatingStep.h"
-#include "GraceAggregatingTransform.h"
 #include <Interpreters/JoinUtils.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/BitHelpers.h>
 #include <Common/CHUtil.h>
 #include <Common/CurrentThread.h>
-#include <Common/formatReadable.h>
-#include <Common/BitHelpers.h>
 #include <Common/GlutenConfig.h>
 #include <Common/QueryContext.h>
+#include <Common/formatReadable.h>
+#include "GraceAggregatingTransform.h"
 
 namespace DB::ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
+extern const int LOGICAL_ERROR;
 }
 
 namespace local_engine
 {
 static DB::ITransformingStep::Traits getTraits()
 {
-    return DB::ITransformingStep::Traits
-    {
+    return DB::ITransformingStep::Traits{
         {
             .preserves_number_of_streams = false,
             .preserves_sorting = false,
         },
         {
             .preserves_number_of_rows = false,
-        }
-    };
+        }};
 }
 
 static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Aggregator::Params params_, bool final)
@@ -54,12 +52,8 @@ static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Ag
 }
 
 GraceAggregatingStep::GraceAggregatingStep(
-    DB::ContextPtr context_,
-    const DB::DataStream & input_stream_,
-    DB::Aggregator::Params params_,
-    bool no_pre_aggregated_)
-    : DB::ITransformingStep(
-        input_stream_, buildOutputHeader(input_stream_.header, params_, true), getTraits())
+    DB::ContextPtr context_, const DB::DataStream & input_stream_, DB::Aggregator::Params params_, bool no_pre_aggregated_)
+    : DB::ITransformingStep(input_stream_, buildOutputHeader(input_stream_.header, params_, false), getTraits())
     , context(context_)
     , params(std::move(params_))
     , no_pre_aggregated(no_pre_aggregated_)
@@ -80,7 +74,8 @@ void GraceAggregatingStep::transformPipeline(DB::QueryPipelineBuilder & pipeline
         DB::Processors new_processors;
         for (auto & output : outputs)
         {
-            auto op = std::make_shared<GraceAggregatingTransform>(pipeline.getHeader(), transform_params, context, no_pre_aggregated, true);
+            auto op
+                = std::make_shared<GraceAggregatingTransform>(pipeline.getHeader(), transform_params, context, no_pre_aggregated, false);
             new_processors.push_back(op);
             DB::connect(*output, op->getInputs().front());
         }
@@ -102,7 +97,8 @@ void GraceAggregatingStep::describeActions(DB::JSONBuilder::JSONMap & map) const
 
 void GraceAggregatingStep::updateOutputStream()
 {
-    output_stream = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params, true), getDataStreamTraits());
+    output_stream
+        = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params, true), getDataStreamTraits());
 }
 
 
