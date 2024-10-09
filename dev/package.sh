@@ -8,10 +8,6 @@ LINUX_OS=$(. /etc/os-release && echo ${ID})
 VERSION=$(. /etc/os-release && echo ${VERSION_ID})
 ARCH=`uname -m`
 
-if [[ -z "$JAVA_HOME" ]]; then
-  echo "JAVA_HOME needs to be set for Gluten compilation"
-  exit 1
-fi
 
 cd "$GLUTEN_DIR"
 
