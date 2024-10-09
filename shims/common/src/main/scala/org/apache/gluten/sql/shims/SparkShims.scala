@@ -272,12 +272,17 @@ trait SparkShims {
     throw new UnsupportedOperationException("ArrayInsert not supported.")
   }
 
-  /** Shim method for GlutenExplainUtils.scala. */
+  /** Shim method for usages from GlutenExplainUtils.scala. */
+  def withOperatorIdMap[T](idMap: java.util.Map[QueryPlan[_], Int])(body: => T): T = {
+    body
+  }
+
+  /** Shim method for usages from GlutenExplainUtils.scala. */
   def getOperatorId(plan: QueryPlan[_]): Option[Int]
 
-  /** Shim method for GlutenExplainUtils.scala. */
+  /** Shim method for usages from GlutenExplainUtils.scala. */
   def setOperatorId(plan: QueryPlan[_], opId: Int): Unit
 
-  /** Shim method for GlutenExplainUtils.scala. */
+  /** Shim method for usages from GlutenExplainUtils.scala. */
   def unsetOperatorId(plan: QueryPlan[_]): Unit
 }
