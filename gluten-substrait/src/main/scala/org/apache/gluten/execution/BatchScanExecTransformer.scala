@@ -26,7 +26,7 @@ import org.apache.gluten.utils.FileIndexUtil
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.QueryPlanWrapper
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
@@ -57,8 +57,8 @@ case class BatchScanExecTransformer(
 
   override def doCanonicalize(): BatchScanExecTransformer = {
     this.copy(
-      output = output.map(QueryPlanWrapper.normalizeExpressions(_, output)),
-      runtimeFilters = QueryPlanWrapper.normalizePredicates(
+      output = output.map(QueryPlan.normalizeExpressions(_, output)),
+      runtimeFilters = QueryPlan.normalizePredicates(
         runtimeFilters.filterNot(_ == DynamicPruningExpression(Literal.TrueLiteral)),
         output)
     )

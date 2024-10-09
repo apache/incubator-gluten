@@ -21,7 +21,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.catalyst.plans.QueryPlanWrapper
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.types.StructType
@@ -66,14 +66,14 @@ case class DeltaScanTransformer(
   override def doCanonicalize(): DeltaScanTransformer = {
     DeltaScanTransformer(
       relation,
-      output.map(QueryPlanWrapper.normalizeExpressions(_, output)),
+      output.map(QueryPlan.normalizeExpressions(_, output)),
       requiredSchema,
-      QueryPlanWrapper.normalizePredicates(
+      QueryPlan.normalizePredicates(
         filterUnusedDynamicPruningExpressions(partitionFilters),
         output),
       optionalBucketSet,
       optionalNumCoalescedBuckets,
-      QueryPlanWrapper.normalizePredicates(dataFilters, output),
+      QueryPlan.normalizePredicates(dataFilters, output),
       None,
       disableBucketedScan
     )

@@ -23,7 +23,7 @@ import org.apache.gluten.metrics.GlutenTimeMetric
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.QueryPlanWrapper
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelation, HashJoin, LongHashedRelation}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.util.ThreadUtils
@@ -59,7 +59,7 @@ case class ColumnarSubqueryBroadcastExec(
     BackendsApiManager.getMetricsApiInstance.genColumnarSubqueryBroadcastMetrics(sparkContext)
 
   override def doCanonicalize(): SparkPlan = {
-    val keys = buildKeys.map(k => QueryPlanWrapper.normalizeExpressions(k, child.output))
+    val keys = buildKeys.map(k => QueryPlan.normalizeExpressions(k, child.output))
     copy(name = "native-dpp", buildKeys = keys, child = child.canonicalized)
   }
 
