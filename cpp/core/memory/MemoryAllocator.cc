@@ -50,16 +50,20 @@ bool ListenableMemoryAllocator::allocateAligned(uint64_t alignment, int64_t size
 
 bool ListenableMemoryAllocator::reallocate(void* p, int64_t size, int64_t newSize, void** out) {
   int64_t diff = newSize - size;
-  if (diff > 0) {
+  if (diff >= 0) {
     updateUsage(diff);
+    bool succeed = delegated_->reallocate(p, size, newSize, out);
+    if (!succeed) {
+      updateUsage(-diff);
+    }
+    return succeed;
+  } else {
+    bool succeed = delegated_->reallocate(p, size, newSize, out);
+    if (succeed) {
+      updateUsage(diff);
+    }
+    return succeed;
   }
-  bool succeed = delegated_->reallocate(p, size, newSize, out);
-  if (succeed && diff < 0) {
-    updateUsage(diff);
-  } else if (!succeed && diff > 0) {
-    updateUsage(-diff);
-  }
-  return succeed;
 }
 
 bool ListenableMemoryAllocator::reallocateAligned(
@@ -69,16 +73,20 @@ bool ListenableMemoryAllocator::reallocateAligned(
     int64_t newSize,
     void** out) {
   int64_t diff = newSize - size;
-  if (diff > 0) {
+  if (diff >= 0) {
     updateUsage(diff);
+    bool succeed = delegated_->reallocateAligned(p, alignment, size, newSize, out);
+    if (!succeed) {
+      updateUsage(-diff);
+    }
+    return succeed;
+  } else {
+    bool succeed = delegated_->reallocateAligned(p, alignment, size, newSize, out);
+    if (succeed) {
+      updateUsage(diff);
+    }
+    return succeed;
   }
-  bool succeed = delegated_->reallocateAligned(p, alignment, size, newSize, out);
-  if (succeed && diff < 0) {
-    updateUsage(diff);
-  } else if (!succeed && diff > 0) {
-    updateUsage(-diff);
-  }
-  return succeed;
 }
 
 bool ListenableMemoryAllocator::free(void* p, int64_t size) {
