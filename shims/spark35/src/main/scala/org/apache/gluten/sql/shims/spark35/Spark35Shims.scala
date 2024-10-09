@@ -526,27 +526,15 @@ class Spark35Shims extends SparkShims {
     Seq(expr.srcArrayExpr, expr.posExpr, expr.itemExpr, Literal(expr.legacyNegativeIndex))
   }
 
-  override def withOperatorIdMap[T](idMap: java.util.Map[QueryPlan[_], Int])(body: => T): T = {
-    val prevIdMap = QueryPlan.localIdMap.get()
-    try {
-      QueryPlan.localIdMap.set(idMap)
-      body
-    } finally {
-      QueryPlan.localIdMap.set(prevIdMap)
-    }
-  }
-
   override def getOperatorId(plan: QueryPlan[_]): Option[Int] = {
-    Option(QueryPlan.localIdMap.get().get(plan))
+    plan.getTagValue(QueryPlan.OP_ID_TAG)
   }
 
   override def setOperatorId(plan: QueryPlan[_], opId: Int): Unit = {
-    val map = QueryPlan.localIdMap.get()
-    assert(!map.containsKey(plan))
-    map.put(plan, opId)
+    plan.setTagValue(QueryPlan.OP_ID_TAG, opId)
   }
 
   override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
-    QueryPlan.localIdMap.get().remove(plan)
+    plan.unsetTagValue(QueryPlan.OP_ID_TAG)
   }
 }
