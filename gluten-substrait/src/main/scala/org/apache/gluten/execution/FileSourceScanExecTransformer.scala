@@ -25,7 +25,7 @@ import org.apache.gluten.utils.FileIndexUtil
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, PlanExpression}
-import org.apache.spark.sql.catalyst.plans.QueryPlanWrapper
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
@@ -57,14 +57,14 @@ case class FileSourceScanExecTransformer(
   override def doCanonicalize(): FileSourceScanExecTransformer = {
     FileSourceScanExecTransformer(
       relation,
-      output.map(QueryPlanWrapper.normalizeExpressions(_, output)),
+      output.map(QueryPlan.normalizeExpressions(_, output)),
       requiredSchema,
-      QueryPlanWrapper.normalizePredicates(
+      QueryPlan.normalizePredicates(
         filterUnusedDynamicPruningExpressions(partitionFilters),
         output),
       optionalBucketSet,
       optionalNumCoalescedBuckets,
-      QueryPlanWrapper.normalizePredicates(dataFilters, output),
+      QueryPlan.normalizePredicates(dataFilters, output),
       None,
       disableBucketedScan
     )
