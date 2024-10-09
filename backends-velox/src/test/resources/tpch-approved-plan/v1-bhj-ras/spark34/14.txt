@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (35)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (23)
+   VeloxColumnarToRow (23)
    +- ^ ProjectExecTransformer (21)
       +- ^ RegularHashAggregateExecTransformer (20)
          +- ^ InputIteratorTransformer (19)
@@ -131,7 +131,7 @@ Input [2]: [sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN (l_extendedprice#X * 
 Input [1]: [promo_revenue#X]
 Arguments: false
 
-(23) VeloxColumnarToRowExec
+(23) VeloxColumnarToRow
 Input [1]: [promo_revenue#X]
 
 (24) Scan parquet

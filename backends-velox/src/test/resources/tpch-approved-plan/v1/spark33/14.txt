@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (39)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (25)
+   VeloxColumnarToRow (25)
    +- ^ ProjectExecTransformer (23)
       +- ^ RegularHashAggregateExecTransformer (22)
          +- ^ RegularHashAggregateExecTransformer (21)
@@ -142,7 +142,7 @@ Input [2]: [sum(CASE WHEN StartsWith(p_type#X, PROMO) THEN CheckOverflow((promot
 Input [1]: [promo_revenue#X]
 Arguments: false
 
-(25) VeloxColumnarToRowExec
+(25) VeloxColumnarToRow
 Input [1]: [promo_revenue#X]
 
 (26) Scan parquet

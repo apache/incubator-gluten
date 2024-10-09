@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (110)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (70)
+   VeloxColumnarToRow (70)
    +- TakeOrderedAndProjectExecTransformer (69)
       +- ^ RegularHashAggregateExecTransformer (67)
          +- ^ RegularHashAggregateExecTransformer (66)
@@ -394,7 +394,7 @@ Arguments: false
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 Arguments: X, [o_totalprice#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X], 0
 
-(70) VeloxColumnarToRowExec
+(70) VeloxColumnarToRow
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 
 (71) Scan parquet

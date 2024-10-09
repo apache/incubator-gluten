@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (40)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (28)
+   VeloxColumnarToRow (28)
    +- ^ SortExecTransformer (26)
       +- ^ InputIteratorTransformer (25)
          +- ShuffleQueryStage (23), Statistics(X)
@@ -150,7 +150,7 @@ Arguments: [cntrycode#X ASC NULLS FIRST], true, 0
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 Arguments: false
 
-(28) VeloxColumnarToRowExec
+(28) VeloxColumnarToRow
 Input [3]: [cntrycode#X, numcust#X, totacctbal#X]
 
 (29) Scan parquet
@@ -218,7 +218,7 @@ Arguments: isFinalPlan=true
 Subquery:1 Hosting operator id = 2 Hosting Expression = Subquery subquery#X, [id=#X]
 AdaptiveSparkPlan (60)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (53)
+   VeloxColumnarToRow (53)
    +- ^ RegularHashAggregateExecTransformer (51)
       +- ^ InputIteratorTransformer (50)
          +- ShuffleQueryStage (48), Statistics(X)
@@ -292,7 +292,7 @@ Results [1]: [avg(c_acctbal#X)#X AS avg(c_acctbal)#X]
 Input [1]: [avg(c_acctbal)#X]
 Arguments: false
 
-(53) VeloxColumnarToRowExec
+(53) VeloxColumnarToRow
 Input [1]: [avg(c_acctbal)#X]
 
 (54) Scan parquet
@@ -335,7 +335,7 @@ Arguments: isFinalPlan=true
 Subquery:2 Hosting operator id = 1 Hosting Expression = Subquery subquery#X, [id=#X]
 AdaptiveSparkPlan (60)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (53)
+   VeloxColumnarToRow (53)
    +- ^ RegularHashAggregateExecTransformer (51)
       +- ^ InputIteratorTransformer (50)
          +- ShuffleQueryStage (48), Statistics(X)
