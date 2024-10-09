@@ -102,7 +102,9 @@ class ClickHouseTableV2(
       StorageMeta.withMoreStorageInfo(
         meta,
         ClickhouseSnapshot.genSnapshotId(initialSnapshot),
-        deltaLog.dataPath))
+        deltaLog.dataPath,
+        dataBaseName,
+        tableName))
   }
 
   override def deltaProperties: Map[String, String] = properties().asScala.toMap

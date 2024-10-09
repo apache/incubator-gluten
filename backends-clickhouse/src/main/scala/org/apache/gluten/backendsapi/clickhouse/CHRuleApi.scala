@@ -19,7 +19,7 @@ package org.apache.gluten.backendsapi.clickhouse
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.MiscColumnarRules._
+import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast, TransformPreOverrides}
 import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
 import org.apache.gluten.extension.injector.{RuleInjector, SparkInjector}
@@ -28,7 +28,7 @@ import org.apache.gluten.parser.{GlutenCacheFilesSqlParser, GlutenClickhouseSqlP
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.PhysicalPlanSelector
 
-import org.apache.spark.sql.catalyst._
+import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRewrite}
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter}
 import org.apache.spark.util.SparkPlanRules
 
@@ -44,7 +44,7 @@ class CHRuleApi extends RuleApi {
 }
 
 private object CHRuleApi {
-  private def injectSpark(injector: SparkInjector): Unit = {
+  def injectSpark(injector: SparkInjector): Unit = {
     // Inject the regular Spark rules directly.
     injector.injectQueryStagePrepRule(FallbackBroadcastHashJoinPrepQueryStage.apply)
     injector.injectQueryStagePrepRule(spark => CHAQEPropagateEmptyRelation(spark))
@@ -61,10 +61,9 @@ private object CHRuleApi {
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))
     injector.injectOptimizerRule(_ => CountDistinctWithoutExpand)
     injector.injectOptimizerRule(_ => EqualToRewrite)
-    CHExtendRule.injectSpark(injector)
   }
 
-  private def injectLegacy(injector: LegacyInjector): Unit = {
+  def injectLegacy(injector: LegacyInjector): Unit = {
     // Gluten columnar: Transform rules.
     injector.injectTransform(_ => RemoveTransitions)
     injector.injectTransform(_ => PushDownInputFileExpression.PreOffload)
@@ -108,7 +107,7 @@ private object CHRuleApi {
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 
-  private def injectRas(injector: RasInjector): Unit = {
+  def injectRas(injector: RasInjector): Unit = {
     // CH backend doesn't work with RAS at the moment. Inject a rule that aborts any
     // execution calls.
     injector.inject(
