@@ -231,7 +231,7 @@ endif()
 
 target_include_directories(
   velox PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS}
-               ${CMAKE_CURRENT_SOURCE_DIR} ${VELOX_HOME}/ ${VELOX_BUILD_PATH}/)
+               ${CMAKE_CURRENT_SOURCE_DIR} ${VELOX_HOME})
 
 set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
                                        ${root_directory}/releases)

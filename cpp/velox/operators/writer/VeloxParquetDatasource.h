@@ -48,7 +48,7 @@
 #endif
 #include "velox/dwio/common/FileSink.h"
 #include "velox/dwio/common/Options.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
+#include "velox/dwio/common/ReaderFactory.h"
 #include "velox/dwio/parquet/writer/Writer.h"
 #include "velox/vector/ComplexVector.h"
 
