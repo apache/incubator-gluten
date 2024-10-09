@@ -21,16 +21,10 @@
 #include <string>
 #include <Core/Block.h>
 #include <Functions/FunctionFactory.h>
-#include <Parser/SerializedPlanParser.h>
-#include <base/types.h>
 #include <boost/asio/detail/eventfd_select_interrupter.hpp>
 #include <jni/jni_common.h>
-#include <Poco/Logger.h>
 #include <Poco/StringTokenizer.h>
-#include <Common/Exception.h>
 #include <Common/JNIUtils.h>
-#include <Common/logger_useful.h>
-#include <Storages/IO/AggregateSerializationUtils.h>
 
 namespace local_engine
 {
@@ -86,7 +80,7 @@ void NativeSplitter::split(DB::Block & block)
     {
         if (partition_buffer[i]->size() >= options.buffer_size)
         {
-            output_buffer.emplace(std::pair(i, std::make_unique<Block>(partition_buffer[i]->releaseColumns())));
+            output_buffer.emplace(std::pair(i, std::make_unique<DB::Block>(partition_buffer[i]->releaseColumns())));
         }
     }
 }
@@ -116,7 +110,7 @@ bool NativeSplitter::hasNext()
     {
         if (inputHasNext())
         {
-            split(*reinterpret_cast<Block *>(inputNext()));
+            split(*reinterpret_cast<DB::Block *>(inputNext()));
         }
         else
         {
@@ -125,7 +119,7 @@ bool NativeSplitter::hasNext()
                 auto buffer = partition_buffer.at(i);
                 if (buffer->size() > 0)
                 {
-                    output_buffer.emplace(std::pair(i, new Block(buffer->releaseColumns())));
+                    output_buffer.emplace(std::pair(i, new DB::Block(buffer->releaseColumns())));
                 }
             }
             break;
@@ -214,7 +208,7 @@ HashNativeSplitter::HashNativeSplitter(NativeSplitter::Options options_, jobject
     selector_builder = std::make_unique<HashSelectorBuilder>(options.partition_num, hash_fields, options_.hash_algorithm);
 }
 
-void HashNativeSplitter::computePartitionId(Block & block)
+void HashNativeSplitter::computePartitionId(DB::Block & block)
 {
     partition_info = selector_builder->build(block);
 }
@@ -229,7 +223,7 @@ RoundRobinNativeSplitter::RoundRobinNativeSplitter(NativeSplitter::Options optio
     selector_builder = std::make_unique<RoundRobinSelectorBuilder>(options_.partition_num);
 }
 
-void RoundRobinNativeSplitter::computePartitionId(Block & block)
+void RoundRobinNativeSplitter::computePartitionId(DB::Block & block)
 {
     partition_info = selector_builder->build(block);
 }

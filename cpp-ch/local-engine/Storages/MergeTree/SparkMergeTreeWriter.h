@@ -21,6 +21,7 @@
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
+#include <Storages/NativeOutputWriter.h>
 
 namespace DB
 {
@@ -44,12 +45,13 @@ struct PartInfo
     String bucket_id;
 
     bool operator<(const PartInfo & rhs) const { return disk_size < rhs.disk_size; }
+
+    static std::string toJson(const std::vector<PartInfo> & part_infos);
 };
 
-class SparkMergeTreeWriter
+class SparkMergeTreeWriter : public NativeOutputWriter
 {
 public:
-    static String partInfosToJson(const std::vector<PartInfo> & part_infos);
     static std::unique_ptr<SparkMergeTreeWriter> create(
         const MergeTreeTable & merge_tree_table,
         const SparkMergeTreeWritePartitionSettings & write_settings_,
@@ -61,9 +63,8 @@ public:
         DB::QueryPipeline && pipeline_,
         std::unordered_map<String, String> && partition_values_);
 
-    void write(const DB::Block & block);
-    void finalize();
-    std::vector<PartInfo> getAllPartInfo() const;
+    void write(DB::Block & block) override;
+    std::string close() override;
 
 private:
     DB::Block header;
@@ -71,5 +72,7 @@ private:
     DB::QueryPipeline pipeline;
     DB::PushingPipelineExecutor executor;
     std::unordered_map<String, String> partition_values;
+
+    std::vector<PartInfo> getAllPartInfo() const;
 };
 }

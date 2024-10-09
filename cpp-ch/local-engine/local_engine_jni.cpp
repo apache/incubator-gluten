@@ -30,7 +30,6 @@
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
 #include <Parser/SubstraitParserUtils.h>
-#include <Processors/Executors/PipelineExecutor.h>
 #include <Shuffle/NativeSplitter.h>
 #include <Shuffle/NativeWriterInMemory.h>
 #include <Shuffle/PartitionWriter.h>
@@ -45,12 +44,12 @@
 #include <Storages/MergeTree/SparkMergeTreeWriter.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <Storages/Output/BlockStripeSplitter.h>
-#include <Storages/Output/FileWriterWrappers.h>
+#include <Storages/Output/NormalFileWriter.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
-#include <google/protobuf/wrappers.pb.h>
 #include <jni/SharedPointerWrapper.h>
 #include <jni/jni_common.h>
 #include <jni/jni_error.h>
+#include <write_optimization.pb.h>
 #include <Poco/Logger.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
@@ -906,58 +905,41 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_CHBlockWriterJniWrapper_nativeC
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeInitFileWriterWrapper(
-    JNIEnv * env, jobject, jstring file_uri_, jbyteArray preferred_schema_, jstring format_hint_)
+JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_createFilerWriter(
+    JNIEnv * env, jobject, jstring file_uri_, jbyteArray writeRel)
 {
     LOCAL_ENGINE_JNI_METHOD_START
 
-    const auto preferred_schema_ref = local_engine::getByteArrayElementsSafe(env, preferred_schema_);
-    auto parse_named_struct = [&]() -> std::optional<substrait::NamedStruct>
-    {
-        std::string_view view{
-            reinterpret_cast<const char *>(preferred_schema_ref.elems()), static_cast<size_t>(preferred_schema_ref.length())};
+    const auto writeRelBytes = local_engine::getByteArrayElementsSafe(env, writeRel);
+    substrait::WriteRel write_rel = local_engine::BinaryToMessage<substrait::WriteRel>(
+        {reinterpret_cast<const char *>(writeRelBytes.elems()), static_cast<size_t>(writeRelBytes.length())});
 
-        substrait::NamedStruct res;
-        bool ok = res.ParseFromString(view);
-        if (!ok)
-            return {};
-        return std::move(res);
-    };
+    assert(write_rel.has_named_table());
+    const substrait::NamedObjectWrite & named_table = write_rel.named_table();
+    local_engine::Write write_opt;
+    named_table.advanced_extension().optimization().UnpackTo(&write_opt);
+    DB::Block preferred_schema = local_engine::TypeParser::buildBlockFromNamedStructWithoutDFS(write_rel.table_schema());
 
-    auto named_struct = parse_named_struct();
-    if (!named_struct.has_value())
-        throw DB::Exception(DB::ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse schema from substrait protobuf failed");
-
-    DB::Block preferred_schema = local_engine::TypeParser::buildBlockFromNamedStructWithoutDFS(*named_struct);
     const auto file_uri = jstring2string(env, file_uri_);
+
     // for HiveFileFormat, the file url may not end with .parquet, so we pass in the format as a hint
-    const auto format_hint = jstring2string(env, format_hint_);
     const auto context = local_engine::QueryContext::instance().currentQueryContext();
-    auto * writer = local_engine::createFileWriterWrapper(context, file_uri, preferred_schema, format_hint).release();
+    auto * writer = local_engine::NormalFileWriter::create(context, file_uri, preferred_schema, write_opt.common().format()).release();
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
 
-JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeInitMergeTreeWriterWrapper(
-    JNIEnv * env,
-    jobject,
-    jbyteArray plan_,
-    jbyteArray split_info_,
-    jstring uuid_,
-    jstring task_id_,
-    jstring partition_dir_,
-    jstring bucket_dir_,
-    jbyteArray conf_plan)
+JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_createMergeTreeWriter(
+    JNIEnv * env, jobject, jstring task_id_, jstring partition_dir_, jstring bucket_dir_, jbyteArray writeRel, jbyteArray conf_plan)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto query_context = local_engine::QueryContext::instance().currentQueryContext();
     // by task update new configs ( in case of dynamic config update )
     const auto conf_plan_a = local_engine::getByteArrayElementsSafe(env, conf_plan);
-    const std::string::size_type conf_plan_size = conf_plan_a.length();
+    local_engine::SparkConfigs::updateConfig(
+        query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), static_cast<size_t>(conf_plan_a.length())});
 
-    local_engine::SparkConfigs::updateConfig(query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), conf_plan_size});
-
-    const auto uuid_str = jstring2string(env, uuid_);
+    const auto uuid_str = toString(DB::UUIDHelpers::generateV4());
     const auto task_id = jstring2string(env, task_id_);
     const auto partition_dir = jstring2string(env, partition_dir_);
     const auto bucket_dir = jstring2string(env, bucket_dir_);
@@ -966,10 +948,10 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
         .part_name_prefix{uuid}, .partition_dir{partition_dir}, .bucket_dir{bucket_dir}};
     settings.set(query_context);
 
-    const auto split_info_a = local_engine::getByteArrayElementsSafe(env, split_info_);
-    auto extension_table = local_engine::BinaryToMessage<substrait::ReadRel::ExtensionTable>(
-        {reinterpret_cast<const char *>(split_info_a.elems()), static_cast<size_t>(split_info_a.length())});
-    local_engine::MergeTreeTableInstance merge_tree_table(extension_table);
+    const auto writeRelBytes = local_engine::getByteArrayElementsSafe(env, writeRel);
+    substrait::WriteRel write_rel = local_engine::BinaryToMessage<substrait::WriteRel>(
+        {reinterpret_cast<const char *>(writeRelBytes.elems()), static_cast<size_t>(writeRelBytes.length())});
+    local_engine::MergeTreeTable merge_tree_table(write_rel);
     auto * writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, settings, query_context).release();
 
     return reinterpret_cast<jlong>(writer);
@@ -1003,59 +985,28 @@ Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_write(JNI
 {
     LOCAL_ENGINE_JNI_METHOD_START
 
-    auto * writer = reinterpret_cast<local_engine::NormalFileWriter *>(instanceId);
+    auto * writer = reinterpret_cast<local_engine::NativeOutputWriter *>(instanceId);
     auto * block = reinterpret_cast<DB::Block *>(block_address);
-    writer->consume(*block);
-    LOCAL_ENGINE_JNI_METHOD_END(env, )
-}
-
-JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_close(JNIEnv * env, jobject, jlong instanceId)
-{
-    LOCAL_ENGINE_JNI_METHOD_START
-    auto * writer = reinterpret_cast<local_engine::NormalFileWriter *>(instanceId);
-    SCOPE_EXIT({ delete writer; });
-    writer->close();
-    LOCAL_ENGINE_JNI_METHOD_END(env, )
-}
-
-JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_writeToMergeTree(
-    JNIEnv * env, jobject, jlong instanceId, jlong block_address)
-{
-    LOCAL_ENGINE_JNI_METHOD_START
-    auto * writer = reinterpret_cast<local_engine::SparkMergeTreeWriter *>(instanceId);
-    const auto * block = reinterpret_cast<DB::Block *>(block_address);
     writer->write(*block);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-JNIEXPORT jstring
-Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_closeMergeTreeWriter(JNIEnv * env, jobject, jlong instanceId)
+JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_close(JNIEnv * env, jobject, jlong instanceId)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    auto * writer = reinterpret_cast<local_engine::SparkMergeTreeWriter *>(instanceId);
+    auto * writer = reinterpret_cast<local_engine::NativeOutputWriter *>(instanceId);
     SCOPE_EXIT({ delete writer; });
-
-    writer->finalize();
-    const auto part_infos = writer->getAllPartInfo();
-    const auto json_info = local_engine::SparkMergeTreeWriter::partInfosToJson(part_infos);
-    return local_engine::charTojstring(env, json_info.c_str());
+    const auto result = writer->close();
+    return local_engine::charTojstring(env, result.c_str());
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }
 
 JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeMergeMTParts(
-    JNIEnv * env,
-    jobject,
-    jbyteArray plan_,
-    jbyteArray split_info_,
-    jstring uuid_,
-    jstring task_id_,
-    jstring partition_dir_,
-    jstring bucket_dir_)
+    JNIEnv * env, jclass, jbyteArray split_info_, jstring partition_dir_, jstring bucket_dir_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
 
-    const auto uuid_str = jstring2string(env, uuid_);
-
+    const auto uuid_str = toString(DB::UUIDHelpers::generateV4());
     const auto partition_dir = jstring2string(env, partition_dir_);
     const auto bucket_dir = jstring2string(env, bucket_dir_);
 
@@ -1074,8 +1025,8 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     DB::StorageID storage_id = temp_storage->getStorageID();
     SCOPE_EXIT({ local_engine::StorageMergeTreeFactory::freeStorage(storage_id); });
 
-    std::vector<DB::DataPartPtr> selected_parts = local_engine::StorageMergeTreeFactory::instance().getDataPartsByNames(
-        temp_storage->getStorageID(), "", merge_tree_table.getPartNames());
+    std::vector<DB::DataPartPtr> selected_parts
+        = local_engine::StorageMergeTreeFactory::getDataPartsByNames(temp_storage->getStorageID(), "", merge_tree_table.getPartNames());
 
     std::unordered_map<String, String> partition_values;
     std::vector<DB::MergeTreeDataPartPtr> loaded
@@ -1089,8 +1040,7 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
             partPtr->name, partPtr->getMarksCount(), partPtr->getBytesOnDisk(), partPtr->rows_count, partition_values, bucket_dir});
     }
 
-    auto json_info = local_engine::SparkMergeTreeWriter::partInfosToJson(res);
-
+    auto json_info = local_engine::PartInfo::toJson(res);
     return local_engine::charTojstring(env, json_info.c_str());
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }

@@ -26,59 +26,86 @@ import org.apache.gluten.utils.ConfigUtil
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, OutputWriter}
-import org.apache.spark.sql.execution.datasources.clickhouse.{ClickhouseMetaSerializer, ClickhousePartSerializer}
+import org.apache.spark.sql.execution.datasources.mergetree.{MetaSerializer, PartSerializer, StorageConfigProvider, StorageMeta}
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputWriter
 import org.apache.spark.sql.types.StructType
 
 import com.google.common.collect.Lists
 import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.NamedStruct
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import java.util.{Map => JMap, UUID}
+import java.{util => ju}
 
 import scala.collection.JavaConverters._
 
 case class PlanWithSplitInfo(plan: Array[Byte], splitInfo: Array[Byte])
 
+case class HadoopConfReader(conf: Configuration) extends StorageConfigProvider {
+  lazy val storageConf: Map[String, String] = {
+    conf
+      .iterator()
+      .asScala
+      .filter(_.getKey.startsWith(StorageMeta.STORAGE_PREFIX))
+      .map(entry => entry.getKey -> entry.getValue)
+      .toMap
+  }
+}
+
 class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
 
   override def nativeConf(
       options: Map[String, String],
-      compressionCodec: String): JMap[String, String] = {
+      compressionCodec: String): ju.Map[String, String] = {
     options.asJava
   }
 
+  override def createNativeWrite(outputPath: String, context: TaskAttemptContext): Write = {
+    val conf = HadoopConfReader(context.getConfiguration).storageConf
+    Write
+      .newBuilder()
+      .setCommon(Write.Common.newBuilder().setFormat(formatName).build())
+      .setMergetree(
+        Write.MergeTreeWrite
+          .newBuilder()
+          .setDatabase(conf(StorageMeta.DB))
+          .setTable(conf(StorageMeta.TABLE))
+          .setSnapshotId(conf(StorageMeta.SNAPSHOT_ID))
+          .setOrderByKey(conf(StorageMeta.ORDER_BY_KEY))
+          .setLowCardKey(conf(StorageMeta.LOW_CARD_KEY))
+          .setMinmaxIndexKey(conf(StorageMeta.MINMAX_INDEX_KEY))
+          .setBfIndexKey(conf(StorageMeta.BF_INDEX_KEY))
+          .setSetIndexKey(conf(StorageMeta.SET_INDEX_KEY))
+          .setPrimaryKey(conf(StorageMeta.PRIMARY_KEY))
+          .setRelativePath(StorageMeta.normalizeRelativePath(outputPath))
+          .setAbsolutePath("")
+          .setStoragePolicy(conf(StorageMeta.POLICY))
+          .build())
+      .build()
+  }
+
   override def createOutputWriter(
-      path: String,
+      outputPath: String,
       dataSchema: StructType,
       context: TaskAttemptContext,
-      nativeConf: JMap[String, String]): OutputWriter = null
+      nativeConf: ju.Map[String, String]): OutputWriter = {
+
+    val storage = HadoopConfReader(context.getConfiguration)
+    val database = storage.storageConf(StorageMeta.DB)
+    val tableName = storage.storageConf(StorageMeta.TABLE)
+
+    val datasourceJniWrapper = new CHDatasourceJniWrapper(
+      context.getTaskAttemptID.getTaskID.getId.toString,
+      context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
+      context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
+      createWriteRel(outputPath, dataSchema, context),
+      ConfigUtil.serialize(nativeConf)
+    )
+    new MergeTreeOutputWriter(datasourceJniWrapper, database, tableName, outputPath)
+  }
 
   override val formatName: String = "mergetree"
-
-  def createOutputWriter(
-      path: String,
-      dataSchema: StructType,
-      context: TaskAttemptContext,
-      nativeConf: JMap[String, String],
-      database: String,
-      tableName: String,
-      splitInfo: Array[Byte]): OutputWriter = {
-    val datasourceJniWrapper = new CHDatasourceJniWrapper()
-    val instance =
-      datasourceJniWrapper.nativeInitMergeTreeWriterWrapper(
-        null,
-        splitInfo,
-        UUID.randomUUID.toString,
-        context.getTaskAttemptID.getTaskID.getId.toString,
-        context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
-        context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
-        ConfigUtil.serialize(nativeConf)
-      )
-
-    new MergeTreeOutputWriter(database, tableName, datasourceJniWrapper, instance, path)
-  }
 }
 
 object CHMergeTreeWriterInjects {
@@ -114,7 +141,7 @@ object CHMergeTreeWriterInjects {
 
     val substraitContext = new SubstraitContext
 
-    val extensionTable = ClickhouseMetaSerializer.apply1(
+    val extensionTable = MetaSerializer.apply1(
       database,
       tableName,
       snapshotId,
@@ -126,7 +153,7 @@ object CHMergeTreeWriterInjects {
       bfIndexKeyOption,
       setIndexKeyOption,
       primaryKeyOption,
-      ClickhousePartSerializer.fromPartNames(partList),
+      PartSerializer.fromPartNames(partList),
       tableSchemaJson,
       clickhouseTableConfigs.asJava
     )

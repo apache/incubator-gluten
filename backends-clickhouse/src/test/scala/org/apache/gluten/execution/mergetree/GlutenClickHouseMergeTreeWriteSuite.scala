@@ -55,6 +55,7 @@ class GlutenClickHouseMergeTreeWriteSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
+      .set("spark.gluten.sql.native.writer.enabled", "true")
       .setCHSettings("min_insert_block_size_rows", 100000)
       .setCHSettings("mergetree.merge_after_insert", false)
       .setCHSettings("input_format_parquet_max_block_size", 8192)

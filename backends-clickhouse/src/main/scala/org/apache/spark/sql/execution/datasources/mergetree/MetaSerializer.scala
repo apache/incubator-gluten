@@ -14,25 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.clickhouse
+package org.apache.spark.sql.execution.datasources.mergetree
 
 import org.apache.gluten.execution.MergeTreePartSplit
 import org.apache.gluten.expression.ConverterUtils
 
-import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
-import org.apache.spark.sql.execution.datasources.mergetree.{DeltaMetaReader, StorageMeta}
+import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableNode
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
-import org.apache.spark.sql.types.StructType
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.substrait.proto.ReadRel
 
-import java.net.URI
 import java.util.{Map => jMap}
 
-import scala.collection.JavaConverters._
-
-case class ClickhousePartSerializer(
+case class PartSerializer(
     partList: Seq[String],
     starts: Seq[Long],
     lengths: Seq[Long]
@@ -58,59 +53,29 @@ case class ClickhousePartSerializer(
   }
 }
 
-object ClickhousePartSerializer {
-  def fromMergeTreePartSplits(partLists: Seq[MergeTreePartSplit]): ClickhousePartSerializer = {
+object PartSerializer {
+  def fromMergeTreePartSplits(partLists: Seq[MergeTreePartSplit]): PartSerializer = {
     val partList = partLists.map(_.name)
     val starts = partLists.map(_.start)
     val lengths = partLists.map(_.length)
-    ClickhousePartSerializer(partList, starts, lengths)
+    PartSerializer(partList, starts, lengths)
   }
 
-  def fromAddMergeTreeParts(parts: Seq[AddMergeTreeParts]): ClickhousePartSerializer = {
+  def fromAddMergeTreeParts(parts: Seq[AddMergeTreeParts]): PartSerializer = {
     val partList = parts.map(_.name)
     val starts = parts.map(_ => 0L)
     val lengths = parts.map(_.marks)
-    ClickhousePartSerializer(partList, starts, lengths)
+    PartSerializer(partList, starts, lengths)
   }
 
-  def fromPartNames(partNames: Seq[String]): ClickhousePartSerializer = {
+  def fromPartNames(partNames: Seq[String]): PartSerializer = {
     // starts and lengths is useless for writing
     val partRanges = Seq.range(0L, partNames.length)
-    ClickhousePartSerializer(partNames, partRanges, partRanges)
+    PartSerializer(partNames, partRanges, partRanges)
   }
 }
 
-object ClickhouseMetaSerializer {
-
-  def forWrite(deltaMetaReader: DeltaMetaReader, dataSchema: StructType): ReadRel.ExtensionTable = {
-    val clickhouseTableConfigs = deltaMetaReader.writeConfiguration
-
-    val orderByKey = clickhouseTableConfigs("storage_orderByKey")
-    val lowCardKey = clickhouseTableConfigs("storage_lowCardKey")
-    val minmaxIndexKey = clickhouseTableConfigs("storage_minmaxIndexKey")
-    val bfIndexKey = clickhouseTableConfigs("storage_bfIndexKey")
-    val setIndexKey = clickhouseTableConfigs("storage_setIndexKey")
-    val primaryKey = clickhouseTableConfigs("storage_primaryKey")
-
-    val result = apply(
-      deltaMetaReader.storageDB,
-      deltaMetaReader.storageTable,
-      deltaMetaReader.storageSnapshotId,
-      deltaMetaReader.storagePath,
-      "", // absolutePath
-      orderByKey,
-      lowCardKey,
-      minmaxIndexKey,
-      bfIndexKey,
-      setIndexKey,
-      primaryKey,
-      ClickhousePartSerializer.fromPartNames(Seq()),
-      ConverterUtils.convertNamedStructJson(dataSchema),
-      clickhouseTableConfigs.filter(_._1 == "storage_policy").asJava
-    )
-    ExtensionTableNode.toProtobuf(result)
-
-  }
+object MetaSerializer {
   // scalastyle:off argcount
   def apply1(
       database: String,
@@ -124,11 +89,11 @@ object ClickhouseMetaSerializer {
       bfIndexKeyOption: Option[Seq[String]],
       setIndexKeyOption: Option[Seq[String]],
       primaryKeyOption: Option[Seq[String]],
-      partSerializer: ClickhousePartSerializer,
+      partSerializer: PartSerializer,
       tableSchemaJson: String,
       clickhouseTableConfigs: jMap[String, String]): ReadRel.ExtensionTable = {
 
-    val (orderByKey0, primaryKey0) = MergeTreeDeltaUtil.genOrderByAndPrimaryKeyStr(
+    val (orderByKey0, primaryKey0) = StorageMeta.genOrderByAndPrimaryKeyStr(
       orderByKeyOption,
       primaryKeyOption
     )
@@ -140,10 +105,10 @@ object ClickhouseMetaSerializer {
       relativePath,
       absolutePath,
       orderByKey0,
-      lowCardKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      minmaxIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      bfIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      setIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
+      StorageMeta.columnsToStr(lowCardKeyOption),
+      StorageMeta.columnsToStr(minmaxIndexKeyOption),
+      StorageMeta.columnsToStr(bfIndexKeyOption),
+      StorageMeta.columnsToStr(setIndexKeyOption),
       primaryKey0,
       partSerializer,
       tableSchemaJson,
@@ -164,7 +129,7 @@ object ClickhouseMetaSerializer {
       bfIndexKey0: String,
       setIndexKey0: String,
       primaryKey0: String,
-      partSerializer: ClickhousePartSerializer,
+      partSerializer: PartSerializer,
       tableSchemaJson: String,
       clickhouseTableConfigs: jMap[String, String]): String = {
     // scalastyle:on argcount
@@ -192,7 +157,9 @@ object ClickhouseMetaSerializer {
       .append(orderByKey)
       .append("\n")
 
-    if (orderByKey.nonEmpty && !(orderByKey == "tuple()")) {
+    if (orderByKey.isEmpty || orderByKey == StorageMeta.DEFAULT_ORDER_BY_KEY) {
+      extensionTableStr.append("").append("\n")
+    } else {
       extensionTableStr.append(primaryKey).append("\n")
     }
 
@@ -200,19 +167,12 @@ object ClickhouseMetaSerializer {
     extensionTableStr.append(minmaxIndexKey).append("\n")
     extensionTableStr.append(bfIndexKey).append("\n")
     extensionTableStr.append(setIndexKey).append("\n")
-    extensionTableStr.append(normalizeRelativePath(relativePath)).append("\n")
+    extensionTableStr.append(StorageMeta.normalizeRelativePath(relativePath)).append("\n")
     extensionTableStr.append(absolutePath).append("\n")
     appendConfigs(extensionTableStr, clickhouseTableConfigs)
     extensionTableStr.append(partSerializer())
 
     extensionTableStr.toString()
-  }
-
-  private def normalizeRelativePath(relativePath: String): String = {
-    val table_uri = URI.create(relativePath)
-    if (table_uri.getPath.startsWith("/")) {
-      table_uri.getPath.substring(1)
-    } else table_uri.getPath
   }
 
   private def appendConfigs(

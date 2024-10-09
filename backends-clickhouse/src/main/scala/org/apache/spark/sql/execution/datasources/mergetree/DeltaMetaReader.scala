@@ -16,21 +16,35 @@
  */
 package org.apache.spark.sql.execution.datasources.mergetree
 
+import org.apache.gluten.expression.ConverterUtils
+
 import org.apache.spark.sql.delta.actions.Metadata
 
-class DeltaMetaReader(
-    override val metadata: Metadata,
-    override val configuration: Map[String, String])
-  extends TablePropertiesReader {
+case class DeltaMetaReader(metadata: Metadata)
+  extends TablePropertiesReader
+  with StorageConfigProvider {
 
-  def storageDB: String = configuration(StorageMeta.STORAGE_DB)
-  def storageTable: String = configuration(StorageMeta.STORAGE_TABLE)
-  def storageSnapshotId: String = configuration(StorageMeta.STORAGE_SNAPSHOT_ID)
-  def storagePath: String = configuration(StorageMeta.STORAGE_PATH)
-}
+  override lazy val partitionColumns: Seq[String] =
+    metadata.partitionColumns.map(ConverterUtils.normalizeColName)
 
-object DeltaMetaReader {
-  def apply(metadata: Metadata): DeltaMetaReader = {
-    new DeltaMetaReader(metadata, metadata.configuration)
+  override lazy val configuration: Map[String, String] = metadata.configuration
+
+  lazy val storageConf: Map[String, String] = {
+    val (orderByKey0, primaryKey0) = StorageMeta.genOrderByAndPrimaryKeyStr(
+      orderByKeyOption,
+      primaryKeyOption
+    )
+    Map(
+      StorageMeta.DB -> configuration(StorageMeta.DB),
+      StorageMeta.TABLE -> configuration(StorageMeta.TABLE),
+      StorageMeta.SNAPSHOT_ID -> configuration(StorageMeta.SNAPSHOT_ID),
+      StorageMeta.POLICY -> configuration.getOrElse(StorageMeta.POLICY, "default"),
+      StorageMeta.ORDER_BY_KEY -> orderByKey0,
+      StorageMeta.LOW_CARD_KEY -> StorageMeta.columnsToStr(lowCardKeyOption),
+      StorageMeta.MINMAX_INDEX_KEY -> StorageMeta.columnsToStr(minmaxIndexKeyOption),
+      StorageMeta.BF_INDEX_KEY -> StorageMeta.columnsToStr(bfIndexKeyOption),
+      StorageMeta.SET_INDEX_KEY -> StorageMeta.columnsToStr(setIndexKeyOption),
+      StorageMeta.PRIMARY_KEY -> primaryKey0
+    )
   }
 }

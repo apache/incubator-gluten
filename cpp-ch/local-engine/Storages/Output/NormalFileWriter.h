@@ -26,6 +26,7 @@
 #include <Processors/Executors/PushingPipelineExecutor.h>
 #include <Processors/ISimpleTransform.h>
 #include <Processors/Sinks/SinkToStorage.h>
+#include <Storages/NativeOutputWriter.h>
 #include <Storages/Output/OutputFormatFile.h>
 #include <Storages/PartitionedSink.h>
 #include <base/types.h>
@@ -36,40 +37,26 @@
 namespace local_engine
 {
 
-class FileWriterWrapper
+class NormalFileWriter : public NativeOutputWriter
 {
 public:
-    explicit FileWriterWrapper(const OutputFormatFilePtr & file_) : file(file_) { }
-    virtual ~FileWriterWrapper() = default;
+    static std::unique_ptr<NativeOutputWriter> create(
+        const DB::ContextPtr & context, const std::string & file_uri, const DB::Block & preferred_schema, const std::string & format_hint);
 
-    virtual void consume(DB::Block & block) = 0;
-    virtual void close() = 0;
-
-protected:
-    OutputFormatFilePtr file;
-};
-
-using FileWriterWrapperPtr = std::shared_ptr<FileWriterWrapper>;
-
-class NormalFileWriter : public FileWriterWrapper
-{
-public:
     NormalFileWriter(const OutputFormatFilePtr & file_, const DB::ContextPtr & context_);
     ~NormalFileWriter() override = default;
 
-    void consume(DB::Block & block) override;
-    void close() override;
+    void write(DB::Block & block) override;
+    std::string close() override;
 
 private:
+    OutputFormatFilePtr file;
     DB::ContextPtr context;
 
     OutputFormatFile::OutputFormatPtr output_format;
     std::unique_ptr<DB::QueryPipeline> pipeline;
     std::unique_ptr<DB::PushingPipelineExecutor> writer;
 };
-
-std::unique_ptr<FileWriterWrapper> createFileWriterWrapper(
-    const DB::ContextPtr & context, const std::string & file_uri, const DB::Block & preferred_schema, const std::string & format_hint);
 
 OutputFormatFilePtr createOutputFormatFile(
     const DB::ContextPtr & context, const std::string & file_uri, const DB::Block & preferred_schema, const std::string & format_hint);

@@ -16,13 +16,12 @@
  */
 package org.apache.spark.sql.execution.datasources.mergetree
 
-import org.apache.gluten.expression.ConverterUtils.normalizeColName
+import org.apache.gluten.expression.ConverterUtils
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.delta.actions.Metadata
-import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
 
-import org.apache.hadoop.fs.Path
+import java.net.URI
 
 /** Reserved table property for MergeTree table. */
 object StorageMeta {
@@ -30,42 +29,75 @@ object StorageMeta {
   // Storage properties
   val DEFAULT_PATH_BASED_DATABASE: String = "clickhouse_db"
   val DEFAULT_CREATE_TABLE_DATABASE: String = "default"
-  val STORAGE_DB: String = "storage_db"
-  val STORAGE_TABLE: String = "storage_table"
-  val STORAGE_SNAPSHOT_ID: String = "storage_snapshot_id"
-  val STORAGE_PATH: String = "storage_path"
+  val DEFAULT_ORDER_BY_KEY = "tuple()"
+  val STORAGE_PREFIX: String = "storage_"
+  val DB: String = prefixOf("db")
+  val TABLE: String = prefixOf("table")
+  val SNAPSHOT_ID: String = prefixOf("snapshot_id")
+  val STORAGE_PATH: String = prefixOf("path")
+  val POLICY: String = prefixOf("policy")
+  val ORDER_BY_KEY: String = prefixOf("orderByKey")
+  val LOW_CARD_KEY: String = prefixOf("lowCardKey")
+  val MINMAX_INDEX_KEY: String = prefixOf("minmaxIndexKey")
+  val BF_INDEX_KEY: String = prefixOf("bfIndexKey")
+  val SET_INDEX_KEY: String = prefixOf("setIndexKey")
+  val PRIMARY_KEY: String = prefixOf("primaryKey")
   val SERIALIZER_HEADER: String = "MergeTree;"
 
-  def withMoreStorageInfo(
+  private def prefixOf(key: String): String = s"$STORAGE_PREFIX$key"
+
+  def withStorageID(
       metadata: Metadata,
-      snapshotId: String,
-      deltaPath: Path,
       database: String,
-      tableName: String): Metadata = {
-    val moreOptions = Seq(
-      STORAGE_DB -> database,
-      STORAGE_SNAPSHOT_ID -> snapshotId,
-      STORAGE_TABLE -> tableName,
-      STORAGE_PATH -> deltaPath.toString)
+      tableName: String,
+      snapshotId: String): Metadata = {
+    val moreOptions = Seq(DB -> database, SNAPSHOT_ID -> snapshotId, TABLE -> tableName)
     withMoreOptions(metadata, moreOptions)
   }
 
   private def withMoreOptions(metadata: Metadata, newOptions: Seq[(String, String)]): Metadata = {
     metadata.copy(configuration = metadata.configuration ++ newOptions)
   }
+
+  def normalizeRelativePath(relativePath: String): String = {
+    val table_uri = URI.create(relativePath)
+    if (table_uri.getPath.startsWith("/")) {
+      table_uri.getPath.substring(1)
+    } else table_uri.getPath
+  }
+
+  // TODO: remove this method
+  def genOrderByAndPrimaryKeyStr(
+      orderByKeyOption: Option[Seq[String]],
+      primaryKeyOption: Option[Seq[String]]): (String, String) = {
+
+    val orderByKey = columnsToStr(orderByKeyOption, DEFAULT_ORDER_BY_KEY)
+    val primaryKey = if (orderByKey == DEFAULT_ORDER_BY_KEY) "" else columnsToStr(primaryKeyOption)
+    (orderByKey, primaryKey)
+  }
+
+  def columnsToStr(option: Option[Seq[String]], default: String = ""): String =
+    option
+      .filter(_.nonEmpty)
+      .map(keys => keys.map(ConverterUtils.normalizeColName).mkString(","))
+      .getOrElse(default)
+}
+
+/** all properties start with 'storage_' */
+trait StorageConfigProvider {
+  val storageConf: Map[String, String]
 }
 
 trait TablePropertiesReader {
 
   def configuration: Map[String, String]
 
-  /** delta */
-  def metadata: Metadata
+  val partitionColumns: Seq[String]
 
   private def getCommaSeparatedColumns(keyName: String): Option[Seq[String]] = {
     configuration.get(keyName).map {
       v =>
-        val keys = v.split(",").map(n => normalizeColName(n.trim)).toSeq
+        val keys = v.split(",").map(n => ConverterUtils.normalizeColName(n.trim)).toSeq
         keys.foreach {
           s =>
             if (s.contains(".")) {
@@ -107,13 +139,10 @@ trait TablePropertiesReader {
     getCommaSeparatedColumns("setIndexKey")
   }
 
-  lazy val partitionColumns: Seq[String] =
-    metadata.partitionColumns.map(normalizeColName)
-
   lazy val orderByKeyOption: Option[Seq[String]] = {
     val orderByKeys =
       if (bucketOption.exists(_.sortColumnNames.nonEmpty)) {
-        bucketOption.map(_.sortColumnNames.map(normalizeColName))
+        bucketOption.map(_.sortColumnNames.map(ConverterUtils.normalizeColName))
       } else {
         getCommaSeparatedColumns("orderByKey")
       }
@@ -141,23 +170,5 @@ trait TablePropertiesReader {
                 s"Primary key $primaryKey must be a prefix of the sorting key $orderBy"))
         primaryKeys
     }
-  }
-
-  lazy val writeConfiguration: Map[String, String] = {
-    val (orderByKey0, primaryKey0) = MergeTreeDeltaUtil.genOrderByAndPrimaryKeyStr(
-      orderByKeyOption,
-      primaryKeyOption
-    )
-    Map(
-      "storage_policy" -> configuration.getOrElse("storage_policy", "default"),
-      "storage_orderByKey" -> orderByKey0,
-      "storage_lowCardKey" -> lowCardKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      "storage_minmaxIndexKey" -> minmaxIndexKeyOption
-        .map(MergeTreeDeltaUtil.columnsToStr)
-        .getOrElse(""),
-      "storage_bfIndexKey" -> bfIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      "storage_setIndexKey" -> setIndexKeyOption.map(MergeTreeDeltaUtil.columnsToStr).getOrElse(""),
-      "storage_primaryKey" -> primaryKey0
-    )
   }
 }
