@@ -21,7 +21,7 @@ import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.catalyst.plans.QueryPlanWrapper
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.types.StructType
@@ -61,14 +61,14 @@ case class HudiScanTransformer(
   override def doCanonicalize(): HudiScanTransformer = {
     HudiScanTransformer(
       relation,
-      output.map(QueryPlan.normalizeExpressions(_, output)),
+      output.map(QueryPlanWrapper.normalizeExpressions(_, output)),
       requiredSchema,
-      QueryPlan.normalizePredicates(
+      QueryPlanWrapper.normalizePredicates(
         filterUnusedDynamicPruningExpressions(partitionFilters),
         output),
       optionalBucketSet,
       optionalNumCoalescedBuckets,
-      QueryPlan.normalizePredicates(dataFilters, output),
+      QueryPlanWrapper.normalizePredicates(dataFilters, output),
       None,
       disableBucketedScan
     )
