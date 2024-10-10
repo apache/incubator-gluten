@@ -96,6 +96,25 @@ public class RelBuilder {
         input, groupings, aggregateFunctionNodes, filters, extensionNode, hasDistinct);
   }
 
+  public static RelNode makeAggregateRel(
+      RelNode input,
+      List<ExpressionNode> groupings,
+      List<AggregateFunctionNode> aggregateFunctionNodes,
+      List<ExpressionNode> filters,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
+    return makeAggregateRel(
+        input,
+        groupings,
+        aggregateFunctionNodes,
+        filters,
+        extensionNode,
+        context,
+        operatorId,
+        false);
+  }
+
   public static RelNode makeReadRel(
       List<TypeNode> types,
       List<String> names,
