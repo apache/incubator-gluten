@@ -112,7 +112,6 @@ object VeloxColumnarToRowExec {
       convertTime
     )
   }
-
   def toRowIterator(
       batches: Iterator[ColumnarBatch],
       output: Seq[Attribute],
