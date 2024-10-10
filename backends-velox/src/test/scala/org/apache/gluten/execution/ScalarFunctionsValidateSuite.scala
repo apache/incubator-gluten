@@ -998,7 +998,7 @@ abstract class ScalarFunctionsValidateSuite extends FunctionsValidateSuite {
   test("extract date field") {
     withTable("t") {
       sql("create table t (dt date) using parquet")
-      sql("insert into t values(date '2008-02-20')")
+      sql("insert into t values(date '2008-02-20'), (date '2022-01-01')")
       runQueryAndCompare("select weekofyear(dt) from t") {
         checkGlutenOperatorMatch[ProjectExecTransformer]
       }
