@@ -349,7 +349,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrap
     datasourceOptions.insert(sparkConf.begin(), sparkConf.end());
     auto schema = gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
     handle = ctx->saveObject(runtime->createDataSource(jStringToCString(env, filePath), schema));
-    auto datasource = ObjectStore::retrieve<DataSource>(handle);
+    auto datasource = ObjectStore::retrieve<VeloxDataSource>(handle);
     datasource->init(datasourceOptions);
   }
 
@@ -363,7 +363,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapp
     jlong dsHandle,
     jlong cSchema) {
   JNI_METHOD_START
-  auto datasource = ObjectStore::retrieve<DataSource>(dsHandle);
+  auto datasource = ObjectStore::retrieve<VeloxDataSource>(dsHandle);
   datasource->inspectSchema(reinterpret_cast<struct ArrowSchema*>(cSchema));
   JNI_METHOD_END()
 }
@@ -373,7 +373,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapp
     jobject wrapper,
     jlong dsHandle) {
   JNI_METHOD_START
-  auto datasource = ObjectStore::retrieve<DataSource>(dsHandle);
+  auto datasource = ObjectStore::retrieve<VeloxDataSource>(dsHandle);
   datasource->close();
   ObjectStore::release(dsHandle);
   JNI_METHOD_END()
@@ -386,7 +386,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapp
     jlong batchHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
-  auto datasource = ObjectStore::retrieve<DataSource>(dsHandle);
+  auto datasource = ObjectStore::retrieve<VeloxDataSource>(dsHandle);
   auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   datasource->write(batch);
   JNI_METHOD_END()

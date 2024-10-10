@@ -27,12 +27,12 @@
 
 namespace gluten {
 
-class DataSource {
+class VeloxDataSource {
  public:
-  DataSource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema)
+  VeloxDataSource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema)
       : filePath_(filePath), schema_(schema) {}
 
-  virtual ~DataSource() = default;
+  virtual ~VeloxDataSource() = default;
 
   virtual void init(const std::unordered_map<std::string, std::string>& sparkConfs) {}
   virtual void inspectSchema(struct ArrowSchema* out) = 0;

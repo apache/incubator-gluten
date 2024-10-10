@@ -204,13 +204,14 @@ std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
   return shuffleWriter;
 }
 
-std::shared_ptr<DataSource> VeloxRuntime::createDataSource(
+std::shared_ptr<VeloxDataSource> VeloxRuntime::createDataSource(
     const std::string& filePath,
     std::shared_ptr<arrow::Schema> schema) {
   static std::atomic_uint32_t id{0UL};
   auto veloxPool = vmm_->getAggregateMemoryPool()->addAggregateChild("datasource." + std::to_string(id++));
   // Pass a dedicate pool for S3 and GCS sinks as can't share veloxPool
   // with parquet writer.
+  // FIXME: Check file formats?
   auto sinkPool = vmm_->getLeafMemoryPool();
   if (isSupportedHDFSPath(filePath)) {
 #ifdef ENABLE_HDFS
