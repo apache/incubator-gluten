@@ -195,8 +195,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("test with tab delimiter and double quote")
     // Arrow not support corrupt record
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
-    // varchar
-    .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
   enableSuite[GlutenCSVv2Suite]
     .exclude("Gluten - test for FAILFAST parsing mode")
     // Rule org.apache.spark.sql.execution.datasources.v2.V2ScanRelationPushDown in batch
@@ -215,8 +213,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("test with tab delimiter and double quote")
     // Arrow not support corrupt record
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
-    // varchar
-    .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
     // file cars.csv include null string, Arrow not support to read
     .exclude("DDL test with schema")
@@ -230,6 +226,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DDL test with tab separated file")
     .exclude("DDL test parsing decimal type")
     .exclude("test with tab delimiter and double quote")
+    // varchar
+    .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
   enableSuite[GlutenJsonV1Suite]
     // FIXME: Array direct selection fails
     .exclude("Complex field and type inferring")
