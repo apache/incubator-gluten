@@ -16,12 +16,14 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.ProjectExec
 
-case class FilterExecTransformer(condition: Expression, child: SparkPlan)
-  extends FilterExecTransformerBase(condition, child) {
+trait ProjectTransformerRegister {
 
-  override protected def withNewChildInternal(newChild: SparkPlan): FilterExecTransformer =
-    copy(child = newChild)
+  val dataLakeClass: String
+
+  def createProjectTransformer(projectExec: ProjectExec): ProjectExecTransformerBase = {
+    throw new UnsupportedOperationException(
+      "This should not be called, please implement this method in child class.")
+  }
 }

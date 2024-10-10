@@ -16,12 +16,13 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.FilterExec
 
-case class FilterExecTransformer(condition: Expression, child: SparkPlan)
-  extends FilterExecTransformerBase(condition, child) {
+class DeltaFilterTransformerProvider extends FilterTransformerRegister {
 
-  override protected def withNewChildInternal(newChild: SparkPlan): FilterExecTransformer =
-    copy(child = newChild)
+  override val dataLakeClass: String = "delta"
+
+  override def createFilterTransformer(filterExec: FilterExec): FilterExecTransformerBase = {
+    DeltaFilterExecTransformer(filterExec.condition, filterExec.child)
+  }
 }

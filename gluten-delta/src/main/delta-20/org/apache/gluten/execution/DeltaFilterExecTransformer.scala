@@ -19,9 +19,9 @@ package org.apache.gluten.execution
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.SparkPlan
 
-case class FilterExecTransformer(condition: Expression, child: SparkPlan)
+case class DeltaFilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecTransformerBase(condition, child) {
 
-  override protected def withNewChildInternal(newChild: SparkPlan): FilterExecTransformer =
+  override protected def withNewChildInternal(newChild: SparkPlan): DeltaFilterExecTransformer =
     copy(child = newChild)
 }

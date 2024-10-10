@@ -16,12 +16,12 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.execution.SparkPlan
 
-case class FilterExecTransformer(condition: Expression, child: SparkPlan)
-  extends FilterExecTransformerBase(condition, child) {
+case class DeltaProjectExecTransformer(projectList: Seq[NamedExpression], child: SparkPlan)
+  extends ProjectExecTransformerBase(projectList, child) {
 
-  override protected def withNewChildInternal(newChild: SparkPlan): FilterExecTransformer =
+  override protected def withNewChildInternal(newChild: SparkPlan): DeltaProjectExecTransformer =
     copy(child = newChild)
 }
