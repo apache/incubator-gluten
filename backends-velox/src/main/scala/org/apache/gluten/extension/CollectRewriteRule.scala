@@ -25,6 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.{And, Coalesce, Expression, IsN
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Window}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.trees.TreePattern.{AVERAGE, WINDOW}
 import org.apache.spark.sql.types.ArrayType
 
 import scala.reflect.{classTag, ClassTag}
@@ -40,7 +41,7 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
     if (!has[VeloxCollectSet] && has[VeloxCollectList]) {
       return plan
     }
-    val out = plan.transformUp {
+    val out = plan.transformUpWithPruning(_.containsAnyPattern(AVERAGE, WINDOW)) {
       case node =>
         val out = replaceCollectSet(replaceCollectList(node))
         out
