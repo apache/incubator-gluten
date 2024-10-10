@@ -195,6 +195,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("test with tab delimiter and double quote")
     // Arrow not support corrupt record
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
+    // varchar
+    .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
   enableSuite[GlutenCSVv2Suite]
     .exclude("Gluten - test for FAILFAST parsing mode")
     // Rule org.apache.spark.sql.execution.datasources.v2.V2ScanRelationPushDown in batch
