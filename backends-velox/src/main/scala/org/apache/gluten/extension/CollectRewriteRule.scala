@@ -37,6 +37,9 @@ import scala.reflect.{classTag, ClassTag}
 case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
   import CollectRewriteRule._
   override def apply(plan: LogicalPlan): LogicalPlan = LogicalPlanSelector.maybe(spark, plan) {
+    if (!has[VeloxCollectSet] && has[VeloxCollectList]) {
+      return plan
+    }
     val out = plan.transformUp {
       case node =>
         val out = replaceCollectSet(replaceCollectList(node))
