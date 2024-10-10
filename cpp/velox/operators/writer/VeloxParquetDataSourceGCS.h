@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "operators/writer/VeloxParquetDatasource.h"
+#include "operators/writer/VeloxParquetDataSource.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 
@@ -32,14 +32,14 @@
 #include "velox/dwio/common/Options.h"
 
 namespace gluten {
-class VeloxParquetDatasourceGCS final : public VeloxParquetDatasource {
+class VeloxParquetDataSourceGCS final : public VeloxParquetDataSource {
  public:
-  VeloxParquetDatasourceGCS(
+  VeloxParquetDataSourceGCS(
       const std::string& filePath,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> sinkPool,
       std::shared_ptr<arrow::Schema> schema)
-      : VeloxParquetDatasource(filePath, veloxPool, sinkPool, schema) {}
+      : VeloxParquetDataSource(filePath, veloxPool, sinkPool, schema) {}
 
   void initSink(const std::unordered_map<std::string, std::string>& /* sparkConfs */) override {
     auto fileSystem = filesystems::getFileSystem(filePath_, nullptr);

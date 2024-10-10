@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "operators/writer/VeloxParquetDatasource.h"
+#include "operators/writer/VeloxParquetDataSource.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 
@@ -33,14 +33,14 @@
 
 namespace gluten {
 
-class VeloxParquetDatasourceHDFS final : public VeloxParquetDatasource {
+class VeloxParquetDataSourceHDFS final : public VeloxParquetDataSource {
  public:
-  VeloxParquetDatasourceHDFS(
+  VeloxParquetDataSourceHDFS(
       const std::string& filePath,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> sinkPool,
       std::shared_ptr<arrow::Schema> schema)
-      : VeloxParquetDatasource(filePath, veloxPool, sinkPool, schema) {}
+      : VeloxParquetDataSource(filePath, veloxPool, sinkPool, schema) {}
 
   void initSink(const std::unordered_map<std::string, std::string>& sparkConfs) override {
     auto hiveConf = getHiveConfig(std::make_shared<facebook::velox::config::ConfigBase>(
