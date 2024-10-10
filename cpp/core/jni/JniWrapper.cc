@@ -25,8 +25,6 @@
 #include "jni/JniCommon.h"
 #include "jni/JniError.h"
 
-#include "../../velox/operators/writer/DataSource.h"
-
 #include <arrow/c/bridge.h>
 #include <optional>
 #include <string>

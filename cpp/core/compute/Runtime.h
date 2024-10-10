@@ -19,7 +19,6 @@
 
 #include <glog/logging.h>
 
-#include "../../velox/operators/writer/DataSource.h"
 #include "compute/ProtobufUtils.h"
 #include "compute/ResultIterator.h"
 #include "memory/ArrowMemoryPool.h"
