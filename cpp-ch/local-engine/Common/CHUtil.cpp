@@ -747,7 +747,7 @@ void BackendInitializerUtil::initSettings(const std::map<std::string, std::strin
     settings.set("function_json_value_return_type_allow_nullable", true);
     settings.set("precise_float_parsing", true);
     settings.set("enable_named_columns_in_function_tuple", false);
-    settings.set("datetime64_trim_suffix_zeros", true);
+    settings.set("date_time_64_output_format_cut_trailing_zeros_align_to_groups_of_thousands", true);
 
     if (spark_conf_map.contains(GLUTEN_TASK_OFFHEAP))
     {
