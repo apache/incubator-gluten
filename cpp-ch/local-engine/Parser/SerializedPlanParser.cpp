@@ -65,12 +65,12 @@
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/printPipeline.h>
 #include <Storages/MergeTree/MergeTreeData.h>
-#include <Storages/Output/FileWriterWrappers.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/BlockTypeUtils.h>
+#include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/GlutenConfig.h>
 #include <Common/JNIUtils.h>

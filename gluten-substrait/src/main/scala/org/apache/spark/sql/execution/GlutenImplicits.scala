@@ -25,7 +25,6 @@ import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.{CommandResult, LogicalPlan}
 import org.apache.spark.sql.catalyst.util.StringUtils.PlanStringConcat
 import org.apache.spark.sql.execution.ColumnarWriteFilesExec.NoopLeaf
-import org.apache.spark.sql.execution.GlutenExplainUtils._
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, QueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
@@ -42,8 +41,8 @@ import scala.collection.mutable.ArrayBuffer
  * A helper class to get the Gluten fallback summary from a Spark [[Dataset]].
  *
  * Note that, if AQE is enabled, but the query is not materialized, then this method will re-plan
- * the query execution with disabled AQE. It is a workaround to get the final plan, and it may
- * cause the inconsistent results with a materialized query. However, we have no choice.
+ * the query execution with disabled AQE. It is a workaround to get the final plan, and it may cause
+ * the inconsistent results with a materialized query. However, we have no choice.
  *
  * For example:
  *
@@ -96,7 +95,9 @@ object GlutenImplicits {
     args.substring(index + "isFinalPlan=".length).trim.toBoolean
   }
 
-  private def collectFallbackNodes(spark: SparkSession, plan: QueryPlan[_]): FallbackInfo = {
+  private def collectFallbackNodes(
+      spark: SparkSession,
+      plan: QueryPlan[_]): GlutenExplainUtils.FallbackInfo = {
     var numGlutenNodes = 0
     val fallbackNodeToReason = new mutable.HashMap[String, String]
 
@@ -131,7 +132,7 @@ object GlutenImplicits {
                 spark,
                 newSparkPlan
               )
-              processPlan(
+              GlutenExplainUtils.processPlan(
                 newExecutedPlan,
                 new PlanStringConcat().append,
                 Some(plan => collectFallbackNodes(spark, plan)))
@@ -146,12 +147,15 @@ object GlutenImplicits {
           if (PlanUtil.isGlutenTableCache(i)) {
             numGlutenNodes += 1
           } else {
-            addFallbackNodeWithReason(i, "Columnar table cache is disabled", fallbackNodeToReason)
+            GlutenExplainUtils.addFallbackNodeWithReason(
+              i,
+              "Columnar table cache is disabled",
+              fallbackNodeToReason)
           }
           collect(i.relation.cachedPlan)
         case _: AQEShuffleReadExec => // Ignore
         case p: SparkPlan =>
-          handleVanillaSparkPlan(p, fallbackNodeToReason)
+          GlutenExplainUtils.handleVanillaSparkPlan(p, fallbackNodeToReason)
           p.innerChildren.foreach(collect)
         case _ =>
       }
@@ -181,10 +185,10 @@ object GlutenImplicits {
           // AQE is not materialized, so the columnar rules are not applied.
           // For this case, We apply columnar rules manually with disable AQE.
           val qe = spark.sessionState.executePlan(logicalPlan, CommandExecutionMode.SKIP)
-          processPlan(qe.executedPlan, concat.append, collectFallbackFunc)
+          GlutenExplainUtils.processPlan(qe.executedPlan, concat.append, collectFallbackFunc)
         }
       } else {
-        processPlan(plan, concat.append, collectFallbackFunc)
+        GlutenExplainUtils.processPlan(plan, concat.append, collectFallbackFunc)
       }
       totalNumGlutenNodes += numGlutenNodes
       totalNumFallbackNodes += fallbackNodeToReason.size

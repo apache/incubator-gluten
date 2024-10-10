@@ -24,7 +24,6 @@
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Storages/Output/FileWriterWrappers.h>
 #include <gtest/gtest.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>

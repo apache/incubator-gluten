@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "FileWriterWrappers.h"
+#include "NormalFileWriter.h"
 
 #include <QueryPipeline/QueryPipeline.h>
 #include <Poco/URI.h>
@@ -25,12 +25,11 @@ namespace local_engine
 const std::string SubstraitFileSink::NO_PARTITION_ID{"__NO_PARTITION_ID__"};
 const std::string SubstraitPartitionedFileSink::DEFAULT_PARTITION_NAME{"__HIVE_DEFAULT_PARTITION__"};
 
-NormalFileWriter::NormalFileWriter(const OutputFormatFilePtr & file_, const DB::ContextPtr & context_)
-    : FileWriterWrapper(file_), context(context_)
+NormalFileWriter::NormalFileWriter(const OutputFormatFilePtr & file_, const DB::ContextPtr & context_) : file(file_), context(context_)
 {
 }
 
-void NormalFileWriter::consume(DB::Block & block)
+void NormalFileWriter::write(DB::Block & block)
 {
     if (!writer) [[unlikely]]
     {
@@ -63,12 +62,14 @@ void NormalFileWriter::consume(DB::Block & block)
     writer->push(materializeBlock(block));
 }
 
-void NormalFileWriter::close()
+std::string NormalFileWriter::close()
 {
     /// When insert into a table with empty dataset, NormalFileWriter::consume would be never called.
     /// So we need to skip when writer is nullptr.
     if (writer)
         writer->finish();
+
+    return std::string{};
 }
 
 OutputFormatFilePtr createOutputFormatFile(
@@ -84,7 +85,7 @@ OutputFormatFilePtr createOutputFormatFile(
     return OutputFormatFileUtil::createFile(context, write_buffer_builder, encoded, preferred_schema, format_hint);
 }
 
-std::unique_ptr<FileWriterWrapper> createFileWriterWrapper(
+std::unique_ptr<NativeOutputWriter> NormalFileWriter::create(
     const DB::ContextPtr & context, const std::string & file_uri, const DB::Block & preferred_schema, const std::string & format_hint)
 {
     return std::make_unique<NormalFileWriter>(createOutputFormatFile(context, file_uri, preferred_schema, format_hint), context);

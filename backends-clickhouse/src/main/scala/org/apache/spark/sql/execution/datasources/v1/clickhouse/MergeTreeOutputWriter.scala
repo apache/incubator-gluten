@@ -27,11 +27,10 @@ import org.apache.spark.util.Utils
 import scala.collection.mutable.ArrayBuffer
 
 class MergeTreeOutputWriter(
+    datasourceJniWrapper: CHDatasourceJniWrapper,
     database: String,
     tableName: String,
-    datasourceJniWrapper: CHDatasourceJniWrapper,
-    instance: Long,
-    originPath: String)
+    outputPath: String)
   extends OutputWriter {
 
   protected var addFiles: ArrayBuffer[AddFile] = new ArrayBuffer[AddFile]()
@@ -42,18 +41,18 @@ class MergeTreeOutputWriter(
 
     if (nextBatch.numRows > 0) {
       val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
-      datasourceJniWrapper.writeToMergeTree(instance, col.getBlockAddress)
+      datasourceJniWrapper.write(col.getBlockAddress)
     } // else ignore this empty block
   }
 
   override def close(): Unit = {
-    val returnedMetrics = datasourceJniWrapper.closeMergeTreeWriter(instance)
+    val returnedMetrics = datasourceJniWrapper.close()
     if (returnedMetrics != null && returnedMetrics.nonEmpty) {
       addFiles.appendAll(
         AddFileTags.partsMetricsToAddFile(
           database,
           tableName,
-          originPath,
+          outputPath,
           returnedMetrics,
           Seq(Utils.localHostName())))
     }
@@ -61,7 +60,7 @@ class MergeTreeOutputWriter(
 
   // Do NOT add override keyword for compatibility on spark 3.1.
   def path(): String = {
-    originPath
+    outputPath
   }
 
   def getAddFiles: ArrayBuffer[AddFile] = {

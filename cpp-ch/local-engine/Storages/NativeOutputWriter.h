@@ -14,27 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v1
+#pragma once
+#include <string>
 
-import org.apache.hadoop.mapreduce.TaskAttemptContext
+namespace DB
+{
+class Block;
+}
+namespace local_engine
+{
+class NativeOutputWriter
+{
+public:
+    NativeOutputWriter() = default;
+    virtual ~NativeOutputWriter() = default;
 
-import java.{util => ju}
-
-class CHOrcWriterInjects extends CHFormatWriterInjects {
-
-  override def nativeConf(
-      options: Map[String, String],
-      compressionCodec: String): ju.Map[String, String] = {
-
-    // TODO: implement it
-    ju.Collections.emptyMap()
-  }
-
-  override def createNativeWrite(outputPath: String, context: TaskAttemptContext): Write = Write
-    .newBuilder()
-    .setCommon(Write.Common.newBuilder().setFormat(formatName).build())
-    .setOrc(Write.OrcWrite.newBuilder().build())
-    .build()
-
-  override val formatName: String = "orc"
+    //TODO: change to write(const DB::Block & block)
+    virtual void write(DB::Block & block) = 0;
+    virtual std::string close() = 0;
+};
 }

@@ -16,12 +16,10 @@
  */
 package org.apache.spark.sql.delta.catalog
 
-import org.apache.gluten.expression.ConverterUtils.normalizeColName
+import org.apache.gluten.expression.ConverterUtils
 
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.delta.Snapshot
-import org.apache.spark.sql.delta.actions.Metadata
-import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreeDeltaUtil
 import org.apache.spark.sql.execution.datasources.mergetree.{StorageMeta, TablePropertiesReader}
 
 import org.apache.hadoop.fs.Path
@@ -38,7 +36,8 @@ trait ClickHouseTableV2Base extends TablePropertiesReader {
 
   def configuration: Map[String, String] = deltaProperties
 
-  def metadata: Metadata = deltaSnapshot.metadata
+  override lazy val partitionColumns: Seq[String] =
+    deltaSnapshot.metadata.partitionColumns.map(ConverterUtils.normalizeColName)
 
   lazy val dataBaseName: String = deltaCatalog
     .map(_.identifier.database.getOrElse(StorageMeta.DEFAULT_CREATE_TABLE_DATABASE))
@@ -49,18 +48,16 @@ trait ClickHouseTableV2Base extends TablePropertiesReader {
     .getOrElse(deltaPath.toUri.getPath)
 
   lazy val clickhouseTableConfigs: Map[String, String] = {
-    Map("storage_policy" -> deltaProperties.getOrElse("storage_policy", "default"))
+    Map(StorageMeta.POLICY -> configuration.getOrElse(StorageMeta.POLICY, "default"))
   }
 
-  def primaryKey(): String = MergeTreeDeltaUtil.columnsToStr(primaryKeyOption)
+  def primaryKey(): String = StorageMeta.columnsToStr(primaryKeyOption)
 
-  def orderByKey(): String = orderByKeyOption match {
-    case Some(keys) => keys.map(normalizeColName).mkString(",")
-    case None => "tuple()"
-  }
+  def orderByKey(): String =
+    StorageMeta.columnsToStr(orderByKeyOption, StorageMeta.DEFAULT_ORDER_BY_KEY)
 
-  def lowCardKey(): String = MergeTreeDeltaUtil.columnsToStr(lowCardKeyOption)
-  def minmaxIndexKey(): String = MergeTreeDeltaUtil.columnsToStr(minmaxIndexKeyOption)
-  def bfIndexKey(): String = MergeTreeDeltaUtil.columnsToStr(bfIndexKeyOption)
-  def setIndexKey(): String = MergeTreeDeltaUtil.columnsToStr(setIndexKeyOption)
+  def lowCardKey(): String = StorageMeta.columnsToStr(lowCardKeyOption)
+  def minmaxIndexKey(): String = StorageMeta.columnsToStr(minmaxIndexKeyOption)
+  def bfIndexKey(): String = StorageMeta.columnsToStr(bfIndexKeyOption)
+  def setIndexKey(): String = StorageMeta.columnsToStr(setIndexKeyOption)
 }
