@@ -21,7 +21,7 @@
 
 namespace gluten {
 
-class HbwMemoryAllocator final : public MemoryAllocator {
+class JemallocMemoryAllocator final : public MemoryAllocator {
  public:
   static std::shared_ptr<MemoryAllocator> newInstance();
 

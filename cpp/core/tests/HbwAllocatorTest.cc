@@ -26,7 +26,8 @@ class TestHbwAllocator : public ::testing::Test {
   void checkBytesAndFree(void*& buf, int64_t size) {
     ASSERT_NE(buf, nullptr);
     ASSERT_EQ(allocator_->getBytes(), size);
-    allocator_->free(buf, size);
+    int64_t zero = 0;
+    allocator_->free(buf, size, zero);
     ASSERT_EQ(allocator_->getBytes(), 0);
     buf = nullptr;
   }

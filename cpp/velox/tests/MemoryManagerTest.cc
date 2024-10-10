@@ -114,14 +114,14 @@ TEST_F(MemoryManagerTest, memoryAllocatorWithBlockReservation) {
   auto currentBytes = allocator_->getBytes();
   auto allocation = allocations.back();
   allocations.pop_back();
-  allocator_->free(allocation.buffer, allocation.size);
+  allocator_->free(allocation.buffer, allocation.size, 0L);
   EXPECT_EQ(allocator_->getBytes(), currentBytes - allocation.size);
   EXPECT_EQ(listener_->currentBytes(), kMemoryReservationBlockSizeDefault + initBytes);
 
   currentBytes = allocator_->getBytes();
   allocation = allocations.back();
   allocations.pop_back();
-  allocator_->free(allocation.buffer, allocation.size);
+  allocator_->free(allocation.buffer, allocation.size, 0L);
   EXPECT_EQ(allocator_->getBytes(), currentBytes - allocation.size);
   EXPECT_EQ(listener_->currentBytes(), initBytes);
 
