@@ -56,19 +56,29 @@ jobs:
   build-native-lib-centos-7:
     runs-on: ubuntu-20.04
     container: apache/gluten:vcpkg-centos-7
+    env:
+      VELOX_BUILD_PATH: "./ep/build-velox/build/velox_ep/_build/release/"
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
         run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
+          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './.github/workflows/velox_backend.yml') }} > cache-key
       - name: Cache
         id: cache
         uses: actions/cache/restore@v3
         with:
           path: |
-            ./cpp/build/releases/
+            ${VELOX_BUILD_PATH}/lib/libvelox.a
           key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
-      - name: Build Gluten native libraries
+      - name: Build Gluten with cached lib Velox
+        if: ${{ steps.cache.outputs.cache-hit == 'true' }}
+        run: |
+          df -a
+          mkdir -p cache_dir && mv ${VELOX_BUILD_PATH}/* ./cache_dir/
+          bash dev/ci-velox-buildstatic-centos-7.sh prepare_build
+          mkdir -p ${VELOX_BUILD_PATH}/ && mv ./cache_dir/* ${VELOX_BUILD_PATH}/
+          bash dev/ci-velox-buildstatic-centos-7.sh build_gluten_cpp
+      - name: Build Velox and Gluten CPP
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           df -a
@@ -1060,19 +1070,19 @@ jobs:
   run-cpp-test-udf-test:
     runs-on: ubuntu-20.04
     container: ghcr.io/facebookincubator/velox-dev:centos8
+    env:
+      VELOX_BUILD_PATH: "./ep/build-velox/build/velox_ep/_build/release/"
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
         run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
+          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './.github/workflows/velox_backend.yml') }} > cache-key
       - name: Cache
         id: cache
         uses: actions/cache/restore@v3
         with:
           path: |
-            ./cpp/build/releases/
-            ./cpp/build/velox/udf/examples/
-            ./cpp/build/velox/benchmarks/
+            ${VELOX_BUILD_PATH}
             /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
       - name: Setup java and maven
@@ -1081,7 +1091,15 @@ jobs:
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Build Gluten native libraries
+      - name: Build Gluten with cached lib Velox
+        if: steps.cache.outputs.cache-hit == 'true'
+        run: |
+          df -a
+          mkdir -p cache_dir && mv ${VELOX_BUILD_PATH}/* ./cache_dir/
+          bash dev/ci-velox-buildshared-centos-8.sh prepare_build
+          mkdir -p ${VELOX_BUILD_PATH}/ && mv ./cache_dir/* ${VELOX_BUILD_PATH}/
+          bash dev/ci-velox-buildshared-centos-8.sh build_gluten_cpp
+      - name: Build Velox and Gluten CPP
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           df -a

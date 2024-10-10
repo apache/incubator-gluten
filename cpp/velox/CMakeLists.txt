@@ -76,7 +76,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SCRIPT_CXX_FLAGS}")
 
 message("Velox module final CMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}")
 
-# User can specify VELOX_BUILD_PATH, if Velox are built elsewhere.
+# User can specify VELOX_BUILD_PATH, if Velox is built elsewhere.
 if(NOT DEFINED VELOX_BUILD_PATH)
   if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     set(VELOX_BUILD_PATH

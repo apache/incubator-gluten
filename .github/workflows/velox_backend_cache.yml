@@ -22,6 +22,7 @@ on:
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  VELOX_BUILD_PATH: "./ep/build-velox/build/velox_ep/_build/release/"
 
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}
@@ -35,14 +36,14 @@ jobs:
       - uses: actions/checkout@v2
       - name: Generate cache key
         run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
+          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './.github/workflows/velox_backend.yml') }} > cache-key
       - name: Check existing caches
         id: check-cache
         uses: actions/cache/restore@v3
         with:
           lookup-only: true
           path: |
-            ./cpp/build/releases/
+            ${VELOX_BUILD_PATH}/lib/libvelox.a
           key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
       - name: Build Gluten native libraries
         if: steps.check-cache.outputs.cache-hit != 'true'
@@ -55,7 +56,7 @@ jobs:
         uses: actions/cache/save@v3
         with:
           path: |
-            ./cpp/build/releases/
+            ${VELOX_BUILD_PATH}/lib/libvelox.a
           key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
 
   cache-native-lib-centos-8:
@@ -65,16 +66,14 @@ jobs:
       - uses: actions/checkout@v2
       - name: Generate cache key
         run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
+          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './.github/workflows/velox_backend.yml') }} > cache-key
       - name: Check existing caches
         id: check-cache
         uses: actions/cache/restore@v3
         with:
           lookup-only: true
           path: |
-            ./cpp/build/releases/
-            ./cpp/build/velox/udf/examples/
-            ./cpp/build/velox/benchmarks/
+            ${VELOX_BUILD_PATH}/
             /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
       - name: Setup java and maven
@@ -95,9 +94,7 @@ jobs:
         uses: actions/cache/save@v3
         with:
           path: |
-            ./cpp/build/releases/
-            ./cpp/build/velox/udf/examples/
-            ./cpp/build/velox/benchmarks/
+            ${VELOX_BUILD_PATH}
             /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
 
