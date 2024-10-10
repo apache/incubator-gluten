@@ -63,8 +63,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     val allocator = ArrowBufferAllocators.contextInstance()
     try {
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-      dsHandle =
-        datasourceJniWrapper.nativeInitDatasource(filePath, cSchema.memoryAddress(), nativeConf)
+      dsHandle = datasourceJniWrapper.init(filePath, cSchema.memoryAddress(), nativeConf)
     } catch {
       case e: IOException =>
         throw new GlutenException(e)

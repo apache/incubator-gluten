@@ -327,7 +327,7 @@ Java_org_apache_gluten_utils_VeloxFileSystemValidationJniWrapper_allSupportedByR
   JNI_METHOD_END(false)
 }
 
-JNIEXPORT jlong JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_nativeInitDataSource( // NOLINT
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_init( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jstring filePath,

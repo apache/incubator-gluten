@@ -40,10 +40,8 @@ object VeloxDataSourceUtil {
     val allocator = ArrowBufferAllocators.contextInstance()
     val runtime = Runtimes.contextInstance("VeloxWriter")
     val datasourceJniWrapper = VeloxDataSourceJniWrapper.create(runtime)
-    val dsHandle = datasourceJniWrapper.nativeInitDatasource(
-      file.getPath.toString,
-      -1,
-      new util.HashMap[String, String]())
+    val dsHandle =
+      datasourceJniWrapper.init(file.getPath.toString, -1, new util.HashMap[String, String]())
     val cSchema = ArrowSchema.allocateNew(allocator)
     datasourceJniWrapper.inspectSchema(dsHandle, cSchema.memoryAddress())
     try {

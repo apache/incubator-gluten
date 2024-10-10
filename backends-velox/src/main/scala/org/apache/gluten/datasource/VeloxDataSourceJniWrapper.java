@@ -41,11 +41,11 @@ public class VeloxDataSourceJniWrapper implements RuntimeAware {
     return runtime.getHandle();
   }
 
-  public long nativeInitDatasource(String filePath, long cSchema, Map<String, String> options) {
-    return nativeInitDatasource(filePath, cSchema, ConfigUtil.serialize(options));
+  public long init(String filePath, long cSchema, Map<String, String> options) {
+    return init(filePath, cSchema, ConfigUtil.serialize(options));
   }
 
-  public native long nativeInitDatasource(String filePath, long cSchema, byte[] options);
+  public native long init(String filePath, long cSchema, byte[] options);
 
   public native void inspectSchema(long dsHandle, long cSchemaAddress);
 
