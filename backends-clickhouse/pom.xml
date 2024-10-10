@@ -166,6 +166,10 @@
             <artifactId>hadoop-hdfs</artifactId>
             <groupId>org.apache.hadoop</groupId>
           </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
+          </exclusion>
         </exclusions>
     </dependency>
     <dependency>
