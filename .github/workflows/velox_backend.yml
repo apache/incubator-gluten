@@ -56,6 +56,8 @@ jobs:
   build-native-lib-centos-7:
     runs-on: ubuntu-20.04
     container: apache/gluten:vcpkg-centos-7
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
@@ -68,6 +70,15 @@ jobs:
           path: |
             ./cpp/build/releases/
           key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Build Gluten native libraries
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
