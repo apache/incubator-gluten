@@ -704,8 +704,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
-    // TODO:(yuan)
-    .exclude("vectorized reader: missing all struct fields")
     // Exception.
     .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
     // Exception msg.
