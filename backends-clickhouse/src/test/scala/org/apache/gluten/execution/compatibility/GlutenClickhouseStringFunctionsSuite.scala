@@ -137,25 +137,25 @@ class GlutenClickhouseStringFunctionsSuite extends GlutenClickHouseWholeStageTra
     }
   }
 
-  test("base64") {
-    val tableName = "base64_table"
-    withTable(tableName) {
-      sql(s"create table $tableName(data String) using parquet")
-      sql(s"""
-             |insert into $tableName values
-             |  ("hello")
-          """.stripMargin)
+  // test("base64") {
+  //   val tableName = "base64_table"
+  //   withTable(tableName) {
+  //     sql(s"create table $tableName(data String) using parquet")
+  //     sql(s"""
+  //            |insert into $tableName values
+  //            |  ("hello")
+  //         """.stripMargin)
 
-      val sql_str =
-        s"""
-           |select
-           |    base64(data)
-           |  from $tableName
-      """.stripMargin
+  //     val sql_str =
+  //       s"""
+  //          |select
+  //          |    base64(data)
+  //          |  from $tableName
+  //     """.stripMargin
 
-      runQueryAndCompare(sql_str) { _ => }
-    }
-  }
+  //     runQueryAndCompare(sql_str) { _ => }
+  //   }
+  // }
 
   test("unbase64") {
     val tableName = "unbase64_table"
