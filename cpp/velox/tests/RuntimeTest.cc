@@ -77,10 +77,6 @@ class DummyRuntime final : public Runtime {
     static Metrics m(1);
     return &m;
   }
-  std::shared_ptr<Datasource> createDatasource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema)
-      override {
-    throw GlutenException("Not yet implemented");
-  }
   std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ShuffleReaderOptions options) override {

@@ -25,16 +25,15 @@ import org.apache.spark.sql.execution.datasources.BlockStripes;
 import java.util.Map;
 
 /** The jni file is at `cpp/core/jni/JniWrapper.cc` */
-// FIXME: move to module gluten-data?
-public class DatasourceJniWrapper implements RuntimeAware {
+public class VeloxDataSourceJniWrapper implements RuntimeAware {
   private final Runtime runtime;
 
-  private DatasourceJniWrapper(Runtime runtime) {
+  private VeloxDataSourceJniWrapper(Runtime runtime) {
     this.runtime = runtime;
   }
 
-  public static DatasourceJniWrapper create(Runtime runtime) {
-    return new DatasourceJniWrapper(runtime);
+  public static VeloxDataSourceJniWrapper create(Runtime runtime) {
+    return new VeloxDataSourceJniWrapper(runtime);
   }
 
   @Override
@@ -42,11 +41,11 @@ public class DatasourceJniWrapper implements RuntimeAware {
     return runtime.getHandle();
   }
 
-  public long nativeInitDatasource(String filePath, long cSchema, Map<String, String> options) {
-    return nativeInitDatasource(filePath, cSchema, ConfigUtil.serialize(options));
+  public long init(String filePath, long cSchema, Map<String, String> options) {
+    return init(filePath, cSchema, ConfigUtil.serialize(options));
   }
 
-  public native long nativeInitDatasource(String filePath, long cSchema, byte[] options);
+  public native long init(String filePath, long cSchema, byte[] options);
 
   public native void inspectSchema(long dsHandle, long cSchemaAddress);
 

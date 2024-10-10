@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "VeloxParquetDatasource.h"
+#include "VeloxParquetDataSource.h"
 
 #include <arrow/buffer.h>
 #include <cstring>
@@ -43,7 +43,7 @@ namespace {
 const int32_t kGzipWindowBits4k = 12;
 }
 
-void VeloxParquetDatasource::initSink(const std::unordered_map<std::string, std::string>& /* sparkConfs */) {
+void VeloxParquetDataSource::initSink(const std::unordered_map<std::string, std::string>& /* sparkConfs */) {
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     sink_ = dwio::common::FileSink::create(filePath_, {.pool = pool_.get()});
   } else {
@@ -51,7 +51,7 @@ void VeloxParquetDatasource::initSink(const std::unordered_map<std::string, std:
   }
 }
 
-void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
+void VeloxParquetDataSource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   initSink(sparkConfs);
 
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
@@ -103,7 +103,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_, asRowType(schema));
 }
 
-void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
+void VeloxParquetDataSource::inspectSchema(struct ArrowSchema* out) {
   velox::dwio::common::ReaderOptions readerOptions(pool_.get());
   auto format = velox::dwio::common::FileFormat::PARQUET;
   readerOptions.setFileFormat(format);
@@ -121,13 +121,13 @@ void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
   toArrowSchema(reader->rowType(), pool_.get(), out);
 }
 
-void VeloxParquetDatasource::close() {
+void VeloxParquetDataSource::close() {
   if (parquetWriter_) {
     parquetWriter_->close();
   }
 }
 
-void VeloxParquetDatasource::write(const std::shared_ptr<ColumnarBatch>& cb) {
+void VeloxParquetDataSource::write(const std::shared_ptr<ColumnarBatch>& cb) {
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   VELOX_DCHECK(veloxBatch != nullptr, "Write batch should be VeloxColumnarBatch");
   parquetWriter_->write(veloxBatch->getFlattenedRowVector());

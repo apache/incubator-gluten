@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.utils
+package org.apache.gluten.datasource
 
-import org.apache.gluten.datasource.DatasourceJniWrapper
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
+import org.apache.gluten.utils.ArrowAbiUtil
 
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkSchemaUtil
@@ -28,7 +28,7 @@ import org.apache.hadoop.fs.FileStatus
 
 import java.util
 
-object DatasourceUtil {
+object VeloxDataSourceUtil {
   def readSchema(files: Seq[FileStatus]): Option[StructType] = {
     if (files.isEmpty) {
       throw new IllegalArgumentException("No input file specified")
@@ -39,11 +39,9 @@ object DatasourceUtil {
   def readSchema(file: FileStatus): Option[StructType] = {
     val allocator = ArrowBufferAllocators.contextInstance()
     val runtime = Runtimes.contextInstance("VeloxWriter")
-    val datasourceJniWrapper = DatasourceJniWrapper.create(runtime)
-    val dsHandle = datasourceJniWrapper.nativeInitDatasource(
-      file.getPath.toString,
-      -1,
-      new util.HashMap[String, String]())
+    val datasourceJniWrapper = VeloxDataSourceJniWrapper.create(runtime)
+    val dsHandle =
+      datasourceJniWrapper.init(file.getPath.toString, -1, new util.HashMap[String, String]())
     val cSchema = ArrowSchema.allocateNew(allocator)
     datasourceJniWrapper.inspectSchema(dsHandle, cSchema.memoryAddress())
     try {

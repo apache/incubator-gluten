@@ -24,16 +24,15 @@
 #include <arrow/type_fwd.h>
 
 #include "memory/ColumnarBatch.h"
-#include "operators/writer/Datasource.h"
 
 namespace gluten {
 
-class Datasource {
+class VeloxDataSource {
  public:
-  Datasource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema)
+  VeloxDataSource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema)
       : filePath_(filePath), schema_(schema) {}
 
-  virtual ~Datasource() = default;
+  virtual ~VeloxDataSource() = default;
 
   virtual void init(const std::unordered_map<std::string, std::string>& sparkConfs) {}
   virtual void inspectSchema(struct ArrowSchema* out) = 0;

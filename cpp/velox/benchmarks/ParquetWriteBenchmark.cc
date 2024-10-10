@@ -263,20 +263,20 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
 
     for (auto _ : state) {
       // Init VeloxParquetDataSource
-      auto veloxParquetDatasource = std::make_unique<gluten::VeloxParquetDatasource>(
+      auto veloxParquetDataSource = std::make_unique<gluten::VeloxParquetDataSource>(
           outputPath_ + "/" + fileName,
           veloxPool->addAggregateChild("writer_benchmark"),
           veloxPool->addLeafChild("sink_pool"),
           localSchema);
 
-      veloxParquetDatasource->init(runtime->getConfMap());
+      veloxParquetDataSource->init(runtime->getConfMap());
       auto start = std::chrono::steady_clock::now();
       for (const auto& vector : vectors) {
-        veloxParquetDatasource->write(vector);
+        veloxParquetDataSource->write(vector);
       }
       auto end = std::chrono::steady_clock::now();
       writeTime += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-      veloxParquetDatasource->close();
+      veloxParquetDataSource->close();
     }
 
     state.counters["rowgroups"] =
