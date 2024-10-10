@@ -50,11 +50,11 @@ extern const SettingsUInt64 max_parser_backtracks;
 }
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
-    extern const int TOO_FEW_ARGUMENTS_FOR_FUNCTION;
-    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
-    extern const int ILLEGAL_COLUMN;
-    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+extern const int LOGICAL_ERROR;
+extern const int TOO_FEW_ARGUMENTS_FOR_FUNCTION;
+extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+extern const int ILLEGAL_COLUMN;
+extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 }
 }
 namespace local_engine
@@ -215,7 +215,7 @@ private:
     /// To use simdjson, we need to convert single quotes to double quotes.
     /// FIXME: It will be OK if we just return a leaf value, but it will have different result for
     /// returning a object with strings which are wrapped by single quotes.
-    inline static const char * normalizeSingleQuotesString(const char * pos, const char * end, char *&dst)
+    inline static const char * normalizeSingleQuotesString(const char * pos, const char * end, char *& dst)
     {
         if (!isExpectedChar('\'', pos, end)) [[unlikely]]
         {
@@ -403,7 +403,7 @@ class GetJsonObjectImpl
 public:
     using Element = typename JSONParser::Element;
 
-    static DB::DataTypePtr getReturnType(const char *, const DB::ColumnsWithTypeAndName &, bool )
+    static DB::DataTypePtr getReturnType(const char *, const DB::ColumnsWithTypeAndName &, bool)
     {
         auto nested_type = std::make_shared<DB::DataTypeString>();
         return std::make_shared<DB::DataTypeNullable>(nested_type);
@@ -411,8 +411,7 @@ public:
 
     static size_t getNumberOfIndexArguments(const DB::ColumnsWithTypeAndName & arguments) { return arguments.size() - 1; }
 
-    bool insertResultToColumn(
-        DB::IColumn & dest, const Element & root, DB::GeneratorJSONPath<JSONParser> & generator_json_path, bool )
+    bool insertResultToColumn(DB::IColumn & dest, const Element & root, DB::GeneratorJSONPath<JSONParser> & generator_json_path, bool)
     {
         Element current_element = root;
         DB::VisitorStatus status;
@@ -447,7 +446,7 @@ public:
             if (elements[0].isNull())
                 return false;
             nullable_col_str.getNullMapData().push_back(0);
-            
+
             if (elements[0].isString())
             {
                 auto str = elements[0].getString();
@@ -480,8 +479,99 @@ public:
         serializer.commit();
         return true;
     }
+};
 
-private:
+/// If a json field containt spaces, we wrap it by double quotes.
+/// FIXME: If it contains \t, \n, simdjson cannot parse.
+class JSONPathNormalizer
+{
+public:
+    static String normalize(const String & json_path_)
+    {
+        DB::Tokens tokens(json_path_.data(), json_path_.data() + json_path_.size());
+        DB::IParser::Pos pos(tokens, 0, 0);
+        String res;
+        while (pos->type != DB::TokenType::EndOfStream)
+        {
+            if (pos->type == DB::TokenType::Number)
+            {
+                ++pos;
+                // Two tokens are seperated by white spaces.
+                if (pos->type == DB::TokenType::Number || pos->type == DB::TokenType::BareWord)
+                {
+                    --pos;
+                    if (*pos->begin == '.')
+                        res += ".";
+                    ++pos;
+                    res += "\"";
+
+                    while (pos->type == DB::TokenType::Number || pos->type == DB::TokenType::BareWord)
+                    {
+                        --pos;
+                        const auto * last_end = pos->end;
+                        const auto * begin = *pos->begin == '.' ? pos->begin + 1 : pos->begin;
+                        res += String(begin, pos->end);
+                        ++pos;
+                        res += String(last_end, pos->begin);
+                        ++pos;
+                    }
+                    --pos;
+                    const auto * last_end = pos->end;
+                    res += String(pos->begin, pos->end);
+                    ++pos;
+                    res += String(last_end, pos->begin);
+                    res += "\"";
+                }
+                else if (
+                    pos->type == DB::TokenType::Dot || pos->type == DB::TokenType::OpeningSquareBracket
+                    || pos->type == DB::TokenType::EndOfStream)
+                {
+                    --pos;
+                    if (*pos->begin == '.')
+                        res += ".";
+                    res += "\"";
+                    const auto * last_end = pos->end;
+                    const auto * begin = *pos->begin == '.' ? pos->begin + 1 : pos->begin;
+                    res += String(begin, pos->end);
+                    ++pos;
+                    res += String(last_end, pos->begin);
+                    res += "\"";
+                }
+                else
+                {
+                    --pos;
+                    res += String(pos->begin, pos->end);
+                    ++pos;
+                }
+            }
+            else if (pos->type == DB::TokenType::BareWord)
+            {
+                res += "\"";
+                ++pos;
+                while (pos->type == DB::TokenType::Number || pos->type == DB::TokenType::BareWord)
+                {
+                    --pos;
+                    const auto * last_end = pos->end;
+                    res += String(pos->begin, pos->end);
+                    ++pos;
+                    res += String(last_end, pos->begin);
+                    ++pos;
+                }
+                --pos;
+                const auto * last_end = pos->end;
+                res += String(pos->begin, pos->end);
+                ++pos;
+                res += String(last_end, pos->begin);
+                res += "\"";
+            }
+            else
+            {
+                res += String(pos->begin, pos->end);
+                ++pos;
+            }
+        }
+        return res;
+    }
 };
 
 /// Flatten a json string into a tuple.
@@ -550,7 +640,7 @@ private:
     mutable size_t total_parsed_rows = 0;
     mutable size_t total_normalized_rows = 0;
 
-    template<typename JSONParser>
+    template <typename JSONParser>
     bool safeParseJson(std::string_view str, JSONParser & parser, JSONParser::Element & doc) const
     {
         total_parsed_rows++;
@@ -566,7 +656,7 @@ private:
         }
         if (!is_doc_ok)
         {
-            total_normalized_rows ++;
+            total_normalized_rows++;
             std::vector<char> buf;
             buf.resize(str.size(), 0);
             char * buf_pos = buf.data();
@@ -598,7 +688,8 @@ private:
             bool path_parsed = true;
             for (const auto & field : tokenizer)
             {
-                required_fields.push_back(field);
+                auto normalized_field = JSONPathNormalizer::normalize(field);
+                required_fields.push_back(normalized_field);
                 tuple_columns.emplace_back(str_type->createColumn());
 
                 const char * query_begin = reinterpret_cast<const char *>(required_fields.back().c_str());
