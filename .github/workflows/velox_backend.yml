@@ -1074,6 +1074,8 @@ jobs:
   run-cpp-test-udf-test:
     runs-on: ubuntu-20.04
     container: ghcr.io/facebookincubator/velox-dev:centos8
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
@@ -1095,6 +1097,15 @@ jobs:
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
+      - name: Ensure Cache Dirs Exists
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Build Gluten native libraries
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
