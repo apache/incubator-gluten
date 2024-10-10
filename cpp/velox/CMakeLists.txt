@@ -231,7 +231,11 @@ endif()
 
 target_include_directories(
   velox PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS}
-               ${CMAKE_CURRENT_SOURCE_DIR} ${VELOX_HOME}/ ${VELOX_BUILD_PATH}/)
+               ${CMAKE_CURRENT_SOURCE_DIR} ${PROTOBUF_INCLUDE} ${VELOX_HOME})
+
+if(BUILD_TESTS)
+  target_include_directories(velox PUBLIC ${VELOX_BUILD_PATH})
+endif()
 
 set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
                                        ${root_directory}/releases)
@@ -240,9 +244,6 @@ set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
 # `-DCMAKE_PREFIX_PATH="${folly lib path}" to cmake arguments. It is also
 # applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
-
-target_include_directories(velox PUBLIC ${GTEST_INCLUDE_DIRS}
-                                        ${PROTOBUF_INCLUDE})
 
 if(BUILD_JEMALLOC)
   include(Findjemalloc_pic)
