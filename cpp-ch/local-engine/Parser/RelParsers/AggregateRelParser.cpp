@@ -112,6 +112,7 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
 {
     plan = std::move(query_plan);
     aggregate_rel = &rel.aggregate();
+    has_distinct = aggregate_rel->has_distinct();
 
     std::set<substrait::AggregationPhase> phase_set;
     for (const auto & measure : aggregate_rel->measures())
@@ -147,7 +148,6 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
     for (const auto & measure : aggregate_rel->measures())
     {
         AggregateInfo agg_info;
-        bool is_distinct = measure.measure().is_distinct();
         agg_info.signature_function_name = *parseSignatureFunctionName(measure.measure().function_reference());
         auto function_parser = AggregateFunctionParserFactory::instance().get(agg_info.signature_function_name, getPlanParser());
         if (!function_parser)
@@ -256,7 +256,6 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
 
         agg_info.measure_column_name = description.column_name;
         description.argument_names = agg_info.arg_column_names;
-        description.is_distinct = agg_info.measure->measure().is_distinct();
         DB::AggregateFunctionProperties properties;
 
         if (!agg_info.function_name.ends_with("State"))
@@ -425,15 +424,6 @@ void AggregateRelParser::addAggregatingStep()
 {
     AggregateDescriptions aggregate_descriptions;
     buildAggregateDescriptions(aggregate_descriptions);
-    bool has_distinct = false;
-    for (const auto & desc : aggregate_descriptions)
-    {
-        if (desc.is_distinct)
-        {
-            has_distinct = true;
-            break;
-        }
-    }
     const auto & settings = getContext()->getSettingsRef();
 
     auto config = StreamingAggregateConfig::loadFromContext(getContext());

@@ -304,6 +304,9 @@ message AggregateRel {
   // A list of one or more aggregate expressions along with an optional filter.
   repeated Measure measures = 4;
 
+  // Whether the aggregate functions has distinct aggregate.
+  bool has_distinct = 5;
+
   substrait.extensions.AdvancedExtension advanced_extension = 10;
 
   message Grouping {
@@ -1408,9 +1411,6 @@ message AggregateFunction {
   // to an aggregate function in the associated YAML file. Required; 0 is
   // considered to be a valid anchor/reference.
   uint32 function_reference = 1;
-
-  // Whether the aggregate function is a distinct one.
-  bool is_distinct = 9;
 
   // The arguments to be bound to the function. This must have exactly the
   // number of arguments specified in the function definition, and the

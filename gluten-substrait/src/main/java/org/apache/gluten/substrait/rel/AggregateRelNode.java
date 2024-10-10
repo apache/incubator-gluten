@@ -35,30 +35,21 @@ public class AggregateRelNode implements RelNode, Serializable {
 
   private final List<ExpressionNode> filters = new ArrayList<>();
   private final AdvancedExtensionNode extensionNode;
-
-  AggregateRelNode(
-      RelNode input,
-      List<ExpressionNode> groupings,
-      List<AggregateFunctionNode> aggregateFunctionNodes,
-      List<ExpressionNode> filters) {
-    this.input = input;
-    this.groupings.addAll(groupings);
-    this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
-    this.filters.addAll(filters);
-    this.extensionNode = null;
-  }
+  private final boolean hasDistinct;
 
   AggregateRelNode(
       RelNode input,
       List<ExpressionNode> groupings,
       List<AggregateFunctionNode> aggregateFunctionNodes,
       List<ExpressionNode> filters,
-      AdvancedExtensionNode extensionNode) {
+      AdvancedExtensionNode extensionNode,
+      boolean hasDistinct) {
     this.input = input;
     this.groupings.addAll(groupings);
     this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
     this.filters.addAll(filters);
     this.extensionNode = extensionNode;
+    this.hasDistinct = hasDistinct;
   }
 
   @Override
@@ -74,6 +65,7 @@ public class AggregateRelNode implements RelNode, Serializable {
     AggregateRel.Builder aggBuilder = AggregateRel.newBuilder();
     aggBuilder.setCommon(relCommonBuilder.build());
     aggBuilder.addGroupings(groupingBuilder.build());
+    aggBuilder.setHasDistinct(hasDistinct);
 
     for (int i = 0; i < aggregateFunctionNodes.size(); i++) {
       AggregateRel.Measure.Builder measureBuilder = AggregateRel.Measure.newBuilder();

@@ -60,7 +60,8 @@ case class CHHashAggregateExecTransformer(
     aggregateAttributes: Seq[Attribute],
     initialInputBufferOffset: Int,
     resultExpressions: Seq[NamedExpression],
-    child: SparkPlan)
+    child: SparkPlan,
+    hasDistinctAggregate: Boolean = false)
   extends HashAggregateExecBaseTransformer(
     requiredChildDistributionExpressions,
     groupingExpressions,
@@ -253,8 +254,7 @@ case class CHHashAggregateExecTransformer(
           CHExpressions.createAggregateFunction(args, aggregateFunc),
           childrenNodeList,
           modeToKeyWord(aggExpr.mode),
-          ConverterUtils.getTypeNode(aggregateFunc.dataType, aggregateFunc.nullable),
-          aggExpr.isDistinct
+          ConverterUtils.getTypeNode(aggregateFunc.dataType, aggregateFunc.nullable)
         )
         aggregateFunctionList.add(aggFunctionNode)
       })
@@ -267,7 +267,8 @@ case class CHHashAggregateExecTransformer(
       aggFilterList,
       extensionNode,
       context,
-      operatorId)
+      operatorId,
+      hasDistinctAggregate)
   }
 
   override def isStreaming: Boolean = false
