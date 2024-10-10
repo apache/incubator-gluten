@@ -187,22 +187,23 @@ fi
 
 concat_velox_param
 
+if [ "$VELOX_HOME" == "" ]; then
+  VELOX_HOME="$GLUTEN_DIR/ep/build-velox/build/velox_ep"
+fi
+
+source $GLUTEN_DIR/dev/build_helper_functions.sh
+
 function prepare_build {
   (
     cd $GLUTEN_DIR/ep/build-velox/src
     ./get_velox.sh $VELOX_PARAMETER
   )
 
-  if [ "$VELOX_HOME" == "" ]; then
-    VELOX_HOME="$GLUTEN_DIR/ep/build-velox/build/velox_ep"
-  fi
-
   OS=`uname -s`
   ARCH=`uname -m`
   DEPENDENCY_DIR=${DEPENDENCY_DIR:-$CURRENT_DIR/../ep/_ep}
   mkdir -p ${DEPENDENCY_DIR}
 
-  source $GLUTEN_DIR/dev/build_helper_functions.sh
   if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
     echo "Start to install dependencies"
     pushd $VELOX_HOME
@@ -239,6 +240,7 @@ function prepare_build {
     fi
     popd
   fi
+  echo "Finished build preparation."
 }
 
 function build_arrow {
