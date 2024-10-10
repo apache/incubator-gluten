@@ -33,16 +33,16 @@ import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.catalog.{ClickHouseTableV2, DeltaTableV2}
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution.datasources.CHDatasourceJniWrapper
-import org.apache.spark.sql.execution.datasources.v1.CHMergeTreeWriterInjects
-import org.apache.spark.sql.execution.datasources.v1.clickhouse._
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.{AddFileTags, AddMergeTreeParts}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSourceUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{SerializableConfiguration, SystemClock, Utils}
 import org.apache.hadoop.fs.{FileAlreadyExistsException, Path}
 import org.apache.hadoop.mapreduce.{TaskAttemptContext, TaskAttemptID, TaskID, TaskType}
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
+import org.apache.spark.sql.execution.datasources.ch.CHMergeTreeWriterInjects
+import org.apache.spark.sql.execution.datasources.mergetree.MergeTreeWriteTaskResult
+import org.apache.spark.sql.execution.datasources.mergetree.metadata.{AddFileTags, AddMergeTreeParts}
+import org.apache.spark.sql.execution.datasources.mergetree.utils.CHDataSourceUtils
 
 import java.util.Date
 import scala.collection.mutable.ArrayBuffer
