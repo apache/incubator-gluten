@@ -25,7 +25,6 @@ import org.apache.spark.sql.execution.datasources.BlockStripes;
 import java.util.Map;
 
 /** The jni file is at `cpp/core/jni/JniWrapper.cc` */
-// FIXME: move to module gluten-data?
 public class DatasourceJniWrapper implements RuntimeAware {
   private final Runtime runtime;
 
