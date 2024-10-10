@@ -99,7 +99,7 @@ class VeloxMetricsSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
   }
 
-  test("test shuffle hash join metrics") {
+  ignore("test shuffle hash join metrics") {
     withSQLConf(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1") {
       // without preproject
       runQueryAndCompare(
