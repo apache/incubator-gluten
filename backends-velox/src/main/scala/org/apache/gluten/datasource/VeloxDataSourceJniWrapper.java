@@ -25,15 +25,15 @@ import org.apache.spark.sql.execution.datasources.BlockStripes;
 import java.util.Map;
 
 /** The jni file is at `cpp/core/jni/JniWrapper.cc` */
-public class DatasourceJniWrapper implements RuntimeAware {
+public class VeloxDataSourceJniWrapper implements RuntimeAware {
   private final Runtime runtime;
 
-  private DatasourceJniWrapper(Runtime runtime) {
+  private VeloxDataSourceJniWrapper(Runtime runtime) {
     this.runtime = runtime;
   }
 
-  public static DatasourceJniWrapper create(Runtime runtime) {
-    return new DatasourceJniWrapper(runtime);
+  public static VeloxDataSourceJniWrapper create(Runtime runtime) {
+    return new VeloxDataSourceJniWrapper(runtime);
   }
 
   @Override

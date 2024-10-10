@@ -29,7 +29,7 @@
 
 #include "memory/ColumnarBatch.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "operators/writer/Datasource.h"
+#include "operators/writer/DataSource.h"
 
 #include "velox/common/file/FileSystems.h"
 #ifdef ENABLE_S3
@@ -79,14 +79,14 @@ inline bool isSupportedABFSPath(const std::string& filePath) {
   return strncmp(filePath.c_str(), "abfs:", 5) == 0 || strncmp(filePath.c_str(), "abfss:", 6) == 0;
 }
 
-class VeloxParquetDatasource : public Datasource {
+class VeloxParquetDataSource : public DataSource {
  public:
-  VeloxParquetDatasource(
+  VeloxParquetDataSource(
       const std::string& filePath,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> sinkPool,
       std::shared_ptr<arrow::Schema> schema)
-      : Datasource(filePath, schema), filePath_(filePath), schema_(schema), pool_(std::move(veloxPool)) {}
+      : DataSource(filePath, schema), filePath_(filePath), schema_(schema), pool_(std::move(veloxPool)) {}
 
   void init(const std::unordered_map<std::string, std::string>& sparkConfs) override;
   virtual void initSink(const std::unordered_map<std::string, std::string>& sparkConfs);

@@ -19,6 +19,7 @@
 
 #include <glog/logging.h>
 
+#include "../../velox/operators/writer/DataSource.h"
 #include "compute/ProtobufUtils.h"
 #include "compute/ResultIterator.h"
 #include "memory/ArrowMemoryPool.h"
@@ -27,7 +28,6 @@
 #include "operators/c2r/ColumnarToRow.h"
 #include "operators/r2c/RowToColumnar.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
-#include "operators/writer/Datasource.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
@@ -107,10 +107,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       ShuffleWriterOptions options) = 0;
 
   virtual Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) = 0;
-
-  virtual std::shared_ptr<Datasource> createDatasource(
-      const std::string& filePath,
-      std::shared_ptr<arrow::Schema> schema) = 0;
 
   virtual std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,

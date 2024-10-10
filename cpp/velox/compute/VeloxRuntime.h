@@ -22,7 +22,7 @@
 #include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
-#include "operators/writer/VeloxParquetDatasource.h"
+#include "operators/writer/VeloxParquetDataSource.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 
@@ -68,8 +68,7 @@ class VeloxRuntime final : public Runtime {
     return iter->getMetrics(exportNanos);
   }
 
-  std::shared_ptr<Datasource> createDatasource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema)
-      override;
+  std::shared_ptr<DataSource> createDataSource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema);
 
   std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,

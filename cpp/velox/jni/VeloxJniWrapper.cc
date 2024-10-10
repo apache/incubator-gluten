@@ -45,6 +45,9 @@ using namespace facebook;
 extern "C" {
 #endif
 
+static jclass blockStripesClass;
+static jmethodID blockStripesConstructor;
+
 jint JNI_OnLoad(JavaVM* vm, void*) {
   JNIEnv* env;
   if (vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
@@ -56,6 +59,10 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   initVeloxJniFileSystem(env);
   initVeloxJniUDF(env);
 
+  blockStripesClass =
+      createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
+  blockStripesConstructor = env->GetMethodID(blockStripesClass, "<init>", "(J[J[II[B)V");
+
   DLOG(INFO) << "Loaded Velox backend.";
 
   return jniVersion;
@@ -64,6 +71,9 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
 void JNI_OnUnload(JavaVM* vm, void*) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
+
+  env->DeleteGlobalRef(blockStripesClass);
+
   finalizeVeloxJniUDF(env);
   finalizeVeloxJniFileSystem(env);
   getJniErrorState()->close();
@@ -185,8 +195,7 @@ JNIEXPORT jlong JNICALL Java_org_apache_gluten_columnarbatch_VeloxColumnarBatchJ
     auto batch = ObjectStore::retrieve<ColumnarBatch>(handle);
     batches.push_back(batch);
   }
-  auto newBatch =
-      VeloxColumnarBatch::compose(runtime->memoryManager()->getLeafMemoryPool().get(), std::move(batches));
+  auto newBatch = VeloxColumnarBatch::compose(runtime->memoryManager()->getLeafMemoryPool().get(), std::move(batches));
   return ctx->saveObject(newBatch);
   JNI_METHOD_END(kInvalidObjectHandle)
 }
@@ -316,6 +325,109 @@ Java_org_apache_gluten_utils_VeloxFileSystemValidationJniWrapper_allSupportedByR
   }
   return true;
   JNI_METHOD_END(false)
+}
+
+JNIEXPORT jlong JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_nativeInitDataSource( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jstring filePath,
+    jlong cSchema,
+    jbyteArray options) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto runtime = dynamic_cast<VeloxRuntime*>(ctx);
+
+  ObjectHandle handle = kInvalidObjectHandle;
+
+  if (cSchema == -1) {
+    // Only inspect the schema and not write
+    handle = ctx->saveObject(runtime->createDataSource(jStringToCString(env, filePath), nullptr));
+  } else {
+    auto safeArray = gluten::getByteArrayElementsSafe(env, options);
+    auto datasourceOptions = gluten::parseConfMap(env, safeArray.elems(), safeArray.length());
+    auto& sparkConf = ctx->getConfMap();
+    datasourceOptions.insert(sparkConf.begin(), sparkConf.end());
+    auto schema = gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
+    handle = ctx->saveObject(runtime->createDataSource(jStringToCString(env, filePath), schema));
+    auto datasource = ObjectStore::retrieve<DataSource>(handle);
+    datasource->init(datasourceOptions);
+  }
+
+  return handle;
+  JNI_METHOD_END(kInvalidObjectHandle)
+}
+
+JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_inspectSchema( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong dsHandle,
+    jlong cSchema) {
+  JNI_METHOD_START
+  auto datasource = ObjectStore::retrieve<DataSource>(dsHandle);
+  datasource->inspectSchema(reinterpret_cast<struct ArrowSchema*>(cSchema));
+  JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_close( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong dsHandle) {
+  JNI_METHOD_START
+  auto datasource = ObjectStore::retrieve<DataSource>(dsHandle);
+  datasource->close();
+  ObjectStore::release(dsHandle);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_writeBatch( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong dsHandle,
+    jlong batchHandle) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto datasource = ObjectStore::retrieve<DataSource>(dsHandle);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
+  datasource->write(batch);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT jobject JNICALL
+Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapper_splitBlockByPartitionAndBucket( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong batchHandle,
+    jintArray partitionColIndice,
+    jboolean hasBucket,
+    jlong memoryManagerId) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
+  auto safeArray = gluten::getIntArrayElementsSafe(env, partitionColIndice);
+  int size = env->GetArrayLength(partitionColIndice);
+  std::vector<int32_t> partitionColIndiceVec;
+  for (int i = 0; i < size; ++i) {
+    partitionColIndiceVec.push_back(safeArray.elems()[i]);
+  }
+
+  auto result = batch->toUnsafeRow(0);
+  auto rowBytes = result.data();
+  auto newBatchHandle = ctx->saveObject(ctx->select(batch, partitionColIndiceVec));
+
+  auto bytesSize = result.size();
+  jbyteArray bytesArray = env->NewByteArray(bytesSize);
+  env->SetByteArrayRegion(bytesArray, 0, bytesSize, reinterpret_cast<jbyte*>(rowBytes));
+
+  jlongArray batchArray = env->NewLongArray(1);
+  long* cBatchArray = new long[1];
+  cBatchArray[0] = newBatchHandle;
+  env->SetLongArrayRegion(batchArray, 0, 1, cBatchArray);
+  delete[] cBatchArray;
+
+  jobject blockStripes = env->NewObject(
+      blockStripesClass, blockStripesConstructor, batchHandle, batchArray, nullptr, batch->numColumns(), bytesArray);
+  return blockStripes;
+  JNI_METHOD_END(nullptr)
 }
 
 #ifdef __cplusplus
