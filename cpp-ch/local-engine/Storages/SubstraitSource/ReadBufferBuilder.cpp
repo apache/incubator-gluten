@@ -450,9 +450,20 @@ public:
         const std::string& bucket = file_uri.getHost();
         const auto client = getClient(bucket);
         std::string pathKey = file_uri.getPath().substr(1);
-        DB::S3::ObjectInfo object_info =  DB::S3::getObjectInfo(*client, bucket, pathKey, "");
-        size_t object_size = object_info.size;
-        Int64 object_modified_time = object_info.last_modification_time;
+
+        size_t object_size = 0;
+        size_t object_modified_time = 0;
+        if (file_info.has_properties())
+        {
+            object_size = file_info.properties().filesize();
+            object_modified_time = file_info.properties().modificationtime();
+        }
+        else
+        {
+            DB::S3::ObjectInfo object_info =  DB::S3::getObjectInfo(*client, bucket, pathKey, "");
+            object_size = object_info.size;
+            object_modified_time = object_info.last_modification_time;
+        }
 
         auto read_buffer_creator
             = [bucket, client, read_settings, this](bool restricted_seek, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromFileBase>
