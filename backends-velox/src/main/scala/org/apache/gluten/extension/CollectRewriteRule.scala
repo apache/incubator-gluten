@@ -25,6 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.{And, Coalesce, Expression, IsN
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Window}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.trees.TreePattern.{AGGREGATE_EXPRESSION, WINDOW_EXPRESSION}
 import org.apache.spark.sql.types.ArrayType
 
 import scala.reflect.{classTag, ClassTag}
@@ -37,6 +38,10 @@ import scala.reflect.{classTag, ClassTag}
 case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
   import CollectRewriteRule._
   override def apply(plan: LogicalPlan): LogicalPlan = LogicalPlanSelector.maybe(spark, plan) {
+    if (!has[VeloxCollectSet] && !has[VeloxCollectList]) {
+      return plan
+    }
+
     val out = plan.transformUp {
       case node =>
         val out = replaceCollectSet(replaceCollectList(node))
@@ -49,9 +54,9 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
   }
 
   private def replaceCollectList(node: LogicalPlan): LogicalPlan = {
-    node.transformExpressions {
-      case func @ AggregateExpression(l: CollectList, _, _, _, _) if has[VeloxCollectList] =>
-        func.copy(VeloxCollectList(l.child))
+    node.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
+      case aggExpr @ AggregateExpression(l: CollectList, _, _, _, _) if has[VeloxCollectList] =>
+        aggExpr.copy(VeloxCollectList(l.child))
     }
   }
 
@@ -63,16 +68,15 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
     // Since https://github.com/apache/incubator-gluten/pull/4805
     node match {
       case agg: Aggregate =>
-        agg.transformExpressions {
-          case ToVeloxCollectSet(newAggFunc) =>
-            val out = ensureNonNull(newAggFunc)
-            out
+        agg.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
+          case ToVeloxCollectSet(newAggExpr) =>
+            ensureNonNull(newAggExpr)
         }
       case w: Window =>
-        w.transformExpressions {
-          case func @ WindowExpression(ToVeloxCollectSet(newAggFunc), _) =>
-            val out = ensureNonNull(func.copy(newAggFunc))
-            out
+        w.transformExpressionsWithPruning(
+          _.containsAllPatterns(AGGREGATE_EXPRESSION, WINDOW_EXPRESSION)) {
+          case windowExpr @ WindowExpression(ToVeloxCollectSet(newAggExpr), _) =>
+            ensureNonNull(windowExpr.copy(newAggExpr))
         }
       case other => other
     }
@@ -81,26 +85,24 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
 
 object CollectRewriteRule {
   private def ensureNonNull(expr: Expression): Expression = {
-    val out =
+    val coalesce =
       Coalesce(List(expr, Literal.create(Seq.empty, expr.dataType)))
-    assert(!out.nullable)
-    assert(!out.dataType.asInstanceOf[ArrayType].containsNull)
-    out
+    assert(!coalesce.nullable)
+    assert(!coalesce.dataType.asInstanceOf[ArrayType].containsNull)
+    coalesce
   }
 
   private object ToVeloxCollectSet {
     def unapply(expr: Expression): Option[Expression] = expr match {
-      case aggFunc @ AggregateExpression(s: CollectSet, _, _, filter, _) if has[VeloxCollectSet] =>
+      case aggExpr @ AggregateExpression(s: CollectSet, _, _, filter, _) if has[VeloxCollectSet] =>
         val newFilter = (filter ++ Some(IsNotNull(s.child))).reduceOption(And)
-        val newAggFunc =
-          aggFunc.copy(aggregateFunction = VeloxCollectSet(s.child), filter = newFilter)
-        Some(newAggFunc)
+        val newAggExpr =
+          aggExpr.copy(aggregateFunction = VeloxCollectSet(s.child), filter = newFilter)
+        Some(newAggExpr)
       case _ => None
     }
   }
 
-  private def has[T <: Expression: ClassTag]: Boolean = {
-    val out = ExpressionMappings.expressionsMap.contains(classTag[T].runtimeClass)
-    out
-  }
+  private def has[T <: Expression: ClassTag]: Boolean =
+    ExpressionMappings.expressionsMap.contains(classTag[T].runtimeClass)
 }
