@@ -23,6 +23,7 @@
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Operator/DefaultHashAggregateResult.h>
+#include <Operator/GraceAggregatingStep.h>
 #include <Operator/GraceMergingAggregatedStep.h>
 #include <Operator/StreamingAggregatingStep.h>
 #include <Parser/AggregateFunctionParser.h>
@@ -53,10 +54,10 @@ extern const SettingsUInt64 max_block_size;
 }
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
-    extern const int BAD_ARGUMENTS;
-    extern const int UNKNOWN_TYPE;
-    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+extern const int LOGICAL_ERROR;
+extern const int BAD_ARGUMENTS;
+extern const int UNKNOWN_TYPE;
+extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 }
 }
 namespace local_engine
@@ -66,8 +67,10 @@ AggregateRelParser::AggregateRelParser(SerializedPlanParser * plan_paser_) : Rel
 {
 }
 
-DB::QueryPlanPtr AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
+DB::QueryPlanPtr
+AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
 {
+    rel_stack = &rel_stack_;
     setup(std::move(query_plan), rel);
 
     addPreProjection();
@@ -214,9 +217,12 @@ void AggregateRelParser::addPreProjection()
 void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & descriptions)
 {
     const auto & current_plan_header = plan->getCurrentDataStream().header;
-    auto build_result_column_name = [this, current_plan_header](const String & function_name, const Array & params, const Strings & arg_names, substrait::AggregationPhase phase)
+    auto build_result_column_name
+        = [this, current_plan_header](
+              const String & function_name, const Array & params, const Strings & arg_names, substrait::AggregationPhase phase)
     {
-        if (phase == substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT)
+        if (phase == substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT
+            || phase == substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE)
         {
             assert(arg_names.size() == 1);
             return arg_names[0];
@@ -242,7 +248,8 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         auto res = this->getUniqueName(result);
         // Just a check for remining this issue.
         if (current_plan_header.findByName(res))
-            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Name ({}) collision in header: {}", res, current_plan_header.dumpStructure());
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR, "Name ({}) collision in header: {}", res, current_plan_header.dumpStructure());
         return res;
     };
 
@@ -271,7 +278,8 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
             // If the function is a state function, we don't need to apply `PartialMerge`.
             // In INITIAL_TO_INTERMEDIATE or INITIAL_TO_RESULT phase, we do arguments -> xxState.
             // In INTERMEDIATE_TO_RESULT phase, we do xxState -> xxState.
-            if (agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE || agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_RESULT)
+            if (agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
+                || agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_RESULT)
             {
                 description.function = getAggregateFunction(agg_info.function_name, agg_info.arg_column_types, properties, agg_info.params);
             }
@@ -370,7 +378,7 @@ void AggregateRelParser::addCompleteModeAggregatedStep()
             /*only_merge*/ false,
             settings[Setting::optimize_group_by_constant_keys],
             settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization],
-            /*StatsCollectingParams*/{});
+            /*StatsCollectingParams*/ {});
         auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params, true);
         steps.emplace_back(merging_step.get());
         plan->addStep(std::move(merging_step));
@@ -397,7 +405,7 @@ void AggregateRelParser::addCompleteModeAggregatedStep()
             /*only_merge*/ false,
             settings[Setting::optimize_group_by_constant_keys],
             settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization],
-            /*StatsCollectingParams*/{});
+            /*StatsCollectingParams*/ {});
 
         auto aggregating_step = std::make_unique<AggregatingStep>(
             plan->getCurrentDataStream(),
@@ -427,6 +435,17 @@ void AggregateRelParser::addAggregatingStep()
     const auto & settings = getContext()->getSettingsRef();
 
     auto config = StreamingAggregateConfig::loadFromContext(getContext());
+    bool is_distinct_aggreate = false;
+    /// For aggregation which involve distinct. It could have 4 steps in general.
+    if (!rel_stack->empty())
+    {
+        const auto & next_rel = *(rel_stack->back());
+        if (next_rel.rel_type_case() == substrait::Rel::RelTypeCase::kAggregate)
+        {
+            is_distinct_aggreate = true;
+        }
+    }
+
     if (config.enable_streaming_aggregating)
     {
         // Disable spilling to disk.
@@ -455,10 +474,33 @@ void AggregateRelParser::addAggregatingStep()
             /*only_merge*/ false,
             settings[Setting::optimize_group_by_constant_keys],
             settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization],
-            /*StatsCollectingParams*/{});
-        auto aggregating_step = std::make_unique<StreamingAggregatingStep>(getContext(), plan->getCurrentDataStream(), params);
-        steps.emplace_back(aggregating_step.get());
-        plan->addStep(std::move(aggregating_step));
+            /*StatsCollectingParams*/ {});
+        if (!is_distinct_aggreate)
+        {
+            auto aggregating_step = std::make_unique<StreamingAggregatingStep>(getContext(), plan->getCurrentDataStream(), params);
+            steps.emplace_back(aggregating_step.get());
+            plan->addStep(std::move(aggregating_step));
+        }
+        else
+        {
+            /// If it's an aggregation query involves distinct, for example,
+            ///     select n_regionkey, count(distinct(n_name)), sum(n_nationkey) from nation group by n_regionkey
+            /// The running steps are as follow in general.
+            ///   step1: partial aggregation on keys (n_regionkey, n_name) with empty aggregation functions.
+            ///   step2: exchagne shuffle
+            ///   step3: aggregation on keys (n_regionkey, n_name) with partial aggregation sum(n_nationkey)
+            ///   step4: aggregation on keys (n_regionkey) with partial aggregation merge sum(n_nationkey), and partial aggregation count(n_name)
+            ///   step5: exchange shuffle
+            ///   step6: aggregation on keys (n_regionkey) with final aggregation merge sum(n_nationkey) and count(n_name)
+            /// We cannot use streaming aggregating strategy in step3. Otherwise it will generate multiple blocks with same n_name in them. This
+            /// will make the result for count(distinct(n_name)) wrong. step3 must finish all inputs before it puts any block into step4.
+            /// So we introduce GraceAggregatingStep here, it can handle mass data with high cardinality.
+            /// FIXME:: Should no_pre_aggregated_ always be false ?
+            auto aggregating_step
+                = std::make_unique<GraceAggregatingStep>(getContext(), plan->getCurrentDataStream(), params, has_first_stage);
+            steps.emplace_back(aggregating_step.get());
+            plan->addStep(std::move(aggregating_step));
+        }
     }
     else
     {
@@ -482,7 +524,7 @@ void AggregateRelParser::addAggregatingStep()
             /*only_merge*/ false,
             settings[Setting::optimize_group_by_constant_keys],
             settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization],
-            /*StatsCollectingParams*/{});
+            /*StatsCollectingParams*/ {});
 
         auto aggregating_step = std::make_unique<AggregatingStep>(
             plan->getCurrentDataStream(),
