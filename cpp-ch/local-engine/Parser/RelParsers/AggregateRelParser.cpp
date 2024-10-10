@@ -25,6 +25,7 @@
 #include <Operator/DefaultHashAggregateResult.h>
 #include <Operator/GraceMergingAggregatedStep.h>
 #include <Operator/StreamingAggregatingStep.h>
+#include <Operator/GraceAggregatingStep.h>
 #include <Parser/AggregateFunctionParser.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
@@ -111,6 +112,7 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
 {
     plan = std::move(query_plan);
     aggregate_rel = &rel.aggregate();
+    has_distinct = aggregate_rel->has_distinct();
 
     std::set<substrait::AggregationPhase> phase_set;
     for (const auto & measure : aggregate_rel->measures())
@@ -146,7 +148,6 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
     for (const auto & measure : aggregate_rel->measures())
     {
         AggregateInfo agg_info;
-        auto arg = measure.measure().arguments(0).value();
         agg_info.signature_function_name = *parseSignatureFunctionName(measure.measure().function_reference());
         auto function_parser = AggregateFunctionParserFactory::instance().get(agg_info.signature_function_name, getPlanParser());
         if (!function_parser)
@@ -254,7 +255,6 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
             = build_result_column_name(agg_info.function_name, agg_info.params, agg_info.arg_column_names, measure.phase());
 
         agg_info.measure_column_name = description.column_name;
-        // std::cout << "description.column_name:" << description.column_name << std::endl;
         description.argument_names = agg_info.arg_column_names;
         DB::AggregateFunctionProperties properties;
 
@@ -456,7 +456,11 @@ void AggregateRelParser::addAggregatingStep()
             settings[Setting::optimize_group_by_constant_keys],
             settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization],
             /*StatsCollectingParams*/{});
-        auto aggregating_step = std::make_unique<StreamingAggregatingStep>(getContext(), plan->getCurrentDataStream(), params);
+        std::unique_ptr<ITransformingStep> aggregating_step = nullptr;
+        if (!has_distinct)
+            aggregating_step = std::make_unique<StreamingAggregatingStep>(getContext(), plan->getCurrentDataStream(), params);
+        else
+            aggregating_step = std::make_unique<GraceAggregatingStep>(getContext(), plan->getCurrentDataStream(), params, true);
         steps.emplace_back(aggregating_step.get());
         plan->addStep(std::move(aggregating_step));
     }

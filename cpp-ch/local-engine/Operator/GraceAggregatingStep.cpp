@@ -14,7 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "GraceMergingAggregatedStep.h"
+
+#include "GraceAggregatingStep.h"
+#include "GraceAggregatingTransform.h"
 #include <Interpreters/JoinUtils.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
@@ -25,12 +27,9 @@
 #include <Common/GlutenConfig.h>
 #include <Common/QueryContext.h>
 
-namespace DB
-{
-namespace ErrorCodes
+namespace DB::ErrorCodes
 {
     extern const int LOGICAL_ERROR;
-}
 }
 
 namespace local_engine
@@ -54,34 +53,34 @@ static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Ag
     return params_.getHeader(input_header_, final);
 }
 
-GraceMergingAggregatedStep::GraceMergingAggregatedStep(
+GraceAggregatingStep::GraceAggregatingStep(
     DB::ContextPtr context_,
     const DB::DataStream & input_stream_,
     DB::Aggregator::Params params_,
     bool no_pre_aggregated_)
     : DB::ITransformingStep(
-        input_stream_, buildOutputHeader(input_stream_.header, params_, true), getTraits())
+        input_stream_, buildOutputHeader(input_stream_.header, params_, false), getTraits())
     , context(context_)
     , params(std::move(params_))
     , no_pre_aggregated(no_pre_aggregated_)
 {
 }
 
-void GraceMergingAggregatedStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings &)
+void GraceAggregatingStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings &)
 {
     if (params.max_bytes_before_external_group_by)
     {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "max_bytes_before_external_group_by is not supported in GraceMergingAggregatedStep");
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "max_bytes_before_external_group_by is not supported in GraceAggregatingStep");
     }
     auto num_streams = pipeline.getNumStreams();
-    auto transform_params = std::make_shared<DB::AggregatingTransformParams>(pipeline.getHeader(), params, true);
+    auto transform_params = std::make_shared<DB::AggregatingTransformParams>(pipeline.getHeader(), params, false);
     pipeline.resize(1);
     auto build_transform = [&](DB::OutputPortRawPtrs outputs)
     {
         DB::Processors new_processors;
         for (auto & output : outputs)
         {
-            auto op = std::make_shared<GraceAggregatingTransform>(pipeline.getHeader(), transform_params, context, no_pre_aggregated, true);
+            auto op = std::make_shared<GraceAggregatingTransform>(pipeline.getHeader(), transform_params, context, no_pre_aggregated, false);
             new_processors.push_back(op);
             DB::connect(*output, op->getInputs().front());
         }
@@ -91,19 +90,19 @@ void GraceMergingAggregatedStep::transformPipeline(DB::QueryPipelineBuilder & pi
     pipeline.resize(num_streams, true);
 }
 
-void GraceMergingAggregatedStep::describeActions(DB::IQueryPlanStep::FormatSettings & settings) const
+void GraceAggregatingStep::describeActions(DB::IQueryPlanStep::FormatSettings & settings) const
 {
     return params.explain(settings.out, settings.offset);
 }
 
-void GraceMergingAggregatedStep::describeActions(DB::JSONBuilder::JSONMap & map) const
+void GraceAggregatingStep::describeActions(DB::JSONBuilder::JSONMap & map) const
 {
     params.explain(map);
 }
 
-void GraceMergingAggregatedStep::updateOutputStream()
+void GraceAggregatingStep::updateOutputStream()
 {
-    output_stream = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params, true), getDataStreamTraits());
+    output_stream = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params, false), getDataStreamTraits());
 }
 
 

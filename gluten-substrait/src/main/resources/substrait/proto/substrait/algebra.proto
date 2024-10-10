@@ -304,6 +304,9 @@ message AggregateRel {
   // A list of one or more aggregate expressions along with an optional filter.
   repeated Measure measures = 4;
 
+  // Whether the aggregate functions has distinct aggregate.
+  bool has_distinct = 5;
+
   substrait.extensions.AdvancedExtension advanced_extension = 10;
 
   message Grouping {

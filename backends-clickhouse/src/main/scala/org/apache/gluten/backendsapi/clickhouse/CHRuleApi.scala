@@ -75,6 +75,7 @@ private object CHRuleApi {
     injector.injectTransform(_ => RewriteSparkPlanRulesManager())
     injector.injectTransform(_ => AddFallbackTagRule())
     injector.injectTransform(_ => TransformPreOverrides())
+    injector.injectTransform(_ => DistinctAggregateRule())
     injector.injectTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectTransform(c => RewriteTransformer.apply(c.session))
     injector.injectTransform(_ => PushDownFilterToScan)

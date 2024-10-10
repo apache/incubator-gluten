@@ -55,6 +55,7 @@ private:
     bool has_inter_stage = false;
     bool has_final_stage = false;
     bool has_complete_stage = false;
+    bool has_distinct = false;
 
     DB::QueryPlanPtr plan = nullptr;
     const substrait::AggregateRel * aggregate_rel = nullptr;

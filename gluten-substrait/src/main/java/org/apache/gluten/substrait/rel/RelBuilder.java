@@ -89,9 +89,30 @@ public class RelBuilder {
       List<ExpressionNode> filters,
       AdvancedExtensionNode extensionNode,
       SubstraitContext context,
-      Long operatorId) {
+      Long operatorId,
+      boolean hasDistinct) {
     context.registerRelToOperator(operatorId);
-    return new AggregateRelNode(input, groupings, aggregateFunctionNodes, filters, extensionNode);
+    return new AggregateRelNode(
+        input, groupings, aggregateFunctionNodes, filters, extensionNode, hasDistinct);
+  }
+
+  public static RelNode makeAggregateRel(
+      RelNode input,
+      List<ExpressionNode> groupings,
+      List<AggregateFunctionNode> aggregateFunctionNodes,
+      List<ExpressionNode> filters,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
+    return makeAggregateRel(
+        input,
+        groupings,
+        aggregateFunctionNodes,
+        filters,
+        extensionNode,
+        context,
+        operatorId,
+        false);
   }
 
   public static RelNode makeReadRel(
