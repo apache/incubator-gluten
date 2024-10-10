@@ -697,4 +697,6 @@ trait SparkPlanExecApi {
       limitExpr: ExpressionTransformer,
       original: StringSplit): ExpressionTransformer =
     GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
+
+  def supportHiveTableScanNestedColumnPruning(): Boolean = false
 }
