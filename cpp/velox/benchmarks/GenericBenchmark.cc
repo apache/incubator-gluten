@@ -399,6 +399,7 @@ auto BM_Generic = [](::benchmark::State& state,
 
   updateBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics, readerMetrics);
   Runtime::release(runtime);
+  MemoryManager::release(memoryManager);
 };
 
 auto BM_ShuffleWriteRead = [](::benchmark::State& state,
@@ -428,6 +429,7 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
 
   updateBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics, readerMetrics);
   Runtime::release(runtime);
+  MemoryManager::release(memoryManager);
 };
 
 int main(int argc, char** argv) {
