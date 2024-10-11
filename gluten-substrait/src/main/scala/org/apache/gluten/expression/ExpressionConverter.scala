@@ -320,7 +320,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case c: Cast =>
         CastTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer0(newCast.child, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformer0(c.child, attributeSeq, expressionsMap),
           c)
       case s: String2TrimExpression =>
         val (srcStr, trimStr) = s match {
