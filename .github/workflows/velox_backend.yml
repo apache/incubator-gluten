@@ -88,6 +88,12 @@ jobs:
           df -a
           cd $GITHUB_WORKSPACE/
           bash dev/ci-velox-buildstatic-centos-7.sh
+      - name: "Save ccache"
+        uses: actions/cache/save@v3
+        id: cache
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos-release-default
       - uses: actions/upload-artifact@v3
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
