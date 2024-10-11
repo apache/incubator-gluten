@@ -14,13 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.runtime;
+package org.apache.gluten.memory;
 
-public class RuntimeJniWrapper {
+import org.apache.gluten.memory.listener.ReservationListener;
 
-  private RuntimeJniWrapper() {}
+public class NativeMemoryManagerJniWrapper {
+  private NativeMemoryManagerJniWrapper() {}
 
-  public static native long createRuntime(String backendType, long nmm, byte[] sessionConf);
+  public static native long create(
+      String backendType, ReservationListener listener, byte[] sessionConf);
 
-  public static native void releaseRuntime(long handle);
+  public static native byte[] collectUsage(long handle);
+
+  public static native long shrink(long handle, long size);
+
+  public static native void hold(long handle);
+
+  public static native void release(long handle);
 }

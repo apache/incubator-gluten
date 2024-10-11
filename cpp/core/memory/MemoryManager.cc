@@ -14,40 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include "Runtime.h"
+#include "MemoryManager.h"
 #include "utils/Registry.h"
 
 namespace gluten {
 
 namespace {
-Registry<Runtime::Factory>& runtimeFactories() {
-  static Registry<Runtime::Factory> registry;
+Registry<MemoryManager::Factory>& memoryManagerFactories() {
+  static Registry<MemoryManager::Factory> registry;
   return registry;
 }
 } // namespace
 
-void Runtime::registerFactory(const std::string& kind, Runtime::Factory factory) {
-  runtimeFactories().registerObj(kind, std::move(factory));
-}
-
-Runtime* Runtime::create(
+void MemoryManager::registerFactory(
     const std::string& kind,
-    MemoryManager* memoryManager,
-    const std::unordered_map<std::string, std::string>& sessionConf) {
-  auto& factory = runtimeFactories().get(kind);
-  return factory(std::move(memoryManager), sessionConf);
+    std::function<MemoryManager*(std::unique_ptr<AllocationListener>)> factory) {
+  memoryManagerFactories().registerObj(kind, std::move(factory));
 }
 
-void Runtime::release(Runtime* runtime) {
-  delete runtime;
+MemoryManager* MemoryManager::create(const std::string& kind, std::unique_ptr<AllocationListener> listener) {
+  auto& factory = memoryManagerFactories().get(kind);
+  return factory(std::move(listener));
 }
 
-std::optional<std::string>* Runtime::localWriteFilesTempPath() {
-  // This is thread-local to conform to Java side ColumnarWriteFilesExec's design.
-  // FIXME: Pass the path through relevant member functions.
-  static thread_local std::optional<std::string> path;
-  return &path;
+void MemoryManager::release(MemoryManager* memoryManager) {
+  delete memoryManager;
 }
 
 } // namespace gluten

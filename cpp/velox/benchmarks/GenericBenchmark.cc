@@ -295,7 +295,7 @@ void updateBenchmarkMetrics(
 
 } // namespace
 
-using RuntimeFactory = std::function<VeloxRuntime*(std::unique_ptr<AllocationListener> listener)>;
+using RuntimeFactory = std::function<VeloxRuntime*(MemoryManager* memoryManager)>;
 
 auto BM_Generic = [](::benchmark::State& state,
                      const std::string& planFile,
@@ -306,8 +306,8 @@ auto BM_Generic = [](::benchmark::State& state,
   setCpu(state);
 
   auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
-  auto* listenerPtr = listener.get();
-  auto runtime = runtimeFactory(std::move(listener));
+  VeloxMemoryManager vmm(std::move(listener));
+  auto runtime = runtimeFactory(&vmm);
 
   auto plan = getPlanFromFile("Plan", planFile);
   std::vector<std::string> splits{};
@@ -343,10 +343,10 @@ auto BM_Generic = [](::benchmark::State& state,
         runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), std::nullopt);
       }
       auto resultIter = runtime->createResultIterator("/tmp/test-spill", std::move(inputIters), runtime->getConfMap());
-      listenerPtr->setIterator(resultIter.get());
+      listener->setIterator(resultIter.get());
 
       if (FLAGS_with_shuffle) {
-        runShuffle(runtime, listenerPtr, resultIter, writerMetrics, readerMetrics, false);
+        runShuffle(runtime, listener.get(), resultIter, writerMetrics, readerMetrics, false);
       } else {
         // May write the output into file.
         auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
@@ -408,8 +408,8 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
   setCpu(state);
 
   auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
-  auto* listenerPtr = listener.get();
-  auto runtime = runtimeFactory(std::move(listener));
+  VeloxMemoryManager vmm(std::move(listener));
+  auto runtime = runtimeFactory(&vmm);
 
   WriterMetrics writerMetrics{};
   ReaderMetrics readerMetrics{};
@@ -419,7 +419,7 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
     ScopedTimer timer(&elapsedTime);
     for (auto _ : state) {
       auto resultIter = getInputIteratorFromFileReader(inputFile, readerType);
-      runShuffle(runtime, listenerPtr, resultIter, writerMetrics, readerMetrics, FLAGS_run_shuffle_read);
+      runShuffle(runtime, listener.get(), resultIter, writerMetrics, readerMetrics, FLAGS_run_shuffle_read);
 
       auto reader = static_cast<FileReaderIterator*>(resultIter->getInputIter());
       readInputTime += reader->getCollectBatchTime();
@@ -592,8 +592,8 @@ int main(int argc, char** argv) {
     }
   }
 
-  RuntimeFactory runtimeFactory = [=](std::unique_ptr<AllocationListener> listener) {
-    return dynamic_cast<VeloxRuntime*>(Runtime::create(kVeloxRuntimeKind, std::move(listener), sessionConf));
+  RuntimeFactory runtimeFactory = [=](MemoryManager* memoryManager) {
+    return dynamic_cast<VeloxRuntime*>(Runtime::create(kVeloxBackendKind, memoryManager, sessionConf));
   };
 
 #define GENERIC_BENCHMARK(READER_TYPE)                                                                             \
