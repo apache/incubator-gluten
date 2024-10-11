@@ -70,7 +70,6 @@ private object VeloxRuleApi {
     injector.injectTransform(c => RewriteTransformer.apply(c.session))
     injector.injectTransform(_ => PushDownFilterToScan)
     injector.injectTransform(_ => PushDownInputFileExpression.PostOffload)
-    injector.injectTransform(_ => ReplaceDeltaTransformer())
     injector.injectTransform(_ => EnsureLocalSortRequirements)
     injector.injectTransform(_ => EliminateLocalSort)
     injector.injectTransform(_ => CollapseProjectExecTransformer)

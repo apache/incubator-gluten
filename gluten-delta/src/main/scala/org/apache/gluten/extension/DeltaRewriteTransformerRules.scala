@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.execution.{DeltaScanTransformer, ProjectExecTransformer}
-import org.apache.gluten.extension.DeltaRewriteTransformerRules.{columnMappingRule, pushDownInputFileExprRule}
+import org.apache.gluten.execution.{DeltaFilterExecTransformer, DeltaProjectExecTransformer, DeltaScanTransformer, ProjectExecTransformer}
+import org.apache.gluten.extension.DeltaRewriteTransformerRules.{columnMappingRule, filterRule, projectRule, pushDownInputFileExprRule}
 import org.apache.gluten.extension.columnar.RewriteTransformerRules
 
 import org.apache.spark.sql.SparkSession
@@ -25,13 +25,14 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeRef
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.delta.{DeltaColumnMapping, DeltaParquetFileFormat, NoMapping}
-import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.FileFormat
 
 import scala.collection.mutable.ListBuffer
 
 class DeltaRewriteTransformerRules extends RewriteTransformerRules {
-  override def rules: Seq[Rule[SparkPlan]] = columnMappingRule :: pushDownInputFileExprRule :: Nil
+  override def rules: Seq[Rule[SparkPlan]] =
+    columnMappingRule :: filterRule :: projectRule :: pushDownInputFileExprRule :: Nil
 }
 
 object DeltaRewriteTransformerRules {
@@ -58,6 +59,18 @@ object DeltaRewriteTransformerRules {
         transformColumnMappingPlan(p)
     }
 
+  val filterRule: Rule[SparkPlan] = (plan: SparkPlan) =>
+    plan.transformUp {
+      case FilterExec(condition, child) if condition.exists(containsIncrementMetricExpr) =>
+        DeltaFilterExecTransformer(condition, child)
+    }
+
+  val projectRule: Rule[SparkPlan] = (plan: SparkPlan) =>
+    plan.transformUp {
+      case ProjectExec(projectList, child) if projectList.exists(containsIncrementMetricExpr) =>
+        DeltaProjectExecTransformer(projectList, child)
+    }
+
   val pushDownInputFileExprRule: Rule[SparkPlan] = (plan: SparkPlan) =>
     plan.transformUp {
       case p @ ProjectExec(projectList, child: DeltaScanTransformer)
@@ -76,6 +89,13 @@ object DeltaRewriteTransformerRules {
     expr match {
       case _: InputFileName | _: InputFileBlockStart | _: InputFileBlockLength => true
       case _ => expr.children.exists(containsInputFileRelatedExpr)
+    }
+  }
+
+  private def containsIncrementMetricExpr(expr: Expression): Boolean = {
+    expr match {
+      case e if e.prettyName == "increment_metric" => true
+      case _ => expr.children.exists(containsIncrementMetricExpr)
     }
   }
 
