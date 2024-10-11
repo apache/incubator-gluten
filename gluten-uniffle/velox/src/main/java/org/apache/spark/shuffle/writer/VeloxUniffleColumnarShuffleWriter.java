@@ -171,7 +171,7 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                       ? GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER()
                       : GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER(),
                   reallocThreshold);
-          runtime.addSpiller(
+          runtime.memoryManager().addSpiller(
               new Spiller() {
                 @Override
                 public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
