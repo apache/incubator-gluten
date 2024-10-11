@@ -122,5 +122,4 @@ class GlutenHiveSQLQueryCHSuite extends GlutenHiveSQLQuerySuiteBase {
       ignoreIfNotExists = true,
       purge = false)
   }
-
 }
