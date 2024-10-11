@@ -436,8 +436,6 @@ trait SparkPlanExecApi {
       startDate: ExpressionTransformer,
       original: DateDiff): ExpressionTransformer
 
-  def genCastWithNewChild(c: Cast): Cast = c
-
   def genHashExpressionTransformer(
       substraitExprName: String,
       exprs: Seq[ExpressionTransformer],
