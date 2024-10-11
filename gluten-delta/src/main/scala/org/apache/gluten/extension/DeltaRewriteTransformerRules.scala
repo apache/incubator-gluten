@@ -61,7 +61,7 @@ object DeltaRewriteTransformerRules {
 
   val filterRule: Rule[SparkPlan] = (plan: SparkPlan) =>
     plan.transformUp {
-      case FilterExec(condition, child) if condition.exists(containsIncrementMetricExpr) =>
+      case FilterExec(condition, child) if containsIncrementMetricExpr(condition) =>
         DeltaFilterExecTransformer(condition, child)
     }
 
