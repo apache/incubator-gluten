@@ -48,8 +48,7 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
         val pullOutHelper =
           BackendsApiManager.getSparkPlanExecApiInstance.genHashAggregateExecPullOutHelper(
             agg.aggregateExpressions,
-            agg.aggregateAttributes,
-            false)
+            agg.aggregateAttributes)
         val allAggregateResultAttributes =
           pullOutHelper.allAggregateResultAttributes(agg.groupingExpressions)
         agg.child.output.size != allAggregateResultAttributes.size ||
