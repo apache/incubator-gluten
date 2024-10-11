@@ -28,10 +28,13 @@ import org.apache.spark.TaskContext;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class NativePlanEvaluator {
+  private static final AtomicInteger id = new AtomicInteger(0);
+  private final Runtime runtime =
+      Runtimes.contextInstance(String.format("NativePlanEvaluator-%d", id.getAndIncrement()));
 
-  private final Runtime runtime = Runtimes.contextInstance("WholeStageIterator");
   private final PlanEvaluatorJniWrapper jniWrapper;
 
   private NativePlanEvaluator() {
