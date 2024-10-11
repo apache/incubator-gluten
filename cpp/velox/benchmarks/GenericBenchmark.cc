@@ -306,8 +306,8 @@ auto BM_Generic = [](::benchmark::State& state,
   setCpu(state);
 
   auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
-  VeloxMemoryManager vmm(std::move(listener));
-  auto runtime = runtimeFactory(&vmm);
+  auto* memoryManager = MemoryManager::create(kVeloxBackendKind, std::move(listener));
+  auto runtime = runtimeFactory(memoryManager);
 
   auto plan = getPlanFromFile("Plan", planFile);
   std::vector<std::string> splits{};
@@ -408,8 +408,8 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
   setCpu(state);
 
   auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
-  VeloxMemoryManager vmm(std::move(listener));
-  auto runtime = runtimeFactory(&vmm);
+  auto* memoryManager = MemoryManager::create(kVeloxBackendKind, std::move(listener));
+  auto runtime = runtimeFactory(memoryManager);
 
   WriterMetrics writerMetrics{};
   ReaderMetrics readerMetrics{};
