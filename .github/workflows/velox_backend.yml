@@ -82,7 +82,7 @@ jobs:
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           df -a
-          cd $GITHUB_WORKSPACE/
+          rm -rf ./ep/build-velox/build/velox_ep
           bash dev/ci-velox-buildstatic-centos-7.sh
       - uses: actions/upload-artifact@v3
         with:
@@ -1091,7 +1091,7 @@ jobs:
           sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Build Gluten with cached lib Velox
+      - name: Build Gluten with cached Velox build binary
         if: steps.cache.outputs.cache-hit == 'true'
         run: |
           df -a
@@ -1103,6 +1103,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           df -a
+          rm -rf ./ep/build-velox/build/velox_ep
           bash dev/ci-velox-buildshared-centos-8.sh
       - name: Run CPP unit test
         run: |

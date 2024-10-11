@@ -73,7 +73,7 @@ jobs:
         with:
           lookup-only: true
           path: |
-            ${VELOX_BUILD_PATH}/
+            ${VELOX_BUILD_PATH}
             /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
       - name: Setup java and maven
