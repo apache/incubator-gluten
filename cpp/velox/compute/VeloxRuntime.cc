@@ -128,10 +128,6 @@ std::string VeloxRuntime::planString(bool details, const std::unordered_map<std:
   return veloxPlan->toString(details, true);
 }
 
-void VeloxRuntime::injectWriteFilesTempPath(const std::string& path) {
-  writeFilesTempPath_ = path;
-}
-
 VeloxMemoryManager* VeloxRuntime::memoryManager() {
   return vmm_;
 }
@@ -142,7 +138,8 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     const std::unordered_map<std::string, std::string>& sessionConf) {
   LOG_IF(INFO, debugModeEnabled_) << "VeloxRuntime session config:" << printConfig(confMap_);
 
-  VeloxPlanConverter veloxPlanConverter(inputs, vmm_->getLeafMemoryPool().get(), sessionConf, writeFilesTempPath_);
+  VeloxPlanConverter veloxPlanConverter(
+      inputs, vmm_->getLeafMemoryPool().get(), sessionConf, *localWriteFilesTempPath());
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_, std::move(localFiles_));
 
   // Scan node can be required.

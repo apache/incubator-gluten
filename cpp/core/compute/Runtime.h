@@ -62,6 +62,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       std::unique_ptr<AllocationListener> listener,
       const std::unordered_map<std::string, std::string>& sessionConf = {});
   static void release(Runtime*);
+  static std::optional<std::string>* localWriteFilesTempPath();
 
   Runtime(std::shared_ptr<MemoryManager> memoryManager, const std::unordered_map<std::string, std::string>& confMap)
       : memoryManager_(memoryManager), confMap_(confMap) {}
@@ -73,8 +74,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   virtual void parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) = 0;
 
   virtual std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) = 0;
-
-  virtual void injectWriteFilesTempPath(const std::string& path) = 0;
 
   // Just for benchmark
   ::substrait::Plan& getPlan() {
@@ -134,7 +133,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
   ::substrait::Plan substraitPlan_;
   std::vector<::substrait::ReadRel_LocalFiles> localFiles_;
-  std::optional<std::string> writeFilesTempPath_;
   SparkTaskInfo taskInfo_;
 };
 } // namespace gluten

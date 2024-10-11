@@ -49,8 +49,8 @@ public class NativePlanEvaluator {
     return jniWrapper.nativeValidateWithFailureReason(subPlan);
   }
 
-  public void injectWriteFilesTempPath(String path) {
-    jniWrapper.injectWriteFilesTempPath(path.getBytes(StandardCharsets.UTF_8));
+  public static void injectWriteFilesTempPath(String path) {
+    PlanEvaluatorJniWrapper.injectWriteFilesTempPath(path.getBytes(StandardCharsets.UTF_8));
   }
 
   // Used by WholeStageTransform to create the native computing pipeline and

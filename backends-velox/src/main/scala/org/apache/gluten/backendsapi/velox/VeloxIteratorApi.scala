@@ -165,8 +165,7 @@ class VeloxIteratorApi extends IteratorApi with Logging {
   }
 
   override def injectWriteFilesTempPath(path: String, fileName: String): Unit = {
-    val transKernel = NativePlanEvaluator.create()
-    transKernel.injectWriteFilesTempPath(path)
+    NativePlanEvaluator.injectWriteFilesTempPath(path)
   }
 
   /** Generate Iterator[ColumnarBatch] for first stage. */
