@@ -137,6 +137,10 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
     has_inter_stage = phase_set.contains(substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE);
     has_final_stage = phase_set.contains(substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT);
     has_complete_stage = phase_set.contains(substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_RESULT);
+    bool next_step_is_agg = false;
+    google::protobuf::StringValue raw_extra_params;
+    raw_extra_params.ParseFromString(aggregate_rel->advanced_extension().optimization().value());
+    auto extra_params = AggregateOptimizationInfo::parse(raw_extra_params.value());
     if (aggregate_rel->measures().empty())
     {
         /// For aggregate without aggregate functions. we use other ways the determine wchich stage it is.
@@ -154,10 +158,7 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
         /// 2. the two aggregation stages are merged into one by rule `MergeTwoPhasesHashBaseAggregate`. In this case
         /// we also let has_first_stage = false;
         /// FIXME: Really don't like this implementation. It's too easy to be broken.
-        google::protobuf::StringValue raw_extra_params;
-        raw_extra_params.ParseFromString(aggregate_rel->advanced_extension().optimization().value());
-        auto extra_params = AggregateOptimizationInfo::parse(raw_extra_params.value());
-        bool next_step_is_agg = rel_stack->empty() ? false : rel_stack->back()->rel_type_case() == substrait::Rel::RelTypeCase::kAggregate;
+        next_step_is_agg = rel_stack->empty() ? false : rel_stack->back()->rel_type_case() == substrait::Rel::RelTypeCase::kAggregate;
         bool is_last_stage = extra_params.has_required_child_distribution_expressions && !next_step_is_agg;
         has_first_stage = !extra_params.has_pre_partial_aggregate;
         has_final_stage = extra_params.has_pre_partial_aggregate && is_last_stage;

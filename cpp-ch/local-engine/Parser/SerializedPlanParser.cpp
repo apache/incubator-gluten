@@ -1205,7 +1205,16 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     Stopwatch stopwatch;
 
     const Settings & settings = context->getSettingsRef();
-    auto builder = buildQueryPipeline(*query_plan);
+    DB::QueryPipelineBuilderPtr builder = nullptr;
+    try
+    {
+        builder = buildQueryPipeline(*query_plan);
+    }
+    catch (...)
+    {
+        LOG_ERROR(getLogger("SerializedPlanParser"), "Invalid plan:\n{}", PlanUtil::explainPlan(*query_plan));
+        throw;
+    }
 
 
     assert(s_plan.relations_size() == 1);
@@ -1216,7 +1225,10 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
     LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
     LOG_DEBUG(
-        logger, "clickhouse plan [optimization={}]:\n{}", settings[Setting::query_plan_enable_optimizations], PlanUtil::explainPlan(*query_plan));
+        logger,
+        "clickhouse plan [optimization={}]:\n{}",
+        settings[Setting::query_plan_enable_optimizations],
+        PlanUtil::explainPlan(*query_plan));
 
     auto config = ExecutorConfig::loadFromContext(context);
     return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(builder), config.dump_pipeline);

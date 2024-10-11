@@ -98,7 +98,7 @@ void GraceAggregatingStep::describeActions(DB::JSONBuilder::JSONMap & map) const
 void GraceAggregatingStep::updateOutputStream()
 {
     output_stream
-        = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params, true), getDataStreamTraits());
+        = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params, false), getDataStreamTraits());
 }
 
 
