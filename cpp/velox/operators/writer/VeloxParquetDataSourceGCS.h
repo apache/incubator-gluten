@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "operators/writer/VeloxParquetDatasource.h"
+#include "operators/writer/VeloxParquetDataSource.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 
@@ -32,20 +32,20 @@
 #include "velox/dwio/common/Options.h"
 
 namespace gluten {
-
-class VeloxParquetDatasourceHDFS final : public VeloxParquetDatasource {
+class VeloxParquetDataSourceGCS final : public VeloxParquetDataSource {
  public:
-  VeloxParquetDatasourceHDFS(
+  VeloxParquetDataSourceGCS(
       const std::string& filePath,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> sinkPool,
       std::shared_ptr<arrow::Schema> schema)
-      : VeloxParquetDatasource(filePath, veloxPool, sinkPool, schema) {}
+      : VeloxParquetDataSource(filePath, veloxPool, sinkPool, schema) {}
 
-  void initSink(const std::unordered_map<std::string, std::string>& sparkConfs) override {
-    auto hiveConf = getHiveConfig(std::make_shared<facebook::velox::config::ConfigBase>(
-        std::unordered_map<std::string, std::string>(sparkConfs)));
-    sink_ = dwio::common::FileSink::create(filePath_, {.connectorProperties = hiveConf, .pool = sinkPool_.get()});
+  void initSink(const std::unordered_map<std::string, std::string>& /* sparkConfs */) override {
+    auto fileSystem = filesystems::getFileSystem(filePath_, nullptr);
+    auto* gcsFileSystem = dynamic_cast<filesystems::GCSFileSystem*>(fileSystem.get());
+    sink_ = std::make_unique<dwio::common::WriteFileSink>(
+        gcsFileSystem->openFileForWrite(filePath_, {{}, sinkPool_.get()}), filePath_);
   }
 };
 } // namespace gluten
