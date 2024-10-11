@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 #include <Core/Block.h>
-#include <Interpreters/JoinUtils.h>
 #include <Interpreters/Aggregator.h>
 #include <Interpreters/Context.h>
+#include <Interpreters/JoinUtils.h>
 #include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
 #include <Processors/Port.h>
@@ -39,16 +39,23 @@ class GraceAggregatingTransform : public DB::IProcessor
 {
 public:
     using Status = DB::IProcessor::Status;
-    explicit GraceAggregatingTransform(const DB::Block &header_, DB::AggregatingTransformParamsPtr params_, DB::ContextPtr context_, bool no_pre_aggregated_, bool final_output_);
+    explicit GraceAggregatingTransform(
+        const DB::Block & header_,
+        DB::AggregatingTransformParamsPtr params_,
+        DB::ContextPtr context_,
+        bool no_pre_aggregated_,
+        bool final_output_);
     ~GraceAggregatingTransform() override;
 
     Status prepare() override;
     void work() override;
     String getName() const override { return "GraceAggregatingTransform"; }
+
 private:
     bool no_pre_aggregated;
     bool final_output;
     DB::Block header;
+    DB::Block output_header;
     DB::ColumnRawPtrs key_columns;
     DB::Aggregator::AggregateColumns aggregate_columns;
     DB::AggregatingTransformParamsPtr params;
@@ -56,7 +63,7 @@ private:
     DB::TemporaryDataOnDiskPtr tmp_data_disk;
     DB::AggregatedDataVariantsPtr current_data_variants = nullptr;
     size_t current_bucket_index = 0;
-    
+
     /// Followings are configurations defined in context config.
     // max buckets number, default is 32
     size_t max_buckets = 0;
@@ -99,7 +106,7 @@ private:
     std::unique_ptr<AggregateDataBlockConverter> currentDataVariantToBlockConverter(bool final);
     void checkAndSetupCurrentDataVariants();
     /// Merge one block into current_data_variants.
-    void mergeOneBlock(const DB::Block &block, bool is_original_block);
+    void mergeOneBlock(const DB::Block & block, bool is_original_block);
     bool isMemoryOverflow();
 
     bool input_finished = false;

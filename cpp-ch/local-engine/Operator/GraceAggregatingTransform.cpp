@@ -23,6 +23,8 @@
 #include <Common/QueryContext.h>
 #include <Common/formatReadable.h>
 
+#include <Common/DebugUtils.h>
+
 namespace DB::ErrorCodes
 {
 extern const int LOGICAL_ERROR;
@@ -46,6 +48,7 @@ GraceAggregatingTransform::GraceAggregatingTransform(
     , final_output(final_output_)
     , tmp_data_disk(std::make_unique<DB::TemporaryDataOnDisk>(context_->getTempDataOnDisk()))
 {
+    output_header = params->getHeader();
     auto config = GraceMergingAggregateConfig::loadFromContext(context);
     max_buckets = config.max_grace_aggregate_merging_buckets;
     throw_on_overflow_buckets = config.throw_on_overflow_grace_aggregate_merging_buckets;

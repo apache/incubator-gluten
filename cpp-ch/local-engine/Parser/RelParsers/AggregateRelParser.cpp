@@ -26,10 +26,12 @@
 #include <Operator/GraceAggregatingStep.h>
 #include <Operator/GraceMergingAggregatedStep.h>
 #include <Operator/StreamingAggregatingStep.h>
+#include <Parser/AdvancedParametersParseUtil.h>
 #include <Parser/AggregateFunctionParser.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/MergingAggregatedStep.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
 
@@ -97,6 +99,16 @@ AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
         LOG_TRACE(logger, "header after aggregating is: {}", plan->getCurrentDataStream().header.dumpStructure());
     }
 
+    /// Add a check here to help find bugs, Don't remove it.
+    /// Thre order of result of result columns must be ordered grouping keys ++ ordered aggregate expression results
+    auto aggregation_output_header = plan->getCurrentDataStream().header;
+    for (size_t i = 0; i < grouping_keys.size(); ++i)
+    {
+        auto pos = aggregation_output_header.getPositionByName(grouping_keys[i]);
+        if (pos != i)
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "The order of aggregation result columns is invalid");
+    }
+
     /// If the groupings is empty, we still need to return one row with default values even if the input is empty.
     if ((rel.aggregate().groupings().empty() || rel.aggregate().groupings()[0].grouping_expressions().empty())
         && (has_final_stage || has_complete_stage || rel.aggregate().measures().empty()))
@@ -127,11 +139,29 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
     has_complete_stage = phase_set.contains(substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_RESULT);
     if (aggregate_rel->measures().empty())
     {
-        /// According to planAggregateWithoutDistinct in AggUtils.scala, an aggregate without aggregate
-        /// functions will only be organized in two stages, partial and final. In partial stage
-        /// requiredChildDistributionExpressions is None, but in final stage it is Some(Seq[Expression]).
-        auto configs = parseFormattedRelAdvancedOptimization(aggregate_rel->advanced_extension());
-        has_final_stage = getStringConfig(configs, "has_required_child_distribution_expressions") == "true";
+        /// For aggregate without aggregate functions. we use other ways the determine wchich stage it is.
+        /// In general, when has_required_child_distribution_expressions is true, this aggregate stage is the final
+        /// merge aggregated step. But there are exceptions.
+        /// 1. when the query is a distinct like aggregation. for example.
+        ///   select n_regionkey, count(distinct n_nationkey) from nation group by n_regionkey
+        /// There should be four aggregation steps.
+        ///   step1: partial aggregation on keys (n_regionkey, n_nationkey) with empty aggregation functions.
+        ///   step2: aggregation on keys (n_regionkey, n_nationkey) with empty aggregation functions after shuffle.
+        ///   step3: aggregation on keys (n_regionkey) with partial aggregation count(n_nationkey)
+        ///   step4: aggregation on keys (n_regionkey) with final aggregation merge count(n_nationkey) after shuffle
+        /// If step3 is followed by another aggregation, we must let has_final_stage = false. Otherwise it will make
+        /// columns position missmatch.
+        /// 2. the two aggregation stages are merged into one by rule `MergeTwoPhasesHashBaseAggregate`. In this case
+        /// we also let has_first_stage = false;
+        /// FIXME: Really don't like this implementation. It's too easy to be broken.
+        google::protobuf::StringValue raw_extra_params;
+        raw_extra_params.ParseFromString(aggregate_rel->advanced_extension().optimization().value());
+        auto extra_params = AggregateOptimizationInfo::parse(raw_extra_params.value());
+        bool next_step_is_agg = rel_stack->empty() ? false : rel_stack->back()->rel_type_case() == substrait::Rel::RelTypeCase::kAggregate;
+        bool is_last_stage = extra_params.has_required_child_distribution_expressions && !next_step_is_agg;
+        has_first_stage = !extra_params.has_pre_partial_aggregate;
+        has_final_stage = extra_params.has_pre_partial_aggregate && is_last_stage;
+        has_complete_stage = !extra_params.has_pre_partial_aggregate && is_last_stage;
     }
 
     if (phase_set.size() > 1 && has_final_stage)
@@ -436,7 +466,6 @@ void AggregateRelParser::addAggregatingStep()
 
     auto config = StreamingAggregateConfig::loadFromContext(getContext());
     bool is_distinct_aggreate = false;
-    /// For aggregation which involve distinct. It could have 4 steps in general.
     if (!rel_stack->empty())
     {
         const auto & next_rel = *(rel_stack->back());
@@ -495,7 +524,6 @@ void AggregateRelParser::addAggregatingStep()
             /// We cannot use streaming aggregating strategy in step3. Otherwise it will generate multiple blocks with same n_name in them. This
             /// will make the result for count(distinct(n_name)) wrong. step3 must finish all inputs before it puts any block into step4.
             /// So we introduce GraceAggregatingStep here, it can handle mass data with high cardinality.
-            /// FIXME:: Should no_pre_aggregated_ always be false ?
             auto aggregating_step
                 = std::make_unique<GraceAggregatingStep>(getContext(), plan->getCurrentDataStream(), params, has_first_stage);
             steps.emplace_back(aggregating_step.get());
