@@ -306,6 +306,7 @@ auto BM_Generic = [](::benchmark::State& state,
   setCpu(state);
 
   auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
+  auto* listenerPtr = listener.get();
   auto* memoryManager = MemoryManager::create(kVeloxBackendKind, std::move(listener));
   auto runtime = runtimeFactory(memoryManager);
 
@@ -343,10 +344,10 @@ auto BM_Generic = [](::benchmark::State& state,
         runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), std::nullopt);
       }
       auto resultIter = runtime->createResultIterator("/tmp/test-spill", std::move(inputIters), runtime->getConfMap());
-      listener->setIterator(resultIter.get());
+      listenerPtr->setIterator(resultIter.get());
 
       if (FLAGS_with_shuffle) {
-        runShuffle(runtime, listener.get(), resultIter, writerMetrics, readerMetrics, false);
+        runShuffle(runtime, listenerPtr, resultIter, writerMetrics, readerMetrics, false);
       } else {
         // May write the output into file.
         auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
@@ -409,6 +410,7 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
   setCpu(state);
 
   auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
+  auto* listenerPtr = listener.get();
   auto* memoryManager = MemoryManager::create(kVeloxBackendKind, std::move(listener));
   auto runtime = runtimeFactory(memoryManager);
 
@@ -420,7 +422,7 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
     ScopedTimer timer(&elapsedTime);
     for (auto _ : state) {
       auto resultIter = getInputIteratorFromFileReader(inputFile, readerType);
-      runShuffle(runtime, listener.get(), resultIter, writerMetrics, readerMetrics, FLAGS_run_shuffle_read);
+      runShuffle(runtime, listenerPtr, resultIter, writerMetrics, readerMetrics, FLAGS_run_shuffle_read);
 
       auto reader = static_cast<FileReaderIterator*>(resultIter->getInputIter());
       readInputTime += reader->getCollectBatchTime();
