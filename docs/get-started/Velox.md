@@ -68,23 +68,25 @@ setting up build dependencies.
 ./dev/buildbundle-veloxbe.sh --enable_ep_cache=ON --build_arrow=OFF --run_setup_script=OFF
 ```
 
-**For aarch64 build:**
+**For aarch64 build**
 
 ```bash
 export CPU_TARGET="aarch64"
 
-./dev/builddeps-veloxbe.sh
+./dev/buildbundle-veloxbe.sh
 ```
 
-**Build Velox separately**
+**Step-by-step build**
 
+Alternative to the above one-step build, you can follow the below guide for step-by-step build.
 Currently, Gluten is using a [forked Velox](https://github.com/oap-project/velox/) which is daily updated based on [upstream Velox](https://github.com/facebookincubator/velox).
 
 ```bash
-## fetch Velox and compile
+
+./dev/builddeps-veloxbe.sh build_arrow
+
 ./dev/builddeps-veloxbe.sh build_velox
 
-## compile Gluten cpp module
 ./dev/builddeps-veloxbe.sh build_gluten_cpp
 
 ## compile Gluten java module and create package jar
@@ -99,9 +101,9 @@ mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.4 -DskipTests
 mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.5 -DskipTests
 ```
 
-Notes： Building Velox may fail caused by `oom`. You can prevent this failure by adjusting `NUM_THREADS` (e.g., `export NUM_THREADS=4`) before building Gluten/Velox.
+Notes： Building Velox may fail caused by OOM. You can prevent this failure by adjusting `NUM_THREADS` (e.g., `export NUM_THREADS=4`) before building Gluten/Velox.
 
-Once building successfully, the Jar file will be generated in the directory: package/target/\<gluten-jar\> for Spark 3.2.x/Spark 3.3.x/Spark 3.4.x/Spark 3.5.x.
+After the above build process, the Jar file will be generated under `package/target/`.
 
 ## Dependency library deployment
 
