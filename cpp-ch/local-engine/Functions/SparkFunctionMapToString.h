@@ -20,7 +20,6 @@
 #include <Columns/ColumnStringHelpers.h>
 #include <Columns/ColumnMap.h>
 #include <Columns/ColumnsNumber.h>
-#include <DataTypes/IDataType.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/DataTypeString.h>
@@ -102,6 +101,8 @@ public:
                     size);
 
             auto & write_buffer = write_helper.getWriteBuffer();
+            auto key_serializer = arguments[1].type->getDefaultSerialization();
+            auto value_serializer = arguments[2].type->getDefaultSerialization();
 
             for (size_t row = 0; row < size; ++row)
             {
@@ -110,8 +111,8 @@ public:
                     row,
                     write_buffer,
                     format_settings,
-                    arguments[1].type,
-                    arguments[2].type);
+                    key_serializer,
+                    value_serializer);
                 write_helper.rowWritten();
             }
 
@@ -130,14 +131,17 @@ private:
         const IColumn & column,
         size_t row_num, WriteBuffer & ostr,
         const FormatSettings & settings,
-        const DataTypePtr& key_type,
-        const DataTypePtr& value_type) const{
+        const SerializationPtr& key_serializer,
+        const SerializationPtr& value_serializer) const
+    {
 
         const auto & column_map = assert_cast<const ColumnMap &>(column);
 
         const auto & nested_array = column_map.getNestedColumn();
         const auto & nested_tuple = column_map.getNestedData();
         const auto & offsets = nested_array.getOffsets();
+        const auto& key_column = nested_tuple.getColumn(0);
+        const auto& value_column = nested_tuple.getColumn(1);
 
         size_t offset = offsets[row_num - 1];
         size_t next_offset = offsets[row_num];
@@ -151,12 +155,12 @@ private:
                 writeChar(' ', ostr);
             }
 
-            key_type->getDefaultSerialization()->serializeText(nested_tuple.getColumn(0), i, ostr, settings);
+            key_serializer->serializeText(key_column, i, ostr, settings);
             writeChar(' ', ostr);
             writeChar('-', ostr);
             writeChar('>', ostr);
             writeChar(' ', ostr);
-            value_type->getDefaultSerialization()->serializeText(nested_tuple.getColumn(1), i, ostr, settings);
+            value_serializer->serializeText(value_column, i, ostr, settings);
         }
         writeChar('}', ostr);
     }
