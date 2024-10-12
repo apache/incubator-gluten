@@ -42,15 +42,14 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
       return plan
     }
 
-    val out = plan.transformUp {
+    val newPlan = plan.transformUp {
       case node =>
-        val out = replaceCollectSet(replaceCollectList(node))
-        out
+        replaceCollectSet(replaceCollectList(node))
     }
-    if (out.fastEquals(plan)) {
+    if (newPlan.fastEquals(plan)) {
       return plan
     }
-    out
+    newPlan
   }
 
   private def replaceCollectList(node: LogicalPlan): LogicalPlan = {
