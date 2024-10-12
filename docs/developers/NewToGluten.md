@@ -340,7 +340,7 @@ You can check surefire reports:
 
 3. Then, developers can check the result with summary and annotations.  
 
-![](../image/surefire-report.png)
+![](../image/surefire-report.png)  
 
 # Debug cpp code with coredump
 
