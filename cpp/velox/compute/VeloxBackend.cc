@@ -39,6 +39,8 @@
 #include "velox/common/file/FileSystems.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveDataSource.h"
+#include "velox/dwio/parquet/RegisterParquetReader.h"
+#include "velox/dwio/parquet/RegisterParquetWriter.h"
 #include "velox/serializers/PrestoSerializer.h"
 
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
@@ -113,6 +115,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   initJolFilesystem();
   initCache();
   initConnector();
+  velox::parquet::registerParquetReaderFactory();
+  velox::parquet::registerParquetWriterFactory();
 
   // Register Velox functions
   registerAllFunctions();
