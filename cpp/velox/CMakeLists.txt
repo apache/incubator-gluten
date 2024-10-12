@@ -231,6 +231,7 @@ endif()
 
 target_include_directories(
   velox PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS}
+               ${VELOX_BUILD_PATH}
                ${CMAKE_CURRENT_SOURCE_DIR} ${PROTOBUF_INCLUDE} ${VELOX_HOME})
 
 if(BUILD_TESTS)

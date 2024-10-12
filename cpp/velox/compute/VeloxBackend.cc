@@ -39,6 +39,7 @@
 #include "velox/common/file/FileSystems.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveDataSource.h"
+#include "velox/dwio/orc/reader/OrcReader.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/dwio/parquet/RegisterParquetWriter.h"
 #include "velox/serializers/PrestoSerializer.h"
@@ -120,6 +121,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::dwio::common::registerFileSinks();
   velox::parquet::registerParquetReaderFactory();
   velox::parquet::registerParquetWriterFactory();
+  velox::orc::registerOrcReaderFactory();
 
   // Register Velox functions
   registerAllFunctions();
