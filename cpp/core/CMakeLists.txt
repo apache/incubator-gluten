@@ -216,8 +216,10 @@ add_dependencies(gluten jni_proto)
 # Hide symbols of some static dependencies. Otherwise, if such dependencies are
 # already statically linked to libvelox.so, a runtime error will be reported:
 # xxx is being linked both statically and dynamically.
-target_link_options(
-  gluten PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  target_link_options(
+    gluten PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
+endif()
 
 if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
   execute_process(
