@@ -112,9 +112,12 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
+
   initJolFilesystem();
   initCache();
   initConnector();
+
+  velox::dwio::common::registerFileSinks();
   velox::parquet::registerParquetReaderFactory();
   velox::parquet::registerParquetWriterFactory();
 
