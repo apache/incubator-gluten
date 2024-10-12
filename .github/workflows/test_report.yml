@@ -37,6 +37,7 @@ jobs:
         workflow: ${{ github.event.workflow_run.workflow_id }}
         commit: ${{ github.event.workflow_run.head_commit.id }}
         workflow_conclusion: completed
+        allow_forks: true
     - name: Publish test report
       uses: scacap/action-surefire-report@a2911bd1a4412ec18dde2d93b1758b3e56d2a880 # pin @v1.8.0
       with:
