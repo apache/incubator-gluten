@@ -83,6 +83,8 @@ Currently, Gluten is using a [forked Velox](https://github.com/oap-project/velox
 
 ```bash
 
+# Build arrow with some patches applied. We need these slight code changes till arrow is upgraded
+# to 17.0.0 or newer versions.
 ./dev/builddeps-veloxbe.sh build_arrow
 
 ./dev/builddeps-veloxbe.sh build_velox
