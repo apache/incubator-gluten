@@ -45,15 +45,6 @@ object PullOutPreProject extends RewriteSingleNode with PullOutProjectHelper {
       case take: TakeOrderedAndProjectExec =>
         take.sortOrder.exists(o => isNotAttribute(o.child))
       case agg: BaseAggregateExec =>
-        /**
-        val pullOutHelper =
-          BackendsApiManager.getSparkPlanExecApiInstance.genHashAggregateExecPullOutHelper(
-            agg.aggregateExpressions,
-            agg.aggregateAttributes)
-        val allAggregateResultAttributes =
-          pullOutHelper.allAggregateResultAttributes(agg.groupingExpressions)
-        agg.child.output.size != allAggregateResultAttributes.size ||
-         */
         val groupings = agg.groupingExpressions
         groupings.distinct.size != groupings.size ||
         agg.groupingExpressions.exists(isNotAttribute) ||
