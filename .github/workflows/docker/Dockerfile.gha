@@ -4,20 +4,17 @@ RUN sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
 RUN sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
 
 RUN yum update -y && yum install -y epel-release sudo dnf
-
 RUN dnf install -y --setopt=install_weak_deps=False gcc-toolset-9
-RUN source /opt/rh/gcc-toolset-9/enable || exit 1
-
 RUN echo "check_certificate = off" >> ~/.wgetrc
 
 RUN yum install -y java-1.8.0-openjdk-devel patch wget git perl
-RUN export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && export PATH=$JAVA_HOME/bin:$PATH
+ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
+ENV PATH=$JAVA_HOME/bin:$PATH
 RUN wget --no-check-certificate https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
     tar -xvf apache-maven-3.8.8-bin.tar.gz && \
-    mv apache-maven-3.8.8 /usr/lib/maven && \
-    export MAVEN_HOME=/usr/lib/maven && \
-    export PATH=${PATH}:${MAVEN_HOME}/bin
+    mv apache-maven-3.8.8 /usr/lib/maven
+ENV PATH=${PATH}:/usr/lib/maven/bin
 
 RUN git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
 
-RUN cd /opt/gluten && ./dev/builddeps-veloxbe.sh --run_setup_script=ON build_arrow && rm -rf /opt/gluten
+RUN cd /opt/gluten && source /opt/rh/gcc-toolset-9/enable && ./dev/builddeps-veloxbe.sh --run_setup_script=ON build_arrow && rm -rf /opt/gluten
