@@ -58,6 +58,13 @@ public:
         if (isMap(arg_type))
         {
             const auto * map_arg = parsed_args[0];
+            const DataTypeMap * map_type = checkAndGetDataType<DataTypeMap>(removeNullable(map_arg->result_type).get());
+            if (isNothing(map_type->getKeyType()))
+            {
+                const DataTypePtr value_type = map_type->getValueType();
+                const auto * null_const_node = addColumnToActionsDAG(actions_dag, makeNullable(value_type), Field{});
+                return null_const_node;
+            }
             const auto * key_arg = parsed_args[1];
             const auto * result_node = toFunctionNode(actions_dag, "arrayElementOrNull", {map_arg, key_arg});
             return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
