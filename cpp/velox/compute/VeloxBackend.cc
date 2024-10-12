@@ -39,6 +39,10 @@
 #include "velox/common/file/FileSystems.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveDataSource.h"
+#include "velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.h" // @manual
+#include "velox/connectors/hive/storage_adapters/gcs/RegisterGCSFileSystem.h" // @manual
+#include "velox/connectors/hive/storage_adapters/hdfs/RegisterHdfsFileSystem.h" // @manual
+#include "velox/connectors/hive/storage_adapters/s3fs/RegisterS3FileSystem.h" // @manual
 #include "velox/dwio/orc/reader/OrcReader.h"
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/dwio/parquet/RegisterParquetWriter.h"
@@ -113,6 +117,19 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
+
+#ifdef ENABLE_HDFS
+  velox::filesystems::registerHdfsFileSystem();
+#endif
+#ifdef ENABLE_S3
+  velox::filesystems::registerS3FileSystem();
+#endif
+#ifdef ENABLE_GCS
+  velox::filesystems::registerGCSFileSystem();
+#endif
+#ifdef ENABLE_ABFS
+  velox::filesystems::abfs::registerAbfsFileSystem();
+#endif
 
   initJolFilesystem();
   initCache();
