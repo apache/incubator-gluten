@@ -24,7 +24,7 @@ import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.connector.write.{DataWriter, WriterCommitMessage}
+import org.apache.spark.sql.connector.write.DataWriter
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.ConcurrentOutputWriterSpec
@@ -112,7 +112,7 @@ abstract class MergeTreeFileFormatDataWriter(
    * Other information will be sent back to the driver too and used to e.g. update the metrics in
    * UI.
    */
-  override def commit(): MergeTreeWriteTaskResult = {
+  override def commit(): WriteTaskResult = {
     releaseResources()
     val (taskCommitMessage, taskCommitTime) = Utils.timeTakenMs {
       // committer.commitTask(taskAttemptContext)
@@ -123,7 +123,7 @@ abstract class MergeTreeFileFormatDataWriter(
     val summary = ExecutedWriteSummary(
       updatedPartitions = updatedPartitions.toSet,
       stats = statsTrackers.map(_.getFinalStats(taskCommitTime)))
-    MergeTreeWriteTaskResult(taskCommitMessage, summary)
+    WriteTaskResult(taskCommitMessage, summary)
   }
 
   def abort(): Unit = {
@@ -662,9 +662,3 @@ class MergeTreeDynamicPartitionDataConcurrentWriter(
     fileCounter = 0
   }
 }
-
-/** The result of a successful write task. */
-case class MergeTreeWriteTaskResult(
-    commitMsg: TaskCommitMessage,
-    summary: ExecutedWriteSummary)
-  extends WriterCommitMessage
