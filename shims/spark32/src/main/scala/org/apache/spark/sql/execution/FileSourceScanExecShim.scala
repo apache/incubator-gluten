@@ -58,10 +58,7 @@ abstract class FileSourceScanExecShim(
 
   def metadataColumns: Seq[AttributeReference] = Seq.empty
 
-  def hasUnsupportedColumns: Boolean = {
-    // Below name has special meaning in Velox.
-    output.exists(a => a.name == "$path" || a.name == "$bucket")
-  }
+  def hasUnsupportedColumns: Boolean = false
 
   def isMetadataColumn(attr: Attribute): Boolean = false
 
