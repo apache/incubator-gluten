@@ -44,7 +44,7 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
 
     val newPlan = plan.transformUp {
       case node =>
-        replaceCollectSet(replaceCollectList(node))
+        replaceAggCollect(node)
     }
     if (newPlan.fastEquals(plan)) {
       return plan
@@ -52,14 +52,7 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
     newPlan
   }
 
-  private def replaceCollectList(node: LogicalPlan): LogicalPlan = {
-    node.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
-      case aggExpr @ AggregateExpression(l: CollectList, _, _, _, _) if has[VeloxCollectList] =>
-        aggExpr.copy(VeloxCollectList(l.child))
-    }
-  }
-
-  private def replaceCollectSet(node: LogicalPlan): LogicalPlan = {
+  private def replaceAggCollect(node: LogicalPlan): LogicalPlan = {
     // 1. Replace null result from VeloxCollectSet with empty array to align with
     //    vanilla Spark.
     // 2. Filter out null inputs from VeloxCollectSet to align with vanilla Spark.
@@ -68,13 +61,13 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
     node match {
       case agg: Aggregate =>
         agg.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
-          case ToVeloxCollectSet(newAggExpr) =>
+          case ToVeloxCollect(newAggExpr) =>
             ensureNonNull(newAggExpr)
         }
       case w: Window =>
         w.transformExpressionsWithPruning(
           _.containsAllPatterns(AGGREGATE_EXPRESSION, WINDOW_EXPRESSION)) {
-          case windowExpr @ WindowExpression(ToVeloxCollectSet(newAggExpr), _) =>
+          case windowExpr @ WindowExpression(ToVeloxCollect(newAggExpr), _) =>
             ensureNonNull(windowExpr.copy(newAggExpr))
         }
       case other => other
@@ -91,12 +84,15 @@ object CollectRewriteRule {
     coalesce
   }
 
-  private object ToVeloxCollectSet {
+  private object ToVeloxCollect {
     def unapply(expr: Expression): Option[Expression] = expr match {
       case aggExpr @ AggregateExpression(s: CollectSet, _, _, filter, _) if has[VeloxCollectSet] =>
         val newFilter = (filter ++ Some(IsNotNull(s.child))).reduceOption(And)
         val newAggExpr =
           aggExpr.copy(aggregateFunction = VeloxCollectSet(s.child), filter = newFilter)
+        Some(newAggExpr)
+      case aggExpr @ AggregateExpression(l: CollectList, _, _, _, _) if has[VeloxCollectList] =>
+        val newAggExpr = aggExpr.copy(VeloxCollectList(l.child))
         Some(newAggExpr)
       case _ => None
     }
