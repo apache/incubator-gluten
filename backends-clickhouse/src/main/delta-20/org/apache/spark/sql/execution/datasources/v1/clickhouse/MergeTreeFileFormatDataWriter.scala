@@ -120,7 +120,7 @@ abstract class MergeTreeFileFormatDataWriter(
       new TaskCommitMessage(statuses)
     }
 
-    val summary = MergeTreeExecutedWriteSummary(
+    val summary = ExecutedWriteSummary(
       updatedPartitions = updatedPartitions.toSet,
       stats = statsTrackers.map(_.getFinalStats(taskCommitTime)))
     MergeTreeWriteTaskResult(taskCommitMessage, summary)
@@ -669,15 +669,5 @@ class MergeTreeDynamicPartitionDataConcurrentWriter(
 /** The result of a successful write task. */
 case class MergeTreeWriteTaskResult(
     commitMsg: TaskCommitMessage,
-    summary: MergeTreeExecutedWriteSummary)
+    summary: ExecutedWriteSummary)
   extends WriterCommitMessage
-
-/**
- * Wrapper class for the metrics of writing data out.
- *
- * @param updatedPartitions
- *   the partitions updated during writing data out. Only valid for dynamic partition.
- * @param stats
- *   one `WriteTaskStats` object for every `WriteJobStatsTracker` that the job had.
- */
-case class MergeTreeExecutedWriteSummary(updatedPartitions: Set[String], stats: Seq[WriteTaskStats])
