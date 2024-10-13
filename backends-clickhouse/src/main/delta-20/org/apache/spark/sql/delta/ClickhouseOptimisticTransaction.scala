@@ -150,12 +150,6 @@ class ClickhouseOptimisticTransaction(
             hadoopConf = spark.sessionState
               .newHadoopConfWithOptions(metadata.configuration ++ deltaLog.options),
             // scalastyle:on deltahadoopconfiguration
-            orderByKeyOption = tableV2.orderByKeyOption,
-            lowCardKeyOption = tableV2.lowCardKeyOption,
-            minmaxIndexKeyOption = tableV2.minmaxIndexKeyOption,
-            bfIndexKeyOption = tableV2.bfIndexKeyOption,
-            setIndexKeyOption = tableV2.setIndexKeyOption,
-            primaryKeyOption = tableV2.primaryKeyOption,
             partitionColumns = partitioningColumns,
             bucketSpec = tableV2.bucketOption,
             statsTrackers = optionalStatsTracker.toSeq ++ statsTrackers,
