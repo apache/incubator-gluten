@@ -204,7 +204,7 @@ object MergeTreeFileFormatWriter extends Logging {
       }
 
       val jobIdInstant = new Date().getTime
-      val ret = new Array[MergeTreeWriteTaskResult](rddWithNonEmptyPartitions.partitions.length)
+      val ret = new Array[WriteTaskResult](rddWithNonEmptyPartitions.partitions.length)
       sparkSession.sparkContext.runJob(
         rddWithNonEmptyPartitions,
         (taskContext: TaskContext, iter: Iterator[InternalRow]) => {
@@ -220,7 +220,7 @@ object MergeTreeFileFormatWriter extends Logging {
           )
         },
         rddWithNonEmptyPartitions.partitions.indices,
-        (index, res: MergeTreeWriteTaskResult) => {
+        (index, res: WriteTaskResult) => {
           committer.onTaskCommit(res.commitMsg)
           ret(index) = res
         }
@@ -255,7 +255,7 @@ object MergeTreeFileFormatWriter extends Logging {
       committer: FileCommitProtocol,
       iterator: Iterator[InternalRow],
       concurrentOutputWriterSpec: Option[ConcurrentOutputWriterSpec]
-  ): MergeTreeWriteTaskResult = {
+  ): WriteTaskResult = {
     CHThreadGroup.registerNewThreadGroup()
     val jobId = SparkHadoopWriterUtils.createJobID(new Date(jobIdInstant), sparkStageId)
     val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
