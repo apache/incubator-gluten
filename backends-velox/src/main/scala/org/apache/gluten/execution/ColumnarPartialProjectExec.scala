@@ -18,9 +18,9 @@ package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.expression.ExpressionUtils
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
 import org.apache.gluten.extension.columnar.validator.Validator.Passed
-import org.apache.gluten.extension.columnar.validator.Validators.FallbackComplexExpressions
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -39,17 +39,18 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import scala.collection.mutable.ListBuffer
 
 /**
- * Change the Project to ProjectExecTransformer + SparkPartialProjectColumnarExec e.g. sum(myudf(a)
- * + b + hash(c)), child is (a, b,c ) SparkPartialProjectColumnarExec (a, b, c, myudf(a)),
- * ProjectExecTransformer(myudf(a) + b + hash(c))
+ * By rule <PartialProhectRule>, the project not offoload-able that is changed to
+ * ProjectExecTransformer + ColumnarPartialProjectExec e.g. sum(myudf(a) + b + hash(c)), child is
+ * (a, b, c) ColumnarPartialProjectExec (a, b, c, myudf(a)), ProjectExecTransformer(myudf(a) + b +
+ * hash(c))
  *
  * @param original
  *   extract the ScalaUDF from original project list as Alias in UnsafeProjection and
- *   AttributeReference in SparkPartialProjectColumnarExec output
+ *   AttributeReference in ColumnarPartialProjectExec output
  * @param child
  *   child plan
  */
-case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPlan)(
+case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     replacedAliasUdf: ListBuffer[Alias])
   extends UnaryExecNode
   with GlutenPlan {
@@ -59,19 +60,19 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
   private val projectAttributes: ListBuffer[Attribute] = ListBuffer()
   private val projectIndexInChild: ListBuffer[Int] = ListBuffer()
   private var UDFAttrNotExists = false
-  private var hasComplexDataType = replacedAliasUdf.exists(a => !validateDataType(a.dataType))
-  if (!hasComplexDataType) {
+  private var hasUnsupportedDataType = replacedAliasUdf.exists(a => !validateDataType(a.dataType))
+  if (!hasUnsupportedDataType) {
     getProjectIndexInChildOutput(replacedAliasUdf)
   }
 
   @transient override lazy val metrics = Map(
-    "time" -> SQLMetrics.createTimingMetric(sparkContext, "time of project"),
+    "time" -> SQLMetrics.createTimingMetric(sparkContext, "total time of partial project"),
     "column_to_row_time" -> SQLMetrics.createTimingMetric(
       sparkContext,
-      "time of velox to Arrow ColumnarBatch"),
+      "time of velox to Arrow ColumnarBatch or UnsafeRow"),
     "row_to_column_time" -> SQLMetrics.createTimingMetric(
       sparkContext,
-      "time of Arrow ColumnarBatch to velox")
+      "time of Arrow ColumnarBatch or UnsafeRow to velox")
   )
 
   override def output: Seq[Attribute] = child.output ++ replacedAliasUdf.map(_.toAttribute)
@@ -85,7 +86,7 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
     replacedAliasUdf :: Nil
   }
 
-  final override lazy val supportsColumnar: Boolean = true
+  final override val supportsColumnar: Boolean = true
 
   private def validateExpression(expr: Expression): Boolean = {
     expr.deterministic && !expr.isInstanceOf[LambdaFunction] && expr.children
@@ -122,7 +123,7 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
           log.debug(s"Expression $a should exist in child output ${child.output}")
           return
         } else if (!validateDataType(a.dataType)) {
-          hasComplexDataType = true
+          hasUnsupportedDataType = true
           log.debug(s"Expression $a contains unsupported data type ${a.dataType}")
         } else if (!projectIndexInChild.contains(index)) {
           projectAttributes.append(a.toAttribute)
@@ -139,7 +140,7 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
     if (UDFAttrNotExists) {
       return ValidationResult.failed("Attribute in the UDF does not exists in its child")
     }
-    if (hasComplexDataType) {
+    if (hasUnsupportedDataType) {
       return ValidationResult.failed("Attribute in the UDF contains unsupported type")
     }
     if (projectAttributes.size == child.output.size) {
@@ -156,16 +157,17 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
       return ValidationResult.failed("Number of RowToColumn columns is more than ProjectExec")
     }
     if (!original.projectList.forall(validateExpression(_))) {
-     return  ValidationResult.failed("Contains expression not supported")
+      return ValidationResult.failed("Contains expression not supported")
     }
     if (isComplexExpression()) {
       return ValidationResult.failed("Fallback by complex expression")
     }
-      ValidationResult.succeeded
+    ValidationResult.succeeded
   }
 
   private def isComplexExpression(): Boolean = {
-    new FallbackComplexExpressions(GlutenConfig.getConf.fallbackExpressionsThreshold)
+    new ExpressionUtils.FallbackComplexExpressions(
+      GlutenConfig.getConf.fallbackExpressionsThreshold)
       .validate(original) match {
       case Passed => false
       case _ => true
@@ -194,8 +196,6 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
               } else getProjectedBatch(childData, c2r, r2c)
               val batchIterator = projectedBatch.map {
                 b =>
-//                  print("batch 1" + ColumnarBatches.toString(batch, 0, 20) + "\n")
-//                  print("batch 2" + ColumnarBatches.toString(b, 0, 20) + "\n")
                   val compositeBatch = if (b.numCols() != 0) {
                     val handle = ColumnarBatches.compose(batch, b)
                     b.close()
@@ -332,13 +332,12 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
   override def simpleString(maxFields: Int): String =
     super.simpleString(maxFields) + " PartialProject " + replacedAliasUdf
 
-  override protected def withNewChildInternal(
-      newChild: SparkPlan): SparkPartialProjectColumnarExec = {
+  override protected def withNewChildInternal(newChild: SparkPlan): ColumnarPartialProjectExec = {
     copy(child = newChild)(replacedAliasUdf)
   }
 }
 
-object SparkPartialProjectColumnarExec {
+object ColumnarPartialProjectExec {
 
   val projectPrefix = "_SparkPartialProject"
 
@@ -408,7 +407,7 @@ object SparkPartialProjectColumnarExec {
     val newProjectList = original.projectList.map {
       p => replaceExpressionUDF(p, replacedAliasUdf).asInstanceOf[NamedExpression]
     }
-    val partialProject = SparkPartialProjectColumnarExec(original, original.child)(replacedAliasUdf)
+    val partialProject = ColumnarPartialProjectExec(original, original.child)(replacedAliasUdf)
     ProjectExecTransformer(newProjectList, partialProject)
   }
 }

@@ -1870,7 +1870,12 @@ object GlutenConfig {
 
   val ENABLE_COLUMNAR_PARTIAL_PROJECT =
     buildConf("spark.gluten.sql.columnar.partial.project")
-      .doc("Execute partial project which is not supported in backend in Spark")
+      .doc(
+        "Break up one project node into 2 phases when some of the expressions are non " +
+          "offload-able. Phase one is a regular offloaded project transformer that " +
+          "evaluates the offload-able expressions in native, " +
+          "phase two preserves the output from phase one and evaluates the remaining " +
+          "non-offload-able expressions using vanilla Spark projections")
       .booleanConf
       .createWithDefault(true)
 

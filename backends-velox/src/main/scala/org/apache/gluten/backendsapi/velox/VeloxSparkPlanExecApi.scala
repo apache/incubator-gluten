@@ -22,7 +22,6 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.aggregate.{HLLAdapter, VeloxBloomFilterAggregate, VeloxCollectList, VeloxCollectSet}
-import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.FallbackTags
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializeResult}
@@ -304,10 +303,6 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       condition: Expression,
       child: SparkPlan): FilterExecTransformerBase = {
     FilterExecTransformer(condition, child)
-  }
-
-  override def genSparkPartialProjectColumnarExec(original: ProjectExec): GlutenPlan = {
-    SparkPartialProjectColumnarExec.create(original)
   }
 
   /** Generate HashAggregateExecTransformer. */

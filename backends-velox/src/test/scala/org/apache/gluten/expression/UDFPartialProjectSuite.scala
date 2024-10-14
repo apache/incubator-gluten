@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.execution.{SparkPartialProjectColumnarExec, WholeStageTransformerSuite}
+import org.apache.gluten.execution.{ColumnarPartialProjectExec, WholeStageTransformerSuite}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
@@ -61,20 +61,20 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
 
   ignore("test plus_one") {
     runQueryAndCompare("SELECT sum(plus_one(cast(l_orderkey as long))) from lineitem") {
-      checkGlutenOperatorMatch[SparkPartialProjectColumnarExec]
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
   }
 
   ignore("test plus_one with column used twice") {
     runQueryAndCompare(
       "SELECT sum(plus_one(cast(l_orderkey as long)) + hash(l_orderkey)) from lineitem") {
-      checkGlutenOperatorMatch[SparkPartialProjectColumnarExec]
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
   }
 
   ignore("test plus_one without cast") {
     runQueryAndCompare("SELECT sum(plus_one(l_orderkey) + hash(l_orderkey)) from lineitem") {
-      checkGlutenOperatorMatch[SparkPartialProjectColumnarExec]
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
   }
 
@@ -83,20 +83,20 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
       "SELECT sum(plus_one(cast(l_orderkey as long)) + hash(l_partkey))" +
         "from lineitem " +
         "where l_orderkey < 3") {
-      checkGlutenOperatorMatch[SparkPartialProjectColumnarExec]
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
   }
 
   test("test plus_one with many columns in project") {
     runQueryAndCompare("SELECT plus_one(cast(l_orderkey as long)), hash(l_partkey) from lineitem") {
-      checkGlutenOperatorMatch[SparkPartialProjectColumnarExec]
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
   }
 
   test("test function no argument") {
     runQueryAndCompare("""SELECT no_argument(), l_orderkey
                          | from lineitem limit 100""".stripMargin) {
-      checkGlutenOperatorMatch[SparkPartialProjectColumnarExec]
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
   }
 
@@ -106,14 +106,14 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
     df.collect()
     assert(
       df.queryExecution.executedPlan
-        .find(p => p.isInstanceOf[SparkPartialProjectColumnarExec])
+        .find(p => p.isInstanceOf[ColumnarPartialProjectExec])
         .isEmpty)
   }
 
   test("udf in agg simple") {
     runQueryAndCompare("""select sum(hash(plus_one(l_extendedprice)) + hash(l_orderkey) ) as revenue
                          | from   lineitem""".stripMargin) {
-      checkGlutenOperatorMatch[SparkPartialProjectColumnarExec]
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
   }
 
@@ -121,7 +121,7 @@ class UDFPartialProjectSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("""select sum(hash(plus_one(l_extendedprice)) * l_discount
                          | + hash(l_orderkey) + hash(l_comment)) as revenue
                          | from   lineitem""".stripMargin) {
-      checkGlutenOperatorMatch[SparkPartialProjectColumnarExec]
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
   }
 

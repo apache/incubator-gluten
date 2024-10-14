@@ -37,6 +37,16 @@ object SparkSchemaUtil {
     SparkArrowUtil.toArrowSchema(schema, timeZoneId)
   }
 
+  def checkSchema(schema: StructType): Boolean = {
+    try {
+      SparkSchemaUtil.toArrowSchema(schema)
+      true
+    } catch {
+      case _: Exception =>
+        false
+    }
+  }
+
   def isTimeZoneIDEquivalentToUTC(zoneId: String): Boolean = {
     getTimeZoneIDOffset(zoneId) == 0
   }
