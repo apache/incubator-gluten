@@ -167,21 +167,21 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
         <executions>
           <execution>
-            <id>add-sources</id>
+            <id>copy-resources</id>
             <phase>generate-sources</phase>
             <goals>
-              <goal>add-source</goal>
+              <goal>copy-resources</goal>
             </goals>
             <configuration>
-              <sources>
-                <source>src/main/delta-${delta.binary.version}</source>
-              </sources>
+              <outputDirectory>src/main/scala/org/apache/gluten/execution</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>src/main/delta-${delta.binary.version}/org/apache/gluten/execution</directory>
+                </resource>
+              </resources>
+              <overwrite>true</overwrite>
             </configuration>
           </execution>
         </executions>
