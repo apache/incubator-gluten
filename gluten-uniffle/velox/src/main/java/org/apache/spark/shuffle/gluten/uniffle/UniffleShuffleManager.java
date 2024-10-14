@@ -36,7 +36,6 @@ public class UniffleShuffleManager extends RssShuffleManager {
 
   public UniffleShuffleManager(SparkConf conf, boolean isDriver) {
     super(conf, isDriver);
-    conf.set(RssSparkConfig.SPARK_RSS_CONFIG_PREFIX + RssSparkConfig.RSS_ROW_BASED.key(), "false");
   }
 
   @Override
@@ -57,8 +56,13 @@ public class UniffleShuffleManager extends RssShuffleManager {
       } else {
         writeMetrics = context.taskMetrics().shuffleWriteMetrics();
       }
-      sparkConf.set(
-          RssSparkConfig.SPARK_RSS_CONFIG_PREFIX + RssSparkConfig.RSS_ROW_BASED.key(), "false");
+      // set rss.row.based to false to mark it as columnar shuffle
+      SparkConf conf =
+          sparkConf
+              .clone()
+              .set(
+                  RssSparkConfig.SPARK_RSS_CONFIG_PREFIX + RssSparkConfig.RSS_ROW_BASED.key(),
+                  "false");
       return new VeloxUniffleColumnarShuffleWriter<>(
           context.partitionId(),
           rssHandle.getAppId(),
@@ -67,15 +71,13 @@ public class UniffleShuffleManager extends RssShuffleManager {
           context.taskAttemptId(),
           writeMetrics,
           this,
-          sparkConf,
+          conf,
           shuffleWriteClient,
           rssHandle,
           this::markFailedTask,
           context,
           dependency.isSort());
     } else {
-      sparkConf.set(
-          RssSparkConfig.SPARK_RSS_CONFIG_PREFIX + RssSparkConfig.RSS_ROW_BASED.key(), "true");
       return super.getWriter(handle, mapId, context, metrics);
     }
   }
