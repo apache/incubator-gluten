@@ -26,9 +26,7 @@ Registry<MemoryManager::Factory>& memoryManagerFactories() {
 }
 } // namespace
 
-void MemoryManager::registerFactory(
-    const std::string& kind,
-    std::function<MemoryManager*(std::unique_ptr<AllocationListener>)> factory) {
+void MemoryManager::registerFactory(const std::string& kind, MemoryManager::Factory factory) {
   memoryManagerFactories().registerObj(kind, std::move(factory));
 }
 
