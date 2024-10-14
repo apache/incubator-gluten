@@ -22,17 +22,16 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.connector.write.{DataWriter, WriterCommitMessage}
+import org.apache.spark.sql.connector.write.DataWriter
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.ConcurrentOutputWriterSpec
 import org.apache.spark.sql.execution.metric.{CustomMetrics, SQLMetric}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StringType
-import org.apache.spark.util.{SerializableConfiguration, Utils}
+import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.TaskAttemptContext
@@ -44,7 +43,7 @@ import scala.collection.mutable
  * implementation of this trait will automatically trigger task aborts.
  */
 abstract class MergeTreeFileFormatDataWriter(
-    description: MergeTreeWriteJobDescription,
+    description: WriteJobDescription,
     taskAttemptContext: TaskAttemptContext,
     committer: FileCommitProtocol,
     customMetrics: Map[String, SQLMetric])
@@ -113,7 +112,7 @@ abstract class MergeTreeFileFormatDataWriter(
    * Other information will be sent back to the driver too and used to e.g. update the metrics in
    * UI.
    */
-  override def commit(): MergeTreeWriteTaskResult = {
+  override def commit(): WriteTaskResult = {
     releaseResources()
     val (taskCommitMessage, taskCommitTime) = Utils.timeTakenMs {
       // committer.commitTask(taskAttemptContext)
@@ -121,10 +120,10 @@ abstract class MergeTreeFileFormatDataWriter(
       new TaskCommitMessage(statuses)
     }
 
-    val summary = MergeTreeExecutedWriteSummary(
+    val summary = ExecutedWriteSummary(
       updatedPartitions = updatedPartitions.toSet,
       stats = statsTrackers.map(_.getFinalStats(taskCommitTime)))
-    MergeTreeWriteTaskResult(taskCommitMessage, summary)
+    WriteTaskResult(taskCommitMessage, summary)
   }
 
   def abort(): Unit = {
@@ -136,13 +135,11 @@ abstract class MergeTreeFileFormatDataWriter(
   }
 
   override def close(): Unit = {}
-
-  def getReturnedMetrics: mutable.Map[String, AddFile] = returnedMetrics
 }
 
 /** FileFormatWriteTask for empty partitions */
 class MergeTreeEmptyDirectoryDataWriter(
-    description: MergeTreeWriteJobDescription,
+    description: WriteJobDescription,
     taskAttemptContext: TaskAttemptContext,
     committer: FileCommitProtocol,
     customMetrics: Map[String, SQLMetric] = Map.empty
@@ -152,7 +149,7 @@ class MergeTreeEmptyDirectoryDataWriter(
 
 /** Writes data to a single directory (used for non-dynamic-partition writes). */
 class MergeTreeSingleDirectoryDataWriter(
-    description: MergeTreeWriteJobDescription,
+    description: WriteJobDescription,
     taskAttemptContext: TaskAttemptContext,
     committer: FileCommitProtocol,
     customMetrics: Map[String, SQLMetric] = Map.empty)
@@ -211,7 +208,7 @@ class MergeTreeSingleDirectoryDataWriter(
  * multiple directories (partitions) or files (bucketing).
  */
 abstract class MergeTreeBaseDynamicPartitionDataWriter(
-    description: MergeTreeWriteJobDescription,
+    description: WriteJobDescription,
     taskAttemptContext: TaskAttemptContext,
     committer: FileCommitProtocol,
     customMetrics: Map[String, SQLMetric])
@@ -388,7 +385,7 @@ abstract class MergeTreeBaseDynamicPartitionDataWriter(
  * before writing.
  */
 class MergeTreeDynamicPartitionDataSingleWriter(
-    description: MergeTreeWriteJobDescription,
+    description: WriteJobDescription,
     taskAttemptContext: TaskAttemptContext,
     committer: FileCommitProtocol,
     customMetrics: Map[String, SQLMetric] = Map.empty)
@@ -482,7 +479,7 @@ class MergeTreeDynamicPartitionDataSingleWriter(
  * Caller is expected to call `writeWithIterator()` instead of `write()` to write records.
  */
 class MergeTreeDynamicPartitionDataConcurrentWriter(
-    description: MergeTreeWriteJobDescription,
+    description: WriteJobDescription,
     taskAttemptContext: TaskAttemptContext,
     committer: FileCommitProtocol,
     concurrentOutputWriterSpec: ConcurrentOutputWriterSpec,
@@ -664,57 +661,3 @@ class MergeTreeDynamicPartitionDataConcurrentWriter(
     fileCounter = 0
   }
 }
-
-/**
- * Bucketing specification for all the write tasks.
- *
- * @param bucketIdExpression
- *   Expression to calculate bucket id based on bucket column(s).
- * @param bucketFileNamePrefix
- *   Prefix of output file name based on bucket id.
- */
-case class MergeTreeWriterBucketSpec(
-    bucketIdExpression: Expression,
-    bucketFileNamePrefix: Int => String)
-
-/** A shared job description for all the write tasks. */
-class MergeTreeWriteJobDescription(
-    val uuid: String, // prevent collision between different (appending) write jobs
-    val serializableHadoopConf: SerializableConfiguration,
-    val outputWriterFactory: OutputWriterFactory,
-    val allColumns: Seq[Attribute],
-    val dataColumns: Seq[Attribute],
-    val partitionColumns: Seq[Attribute],
-    val bucketSpec: Option[MergeTreeWriterBucketSpec],
-    val path: String,
-    val customPartitionLocations: Map[TablePartitionSpec, String],
-    val maxRecordsPerFile: Long,
-    val timeZoneId: String,
-    val statsTrackers: Seq[WriteJobStatsTracker])
-  extends Serializable {
-
-  assert(
-    AttributeSet(allColumns) == AttributeSet(partitionColumns ++ dataColumns),
-    s"""
-       |All columns: ${allColumns.mkString(", ")}
-       |Partition columns: ${partitionColumns.mkString(", ")}
-       |Data columns: ${dataColumns.mkString(", ")}
-       """.stripMargin
-  )
-}
-
-/** The result of a successful write task. */
-case class MergeTreeWriteTaskResult(
-    commitMsg: TaskCommitMessage,
-    summary: MergeTreeExecutedWriteSummary)
-  extends WriterCommitMessage
-
-/**
- * Wrapper class for the metrics of writing data out.
- *
- * @param updatedPartitions
- *   the partitions updated during writing data out. Only valid for dynamic partition.
- * @param stats
- *   one `WriteTaskStats` object for every `WriteJobStatsTracker` that the job had.
- */
-case class MergeTreeExecutedWriteSummary(updatedPartitions: Set[String], stats: Seq[WriteTaskStats])
