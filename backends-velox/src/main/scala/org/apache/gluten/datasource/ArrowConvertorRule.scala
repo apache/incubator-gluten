@@ -20,7 +20,6 @@ import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.datasource.v2.ArrowCSVTable
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.LogicalPlanSelector
-
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.csv.CSVOptions
@@ -32,10 +31,9 @@ import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.execution.datasources.v2.csv.CSVTable
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.utils.SparkSchemaUtil
+import org.apache.spark.sql.utils.SparkArrowUtil
 
 import java.nio.charset.StandardCharsets
-
 import scala.collection.convert.ImplicitConversions.`map AsScala`
 
 @Experimental
@@ -87,7 +85,7 @@ case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
       options,
       columnPruning = session.sessionState.conf.csvColumnPruning,
       session.sessionState.conf.sessionLocalTimeZone)
-    SparkSchemaUtil.checkSchema(dataSchema) &&
+    SparkArrowUtil.checkSchema(dataSchema) &&
     checkCsvOptions(csvOptions, session.sessionState.conf.sessionLocalTimeZone) &&
     dataSchema.nonEmpty
   }
