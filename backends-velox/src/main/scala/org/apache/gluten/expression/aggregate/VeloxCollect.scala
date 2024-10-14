@@ -43,6 +43,8 @@ abstract class VeloxCollect(child: Expression)
   override lazy val mergeExpressions: Seq[Expression] = Seq(
     Concat(Seq(buffer.left, buffer.right))
   )
+
+  override def defaultResult: Option[Literal] = Option(Literal.create(Array(), dataType))
 }
 
 case class VeloxCollectSet(child: Expression) extends VeloxCollect(child) {
@@ -53,8 +55,6 @@ case class VeloxCollectSet(child: Expression) extends VeloxCollect(child) {
 
   override lazy val evaluateExpression: Expression =
     ArrayDistinct(buffer)
-
-  override def defaultResult: Option[Literal] = Option(Literal.create(Array(), dataType))
 
   override def prettyName: String = "velox_collect_set"
 
