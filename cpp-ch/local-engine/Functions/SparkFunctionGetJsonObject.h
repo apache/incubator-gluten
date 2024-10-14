@@ -461,15 +461,15 @@ public:
         {
             const char * array_begin = "[";
             const char * array_end = "]";
-            const char * comma = ", ";
+            const char * comma = ",";
             bool flag = false;
             serializer.addRawData(array_begin, 1);
+            nullable_col_str.getNullMapData().push_back(0);
             for (auto & element : elements)
             {
-                nullable_col_str.getNullMapData().push_back(0);
                 if (flag)
                 {
-                    serializer.addRawData(comma, 2);
+                    serializer.addRawData(comma, 1);
                 }
                 serializer.addElement(element);
                 flag = true;
