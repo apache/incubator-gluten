@@ -62,16 +62,25 @@ using namespace facebook;
 namespace gluten {
 
 namespace {
-MemoryManager* veloxMemoryManagerFactory(std::unique_ptr<AllocationListener> listener) {
-  return new VeloxMemoryManager(std::move(listener));
+MemoryManager* veloxMemoryManagerFactory(const std::string& kind, std::unique_ptr<AllocationListener> listener) {
+  return new VeloxMemoryManager(kind, std::move(listener));
+}
+
+void veloxMemoryManagerReleaser(MemoryManager* memoryManager) {
+  delete memoryManager;
 }
 
 Runtime* veloxRuntimeFactory(
+    const std::string& kind,
     MemoryManager* memoryManager,
     const std::unordered_map<std::string, std::string>& sessionConf) {
   auto* vmm = dynamic_cast<VeloxMemoryManager*>(memoryManager);
   GLUTEN_CHECK(vmm != nullptr, "Not a Velox memory manager");
-  return new VeloxRuntime(vmm, sessionConf);
+  return new VeloxRuntime(kind, vmm, sessionConf);
+}
+
+void veloxRuntimeReleaser(Runtime* runtime) {
+  delete runtime;
 }
 } // namespace
 
@@ -80,8 +89,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
 
   // Register factories.
-  MemoryManager::registerFactory(kVeloxBackendKind, veloxMemoryManagerFactory);
-  Runtime::registerFactory(kVeloxBackendKind, veloxRuntimeFactory);
+  MemoryManager::registerFactory(kVeloxBackendKind, veloxMemoryManagerFactory, veloxMemoryManagerReleaser);
+  Runtime::registerFactory(kVeloxBackendKind, veloxRuntimeFactory, veloxRuntimeReleaser);
 
   if (backendConf_->get<bool>(kDebugModeEnabled, false)) {
     LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->rawConfigs());

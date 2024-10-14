@@ -28,12 +28,12 @@
 
 namespace gluten {
 
-// This kind string must be same with VeloxBackend#name in java side.
-inline static const std::string kVeloxBackendKind{"velox"};
-
 class VeloxRuntime final : public Runtime {
  public:
-  explicit VeloxRuntime(VeloxMemoryManager* vmm, const std::unordered_map<std::string, std::string>& confMap);
+  explicit VeloxRuntime(
+      const std::string& kind,
+      VeloxMemoryManager* vmm,
+      const std::unordered_map<std::string, std::string>& confMap);
 
   void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override;
 

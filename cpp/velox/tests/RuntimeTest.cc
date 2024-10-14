@@ -24,6 +24,8 @@ namespace gluten {
 
 class DummyMemoryManager final : public MemoryManager {
  public:
+  DummyMemoryManager(const std::string& kind) : MemoryManager(kind){};
+
   arrow::MemoryPool* getArrowMemoryPool() override {
     throw GlutenException("Not yet implemented");
   }
@@ -38,9 +40,15 @@ class DummyMemoryManager final : public MemoryManager {
   }
 };
 
+inline static const std::string kDummyBackendKind{"dummy"};
+
 class DummyRuntime final : public Runtime {
  public:
-  DummyRuntime(DummyMemoryManager* mm, const std::unordered_map<std::string, std::string>& conf) : Runtime(mm, conf) {}
+  DummyRuntime(
+      const std::string& kind,
+      DummyMemoryManager* mm,
+      const std::unordered_map<std::string, std::string>& conf)
+      : Runtime(kind, mm, conf) {}
 
   void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override {}
 
@@ -112,29 +120,36 @@ class DummyRuntime final : public Runtime {
   };
 };
 
-static Runtime* dummyRuntimeFactory(MemoryManager* mm, const std::unordered_map<std::string, std::string> conf) {
-  return new DummyRuntime(dynamic_cast<DummyMemoryManager*>(mm), conf);
+static Runtime* dummyRuntimeFactory(
+    const std::string& kind,
+    MemoryManager* mm,
+    const std::unordered_map<std::string, std::string> conf) {
+  return new DummyRuntime(kind, dynamic_cast<DummyMemoryManager*>(mm), conf);
+}
+
+static void dummyRuntimeReleaser(Runtime* runtime) {
+  delete runtime;
 }
 
 TEST(TestRuntime, CreateRuntime) {
-  Runtime::registerFactory("DUMMY", dummyRuntimeFactory);
-  DummyMemoryManager mm;
-  auto runtime = Runtime::create("DUMMY", &mm);
+  Runtime::registerFactory(kDummyBackendKind, dummyRuntimeFactory, dummyRuntimeReleaser);
+  DummyMemoryManager mm(kDummyBackendKind);
+  auto runtime = Runtime::create(kDummyBackendKind, &mm);
   ASSERT_EQ(typeid(*runtime), typeid(DummyRuntime));
   Runtime::release(runtime);
 }
 
 TEST(TestRuntime, CreateVeloxRuntime) {
   VeloxBackend::create({});
-  VeloxMemoryManager mm(AllocationListener::noop());
-  auto runtime = Runtime::create(kVeloxBackendKind, &mm);
+  auto mm = MemoryManager::create(kVeloxBackendKind, AllocationListener::noop());
+  auto runtime = Runtime::create(kVeloxBackendKind, mm);
   ASSERT_EQ(typeid(*runtime), typeid(VeloxRuntime));
   Runtime::release(runtime);
 }
 
 TEST(TestRuntime, GetResultIterator) {
-  DummyMemoryManager mm;
-  auto runtime = std::make_shared<DummyRuntime>(&mm, std::unordered_map<std::string, std::string>());
+  DummyMemoryManager mm(kDummyBackendKind);
+  auto runtime = std::make_shared<DummyRuntime>(kDummyBackendKind, &mm, std::unordered_map<std::string, std::string>());
   auto iter = runtime->createResultIterator("/tmp/test-spill", {}, {});
   ASSERT_TRUE(iter->hasNext());
   auto next = iter->next();

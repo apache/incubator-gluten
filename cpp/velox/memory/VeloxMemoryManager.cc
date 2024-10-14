@@ -200,8 +200,8 @@ class ArbitratorFactoryRegister {
   gluten::AllocationListener* listener_;
 };
 
-VeloxMemoryManager::VeloxMemoryManager(std::unique_ptr<AllocationListener> listener)
-    : MemoryManager(), listener_(std::move(listener)) {
+VeloxMemoryManager::VeloxMemoryManager(const std::string& kind, std::unique_ptr<AllocationListener> listener)
+    : MemoryManager(kind), listener_(std::move(listener)) {
   auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
       kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
   auto memInitCapacity =
