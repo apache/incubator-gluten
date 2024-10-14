@@ -21,8 +21,8 @@ on:
       - main
     paths:
       - '.github/workflows/docker_image.yml'
-      - 'dev/docker/Dockerfile.static-build'
-      - 'dev/docker/Dockerfile.dynamic-build'
+      - 'dev/docker/Dockerfile.centos7-static-build'
+      - 'dev/docker/Dockerfile.centos8-dynamic-build'
   schedule:
     - cron: '0 20 * * 0'
 
@@ -47,7 +47,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: dev/docker/Dockerfile.static-build
+          file: dev/docker/Dockerfile.centos7-static-build
           push: true
           tags: apache/gluten:vcpkg-centos-7
 
@@ -71,6 +71,6 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: dev/docker/Dockerfile.dynamic-build
+          file: dev/docker/Dockerfile.centos8-dynamic-build
           push: true
           tags: apache/gluten:centos-8

@@ -9,7 +9,7 @@ parent: Developer Overview
 GHA workflows are defined under `.github/workflows/`.
 
 ## Docker Build
-We have a weekly job defined in `docker_image.yml` to build docker images based on `Dockerfile.static-build` and `Dockerfile.dynamic-build` for CI verification.
+We have a weekly job defined in `docker_image.yml` to build docker images based on `Dockerfile.centos7-static-build` and `Dockerfile.centos8-dynamic-build` for CI verification.
 
 ## Vcpkg Caching
 Gluten main branch is pulled down during docker build. And vcpkg will cache binary data of all dependencies defined under dev/vcpkg.
