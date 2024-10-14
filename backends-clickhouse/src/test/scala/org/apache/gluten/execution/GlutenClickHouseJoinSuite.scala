@@ -108,7 +108,11 @@ class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSui
 
   test("GLUTEN-7470: Same names in group by may cause exception") {
     withTable("test_7470_1") {
-      sql("create table test_7470_1 (day string, rtime int, uid string, owner string)")
+      sql("""
+            |create table test_7470_1 (
+            |  day string, rtime int, uid string, owner string)
+            |USING orc
+            |""".stripMargin)
       sql("insert into test_7470_1 values ('2024-09-01', 123, 'user1', 'owner1')")
       sql("insert into test_7470_1 values ('2024-09-01', 123, 'user1', 'owner1')")
       sql("insert into test_7470_1 values ('2024-09-02', 567, 'user2', 'owner2')")
@@ -129,7 +133,11 @@ class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSui
 
   test("GLUTEN-7470: Same names with different qualifier in group by may cause exception") {
     withTable("test_7470_2") {
-      sql("create table test_7470_2 (day string, rtime int, uid string, owner string)")
+      sql("""
+            |create table test_7470_2 (
+            |  day string, rtime int, uid string, owner string)
+            |USING orc
+            |""".stripMargin)
       sql("insert into test_7470_2 values ('2024-09-01', 123, 'user1', 'owner1')")
       sql("insert into test_7470_2 values ('2024-09-01', 123, 'user1', 'owner1')")
       sql("insert into test_7470_2 values ('2024-09-02', 567, 'user2', 'owner2')")
