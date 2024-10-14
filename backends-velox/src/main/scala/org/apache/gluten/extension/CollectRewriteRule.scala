@@ -21,12 +21,11 @@ import org.apache.gluten.expression.aggregate.{VeloxCollectList, VeloxCollectSet
 import org.apache.gluten.utils.LogicalPlanSelector
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.{And, Coalesce, Expression, IsNotNull, Literal, WindowExpression}
+import org.apache.spark.sql.catalyst.expressions.{And, Expression, IsNotNull, WindowExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Window}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreePattern.{AGGREGATE_EXPRESSION, WINDOW_EXPRESSION}
-import org.apache.spark.sql.types.ArrayType
 
 import scala.reflect.{classTag, ClassTag}
 
@@ -57,13 +56,13 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
       case agg: Aggregate =>
         agg.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
           case ToVeloxCollect(newAggExpr) =>
-            ensureNonNull(newAggExpr)
+            newAggExpr
         }
       case w: Window =>
         w.transformExpressionsWithPruning(
           _.containsAllPatterns(AGGREGATE_EXPRESSION, WINDOW_EXPRESSION)) {
           case windowExpr @ WindowExpression(ToVeloxCollect(newAggExpr), _) =>
-            ensureNonNull(windowExpr.copy(newAggExpr))
+            windowExpr.copy(newAggExpr)
         }
       case other => other
     }
@@ -71,14 +70,6 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
 }
 
 object CollectRewriteRule {
-  private def ensureNonNull(expr: Expression): Expression = {
-    val coalesce =
-      Coalesce(List(expr, Literal.create(Seq.empty, expr.dataType)))
-    assert(!coalesce.nullable)
-    assert(!coalesce.dataType.asInstanceOf[ArrayType].containsNull)
-    coalesce
-  }
-
   private object ToVeloxCollect {
     def unapply(expr: Expression): Option[Expression] = expr match {
       case aggExpr @ AggregateExpression(s: CollectSet, _, _, filter, _) if has[VeloxCollectSet] =>
