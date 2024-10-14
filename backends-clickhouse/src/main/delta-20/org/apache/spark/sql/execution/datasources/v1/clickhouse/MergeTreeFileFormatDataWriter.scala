@@ -116,7 +116,7 @@ abstract class MergeTreeFileFormatDataWriter(
     releaseResources()
     val (taskCommitMessage, taskCommitTime) = Utils.timeTakenMs {
       // committer.commitTask(taskAttemptContext)
-      val statuses = returnedMetrics.values.toSeq
+      val statuses = returnedMetrics.map(_._2).toSeq
       new TaskCommitMessage(statuses)
     }
 
