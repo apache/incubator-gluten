@@ -32,6 +32,7 @@ import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.execution.datasources.v2.csv.CSVTable
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.utils.SparkSchemaUtil
 
 import java.nio.charset.StandardCharsets
 
@@ -86,6 +87,7 @@ case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
       options,
       columnPruning = session.sessionState.conf.csvColumnPruning,
       session.sessionState.conf.sessionLocalTimeZone)
+    SparkSchemaUtil.checkSchema(dataSchema) &&
     checkCsvOptions(csvOptions, session.sessionState.conf.sessionLocalTimeZone) &&
     dataSchema.nonEmpty
   }

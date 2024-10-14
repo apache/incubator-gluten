@@ -137,25 +137,31 @@ case class SparkPartialProjectColumnarExec(original: ProjectExec, child: SparkPl
       return ValidationResult.failed("Config disable this feature")
     }
     if (UDFAttrNotExists) {
-      ValidationResult.failed("Attribute in the UDF does not exists in its child")
-    } else if (hasComplexDataType) {
-      ValidationResult.failed("Attribute in the UDF contains unsupported type")
-    } else if (projectAttributes.size == child.output.size) {
-      ValidationResult.failed("UDF need all the columns in child output")
-    } else if (original.output.isEmpty) {
-      ValidationResult.failed("Project fallback because output is empty")
-    } else if (replacedAliasUdf.isEmpty) {
-      ValidationResult.failed("No UDF")
-    } else if (replacedAliasUdf.size > original.output.size) {
-      // e.g. udf1(col) + udf2(col), it will introduce 2 cols for r2c
-      ValidationResult.failed("Number of RowToColumn columns is more than ProjectExec")
-    } else if (!original.projectList.forall(validateExpression(_))) {
-      ValidationResult.failed("Contains expression not supported")
-    } else if (isComplexExpression()) {
-      ValidationResult.failed("Fallback by complex expression")
-    } else {
-      ValidationResult.succeeded
+      return ValidationResult.failed("Attribute in the UDF does not exists in its child")
     }
+    if (hasComplexDataType) {
+      return ValidationResult.failed("Attribute in the UDF contains unsupported type")
+    }
+    if (projectAttributes.size == child.output.size) {
+      return ValidationResult.failed("UDF need all the columns in child output")
+    }
+    if (original.output.isEmpty) {
+      return ValidationResult.failed("Project fallback because output is empty")
+    }
+    if (replacedAliasUdf.isEmpty) {
+      return ValidationResult.failed("No UDF")
+    }
+    if (replacedAliasUdf.size > original.output.size) {
+      // e.g. udf1(col) + udf2(col), it will introduce 2 cols for r2c
+      return ValidationResult.failed("Number of RowToColumn columns is more than ProjectExec")
+    }
+    if (!original.projectList.forall(validateExpression(_))) {
+     return  ValidationResult.failed("Contains expression not supported")
+    }
+    if (isComplexExpression()) {
+      return ValidationResult.failed("Fallback by complex expression")
+    }
+      ValidationResult.succeeded
   }
 
   private def isComplexExpression(): Boolean = {
