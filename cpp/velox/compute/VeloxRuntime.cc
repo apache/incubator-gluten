@@ -56,8 +56,11 @@ using namespace facebook;
 
 namespace gluten {
 
-VeloxRuntime::VeloxRuntime(VeloxMemoryManager* vmm, const std::unordered_map<std::string, std::string>& confMap)
-    : Runtime(vmm, confMap) {
+VeloxRuntime::VeloxRuntime(
+    const std::string& kind,
+    VeloxMemoryManager* vmm,
+    const std::unordered_map<std::string, std::string>& confMap)
+    : Runtime(kind, vmm, confMap) {
   // Refresh session config.
   veloxCfg_ =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(confMap_));

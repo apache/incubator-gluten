@@ -25,10 +25,15 @@ Registry<Runtime::Factory>& runtimeFactories() {
   static Registry<Runtime::Factory> registry;
   return registry;
 }
+Registry<Runtime::Releaser>& runtimeReleasers() {
+  static Registry<Runtime::Releaser> registry;
+  return registry;
+}
 } // namespace
 
-void Runtime::registerFactory(const std::string& kind, Runtime::Factory factory) {
+void Runtime::registerFactory(const std::string& kind, Runtime::Factory factory, Runtime::Releaser releaser) {
   runtimeFactories().registerObj(kind, std::move(factory));
+  runtimeReleasers().registerObj(kind, std::move(releaser));
 }
 
 Runtime* Runtime::create(
@@ -36,11 +41,13 @@ Runtime* Runtime::create(
     MemoryManager* memoryManager,
     const std::unordered_map<std::string, std::string>& sessionConf) {
   auto& factory = runtimeFactories().get(kind);
-  return factory(std::move(memoryManager), sessionConf);
+  return factory(kind, std::move(memoryManager), sessionConf);
 }
 
 void Runtime::release(Runtime* runtime) {
-  delete runtime;
+  const std::string kind = runtime->kind();
+  auto& releaser = runtimeReleasers().get(kind);
+  releaser(runtime);
 }
 
 std::optional<std::string>* Runtime::localWriteFilesTempPath() {

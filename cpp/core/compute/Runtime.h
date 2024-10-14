@@ -54,9 +54,12 @@ struct SparkTaskInfo {
 
 class Runtime : public std::enable_shared_from_this<Runtime> {
  public:
-  using Factory =
-      std::function<Runtime*(MemoryManager* memoryManager, const std::unordered_map<std::string, std::string>&)>;
-  static void registerFactory(const std::string& kind, Factory factory);
+  using Factory = std::function<Runtime*(
+      const std::string& kind,
+      MemoryManager* memoryManager,
+      const std::unordered_map<std::string, std::string>& sessionConf)>;
+  using Releaser = std::function<void(Runtime*)>;
+  static void registerFactory(const std::string& kind, Factory factory, Releaser releaser);
   static Runtime* create(
       const std::string& kind,
       MemoryManager* memoryManager,
@@ -64,10 +67,17 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   static void release(Runtime*);
   static std::optional<std::string>* localWriteFilesTempPath();
 
-  Runtime(MemoryManager* memoryManager, const std::unordered_map<std::string, std::string>& confMap)
-      : memoryManager_(memoryManager), confMap_(confMap) {}
+  Runtime(
+      const std::string& kind,
+      MemoryManager* memoryManager,
+      const std::unordered_map<std::string, std::string>& confMap)
+      : kind_(kind), memoryManager_(memoryManager), confMap_(confMap) {}
 
   virtual ~Runtime() = default;
+
+  virtual std::string kind() {
+    return kind_;
+  }
 
   virtual void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) = 0;
 
@@ -127,6 +137,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   }
 
  protected:
+  std::string kind_;
   MemoryManager* memoryManager_;
   std::unique_ptr<ObjectStore> objStore_ = ObjectStore::create();
   std::unordered_map<std::string, std::string> confMap_; // Session conf map

@@ -24,19 +24,26 @@ Registry<MemoryManager::Factory>& memoryManagerFactories() {
   static Registry<MemoryManager::Factory> registry;
   return registry;
 }
+Registry<MemoryManager::Releaser>& memoryManagerReleasers() {
+  static Registry<MemoryManager::Releaser> registry;
+  return registry;
+}
 } // namespace
 
-void MemoryManager::registerFactory(const std::string& kind, MemoryManager::Factory factory) {
+void MemoryManager::registerFactory(const std::string& kind, MemoryManager::Factory factory, Releaser releaser) {
   memoryManagerFactories().registerObj(kind, std::move(factory));
+  memoryManagerReleasers().registerObj(kind, std::move(releaser));
 }
 
 MemoryManager* MemoryManager::create(const std::string& kind, std::unique_ptr<AllocationListener> listener) {
   auto& factory = memoryManagerFactories().get(kind);
-  return factory(std::move(listener));
+  return factory(kind, std::move(listener));
 }
 
 void MemoryManager::release(MemoryManager* memoryManager) {
-  delete memoryManager;
+  const std::string kind = memoryManager->kind();
+  auto& releaser = memoryManagerReleasers().get(kind);
+  releaser(memoryManager);
 }
 
 } // namespace gluten
