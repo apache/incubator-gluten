@@ -39,10 +39,6 @@ Runtime* Runtime::create(
   return factory(std::move(memoryManager), sessionConf);
 }
 
-void Runtime::release(Runtime* runtime) {
-  delete runtime;
-}
-
 std::optional<std::string>* Runtime::localWriteFilesTempPath() {
   // This is thread-local to conform to Java side ColumnarWriteFilesExec's design.
   // FIXME: Pass the path through relevant member functions.

@@ -35,8 +35,4 @@ MemoryManager* MemoryManager::create(const std::string& kind, std::unique_ptr<Al
   return factory(std::move(listener));
 }
 
-void MemoryManager::release(MemoryManager* memoryManager) {
-  delete memoryManager;
-}
-
 } // namespace gluten

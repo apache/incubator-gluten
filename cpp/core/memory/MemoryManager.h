@@ -28,7 +28,6 @@ class MemoryManager {
   using Factory = std::function<MemoryManager*(std::unique_ptr<AllocationListener> listener)>;
   static void registerFactory(const std::string& kind, Factory factory);
   static MemoryManager* create(const std::string& kind, std::unique_ptr<AllocationListener> listener);
-  static void release(MemoryManager*);
 
   MemoryManager() = default;
 

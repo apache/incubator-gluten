@@ -61,7 +61,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       const std::string& kind,
       MemoryManager* memoryManager,
       const std::unordered_map<std::string, std::string>& sessionConf = {});
-  static void release(Runtime*);
   static std::optional<std::string>* localWriteFilesTempPath();
 
   Runtime(MemoryManager* memoryManager, const std::unordered_map<std::string, std::string>& confMap)
