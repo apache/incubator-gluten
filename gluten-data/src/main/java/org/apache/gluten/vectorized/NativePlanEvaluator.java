@@ -32,10 +32,13 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class NativePlanEvaluator {
+  private static final AtomicInteger id = new AtomicInteger(0);
+  private final Runtime runtime =
+      Runtimes.contextInstance(String.format("NativePlanEvaluator-%d", id.getAndIncrement()));
 
-  private final Runtime runtime = Runtimes.contextInstance("WholeStageIterator");
   private final PlanEvaluatorJniWrapper jniWrapper;
 
   private NativePlanEvaluator() {
@@ -50,8 +53,8 @@ public class NativePlanEvaluator {
     return jniWrapper.nativeValidateWithFailureReason(subPlan);
   }
 
-  public void injectWriteFilesTempPath(String path) {
-    jniWrapper.injectWriteFilesTempPath(path.getBytes(StandardCharsets.UTF_8));
+  public static void injectWriteFilesTempPath(String path) {
+    PlanEvaluatorJniWrapper.injectWriteFilesTempPath(path.getBytes(StandardCharsets.UTF_8));
   }
 
   // Used by WholeStageTransform to create the native computing pipeline and

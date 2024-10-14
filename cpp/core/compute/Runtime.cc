@@ -68,4 +68,11 @@ void Runtime::release(Runtime* runtime) {
   delete runtime;
 }
 
+std::optional<std::string>* Runtime::localWriteFilesTempPath() {
+  // This is thread-local to conform to Java side ColumnarWriteFilesExec's design.
+  // FIXME: Pass the path through relevant member functions.
+  static thread_local std::optional<std::string> path;
+  return &path;
+}
+
 } // namespace gluten
