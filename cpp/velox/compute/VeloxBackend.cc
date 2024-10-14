@@ -62,10 +62,16 @@ using namespace facebook;
 namespace gluten {
 
 namespace {
-gluten::Runtime* veloxRuntimeFactory(
-    std::unique_ptr<AllocationListener> listener,
+MemoryManager* veloxMemoryManagerFactory(std::unique_ptr<AllocationListener> listener) {
+  return new VeloxMemoryManager(std::move(listener));
+}
+
+Runtime* veloxRuntimeFactory(
+    MemoryManager* memoryManager,
     const std::unordered_map<std::string, std::string>& sessionConf) {
-  return new gluten::VeloxRuntime(std::move(listener), sessionConf);
+  auto* vmm = dynamic_cast<VeloxMemoryManager*>(memoryManager);
+  GLUTEN_CHECK(vmm != nullptr, "Not a Velox memory manager");
+  return new VeloxRuntime(vmm, sessionConf);
 }
 } // namespace
 
@@ -73,8 +79,9 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   backendConf_ =
       std::make_shared<facebook::velox::config::ConfigBase>(std::unordered_map<std::string, std::string>(conf));
 
-  // Register Velox runtime factory
-  gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
+  // Register factories.
+  MemoryManager::registerFactory(kVeloxBackendKind, veloxMemoryManagerFactory);
+  Runtime::registerFactory(kVeloxBackendKind, veloxRuntimeFactory);
 
   if (backendConf_->get<bool>(kDebugModeEnabled, false)) {
     LOG(INFO) << "VeloxBackend config:" << printConfig(backendConf_->rawConfigs());
@@ -175,7 +182,7 @@ void VeloxBackend::initJolFilesystem() {
   // FIXME It's known that if spill compression is disabled, the actual spill file size may
   //   in crease beyond this limit a little (maximum 64 rows which is by default
   //   one compression page)
-  gluten::registerJolFileSystem(maxSpillFileSize);
+  registerJolFileSystem(maxSpillFileSize);
 }
 
 void VeloxBackend::initCache() {
@@ -284,7 +291,7 @@ void VeloxBackend::initConnector() {
 void VeloxBackend::initUdf() {
   auto got = backendConf_->get<std::string>(kVeloxUdfLibraryPaths, "");
   if (!got.empty()) {
-    auto udfLoader = gluten::UdfLoader::getInstance();
+    auto udfLoader = UdfLoader::getInstance();
     udfLoader->loadUdfLibraries(got);
     udfLoader->registerUdf();
   }
@@ -293,7 +300,7 @@ void VeloxBackend::initUdf() {
 std::unique_ptr<VeloxBackend> VeloxBackend::instance_ = nullptr;
 
 void VeloxBackend::create(const std::unordered_map<std::string, std::string>& conf) {
-  instance_ = std::unique_ptr<VeloxBackend>(new gluten::VeloxBackend(conf));
+  instance_ = std::unique_ptr<VeloxBackend>(new VeloxBackend(conf));
 }
 
 VeloxBackend* VeloxBackend::get() {

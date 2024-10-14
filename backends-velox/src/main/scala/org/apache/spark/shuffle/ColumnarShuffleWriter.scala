@@ -167,19 +167,21 @@ class ColumnarShuffleWriter[K, V](
             GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, taskContext.partitionId),
             shuffleWriterType
           )
-          runtime.addSpiller(new Spiller() {
-            override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
-              if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-                return 0L
+          runtime
+            .memoryManager()
+            .addSpiller(new Spiller() {
+              override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
+                if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+                  return 0L
+                }
+                logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+                // fixme pass true when being called by self
+                val spilled =
+                  jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+                logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+                spilled
               }
-              logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
-              // fixme pass true when being called by self
-              val spilled =
-                jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
-              logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
-              spilled
-            }
-          })
+            })
         }
         val startTime = System.nanoTime()
         jniWrapper.write(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())

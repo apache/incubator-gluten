@@ -185,6 +185,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
     jni/JniWrapper.cc
     memory/AllocationListener.cc
     memory/MemoryAllocator.cc
+    memory/MemoryManager.cc
     memory/ArrowMemoryPool.cc
     memory/ColumnarBatch.cc
     operators/writer/ArrowWriter.cc

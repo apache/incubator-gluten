@@ -40,8 +40,7 @@ class DummyMemoryManager final : public MemoryManager {
 
 class DummyRuntime final : public Runtime {
  public:
-  DummyRuntime(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>& conf)
-      : Runtime(std::make_shared<DummyMemoryManager>(), conf) {}
+  DummyRuntime(DummyMemoryManager* mm, const std::unordered_map<std::string, std::string>& conf) : Runtime(mm, conf) {}
 
   void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override {}
 
@@ -113,29 +112,29 @@ class DummyRuntime final : public Runtime {
   };
 };
 
-static Runtime* dummyRuntimeFactory(
-    std::unique_ptr<AllocationListener> listener,
-    const std::unordered_map<std::string, std::string> conf) {
-  return new DummyRuntime(std::move(listener), conf);
+static Runtime* dummyRuntimeFactory(MemoryManager* mm, const std::unordered_map<std::string, std::string> conf) {
+  return new DummyRuntime(dynamic_cast<DummyMemoryManager*>(mm), conf);
 }
 
 TEST(TestRuntime, CreateRuntime) {
   Runtime::registerFactory("DUMMY", dummyRuntimeFactory);
-  auto runtime = Runtime::create("DUMMY", AllocationListener::noop());
+  DummyMemoryManager mm;
+  auto runtime = Runtime::create("DUMMY", &mm);
   ASSERT_EQ(typeid(*runtime), typeid(DummyRuntime));
   Runtime::release(runtime);
 }
 
 TEST(TestRuntime, CreateVeloxRuntime) {
   VeloxBackend::create({});
-  auto runtime = Runtime::create(kVeloxRuntimeKind, AllocationListener::noop());
+  VeloxMemoryManager mm(AllocationListener::noop());
+  auto runtime = Runtime::create(kVeloxBackendKind, &mm);
   ASSERT_EQ(typeid(*runtime), typeid(VeloxRuntime));
   Runtime::release(runtime);
 }
 
 TEST(TestRuntime, GetResultIterator) {
-  auto runtime =
-      std::make_shared<DummyRuntime>(AllocationListener::noop(), std::unordered_map<std::string, std::string>());
+  DummyMemoryManager mm;
+  auto runtime = std::make_shared<DummyRuntime>(&mm, std::unordered_map<std::string, std::string>());
   auto iter = runtime->createResultIterator("/tmp/test-spill", {}, {});
   ASSERT_TRUE(iter->hasNext());
   auto next = iter->next();

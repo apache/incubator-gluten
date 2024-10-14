@@ -54,17 +54,17 @@ struct SparkTaskInfo {
 
 class Runtime : public std::enable_shared_from_this<Runtime> {
  public:
-  using Factory = std::function<
-      Runtime*(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>&)>;
+  using Factory =
+      std::function<Runtime*(MemoryManager* memoryManager, const std::unordered_map<std::string, std::string>&)>;
   static void registerFactory(const std::string& kind, Factory factory);
   static Runtime* create(
       const std::string& kind,
-      std::unique_ptr<AllocationListener> listener,
+      MemoryManager* memoryManager,
       const std::unordered_map<std::string, std::string>& sessionConf = {});
   static void release(Runtime*);
   static std::optional<std::string>* localWriteFilesTempPath();
 
-  Runtime(std::shared_ptr<MemoryManager> memoryManager, const std::unordered_map<std::string, std::string>& confMap)
+  Runtime(MemoryManager* memoryManager, const std::unordered_map<std::string, std::string>& confMap)
       : memoryManager_(memoryManager), confMap_(confMap) {}
 
   virtual ~Runtime() = default;
@@ -90,7 +90,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   virtual std::shared_ptr<ColumnarBatch> select(std::shared_ptr<ColumnarBatch>, const std::vector<int32_t>&) = 0;
 
   virtual MemoryManager* memoryManager() {
-    return memoryManager_.get();
+    return memoryManager_;
   };
 
   /// This function is used to create certain converter from the format used by
@@ -127,7 +127,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   }
 
  protected:
-  std::shared_ptr<MemoryManager> memoryManager_;
+  MemoryManager* memoryManager_;
   std::unique_ptr<ObjectStore> objStore_ = ObjectStore::create();
   std::unordered_map<std::string, std::string> confMap_; // Session conf map
 

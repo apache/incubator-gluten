@@ -73,16 +73,18 @@ public class NativePlanEvaluator {
             DebugUtil.saveInputToFile(),
             spillDirPath);
     final ColumnarBatchOutIterator out = createOutIterator(runtime, itrHandle);
-    runtime.addSpiller(
-        new Spiller() {
-          @Override
-          public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
-            if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-              return 0L;
-            }
-            return out.spill(size);
-          }
-        });
+    runtime
+        .memoryManager()
+        .addSpiller(
+            new Spiller() {
+              @Override
+              public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
+                if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+                  return 0L;
+                }
+                return out.spill(size);
+              }
+            });
     return out;
   }
 

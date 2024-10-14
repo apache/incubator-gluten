@@ -19,11 +19,17 @@
 
 #include "arrow/memory_pool.h"
 #include "memory.pb.h"
+#include "memory/AllocationListener.h"
 
 namespace gluten {
 
 class MemoryManager {
  public:
+  using Factory = std::function<MemoryManager*(std::unique_ptr<AllocationListener> listener)>;
+  static void registerFactory(const std::string& kind, Factory factory);
+  static MemoryManager* create(const std::string& kind, std::unique_ptr<AllocationListener> listener);
+  static void release(MemoryManager*);
+
   MemoryManager() = default;
 
   virtual ~MemoryManager() = default;
