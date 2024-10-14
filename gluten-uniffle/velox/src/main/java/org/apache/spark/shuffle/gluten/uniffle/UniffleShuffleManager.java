@@ -57,6 +57,7 @@ public class UniffleShuffleManager extends RssShuffleManager {
       } else {
         writeMetrics = context.taskMetrics().shuffleWriteMetrics();
       }
+      sparkConf.set(RssSparkConfig.SPARK_RSS_CONFIG_PREFIX + RssSparkConfig.RSS_ROW_BASED.key(), "false");
       return new VeloxUniffleColumnarShuffleWriter<>(
           context.partitionId(),
           rssHandle.getAppId(),
@@ -72,6 +73,7 @@ public class UniffleShuffleManager extends RssShuffleManager {
           context,
           dependency.isSort());
     } else {
+      sparkConf.set(RssSparkConfig.SPARK_RSS_CONFIG_PREFIX + RssSparkConfig.RSS_ROW_BASED.key(), "true");
       return super.getWriter(handle, mapId, context, metrics);
     }
   }
