@@ -231,7 +231,8 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_runtime_RuntimeJniWrapper_releaseR
     jlong ctxHandle) {
   JNI_METHOD_START
   auto runtime = jniCastOrThrow<Runtime>(ctxHandle);
-  delete runtime;
+
+  Runtime::release(runtime);
   JNI_METHOD_END()
 }
 
@@ -310,7 +311,7 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_memory_NativeMemoryManagerJniWrapp
     jlong nmmHandle) {
   JNI_METHOD_START
   auto* memoryManager = jniCastOrThrow<MemoryManager>(nmmHandle);
-  delete memoryManager;
+  MemoryManager::release(memoryManager);
   JNI_METHOD_END()
 }
 
