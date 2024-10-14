@@ -1,0 +1,173 @@
+From 68fd45af83ea6f10bf48acc333ad7eba83d2e87f Mon Sep 17 00:00:00 2001
+From: Kapil Singh <kapilsingh@microsoft.com>
+Date: Fri, 8 Dec 2023 12:13:48 +0530
+Subject: [PATCH 02/11] [oap   ] Add support to read plain encoded INT96
+ timestamp from Parquet file
+
+---
+ velox/dwio/common/DirectDecoder.h             |  12 +++++-
+ velox/dwio/common/IntDecoder.h                |  37 +++++++++++++++++-
+ .../examples/timestamp_dict_int96.parquet     | Bin 0 -> 467 bytes
+ .../examples/timestamp_plain_int96.parquet    | Bin 0 -> 429 bytes
+ .../tests/reader/ParquetTableScanTest.cpp     |  27 +++++++++++++
+ 5 files changed, 74 insertions(+), 2 deletions(-)
+ create mode 100644 velox/dwio/parquet/tests/examples/timestamp_dict_int96.parquet
+ create mode 100644 velox/dwio/parquet/tests/examples/timestamp_plain_int96.parquet
+
+diff --git a/velox/dwio/common/DirectDecoder.h b/velox/dwio/common/DirectDecoder.h
+index 644e41348..6b42a0040 100644
+--- a/velox/dwio/common/DirectDecoder.h
++++ b/velox/dwio/common/DirectDecoder.h
+@@ -93,7 +93,17 @@ class DirectDecoder : public IntDecoder<isSigned> {
+       } else if constexpr (std::is_same_v<
+                                typename Visitor::DataType,
+                                int128_t>) {
+-        toSkip = visitor.process(super::template readInt<int128_t>(), atEnd);
++        if (super::numBytes_ == 12 /* INT96 */) {
++          int128_t encoded = super::template readInt<int128_t>();
++          int32_t days = encoded & ((1ULL << 32) - 1);
++          uint64_t nanos = static_cast<uint64_t>(encoded >> 32);
++
++          auto timestamp = Timestamp::fromDaysAndNanos(days, nanos);
++          toSkip =
++              visitor.process(*reinterpret_cast<int128_t*>(&timestamp), atEnd);
++        } else {
++          toSkip = visitor.process(super::template readInt<int128_t>(), atEnd);
++        }
+       } else {
+         toSkip = visitor.process(super::template readInt<int64_t>(), atEnd);
+       }
+diff --git a/velox/dwio/common/IntDecoder.h b/velox/dwio/common/IntDecoder.h
+index 016e8b1f8..5004cfae4 100644
+--- a/velox/dwio/common/IntDecoder.h
++++ b/velox/dwio/common/IntDecoder.h
+@@ -150,6 +150,9 @@ class IntDecoder {
+   template <typename T>
+   T readInt();
+ 
++  template <typename T>
++  T readInt96();
++
+   template <typename T>
+   T readVInt();
+ 
+@@ -438,12 +441,44 @@ inline T IntDecoder<isSigned>::readInt() {
+     return readLittleEndianFromBigEndian<T>();
+   } else {
+     if constexpr (std::is_same_v<T, int128_t>) {
+-      VELOX_NYI();
++      if (numBytes_ == 12) {
++        // TODO:: Do we need to handle useVInts case?
++        return readInt96<T>();
++      } else {
++        VELOX_NYI();
++      }
+     }
+     return readLongLE();
+   }
+ }
+ 
++template <bool isSigned>
++template <typename T>
++inline T IntDecoder<isSigned>::readInt96() {
++  int64_t offset = 0;
++  unsigned char ch;
++
++  // read unsigned byte 64
++  uint64_t part1 = 0;
++  for (uint32_t i = 0; i < 8; ++i) {
++    ch = readByte();
++    part1 |= (ch & BASE_256_MASK) << offset;
++    offset += 8;
++  }
++
++  // read signed byte 32
++  int32_t part2 = 0;
++  offset = 0;
++  for (uint32_t i = 0; i < 4; ++i) {
++    ch = readByte();
++    part2 |= (ch & BASE_256_MASK) << offset;
++    offset += 8;
++  }
++
++  int128_t result = part1;
++  return (result << 32) | part2;
++}
++
+ template <bool isSigned>
+ template <typename T>
+ inline T IntDecoder<isSigned>::readVInt() {
+diff --git a/velox/dwio/parquet/tests/examples/timestamp_dict_int96.parquet b/velox/dwio/parquet/tests/examples/timestamp_dict_int96.parquet
+new file mode 100644
+index 0000000000000000000000000000000000000000..661cb7a285227f8ead6c89fc829fc7cc99cbf37c
+GIT binary patch
+literal 467
+zcmZXRze~eF6vtnFSSmP4Uq~QBIB2m@kEUsAsX7P_;#6E!<Sw~tG3k#awMgmW>?jTn
+zx`=;_Aa3Gc;_RiilQ+HZd!P5d@9w$>Cobw($0mN>y}oFBQs@BY8N5I3f;{*8Wq=2N
+zx{48S6Ak?M{`%4E9L53`0oEN=5}KxHs%0A-4-F|%wQ5Hj>4+uQ7in-MVumVUp{$yE
+z){g}kx@B8-h1*!L{DNMz{_?0Ay78zO&q{??igpXYsx6#kGsr+X8E*=fAcyoyQG%tM
+zG0kCeN!f@=E4px{HzG;<!-2WxQIEP{R{s&{IHGdF@kC@a8BS>|G8VFonddW--Hrt5
+zkTgpsK}Kq%*B4QklFsRj3|O3(@@vS#63kVav3Mj?gGm%I9!W@ciyB$YC7s!Pem)2D
+zc<H(wC(d$B$E9wAdd?P~^rO(}wZlM!Zo3gQ1GmRR5wwDUdv4qJy&dkex+_{DZ1JjP
+N+w!#s3P4wW=P&+$b_oCg
+
+literal 0
+HcmV?d00001
+
+diff --git a/velox/dwio/parquet/tests/examples/timestamp_plain_int96.parquet b/velox/dwio/parquet/tests/examples/timestamp_plain_int96.parquet
+new file mode 100644
+index 0000000000000000000000000000000000000000..f2aa666b7d7105249ce99d1ef3c549eefbffaa1f
+GIT binary patch
+literal 429
+zcmZWmK}y3w6#b^LL~z*&2@DbjS}erDX-q7&g6_msaVte9$yB3BnkJJLDZPP9SDwL@
+z$M6>3!2>wex^nm5e{bG<{285JF$8Fc&d}S}`{xcux`It)0PIN(02&SWcs)@AJfF4!
+zUi`)1Y-7_vxv3!1Z1-ZfDtP&LQ$_b8<498`ZOzhUk_j+%8{4>JVAQnzCK&eb9%-g-
+zKA3sO7zO|~R>8^&z?`ENC_?WTX5LbaYgyCsj`D&lbNZ7*=c25VX>M(M)T0cn?mtB}
+zOR1_ftA(WHbU`yAdCVoZ#!Dif3PA>>l4Tu9;*v=s(zqgn>m|u~wx-s_6|oVnQ6+g+
+zs8wF4DGyU6Qm=(e{(Q+`xmt}^U|nuf53<tP)N~kSJ?c68VV$J0GwH{Xh*`fE9Yt&s
+i#v%%$DD+t0_r2rL=Z8!LA`Zf?jj_7#?H0gDebhJPYH$Gn
+
+literal 0
+HcmV?d00001
+
+diff --git a/velox/dwio/parquet/tests/reader/ParquetTableScanTest.cpp b/velox/dwio/parquet/tests/reader/ParquetTableScanTest.cpp
+index 41412552d..1d072d2c9 100644
+--- a/velox/dwio/parquet/tests/reader/ParquetTableScanTest.cpp
++++ b/velox/dwio/parquet/tests/reader/ParquetTableScanTest.cpp
+@@ -1212,6 +1212,33 @@ TEST_F(ParquetTableScanTest, readParquetColumnsByIndex) {
+       VeloxRuntimeError);
+ }
+ 
++TEST_F(ParquetTableScanTest, timestampINT96) {
++  auto a = makeFlatVector<Timestamp>({Timestamp(1, 0), Timestamp(2, 0)});
++  auto expected = makeRowVector({"time"}, {a});
++  createDuckDbTable("expected", {expected});
++
++  auto vector = makeArrayVector<Timestamp>({{}});
++  loadData(
++      getExampleFilePath("timestamp_dict_int96.parquet"),
++      ROW({"time"}, {TIMESTAMP()}),
++      makeRowVector(
++          {"time"},
++          {
++              vector,
++          }));
++  assertSelect({"time"}, "SELECT time from expected");
++
++  loadData(
++      getExampleFilePath("timestamp_plain_int96.parquet"),
++      ROW({"time"}, {TIMESTAMP()}),
++      makeRowVector(
++          {"time"},
++          {
++              vector,
++          }));
++  assertSelect({"time"}, "SELECT time from expected");
++}
++
+ int main(int argc, char** argv) {
+   testing::InitGoogleTest(&argc, argv);
+   folly::Init init{&argc, &argv, false};
+-- 
+2.34.1
+

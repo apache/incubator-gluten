@@ -1,0 +1,488 @@
+From fe6f7b72e24841c6c9f3fc33b51dfcb03016a543 Mon Sep 17 00:00:00 2001
+From: Jia Ke <ke.a.jia@intel.com>
+Date: Mon, 17 Jun 2024 18:10:48 +0800
+Subject: [PATCH 01/11] [5962 ] Support struct column reading with different
+ schemas (5962)
+
+---
+ velox/connectors/hive/SplitReader.cpp         |  23 ++++--
+ .../common/SelectiveStructColumnReader.cpp    |   4 +-
+ velox/dwio/common/TypeWithId.h                |   5 ++
+ .../parquet/reader/ParquetColumnReader.cpp    |   9 +-
+ .../dwio/parquet/reader/ParquetColumnReader.h |   3 +-
+ velox/dwio/parquet/reader/ParquetReader.cpp   |  25 +++++-
+ .../parquet/reader/RepeatedColumnReader.cpp   |  23 ++++--
+ .../parquet/reader/RepeatedColumnReader.h     |   6 +-
+ .../parquet/reader/StructColumnReader.cpp     |  35 ++++++--
+ .../dwio/parquet/reader/StructColumnReader.h  |   3 +-
+ .../parquet/tests/examples/contacts.parquet   | Bin 0 -> 1355 bytes
+ .../tests/reader/ParquetTableScanTest.cpp     |  78 ++++++++++++++++++
+ 12 files changed, 185 insertions(+), 29 deletions(-)
+ create mode 100644 velox/dwio/parquet/tests/examples/contacts.parquet
+
+diff --git a/velox/connectors/hive/SplitReader.cpp b/velox/connectors/hive/SplitReader.cpp
+index 31b596467..984f04ae3 100644
+--- a/velox/connectors/hive/SplitReader.cpp
++++ b/velox/connectors/hive/SplitReader.cpp
+@@ -353,12 +353,23 @@ std::vector<TypePtr> SplitReader::adaptColumns(
+     } else if (!childSpec->isExplicitRowNumber()) {
+       auto fileTypeIdx = fileType->getChildIdxIfExists(fieldName);
+       if (!fileTypeIdx.has_value()) {
+-        // Column is missing. Most likely due to schema evolution.
+-        VELOX_CHECK(tableSchema);
+-        childSpec->setConstantValue(BaseVector::createNullConstant(
+-            tableSchema->findChild(fieldName),
+-            1,
+-            connectorQueryCtx_->memoryPool()));
++        // If field name exists in the user-specified output type, set the
++        // column as null constant. Related PR:
++        // https://github.com/facebookincubator/velox/pull/6427.
++        auto outputTypeIdx = readerOutputType_->getChildIdxIfExists(fieldName);
++        if (outputTypeIdx.has_value()) {
++          childSpec->setConstantValue(BaseVector::createNullConstant(
++              readerOutputType_->childAt(outputTypeIdx.value()),
++              1,
++              connectorQueryCtx_->memoryPool()));
++        } else {
++          // Column is missing. Most likely due to schema evolution.
++          VELOX_CHECK(tableSchema);
++          childSpec->setConstantValue(BaseVector::createNullConstant(
++              tableSchema->findChild(fieldName),
++              1,
++              connectorQueryCtx_->memoryPool()));
++        }
+       } else {
+         // Column no longer missing, reset constant value set on the spec.
+         childSpec->setConstantValue(nullptr);
+diff --git a/velox/dwio/common/SelectiveStructColumnReader.cpp b/velox/dwio/common/SelectiveStructColumnReader.cpp
+index cad6e0f5e..cd26a02ea 100644
+--- a/velox/dwio/common/SelectiveStructColumnReader.cpp
++++ b/velox/dwio/common/SelectiveStructColumnReader.cpp
+@@ -189,7 +189,6 @@ void SelectiveStructColumnReaderBase::read(
+   }
+ 
+   const auto& childSpecs = scanSpec_->children();
+-  VELOX_CHECK(!childSpecs.empty());
+   for (size_t i = 0; i < childSpecs.size(); ++i) {
+     const auto& childSpec = childSpecs[i];
+     VELOX_TRACE_HISTORY_PUSH("read %s", childSpec->fieldName().c_str());
+@@ -287,7 +286,7 @@ bool SelectiveStructColumnReaderBase::isChildMissing(
+        fileType_->type()->kind() !=
+            TypeKind::MAP && // If this is the case it means this is a flat map,
+                             // so it can't have "missing" fields.
+-       childSpec.channel() >= fileType_->size());
++       !fileType_->containsChild(childSpec.fieldName()));
+ }
+ 
+ namespace {
+@@ -371,7 +370,6 @@ void setNullField(
+ void SelectiveStructColumnReaderBase::getValues(
+     const RowSet& rows,
+     VectorPtr* result) {
+-  VELOX_CHECK(!scanSpec_->children().empty());
+   VELOX_CHECK_NOT_NULL(
+       *result, "SelectiveStructColumnReaderBase expects a non-null result");
+   VELOX_CHECK(
+diff --git a/velox/dwio/common/TypeWithId.h b/velox/dwio/common/TypeWithId.h
+index a147cfe50..0643e98b8 100644
+--- a/velox/dwio/common/TypeWithId.h
++++ b/velox/dwio/common/TypeWithId.h
+@@ -77,6 +77,11 @@ class TypeWithId : public velox::Tree<std::shared_ptr<const TypeWithId>> {
+     return childAt(type_->as<velox::TypeKind::ROW>().getChildIdx(name));
+   }
+ 
++  bool containsChild(const std::string& name) const {
++    VELOX_CHECK_EQ(type_->kind(), velox::TypeKind::ROW);
++    return type_->as<velox::TypeKind::ROW>().containsChild(name);
++  }
++
+   const std::vector<std::shared_ptr<const TypeWithId>>& getChildren() const {
+     return children_;
+   }
+diff --git a/velox/dwio/parquet/reader/ParquetColumnReader.cpp b/velox/dwio/parquet/reader/ParquetColumnReader.cpp
+index a87a295a7..a4b38a1ff 100644
+--- a/velox/dwio/parquet/reader/ParquetColumnReader.cpp
++++ b/velox/dwio/parquet/reader/ParquetColumnReader.cpp
+@@ -36,7 +36,8 @@ std::unique_ptr<dwio::common::SelectiveColumnReader> ParquetColumnReader::build(
+     const TypePtr& requestedType,
+     const std::shared_ptr<const dwio::common::TypeWithId>& fileType,
+     ParquetParams& params,
+-    common::ScanSpec& scanSpec) {
++    common::ScanSpec& scanSpec,
++    memory::MemoryPool& pool) {
+   auto colName = scanSpec.fieldName();
+ 
+   switch (fileType->type()->kind()) {
+@@ -57,7 +58,7 @@ std::unique_ptr<dwio::common::SelectiveColumnReader> ParquetColumnReader::build(
+ 
+     case TypeKind::ROW:
+       return std::make_unique<StructColumnReader>(
+-          requestedType, fileType, params, scanSpec);
++          requestedType, fileType, params, scanSpec, pool);
+ 
+     case TypeKind::VARBINARY:
+     case TypeKind::VARCHAR:
+@@ -65,11 +66,11 @@ std::unique_ptr<dwio::common::SelectiveColumnReader> ParquetColumnReader::build(
+ 
+     case TypeKind::ARRAY:
+       return std::make_unique<ListColumnReader>(
+-          requestedType, fileType, params, scanSpec);
++          requestedType, fileType, params, scanSpec, pool);
+ 
+     case TypeKind::MAP:
+       return std::make_unique<MapColumnReader>(
+-          requestedType, fileType, params, scanSpec);
++          requestedType, fileType, params, scanSpec, pool);
+ 
+     case TypeKind::BOOLEAN:
+       return std::make_unique<BooleanColumnReader>(
+diff --git a/velox/dwio/parquet/reader/ParquetColumnReader.h b/velox/dwio/parquet/reader/ParquetColumnReader.h
+index 8ff086029..8b1d6a722 100644
+--- a/velox/dwio/parquet/reader/ParquetColumnReader.h
++++ b/velox/dwio/parquet/reader/ParquetColumnReader.h
+@@ -45,6 +45,7 @@ class ParquetColumnReader {
+       const TypePtr& requestedType,
+       const std::shared_ptr<const dwio::common::TypeWithId>& fileType,
+       ParquetParams& params,
+-      common::ScanSpec& scanSpec);
++      common::ScanSpec& scanSpec,
++      memory::MemoryPool& pool);
+ };
+ } // namespace facebook::velox::parquet
+diff --git a/velox/dwio/parquet/reader/ParquetReader.cpp b/velox/dwio/parquet/reader/ParquetReader.cpp
+index 177f31afc..aa486c1a1 100644
+--- a/velox/dwio/parquet/reader/ParquetReader.cpp
++++ b/velox/dwio/parquet/reader/ParquetReader.cpp
+@@ -48,6 +48,24 @@ facebook::velox::TypePtr getUpdatedTableSchema(
+ } // namespace
+ 
+ namespace facebook::velox::parquet {
++namespace {
++
++TypePtr adjustNameAsLowerCase(const TypePtr& type) {
++  if (auto rowTypePtr = asRowType(type)) {
++    std::vector<std::string> names;
++    names.reserve(rowTypePtr->names().size());
++    std::vector<TypePtr> types = rowTypePtr->children();
++    for (const auto& name : rowTypePtr->names()) {
++      std::string childName = name;
++      folly::toLowerAscii(childName);
++      names.emplace_back(childName);
++    }
++    return TypeFactory<TypeKind::ROW>::create(
++        std::move(names), std::move(types));
++  }
++  return type;
++}
++} // namespace
+ 
+ /// Metadata and options for reading Parquet.
+ class ReaderBase {
+@@ -944,10 +962,13 @@ class ParquetRowReader::Impl {
+     requestedType_ = options_.requestedType() ? options_.requestedType()
+                                               : readerBase_->schema();
+     columnReader_ = ParquetColumnReader::build(
+-        requestedType_,
++        readerBase_->isFileColumnNamesReadAsLowerCase()
++            ? adjustNameAsLowerCase(requestedType_)
++            : requestedType_,
+         readerBase_->schemaWithId(), // Id is schema id
+         params,
+-        *options_.scanSpec());
++        *options_.scanSpec(),
++        pool_);
+     columnReader_->setFillMutatedOutputRows(
+         options_.rowNumberColumnInfo().has_value());
+     columnReader_->setIsTopLevel();
+diff --git a/velox/dwio/parquet/reader/RepeatedColumnReader.cpp b/velox/dwio/parquet/reader/RepeatedColumnReader.cpp
+index f076aec8a..be6f404e0 100644
+--- a/velox/dwio/parquet/reader/RepeatedColumnReader.cpp
++++ b/velox/dwio/parquet/reader/RepeatedColumnReader.cpp
+@@ -33,6 +33,9 @@ PageReader* readLeafRepDefs(
+       return nullptr;
+     }
+     auto pageReader = reader->formatData().as<ParquetData>().reader();
++    if (pageReader == nullptr) {
++      return nullptr;
++    }
+     pageReader->decodeRepDefs(numTop);
+     return pageReader;
+   }
+@@ -113,7 +116,8 @@ MapColumnReader::MapColumnReader(
+     const TypePtr& requestedType,
+     const std::shared_ptr<const dwio::common::TypeWithId>& fileType,
+     ParquetParams& params,
+-    common::ScanSpec& scanSpec)
++    common::ScanSpec& scanSpec,
++    memory::MemoryPool& pool)
+     : dwio::common::SelectiveMapColumnReader(
+           requestedType,
+           fileType,
+@@ -123,9 +127,17 @@ MapColumnReader::MapColumnReader(
+   auto& keyChildType = requestedType->childAt(0);
+   auto& elementChildType = requestedType->childAt(1);
+   keyReader_ = ParquetColumnReader::build(
+-      keyChildType, fileType_->childAt(0), params, *scanSpec.children()[0]);
++      keyChildType,
++      fileType_->childAt(0),
++      params,
++      *scanSpec.children()[0],
++      pool);
+   elementReader_ = ParquetColumnReader::build(
+-      elementChildType, fileType_->childAt(1), params, *scanSpec.children()[1]);
++      elementChildType,
++      fileType_->childAt(1),
++      params,
++      *scanSpec.children()[1],
++      pool);
+   reinterpret_cast<const ParquetTypeWithId*>(fileType.get())
+       ->makeLevelInfo(levelInfo_);
+   children_ = {keyReader_.get(), elementReader_.get()};
+@@ -222,7 +234,8 @@ ListColumnReader::ListColumnReader(
+     const TypePtr& requestedType,
+     const std::shared_ptr<const dwio::common::TypeWithId>& fileType,
+     ParquetParams& params,
+-    common::ScanSpec& scanSpec)
++    common::ScanSpec& scanSpec,
++    memory::MemoryPool& pool)
+     : dwio::common::SelectiveListColumnReader(
+           requestedType,
+           fileType,
+@@ -230,7 +243,7 @@ ListColumnReader::ListColumnReader(
+           scanSpec) {
+   auto& childType = requestedType->childAt(0);
+   child_ = ParquetColumnReader::build(
+-      childType, fileType_->childAt(0), params, *scanSpec.children()[0]);
++      childType, fileType_->childAt(0), params, *scanSpec.children()[0], pool);
+   reinterpret_cast<const ParquetTypeWithId*>(fileType.get())
+       ->makeLevelInfo(levelInfo_);
+   children_ = {child_.get()};
+diff --git a/velox/dwio/parquet/reader/RepeatedColumnReader.h b/velox/dwio/parquet/reader/RepeatedColumnReader.h
+index 6aef4ff05..6a0358fc5 100644
+--- a/velox/dwio/parquet/reader/RepeatedColumnReader.h
++++ b/velox/dwio/parquet/reader/RepeatedColumnReader.h
+@@ -59,7 +59,8 @@ class MapColumnReader : public dwio::common::SelectiveMapColumnReader {
+       const TypePtr& requestedType,
+       const std::shared_ptr<const dwio::common::TypeWithId>& fileType,
+       ParquetParams& params,
+-      common::ScanSpec& scanSpec);
++      common::ScanSpec& scanSpec,
++      memory::MemoryPool& pool);
+ 
+   void prepareRead(
+       vector_size_t offset,
+@@ -115,7 +116,8 @@ class ListColumnReader : public dwio::common::SelectiveListColumnReader {
+       const TypePtr& requestedType,
+       const std::shared_ptr<const dwio::common::TypeWithId>& fileType,
+       ParquetParams& params,
+-      common::ScanSpec& scanSpec);
++      common::ScanSpec& scanSpec,
++      memory::MemoryPool& pool);
+ 
+   void prepareRead(
+       vector_size_t offset,
+diff --git a/velox/dwio/parquet/reader/StructColumnReader.cpp b/velox/dwio/parquet/reader/StructColumnReader.cpp
+index 2ab9ae456..7fc611fbf 100644
+--- a/velox/dwio/parquet/reader/StructColumnReader.cpp
++++ b/velox/dwio/parquet/reader/StructColumnReader.cpp
+@@ -30,26 +30,49 @@ StructColumnReader::StructColumnReader(
+     const TypePtr& requestedType,
+     const std::shared_ptr<const dwio::common::TypeWithId>& fileType,
+     ParquetParams& params,
+-    common::ScanSpec& scanSpec)
++    common::ScanSpec& scanSpec,
++    memory::MemoryPool& pool)
+     : SelectiveStructColumnReader(requestedType, fileType, params, scanSpec) {
+   auto& childSpecs = scanSpec_->stableChildren();
++  std::vector<int> missingFields;
+   for (auto i = 0; i < childSpecs.size(); ++i) {
+     auto childSpec = childSpecs[i];
+-    if (childSpec->isConstant() || isChildMissing(*childSpec)) {
++    if (childSpec->isConstant()) {
+       childSpec->setSubscript(kConstantChildSpecSubscript);
+       continue;
+     }
+     if (childSpecs[i]->isExplicitRowNumber()) {
+       continue;
+     }
++    if (!fileType_->containsChild(childSpec->fieldName())) {
++      missingFields.emplace_back(i);
++      continue;
++    }
+     auto childFileType = fileType_->childByName(childSpec->fieldName());
+     auto childRequestedType =
+         requestedType_->asRow().findChild(childSpec->fieldName());
+     addChild(ParquetColumnReader::build(
+-        childRequestedType, childFileType, params, *childSpec));
++        childRequestedType, childFileType, params, *childSpec, pool));
+ 
+     childSpecs[i]->setSubscript(children_.size() - 1);
+   }
++
++  if (missingFields.size() > 0) {
++    // Set the struct as null if all the children fields in the output type are
++    // missing and the number of child fields is more than one.
++    if (childSpecs.size() > 1 && missingFields.size() == childSpecs.size()) {
++      scanSpec_->setConstantValue(
++          BaseVector::createNullConstant(requestedType_, 1, &pool));
++    } else {
++      // Set null constant for the missing child field of output type.
++      auto rowTypePtr = asRowType(requestedType_);
++      for (int channel : missingFields) {
++        childSpecs[channel]->setConstantValue(BaseVector::createNullConstant(
++            rowTypePtr->findChild(childSpecs[channel]->fieldName()), 1, &pool));
++      }
++    }
++  }
++
+   auto type = reinterpret_cast<const ParquetTypeWithId*>(fileType_.get());
+   if (type->parent()) {
+     levelMode_ = reinterpret_cast<const ParquetTypeWithId*>(fileType_.get())
+@@ -59,7 +82,10 @@ StructColumnReader::StructColumnReader(
+     // this and the child.
+     auto child = childForRepDefs_;
+     for (;;) {
+-      assert(child);
++      if (child == nullptr) {
++        levelMode_ = LevelMode::kNulls;
++        break;
++      }
+       if (child->fileType().type()->kind() == TypeKind::ARRAY ||
+           child->fileType().type()->kind() == TypeKind::MAP) {
+         levelMode_ = LevelMode::kStructOverLists;
+@@ -96,7 +122,6 @@ StructColumnReader::findBestLeaf() {
+       best = child;
+     }
+   }
+-  assert(best);
+   return best;
+ }
+ 
+diff --git a/velox/dwio/parquet/reader/StructColumnReader.h b/velox/dwio/parquet/reader/StructColumnReader.h
+index d9c41e384..ca09043c9 100644
+--- a/velox/dwio/parquet/reader/StructColumnReader.h
++++ b/velox/dwio/parquet/reader/StructColumnReader.h
+@@ -35,7 +35,8 @@ class StructColumnReader : public dwio::common::SelectiveStructColumnReader {
+       const TypePtr& requestedType,
+       const std::shared_ptr<const dwio::common::TypeWithId>& fileType,
+       ParquetParams& params,
+-      common::ScanSpec& scanSpec);
++      common::ScanSpec& scanSpec,
++      memory::MemoryPool& pool);
+ 
+   void read(
+       vector_size_t offset,
+diff --git a/velox/dwio/parquet/tests/examples/contacts.parquet b/velox/dwio/parquet/tests/examples/contacts.parquet
+new file mode 100644
+index 0000000000000000000000000000000000000000..fa3751f8dc46282db3ad2faabe5e0b69dfdba1f1
+GIT binary patch
+literal 1355
+zcmb7^-)qxQ6vuCG(;A^Lh22X6eF(vp4Qg1EwcScz96rdHGWMv5yGw3sFipE8oygdK
+zF~q;YCx3u{fRB4sWQzE>2OoSA+0*dc^tS6-CJsVw&X4=~o}6=&%{yCFf{02A<m}a#
+zZ)%a?)Kn2t3K$^-mO*Zj<FCJt^TS}CK=4K@3&AW#Iat<N$P<}(`swZa>z5|>LLNh+
+zP3q*&o0p%ZTuRipg<Li>2lraNVcci^fE#xse~;@ov92j1EEj@x3Wjj!Qt{DxAt1y=
+zAQe5|F*i-urah8Uq$+8G4$_Nsjcm!M!_4^cBttymh5X=NA?~y2*^}6P%Dar@!C68Y
+z_B~X?ni8@uCki5k64r8UKZ=tQ+9-;x!lMN2qT?F#yokrKOrlsX>KkRzExn{d697vv
+z#k5YFWwkYI&G1gqLfWXI1(id$p%jGZ2ZhYjBTOt*UMrG<Udsb%A+2m!QA&J3x5{fR
+z*;Tm!bJ%5RPg0Kr^%N5ul@Bvh*z~o=)WeLxido1d#ZK6h*dGd^^mSHXPtLL0s4ppW
+zn|csz%}j5`0YcLgp2?XM|1HG7XURiE-$9qlD*cG(;S^LftrvAH)@LwdD;>AB$D`Qq
+zg<8(BY|BR4;!H-o8(45Mb_YDMqTX|>%M<3YglRwVzL~t}bF*p2Ni=X1vtqV=9(b|Y
+ze6(+hBLgAd1Gh}`!-RKu1debJ1Z*dOgf<IeUNJ{hv$=n8P#Nz|A*22OBbT1db44i3
+z4?7nGq14Ou#6iC5?#Bm{@AFT*{4B1nfV6cvgWKK6kV7-7RuzV3EbI*Yz%v>R?ku@0
+tORJ8vQs-{Xb{)6P>aMfA)8K8#v8#@4yQ|BKy7+R(7dnGK;U@e>{{rEFM9lyI
+
+literal 0
+HcmV?d00001
+
+diff --git a/velox/dwio/parquet/tests/reader/ParquetTableScanTest.cpp b/velox/dwio/parquet/tests/reader/ParquetTableScanTest.cpp
+index 649f1ad10..41412552d 100644
+--- a/velox/dwio/parquet/tests/reader/ParquetTableScanTest.cpp
++++ b/velox/dwio/parquet/tests/reader/ParquetTableScanTest.cpp
+@@ -753,6 +753,84 @@ TEST_F(ParquetTableScanTest, sessionTimezone) {
+   assertSelectWithTimezone({"a"}, "SELECT a FROM tmp", "Asia/Shanghai");
+ }
+ 
++TEST_F(ParquetTableScanTest, structSelection) {
++  auto vector = makeRowVector(
++      {makeFlatVector<std::string>({"Janet"}),
++       makeFlatVector<std::string>({"Jones"})});
++
++  loadData(
++      getExampleFilePath("contacts.parquet"),
++      ROW({"name"}, {ROW({"first", "last"}, {VARCHAR(), VARCHAR()})}),
++      makeRowVector(
++          {"t"},
++          {
++              vector,
++          }));
++  assertSelectWithFilter({"name"}, {}, "", "SELECT t from tmp");
++
++  loadData(
++      getExampleFilePath("contacts.parquet"),
++      ROW({"name"},
++          {ROW(
++              {"first", "middle", "last"}, {VARCHAR(), VARCHAR(), VARCHAR()})}),
++      makeRowVector(
++          {"t"},
++          {
++              vector,
++          }));
++  assertSelectWithFilter({"name"}, {}, "", "SELECT ('Janet', null, 'Jones')");
++
++  loadData(
++      getExampleFilePath("contacts.parquet"),
++      ROW({"name"}, {ROW({"first", "middle"}, {VARCHAR(), VARCHAR()})}),
++      makeRowVector(
++          {"t"},
++          {
++              vector,
++          }));
++  assertSelectWithFilter({"name"}, {}, "", "SELECT ('Janet', null)");
++
++  loadData(
++      getExampleFilePath("contacts.parquet"),
++      ROW({"name"}, {ROW({"middle", "last"}, {VARCHAR(), VARCHAR()})}),
++      makeRowVector(
++          {"t"},
++          {
++              vector,
++          }));
++  assertSelectWithFilter({"name"}, {}, "", "SELECT (null, 'Jones')");
++
++  loadData(
++      getExampleFilePath("contacts.parquet"),
++      ROW({"name"}, {ROW({"middle"}, {VARCHAR()})}),
++      makeRowVector(
++          {"t"},
++          {
++              vector,
++          }));
++  assertSelectWithFilter({"name"}, {}, "", "SELECT row(null)");
++
++  loadData(
++      getExampleFilePath("contacts.parquet"),
++      ROW({"name"}, {ROW({"middle", "info"}, {VARCHAR(), VARCHAR()})}),
++      makeRowVector(
++          {"t"},
++          {
++              vector,
++          }));
++  assertSelectWithFilter({"name"}, {}, "", "SELECT NULL");
++
++  /*loadData(
++      getExampleFilePath("contacts.parquet"),
++      ROW({"name"}, {ROW({}, {})}),
++      makeRowVector(
++          {"t"},
++          {
++              vector,
++          }));
++  assertSelectWithFilter({"name"}, {}, "", "SELECT row()");*/
++}
++
+ TEST_F(ParquetTableScanTest, timestampFilter) {
+   // Timestamp-int96.parquet holds one column (t: TIMESTAMP) and
+   // 10 rows in one row group. Data is in SNAPPY compressed format.
+-- 
+2.34.1
+

@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_10_13
+VELOX_REPO=https://github.com/facebookincubator/velox.git
+VELOX_BRANCH=main
 VELOX_HOME=""
 
 OS=`uname -s`
@@ -170,6 +170,7 @@ function apply_compilation_fixes {
   current_dir=$1
   velox_home=$2
   sudo cp ${current_dir}/modify_velox.patch ${velox_home}/
+  sudo cp ${current_dir}/gluten_patch ${velox_home}/ -r
   sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/CMake/resolve_dependency_modules/arrow/
   sudo cp ${current_dir}/modify_arrow_dataset_scan_option.patch ${velox_home}/CMake/resolve_dependency_modules/arrow/
   git add ${velox_home}/modify_velox.patch # to avoid the file from being deleted by git clean -dffx :/
@@ -178,6 +179,8 @@ function apply_compilation_fixes {
   cd ${velox_home}
   echo "Applying patch to Velox source code..."
   git apply modify_velox.patch
+  git apply gluten_patch/*patch
+  git add .
   if [ $? -ne 0 ]; then
     echo "Failed to apply compilation fixes to Velox: $?."
     exit 1
