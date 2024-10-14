@@ -311,16 +311,13 @@ JNIEXPORT jstring JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrap
 
 JNIEXPORT void JNICALL Java_org_apache_gluten_vectorized_PlanEvaluatorJniWrapper_injectWriteFilesTempPath( // NOLINT
     JNIEnv* env,
-    jobject wrapper,
+    jclass,
     jbyteArray path) {
   JNI_METHOD_START
-
   auto len = env->GetArrayLength(path);
   auto safeArray = gluten::getByteArrayElementsSafe(env, path);
   std::string pathStr(reinterpret_cast<char*>(safeArray.elems()), len);
-  auto ctx = gluten::getRuntime(env, wrapper);
-  ctx->injectWriteFilesTempPath(pathStr);
-
+  *gluten::Runtime::localWriteFilesTempPath() = pathStr;
   JNI_METHOD_END()
 }
 
