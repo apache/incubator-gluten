@@ -1499,7 +1499,7 @@ object GlutenConfig {
       .internal()
       .doc("The maximum row size of a single spill run")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("12M")
+      .createWithDefaultString("3M")
 
   val COLUMNAR_VELOX_MAX_SPILL_BYTES =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillBytes")
