@@ -285,9 +285,9 @@ object MergeTreeFileFormatWriter extends Logging {
       if (sparkPartitionId != 0 && !iterator.hasNext) {
         // In case of empty job,
         // leave first partition to save meta for file format like parquet/orc.
-        new MergeTreeEmptyDirectoryDataWriter(description, taskAttemptContext, committer)
+        new EmptyDirectoryDataWriter(description, taskAttemptContext, committer)
       } else if (description.partitionColumns.isEmpty && description.bucketSpec.isEmpty) {
-        new MergeTreeSingleDirectoryDataWriter(description, taskAttemptContext, committer)
+        new SingleDirectoryDataWriter(description, taskAttemptContext, committer)
       } else {
         concurrentOutputWriterSpec match {
           case Some(spec) =>
