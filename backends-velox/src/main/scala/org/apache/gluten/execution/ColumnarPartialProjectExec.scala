@@ -39,10 +39,10 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 import scala.collection.mutable.ListBuffer
 
 /**
- * By rule <PartialProhectRule>, the project not offoload-able that is changed to
+ * By rule <PartialProhectRule>, the project not offload-able that is changed to
  * ProjectExecTransformer + ColumnarPartialProjectExec e.g. sum(myudf(a) + b + hash(c)), child is
- * (a, b, c) ColumnarPartialProjectExec (a, b, c, myudf(a)), ProjectExecTransformer(myudf(a) + b +
- * hash(c))
+ * (a, b, c) ColumnarPartialProjectExec (a, b, c, myudf(a) as _SparkPartialProject1),
+ * ProjectExecTransformer(_SparkPartialProject1 + b + hash(c))
  *
  * @param original
  *   extract the ScalaUDF from original project list as Alias in UnsafeProjection and
