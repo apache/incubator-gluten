@@ -55,6 +55,7 @@ jobs:
         if: steps.check-cache.outputs.cache-hit != 'true'
         run: |
           df -a
+          yum install ccache -y
           bash dev/ci-velox-buildstatic-centos-7.sh
       - name: "Save ccache"
         uses: actions/cache/save@v3
