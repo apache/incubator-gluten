@@ -66,6 +66,7 @@ private object VeloxRuleApi {
     injector.injectTransform(_ => RewriteSparkPlanRulesManager())
     injector.injectTransform(_ => AddFallbackTagRule())
     injector.injectTransform(_ => TransformPreOverrides())
+    injector.injectTransform(c => PartialProjectRule.apply(c.session))
     injector.injectTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectTransform(c => RewriteTransformer.apply(c.session))
     injector.injectTransform(_ => PushDownFilterToScan)
@@ -75,7 +76,6 @@ private object VeloxRuleApi {
     injector.injectTransform(_ => CollapseProjectExecTransformer)
     injector.injectTransform(c => FlushableHashAggregateRule.apply(c.session))
     injector.injectTransform(c => InsertTransitions(c.outputsColumnar))
-    injector.injectTransform(c => PartialProjectRule.apply(c.session))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(

@@ -55,8 +55,6 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
   extends UnaryExecNode
   with GlutenPlan {
 
-  private val debug = GlutenConfig.getConf.debug
-
   private val projectAttributes: ListBuffer[Attribute] = ListBuffer()
   private val projectIndexInChild: ListBuffer[Int] = ListBuffer()
   private var UDFAttrNotExists = false
@@ -197,7 +195,10 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
               val batchIterator = projectedBatch.map {
                 b =>
                   if (b.numCols() != 0) {
-                    val compositeBatch = VeloxColumnarBatches.compose(batch, b)
+                    val veloxBatch =
+                      if (VeloxColumnarBatches.isVeloxBatch(batch)) batch
+                      else VeloxColumnarBatches.toVeloxBatch(batch)
+                    val compositeBatch = VeloxColumnarBatches.compose(veloxBatch, b)
                     b.close()
                     compositeBatch
                   } else {
@@ -249,9 +250,12 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     val proj = UnsafeProjection.create(replacedAliasUdf, projectAttributes)
     val numOutputRows = new SQLMetric("numOutputRows")
     val numInputBatches = new SQLMetric("numInputBatches")
+    val veloxBatch =
+      if (VeloxColumnarBatches.isVeloxBatch(childData)) childData
+      else VeloxColumnarBatches.toVeloxBatch(childData)
     val rows = VeloxColumnarToRowExec
       .toRowIterator(
-        Iterator.single[ColumnarBatch](childData),
+        Iterator.single[ColumnarBatch](veloxBatch),
         projectAttributes,
         numOutputRows,
         numInputBatches,
@@ -278,8 +282,9 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     val proj = MutableProjection.create(replacedAliasUdf, projectAttributes)
     val numRows = childData.numRows()
     val start = System.currentTimeMillis()
-    val arrowBatch = if (childData.numCols() == 0) { childData }
-    else ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), childData)
+    val arrowBatch = if (childData.numCols() == 0 || ColumnarBatches.isHeavyBatch(childData)) {
+      childData
+    } else ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), childData)
     c2a += System.currentTimeMillis() - start
 
     val schema =
@@ -298,8 +303,8 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     }
     val targetBatch = new ColumnarBatch(vectors.map(_.asInstanceOf[ColumnVector]), numRows)
     val start2 = System.currentTimeMillis()
-    val veloxBatch =
-      ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), targetBatch)
+    val veloxBatch = VeloxColumnarBatches.toVeloxBatch(
+      ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), targetBatch))
     a2c += System.currentTimeMillis() - start2
     Iterators
       .wrap(Iterator.single(veloxBatch))
