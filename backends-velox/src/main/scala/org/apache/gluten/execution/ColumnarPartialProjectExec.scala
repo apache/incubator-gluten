@@ -51,7 +51,7 @@ import scala.collection.mutable.ListBuffer
  *   child plan
  */
 case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
-    replacedAliasUdf: ListBuffer[Alias])
+    replacedAliasUdf: Seq[Alias])
   extends UnaryExecNode
   with GlutenPlan {
 
@@ -256,7 +256,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     val rows = VeloxColumnarToRowExec
       .toRowIterator(
         Iterator.single[ColumnarBatch](veloxBatch),
-        projectAttributes,
+        projectAttributes.toSeq,
         numOutputRows,
         numInputBatches,
         c2r)
@@ -279,7 +279,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
       c2a: SQLMetric,
       a2c: SQLMetric): Iterator[ColumnarBatch] = {
     // select part of child output and child data
-    val proj = MutableProjection.create(replacedAliasUdf, projectAttributes)
+    val proj = MutableProjection.create(replacedAliasUdf, projectAttributes.toSeq)
     val numRows = childData.numRows()
     val start = System.currentTimeMillis()
     val arrowBatch = if (childData.numCols() == 0 || ColumnarBatches.isHeavyBatch(childData)) {
@@ -321,7 +321,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
        |$formattedNodeName
        |${ExplainUtils.generateFieldString("Output", output)}
        |${ExplainUtils.generateFieldString("Input", child.output)}
-       |${ExplainUtils.generateFieldString("ScalaUDF", replacedAliasUdf)}
+       |${ExplainUtils.generateFieldString("UDF", replacedAliasUdf)}
        |${ExplainUtils.generateFieldString("ProjectOutput", projectAttributes)}
        |${ExplainUtils.generateFieldString("ProjectInputIndex", projectIndexInChild)}
        |""".stripMargin
@@ -405,7 +405,7 @@ object ColumnarPartialProjectExec {
     val newProjectList = original.projectList.map {
       p => replaceExpressionUDF(p, replacedAliasUdf).asInstanceOf[NamedExpression]
     }
-    val partialProject = ColumnarPartialProjectExec(original, original.child)(replacedAliasUdf)
+    val partialProject = ColumnarPartialProjectExec(original, original.child)(replacedAliasUdf.toSeq)
     ProjectExecTransformer(newProjectList, partialProject)
   }
 }
