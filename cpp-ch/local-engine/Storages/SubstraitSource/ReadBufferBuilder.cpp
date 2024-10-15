@@ -289,7 +289,7 @@ public:
 
             auto remote_path = file_uri.getPath().substr(1);
             DB::StoredObjects stored_objects{DB::StoredObject{remote_path, "", file_size}};
-            auto cache_creator = wrapWithCache(hdfs_read_buffer_creator, read_settings, remote_path, file_size, modified_time);
+            auto cache_creator = wrapWithCache(hdfs_read_buffer_creator, read_settings, remote_path, modified_time, file_size);
             auto cache_hdfs_read = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
                 std::move(cache_creator), stored_objects, read_settings, nullptr, /* use_external_buffer */ false);
             cache_hdfs_read->setReadUntilPosition(read_util_position);
@@ -470,7 +470,7 @@ public:
                     restricted_seek);
         };
 
-        auto cache_creator = wrapWithCache(read_buffer_creator, read_settings, key, object_size, object_modified_time);
+        auto cache_creator = wrapWithCache(read_buffer_creator, read_settings, key, object_modified_time, object_size);
 
         DB::StoredObjects stored_objects{DB::StoredObject{pathKey, "", object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
@@ -748,10 +748,13 @@ ReadBufferBuilder::ReadBufferBuilder(DB::ContextPtr context_) : context(context_
 DB::ReadSettings ReadBufferBuilder::getReadSettings() const
 {
     DB::ReadSettings read_settings = context->getReadSettings();
-    read_settings.enable_filesystem_cache = false;
+    if (context->getConfigRef().getBool("gluten_cache.local.enabled", false))
+        read_settings.enable_filesystem_cache = true;
+    else
+        read_settings.enable_filesystem_cache = false;
+
     return read_settings;
 }
-
 
 std::unique_ptr<DB::ReadBuffer>
 ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position)
@@ -792,36 +795,35 @@ ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
         file_cache->initialize();
     }
 
-    if (file_cache->isInitialized())
+    if (!file_cache->isInitialized())
     {
-        return [read_buffer_creator, read_settings, this](
-                   bool restricted_seek, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromFileBase>
-        {
-            auto cache_key = DB::FileCacheKey::fromPath(object.remote_path);
-            auto modified_read_settings = read_settings.withNestedBuffer();
-            auto rbc = [=, this]() { return read_buffer_creator(restricted_seek, object); };
-
-            return std::make_unique<DB::CachedOnDiskReadBufferFromFile>(
-                object.remote_path,
-                cache_key,
-                file_cache,
-                DB::FileCache::getCommonUser(),
-                rbc,
-                modified_read_settings,
-                std::string(DB::CurrentThread::getQueryId()),
-                object.bytes_size,
-                /* allow_seeks */ !read_settings.remote_read_buffer_restrict_seek,
-                /* use_external_buffer */ true,
-                /* read_until_position */ std::nullopt,
-                context->getFilesystemCacheLog());
-        };
-    }
-    else
         file_cache->throwInitExceptionIfNeeded();
+        return read_buffer_creator;
+    }
 
     updateCaches(key, last_modified_time, file_size);
 
-    return read_buffer_creator;
+    return [read_buffer_creator, read_settings, this](
+                   bool restricted_seek, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromFileBase>
+    {
+        auto cache_key = DB::FileCacheKey::fromPath(object.remote_path);
+        auto modified_read_settings = read_settings.withNestedBuffer();
+        auto rbc = [=, this]() { return read_buffer_creator(restricted_seek, object); };
+
+        return std::make_unique<DB::CachedOnDiskReadBufferFromFile>(
+            object.remote_path,
+            cache_key,
+            file_cache,
+            DB::FileCache::getCommonUser(),
+            rbc,
+            modified_read_settings,
+            std::string(DB::CurrentThread::getQueryId()),
+            object.bytes_size,
+            /* allow_seeks */ !read_settings.remote_read_buffer_restrict_seek,
+            /* use_external_buffer */ true,
+            /* read_until_position */ std::nullopt,
+            context->getFilesystemCacheLog());
+    };
 }
 
 void ReadBufferBuilder::updateCaches(const String & key, const size_t & last_modified_time, const size_t & file_size) const
