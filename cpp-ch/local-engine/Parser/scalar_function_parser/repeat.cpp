@@ -25,7 +25,7 @@ namespace local_engine
 class SparkFunctionRepeatParser : public FunctionParser
 {
 public:
-    SparkFunctionRepeatParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionRepeatParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionRepeatParser() override = default;
 
     static constexpr auto name = "repeat";

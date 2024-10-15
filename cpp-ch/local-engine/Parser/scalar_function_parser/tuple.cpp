@@ -23,7 +23,7 @@ namespace local_engine
 class SparkFunctionNamedStructParser : public FunctionParser
 {
 public:
-    SparkFunctionNamedStructParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionNamedStructParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionNamedStructParser() override = default;
 
     static constexpr auto name = "named_struct";

@@ -33,7 +33,7 @@ namespace local_engine
 class FunctionParserTimestampSeconds : public FunctionParser
 {
 public:
-    explicit FunctionParserTimestampSeconds(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserTimestampSeconds(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserTimestampSeconds() override = default;
 
     static constexpr auto name = "timestamp_seconds";

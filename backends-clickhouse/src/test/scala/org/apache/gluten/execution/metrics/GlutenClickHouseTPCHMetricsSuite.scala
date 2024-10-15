@@ -357,6 +357,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
 
       assert(nativeMetricsData.metricsDataList.get(3).getName.equals("kProject"))
       assert(nativeMetricsData.metricsDataList.get(4).getName.equals("kAggregate"))
+
       assert(
         nativeMetricsData.metricsDataList
           .get(4)
@@ -365,20 +366,28 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
           .getProcessors
           .get(0)
           .getInputRows == 591673)
-      assert(
-        nativeMetricsData.metricsDataList
-          .get(4)
-          .getSteps
-          .get(0)
-          .getProcessors
-          .get(0)
-          .getOutputRows == 4)
 
       assert(
         nativeMetricsData.metricsDataList
           .get(4)
           .getSteps
+          .get(1)
+          .getName
+          .equals("StreamingAggregating"))
+      assert(
+        nativeMetricsData.metricsDataList
+          .get(4)
+          .getSteps
+          .get(1)
+          .getProcessors
           .get(0)
+          .getName
+          .equals("StreamingAggregatingTransform"))
+      assert(
+        nativeMetricsData.metricsDataList
+          .get(4)
+          .getSteps
+          .get(1)
           .getProcessors
           .get(0)
           .getOutputRows == 4)

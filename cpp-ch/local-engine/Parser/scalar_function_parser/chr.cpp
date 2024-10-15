@@ -33,7 +33,7 @@ namespace local_engine
 class FunctionParserChr : public FunctionParser
 {
 public:
-    explicit FunctionParserChr(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserChr(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserChr() override = default;
     static constexpr auto name = "chr";
     String getName() const override { return name; }

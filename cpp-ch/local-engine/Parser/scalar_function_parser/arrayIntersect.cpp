@@ -37,7 +37,7 @@ class FunctionParserArrayIntersect : public FunctionParser
     Note: CH arrayIntersect and Spark array_intersect return the same array element but may different permutation
 */
 public:
-    explicit FunctionParserArrayIntersect(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserArrayIntersect(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
 
     static constexpr auto name = "array_intersect";
 

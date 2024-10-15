@@ -65,7 +65,7 @@ extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 namespace local_engine
 {
 
-AggregateRelParser::AggregateRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
+AggregateRelParser::AggregateRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_)
 {
 }
 
@@ -182,7 +182,7 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
         AggregateInfo agg_info;
         auto arg = measure.measure().arguments(0).value();
         agg_info.signature_function_name = *parseSignatureFunctionName(measure.measure().function_reference());
-        auto function_parser = AggregateFunctionParserFactory::instance().get(agg_info.signature_function_name, getPlanParser());
+        auto function_parser = AggregateFunctionParserFactory::instance().get(agg_info.signature_function_name, parser_context);
         if (!function_parser)
         {
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unsupported aggregate function: {}", agg_info.signature_function_name);
@@ -621,7 +621,7 @@ void AggregateRelParser::addPostProjection()
 
 void registerAggregateParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_parser) { return std::make_shared<AggregateRelParser>(plan_parser); };
+    auto builder = [](ParserContextPtr parser_context) { return std::make_shared<AggregateRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kAggregate, builder);
 }
 }

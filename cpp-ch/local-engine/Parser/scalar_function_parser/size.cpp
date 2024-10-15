@@ -33,7 +33,7 @@ namespace local_engine
 class FunctionParserSize : public FunctionParser
 {
 public:
-    explicit FunctionParserSize(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserSize(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserSize() override = default;
 
     static constexpr auto name = "size";

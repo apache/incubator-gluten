@@ -37,7 +37,7 @@ class GetJSONObjectParser : public FunctionParser
 public:
     static constexpr auto name = "get_json_object";
 
-    explicit GetJSONObjectParser(SerializedPlanParser * plan_parser_): FunctionParser(plan_parser_) {}
+    explicit GetJSONObjectParser(ParserContextPtr parser_context_): FunctionParser(parser_context_) {}
     ~GetJSONObjectParser() override = default;
 
     String getName() const override { return name; }

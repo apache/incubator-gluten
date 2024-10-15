@@ -36,7 +36,7 @@ namespace local_engine
 class FunctionParserTrunc : public FunctionParser
 {
 public:
-    explicit FunctionParserTrunc(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserTrunc(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserTrunc() override = default;
 
     static constexpr auto name = "trunc";

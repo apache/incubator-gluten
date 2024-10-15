@@ -24,6 +24,7 @@
 #include <Join/BroadCastJoinBuilder.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/LocalExecutor.h>
+#include <Parser/ParserContext.h>
 #include <Parser/RelParsers/MergeTreeRelParser.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Parser/RelParsers/WriteRelParser.h>
@@ -249,7 +250,13 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
     const std::string::size_type conf_plan_size = conf_plan_a.length();
     local_engine::SparkConfigs::updateConfig(query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), conf_plan_size});
 
-    local_engine::SerializedPlanParser parser(query_context);
+    const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan);
+    const std::string::size_type plan_size = plan_a.length();
+    auto plan_pb = local_engine::BinaryToMessage<substrait::Plan>({reinterpret_cast<const char *>(plan_a.elems()), plan_size});
+
+    auto parser_context = local_engine::ParserContext::build(query_context, plan_pb);
+    local_engine::SerializedPlanParser parser(parser_context);
+
     jsize iter_num = env->GetArrayLength(iter_arr);
     for (jsize i = 0; i < iter_num; i++)
     {
@@ -266,9 +273,7 @@ JNIEXPORT jlong Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_
         parser.addSplitInfo({reinterpret_cast<const char *>(split_info_a.elems()), split_info_size});
     }
 
-    const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan);
-    const std::string::size_type plan_size = plan_a.length();
-    local_engine::LocalExecutor * executor = parser.createExecutor({reinterpret_cast<const char *>(plan_a.elems()), plan_size}).release();
+    local_engine::LocalExecutor * executor = parser.createExecutor(plan_pb).release();
     LOG_INFO(&Poco::Logger::get("jni"), "Construct LocalExecutor {}", reinterpret_cast<uintptr_t>(executor));
     executor->setMetric(parser.getMetric());
     executor->setExtraPlanHolder(parser.extra_plan_holder);
@@ -964,17 +969,18 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 {
     LOCAL_ENGINE_JNI_METHOD_START
     const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan_);
-    auto plan_ptr = local_engine::BinaryToMessage<substrait::Plan>(
+    auto plan_pb = local_engine::BinaryToMessage<substrait::Plan>(
         {reinterpret_cast<const char *>(plan_a.elems()), static_cast<size_t>(plan_a.length())});
 
+    auto parser_context = local_engine::ParserContext::build(local_engine::QueryContext::globalContext(), plan_pb);
+    local_engine::SerializedPlanParser parser(parser_context);
+
     const auto read_a = local_engine::getByteArrayElementsSafe(env, read_);
-    auto read_ptr = local_engine::BinaryToMessage<substrait::Rel>(
+    auto read_pb = local_engine::BinaryToMessage<substrait::Rel>(
         {reinterpret_cast<const char *>(read_a.elems()), static_cast<size_t>(read_a.length())});
 
-    local_engine::SerializedPlanParser parser(local_engine::QueryContext::globalContext());
-    parser.parseExtensions(plan_ptr.extensions());
-    local_engine::MergeTreeRelParser mergeTreeParser(&parser, local_engine::QueryContext::globalContext());
-    auto res = mergeTreeParser.filterRangesOnDriver(read_ptr.read());
+    local_engine::MergeTreeRelParser mergeTreeParser(parser_context, local_engine::QueryContext::globalContext());
+    auto res = mergeTreeParser.filterRangesOnDriver(read_pb.read());
 
     return local_engine::charTojstring(env, res.c_str());
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
@@ -1238,13 +1244,16 @@ JNIEXPORT jlong
 Java_org_apache_gluten_vectorized_SimpleExpressionEval_createNativeInstance(JNIEnv * env, jclass, jobject input, jbyteArray plan)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    const auto context = DB::Context::createCopy(local_engine::QueryContext::globalContext());
-    local_engine::SerializedPlanParser parser(context);
-    const jobject iter = env->NewGlobalRef(input);
-    parser.addInputIter(iter, false);
     const auto plan_a = local_engine::getByteArrayElementsSafe(env, plan);
     const std::string::size_type plan_size = plan_a.length();
-    local_engine::LocalExecutor * executor = parser.createExecutor({reinterpret_cast<const char *>(plan_a.elems()), plan_size}).release();
+    auto plan_pb = local_engine::BinaryToMessage<substrait::Plan>({reinterpret_cast<const char *>(plan_a.elems()), plan_size});
+
+    auto parser_context = local_engine::ParserContext::build(local_engine::QueryContext::globalContext(), plan_pb);
+    local_engine::SerializedPlanParser parser(parser_context);
+
+    const jobject iter = env->NewGlobalRef(input);
+    parser.addInputIter(iter, false);
+    local_engine::LocalExecutor * executor = parser.createExecutor(plan_pb).release();
     return reinterpret_cast<jlong>(executor);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }

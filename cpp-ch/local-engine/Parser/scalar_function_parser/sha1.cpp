@@ -33,7 +33,7 @@ namespace local_engine
 class FunctionParserSha1 : public FunctionParser
 {
 public:
-    explicit FunctionParserSha1(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserSha1(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserSha1() override = default;
 
     static constexpr auto name = "sha1";

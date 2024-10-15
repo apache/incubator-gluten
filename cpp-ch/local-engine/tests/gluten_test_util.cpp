@@ -23,6 +23,7 @@
 #include <Interpreters/ActionsVisitor.h>
 #include <Parser/LocalExecutor.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/ParserContext.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Parsers/parseQuery.h>
@@ -79,9 +80,10 @@ std::pair<substrait::Plan, std::unique_ptr<LocalExecutor>> create_plan_and_execu
     std::string_view json_plan, std::string_view split_template, std::string_view file, const std::optional<DB::ContextPtr> & context)
 {
     const std::string split = replaceLocalFilesWildcards(split_template, file);
-    SerializedPlanParser parser(context.value_or(QueryContext::globalContext()));
-    parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
     const auto plan = local_engine::JsonStringToMessage<substrait::Plan>(json_plan);
+    auto parser_context = ParserContext::build(context.value_or(QueryContext::globalContext()), plan);
+    SerializedPlanParser parser(parser_context);
+    parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
     return {plan, parser.createExecutor(plan)};
 }
 
