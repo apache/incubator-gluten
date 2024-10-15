@@ -304,11 +304,11 @@ DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPl
         settings,
         0);
     const QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings[Setting::query_plan_enable_optimizations]};
+    ExpressionActionsSettings actions_settings = ExpressionActionsSettings::fromContext(context, CompileExpressions::yes);
     return query_plan.buildQueryPipeline(
         optimization_settings,
         BuildQueryPipelineSettings{
-            .actions_settings
-            = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3, .compile_expressions = CompileExpressions::yes},
+            .actions_settings = actions_settings,
             .process_list_element = query_status});
 }
 

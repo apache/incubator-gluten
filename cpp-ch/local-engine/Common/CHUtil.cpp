@@ -705,12 +705,14 @@ DB::Field BackendInitializerUtil::toField(const String & key, const String & val
 
 void BackendInitializerUtil::initSettings(const std::map<std::string, std::string> & spark_conf_map, DB::Settings & settings)
 {
-    /// Initialize default setting.
+    /// Initialize default setting. Could be overrided by spark_conf_map
     settings.set("date_time_input_format", "best_effort");
     settings.set(MERGETREE_MERGE_AFTER_INSERT, true);
     settings.set(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, false);
     settings.set(DECIMAL_OPERATIONS_ALLOW_PREC_LOSS, true);
     settings.set("remote_filesystem_read_prefetch", false);
+    settings.set("compile_expressions", true);  // Enable JIT by default, which is different from ClickHouse
+    settings.set("min_count_to_compile_expression", 0); // Compile expression no matter how many times it appears
 
     for (const auto & [key, value] : spark_conf_map)
     {
@@ -756,7 +758,8 @@ void BackendInitializerUtil::initSettings(const std::map<std::string, std::strin
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
     }
-    /// Finally apply some fixed kvs to settings.
+
+    /// Finally apply some fixed kvs to settings. Could not be overrided by spark_conf_map
     settings.set("join_use_nulls", true);
     settings.set("input_format_orc_allow_missing_columns", true);
     settings.set("input_format_orc_case_insensitive_column_matching", true);
