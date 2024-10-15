@@ -1,4 +1,4 @@
-# Utility for building C++ libs in container
+# Utility for building C++ libs in Ubuntu 20.04 (with glibc 2.31) container
 
 The folder contains script code to build `libvelox.so` and `libgluten.so` in docker container and for host use.
 

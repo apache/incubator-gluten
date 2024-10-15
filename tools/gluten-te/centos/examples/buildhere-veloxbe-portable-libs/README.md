@@ -1,4 +1,4 @@
-# Utility for building C++ libs in container
+# Utility for building C++ libs in CentOS 7 (with glibc 2.17) container
 
 The folder contains script code to build `libvelox.so` and `libgluten.so` in docker container and for host use.
 
