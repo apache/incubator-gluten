@@ -1,0 +1,27 @@
+From d141f96dc834a00ffae350fccdb80ad5132e4544 Mon Sep 17 00:00:00 2001
+From: Hongze Zhang <hongze.zhang@intel.com>
+Date: Sat, 14 Sep 2024 17:10:24 +0800
+Subject: [PATCH 11/11] [oap] Expose Task::numThreads()
+
+---
+ velox/exec/Task.h | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/velox/exec/Task.h b/velox/exec/Task.h
+index b3e159624..8f5bb4064 100644
+--- a/velox/exec/Task.h
++++ b/velox/exec/Task.h
+@@ -681,6 +681,10 @@ class Task : public std::enable_shared_from_this<Task> {
+     terminate(TaskState::kFinished).wait();
+   }
+ 
++  int32_t numThreads() {
++    return numThreads_;
++  }
++
+  private:
+   // Hook of system-wide running task list.
+   struct TaskListEntry {
+-- 
+2.34.1
+

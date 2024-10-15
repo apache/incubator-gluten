@@ -1,0 +1,785 @@
+From 4800e5ebfdcf853621864940ddb78c45a88b84d0 Mon Sep 17 00:00:00 2001
+From: Yuan Zhou <yuan.zhou@intel.com>
+Date: Wed, 28 Aug 2024 14:53:03 +0800
+Subject: [PATCH 10/11] [10383 ] Support decimal operation not precision loss
+ mode (10383)
+
+Signed-off-by: Yuan Zhou <yuan.zhou@intel.com>
+---
+ velox/docs/functions/spark/config.rst         |  21 ++
+ velox/docs/functions/spark/decimal.rst        |  25 ++-
+ velox/docs/spark_functions.rst                |   2 +
+ .../functions/sparksql/DecimalArithmetic.cpp  | 205 ++++++++++++++----
+ velox/functions/sparksql/DecimalArithmetic.h  |  12 +-
+ velox/functions/sparksql/DecimalUtil.h        |  10 +
+ velox/functions/sparksql/Register.cpp         |  10 +-
+ velox/functions/sparksql/Register.h           |   5 +
+ .../functions/sparksql/RegisterArithmetic.cpp |  13 +-
+ velox/functions/sparksql/RegisterArithmetic.h |   5 +-
+ velox/functions/sparksql/RegistrationConfig.h |  27 +++
+ .../sparksql/tests/DecimalArithmeticTest.cpp  |  66 ++++++
+ .../sparksql/tests/DecimalUtilTest.cpp        |  13 ++
+ 13 files changed, 356 insertions(+), 58 deletions(-)
+ create mode 100644 velox/docs/functions/spark/config.rst
+ create mode 100644 velox/functions/sparksql/RegistrationConfig.h
+
+diff --git a/velox/docs/functions/spark/config.rst b/velox/docs/functions/spark/config.rst
+new file mode 100644
+index 000000000..146d61efd
+--- /dev/null
++++ b/velox/docs/functions/spark/config.rst
+@@ -0,0 +1,21 @@
++================================
++SparkRegistration Configuration
++================================
++
++struct SparkRegistrationConfig
++---------------------
++.. list-table::
++   :widths: 20 10 10 70
++   :header-rows: 1
++
++   * - Property Name
++     - Type
++     - Default Value
++     - Description
++   * - allowPrecisionLoss
++     - bool
++     - true
++     - When true, establishing the result type of an arithmetic operation according to Hive behavior and SQL ANSI 2011 specification, i.e.
++       rounding the decimal part of the result if an exact representation is not
++       possible. Otherwise, NULL is returned when the actual result cannot be represented with the calculated decimal type. Now we support add,
++       subtract, multiply and divide operations.
+\ No newline at end of file
+diff --git a/velox/docs/functions/spark/decimal.rst b/velox/docs/functions/spark/decimal.rst
+index 19eee325f..75814f6d8 100644
+--- a/velox/docs/functions/spark/decimal.rst
++++ b/velox/docs/functions/spark/decimal.rst
+@@ -33,8 +33,11 @@ Division
+     p = p1 - s1 + s2 + max(6, s1 + p2 + 1)
+     s = max(6, s1 + p2 + 1)
+ 
++Decimal Precision and Scale Adjustment
++<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
++
+ For above arithmetic operators, when the precision of result exceeds 38,
+-caps p at 38 and reduces the scale, in order to prevent the truncation of
++caps p at 38 and reduces the scale when allowing precision loss, in order to prevent the truncation of
+ the integer part of the decimals. Below formula illustrates how the result
+ precision and scale are adjusted.
+ 
+@@ -43,6 +46,26 @@ precision and scale are adjusted.
+     precision = 38
+     scale = max(38 - (p - s), min(s, 6))
+ 
++Caps p and s at 38 when not allowing precision loss.
++For decimal addition, subtraction, multiplication, the precision and scale computation logic is same,
++but for decimal division, it is different as following:
++::
++
++    wholeDigits = min(38, p1 - s1 + s2);
++    fractionalDigits = min(38, max(6, s1 + p2 + 1));
++
++If ``wholeDigits + fractionalDigits`` is more than 38:
++::
++
++    p = 38
++    s = fractionalDigits - (wholeDigits + fractionalDigits - 38) / 2 - 1
++
++Otherwise:
++::
++
++    p = wholeDigits + fractionalDigits
++    s = fractionalDigits
++
+ Users experience runtime errors when the actual result cannot be represented
+ with the calculated decimal type.
+ 
+diff --git a/velox/docs/spark_functions.rst b/velox/docs/spark_functions.rst
+index 24c825ac1..b42460ccf 100644
+--- a/velox/docs/spark_functions.rst
++++ b/velox/docs/spark_functions.rst
+@@ -4,6 +4,8 @@ Spark Functions
+ 
+ The semantics of Spark functions match Spark 3.5 with ANSI OFF.
+ 
++Spark functions can be registered by :doc:`struct SparkRegistrationConfig <functions/spark/config>`.
++
+ .. toctree::
+     :maxdepth: 1
+ 
+diff --git a/velox/functions/sparksql/DecimalArithmetic.cpp b/velox/functions/sparksql/DecimalArithmetic.cpp
+index 61599bce1..e8b987dc3 100644
+--- a/velox/functions/sparksql/DecimalArithmetic.cpp
++++ b/velox/functions/sparksql/DecimalArithmetic.cpp
+@@ -23,13 +23,14 @@ namespace {
+ 
+ struct DecimalAddSubtractBase {
+  protected:
++  template <bool allowPrecisionLoss>
+   void initializeBase(const std::vector<TypePtr>& inputTypes) {
+     auto [aPrecision, aScale] = getDecimalPrecisionScale(*inputTypes[0]);
+     auto [bPrecision, bScale] = getDecimalPrecisionScale(*inputTypes[1]);
+     aScale_ = aScale;
+     bScale_ = bScale;
+-    auto [rPrecision, rScale] =
+-        computeResultPrecisionScale(aPrecision, aScale_, bPrecision, bScale_);
++    auto [rPrecision, rScale] = computeResultPrecisionScale<allowPrecisionLoss>(
++        aPrecision, aScale_, bPrecision, bScale_);
+     rPrecision_ = rPrecision;
+     rScale_ = rScale;
+     aRescale_ = computeRescaleFactor(aScale_, bScale_);
+@@ -253,10 +254,12 @@ struct DecimalAddSubtractBase {
+   }
+ 
+   // Computes the result precision and scale for decimal add and subtract
+-  // operations following Hive's formulas.
++  // operations following Hive's formulas when `allowPrecisionLoss` is true.
+   // If result is representable with long decimal, the result
+   // scale is the maximum of 'aScale' and 'bScale'. If not, reduces result scale
+   // and caps the result precision at 38.
++  // Caps p and s at 38 when not allowing precision loss.
++  template <bool allowPrecisionLoss>
+   static std::pair<uint8_t, uint8_t> computeResultPrecisionScale(
+       uint8_t aPrecision,
+       uint8_t aScale,
+@@ -265,7 +268,11 @@ struct DecimalAddSubtractBase {
+     auto precision = std::max(aPrecision - aScale, bPrecision - bScale) +
+         std::max(aScale, bScale) + 1;
+     auto scale = std::max(aScale, bScale);
+-    return sparksql::DecimalUtil::adjustPrecisionScale(precision, scale);
++    if constexpr (allowPrecisionLoss) {
++      return sparksql::DecimalUtil::adjustPrecisionScale(precision, scale);
++    } else {
++      return sparksql::DecimalUtil::bounded(precision, scale);
++    }
+   }
+ 
+   static uint8_t computeRescaleFactor(uint8_t fromScale, uint8_t toScale) {
+@@ -280,7 +287,7 @@ struct DecimalAddSubtractBase {
+   uint8_t rScale_;
+ };
+ 
+-template <typename TExec>
++template <typename TExec, bool allowPrecisionLoss>
+ struct DecimalAddFunction : DecimalAddSubtractBase {
+   VELOX_DEFINE_FUNCTION_TYPES(TExec);
+ 
+@@ -290,7 +297,7 @@ struct DecimalAddFunction : DecimalAddSubtractBase {
+       const core::QueryConfig& /*config*/,
+       A* /*a*/,
+       B* /*b*/) {
+-    initializeBase(inputTypes);
++    initializeBase<allowPrecisionLoss>(inputTypes);
+   }
+ 
+   template <typename R, typename A, typename B>
+@@ -299,7 +306,7 @@ struct DecimalAddFunction : DecimalAddSubtractBase {
+   }
+ };
+ 
+-template <typename TExec>
++template <typename TExec, bool allowPrecisionLoss>
+ struct DecimalSubtractFunction : DecimalAddSubtractBase {
+   VELOX_DEFINE_FUNCTION_TYPES(TExec);
+ 
+@@ -309,7 +316,7 @@ struct DecimalSubtractFunction : DecimalAddSubtractBase {
+       const core::QueryConfig& /*config*/,
+       A* /*a*/,
+       B* /*b*/) {
+-    initializeBase(inputTypes);
++    initializeBase<allowPrecisionLoss>(inputTypes);
+   }
+ 
+   template <typename R, typename A, typename B>
+@@ -318,7 +325,7 @@ struct DecimalSubtractFunction : DecimalAddSubtractBase {
+   }
+ };
+ 
+-template <typename TExec>
++template <typename TExec, bool allowPrecisionLoss>
+ struct DecimalMultiplyFunction {
+   VELOX_DEFINE_FUNCTION_TYPES(TExec);
+ 
+@@ -330,8 +337,10 @@ struct DecimalMultiplyFunction {
+       B* /*b*/) {
+     auto [aPrecision, aScale] = getDecimalPrecisionScale(*inputTypes[0]);
+     auto [bPrecision, bScale] = getDecimalPrecisionScale(*inputTypes[1]);
+-    auto [rPrecision, rScale] = DecimalUtil::adjustPrecisionScale(
+-        aPrecision + bPrecision + 1, aScale + bScale);
++    auto [rPrecision, rScale] = allowPrecisionLoss
++        ? DecimalUtil::adjustPrecisionScale(
++              aPrecision + bPrecision + 1, aScale + bScale)
++        : DecimalUtil::bounded(aPrecision + bPrecision + 1, aScale + bScale);
+     rPrecision_ = rPrecision;
+     deltaScale_ = aScale + bScale - rScale;
+   }
+@@ -426,7 +435,7 @@ struct DecimalMultiplyFunction {
+   int32_t deltaScale_;
+ };
+ 
+-template <typename TExec>
++template <typename TExec, bool allowPrecisionLoss>
+ struct DecimalDivideFunction {
+   VELOX_DEFINE_FUNCTION_TYPES(TExec);
+ 
+@@ -458,65 +467,102 @@ struct DecimalDivideFunction {
+       uint8_t aScale,
+       uint8_t bPrecision,
+       uint8_t bScale) {
+-    auto scale = std::max(6, aScale + bPrecision + 1);
+-    auto precision = aPrecision - aScale + bScale + scale;
+-    return DecimalUtil::adjustPrecisionScale(precision, scale);
++    if constexpr (allowPrecisionLoss) {
++      auto scale = std::max(6, aScale + bPrecision + 1);
++      auto precision = aPrecision - aScale + bScale + scale;
++      return DecimalUtil::adjustPrecisionScale(precision, scale);
++    } else {
++      auto wholeDigits = std::min(38, aPrecision - aScale + bScale);
++      auto fractionDigits = std::min(38, std::max(6, aScale + bPrecision + 1));
++      auto diff = (wholeDigits + fractionDigits) - 38;
++      if (diff > 0) {
++        fractionDigits -= diff / 2 + 1;
++        wholeDigits = 38 - fractionDigits;
++      }
++      return DecimalUtil::bounded(wholeDigits + fractionDigits, fractionDigits);
++    }
+   }
+ 
+   uint8_t aRescale_;
+   uint8_t rPrecision_;
+ };
+ 
+-template <template <class> typename Func>
++template <template <class, bool> typename T, bool allowPrecisionLoss>
++using ParameterBinder = TempWrapper<T<exec::VectorExec, allowPrecisionLoss>>;
++
++template <typename Func, typename TReturn, typename... TArgs>
++bool registerFunction(
++    const std::vector<std::string>& aliases = {},
++    const std::vector<exec::SignatureVariable>& constraints = {},
++    bool overwrite = true) {
++  using funcClass = typename Func::template udf<exec::VectorExec>;
++  using holderClass = core::UDFHolder<
++      funcClass,
++      exec::VectorExec,
++      TReturn,
++      ConstantChecker<TArgs...>,
++      typename UnwrapConstantType<TArgs>::type...>;
++  return exec::registerSimpleFunction<holderClass>(
++      aliases, constraints, overwrite);
++}
++
++template <template <class, bool> typename Func, bool allowPrecisionLoss>
+ void registerDecimalBinary(
+     const std::string& name,
+     std::vector<exec::SignatureVariable> constraints) {
+   // (long, long) -> long
+   registerFunction<
+-      Func,
++      ParameterBinder<Func, allowPrecisionLoss>,
+       LongDecimal<P3, S3>,
+       LongDecimal<P1, S1>,
+       LongDecimal<P2, S2>>({name}, constraints);
+ 
+   // (short, short) -> short
+   registerFunction<
+-      Func,
++      ParameterBinder<Func, allowPrecisionLoss>,
+       ShortDecimal<P3, S3>,
+       ShortDecimal<P1, S1>,
+       ShortDecimal<P2, S2>>({name}, constraints);
+ 
+   // (short, short) -> long
+   registerFunction<
+-      Func,
++      ParameterBinder<Func, allowPrecisionLoss>,
+       LongDecimal<P3, S3>,
+       ShortDecimal<P1, S1>,
+       ShortDecimal<P2, S2>>({name}, constraints);
+ 
+   // (short, long) -> long
+   registerFunction<
+-      Func,
++      ParameterBinder<Func, allowPrecisionLoss>,
+       LongDecimal<P3, S3>,
+       ShortDecimal<P1, S1>,
+       LongDecimal<P2, S2>>({name}, constraints);
+ 
+   // (long, short) -> long
+   registerFunction<
+-      Func,
++      ParameterBinder<Func, allowPrecisionLoss>,
+       LongDecimal<P3, S3>,
+       LongDecimal<P1, S1>,
+       ShortDecimal<P2, S2>>({name}, constraints);
+ }
+ 
++std::string bounded(const std::string& value) {
++  return fmt::format("({}) <= 38 ? ({}) : 38", value, value);
++}
++
+ std::vector<exec::SignatureVariable> makeConstraints(
+     const std::string& rPrecision,
+-    const std::string& rScale) {
+-  std::string finalScale = fmt::format(
+-      "({}) <= 38 ? ({}) : max(({}) - ({}) + 38, min(({}), 6))",
+-      rPrecision,
+-      rScale,
+-      rScale,
+-      rPrecision,
+-      rScale);
++    const std::string& rScale,
++    bool allowPrecisionLoss) {
++  std::string finalScale = allowPrecisionLoss
++      ? fmt::format(
++            "({}) <= 38 ? ({}) : max(({}) - ({}) + 38, min(({}), 6))",
++            rPrecision,
++            rScale,
++            rScale,
++            rPrecision,
++            rScale)
++      : bounded(rScale);
+   return {
+       exec::SignatureVariable(
+           P3::name(),
+@@ -527,8 +573,10 @@ std::vector<exec::SignatureVariable> makeConstraints(
+           S3::name(), finalScale, exec::ParameterType::kIntegerParameter)};
+ }
+ 
+-template <template <class> typename Func>
+-void registerDecimalAddSubtract(const std::string& name) {
++template <template <class, bool> typename Func>
++void registerDecimalAddSubtract(
++    const std::string& name,
++    bool allowPrecisionLoss) {
+   std::string rPrecision = fmt::format(
+       "max({a_precision} - {a_scale}, {b_precision} - {b_scale}) + max({a_scale}, {b_scale}) + 1",
+       fmt::arg("a_precision", P1::name()),
+@@ -539,20 +587,32 @@ void registerDecimalAddSubtract(const std::string& name) {
+       "max({a_scale}, {b_scale})",
+       fmt::arg("a_scale", S1::name()),
+       fmt::arg("b_scale", S2::name()));
+-  registerDecimalBinary<Func>(name, makeConstraints(rPrecision, rScale));
++  if (allowPrecisionLoss) {
++    registerDecimalBinary<Func, true>(
++        name, makeConstraints(rPrecision, rScale, true));
++  } else {
++    registerDecimalBinary<Func, false>(
++        name, makeConstraints(rPrecision, rScale, false));
++  }
+ }
+ 
+ } // namespace
+ 
+-void registerDecimalAdd(const std::string& prefix) {
+-  registerDecimalAddSubtract<DecimalAddFunction>(prefix + "add");
++void registerDecimalAdd(const std::string& prefix, bool allowPrecisionLoss) {
++  registerDecimalAddSubtract<DecimalAddFunction>(
++      prefix + "add", allowPrecisionLoss);
+ }
+ 
+-void registerDecimalSubtract(const std::string& prefix) {
+-  registerDecimalAddSubtract<DecimalSubtractFunction>(prefix + "subtract");
++void registerDecimalSubtract(
++    const std::string& prefix,
++    bool allowPrecisionLoss) {
++  registerDecimalAddSubtract<DecimalSubtractFunction>(
++      prefix + "subtract", allowPrecisionLoss);
+ }
+ 
+-void registerDecimalMultiply(const std::string& prefix) {
++void registerDecimalMultiply(
++    const std::string& prefix,
++    bool allowPrecisionLoss) {
+   std::string rPrecision = fmt::format(
+       "{a_precision} + {b_precision} + 1",
+       fmt::arg("a_precision", P1::name()),
+@@ -561,11 +621,50 @@ void registerDecimalMultiply(const std::string& prefix) {
+       "{a_scale} + {b_scale}",
+       fmt::arg("a_scale", S1::name()),
+       fmt::arg("b_scale", S2::name()));
+-  registerDecimalBinary<DecimalMultiplyFunction>(
+-      prefix + "multiply", makeConstraints(rPrecision, rScale));
++  if (allowPrecisionLoss) {
++    registerDecimalBinary<DecimalMultiplyFunction, true>(
++        prefix + "multiply", makeConstraints(rPrecision, rScale, true));
++  } else {
++    registerDecimalBinary<DecimalMultiplyFunction, false>(
++        prefix + "multiply", makeConstraints(rPrecision, rScale, false));
++  }
++}
++
++std::vector<exec::SignatureVariable>
++getDivideConstraintsNotAllowPrecisionLoss() {
++  std::string wholeDigits = fmt::format(
++      "min(38, {a_precision} - {a_scale} + {b_scale})",
++      fmt::arg("a_precision", P1::name()),
++      fmt::arg("a_scale", S1::name()),
++      fmt::arg("b_scale", S2::name()));
++  std::string fractionDigits = fmt::format(
++      "min(38, max(6, {a_scale} + {b_precision} + 1))",
++      fmt::arg("a_scale", S1::name()),
++      fmt::arg("b_precision", P2::name()));
++  std::string diff = wholeDigits + " + " + fractionDigits + " - 38";
++  std::string newFractionDigits =
++      fmt::format("({}) - ({}) / 2 - 1", fractionDigits, diff);
++  std::string newWholeDigits = fmt::format("38 - ({})", newFractionDigits);
++  return {
++      exec::SignatureVariable(
++          P3::name(),
++          fmt::format(
++              "({}) > 0 ? ({}) : ({})",
++              diff,
++              bounded(newWholeDigits + " + " + newFractionDigits),
++              bounded(wholeDigits + " + " + fractionDigits)),
++          exec::ParameterType::kIntegerParameter),
++      exec::SignatureVariable(
++          S3::name(),
++          fmt::format(
++              "({}) > 0 ? ({}) : ({})",
++              diff,
++              bounded(newFractionDigits),
++              bounded(fractionDigits)),
++          exec::ParameterType::kIntegerParameter)};
+ }
+ 
+-std::vector<exec::SignatureVariable> getDivideConstraints() {
++std::vector<exec::SignatureVariable> getDivideConstraintsAllowPrecisionLoss() {
+   std::string rPrecision = fmt::format(
+       "{a_precision} - {a_scale} + {b_scale} + max(6, {a_scale} + {b_precision} + 1)",
+       fmt::arg("a_precision", P1::name()),
+@@ -576,25 +675,41 @@ std::vector<exec::SignatureVariable> getDivideConstraints() {
+       "max(6, {a_scale} + {b_precision} + 1)",
+       fmt::arg("a_scale", S1::name()),
+       fmt::arg("b_precision", P2::name()));
+-  return makeConstraints(rPrecision, rScale);
++  return makeConstraints(rPrecision, rScale, true);
+ }
+ 
++template <bool allowPrecisionLoss>
+ void registerDecimalDivide(const std::string& prefix) {
+-  std::vector<exec::SignatureVariable> constraints = getDivideConstraints();
+-  registerDecimalBinary<DecimalDivideFunction>(prefix + "divide", constraints);
++  std::vector<exec::SignatureVariable> constraints;
++  if constexpr (allowPrecisionLoss) {
++    constraints = getDivideConstraintsAllowPrecisionLoss();
++  } else {
++    constraints = getDivideConstraintsNotAllowPrecisionLoss();
++  }
++  registerDecimalBinary<DecimalDivideFunction, allowPrecisionLoss>(
++      prefix + "divide", constraints);
+ 
+   // (short, long) -> short
+   registerFunction<
+-      DecimalDivideFunction,
++      ParameterBinder<DecimalDivideFunction, allowPrecisionLoss>,
+       ShortDecimal<P3, S3>,
+       ShortDecimal<P1, S1>,
+       LongDecimal<P2, S2>>({prefix + "divide"}, constraints);
+ 
+   // (long, short) -> short
+   registerFunction<
+-      DecimalDivideFunction,
++      ParameterBinder<DecimalDivideFunction, allowPrecisionLoss>,
+       ShortDecimal<P3, S3>,
+       LongDecimal<P1, S1>,
+       ShortDecimal<P2, S2>>({prefix + "divide"}, constraints);
+ }
++void registerDecimalDivide(
++    const std::string& prefix,
++    bool allowPrecisionLossConfig) {
++  if (allowPrecisionLossConfig) {
++    registerDecimalDivide<true>(prefix);
++  } else {
++    registerDecimalDivide<false>(prefix);
++  }
++}
+ } // namespace facebook::velox::functions::sparksql
+diff --git a/velox/functions/sparksql/DecimalArithmetic.h b/velox/functions/sparksql/DecimalArithmetic.h
+index f1a94ce01..e578e7191 100644
+--- a/velox/functions/sparksql/DecimalArithmetic.h
++++ b/velox/functions/sparksql/DecimalArithmetic.h
+@@ -19,12 +19,16 @@
+ 
+ namespace facebook::velox::functions::sparksql {
+ 
+-void registerDecimalAdd(const std::string& prefix);
++void registerDecimalAdd(const std::string& prefix, bool allowPrecisionLoss);
+ 
+-void registerDecimalSubtract(const std::string& prefix);
++void registerDecimalSubtract(
++    const std::string& prefix,
++    bool allowPrecisionLoss);
+ 
+-void registerDecimalMultiply(const std::string& prefix);
++void registerDecimalMultiply(
++    const std::string& prefix,
++    bool allowPrecisionLoss);
+ 
+-void registerDecimalDivide(const std::string& prefix);
++void registerDecimalDivide(const std::string& prefix, bool allowPrecisionLoss);
+ 
+ } // namespace facebook::velox::functions::sparksql
+diff --git a/velox/functions/sparksql/DecimalUtil.h b/velox/functions/sparksql/DecimalUtil.h
+index fbe5da778..28495789d 100644
+--- a/velox/functions/sparksql/DecimalUtil.h
++++ b/velox/functions/sparksql/DecimalUtil.h
+@@ -211,6 +211,16 @@ class DecimalUtil {
+     }
+   }
+ 
++  /// This method is used when the function is registered with
++  /// ``allowPrecisionLoss`` being false. Caps precision and scale at 38.
++  static std::pair<uint8_t, uint8_t> bounded(
++      uint8_t rPrecision,
++      uint8_t rScale) {
++    return {
++        std::min(rPrecision, DecimalType<TypeKind::HUGEINT>::kMaxPrecision),
++        std::min(rScale, DecimalType<TypeKind::HUGEINT>::kMaxPrecision)};
++  }
++
+  private:
+   /// Maintains the max bits that need to be increased for rescaling a value by
+   /// certain scale. The calculation relies on the following formula:
+diff --git a/velox/functions/sparksql/Register.cpp b/velox/functions/sparksql/Register.cpp
+index 3feff2489..5da52c75b 100644
+--- a/velox/functions/sparksql/Register.cpp
++++ b/velox/functions/sparksql/Register.cpp
+@@ -177,7 +177,9 @@ inline void registerArrayMinMaxFunctions(const std::string& prefix) {
+ }
+ } // namespace
+ 
+-void registerFunctions(const std::string& prefix) {
++void registerFunctions(
++    const std::string& prefix,
++    const SparkRegistrationConfig& config) {
+   registerAllSpecialFormGeneralFunctions();
+ 
+   // Register size functions
+@@ -302,7 +304,7 @@ void registerFunctions(const std::string& prefix) {
+ 
+   // These groups of functions involve instantiating many templates. They're
+   // broken out into a separate compilation unit to improve build latency.
+-  registerArithmeticFunctions(prefix);
++  registerArithmeticFunctions(prefix, config);
+   registerCompareFunctions(prefix);
+   registerBitwiseFunctions(prefix);
+ 
+@@ -540,5 +542,9 @@ std::vector<std::string> listFunctionNames() {
+   return names;
+ }
+ 
++void registerFunctions(const std::string& prefix) {
++  SparkRegistrationConfig config;
++  registerFunctions(prefix, config);
++}
+ } // namespace sparksql
+ } // namespace facebook::velox::functions
+diff --git a/velox/functions/sparksql/Register.h b/velox/functions/sparksql/Register.h
+index 1333a25bf..bc33b9c1d 100644
+--- a/velox/functions/sparksql/Register.h
++++ b/velox/functions/sparksql/Register.h
+@@ -17,9 +17,14 @@
+ 
+ #include <string>
+ #include <vector>
++#include "RegistrationConfig.h"
+ 
+ namespace facebook::velox::functions::sparksql {
+ 
++void registerFunctions(
++    const std::string& prefix,
++    const SparkRegistrationConfig& config);
++
+ void registerFunctions(const std::string& prefix);
+ 
+ /// Return all the registered scalar function names include simple functions,
+diff --git a/velox/functions/sparksql/RegisterArithmetic.cpp b/velox/functions/sparksql/RegisterArithmetic.cpp
+index c2a820d36..603958b03 100644
+--- a/velox/functions/sparksql/RegisterArithmetic.cpp
++++ b/velox/functions/sparksql/RegisterArithmetic.cpp
+@@ -30,7 +30,9 @@ void registerRandFunctions(const std::string& prefix) {
+       {prefix + "rand", prefix + "random"});
+ }
+ 
+-void registerArithmeticFunctions(const std::string& prefix) {
++void registerArithmeticFunctions(
++    const std::string& prefix,
++    const SparkRegistrationConfig& config) {
+   // Operators.
+   registerBinaryNumeric<PlusFunction>({prefix + "add"});
+   registerBinaryNumeric<MinusFunction>({prefix + "subtract"});
+@@ -106,10 +108,11 @@ void registerArithmeticFunctions(const std::string& prefix) {
+       int64_t>({prefix + "width_bucket"});
+   registerRandFunctions(prefix);
+ 
+-  registerDecimalAdd(prefix);
+-  registerDecimalSubtract(prefix);
+-  registerDecimalMultiply(prefix);
+-  registerDecimalDivide(prefix);
++  registerDecimalAdd(prefix, config.allowPrecisionLoss);
++  registerDecimalSubtract(prefix, config.allowPrecisionLoss);
++  registerDecimalMultiply(prefix, config.allowPrecisionLoss);
++  registerDecimalDivide(prefix, config.allowPrecisionLoss);
++
+   registerFunction<sparksql::IsNanFunction, bool, float>({prefix + "isnan"});
+   registerFunction<sparksql::IsNanFunction, bool, double>({prefix + "isnan"});
+ 
+diff --git a/velox/functions/sparksql/RegisterArithmetic.h b/velox/functions/sparksql/RegisterArithmetic.h
+index fcd6bca39..719b86e9d 100644
+--- a/velox/functions/sparksql/RegisterArithmetic.h
++++ b/velox/functions/sparksql/RegisterArithmetic.h
+@@ -16,7 +16,10 @@
+ #pragma once
+ 
+ #include <string>
++#include "RegistrationConfig.h"
+ 
+ namespace facebook::velox::functions::sparksql {
+-void registerArithmeticFunctions(const std::string& prefix);
++void registerArithmeticFunctions(
++    const std::string& prefix,
++    const SparkRegistrationConfig& config);
+ } // namespace facebook::velox::functions::sparksql
+diff --git a/velox/functions/sparksql/RegistrationConfig.h b/velox/functions/sparksql/RegistrationConfig.h
+new file mode 100644
+index 000000000..f26ecb495
+--- /dev/null
++++ b/velox/functions/sparksql/RegistrationConfig.h
+@@ -0,0 +1,27 @@
++/*
++ * Copyright (c) Facebook, Inc. and its affiliates.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#pragma once
++
++struct SparkRegistrationConfig {
++  /// When true, establishing the result type of an arithmetic operation
++  /// according to Hive behavior and SQL ANSI 2011 specification, i.e.
++  /// rounding the decimal part of the result if an exact representation is not
++  /// possible. Otherwise, NULL is returned when the actual result cannot be
++  /// represented with the calculated decimal type. Now we support add,
++  /// subtract, multiply and divide operations.
++  bool allowPrecisionLoss = true;
++};
+diff --git a/velox/functions/sparksql/tests/DecimalArithmeticTest.cpp b/velox/functions/sparksql/tests/DecimalArithmeticTest.cpp
+index a80baacf7..c85874ada 100644
+--- a/velox/functions/sparksql/tests/DecimalArithmeticTest.cpp
++++ b/velox/functions/sparksql/tests/DecimalArithmeticTest.cpp
+@@ -517,5 +517,71 @@ TEST_F(DecimalArithmeticTest, divide) {
+       {makeConstant<int128_t>(DecimalUtil::kLongDecimalMax, 1, DECIMAL(38, 0)),
+        makeConstant<int64_t>(1, 1, DECIMAL(3, 2))});
+ }
++
++TEST_F(DecimalArithmeticTest, notAllowPrecisionLoss) {
++  // Register cannot override in case of this issue
++  // https://github.com/facebookincubator/velox/issues/10602
++  registerDecimalAdd("decimal_", false);
++  registerDecimalSubtract("decimal_", false);
++  registerDecimalMultiply("decimal_", false);
++  registerDecimalDivide("decimal_", false);
++
++  testArithmeticFunction(
++      "decimal_add",
++      makeFlatVector(
++          std::vector<int128_t>{21232100, 29998888, 42345678, 42135632},
++          DECIMAL(38, 7)),
++      {makeFlatVector(
++           std::vector<int128_t>{11232100, 9998888, 12345678, 2135632},
++           DECIMAL(38, 7)),
++       makeFlatVector(std::vector<int64_t>{1, 2, 3, 4}, DECIMAL(10, 0))});
++
++  // Overflow when scaling up the whole part.
++  testArithmeticFunction(
++      "decimal_add",
++      makeNullableLongDecimalVector(
++          {"null", "null", "null", "null"}, DECIMAL(38, 7)),
++      {makeNullableLongDecimalVector(
++           {"-99999999999999999999999999999999990000",
++            "99999999999999999999999999999999999000",
++            "-99999999999999999999999999999999999900",
++            "99999999999999999999999999999999999990"},
++           DECIMAL(38, 3)),
++       makeFlatVector(
++           std::vector<int128_t>{-100, 9999999, -999900, 99999},
++           DECIMAL(38, 7))});
++
++  testArithmeticFunction(
++      "decimal_subtract",
++      makeFlatVector(
++          std::vector<int128_t>{1232100, -10001112, -17654322, -37864368},
++          DECIMAL(38, 7)),
++      {makeFlatVector(
++           std::vector<int128_t>{11232100, 9998888, 12345678, 2135632},
++           DECIMAL(38, 7)),
++       makeFlatVector(std::vector<int64_t>{1, 2, 3, 4}, DECIMAL(10, 0))});
++
++  registerDecimalMultiply("", false);
++  testArithmeticFunction(
++      "decimal_multiply",
++      makeConstant<int128_t>(60501, 1, DECIMAL(38, 10)),
++      {makeConstant<int128_t>(201, 1, DECIMAL(20, 5)),
++       makeConstant<int128_t>(301, 1, DECIMAL(20, 5))});
++
++  // diff > 0
++  testArithmeticFunction(
++      "decimal_divide",
++      makeConstant<int128_t>(
++          HugeInt::parse("5" + std::string(18, '0')), 1, DECIMAL(38, 18)),
++      {makeConstant<int128_t>(500, 1, DECIMAL(20, 2)),
++       makeConstant<int64_t>(1000, 1, DECIMAL(17, 3))});
++  // diff < 0
++  testArithmeticFunction(
++      "decimal_divide",
++      makeConstant<int128_t>(
++          HugeInt::parse("5" + std::string(10, '0')), 1, DECIMAL(31, 10)),
++      {makeConstant<int128_t>(500, 1, DECIMAL(20, 2)),
++       makeConstant<int64_t>(1000, 1, DECIMAL(7, 3))});
++}
+ } // namespace
+ } // namespace facebook::velox::functions::sparksql::test
+diff --git a/velox/functions/sparksql/tests/DecimalUtilTest.cpp b/velox/functions/sparksql/tests/DecimalUtilTest.cpp
+index 833b88605..a967998b4 100644
+--- a/velox/functions/sparksql/tests/DecimalUtilTest.cpp
++++ b/velox/functions/sparksql/tests/DecimalUtilTest.cpp
+@@ -35,6 +35,13 @@ class DecimalUtilTest : public testing::Test {
+     ASSERT_EQ(overflow, expectedOverflow);
+     ASSERT_EQ(r, expectedResult);
+   }
++
++  void testBounded(
++      uint8_t rPrecision,
++      uint8_t rScale,
++      std::pair<uint8_t, uint8_t> expected) {
++    ASSERT_EQ(DecimalUtil::bounded(rPrecision, rScale), expected);
++  }
+ };
+ } // namespace
+ 
+@@ -60,4 +67,10 @@ TEST_F(DecimalUtilTest, minLeadingZeros) {
+       12);
+   ASSERT_EQ(result, 0);
+ }
++
++TEST_F(DecimalUtilTest, bounded) {
++  testBounded(10, 3, {10, 3});
++  testBounded(40, 3, {38, 3});
++  testBounded(44, 42, {38, 38});
++}
+ } // namespace facebook::velox::functions::sparksql::test
+-- 
+2.34.1
+

@@ -1,0 +1,26 @@
+From adc0795c2c459b58bfd5258dbf5a663b78e04478 Mon Sep 17 00:00:00 2001
+From: Chengcheng Jin <chengcheng.jin@intel.com>
+Date: Wed, 7 Aug 2024 11:14:30 +0000
+Subject: [PATCH 08/11] [oap ] Set writeInt96AsTimestamp to true, will remove
+ after int64 support
+
+---
+ velox/dwio/parquet/writer/Writer.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/velox/dwio/parquet/writer/Writer.h b/velox/dwio/parquet/writer/Writer.h
+index 26969a59d..17b8769f8 100644
+--- a/velox/dwio/parquet/writer/Writer.h
++++ b/velox/dwio/parquet/writer/Writer.h
+@@ -107,7 +107,7 @@ struct WriterOptions : public dwio::common::WriterOptions {
+   std::optional<TimestampUnit> parquetWriteTimestampUnit;
+   /// Timestamp time zone for Parquet write through Arrow bridge.
+   std::optional<std::string> parquetWriteTimestampTimeZone;
+-  bool writeInt96AsTimestamp = false;
++  bool writeInt96AsTimestamp = true;
+ 
+   // Parsing session and hive configs.
+ 
+-- 
+2.34.1
+

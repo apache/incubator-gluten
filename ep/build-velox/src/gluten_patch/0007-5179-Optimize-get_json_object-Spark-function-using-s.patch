@@ -1,0 +1,437 @@
+From e0831e7577eb47069d8cb3016cb8326e42073ce4 Mon Sep 17 00:00:00 2001
+From: PHILO-HE <feilong.he@intel.com>
+Date: Wed, 3 Jul 2024 08:57:08 +0800
+Subject: [PATCH 07/11] [5179 ] Optimize get_json_object Spark function using
+ simdjson (5179)
+
+---
+ velox/docs/functions/spark/json.rst           |  31 +++
+ velox/functions/sparksql/JsonFunctions.h      | 208 ++++++++++++++++++
+ velox/functions/sparksql/Register.cpp         |   3 +
+ velox/functions/sparksql/tests/CMakeLists.txt |   1 +
+ .../sparksql/tests/JsonFunctionsTest.cpp      | 123 +++++++++++
+ 5 files changed, 366 insertions(+)
+ create mode 100644 velox/functions/sparksql/JsonFunctions.h
+ create mode 100644 velox/functions/sparksql/tests/JsonFunctionsTest.cpp
+
+diff --git a/velox/docs/functions/spark/json.rst b/velox/docs/functions/spark/json.rst
+index 800487398..261aee4d5 100644
+--- a/velox/docs/functions/spark/json.rst
++++ b/velox/docs/functions/spark/json.rst
+@@ -2,6 +2,37 @@
+ JSON Functions
+ ==============
+ 
++JSON Format
++-----------
++
++JSON is a language-independent data format that represents data as
++human-readable text. A JSON text can represent a number, a boolean, a
++string, an array, an object, or a null, with slightly different grammar.
++For instance, a JSON text representing a string must escape all characters
++and enclose the string in double quotes, such as ``"123\n"``, whereas a JSON
++text representing a number does not need to, such as ``123``. A JSON text
++representing an array must enclose the array elements in square brackets,
++such as ``[1,2,3]``. More detailed grammar can be found in
++`this JSON introduction`_.
++
++.. _this JSON introduction: https://www.json.org
++
++JSON Functions
++
++.. spark:function:: get_json_object(jsonString, path) -> varchar
++
++    Returns a json object, represented by VARCHAR, from ``jsonString`` by searching ``path``.
++    Valid ``path`` should start with '$' and then contain "[index]", "['field']" or ".field"
++    to define a JSON path. Here are some examples: "$.a" "$.a.b", "$[0]['a'].b". Returns
++    ``jsonString`` if ``path`` is "$". Returns NULL if ``jsonString`` or ``path`` is malformed.
++    Also returns NULL if ``path`` doesn't exist. ::
++
++        SELECT get_json_object('{"a":"b"}', '$.a'); -- 'b'
++        SELECT get_json_object('{"a":{"b":"c"}}', '$.a'); -- '{"b":"c"}'
++        SELECT get_json_object('{"a":3}', '$.b'); -- NULL (unexisting field)
++        SELECT get_json_object('{"a"-3}'', '$.a'); -- NULL (malformed JSON string)
++        SELECT get_json_object('{"a":3}'', '.a'); -- NULL (malformed JSON path)
++
+ .. spark:function:: json_object_keys(jsonString) -> array(string)
+ 
+     Returns all the keys of the outermost JSON object as an array if a valid JSON object is given.  If it is any other valid JSON string, an invalid JSON string or an empty string, the function returns null. ::
+diff --git a/velox/functions/sparksql/JsonFunctions.h b/velox/functions/sparksql/JsonFunctions.h
+new file mode 100644
+index 000000000..b3ff14275
+--- /dev/null
++++ b/velox/functions/sparksql/JsonFunctions.h
+@@ -0,0 +1,208 @@
++/*
++ * Copyright (c) Facebook, Inc. and its affiliates.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include "velox/functions/prestosql/json/SIMDJsonUtil.h"
++
++namespace facebook::velox::functions::sparksql {
++
++template <typename T>
++struct GetJsonObjectFunction {
++  VELOX_DEFINE_FUNCTION_TYPES(T);
++
++  // ASCII input always produces ASCII result.
++  static constexpr bool is_default_ascii_behavior = true;
++
++  FOLLY_ALWAYS_INLINE void initialize(
++      const std::vector<TypePtr>& /*inputTypes*/,
++      const core::QueryConfig& config,
++      const arg_type<Varchar>* /*json*/,
++      const arg_type<Varchar>* jsonPath) {
++    if (jsonPath != nullptr) {
++      if (checkJsonPath(*jsonPath)) {
++        jsonPath_ = removeSingleQuotes(*jsonPath);
++      }
++    }
++  }
++
++  FOLLY_ALWAYS_INLINE bool call(
++      out_type<Varchar>& result,
++      const arg_type<Varchar>& json,
++      const arg_type<Varchar>& jsonPath) {
++    // Spark requires the first char in jsonPath is '$'.
++    if (!checkJsonPath(jsonPath)) {
++      return false;
++    }
++    // jsonPath is "$".
++    if (jsonPath.size() == 1) {
++      result.append(json);
++      return true;
++    }
++    simdjson::ondemand::document jsonDoc;
++    simdjson::padded_string paddedJson(json.data(), json.size());
++    if (simdjsonParse(paddedJson).get(jsonDoc)) {
++      return false;
++    }
++    try {
++      auto rawResult = jsonPath_.has_value()
++          ? jsonDoc.at_path(jsonPath_.value().data())
++          : jsonDoc.at_path(removeSingleQuotes(jsonPath));
++      if (rawResult.error()) {
++        return false;
++      }
++
++      if (!extractStringResult(rawResult, result)) {
++        return false;
++      }
++    } catch (simdjson::simdjson_error& e) {
++      return false;
++    }
++
++    const char* currentPos;
++    jsonDoc.current_location().get(currentPos);
++    return isValidEndingCharacter(currentPos);
++  }
++
++ private:
++  FOLLY_ALWAYS_INLINE bool checkJsonPath(StringView jsonPath) {
++    // Spark requires the first char in jsonPath is '$'.
++    if (jsonPath.size() < 1 || jsonPath.data()[0] != '$') {
++      return false;
++    }
++    return true;
++  }
++
++  // Spark's json path requires field name surrounded by single quotes if it is
++  // specified in "[]". But simdjson lib requires not. This method just removes
++  // such single quotes, e.g., converts "['a']['b']" to "[a][b]".
++  std::string removeSingleQuotes(StringView jsonPath) {
++    // Skip the initial "$".
++    std::string result(jsonPath.data() + 1, jsonPath.size() - 1);
++    size_t pairEnd = 0;
++    while (true) {
++      auto pairBegin = result.find("['", pairEnd);
++      if (pairBegin == std::string::npos) {
++        break;
++      }
++      pairEnd = result.find("]", pairBegin);
++      if (pairEnd == std::string::npos || result[pairEnd - 1] != '\'') {
++        return "-1";
++      }
++      result.erase(pairEnd - 1, 1);
++      result.erase(pairBegin + 1, 1);
++      pairEnd -= 2;
++    }
++    return result;
++  }
++
++  // Returns true if no error.
++  bool extractStringResult(
++      simdjson::simdjson_result<simdjson::ondemand::value> rawResult,
++      out_type<Varchar>& result) {
++    std::stringstream ss;
++    switch (rawResult.type()) {
++      // For number and bool types, we need to explicitly get the value
++      // for specific types instead of using `ss << rawResult`. Thus, we
++      // can make simdjson's internal parsing position moved and then we
++      // can check the validity of ending character.
++      case simdjson::ondemand::json_type::number: {
++        switch (rawResult.get_number_type()) {
++          case simdjson::ondemand::number_type::unsigned_integer: {
++            uint64_t numberResult;
++            if (!rawResult.get_uint64().get(numberResult)) {
++              ss << numberResult;
++              result.append(ss.str());
++              return true;
++            }
++            return false;
++          }
++          case simdjson::ondemand::number_type::signed_integer: {
++            int64_t numberResult;
++            if (!rawResult.get_int64().get(numberResult)) {
++              ss << numberResult;
++              result.append(ss.str());
++              return true;
++            }
++            return false;
++          }
++          case simdjson::ondemand::number_type::floating_point_number: {
++            double numberResult;
++            if (!rawResult.get_double().get(numberResult)) {
++              ss << rawResult;
++              result.append(ss.str());
++              return true;
++            }
++            return false;
++          }
++          default:
++            VELOX_UNREACHABLE();
++        }
++      }
++      case simdjson::ondemand::json_type::boolean: {
++        bool boolResult;
++        if (!rawResult.get_bool().get(boolResult)) {
++          result.append(boolResult ? "true" : "false");
++          return true;
++        }
++        return false;
++      }
++      case simdjson::ondemand::json_type::string: {
++        std::string_view stringResult;
++        if (!rawResult.get_string().get(stringResult)) {
++          result.append(stringResult);
++          return true;
++        }
++        return false;
++      }
++      case simdjson::ondemand::json_type::object: {
++        // For nested case, e.g., for "{"my": {"hello": 10}}", "$.my" will
++        // return an object type.
++        ss << rawResult;
++        result.append(ss.str());
++        return true;
++      }
++      case simdjson::ondemand::json_type::array: {
++        ss << rawResult;
++        result.append(ss.str());
++        return true;
++      }
++      default: {
++        return false;
++      }
++    }
++  }
++
++  // This is a simple validation by checking whether the obtained result is
++  // followed by valid char. Because ondemand parsing we are using ignores json
++  // format validation for characters following the current parsing position.
++  // As json doc is padded with NULL characters, it's safe to do recursively
++  // check.
++  bool isValidEndingCharacter(const char* currentPos) {
++    char endingChar = *currentPos;
++    if (endingChar == ',' || endingChar == '}' || endingChar == ']') {
++      return true;
++    }
++    // These chars can be prior to a valid ending char.
++    if (endingChar == ' ' || endingChar == '\r' || endingChar == '\n' ||
++        endingChar == '\t') {
++      return isValidEndingCharacter(currentPos++);
++    }
++    return false;
++  }
++
++  std::optional<std::string> jsonPath_;
++};
++
++} // namespace facebook::velox::functions::sparksql
+diff --git a/velox/functions/sparksql/Register.cpp b/velox/functions/sparksql/Register.cpp
+index 00c88ab4a..3feff2489 100644
+--- a/velox/functions/sparksql/Register.cpp
++++ b/velox/functions/sparksql/Register.cpp
+@@ -37,6 +37,7 @@
+ #include "velox/functions/sparksql/DateTimeFunctions.h"
+ #include "velox/functions/sparksql/Hash.h"
+ #include "velox/functions/sparksql/In.h"
++#include "velox/functions/sparksql/JsonFunctions.h"
+ #include "velox/functions/sparksql/JsonObjectKeys.h"
+ #include "velox/functions/sparksql/LeastGreatest.h"
+ #include "velox/functions/sparksql/MaskFunction.h"
+@@ -186,6 +187,8 @@ void registerFunctions(const std::string& prefix) {
+ 
+   registerFunction<JsonObjectKeysFunction, Array<Varchar>, Varchar>(
+       {prefix + "json_object_keys"});
++  registerFunction<GetJsonObjectFunction, Varchar, Varchar, Varchar>(
++      {prefix + "get_json_object"});
+ 
+   // Register string functions.
+   registerFunction<sparksql::ChrFunction, Varchar, int64_t>({prefix + "chr"});
+diff --git a/velox/functions/sparksql/tests/CMakeLists.txt b/velox/functions/sparksql/tests/CMakeLists.txt
+index d17a9e0ed..24a05cc05 100644
+--- a/velox/functions/sparksql/tests/CMakeLists.txt
++++ b/velox/functions/sparksql/tests/CMakeLists.txt
+@@ -35,6 +35,7 @@ add_executable(
+   HashTest.cpp
+   InTest.cpp
+   JsonObjectKeysTest.cpp
++  JsonFunctionsTest.cpp
+   LeastGreatestTest.cpp
+   MakeDecimalTest.cpp
+   MakeTimestampTest.cpp
+diff --git a/velox/functions/sparksql/tests/JsonFunctionsTest.cpp b/velox/functions/sparksql/tests/JsonFunctionsTest.cpp
+new file mode 100644
+index 000000000..c0c8ecc90
+--- /dev/null
++++ b/velox/functions/sparksql/tests/JsonFunctionsTest.cpp
+@@ -0,0 +1,123 @@
++/*
++ * Copyright (c) Facebook, Inc. and its affiliates.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++#include "velox/functions/sparksql/tests/SparkFunctionBaseTest.h"
++#include "velox/type/Type.h"
++
++#include <stdint.h>
++
++namespace facebook::velox::functions::sparksql::test {
++namespace {
++
++class GetJsonObjectTest : public SparkFunctionBaseTest {
++ protected:
++  std::optional<std::string> getJsonObject(
++      const std::string& json,
++      const std::string& jsonPath) {
++    return evaluateOnce<std::string>(
++        "get_json_object(c0, c1)",
++        std::optional<std::string>(json),
++        std::optional<std::string>(jsonPath));
++  }
++};
++
++TEST_F(GetJsonObjectTest, basic) {
++  EXPECT_EQ(getJsonObject(R"({"hello": "3.5"})", "$.hello"), "3.5");
++  EXPECT_EQ(getJsonObject(R"({"hello": 3.5})", "$.hello"), "3.5");
++  EXPECT_EQ(getJsonObject(R"({"hello": 292222730})", "$.hello"), "292222730");
++  EXPECT_EQ(getJsonObject(R"({"hello": -292222730})", "$.hello"), "-292222730");
++  EXPECT_EQ(getJsonObject(R"({"my": {"hello": 3.5}})", "$.my.hello"), "3.5");
++  EXPECT_EQ(getJsonObject(R"({"my": {"hello": true}})", "$.my.hello"), "true");
++  EXPECT_EQ(getJsonObject(R"({"hello": ""})", "$.hello"), "");
++  EXPECT_EQ(
++      "0.0215434648799772",
++      getJsonObject(R"({"score":0.0215434648799772})", "$.score"));
++  // Returns input json if json path is "$".
++  EXPECT_EQ(
++      getJsonObject(R"({"name": "Alice", "age": 5, "id": "001"})", "$"),
++      R"({"name": "Alice", "age": 5, "id": "001"})");
++  EXPECT_EQ(
++      getJsonObject(R"({"name": "Alice", "age": 5, "id": "001"})", "$.age"),
++      "5");
++  EXPECT_EQ(
++      getJsonObject(R"({"name": "Alice", "age": 5, "id": "001"})", "$.id"),
++      "001");
++  EXPECT_EQ(
++      getJsonObject(
++          R"([{"my": {"param": {"name": "Alice", "age": "5", "id": "001"}}}, {"other": "v1"}])",
++          "$[0]['my']['param']['age']"),
++      "5");
++  EXPECT_EQ(
++      getJsonObject(
++          R"([{"my": {"param": {"name": "Alice", "age": "5", "id": "001"}}}, {"other": "v1"}])",
++          "$[0].my.param.age"),
++      "5");
++
++  // Json object as result.
++  EXPECT_EQ(
++      getJsonObject(
++          R"({"my": {"param": {"name": "Alice", "age": "5", "id": "001"}}})",
++          "$.my.param"),
++      R"({"name": "Alice", "age": "5", "id": "001"})");
++  EXPECT_EQ(
++      getJsonObject(
++          R"({"my": {"param": {"name": "Alice", "age": "5", "id": "001"}}})",
++          "$['my']['param']"),
++      R"({"name": "Alice", "age": "5", "id": "001"})");
++
++  // Array as result.
++  EXPECT_EQ(
++      getJsonObject(
++          R"([{"my": {"param": {"name": "Alice"}}}, {"other": ["v1", "v2"]}])",
++          "$[1].other"),
++      R"(["v1", "v2"])");
++  // Array element as result.
++  EXPECT_EQ(
++      getJsonObject(
++          R"([{"my": {"param": {"name": "Alice"}}}, {"other": ["v1", "v2"]}])",
++          "$[1].other[0]"),
++      "v1");
++  EXPECT_EQ(
++      getJsonObject(
++          R"([{"my": {"param": {"name": "Alice"}}}, {"other": ["v1", "v2"]}])",
++          "$[1].other[1]"),
++      "v2");
++}
++
++TEST_F(GetJsonObjectTest, nullResult) {
++  // Field not found.
++  EXPECT_EQ(getJsonObject(R"({"hello": "3.5"})", "$.hi"), std::nullopt);
++
++  // Illegal json.
++  EXPECT_EQ(getJsonObject(R"({"hello"-3.5})", "$.hello"), std::nullopt);
++
++  // Illegal json path.
++  EXPECT_EQ(getJsonObject(R"({"hello": "3.5"})", "$hello"), std::nullopt);
++  EXPECT_EQ(getJsonObject(R"({"hello": "3.5"})", "$."), std::nullopt);
++  // The first char is not '$'.
++  EXPECT_EQ(getJsonObject(R"({"hello": "3.5"})", ".hello"), std::nullopt);
++  // Constains '$' not in the first position.
++  EXPECT_EQ(getJsonObject(R"({"hello": "3.5"})", "$.$hello"), std::nullopt);
++
++  // Invalid ending character.
++  EXPECT_EQ(
++      getJsonObject(
++          R"([{"my": {"param": {"name": "Alice"quoted""}}}, {"other": ["v1", "v2"]}])",
++          "$[0].my.param.name"),
++      std::nullopt);
++}
++
++} // namespace
++} // namespace facebook::velox::functions::sparksql::test
+-- 
+2.34.1
+
