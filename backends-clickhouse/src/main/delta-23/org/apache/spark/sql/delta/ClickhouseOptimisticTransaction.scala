@@ -24,7 +24,7 @@ import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.constraints.{Constraint, Constraints}
-import org.apache.spark.sql.delta.files.MergeTreeCommitProtocol
+import org.apache.spark.sql.delta.files.MergeTreeDelayedCommitProtocol
 import org.apache.spark.sql.delta.schema.InvariantViolationException
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
@@ -86,7 +86,13 @@ class ClickhouseOptimisticTransaction(
         normalizeData(deltaLog, data)
       val partitioningColumns = getPartitioningColumns(partitionSchema, output)
 
-      val committer = new MergeTreeCommitProtocol("delta-mergetree", outputPath.toString, None)
+      val tableV2 = ClickHouseTableV2.getTable(deltaLog)
+      val committer =
+        new MergeTreeDelayedCommitProtocol(
+          outputPath.toString,
+          None,
+          tableV2.dataBaseName,
+          tableV2.tableName)
 
       // val (optionalStatsTracker, _) =
       //   getOptionalStatsTrackerAndStatsCollection(output, outputPath, partitionSchema, data)
@@ -136,7 +142,6 @@ class ClickhouseOptimisticTransaction(
           })
 
         try {
-          val tableV2 = ClickHouseTableV2.getTable(deltaLog)
           MergeTreeFileFormatWriter.write(
             sparkSession = spark,
             plan = newQueryPlan,
