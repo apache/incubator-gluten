@@ -1061,6 +1061,8 @@ jobs:
   run-cpp-test-udf-test:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
+    env:
+      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
@@ -1076,6 +1078,11 @@ jobs:
             ./cpp/build/velox/benchmarks/
             /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos8-release-default
       - name: Setup java and maven
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
@@ -1087,6 +1094,12 @@ jobs:
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
+      - name: "Save ccache"
+        uses: actions/cache/save@v3
+        id: ccache
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos8-release-default
       - name: Run CPP unit test
         run: |
           cd ./cpp/build && ctest -V
