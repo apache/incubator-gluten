@@ -17,7 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.expression.ExpressionUtils
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
 import org.apache.gluten.extension.columnar.validator.Validator.Passed
@@ -196,22 +196,15 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
               } else getProjectedBatch(childData, c2r, r2c)
               val batchIterator = projectedBatch.map {
                 b =>
-                  val compositeBatch = if (b.numCols() != 0) {
-                    val handle = ColumnarBatches.compose(batch, b)
+                  if (b.numCols() != 0) {
+                    val compositeBatch = VeloxColumnarBatches.compose(batch, b)
                     b.close()
-                    ColumnarBatches.create(handle)
+                    compositeBatch
                   } else {
                     b.close()
                     ColumnarBatches.retain(batch)
                     batch
                   }
-                  if (debug && compositeBatch.numCols() != output.length) {
-                    throw new IllegalStateException(
-                      s"Composite batch column number is ${compositeBatch.numCols()}, " +
-                        s"output size is ${output.length}, " +
-                        s"original batch column number is ${batch.numCols()}")
-                  }
-                  compositeBatch
               }
               childData.close()
               totalTime += System.currentTimeMillis() - start
