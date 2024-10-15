@@ -20,7 +20,9 @@ import org.apache.gluten.planner.plan.GlutenPlanModel.GroupLeafExec
 import org.apache.gluten.ras.{Metadata, MetadataModel}
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.plans.physical.UnknownPartitioning
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 
 object GlutenMetadataModel extends Logging {
   def apply(): MetadataModel[SparkPlan] = {
@@ -29,14 +31,23 @@ object GlutenMetadataModel extends Logging {
 
   private object MetadataModelImpl extends MetadataModel[SparkPlan] {
     override def metadataOf(node: SparkPlan): Metadata = node match {
-      case g: GroupLeafExec => throw new UnsupportedOperationException()
+      case _: GroupLeafExec => throw new UnsupportedOperationException()
+      case s @ AQEShuffleReadExec(child: GroupLeafExec, _) =>
+        GlutenMetadata(
+          Schema(s.output),
+          OutputPartitioning(child.outputPartitioning),
+          s.logicalLink.map(LogicalLink(_)).getOrElse(LogicalLink.notFound))
       case other =>
         GlutenMetadata(
           Schema(other.output),
+          OutputPartitioning(other.outputPartitioning),
           other.logicalLink.map(LogicalLink(_)).getOrElse(LogicalLink.notFound))
     }
 
-    override def dummy(): Metadata = GlutenMetadata(Schema(List()), LogicalLink.notFound)
+    override def dummy(): Metadata = GlutenMetadata(
+      Schema(List()),
+      OutputPartitioning(UnknownPartitioning(0)),
+      LogicalLink.notFound)
     override def verify(one: Metadata, other: Metadata): Unit = (one, other) match {
       case (left: GlutenMetadata, right: GlutenMetadata) =>
         implicitly[Verifier[Schema]].verify(left.schema(), right.schema())

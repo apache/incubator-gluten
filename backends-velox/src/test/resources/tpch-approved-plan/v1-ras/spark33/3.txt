@@ -2,7 +2,7 @@
 AdaptiveSparkPlan (67)
 +- == Final Plan ==
    VeloxColumnarToRow (43)
-   +- TakeOrderedAndProjectExecTransformer (42)
+   +- ^ TopNTransformer (41)
       +- ^ ProjectExecTransformer (40)
          +- ^ RegularHashAggregateExecTransformer (39)
             +- ^ RegularHashAggregateExecTransformer (38)
@@ -230,13 +230,13 @@ Results [4]: [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum(CheckOverflow((
 Output [4]: [l_orderkey#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS revenue#X, o_orderdate#X, o_shippriority#X]
 Input [4]: [l_orderkey#X, o_orderdate#X, o_shippriority#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
 
-(41) WholeStageCodegenTransformer (X)
+(41) TopNTransformer
+Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
+Arguments: X, [revenue#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], true
+
+(42) WholeStageCodegenTransformer (X)
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
 Arguments: false
-
-(42) TakeOrderedAndProjectExecTransformer
-Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]
-Arguments: X, [revenue#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X], 0
 
 (43) VeloxColumnarToRow
 Input [4]: [l_orderkey#X, revenue#X, o_orderdate#X, o_shippriority#X]

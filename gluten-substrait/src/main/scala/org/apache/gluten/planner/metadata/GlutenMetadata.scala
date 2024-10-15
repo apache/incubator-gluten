@@ -20,16 +20,23 @@ import org.apache.gluten.ras.Metadata
 
 sealed trait GlutenMetadata extends Metadata {
   def schema(): Schema
+  def outputPartitioning(): OutputPartitioning
   def logicalLink(): LogicalLink
 }
 
 object GlutenMetadata {
-  def apply(schema: Schema, logicalLink: LogicalLink): Metadata = {
-    Impl(schema, logicalLink)
+  def apply(
+      schema: Schema,
+      outputPartitioning: OutputPartitioning,
+      logicalLink: LogicalLink): Metadata = {
+    Impl(schema, outputPartitioning, logicalLink)
   }
 
-  private case class Impl(override val schema: Schema, override val logicalLink: LogicalLink)
+  private case class Impl(
+      override val schema: Schema,
+      override val outputPartitioning: OutputPartitioning,
+      override val logicalLink: LogicalLink)
     extends GlutenMetadata {
-    override def toString: String = s"$schema,$logicalLink"
+    override def toString: String = s"$schema,$outputPartitioning,$logicalLink"
   }
 }

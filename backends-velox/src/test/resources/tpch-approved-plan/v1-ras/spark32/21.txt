@@ -2,7 +2,7 @@
 AdaptiveSparkPlan (138)
 +- == Final Plan ==
    VeloxColumnarToRow (92)
-   +- TakeOrderedAndProjectExecTransformer (91)
+   +- ^ TopNTransformer (90)
       +- ^ RegularHashAggregateExecTransformer (89)
          +- ^ InputIteratorTransformer (88)
             +- ShuffleQueryStage (86)
@@ -484,13 +484,13 @@ Functions [1]: [count(1)]
 Aggregate Attributes [1]: [count(1)#X]
 Results [2]: [s_name#X, count(1)#X AS numwait#X]
 
-(90) WholeStageCodegenTransformer (X)
+(90) TopNTransformer
+Input [2]: [s_name#X, numwait#X]
+Arguments: X, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], true
+
+(91) WholeStageCodegenTransformer (X)
 Input [2]: [s_name#X, numwait#X]
 Arguments: false
-
-(91) TakeOrderedAndProjectExecTransformer
-Input [2]: [s_name#X, numwait#X]
-Arguments: X, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X], 0
 
 (92) VeloxColumnarToRow
 Input [2]: [s_name#X, numwait#X]
