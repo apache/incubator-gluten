@@ -470,7 +470,7 @@ public:
                     restricted_seek);
         };
 
-        auto cache_creator = wrapWithCache(read_buffer_creator, read_settings, key, object_modified_time, object_size);
+        auto cache_creator = wrapWithCache(read_buffer_creator, read_settings, pathKey, object_modified_time, object_size);
 
         DB::StoredObjects stored_objects{DB::StoredObject{pathKey, "", object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
