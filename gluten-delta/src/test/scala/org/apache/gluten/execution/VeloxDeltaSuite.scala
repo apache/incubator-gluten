@@ -211,4 +211,42 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
         checkAnswer(spark.read.format("delta").load(path), df1)
     }
   }
+
+  testWithSpecifiedSparkVersion("delta: push down input_file_name expression", Some("3.2")) {
+    withTable("source_table") {
+      withTable("target_table") {
+        spark.sql(s"""
+                     |CREATE TABLE source_table(id INT, name STRING, age INT) USING delta;
+                     |""".stripMargin)
+
+        spark.sql(s"""
+                     |CREATE TABLE target_table(id INT, name STRING, age INT) USING delta;
+                     |
+                     |""".stripMargin)
+
+        spark.sql(s"""
+                     |INSERT INTO source_table VALUES(1, 'a', 10),(2, 'b', 20);
+                     |""".stripMargin)
+
+        spark.sql(s"""
+                     |INSERT INTO target_table VALUES(1, 'c', 10),(3, 'c', 30);
+                     |""".stripMargin)
+
+        spark.sql(s"""
+                     |MERGE INTO target_table AS target
+                     |USING source_table AS source
+                     |ON target.id = source.id
+                     |WHEN MATCHED THEN
+                     |UPDATE SET
+                     |  target.name = source.name,
+                     |  target.age = source.age
+                     |WHEN NOT MATCHED THEN
+                     |INSERT (id, name, age) VALUES (source.id, source.name, source.age);
+                     |""".stripMargin)
+
+        val df1 = runQueryAndCompare("SELECT * FROM target_table") { _ => }
+        checkAnswer(df1, Row(1, "a", 10) :: Row(2, "b", 20) :: Row(3, "c", 30) :: Nil)
+      }
+    }
+  }
 }

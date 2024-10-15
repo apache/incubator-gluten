@@ -41,6 +41,8 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
     return runtime.getHandle();
   }
 
+  public static native void injectWriteFilesTempPath(byte[] path);
+
   /**
    * Validate the Substrait plan in native compute engine.
    *
@@ -50,8 +52,6 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
   native NativePlanValidationInfo nativeValidateWithFailureReason(byte[] subPlan);
 
   public native String nativePlanString(byte[] substraitPlan, Boolean details);
-
-  public native void injectWriteFilesTempPath(byte[] path);
 
   /**
    * Create a native compute kernel and return a columnar result iterator.

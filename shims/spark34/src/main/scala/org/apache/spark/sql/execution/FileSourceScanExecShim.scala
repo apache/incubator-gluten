@@ -65,9 +65,7 @@ abstract class FileSourceScanExecShim(
     val metadataColumnsNames = metadataColumns.map(_.name)
     output
       .filterNot(metadataColumns.toSet)
-      .exists(v => metadataColumnsNames.contains(v.name)) ||
-    // Below name has special meaning in Velox.
-    output.exists(a => a.name == "$path" || a.name == "$bucket")
+      .exists(v => metadataColumnsNames.contains(v.name))
   }
 
   def isMetadataColumn(attr: Attribute): Boolean = metadataColumns.contains(attr)

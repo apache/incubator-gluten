@@ -148,6 +148,16 @@ JoinOptimizationInfo JoinOptimizationInfo::parse(const String & advance)
     return info;
 }
 
+AggregateOptimizationInfo AggregateOptimizationInfo::parse(const String & advance)
+{
+    AggregateOptimizationInfo info;
+    auto kkvs = convertToKVs(advance);
+    auto & kvs = kkvs["AggregateParams"];
+    tryAssign(kvs, "hasPrePartialAggregate", info.has_pre_partial_aggregate);
+    tryAssign(kvs, "hasRequiredChildDistributionExpressions", info.has_required_child_distribution_expressions);
+    return info;
+}
+
 WindowGroupOptimizationInfo WindowGroupOptimizationInfo::parse(const String & advance)
 {
     WindowGroupOptimizationInfo info;

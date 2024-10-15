@@ -53,7 +53,7 @@ class MemoryManagerTest : public ::testing::Test {
   }
 
   void SetUp() override {
-    vmm_ = std::make_unique<VeloxMemoryManager>(std::make_unique<MockAllocationListener>());
+    vmm_ = std::make_unique<VeloxMemoryManager>(gluten::kVeloxBackendKind, std::make_unique<MockAllocationListener>());
     listener_ = vmm_->getListener();
     allocator_ = vmm_->allocator();
   }
@@ -335,7 +335,7 @@ class MultiMemoryManagerTest : public ::testing::Test {
   }
 
   std::unique_ptr<VeloxMemoryManager> newVeloxMemoryManager(std::unique_ptr<AllocationListener> listener) {
-    return std::make_unique<VeloxMemoryManager>(std::move(listener));
+    return std::make_unique<VeloxMemoryManager>(gluten::kVeloxBackendKind, std::move(listener));
   }
 };
 

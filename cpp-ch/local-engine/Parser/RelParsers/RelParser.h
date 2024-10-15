@@ -88,11 +88,6 @@ protected:
         return plan_parser->toFunctionNode(action_dag, function, args);
     }
 
-    static std::map<std::string, std::string>
-    parseFormattedRelAdvancedOptimization(const substrait::extensions::AdvancedExtension & advanced_extension);
-    static std::string
-    getStringConfig(const std::map<std::string, std::string> & configs, const std::string & key, const std::string & default_value = "");
-
     SerializedPlanParser * plan_parser;
 };
 

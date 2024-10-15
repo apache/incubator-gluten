@@ -30,7 +30,9 @@ import org.apache.gluten.substrait.rel.{RelBuilder, RelNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
+import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.types._
 
 import com.google.protobuf.{Any, StringValue}
@@ -53,6 +55,19 @@ object CHHashAggregateExecTransformer {
   def newStructFieldId(): Long = curId.getAndIncrement()
 }
 
+/**
+ * About aggregate modes. In general, all the modes of aggregate expressions in the same
+ * HashAggregateExec are the same. And the aggregation will be divided into two stages, partial
+ * aggregate and final merge aggregated. But there are some exceptions.
+ *   - f(distinct x). This will be divided into four stages (without stages merged by
+ *     `MergeTwoPhasesHashBaseAggregate`). The first two stages use `x` as a grouping key and
+ *     without aggregate functions. The last two stages aggregate without `x` as a grouping key and
+ *     with aggregate function `f`.
+ *   - f1(distinct x), f(2). This will be divided into four stages. The first two stages use `x` as
+ *     a grouping key and with partial aggregate function `f2`. The last two stages aggregate
+ *     without `x` as a grouping key and with aggregate function `f1` and `f2`. The 3rd stages hase
+ *     different modes at the same time. `f2` is partial merge but `f1` is partial.
+ */
 case class CHHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
     groupingExpressions: Seq[NamedExpression],
@@ -402,13 +417,59 @@ case class CHHashAggregateExecTransformer(
     } else {
       null
     }
-    val optimizationContent = s"has_required_child_distribution_expressions=" +
-      s"${requiredChildDistributionExpressions.isDefined}\n"
+    val parametersStrBuf = new StringBuffer("AggregateParams:")
+    parametersStrBuf
+      .append(s"hasPrePartialAggregate=$hasPrePartialAggregate")
+      .append("\n")
+      .append(s"hasRequiredChildDistributionExpressions=" +
+        s"${requiredChildDistributionExpressions.isDefined}")
+      .append("\n")
     val optimization =
       BackendsApiManager.getTransformerApiInstance.packPBMessage(
-        StringValue.newBuilder.setValue(optimizationContent).build)
+        StringValue.newBuilder.setValue(parametersStrBuf.toString).build)
     ExtensionBuilder.makeAdvancedExtension(optimization, enhancement)
+  }
 
+  // Check that there is a partial aggregation ahead this HashAggregateExec.
+  // This is useful when aggregate expressions are empty.
+  private def hasPrePartialAggregate(): Boolean = {
+    def isSameAggregation(agg1: BaseAggregateExec, agg2: BaseAggregateExec): Boolean = {
+      val res = agg1.groupingExpressions.length == agg2.groupingExpressions.length &&
+        agg1.groupingExpressions.zip(agg2.groupingExpressions).forall {
+          case (e1, e2) =>
+            e1.toAttribute == e2.toAttribute
+        }
+      res
+    }
+
+    def checkChild(exec: SparkPlan): Boolean = {
+      exec match {
+        case agg: BaseAggregateExec =>
+          isSameAggregation(this, agg)
+        case shuffle: ShuffleExchangeLike =>
+          checkChild(shuffle.child)
+        case iter: InputIteratorTransformer =>
+          checkChild(iter.child)
+        case inputAdapter: ColumnarInputAdapter =>
+          checkChild(inputAdapter.child)
+        case wholeStage: WholeStageTransformer =>
+          checkChild(wholeStage.child)
+        case aqeShuffleRead: AQEShuffleReadExec =>
+          checkChild(aqeShuffleRead.child)
+        case shuffle: ShuffleQueryStageExec =>
+          checkChild(shuffle.plan)
+        case _ =>
+          false
+      }
+    }
+
+    // It's more complex when the aggregate expressions are empty. We need to iterate the plan
+    // to find whether there is a partial aggregation. `count(distinct x)` is one of these cases.
+    if (aggregateExpressions.length > 0) {
+      modes.exists(mode => mode == PartialMerge || mode == Final)
+    } else {
+      checkChild(child)
+    }
   }
 }
 

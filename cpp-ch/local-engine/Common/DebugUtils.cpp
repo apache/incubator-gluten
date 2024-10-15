@@ -16,6 +16,7 @@
  */
 #include "DebugUtils.h"
 #include <iostream>
+#include <sstream>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnString.h>
 #include <DataTypes/DataTypeDate.h>
@@ -57,6 +58,40 @@ void headBlock(const DB::Block & block, size_t count)
         std::cout << std::endl;
     }
 }
+
+String printBlock(const DB::Block & block, size_t count)
+{
+    std::ostringstream ss;
+    ss << std::string("============Block============\n");
+    ss << block.dumpStructure() << String("\n");
+    // print header
+    for (const auto & name : block.getNames())
+        ss << name << std::string("\t");
+    ss << std::string("\n");
+
+    // print rows
+    for (size_t row = 0; row < std::min(count, block.rows()); ++row)
+    {
+        for (size_t column = 0; column < block.columns(); ++column)
+        {
+            const auto type = block.getByPosition(column).type;
+            auto col = block.getByPosition(column).column;
+
+            if (column > 0)
+                ss << std::string("\t");
+            DB::WhichDataType which(type);
+            if (which.isAggregateFunction())
+                ss << std::string("Nan");
+            else if (col->isNullAt(row))
+                ss << std::string("null");
+            else
+                ss << toString((*col)[row]);
+        }
+        ss << std::string("\n");
+    }
+    return ss.str();
+}
+
 
 void headColumn(const DB::ColumnPtr & column, size_t count)
 {

@@ -95,42 +95,6 @@ RelParser::parse(std::vector<DB::QueryPlanPtr> & input_plans_, const substrait::
     return parse(std::move(input_plans_[0]), rel, rel_stack_);
 }
 
-std::map<std::string, std::string>
-RelParser::parseFormattedRelAdvancedOptimization(const substrait::extensions::AdvancedExtension & advanced_extension)
-{
-    std::map<std::string, std::string> configs;
-    if (advanced_extension.has_optimization())
-    {
-        google::protobuf::StringValue msg;
-        advanced_extension.optimization().UnpackTo(&msg);
-        Poco::StringTokenizer kvs(msg.value(), "\n");
-        for (auto & kv : kvs)
-        {
-            if (kv.empty())
-                continue;
-            auto pos = kv.find('=');
-            if (pos == std::string::npos)
-            {
-                throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Invalid optimization config:{}.", kv);
-            }
-            auto key = kv.substr(0, pos);
-            auto value = kv.substr(pos + 1);
-            configs[key] = value;
-        }
-    }
-    return configs;
-}
-
-std::string
-RelParser::getStringConfig(const std::map<std::string, std::string> & configs, const std::string & key, const std::string & default_value)
-{
-    auto it = configs.find(key);
-    if (it == configs.end())
-        return default_value;
-    return it->second;
-}
-
-
 RelParserFactory & RelParserFactory::instance()
 {
     static RelParserFactory factory;

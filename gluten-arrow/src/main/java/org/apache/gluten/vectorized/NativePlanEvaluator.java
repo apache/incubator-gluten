@@ -28,10 +28,13 @@ import org.apache.spark.TaskContext;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class NativePlanEvaluator {
+  private static final AtomicInteger id = new AtomicInteger(0);
+  private final Runtime runtime =
+      Runtimes.contextInstance(String.format("NativePlanEvaluator-%d", id.getAndIncrement()));
 
-  private final Runtime runtime = Runtimes.contextInstance("WholeStageIterator");
   private final PlanEvaluatorJniWrapper jniWrapper;
 
   private NativePlanEvaluator() {
@@ -46,8 +49,8 @@ public class NativePlanEvaluator {
     return jniWrapper.nativeValidateWithFailureReason(subPlan);
   }
 
-  public void injectWriteFilesTempPath(String path) {
-    jniWrapper.injectWriteFilesTempPath(path.getBytes(StandardCharsets.UTF_8));
+  public static void injectWriteFilesTempPath(String path) {
+    PlanEvaluatorJniWrapper.injectWriteFilesTempPath(path.getBytes(StandardCharsets.UTF_8));
   }
 
   // Used by WholeStageTransform to create the native computing pipeline and
@@ -70,16 +73,18 @@ public class NativePlanEvaluator {
             DebugUtil.saveInputToFile(),
             spillDirPath);
     final ColumnarBatchOutIterator out = createOutIterator(runtime, itrHandle);
-    runtime.addSpiller(
-        new Spiller() {
-          @Override
-          public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
-            if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-              return 0L;
-            }
-            return out.spill(size);
-          }
-        });
+    runtime
+        .memoryManager()
+        .addSpiller(
+            new Spiller() {
+              @Override
+              public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
+                if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+                  return 0L;
+                }
+                return out.spill(size);
+              }
+            });
     return out;
   }
 

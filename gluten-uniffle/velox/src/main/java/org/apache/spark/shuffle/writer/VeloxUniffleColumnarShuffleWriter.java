@@ -171,19 +171,21 @@ public class VeloxUniffleColumnarShuffleWriter<K, V> extends RssShuffleWriter<K,
                       ? GlutenConfig.GLUTEN_SORT_SHUFFLE_WRITER()
                       : GlutenConfig.GLUTEN_HASH_SHUFFLE_WRITER(),
                   reallocThreshold);
-          runtime.addSpiller(
-              new Spiller() {
-                @Override
-                public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
-                  if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-                    return 0L;
-                  }
-                  LOG.info("Gluten shuffle writer: Trying to push {} bytes of data", size);
-                  long pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false);
-                  LOG.info("Gluten shuffle writer: Pushed {} / {} bytes of data", pushed, size);
-                  return pushed;
-                }
-              });
+          runtime
+              .memoryManager()
+              .addSpiller(
+                  new Spiller() {
+                    @Override
+                    public long spill(MemoryTarget self, Spiller.Phase phase, long size) {
+                      if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+                        return 0L;
+                      }
+                      LOG.info("Gluten shuffle writer: Trying to push {} bytes of data", size);
+                      long pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false);
+                      LOG.info("Gluten shuffle writer: Pushed {} / {} bytes of data", pushed, size);
+                      return pushed;
+                    }
+                  });
         }
         long startTime = System.nanoTime();
         long bytes =

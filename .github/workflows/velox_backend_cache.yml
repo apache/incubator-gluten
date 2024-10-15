@@ -60,7 +60,7 @@ jobs:
 
   cache-native-lib-centos-8:
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
+    container: apache/gluten:centos-8
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key

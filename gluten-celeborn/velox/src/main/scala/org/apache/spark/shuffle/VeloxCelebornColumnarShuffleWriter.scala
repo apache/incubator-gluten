@@ -138,18 +138,20 @@ class VeloxCelebornColumnarShuffleWriter[K, V](
       shuffleWriterType,
       GlutenConfig.getConf.columnarShuffleReallocThreshold
     )
-    runtime.addSpiller(new Spiller() {
-      override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
-        if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-          return 0L
+    runtime
+      .memoryManager()
+      .addSpiller(new Spiller() {
+        override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
+          if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+            return 0L
+          }
+          logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
+          // fixme pass true when being called by self
+          val pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+          logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
+          pushed
         }
-        logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
-        // fixme pass true when being called by self
-        val pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
-        logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
-        pushed
-      }
-    })
+      })
   }
 
   override def closeShuffleWriter(): Unit = {

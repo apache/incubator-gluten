@@ -28,13 +28,11 @@
 
 namespace gluten {
 
-// This kind string must be same with VeloxBackend#name in java side.
-inline static const std::string kVeloxRuntimeKind{"velox"};
-
 class VeloxRuntime final : public Runtime {
  public:
   explicit VeloxRuntime(
-      std::unique_ptr<AllocationListener> listener,
+      const std::string& kind,
+      VeloxMemoryManager* vmm,
       const std::unordered_map<std::string, std::string>& confMap);
 
   void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override;
@@ -78,8 +76,6 @@ class VeloxRuntime final : public Runtime {
 
   std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) override;
 
-  void injectWriteFilesTempPath(const std::string& path) override;
-
   void dumpConf(const std::string& path) override;
 
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
@@ -98,7 +94,6 @@ class VeloxRuntime final : public Runtime {
       std::vector<facebook::velox::core::PlanNodeId>& streamIds);
 
  private:
-  VeloxMemoryManager* vmm_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
   std::shared_ptr<facebook::velox::config::ConfigBase> veloxCfg_;
   bool debugModeEnabled_{false};

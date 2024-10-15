@@ -1030,6 +1030,14 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAG & acti
 
                 function_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
             }
+	    else if (isMap(non_nullable_input_type) && isString(non_nullable_output_type))
+            {
+                // ISSUE-7389: spark cast(map to string) has different behavior with CH cast(map to string)
+                auto map_input_type = std::static_pointer_cast<const DataTypeMap>(non_nullable_input_type);
+                args.emplace_back(addColumn(actions_dag, map_input_type->getKeyType(), map_input_type->getKeyType()->getDefault()));
+                args.emplace_back(addColumn(actions_dag, map_input_type->getValueType(), map_input_type->getValueType()->getDefault()));
+                function_node = toFunctionNode(actions_dag, "sparkCastMapToString", args);
+            }
             else
             {
                 if (isString(non_nullable_input_type) && isInt(non_nullable_output_type))
@@ -1205,7 +1213,16 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     Stopwatch stopwatch;
 
     const Settings & settings = context->getSettingsRef();
-    auto builder = buildQueryPipeline(*query_plan);
+    DB::QueryPipelineBuilderPtr builder = nullptr;
+    try
+    {
+        builder = buildQueryPipeline(*query_plan);
+    }
+    catch (...)
+    {
+        LOG_ERROR(getLogger("SerializedPlanParser"), "Invalid plan:\n{}", PlanUtil::explainPlan(*query_plan));
+        throw;
+    }
 
 
     assert(s_plan.relations_size() == 1);
@@ -1216,7 +1233,10 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
     LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
     LOG_DEBUG(
-        logger, "clickhouse plan [optimization={}]:\n{}", settings[Setting::query_plan_enable_optimizations], PlanUtil::explainPlan(*query_plan));
+        logger,
+        "clickhouse plan [optimization={}]:\n{}",
+        settings[Setting::query_plan_enable_optimizations],
+        PlanUtil::explainPlan(*query_plan));
 
     auto config = ExecutorConfig::loadFromContext(context);
     return std::make_unique<LocalExecutor>(std::move(query_plan), std::move(builder), config.dump_pipeline);

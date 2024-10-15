@@ -78,7 +78,7 @@ public class ColumnarBatchOutIterator extends ClosableIterator implements Runtim
   public void close0() {
     // To make sure the outputted batches are still accessible after the iterator is closed.
     // TODO: Remove this API if we have other choice, e.g., hold the pools in native code.
-    runtime.holdMemory();
+    runtime.memoryManager().hold();
     nativeClose(iterHandle);
   }
 }

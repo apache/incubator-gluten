@@ -58,7 +58,7 @@ add_velox_test(
   VeloxToSubstraitTypeTest.cc)
 add_velox_test(spark_functions_test SOURCES SparkFunctionTest.cc
                FunctionTest.cc)
-add_velox_test(execution_ctx_test SOURCES RuntimeTest.cc)
+add_velox_test(runtime_test SOURCES RuntimeTest.cc)
 add_velox_test(velox_memory_test SOURCES MemoryManagerTest.cc)
 add_velox_test(buffer_outputstream_test SOURCES BufferOutputStreamTest.cc)
 if(BUILD_EXAMPLES)

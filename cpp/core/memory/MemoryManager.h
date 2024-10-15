@@ -19,14 +19,25 @@
 
 #include "arrow/memory_pool.h"
 #include "memory.pb.h"
+#include "memory/AllocationListener.h"
 
 namespace gluten {
 
 class MemoryManager {
  public:
-  MemoryManager() = default;
+  using Factory = std::function<MemoryManager*(const std::string& kind, std::unique_ptr<AllocationListener> listener)>;
+  using Releaser = std::function<void(MemoryManager*)>;
+  static void registerFactory(const std::string& kind, Factory factory, Releaser releaser);
+  static MemoryManager* create(const std::string& kind, std::unique_ptr<AllocationListener> listener);
+  static void release(MemoryManager*);
+
+  MemoryManager(const std::string& kind) : kind_(kind){};
 
   virtual ~MemoryManager() = default;
+
+  virtual std::string kind() {
+    return kind_;
+  }
 
   virtual arrow::MemoryPool* getArrowMemoryPool() = 0;
 
@@ -38,6 +49,9 @@ class MemoryManager {
   // destroyed. Which means, a call to this function would make sure the memory blocks directly or indirectly managed
   // by this manager, be guaranteed safe to access during the period that this manager is alive.
   virtual void hold() = 0;
+
+ private:
+  std::string kind_;
 };
 
 } // namespace gluten

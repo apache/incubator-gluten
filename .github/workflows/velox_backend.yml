@@ -332,8 +332,7 @@ jobs:
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $MVN_CMD clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
-      - name: (To be fixed) TPC-DS SF30.0 Parquet local spark3.2 Q67/Q95 low memory, memory isolation off
-        continue-on-error: true
+      - name: TPC-DS SF30.0 Parquet local spark3.2 Q67/Q95 low memory, memory isolation off
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -573,7 +572,7 @@ jobs:
   run-spark-test-spark32:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
+    container: apache/gluten:centos-8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -628,7 +627,7 @@ jobs:
   run-spark-test-spark32-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
+    container: apache/gluten:centos-8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -678,7 +677,7 @@ jobs:
   run-spark-test-spark33:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
+    container: apache/gluten:centos-8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -736,7 +735,7 @@ jobs:
   run-spark-test-spark33-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
+    container: apache/gluten:centos-8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -787,7 +786,7 @@ jobs:
   run-spark-test-spark34:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
+    container: apache/gluten:centos-8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -845,7 +844,7 @@ jobs:
   run-spark-test-spark34-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
+    container: apache/gluten:centos-8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -896,7 +895,7 @@ jobs:
   run-spark-test-spark35:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
+    container: apache/gluten:centos-8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -953,7 +952,7 @@ jobs:
   run-spark-test-spark35-scala213:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
+    container: apache/gluten:centos-8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -1010,7 +1009,7 @@ jobs:
   run-spark-test-spark35-slow:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
+    container: apache/gluten:centos-8
     env:
       CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
@@ -1060,7 +1059,7 @@ jobs:
 
   run-cpp-test-udf-test:
     runs-on: ubuntu-20.04
-    container: ghcr.io/facebookincubator/velox-dev:centos8
+    container: apache/gluten:centos-8
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key

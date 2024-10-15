@@ -159,7 +159,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
     .exclude("map with arrays")
-    .exclude("element_at function")
     .exclude("flatten function")
     .exclude("aggregate function - array for primitive type not containing null")
     .exclude("aggregate function - array for primitive type containing null")
@@ -655,7 +654,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCollectionExpressionsSuite]
     .exclude("ArraysZip") // wait for https://github.com/ClickHouse/ClickHouse/pull/69576
     .exclude("Sequence of numbers")
-    .exclude("elementAt")
     .exclude("Shuffle")
     .exclude("SPARK-33386: element_at ArrayIndexOutOfBoundsException")
     .exclude("SPARK-33460: element_at NoSuchElementException")
