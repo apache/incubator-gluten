@@ -491,7 +491,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kMaxSpillFileSize] =
         std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillFileSize, 1L * 1024 * 1024 * 1024));
     configs[velox::core::QueryConfig::kMaxSpillRunRows] =
-        std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillRunRows, 3L * 1024 * 1024));
+        std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillRunRows, 1L * 1024 * 1024));
     configs[velox::core::QueryConfig::kMaxSpillBytes] =
         std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillBytes, 107374182400LL));
     configs[velox::core::QueryConfig::kSpillWriteBufferSize] =
