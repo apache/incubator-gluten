@@ -125,7 +125,7 @@ RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then mkdir spark331 && tar -xvf spark
 
 # Build & install Spark 3.4.3
 RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then https://archive.apache.org/dist/spark/spark-3.4.3/spark-3.4.3-bin-hadoop3.tgz; fi
-RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then mkdir spark342 && tar -xvf spark-3.4.3-bin-hadoop3.tgz -C spark342 --strip-components=1; fi
+RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then mkdir spark343 && tar -xvf spark-3.4.3-bin-hadoop3.tgz -C spark343 --strip-components=1; fi
 
 # Build & install Spark 3.5.1
 RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz; fi
