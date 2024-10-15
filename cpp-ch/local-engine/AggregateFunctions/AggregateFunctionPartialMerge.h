@@ -27,7 +27,7 @@ namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 }
 }
 
@@ -50,8 +50,7 @@ private:
 
 public:
     AggregateFunctionPartialMerge(const AggregateFunctionPtr & nested_, const DataTypePtr & argument, const Array & params_)
-        : IAggregateFunctionHelper<AggregateFunctionPartialMerge>({argument}, params_, createResultType(nested_))
-        , nested_func(nested_)
+        : IAggregateFunctionHelper<AggregateFunctionPartialMerge>({argument}, params_, createResultType(nested_)), nested_func(nested_)
     {
         const DataTypeAggregateFunction * data_type = typeid_cast<const DataTypeAggregateFunction *>(argument.get());
 
@@ -115,5 +114,9 @@ public:
     bool allocatesMemoryInArena() const override { return nested_func->allocatesMemoryInArena(); }
 
     AggregateFunctionPtr getNestedFunction() const override { return nested_func; }
+    /// If the aggregate phase is `INTEMEDIATE_TO_INTERMEDIATE`, partial merge combinator is applied. In this case, the actual result column's
+    /// representation is `xxxPartialMerge`. It will make block structure check fail somewhere, since the expected column's represiontation is
+    /// `xxx` without partial merge. The represiontaions of `xxxPartialMerge` and `xxx` are the same actually.
+    const IAggregateFunction & getBaseAggregateFunctionWithSameStateRepresentation() const override { return *nested_func; }
 };
 }

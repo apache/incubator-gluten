@@ -56,6 +56,7 @@ private:
     bool has_final_stage = false;
     bool has_complete_stage = false;
 
+    std::list<const substrait::Rel *> * rel_stack;
     DB::QueryPlanPtr plan = nullptr;
     const substrait::AggregateRel * aggregate_rel = nullptr;
     std::vector<AggregateInfo> aggregates;
