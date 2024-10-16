@@ -27,7 +27,6 @@ import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.SortOrder
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.logical.Join
 import org.apache.spark.sql.catalyst.plans.physical.SinglePartition
@@ -430,12 +429,9 @@ object OffloadOthers {
       val sortOrder = plan.sortOrder
       val projectList = plan.projectList
 
-      val orderingSatisfies = SortOrder.orderingSatisfies(child.outputOrdering, sortOrder)
-      val localSorted = if (orderingSatisfies) {
-        child
-      } else {
-        SortExecTransformer(sortOrder, global = false, child)
-      }
+      // Always add localSort here since child's ordering may change after applying offload rules.
+      // The localSort will be removed by rule [[EliminateLocalSort]] if not needed.
+      val localSorted = SortExecTransformer(sortOrder, global = false, child)
 
       val singlePartition = child.outputPartitioning.numPartitions == 1
       val finalLimitPlan = if (singlePartition) {

@@ -336,7 +336,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
     compareResultsAgainstVanillaSpark(sql5, compareResult = true, _ => {})
   }
 
-  test("TakeOrderedAndProjectExecTransformer in broadcastRelation") {
+  test("TakeOrderedAndProjectExec in broadcastRelation") {
     val q =
       """
         | with dd as (
@@ -350,7 +350,13 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         | from store_sales ss, dd
         | where ss_sold_date_sk=dd.d_date_sk+1
         |""".stripMargin
-    runQueryAndCompare(q)(checkGlutenOperatorMatch[TakeOrderedAndProjectExecTransformer])
+    runQueryAndCompare(q) {
+      df =>
+        val sortLimit = df.queryExecution.executedPlan.collect {
+          case sortLimit @ LimitTransformer(_: SortExecTransformer, _, _) => sortLimit
+        }
+        assert(sortLimit.size == 2)
+    }
   }
 
 }

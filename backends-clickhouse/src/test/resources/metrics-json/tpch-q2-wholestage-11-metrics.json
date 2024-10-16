@@ -1,4 +1,56 @@
 [{
+  "id": 20,
+  "name": "kFetch",
+  "time": 0,
+  "input_wait_time": 3786,
+  "output_wait_time": 3786,
+  "steps": [{
+    "name": "Limit",
+    "description": "LIMIT",
+    "processors": [{
+      "name": "Limit",
+      "time": 0,
+      "output_rows": 44,
+      "output_bytes": 9483,
+      "input_rows": 44,
+      "input_bytes": 9483
+    }]
+  }]
+}, {
+  "id": 19,
+  "name": "kSort",
+  "time": 788,
+  "input_wait_time": 3622,
+  "output_wait_time": 3622,
+  "steps": [{
+    "name": "Sorting",
+    "description": "Sorting step",
+    "processors": [
+      {
+        "name": "PartialSortingTransform",
+        "time": 772,
+        "output_rows": 44,
+        "output_bytes": 9483,
+        "input_rows": 44,
+        "input_bytes": 9483
+      }, {
+        "name": "LimitsCheckingTransform",
+        "time": 0,
+        "output_rows": 44,
+        "output_bytes": 9483,
+        "input_rows": 44,
+        "input_bytes": 9483
+      }, {
+        "name": "MergeSortingTransform",
+        "time": 16,
+        "output_rows": 44,
+        "output_bytes": 9483,
+        "input_rows": 44,
+        "input_bytes": 9483
+      }
+    ]
+  }]
+}, {
   "id": 18,
   "name": "kProject",
   "time": 1,

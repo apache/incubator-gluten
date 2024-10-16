@@ -295,9 +295,9 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
               case g: GlutenPlan if !g.isInstanceOf[InputIteratorTransformer] => g
             }
 
-            assert(allGlutenPlans.size == 58)
+            assert(allGlutenPlans.size == 60)
 
-            val shjPlan = allGlutenPlans(8)
+            val shjPlan = allGlutenPlans(10)
             assert(shjPlan.metrics("totalTime").value == 6)
             assert(shjPlan.metrics("inputWaitTime").value == 5)
             assert(shjPlan.metrics("outputWaitTime").value == 0)
