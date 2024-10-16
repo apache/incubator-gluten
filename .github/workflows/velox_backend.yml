@@ -758,7 +758,6 @@ jobs:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -938,8 +937,6 @@ jobs:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -979,8 +976,6 @@ jobs:
   run-cpp-test-udf-test:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
