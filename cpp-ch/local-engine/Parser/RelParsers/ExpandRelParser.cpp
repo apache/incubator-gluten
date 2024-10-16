@@ -48,7 +48,7 @@ void updateType(DB::DataTypePtr & type, const DB::DataTypePtr & new_type)
 DB::QueryPlanPtr ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
 {
     const auto & expand_rel = rel.expand();
-    const auto & header = query_plan->getCurrentDataStream().header;
+    const auto & header = query_plan->getCurrentHeader();
 
     std::vector<std::vector<ExpandFieldKind>> expand_kinds;
     std::vector<std::vector<DB::Field>> expand_fields;
@@ -123,7 +123,7 @@ DB::QueryPlanPtr ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const subst
     }
 
     ExpandField expand_field(names, types, expand_kinds, expand_fields);
-    auto expand_step = std::make_unique<ExpandStep>(query_plan->getCurrentDataStream(), std::move(expand_field));
+    auto expand_step = std::make_unique<ExpandStep>(query_plan->getCurrentHeader(), std::move(expand_field));
     expand_step->setStepDescription("Expand Step");
     steps.emplace_back(expand_step.get());
     query_plan->addStep(std::move(expand_step));

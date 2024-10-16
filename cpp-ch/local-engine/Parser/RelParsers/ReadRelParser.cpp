@@ -64,7 +64,7 @@ DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substra
 
         if (getContext()->getSettingsRef()[Setting::max_threads] > 1)
         {
-            auto buffer_step = std::make_unique<BlocksBufferPoolStep>(query_plan->getCurrentDataStream());
+            auto buffer_step = std::make_unique<BlocksBufferPoolStep>(query_plan->getCurrentHeader());
             steps.emplace_back(buffer_step.get());
             query_plan->addStep(std::move(buffer_step));
         }

@@ -23,8 +23,6 @@
 #include <Common/QueryContext.h>
 #include <Common/formatReadable.h>
 
-#include <Common/DebugUtils.h>
-
 namespace DB::ErrorCodes
 {
 extern const int LOGICAL_ERROR;

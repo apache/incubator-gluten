@@ -119,9 +119,9 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
 {
     if (root_rel.root().names_size())
     {
-        ActionsDAG actions_dag{blockToNameAndTypeList(query_plan->getCurrentDataStream().header)};
+        ActionsDAG actions_dag{blockToNameAndTypeList(query_plan->getCurrentHeader())};
         NamesWithAliases aliases;
-        auto cols = query_plan->getCurrentDataStream().header.getNamesAndTypesList();
+        auto cols = query_plan->getCurrentHeader().getNamesAndTypesList();
         if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
@@ -131,7 +131,7 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
             aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
         actions_dag.project(aliases);
-        auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(actions_dag));
+        auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(actions_dag));
         expression_step->setStepDescription("Rename Output");
         query_plan->addStep(std::move(expression_step));
     }
@@ -140,7 +140,7 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
     const auto & output_schema = root_rel.root().output_schema();
     if (output_schema.types_size())
     {
-        auto original_header = query_plan->getCurrentDataStream().header;
+        auto original_header = query_plan->getCurrentHeader();
         const auto & original_cols = original_header.getColumnsWithTypeAndName();
         if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
             throw Exception(ErrorCodes::LOGICAL_ERROR, "Mismatch output schema");
@@ -175,7 +175,7 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         {
             ActionsDAG final_project = ActionsDAG::makeConvertingActions(original_cols, final_cols, ActionsDAG::MatchColumnsMode::Position);
             QueryPlanStepPtr final_project_step
-                = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(final_project));
+                = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(final_project));
             final_project_step->setStepDescription("Project for output schema");
             query_plan->addStep(std::move(final_project_step));
         }

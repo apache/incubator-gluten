@@ -14,6 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#pragma once
 #include <Core/Block.h>
 #include <Processors/IProcessor.h>
 #include <Processors/QueryPlan/IQueryPlanStep.h>
@@ -25,31 +27,32 @@ namespace local_engine
 class EarlyStopStep : public DB::ITransformingStep
 {
 public:
-    explicit EarlyStopStep(
-        const DB::DataStream & input_stream_);
+    explicit EarlyStopStep(const DB::Block & input_header_);
     ~EarlyStopStep() override = default;
 
     String getName() const override { return "EarlyStopStep"; }
 
-    static DB::Block transformHeader(const DB::Block& input);
+    static DB::Block transformHeader(const DB::Block & input);
 
     void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings &) override;
 
     void describeActions(DB::IQueryPlanStep::FormatSettings & settings) const override;
+
 private:
-    void updateOutputStream() override;
+    void updateOutputHeader() override;
 };
 
 class EarlyStopTransform : public DB::IProcessor
 {
 public:
     using Status = DB::IProcessor::Status;
-    explicit EarlyStopTransform(const DB::Block &header_);
+    explicit EarlyStopTransform(const DB::Block & header_);
     ~EarlyStopTransform() override = default;
 
     Status prepare() override;
     void work() override;
     String getName() const override { return "EarlyStopTransform"; }
+
 private:
     DB::Block header;
 };

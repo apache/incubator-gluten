@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 #include "EmptyProjectStep.h"
-#include <Common/CHUtil.h>
 #include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/CHUtil.h>
 
 namespace local_engine
 {
@@ -81,6 +81,7 @@ public:
         has_input = false;
         has_output = true;
     }
+
 private:
     DB::Chunk output_chunk;
     bool has_input = false;
@@ -100,8 +101,8 @@ static DB::ITransformingStep::Traits getTraits()
         }};
 }
 
-EmptyProjectStep::EmptyProjectStep(const DB::DataStream & input_stream_)
-    : ITransformingStep(input_stream_, BlockUtil::buildRowCountHeader(), getTraits())
+EmptyProjectStep::EmptyProjectStep(const DB::Block & input_header)
+    : ITransformingStep(input_header, BlockUtil::buildRowCountHeader(), getTraits())
 {
 }
 
@@ -127,8 +128,7 @@ void EmptyProjectStep::describePipeline(DB::IQueryPlanStep::FormatSettings & set
         DB::IQueryPlanStep::describePipeline(processors, settings);
 }
 
-void EmptyProjectStep::updateOutputStream()
+void EmptyProjectStep::updateOutputHeader()
 {
-    createOutputStream(input_streams.front(), BlockUtil::buildRowCountHeader(), getDataStreamTraits());
 }
 }

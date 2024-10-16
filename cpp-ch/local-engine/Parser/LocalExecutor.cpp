@@ -137,7 +137,7 @@ Block LocalExecutor::getHeader()
 
 LocalExecutor::LocalExecutor(QueryPlanPtr query_plan, QueryPipelineBuilderPtr pipeline_builder, bool dump_pipeline_)
     : query_pipeline_builder(std::move(pipeline_builder))
-    , header(query_plan->getCurrentDataStream().header.cloneEmpty())
+    , header(query_plan->getCurrentHeader().cloneEmpty())
     , dump_pipeline(dump_pipeline_)
     , ch_column_to_spark_row(std::make_unique<CHColumnToSparkRow>())
     , current_query_plan(std::move(query_plan))

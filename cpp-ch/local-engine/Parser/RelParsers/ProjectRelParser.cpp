@@ -63,13 +63,13 @@ ProjectRelParser::parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel
     if (project_rel.expressions_size())
     {
         std::vector<substrait::Expression> expressions;
-        auto header = query_plan->getCurrentDataStream().header;
+        auto header = query_plan->getCurrentHeader();
         for (int i = 0; i < project_rel.expressions_size(); ++i)
         {
             expressions.emplace_back(project_rel.expressions(i));
         }
         auto actions_dag = expressionsToActionsDAG(expressions, header);
-        auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(actions_dag));
+        auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(actions_dag));
         expression_step->setStepDescription("Project");
         steps.emplace_back(expression_step.get());
         query_plan->addStep(std::move(expression_step));
@@ -77,7 +77,7 @@ ProjectRelParser::parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel
     }
     else
     {
-        auto empty_project_step = std::make_unique<EmptyProjectStep>(query_plan->getCurrentDataStream());
+        auto empty_project_step = std::make_unique<EmptyProjectStep>(query_plan->getCurrentHeader());
         empty_project_step->setStepDescription("EmptyProject");
         steps.emplace_back(empty_project_step.get());
         query_plan->addStep(std::move(empty_project_step));
@@ -132,14 +132,14 @@ DB::QueryPlanPtr ProjectRelParser::parseReplicateRows(DB::QueryPlanPtr query_pla
     {
         expressions.emplace_back(generate_rel.generator().scalar_function().arguments(i).value());
     }
-    auto header = query_plan->getCurrentDataStream().header;
+    auto header = query_plan->getCurrentHeader();
     auto actions_dag = expressionsToActionsDAG(expressions, header);
-    auto before_replicate_rows = std::make_unique<DB::ExpressionStep>(query_plan->getCurrentDataStream(), std::move(actions_dag));
+    auto before_replicate_rows = std::make_unique<DB::ExpressionStep>(query_plan->getCurrentHeader(), std::move(actions_dag));
     before_replicate_rows->setStepDescription("Before ReplicateRows");
     steps.emplace_back(before_replicate_rows.get());
     query_plan->addStep(std::move(before_replicate_rows));
 
-    auto replicate_rows_step = std::make_unique<ReplicateRowsStep>(query_plan->getCurrentDataStream());
+    auto replicate_rows_step = std::make_unique<ReplicateRowsStep>(query_plan->getCurrentHeader());
     replicate_rows_step->setStepDescription("ReplicateRows");
     steps.emplace_back(replicate_rows_step.get());
     query_plan->addStep(std::move(replicate_rows_step));
@@ -161,13 +161,13 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
     }
 
     expressions.emplace_back(generate_rel.generator());
-    auto header = query_plan->getCurrentDataStream().header;
+    auto header = query_plan->getCurrentHeader();
     auto actions_dag = expressionsToActionsDAG(expressions, header);
 
     if (!findArrayJoinNode(actions_dag))
     {
         /// If generator in generate rel is not explode/posexplode, e.g. json_tuple
-        auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(actions_dag));
+        auto expression_step = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(actions_dag));
         expression_step->setStepDescription("Generate");
         steps.emplace_back(expression_step.get());
         query_plan->addStep(std::move(expression_step));
@@ -198,7 +198,7 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
         if (!ignore_actions_dag(splitted_actions_dags.before_array_join))
         {
             auto step_before_array_join
-                = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(splitted_actions_dags.before_array_join));
+                = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(splitted_actions_dags.before_array_join));
             step_before_array_join->setStepDescription("Pre-projection In Generate");
             steps.emplace_back(step_before_array_join.get());
             query_plan->addStep(std::move(step_before_array_join));
@@ -211,7 +211,7 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
         array_join.columns = std::move(array_joined_columns);
         array_join.is_left = generate_rel.outer();
         auto array_join_step = std::make_unique<ArrayJoinStep>(
-            query_plan->getCurrentDataStream(), std::move(array_join), false, getContext()->getSettingsRef()[Setting::max_block_size]);
+            query_plan->getCurrentHeader(), std::move(array_join), false, getContext()->getSettingsRef()[Setting::max_block_size]);
         array_join_step->setStepDescription("ARRAY JOIN In Generate");
         steps.emplace_back(array_join_step.get());
         query_plan->addStep(std::move(array_join_step));
@@ -221,7 +221,7 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
         if (!ignore_actions_dag(splitted_actions_dags.after_array_join))
         {
             auto step_after_array_join
-                = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(splitted_actions_dags.after_array_join));
+                = std::make_unique<ExpressionStep>(query_plan->getCurrentHeader(), std::move(splitted_actions_dags.after_array_join));
             step_after_array_join->setStepDescription("Post-projection In Generate");
             steps.emplace_back(step_after_array_join.get());
             query_plan->addStep(std::move(step_after_array_join));

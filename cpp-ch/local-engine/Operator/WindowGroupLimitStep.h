@@ -27,10 +27,10 @@ class WindowGroupLimitStep : public DB::ITransformingStep
 {
 public:
     explicit WindowGroupLimitStep(
-        const DB::DataStream & input_stream_,
+        const DB::Block & input_header_,
         const String & function_name_,
-        const std::vector<size_t> partition_columns_,
-        const std::vector<size_t> sort_columns_,
+        const std::vector<size_t> & partition_columns_,
+        const std::vector<size_t> & sort_columns_,
         size_t limit_);
     ~WindowGroupLimitStep() override = default;
 
@@ -38,7 +38,7 @@ public:
 
     void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & settings) override;
     void describePipeline(DB::IQueryPlanStep::FormatSettings & settings) const override;
-    void updateOutputStream() override;
+    void updateOutputHeader() override;
 
 private:
     // window function name, one of row_number, rank and dense_rank

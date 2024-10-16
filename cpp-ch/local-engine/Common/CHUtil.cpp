@@ -49,7 +49,6 @@
 #include <IO/SharedThreadPools.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
 #include <Parser/RelParsers/RelParser.h>
-#include <Parser/SubstraitParserUtils.h>
 #include <Planner/PlannerActionsVisitor.h>
 #include <Processors/Chunk.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
@@ -354,11 +353,10 @@ void PlanUtil::checkOuputType(const DB::QueryPlan & plan)
     // QueryPlan::checkInitialized is a private method, so we assume plan is initialized, otherwise there is a core dump here.
     // It's okay, because it's impossible for us not to initialize where we call this method.
     const auto & step = *plan.getRootNode()->step;
-    if (!step.hasOutputStream())
+
+    if (!step.hasOutputHeader())
         return;
-    if (!step.getOutputStream().header)
-        return;
-    for (const auto & elem : step.getOutputStream().header)
+    for (const auto & elem : step.getOutputHeader())
     {
         const DB::DataTypePtr & ch_type = elem.type;
         const auto ch_type_without_nullable = DB::removeNullable(ch_type);
@@ -385,10 +383,10 @@ void PlanUtil::checkOuputType(const DB::QueryPlan & plan)
 DB::IQueryPlanStep * PlanUtil::adjustQueryPlanHeader(DB::QueryPlan & plan, const DB::Block & to_header, const String & step_desc)
 {
     auto convert_actions_dag = DB::ActionsDAG::makeConvertingActions(
-        plan.getCurrentDataStream().header.getColumnsWithTypeAndName(),
+        plan.getCurrentHeader().getColumnsWithTypeAndName(),
         to_header.getColumnsWithTypeAndName(),
         ActionsDAG::MatchColumnsMode::Name);
-    auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentDataStream(), std::move(convert_actions_dag));
+    auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(convert_actions_dag));
     expression_step->setStepDescription(step_desc);
     auto * step_ptr = expression_step.get();
     plan.addStep(std::move(expression_step));
@@ -399,7 +397,7 @@ DB::IQueryPlanStep * PlanUtil::addRemoveNullableStep(DB::ContextPtr context, DB:
 {
     if (columns.empty())
         return nullptr;
-    DB::ActionsDAG remove_nullable_actions_dag{plan.getCurrentDataStream().header.getColumnsWithTypeAndName()};
+    DB::ActionsDAG remove_nullable_actions_dag{plan.getCurrentHeader().getColumnsWithTypeAndName()};
     for (const auto & col_name : columns)
     {
         if (const auto * required_node = remove_nullable_actions_dag.tryFindInOutputs(col_name))
@@ -410,7 +408,7 @@ DB::IQueryPlanStep * PlanUtil::addRemoveNullableStep(DB::ContextPtr context, DB:
             remove_nullable_actions_dag.addOrReplaceInOutputs(node);
         }
     }
-    auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentDataStream(), std::move(remove_nullable_actions_dag));
+    auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(remove_nullable_actions_dag));
     expression_step->setStepDescription("Remove nullable properties");
     auto * step_ptr = expression_step.get();
     plan.addStep(std::move(expression_step));
@@ -1045,14 +1043,14 @@ UInt64 MemoryUtil::getMemoryRSS()
 
 void JoinUtil::reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
 {
-    ActionsDAG project{plan.getCurrentDataStream().header.getNamesAndTypesList()};
+    ActionsDAG project{plan.getCurrentHeader().getNamesAndTypesList()};
     NamesWithAliases project_cols;
     for (const auto & col : cols)
     {
         project_cols.emplace_back(NameWithAlias(col, col));
     }
     project.project(project_cols);
-    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), std::move(project));
+    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentHeader(), std::move(project));
     project_step->setStepDescription("Reorder Join Output");
     plan.addStep(std::move(project_step));
 }

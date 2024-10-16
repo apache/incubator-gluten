@@ -76,32 +76,32 @@ AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
     setup(std::move(query_plan), rel);
 
     addPreProjection();
-    LOG_TRACE(logger, "header after pre-projection is: {}", plan->getCurrentDataStream().header.dumpStructure());
+    LOG_TRACE(logger, "header after pre-projection is: {}", plan->getCurrentHeader().dumpStructure());
     if (has_final_stage)
     {
         addMergingAggregatedStep();
-        LOG_TRACE(logger, "header after merging is: {}", plan->getCurrentDataStream().header.dumpStructure());
+        LOG_TRACE(logger, "header after merging is: {}", plan->getCurrentHeader().dumpStructure());
 
         addPostProjection();
-        LOG_TRACE(logger, "header after post-projection is: {}", plan->getCurrentDataStream().header.dumpStructure());
+        LOG_TRACE(logger, "header after post-projection is: {}", plan->getCurrentHeader().dumpStructure());
     }
     else if (has_complete_stage)
     {
         addCompleteModeAggregatedStep();
-        LOG_TRACE(logger, "header after complete aggregate is: {}", plan->getCurrentDataStream().header.dumpStructure());
+        LOG_TRACE(logger, "header after complete aggregate is: {}", plan->getCurrentHeader().dumpStructure());
 
         addPostProjection();
-        LOG_TRACE(logger, "header after post-projection is: {}", plan->getCurrentDataStream().header.dumpStructure());
+        LOG_TRACE(logger, "header after post-projection is: {}", plan->getCurrentHeader().dumpStructure());
     }
     else
     {
         addAggregatingStep();
-        LOG_TRACE(logger, "header after aggregating is: {}", plan->getCurrentDataStream().header.dumpStructure());
+        LOG_TRACE(logger, "header after aggregating is: {}", plan->getCurrentHeader().dumpStructure());
     }
 
     /// Add a check here to help find bugs, Don't remove it.
     /// Thre order of result of result columns must be ordered grouping keys ++ ordered aggregate expression results
-    auto aggregation_output_header = plan->getCurrentDataStream().header;
+    auto aggregation_output_header = plan->getCurrentHeader();
     for (size_t i = 0; i < grouping_keys.size(); ++i)
     {
         auto pos = aggregation_output_header.getPositionByName(grouping_keys[i]);
@@ -114,7 +114,7 @@ AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
         && (has_final_stage || has_complete_stage || rel.aggregate().measures().empty()))
     {
         LOG_TRACE(&Poco::Logger::get("AggregateRelParser"), "default aggregate result step");
-        auto default_agg_result = std::make_unique<DefaultHashAggregateResultStep>(plan->getCurrentDataStream());
+        auto default_agg_result = std::make_unique<DefaultHashAggregateResultStep>(plan->getCurrentHeader());
         default_agg_result->setStepDescription("Default aggregate result");
         steps.push_back(default_agg_result.get());
         plan->addStep(std::move(default_agg_result));
@@ -176,7 +176,7 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
             DB::ErrorCodes::LOGICAL_ERROR, "AggregateRelParser: multiple aggregation phases with complete mode are not supported");
     }
 
-    auto input_header = plan->getCurrentDataStream().header;
+    auto input_header = plan->getCurrentHeader();
     for (const auto & measure : aggregate_rel->measures())
     {
         AggregateInfo agg_info;
@@ -219,7 +219,7 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
 /// The projections are built by the function parsers.
 void AggregateRelParser::addPreProjection()
 {
-    auto input_header = plan->getCurrentDataStream().header;
+    auto input_header = plan->getCurrentHeader();
     ActionsDAG projection_action{input_header.getColumnsWithTypeAndName()};
     std::string dag_footprint = projection_action.dumpDAG();
     for (auto & agg_info : aggregates)
@@ -238,7 +238,7 @@ void AggregateRelParser::addPreProjection()
     {
         /// Avoid unnecessary evaluation
         projection_action.removeUnusedActions();
-        auto projection_step = std::make_unique<DB::ExpressionStep>(plan->getCurrentDataStream(), std::move(projection_action));
+        auto projection_step = std::make_unique<DB::ExpressionStep>(plan->getCurrentHeader(), std::move(projection_action));
         projection_step->setStepDescription("Projection before aggregate");
         steps.emplace_back(projection_step.get());
         plan->addStep(std::move(projection_step));
@@ -247,7 +247,7 @@ void AggregateRelParser::addPreProjection()
 
 void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & descriptions)
 {
-    const auto & current_plan_header = plan->getCurrentDataStream().header;
+    const auto & current_plan_header = plan->getCurrentHeader();
     auto build_result_column_name
         = [this, current_plan_header](
               const String & function_name, const Array & params, const Strings & arg_names, substrait::AggregationPhase phase)
@@ -356,7 +356,7 @@ void AggregateRelParser::addMergingAggregatedStep()
     if (config.enable_streaming_aggregating)
     {
         params.group_by_two_level_threshold = settings[Setting::group_by_two_level_threshold];
-        auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params, false);
+        auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentHeader(), params, false);
         steps.emplace_back(merging_step.get());
         plan->addStep(std::move(merging_step));
     }
@@ -365,7 +365,7 @@ void AggregateRelParser::addMergingAggregatedStep()
         /// We don't use the grouping set feature in CH, so grouping_sets_params_list should always be empty.
         DB::GroupingSetsParamsList grouping_sets_params_list;
         auto merging_step = std::make_unique<DB::MergingAggregatedStep>(
-            plan->getCurrentDataStream(),
+            plan->getCurrentHeader(),
             params,
             grouping_sets_params_list,
             true,
@@ -410,7 +410,7 @@ void AggregateRelParser::addCompleteModeAggregatedStep()
             settings[Setting::optimize_group_by_constant_keys],
             settings[Setting::min_hit_rate_to_use_consecutive_keys_optimization],
             /*StatsCollectingParams*/ {});
-        auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params, true);
+        auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentHeader(), params, true);
         steps.emplace_back(merging_step.get());
         plan->addStep(std::move(merging_step));
     }
@@ -439,7 +439,7 @@ void AggregateRelParser::addCompleteModeAggregatedStep()
             /*StatsCollectingParams*/ {});
 
         auto aggregating_step = std::make_unique<AggregatingStep>(
-            plan->getCurrentDataStream(),
+            plan->getCurrentHeader(),
             params,
             GroupingSetsParamsList(),
             true,
@@ -507,7 +507,7 @@ void AggregateRelParser::addAggregatingStep()
             /*StatsCollectingParams*/ {});
         if (!is_distinct_aggreate)
         {
-            auto aggregating_step = std::make_unique<StreamingAggregatingStep>(getContext(), plan->getCurrentDataStream(), params);
+            auto aggregating_step = std::make_unique<StreamingAggregatingStep>(getContext(), plan->getCurrentHeader(), params);
             steps.emplace_back(aggregating_step.get());
             plan->addStep(std::move(aggregating_step));
         }
@@ -526,7 +526,7 @@ void AggregateRelParser::addAggregatingStep()
             /// will make the result for count(distinct(n_name)) wrong. step3 must finish all inputs before it puts any block into step4.
             /// So we introduce GraceAggregatingStep here, it can handle mass data with high cardinality.
             auto aggregating_step
-                = std::make_unique<GraceAggregatingStep>(getContext(), plan->getCurrentDataStream(), params, has_first_stage);
+                = std::make_unique<GraceAggregatingStep>(getContext(), plan->getCurrentHeader(), params, has_first_stage);
             steps.emplace_back(aggregating_step.get());
             plan->addStep(std::move(aggregating_step));
         }
@@ -556,7 +556,7 @@ void AggregateRelParser::addAggregatingStep()
             /*StatsCollectingParams*/ {});
 
         auto aggregating_step = std::make_unique<AggregatingStep>(
-            plan->getCurrentDataStream(),
+            plan->getCurrentHeader(),
             params,
             GroupingSetsParamsList(),
             false,
@@ -579,7 +579,7 @@ void AggregateRelParser::addAggregatingStep()
 // Only be called in final stage.
 void AggregateRelParser::addPostProjection()
 {
-    auto input_header = plan->getCurrentDataStream().header;
+    auto input_header = plan->getCurrentHeader();
     ActionsDAG project_actions_dag{input_header.getColumnsWithTypeAndName()};
     auto dag_footprint = project_actions_dag.dumpDAG();
 
@@ -612,7 +612,7 @@ void AggregateRelParser::addPostProjection()
     }
     if (project_actions_dag.dumpDAG() != dag_footprint)
     {
-        QueryPlanStepPtr convert_step = std::make_unique<ExpressionStep>(plan->getCurrentDataStream(), std::move(project_actions_dag));
+        QueryPlanStepPtr convert_step = std::make_unique<ExpressionStep>(plan->getCurrentHeader(), std::move(project_actions_dag));
         convert_step->setStepDescription("Post-projection for aggregate");
         steps.emplace_back(convert_step.get());
         plan->addStep(std::move(convert_step));
