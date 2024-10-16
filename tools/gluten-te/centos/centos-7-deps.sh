@@ -38,6 +38,10 @@ yum -y install \
 # Link c++ to the one in devtoolset.
 ln -s /opt/rh/devtoolset-9/root/usr/bin/c++ /usr/bin/c++
 
+semver() {
+    echo "$@" | awk -F. '{ printf("%d%05d%05d", $1,$2,$3); }'
+}
+
 pip3 install --upgrade pip
 
 # cmake >= 3.28.3
