@@ -326,4 +326,12 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-7545: https://github.com/apache/incubator-gluten/issues/7545") {
+    compareResultsAgainstVanillaSpark(
+      "select regexp_replace('1999-6-1','([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})','$1-$2-$3')",
+      true,
+      { _ => },
+      false)
+  }
+
 }
