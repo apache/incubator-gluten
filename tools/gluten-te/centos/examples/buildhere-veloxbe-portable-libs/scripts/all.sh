@@ -16,14 +16,37 @@
 
 set -ex
 
-BASEDIR=$(readlink -f $(dirname $0))
+export NUM_THREADS=$(nproc)
+export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
 
-TIMESTAMP=$(date +%s)
+# Retry code copied from https://unix.stackexchange.com/a/137639.
+function fail {
+  echo $1 >&2
+  exit 1
+}
 
-# Set the following env to install Gluten's modified Arrow Jars on host.
-export MOUNT_MAVEN_CACHE=ON
-export EXTRA_DOCKER_OPTIONS="--name buildhere-veloxbe-portable-libs-$TIMESTAMP -v $BASEDIR/scripts:/opt/scripts"
+function retry {
+  local n=1
+  local max=5
+  local delay=15
+  while true; do
+    "$@" && break || {
+      if [[ $n -lt $max ]]; then
+        ((n++))
+        echo "Command failed. Attempt $n/$max:"
+        sleep $delay;
+      else
+        fail "The command has failed after $n attempts."
+      fi
+    }
+  done
+}
 
-BASH_ARGS="$*"
+# FIXME: Works only in CentOS 7
+source /opt/rh/devtoolset-9/enable
 
-$BASEDIR/../../cbash-mount.sh "/opt/scripts/all.sh $BASH_ARGS"
+cd /opt/gluten
+
+BASH_ARGS=$@
+
+retry dev/builddeps-veloxbe.sh $BASH_ARGS

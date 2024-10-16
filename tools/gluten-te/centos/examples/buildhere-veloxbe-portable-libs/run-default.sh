@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/bash
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,12 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# shellcheck disable=SC1091,SC2155
 
-if [ -f "/opt/rh/gcc-toolset-9/enable" ]; then
-    . /opt/rh/gcc-toolset-9/enable
-elif [ -f "/opt/rh/devtoolset-9/enable" ]; then # CentOS 7
-    . /opt/rh/devtoolset-9/enable
-fi
+set -ex
 
-export MAKEFLAGS="-j$(nproc)"
+BASEDIR=$(readlink -f $(dirname $0))
+
+$BASEDIR/run.sh --enable_vcpkg=ON --build_tests=OFF --build_benchmarks=OFF --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON --enable_abfs=ON

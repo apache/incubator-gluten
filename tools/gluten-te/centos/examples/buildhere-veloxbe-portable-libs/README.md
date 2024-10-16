@@ -1,4 +1,4 @@
-# Utility for building C++ libs in Ubuntu 20.04 (with glibc 2.31) container
+# Utility for building C++ libs in CentOS 7 (with glibc 2.17) container
 
 The folder contains script code to build `libvelox.so` and `libgluten.so` in docker container and for host use.
 
@@ -15,14 +15,14 @@ The folder contains script code to build `libvelox.so` and `libgluten.so` in doc
 export HTTP_PROXY_HOST=myproxy.example.com
 export HTTP_PROXY_PORT=55555
 
-# 2. Build the C++ libs in a ubuntu 20.04 docker container.
+# 2. Build the C++ libs in a centos 7 docker container.
 # Note, this command could take much longer time to finish if it's never run before.
 # After the first run, the essential build environment will be cached in docker builder.
 #
 # Additionally, changes to HTTP_PROXY_HOST / HTTP_PROXY_PORT could invalidate the build cache
 # either. For more details, please check docker file `dockerfile-buildenv`.
 cd gluten/
-tools/gluten-te/ubuntu/examples/buildhere-veloxbe-portable-libs/run-default.sh
+tools/gluten-te/centos/examples/buildhere-veloxbe-portable-libs/run-default.sh
 
 # 3. Check the built libs.
 ls -l cpp/build/releases/
