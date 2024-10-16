@@ -44,7 +44,7 @@ case class ArrowConvertorRule(session: SparkSession) extends Rule[LogicalPlan] {
     if (!BackendsApiManager.getSettings.enableNativeArrowReadFiles()) {
       return plan
     }
-    plan.resolveOperators {
+    plan.transform {
       case l @ LogicalRelation(
             r @ HadoopFsRelation(_, _, dataSchema, _, _: CSVFileFormat, options),
             _,
