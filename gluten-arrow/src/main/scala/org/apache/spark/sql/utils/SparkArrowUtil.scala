@@ -16,11 +16,14 @@
  */
 package org.apache.spark.sql.utils
 
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 import org.apache.arrow.vector.complex.MapVector
 import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, IntervalUnit, TimeUnit}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
+
+import java.util.Locale
 
 import scala.collection.JavaConverters._
 
@@ -92,9 +95,16 @@ object SparkArrowUtil {
           name,
           fieldType,
           fields
-            .map(field => toArrowField(field.name, field.dataType, field.nullable, timeZoneId))
+            .map(
+              field =>
+                toArrowField(
+                  normalizeColName(field.name),
+                  field.dataType,
+                  field.nullable,
+                  timeZoneId))
             .toSeq
-            .asJava)
+            .asJava
+        )
       case MapType(keyType, valueType, valueContainsNull) =>
         val mapType = new FieldType(nullable, new ArrowType.Map(false), null)
         // Note: Map Type struct can not be null, Struct Type key field can not be null
@@ -152,5 +162,10 @@ object SparkArrowUtil {
         val dt = fromArrowField(field)
         StructField(field.getName, dt, field.isNullable)
     })
+  }
+
+  private def normalizeColName(name: String): String = {
+    val caseSensitive = SQLConf.get.caseSensitiveAnalysis
+    if (caseSensitive) name else name.toLowerCase(Locale.ROOT)
   }
 }

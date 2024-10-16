@@ -33,7 +33,7 @@ namespace local_engine
 class FunctionParserEncode : public FunctionParser
 {
 public:
-    explicit FunctionParserEncode(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserEncode(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserEncode() override = default;
 
     static constexpr auto name = "encode";

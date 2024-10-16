@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <Core/Settings.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesDecimal.h>
 #include <Functions/FunctionHelpers.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
 #include <Common/BlockTypeUtils.h>
-#include <Common/CHUtil.h>
+#include <Common/GlutenSettings.h>
 
 namespace DB::ErrorCodes
 {
@@ -131,19 +131,22 @@ protected:
         //TODO: checkDecimalOverflowSpark throw exception per configuration
         const DB::ActionsDAG::NodeRawConstPtrs overflow_args
             = {func_node,
-               plan_parser->addColumn(actions_dag, std::make_shared<DataTypeInt32>(), precision),
-               plan_parser->addColumn(actions_dag, std::make_shared<DataTypeInt32>(), scale)};
+               expression_parser->addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), precision),
+               expression_parser->addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), scale)};
         return toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", overflow_args);
     }
 
-    virtual const DB::ActionsDAG::Node *
-    createFunctionNode(DB::ActionsDAG & actions_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+    virtual const DB::ActionsDAG::Node * createFunctionNode(
+        DB::ActionsDAG & actions_dag,
+        const String & func_name,
+        const DB::ActionsDAG::NodeRawConstPtrs & args,
+        DataTypePtr result_type) const
     {
         return toFunctionNode(actions_dag, func_name, args);
     }
 
 public:
-    explicit FunctionParserBinaryArithmetic(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserBinaryArithmetic(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const override
     {
         const auto ch_func_name = getCHFunctionName(substrait_func);
@@ -154,33 +157,8 @@ public:
 
         const auto left_type = DB::removeNullable(parsed_args[0]->result_type);
         const auto right_type = DB::removeNullable(parsed_args[1]->result_type);
-        const bool converted = isDecimal(left_type) && isDecimal(right_type);
-
-        if (converted)
-        {
-            const DecimalType evalType = getDecimalType(left_type, right_type);
-            parsed_args = convertBinaryArithmeticFunDecimalArgs(actions_dag, parsed_args, evalType, substrait_func);
-        }
-
-        const auto * func_node = createFunctionNode(actions_dag, ch_func_name, parsed_args);
-
-        if (converted)
-        {
-            const auto parsed_output_type = removeNullable(TypeParser::parseType(substrait_func.output_type()));
-            assert(isDecimal(parsed_output_type));
-            const Int32 parsed_precision = getDecimalPrecision(*parsed_output_type);
-            const Int32 parsed_scale = getDecimalScale(*parsed_output_type);
-            func_node = checkDecimalOverflow(actions_dag, func_node, parsed_precision, parsed_scale);
-#ifndef NDEBUG
-            const auto output_type = removeNullable(func_node->result_type);
-            const Int32 output_precision = getDecimalPrecision(*output_type);
-            const Int32 output_scale = getDecimalScale(*output_type);
-            if (output_precision != parsed_precision || output_scale != parsed_scale)
-                throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {} has wrong output type", getName());
-#endif
-
-            return func_node;
-        }
+        const auto result_type = removeNullable(TypeParser::parseType(substrait_func.output_type()));
+        const auto * func_node = createFunctionNode(actions_dag, ch_func_name, parsed_args, result_type);
         return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
     }
 };
@@ -188,7 +166,7 @@ public:
 class FunctionParserPlus final : public FunctionParserBinaryArithmetic
 {
 public:
-    explicit FunctionParserPlus(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
+    explicit FunctionParserPlus(ParserContextPtr parser_context_) : FunctionParserBinaryArithmetic(parser_context_) { }
 
     static constexpr auto name = "add";
     String getName() const override { return name; }
@@ -199,12 +177,37 @@ protected:
     {
         return DecimalType::evalAddSubstractDecimalType(p1, s1, p2, s2);
     }
+
+    const DB::ActionsDAG::Node * createFunctionNode(
+        DB::ActionsDAG & actions_dag,
+        const String & func_name,
+        const DB::ActionsDAG::NodeRawConstPtrs & new_args,
+        DataTypePtr result_type) const override
+    {
+        const auto * left_arg = new_args[0];
+        const auto * right_arg = new_args[1];
+
+        if (isDecimal(removeNullable(left_arg->result_type)) && isDecimal(removeNullable(right_arg->result_type)))
+        {
+            const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
+                result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
+
+            const auto & settings = parser_context->queryContext()->getSettingsRef();
+            auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
+                ? "sparkDecimalPlusEffect"
+                : "sparkDecimalPlus";
+
+            return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
+        }
+
+        return toFunctionNode(actions_dag, "plus", {left_arg, right_arg});
+    }
 };
 
 class FunctionParserMinus final : public FunctionParserBinaryArithmetic
 {
 public:
-    explicit FunctionParserMinus(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
+    explicit FunctionParserMinus(ParserContextPtr parser_context_) : FunctionParserBinaryArithmetic(parser_context_) { }
 
     static constexpr auto name = "subtract";
     String getName() const override { return name; }
@@ -215,12 +218,37 @@ protected:
     {
         return DecimalType::evalAddSubstractDecimalType(p1, s1, p2, s2);
     }
+
+    const DB::ActionsDAG::Node * createFunctionNode(
+        DB::ActionsDAG & actions_dag,
+        const String & func_name,
+        const DB::ActionsDAG::NodeRawConstPtrs & new_args,
+        DataTypePtr result_type) const override
+    {
+        const auto * left_arg = new_args[0];
+        const auto * right_arg = new_args[1];
+
+        if (isDecimal(removeNullable(left_arg->result_type)) && isDecimal(removeNullable(right_arg->result_type)))
+        {
+            const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
+                result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
+
+            const auto & settings = parser_context->queryContext()->getSettingsRef();
+            auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
+                ? "sparkDecimalMinusEffect"
+                : "sparkDecimalMinus";
+
+            return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
+        }
+
+        return toFunctionNode(actions_dag, "minus", {left_arg, right_arg});
+    }
 };
 
 class FunctionParserMultiply final : public FunctionParserBinaryArithmetic
 {
 public:
-    explicit FunctionParserMultiply(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
+    explicit FunctionParserMultiply(ParserContextPtr parser_context_) : FunctionParserBinaryArithmetic(parser_context_) { }
     static constexpr auto name = "multiply";
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "multiply"; }
@@ -230,12 +258,37 @@ protected:
     {
         return DecimalType::evalMultiplyDecimalType(p1, s1, p2, s2);
     }
+
+    const DB::ActionsDAG::Node * createFunctionNode(
+        DB::ActionsDAG & actions_dag,
+        const String & func_name,
+        const DB::ActionsDAG::NodeRawConstPtrs & new_args,
+        DataTypePtr result_type) const override
+    {
+        const auto * left_arg = new_args[0];
+        const auto * right_arg = new_args[1];
+
+        if (isDecimal(removeNullable(left_arg->result_type)) && isDecimal(removeNullable(right_arg->result_type)))
+        {
+            const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
+                result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
+
+            const auto & settings = parser_context->queryContext()->getSettingsRef();
+            auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
+                ? "sparkDecimalMultiplyEffect"
+                : "sparkDecimalMultiply";
+
+            return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
+        }
+
+        return toFunctionNode(actions_dag, "multiply", {left_arg, right_arg});
+    }
 };
 
 class FunctionParserModulo final : public FunctionParserBinaryArithmetic
 {
 public:
-    explicit FunctionParserModulo(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
+    explicit FunctionParserModulo(ParserContextPtr parser_context_) : FunctionParserBinaryArithmetic(parser_context_) { }
     static constexpr auto name = "modulus";
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "modulo"; }
@@ -245,12 +298,37 @@ protected:
     {
         return DecimalType::evalModuloDecimalType(p1, s1, p2, s2);
     }
+
+    const DB::ActionsDAG::Node * createFunctionNode(
+        DB::ActionsDAG & actions_dag,
+        const String & func_name,
+        const DB::ActionsDAG::NodeRawConstPtrs & new_args,
+        DataTypePtr result_type) const override
+    {
+        const auto * left_arg = new_args[0];
+        const auto * right_arg = new_args[1];
+
+        if (isDecimal(removeNullable(left_arg->result_type)) || isDecimal(removeNullable(right_arg->result_type)))
+        {
+            const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
+                result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
+
+            const auto & settings = parser_context->queryContext()->getSettingsRef();
+            auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
+                ? "NameSparkDecimalModuloEffect"
+                : "NameSparkDecimalModulo";
+            ;
+            return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
+        }
+
+        return toFunctionNode(actions_dag, "modulo", {left_arg, right_arg});
+    }
 };
 
 class FunctionParserDivide final : public FunctionParserBinaryArithmetic
 {
 public:
-    explicit FunctionParserDivide(SerializedPlanParser * plan_parser_) : FunctionParserBinaryArithmetic(plan_parser_) { }
+    explicit FunctionParserDivide(ParserContextPtr parser_context_) : FunctionParserBinaryArithmetic(parser_context_) { }
     static constexpr auto name = "divide";
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override { return "divide"; }
@@ -262,14 +340,27 @@ protected:
     }
 
     const DB::ActionsDAG::Node * createFunctionNode(
-        DB::ActionsDAG & actions_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & new_args) const override
+        DB::ActionsDAG & actions_dag,
+        const String & func_name,
+        const DB::ActionsDAG::NodeRawConstPtrs & new_args,
+        DataTypePtr result_type) const override
     {
         assert(func_name == name);
         const auto * left_arg = new_args[0];
         const auto * right_arg = new_args[1];
 
         if (isDecimal(removeNullable(left_arg->result_type)) || isDecimal(removeNullable(right_arg->result_type)))
-            return toFunctionNode(actions_dag, "sparkDivideDecimal", {left_arg, right_arg});
+        {
+            const ActionsDAG::Node * type_node = &actions_dag.addColumn(ColumnWithTypeAndName(
+                result_type->createColumnConstWithDefaultValue(1), result_type, getUniqueName(result_type->getName())));
+
+            const auto & settings = parser_context->queryContext()->getSettingsRef();
+            auto function_name = settings.has("arithmetic.decimal.mode") && settingsEqual(settings, "arithmetic.decimal.mode", "EFFECT")
+                ? "sparkDecimalDivideEffect"
+                : "sparkDecimalDivide";
+            ;
+            return toFunctionNode(actions_dag, function_name, {left_arg, right_arg, type_node});
+        }
 
         return toFunctionNode(actions_dag, "sparkDivide", {left_arg, right_arg});
     }

@@ -33,14 +33,14 @@ trait BackendSettingsApi {
   def validateScan(
       format: ReadFileFormat,
       fields: Array[StructField],
-      partTable: Boolean,
-      rootPaths: Seq[String],
-      paths: Seq[String]): ValidationResult = ValidationResult.succeeded
+      rootPaths: Seq[String]): ValidationResult = ValidationResult.succeeded
+
   def supportWriteFilesExec(
       format: FileFormat,
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String]): ValidationResult = ValidationResult.succeeded
+
   def supportNativeWrite(fields: Array[StructField]): Boolean = true
   def supportNativeMetadataColumns(): Boolean = false
   def supportNativeRowIndexColumn(): Boolean = false
@@ -67,6 +67,8 @@ trait BackendSettingsApi {
     case _ => false
   }
   def supportStructType(): Boolean = false
+
+  def structFieldToLowerCase(): Boolean = true
 
   // Whether to fallback aggregate at the same time if its empty-output child is fallen back.
   def fallbackAggregateWithEmptyOutputChild(): Boolean = false
@@ -109,8 +111,6 @@ trait BackendSettingsApi {
   def requiredChildOrderingForWindowGroupLimit(): Boolean = true
 
   def staticPartitionWriteOnly(): Boolean = false
-
-  def requiredInputFilePaths(): Boolean = false
 
   // TODO: Move this to test settings as used in UT only.
   def requireBloomFilterAggMightContainJointFallback(): Boolean = true

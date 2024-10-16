@@ -26,9 +26,9 @@
 #include "shuffle/Utils.h"
 #include "utils/Common.h"
 #include "utils/Compression.h"
+#include "utils/Macros.h"
 #include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
-#include "utils/macros.h"
 #include "velox/row/CompactRow.h"
 #include "velox/serializers/PrestoSerializer.h"
 #include "velox/vector/ComplexVector.h"
@@ -311,7 +311,7 @@ VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
 
 std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
   if (hasComplexType_) {
-    uint32_t numRows;
+    uint32_t numRows = 0;
     GLUTEN_ASSIGN_OR_THROW(
         auto arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, decompressTime_));
     if (arrowBuffers.empty()) {
@@ -399,7 +399,7 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
   }
 
   while (cachedRows_ < batchSize_) {
-    uint32_t numRows;
+    uint32_t numRows = 0;
     GLUTEN_ASSIGN_OR_THROW(
         auto arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, arrowPool_, numRows, decompressTime_));
 

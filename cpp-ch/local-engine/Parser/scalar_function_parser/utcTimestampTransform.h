@@ -14,11 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <Parser/FunctionParser.h>
 #include <Common/CHUtil.h>
+
 
 namespace DB
 {
@@ -36,7 +38,7 @@ namespace local_engine
 class FunctionParserUtcTimestampTransform : public FunctionParser
 {
 public:
-    explicit FunctionParserUtcTimestampTransform(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserUtcTimestampTransform(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserUtcTimestampTransform() override = default;
 
     const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const override

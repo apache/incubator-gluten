@@ -110,9 +110,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxOrcScanEnabled: Boolean =
     conf.getConf(VELOX_ORC_SCAN_ENABLED)
 
-  def forceComplexTypeScanFallbackEnabled: Boolean =
-    conf.getConf(VELOX_FORCE_COMPLEX_TYPE_SCAN_FALLBACK)
-
   def forceOrcCharTypeScanFallbackEnabled: Boolean =
     conf.getConf(VELOX_FORCE_ORC_CHAR_TYPE_SCAN_FALLBACK)
 
@@ -536,7 +533,7 @@ object GlutenConfig {
   val GLUTEN_IAA_BACKEND_NAME = "iaa"
   val GLUTEN_IAA_SUPPORTED_CODEC: Set[String] = Set("gzip")
 
-  val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
+  private val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // Private Spark configs.
   val SPARK_ONHEAP_SIZE_KEY = "spark.executor.memory"
@@ -668,6 +665,7 @@ object GlutenConfig {
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
+      SQLConf.LEGACY_TIME_PARSER_POLICY.key,
       "spark.io.compression.codec",
       "spark.sql.decimalOperations.allowPrecisionLoss",
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
@@ -698,6 +696,7 @@ object GlutenConfig {
     val keyWithDefault = ImmutableList.of(
       (SQLConf.CASE_SENSITIVE.key, SQLConf.CASE_SENSITIVE.defaultValueString),
       (SQLConf.IGNORE_MISSING_FILES.key, SQLConf.IGNORE_MISSING_FILES.defaultValueString),
+      (SQLConf.LEGACY_TIME_PARSER_POLICY.key, SQLConf.LEGACY_TIME_PARSER_POLICY.defaultValueString),
       (
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.key,
         COLUMNAR_MEMORY_BACKTRACE_ALLOCATION.defaultValueString),
@@ -793,9 +792,21 @@ object GlutenConfig {
       .filter(_._1.startsWith(HADOOP_PREFIX + S3A_PREFIX))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
+    // handle ABFS config
     conf
       .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // handle GCS config
+    if (conf.contains(SPARK_GCS_AUTH_TYPE)) {
+      nativeConfMap.put(SPARK_GCS_AUTH_TYPE, conf(SPARK_GCS_AUTH_TYPE))
+    }
+
+    if (conf.contains(SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE)) {
+      nativeConfMap.put(
+        SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
+        conf(SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE))
+    }
 
     // return
     nativeConfMap
@@ -1500,7 +1511,7 @@ object GlutenConfig {
       .internal()
       .doc("The maximum row size of a single spill run")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("12M")
+      .createWithDefaultString("3M")
 
   val COLUMNAR_VELOX_MAX_SPILL_BYTES =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillBytes")
@@ -1824,8 +1835,8 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct")
       .internal()
       .doc(
-        "If partial aggregation input rows number greater than this value, "
-          + " partial aggregation may be early abandoned. Note: this option only works when " +
+        "If partial aggregation aggregationPct greater than this value, "
+          + "partial aggregation may be early abandoned. Note: this option only works when " +
           "flushable partial aggregation is enabled. Ignored when " +
           "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false.")
       .intConf
@@ -1835,8 +1846,8 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows")
       .internal()
       .doc(
-        "If partial aggregation aggregationPct greater than this value, "
-          + "partial aggregation may be early abandoned. Note: this option only works when " +
+        "If partial aggregation input rows number greater than this value, "
+          + " partial aggregation may be early abandoned. Note: this option only works when " +
           "flushable partial aggregation is enabled. Ignored when " +
           "spark.gluten.sql.columnar.backend.velox.flushablePartialAggregation=false.")
       .intConf
@@ -2029,13 +2040,6 @@ object GlutenConfig {
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.orc.scan.enabled")
       .internal()
       .doc("Enable velox orc scan. If disabled, vanilla spark orc scan will be used.")
-      .booleanConf
-      .createWithDefault(true)
-
-  val VELOX_FORCE_COMPLEX_TYPE_SCAN_FALLBACK =
-    buildConf("spark.gluten.sql.complexType.scan.fallback.enabled")
-      .internal()
-      .doc("Force fallback for complex type scan, including struct, map, array.")
       .booleanConf
       .createWithDefault(true)
 

@@ -801,4 +801,31 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                 |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
+
+  test("GLUTEN-7426 get_json_object") {
+    val sql = """
+                |select
+                |get_json_object(a, '$.a b'),
+                |get_json_object(a, '$.a b '),
+                |get_json_object(a, '$.a b c'),
+                |get_json_object(a, '$.a 1 c'),
+                |get_json_object(a, '$.1 '),
+                |get_json_object(a, '$.1 2'),
+                |get_json_object(a, '$.1 2 c')
+                |from values('{"a b":1}'), ('{"a b ":1}'), ('{"a b c":1}')
+                |, ('{"a 1 c":1}'), ('{"1 ":1}'), ('{"1 2":1}'), ('{"1 2 c":1}')
+                |as data(a)
+    """.stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("GLUTEN-7432 get_json_object returns array") {
+    val sql = """
+                |select
+                |get_json_object(a, '$.a[*].x')
+                |from values('{"a":[{"x":1}, {"x":5}]}'), ('{"a":[{"x":1}]}')
+                |as data(a)
+    """.stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
 }

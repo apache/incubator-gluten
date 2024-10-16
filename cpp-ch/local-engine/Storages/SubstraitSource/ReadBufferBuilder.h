@@ -18,8 +18,11 @@
 
 #include <functional>
 #include <memory>
+#include <Disks/ObjectStorages/StoredObject.h>
 #include <IO/ReadBuffer.h>
+#include <IO/ReadBufferFromFileBase.h>
 #include <substrait/plan.pb.h>
+#include <Common/FileCacheConcurrentMap.h>
 
 
 namespace local_engine
@@ -40,11 +43,24 @@ public:
     std::unique_ptr<DB::ReadBuffer> buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position = false);
 
 protected:
-    DB::ReadSettings getReadSettings(DB::ContextPtr context) const;
+    using ReadBufferCreator = std::function<std::unique_ptr<DB::ReadBufferFromFileBase>(bool restricted_seek, const DB::StoredObject & object)>;
+
+    ReadBufferCreator wrapWithCache(
+        ReadBufferCreator read_buffer_creator,
+        DB::ReadSettings & read_settings,
+        const String & key,
+        const size_t & last_modified_time,
+        const size_t & file_size);
+
+    DB::ReadSettings getReadSettings() const;
     DB::ContextPtr context;
+
+private:
+    void updateCaches(const String & key, const size_t & last_modified_time, const size_t & file_size) const;
 
 public:
     DB::FileCachePtr file_cache = nullptr;
+    static FileCacheConcurrentMap files_cache_time_map;
 };
 
 using ReadBufferBuilderPtr = std::shared_ptr<ReadBufferBuilder>;

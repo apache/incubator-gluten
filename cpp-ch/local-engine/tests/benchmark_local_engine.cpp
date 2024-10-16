@@ -25,7 +25,9 @@
 #include <Interpreters/TableJoin.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/ParserContext.h>
 #include <Parser/SparkRowToCHColumn.h>
+#include <Parser/SubstraitParserUtils.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
@@ -147,7 +149,8 @@ DB::ContextMutablePtr global_context;
                       "/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
                       std::move(schema))
                   .build();
-        local_engine::SerializedPlanParser parser(global_context);
+        auto parser_context = ParserContext::build(global_context, *plan);
+        local_engine::SerializedPlanParser parser(parser_context);
         auto local_executor = parser.createExecutor(*plan);
         state.ResumeTiming();
 
@@ -202,7 +205,8 @@ DB::ContextMutablePtr global_context;
                       "/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
                       std::move(schema))
                   .build();
-        local_engine::SerializedPlanParser parser(QueryContext::globalContext());
+        auto parser_context = ParserContext::build(QueryContext::globalContext(), *plan);
+        local_engine::SerializedPlanParser parser(parser_context);
         auto local_executor = parser.createExecutor(*plan);
         state.ResumeTiming();
 
@@ -217,7 +221,6 @@ DB::ContextMutablePtr global_context;
 [[maybe_unused]] static void BM_MERGE_TREE_TPCH_Q6_FROM_TEXT(benchmark::State & state)
 {
     QueryContext::globalContext() = global_context;
-    local_engine::SerializedPlanParser parser(QueryContext::globalContext());
     for (auto _ : state)
     {
         state.PauseTiming();
@@ -228,7 +231,10 @@ DB::ContextMutablePtr global_context;
         std::ifstream t(path);
         std::string str((std::istreambuf_iterator<char>(t)), std::istreambuf_iterator<char>());
         std::cout << "the plan from: " << path << std::endl;
-        auto local_executor = parser.createExecutor(str);
+        auto plan = BinaryToMessage<substrait::Plan>(str);
+        auto parser_context = ParserContext::build(global_context, plan);
+        local_engine::SerializedPlanParser parser(parser_context);
+        auto local_executor = parser.createExecutor(plan);
         state.ResumeTiming();
         while (local_executor->hasNext()) [[maybe_unused]]
             auto * x = local_executor->nextColumnar();
@@ -266,7 +272,8 @@ DB::ContextMutablePtr global_context;
                       "/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
                       std::move(schema))
                   .build();
-        local_engine::SerializedPlanParser parser(QueryContext::globalContext());
+        auto parser_context = ParserContext::build(QueryContext::globalContext(), *plan);
+        local_engine::SerializedPlanParser parser(parser_context);
 
         auto local_executor = parser.createExecutor(*plan);
         state.ResumeTiming();
@@ -302,7 +309,8 @@ DB::ContextMutablePtr global_context;
                       std::move(schema))
                   .build();
 
-        local_engine::SerializedPlanParser parser(QueryContext::globalContext());
+        auto parser_context = ParserContext::build(QueryContext::globalContext(), *plan);
+        local_engine::SerializedPlanParser parser(parser_context);
         auto local_executor = parser.createExecutor(*plan);
         local_engine::SparkRowToCHColumn converter;
         while (local_executor->hasNext())
@@ -347,7 +355,8 @@ DB::ContextMutablePtr global_context;
                       "/home/kyligence/Documents/test-dataset/intel-gazelle-test-" + std::to_string(state.range(0)) + ".snappy.parquet",
                       std::move(schema))
                   .build();
-        local_engine::SerializedPlanParser parser(QueryContext::globalContext());
+        auto parser_context = ParserContext::build(QueryContext::globalContext(), *plan);
+        local_engine::SerializedPlanParser parser(parser_context);
         auto local_executor = parser.createExecutor(*plan);
         local_engine::SparkRowToCHColumn converter;
         while (local_executor->hasNext())
@@ -885,8 +894,8 @@ BENCHMARK(BM_ParquetRead)->Unit(benchmark::kMillisecond)->Iterations(10);
 int main(int argc, char ** argv)
 {
     std::string empty;
-    BackendInitializerUtil::init(empty);
-    SCOPE_EXIT({ BackendFinalizerUtil::finalizeGlobally(); });
+    // BackendInitializerUtil::init(empty);
+    //SCOPE_EXIT({ BackendFinalizerUtil::finalizeGlobally(); });
 
     ::benchmark::Initialize(&argc, argv);
     if (::benchmark::ReportUnrecognizedArguments(argc, argv))

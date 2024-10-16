@@ -26,7 +26,8 @@ import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2.deltaLog2Table
 import org.apache.spark.sql.delta.sources.DeltaDataSource
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.utils.MergeTreePartsPartitionsUtil
+import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreePartsPartitionsUtil
+import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.collection.BitSet
@@ -95,28 +96,17 @@ class ClickHouseTableV2(
 
   def getFileFormat(meta: Metadata): DeltaMergeTreeFileFormat = {
     new DeltaMergeTreeFileFormat(
-      meta,
-      dataBaseName,
-      tableName,
-      ClickhouseSnapshot.genSnapshotId(snapshot),
-      orderByKeyOption,
-      lowCardKeyOption,
-      minmaxIndexKeyOption,
-      bfIndexKeyOption,
-      setIndexKeyOption,
-      primaryKeyOption,
-      clickhouseTableConfigs,
-      partitionColumns
-    )
+      StorageMeta
+        .withStorageID(meta, dataBaseName, tableName, ClickhouseSnapshot.genSnapshotId(snapshot)))
   }
 
-  override def deltaProperties(): ju.Map[String, String] = properties()
+  override def deltaProperties: Map[String, String] = properties().asScala.toMap
 
-  override def deltaCatalog(): Option[CatalogTable] = catalogTable
+  override def deltaCatalog: Option[CatalogTable] = catalogTable
 
-  override def deltaPath(): Path = path
+  override def deltaPath: Path = path
 
-  override def deltaSnapshot(): Snapshot = snapshot
+  override def deltaSnapshot: Snapshot = snapshot
 
   def cacheThis(): Unit = {
     deltaLog2Table.put(deltaLog, this)

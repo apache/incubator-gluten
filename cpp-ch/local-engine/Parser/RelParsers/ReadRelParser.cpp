@@ -32,11 +32,17 @@
 #include <Common/BlockTypeUtils.h>
 
 
-namespace DB::ErrorCodes
+namespace DB
+{
+namespace Setting
+{
+extern const SettingsMaxThreads max_threads;
+}
+namespace ErrorCodes
 {
 extern const int LOGICAL_ERROR;
 }
-
+}
 namespace local_engine
 {
 DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
@@ -56,7 +62,7 @@ DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substra
         steps.emplace_back(read_step.get());
         query_plan->addStep(std::move(read_step));
 
-        if (getContext()->getSettingsRef().max_threads > 1)
+        if (getContext()->getSettingsRef()[Setting::max_threads] > 1)
         {
             auto buffer_step = std::make_unique<BlocksBufferPoolStep>(query_plan->getCurrentDataStream());
             steps.emplace_back(buffer_step.get());
@@ -73,7 +79,7 @@ DB::QueryPlanPtr ReadRelParser::parse(DB::QueryPlanPtr query_plan, const substra
             extension_table = BinaryToMessage<substrait::ReadRel::ExtensionTable>(split_info);
             logDebugMessage(extension_table, "extension_table");
         }
-        MergeTreeRelParser mergeTreeParser(getPlanParser(), getContext());
+        MergeTreeRelParser mergeTreeParser(parser_context, getContext());
         query_plan = mergeTreeParser.parseReadRel(std::make_unique<DB::QueryPlan>(), read, extension_table);
         steps = mergeTreeParser.getSteps();
     }
@@ -124,7 +130,7 @@ QueryPlanStepPtr ReadRelParser::parseReadRelWithLocalFile(const substrait::ReadR
         local_files = rel.local_files();
     else
     {
-        local_files = BinaryToMessage<substrait::ReadRel::LocalFiles>(getPlanParser()->nextSplitInfo());
+        local_files = BinaryToMessage<substrait::ReadRel::LocalFiles>(split_info);
         logDebugMessage(local_files, "local_files");
     }
     auto source = std::make_shared<SubstraitFileSource>(getContext(), header, local_files);
@@ -144,7 +150,7 @@ QueryPlanStepPtr ReadRelParser::parseReadRelWithLocalFile(const substrait::ReadR
 
 void registerReadRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_parser_) { return std::make_unique<ReadRelParser>(plan_parser_); };
+    auto builder = [](ParserContextPtr parser_context) { return std::make_unique<ReadRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kRead, builder);
 }
 }

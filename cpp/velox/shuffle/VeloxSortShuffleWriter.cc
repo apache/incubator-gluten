@@ -131,16 +131,19 @@ void VeloxSortShuffleWriter::initRowType(const facebook::velox::RowVectorPtr& rv
 arrow::Result<facebook::velox::RowVectorPtr> VeloxSortShuffleWriter::getPeeledRowVector(
     const std::shared_ptr<ColumnarBatch>& cb) {
   if (options_.partitioning == Partitioning::kRange) {
-    auto compositeBatch = std::dynamic_pointer_cast<CompositeColumnarBatch>(cb);
-    VELOX_CHECK_NOT_NULL(compositeBatch);
-    auto batches = compositeBatch->getBatches();
-    VELOX_CHECK_EQ(batches.size(), 2);
-
-    auto pidBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[0]);
+    auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
+    VELOX_CHECK_NOT_NULL(veloxColumnBatch);
+    const int32_t numColumns = veloxColumnBatch->numColumns();
+    VELOX_CHECK(numColumns >= 2);
+    auto pidBatch = veloxColumnBatch->select(veloxPool_.get(), {0});
     auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
     RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), row2Partition_));
 
-    auto rvBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[1]);
+    std::vector<int32_t> range;
+    for (int32_t i = 1; i < numColumns; i++) {
+      range.push_back(i);
+    }
+    auto rvBatch = veloxColumnBatch->select(veloxPool_.get(), range);
     return rvBatch->getFlattenedRowVector();
   } else {
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);

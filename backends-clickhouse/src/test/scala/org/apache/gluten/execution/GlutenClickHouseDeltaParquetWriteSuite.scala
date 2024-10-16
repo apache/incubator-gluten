@@ -85,6 +85,7 @@ class GlutenClickHouseDeltaParquetWriteSuite
                  | l_comment       string
                  |)
                  |USING delta
+                 |TBLPROPERTIES (write.format.default = 'parquet')
                  |LOCATION '$basePath/lineitem_delta_parquet'
                  |""".stripMargin)
 

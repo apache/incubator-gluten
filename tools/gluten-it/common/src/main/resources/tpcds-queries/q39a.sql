@@ -14,8 +14,17 @@ with inv as
         and d_year =1998
       group by w_warehouse_name,w_warehouse_sk,i_item_sk,d_moy) foo
  where case mean when 0 then 0 else stdev/mean end > 1)
-select inv1.w_warehouse_sk,inv1.i_item_sk,inv1.d_moy,inv1.mean, inv1.cov
-        ,inv2.w_warehouse_sk,inv2.i_item_sk,inv2.d_moy,inv2.mean, inv2.cov
+select 
+       inv1.w_warehouse_sk as inv1_w_warehouse_sk,
+       inv1.i_item_sk as inv1_i_item_sk,
+       inv1.d_moy as inv1_d_moy ,
+       inv1.mean as inv1_mean,
+       inv1.cov as inv1_cov,
+       inv2.w_warehouse_sk as inv2_w_warehouse_sk,
+       inv2.i_item_sk as inv2_i_item_sk,
+       inv2.d_moy as inv2_d_moy,
+       inv2.mean as inv2_mean,
+       inv2.cov as inv2_cov 
 from inv inv1,inv inv2
 where inv1.i_item_sk = inv2.i_item_sk
   and inv1.w_warehouse_sk =  inv2.w_warehouse_sk

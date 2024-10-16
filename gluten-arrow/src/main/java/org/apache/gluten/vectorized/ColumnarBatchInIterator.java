@@ -18,7 +18,6 @@ package org.apache.gluten.vectorized;
 
 import org.apache.gluten.columnarbatch.ColumnarBatchJniWrapper;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
 import org.apache.gluten.runtime.Runtimes;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -45,8 +44,7 @@ public class ColumnarBatchInIterator {
       return ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatchInIterator"))
           .getForEmptySchema(next.numRows());
     }
-    final ColumnarBatch offloaded =
-        ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), next);
-    return ColumnarBatches.getNativeHandle(offloaded);
+    ColumnarBatches.checkOffloaded(next);
+    return ColumnarBatches.getNativeHandle(next);
   }
 }

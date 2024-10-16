@@ -15,19 +15,17 @@
  * limitations under the License.
  */
 #include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypeNumberBase.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
-#include <Common/Exception.h>
 
 namespace local_engine
 {
 class SparkFunctionRepeatParser : public FunctionParser
 {
 public:
-    SparkFunctionRepeatParser(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    SparkFunctionRepeatParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~SparkFunctionRepeatParser() override = default;
 
     static constexpr auto name = "repeat";

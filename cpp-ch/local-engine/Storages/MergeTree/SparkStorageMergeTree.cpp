@@ -24,6 +24,13 @@
 
 namespace DB
 {
+namespace MergeTreeSetting
+{
+extern const MergeTreeSettingsFloat ratio_of_defaults_for_sparse_serialization;
+extern const MergeTreeSettingsBool fsync_part_directory;
+extern const MergeTreeSettingsBool fsync_after_insert;
+}
+
 namespace ErrorCodes
 {
 extern const int DUPLICATE_DATA_PART;
@@ -153,11 +160,15 @@ void SparkStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string>
         return;
     std::vector<String> meta_paths;
     std::ranges::for_each(parts, [&](const String & name) { meta_paths.emplace_back(fs::path(relative_data_path) / name / "meta.bin"); });
+    auto read_settings = ReadSettings{};
+    // read_settings.enable_filesystem_cache = false;
+    read_settings.remote_fs_method = RemoteFSReadMethod::read;
     for (const auto & meta_path : meta_paths)
     {
         if (!disk->exists(meta_path))
             continue;
-        auto in = disk->readFile(meta_path);
+
+        auto in = disk->readFile(meta_path, read_settings);
         String ignore_data;
         readStringUntilEOF(ignore_data, *in);
     }
@@ -434,9 +445,9 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     auto data_part_storage = new_data_part->getDataPartStoragePtr();
 
 
-    const auto & data_settings = data.getSettings();
+    const MergeTreeSettings & data_settings = *data.getSettings();
 
-    SerializationInfo::Settings settings{data_settings->ratio_of_defaults_for_sparse_serialization, true};
+    SerializationInfo::Settings settings{data_settings[MergeTreeSetting::ratio_of_defaults_for_sparse_serialization], true};
     SerializationInfoByName infos(columns, settings);
     infos.add(block);
 
@@ -460,7 +471,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
 
         data_part_storage->createDirectories();
 
-        if (data.getSettings()->fsync_part_directory)
+        if ((*data.getSettings())[MergeTreeSetting::fsync_part_directory])
         {
             const auto disk = data_part_volume->getDisk();
             sync_guard = disk->getDirectorySyncGuard(full_path);
@@ -484,7 +495,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
         context->getWriteSettings());
 
     out->writeWithPermutation(block, perm_ptr);
-    auto finalizer = out->finalizePartAsync(new_data_part, data_settings->fsync_after_insert, nullptr, nullptr);
+    auto finalizer = out->finalizePartAsync(new_data_part, data_settings[MergeTreeSetting::fsync_after_insert], nullptr, nullptr);
 
     temp_part.part = new_data_part;
     temp_part.streams.emplace_back(MergeTreeDataWriter::TemporaryPart::Stream{.stream = std::move(out), .finalizer = std::move(finalizer)});

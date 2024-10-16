@@ -69,7 +69,7 @@ class GlutenClickHouseDecimalSuite
     (DecimalType.apply(18, 8), Seq()),
     // 3/10: all value is null and compare with limit
     // 1 Spark 3.5
-    (DecimalType.apply(38, 19), if (isSparkVersionLE("3.3")) Seq(3, 10) else Seq(1, 3, 10))
+    (DecimalType.apply(38, 19), if (isSparkVersionLE("3.3")) Seq(3, 10) else Seq(3, 10))
   )
 
   private def createDecimalTables(dataType: DecimalType): Unit = {
@@ -309,7 +309,10 @@ class GlutenClickHouseDecimalSuite
       "insert into decimals_test values(1, 100.0, 999.0)" +
         ", (2, 12345.123, 12345.123)" +
         ", (3, 0.1234567891011, 1234.1)" +
-        ", (4, 123456789123456789.0, 1.123456789123456789)"
+        ", (4, 123456789123456789.0, 1.123456789123456789)" +
+        ", (5, 0, 0)" +
+        ", (6, 0, 1.23)" +
+        ", (7, 1.23, 0)"
     spark.sql(createSql)
 
     try {
@@ -332,6 +335,24 @@ class GlutenClickHouseDecimalSuite
       spark.sql("drop table if exists decimals_test")
     }
   }
+
+  test("test castornull") {
+    // prepare
+    val createSql =
+      "create table decimals_cast_test(a decimal(18,8)) using parquet"
+    val inserts =
+      "insert into decimals_cast_test values(123456789.12345678)"
+    spark.sql(createSql)
+
+    try {
+      spark.sql(inserts)
+      val q1 = "select cast(a as decimal(9,2)) from decimals_cast_test"
+      compareResultsAgainstVanillaSpark(q1, compareResult = true, _ => {})
+    } finally {
+      spark.sql("drop table if exists decimals_cast_test")
+    }
+  }
+
   // FIXME: Support AVG for Decimal Type
   Seq("true", "false").foreach {
     allowPrecisionLoss =>

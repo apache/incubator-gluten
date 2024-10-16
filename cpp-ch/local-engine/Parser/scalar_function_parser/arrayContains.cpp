@@ -14,13 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Parser/FunctionParser.h>
-#include <DataTypes/IDataType.h>
-#include <Common/CHUtil.h>
 #include <Core/Field.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Functions/FunctionHelpers.h>
+#include <Parser/FunctionParser.h>
 
 namespace DB
 {
@@ -37,7 +35,7 @@ namespace local_engine
 class FunctionParserArrayContains : public FunctionParser
 {
 public:
-    explicit FunctionParserArrayContains(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserArrayContains(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserArrayContains() override = default;
 
     static constexpr auto name = "array_contains";

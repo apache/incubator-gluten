@@ -28,12 +28,12 @@ namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
+extern const int LOGICAL_ERROR;
 }
 }
 namespace local_engine
 {
-ExpandRelParser::ExpandRelParser(SerializedPlanParser * plan_parser_) : RelParser(plan_parser_)
+ExpandRelParser::ExpandRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_)
 {
 }
 
@@ -45,8 +45,7 @@ void updateType(DB::DataTypePtr & type, const DB::DataTypePtr & new_type)
     }
 }
 
-DB::QueryPlanPtr
-ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
+DB::QueryPlanPtr ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
 {
     const auto & expand_rel = rel.expand();
     const auto & header = query_plan->getCurrentDataStream().header;
@@ -133,7 +132,7 @@ ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
 
 void registerExpandRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_parser) { return std::make_shared<ExpandRelParser>(plan_parser); };
+    auto builder = [](ParserContextPtr parser_context) { return std::make_shared<ExpandRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kExpand, builder);
 }
 }

@@ -25,7 +25,7 @@
 #include "memory/MemoryManager.h"
 #include "operators/writer/ArrowWriter.h"
 #include "utils/ArrowStatus.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 namespace gluten {
 
@@ -101,39 +101,6 @@ class ArrowCStructColumnarBatch final : public ColumnarBatch {
  private:
   std::shared_ptr<ArrowSchema> cSchema_ = std::make_shared<ArrowSchema>();
   std::shared_ptr<ArrowArray> cArray_ = std::make_shared<ArrowArray>();
-};
-
-/**
- * A columnar batch implementations that creates a view on top of a couple of child batches.
- * Fields in the child batches will be organized horizontally in the parent batch.
- */
-class CompositeColumnarBatch final : public ColumnarBatch {
- public:
-  static std::shared_ptr<ColumnarBatch> create(std::vector<std::shared_ptr<ColumnarBatch>> batches);
-
-  std::string getType() const override;
-
-  int64_t numBytes() override;
-
-  std::shared_ptr<ArrowArray> exportArrowArray() override;
-
-  std::shared_ptr<ArrowSchema> exportArrowSchema() override;
-
-  const std::vector<std::shared_ptr<ColumnarBatch>>& getBatches() const;
-
-  std::vector<char> toUnsafeRow(int32_t rowId) const override;
-
- private:
-  explicit CompositeColumnarBatch(
-      int32_t numColumns,
-      int32_t numRows,
-      std::vector<std::shared_ptr<ColumnarBatch>> batches);
-
-  // We use ArrowColumnarBatch as the way to compose columnar batches
-  void ensureUnderlyingBatchCreated();
-
-  std::vector<std::shared_ptr<ColumnarBatch>> batches_;
-  std::shared_ptr<ColumnarBatch> compositeBatch_ = nullptr;
 };
 
 std::shared_ptr<ColumnarBatch> createZeroColumnBatch(int32_t numRows);

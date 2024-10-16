@@ -17,14 +17,15 @@
 #include "ORCFormatFile.h"
 
 #if USE_ORC
-#    include <memory>
-#    include <numeric>
-#    include <Formats/FormatFactory.h>
-#    include <IO/SeekableReadBuffer.h>
-#    include <Processors/Formats/Impl/ArrowBufferedStreams.h>
-#    include <Processors/Formats/Impl/NativeORCBlockInputFormat.h>
-#    include <Storages/SubstraitSource/OrcUtil.h>
-#    include <Common/CHUtil.h>
+#include <memory>
+#include <numeric>
+#include <Formats/FormatFactory.h>
+#include <IO/SeekableReadBuffer.h>
+#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+#include <Processors/Formats/Impl/NativeORCBlockInputFormat.h>
+#include <Storages/SubstraitSource/OrcUtil.h>
+#include <Poco/Util/AbstractConfiguration.h>
+#include <Common/CHUtil.h>
 
 namespace local_engine
 {

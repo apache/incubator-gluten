@@ -36,14 +36,8 @@ public class ColumnarBatchOutIterator extends ClosableIterator implements Runtim
   }
 
   @Override
-  public long handle() {
+  public long rtHandle() {
     return runtime.getHandle();
-  }
-
-  @Override
-  public String id() {
-    // Using native iterHandle as identifier
-    return String.valueOf(iterHandle);
   }
 
   public long itrHandle() {
@@ -84,7 +78,7 @@ public class ColumnarBatchOutIterator extends ClosableIterator implements Runtim
   public void close0() {
     // To make sure the outputted batches are still accessible after the iterator is closed.
     // TODO: Remove this API if we have other choice, e.g., hold the pools in native code.
-    runtime.holdMemory();
+    runtime.memoryManager().hold();
     nativeClose(iterHandle);
   }
 }

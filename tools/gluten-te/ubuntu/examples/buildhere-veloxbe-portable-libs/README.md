@@ -1,4 +1,4 @@
-# Utility for building C++ libs in container
+# Utility for building C++ libs in Ubuntu 20.04 (with glibc 2.31) container
 
 The folder contains script code to build `libvelox.so` and `libgluten.so` in docker container and for host use.
 
@@ -11,14 +11,11 @@ The folder contains script code to build `libvelox.so` and `libgluten.so` in doc
 ## Usage
 
 ```sh
-# 1. Set the following envs in case you are behind http proxy.
+# 1. (Optional) Set the following envs in case you are behind http proxy.
 export HTTP_PROXY_HOST=myproxy.example.com
 export HTTP_PROXY_PORT=55555
 
-# 2. Set the following env to install Gluten's modified Arrow Jars on host.
-export MOUNT_MAVEN_CACHE=ON
-
-# 3. Build the C++ libs in a ubuntu 20.04 docker container.
+# 2. Build the C++ libs in a ubuntu 20.04 docker container.
 # Note, this command could take much longer time to finish if it's never run before.
 # After the first run, the essential build environment will be cached in docker builder.
 #
@@ -27,10 +24,10 @@ export MOUNT_MAVEN_CACHE=ON
 cd gluten/
 tools/gluten-te/ubuntu/examples/buildhere-veloxbe-portable-libs/run-default.sh
 
-# 4. Check the built libs.
+# 3. Check the built libs.
 ls -l cpp/build/releases/
 
-# 5. If you intend to build Gluten's bundled jar, continue running subsequent Maven commands.
+# 4. If you intend to build Gluten's bundled jar, continue running subsequent Maven commands.
 # For example:
 mvn clean install -P spark-3.4,backends-velox -DskipTests
 ```

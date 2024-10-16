@@ -19,12 +19,17 @@
 #include <Core/Settings.h>
 #include <Interpreters/Context.h>
 #include <Parser/LocalExecutor.h>
+#include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <gtest/gtest.h>
 #include <Common/DebugUtils.h>
 #include <Common/QueryContext.h>
 
+namespace DB::Setting
+{
+extern const SettingsBool enable_named_columns_in_function_tuple;
+}
 using namespace local_engine;
 
 using namespace DB;
@@ -36,7 +41,7 @@ TEST(Clickhouse, PR54881)
     const auto context1 = DB::Context::createCopy(QueryContext::globalContext());
     // context1->setSetting("enable_named_columns_in_function_tuple", DB::Field(true));
     auto settings = context1->getSettingsRef();
-    EXPECT_FALSE(settings.enable_named_columns_in_function_tuple) << "GLUTEN NEED set enable_named_columns_in_function_tuple to false";
+    EXPECT_FALSE(settings[Setting::enable_named_columns_in_function_tuple]) << "GLUTEN NEED set enable_named_columns_in_function_tuple to false";
 
     constexpr std::string_view split_template
         = R"({"items":[{"uriFile":"{replace_local_files}","partitionIndex":"0","length":"1529","parquet":{},"schema":{},"metadataColumns":[{}]}]})";
@@ -83,9 +88,10 @@ INCBIN(_pr_65234_, SOURCE_DIR "/utils/extern-local-engine/tests/json/clickhouse_
 TEST(Clickhouse, PR65234)
 {
     const std::string split = R"({"items":[{"uriFile":"file:///foo","length":"84633","parquet":{},"schema":{},"metadataColumns":[{}]}]})";
-    SerializedPlanParser parser(QueryContext::globalContext());
-    parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
     const auto plan = local_engine::JsonStringToMessage<substrait::Plan>(EMBEDDED_PLAN(_pr_65234_));
+    auto parser_context = ParserContext::build(QueryContext::globalContext(), plan);
+    SerializedPlanParser parser(parser_context);
+    parser.addSplitInfo(local_engine::JsonStringToBinary<substrait::ReadRel::LocalFiles>(split));
     auto query_plan = parser.parse(plan);
 }
 

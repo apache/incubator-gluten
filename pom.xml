@@ -126,6 +126,26 @@
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
+    <argLine/> <!-- Required since there is extensive setting of spark home through argLine-->
+    <extraJavaTestArgs>
+      -XX:+IgnoreUnrecognizedVMOptions <!-- For compatibility with java 8 and 11-->
+      --add-opens=java.base/java.lang=ALL-UNNAMED
+      --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+      --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+      --add-opens=java.base/java.io=ALL-UNNAMED
+      --add-opens=java.base/java.net=ALL-UNNAMED
+      --add-opens=java.base/java.nio=ALL-UNNAMED
+      --add-opens=java.base/java.util=ALL-UNNAMED
+      --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+      --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+      --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED
+      --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+      --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
+      --add-opens=java.base/sun.security.action=ALL-UNNAMED
+      --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
+      -Djdk.reflect.useDirectMethodHandle=false
+      -Dio.netty.tryReflectionSetAccessible=true
+    </extraJavaTestArgs>
   </properties>
 
   <profiles>
@@ -321,7 +341,7 @@
         <sparkbundle.version>3.5</sparkbundle.version>
         <sparkshim.module.name>spark35</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
-        <spark.version>3.5.1</spark.version>
+        <spark.version>3.5.2</spark.version>
         <iceberg.version>1.5.0</iceberg.version>
         <delta.package.name>delta-spark</delta.package.name>
         <delta.version>3.2.0</delta.version>
@@ -609,6 +629,10 @@
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
           </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -620,6 +644,10 @@
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client-runtime</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -656,6 +684,10 @@
           <exclusion>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -703,6 +735,10 @@
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
           </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -726,6 +762,10 @@
           <exclusion>
             <groupId>org.apache.arrow</groupId>
             <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
           </exclusion>
         </exclusions>
         <type>test-jar</type>
@@ -760,6 +800,10 @@
           <exclusion>
             <groupId>io.netty</groupId>
             <artifactId>netty</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -875,8 +919,10 @@
           <artifactId>scalatest-maven-plugin</artifactId>
           <version>${scalatest-maven-plugin.version}</version>
           <configuration>
+            <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
             <testFailureIgnore>false</testFailureIgnore>
             <junitxml>.</junitxml>
+            <argLine>${argLine} ${extraJavaTestArgs}</argLine>
           </configuration>
           <executions>
             <execution>

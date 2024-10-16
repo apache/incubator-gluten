@@ -54,6 +54,14 @@ object ConverterUtils extends Logging {
     if (caseSensitive) name else name.toLowerCase(Locale.ROOT)
   }
 
+  def normalizeStructFieldName(name: String): String = {
+    if (BackendsApiManager.getSettings.structFieldToLowerCase()) {
+      normalizeColName(name)
+    } else {
+      name
+    }
+  }
+
   def getShortAttributeName(attr: Attribute): String = {
     val name = normalizeColName(attr.name)
     val subIndex = name.indexOf("(")
@@ -154,7 +162,7 @@ object ConverterUtils extends Logging {
     val namedStructJson = SubstraitPlanPrinterUtil.substraitNamedStructToJson(
       nStructBuilder
         .build())
-    namedStructJson.replaceAll("\\\n", "").replaceAll(" ", "")
+    namedStructJson.replaceAll("\n", "").replaceAll(" ", "")
   }
 
   def isNullable(nullability: Type.Nullability): Boolean = {
@@ -259,7 +267,7 @@ object ConverterUtils extends Logging {
         val fieldNames = new JArrayList[String]
         for (structField <- s.fields) {
           fieldNodes.add(getTypeNode(structField.dataType, structField.nullable))
-          fieldNames.add(structField.name)
+          fieldNames.add(normalizeStructFieldName(structField.name))
         }
         TypeBuilder.makeStruct(nullable, fieldNodes, fieldNames)
       case _: NullType =>

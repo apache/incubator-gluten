@@ -16,17 +16,24 @@
  */
 
 #include "MergeTreeRelParser.h"
+#include <Core/Settings.h>
+#include <Parser/ExpressionParser.h>
 #include <Parser/FunctionParser.h>
+#include <Parser/InputFileNameParser.h>
 #include <Parser/SubstraitParserUtils.h>
 #include <Parser/TypeParser.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CHUtil.h>
-#include <Parser/InputFileNameParser.h>
+#include <Common/GlutenSettings.h>
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsUInt64 max_block_size;
+}
 namespace ErrorCodes
 {
 extern const int NO_SUCH_DATA_PART;
@@ -81,7 +88,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     if (InputFileNameParser::hasInputFileNameColumn(input))
     {
         std::vector<String> parts;
-        for(const auto & part : merge_tree_table.parts)
+        for (const auto & part : merge_tree_table.parts)
         {
             parts.push_back(merge_tree_table.absolute_path + "/" + part.name);
         }
@@ -111,7 +118,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     std::set<String> non_nullable_columns;
     if (rel.has_filter())
     {
-        NonNullableColumnsResolver non_nullable_columns_resolver(input, *getPlanParser(), rel.filter());
+        NonNullableColumnsResolver non_nullable_columns_resolver(input, parser_context, rel.filter());
         non_nullable_columns = non_nullable_columns_resolver.resolve();
         query_info->prewhere_info = parsePreWhereInfo(rel.filter(), input);
     }
@@ -126,7 +133,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
         storage_snapshot,
         *query_info,
         context,
-        context->getSettingsRef().max_block_size,
+        context->getSettingsRef()[Setting::max_block_size],
         1);
 
     auto * source_step_with_filter = static_cast<SourceStepWithFilter *>(read_step.get());
@@ -137,8 +144,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     }
 
     auto ranges = merge_tree_table.extractRange(selected_parts);
-    std::string ret;
-    if (context->getSettingsRef().tryGetString("enabled_driver_filter_mergetree_index", ret) && ret == "'true'")
+    if (settingsEqual(context->getSettingsRef(), "enabled_driver_filter_mergetree_index", "true"))
         SparkStorageMergeTree::analysisPartsByRanges(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
     else
         SparkStorageMergeTree::wrapRangesInDataParts(*reinterpret_cast<ReadFromMergeTree *>(read_step.get()), ranges);
@@ -149,7 +155,7 @@ DB::QueryPlanPtr MergeTreeRelParser::parseReadRel(
     {
         auto input_header = query_plan->getCurrentDataStream().header;
         std::erase_if(non_nullable_columns, [input_header](auto item) -> bool { return !input_header.has(item); });
-        auto * remove_null_step = getPlanParser()->addRemoveNullableStep(*query_plan, non_nullable_columns);
+        auto * remove_null_step = PlanUtil::addRemoveNullableStep(parser_context->queryContext(), *query_plan, non_nullable_columns);
         if (remove_null_step)
             steps.emplace_back(remove_null_step);
     }
@@ -225,7 +231,10 @@ DB::ActionsDAG MergeTreeRelParser::optimizePrewhereAction(const substrait::Expre
 void MergeTreeRelParser::parseToAction(ActionsDAG & filter_action, const substrait::Expression & rel, std::string & filter_name)
 {
     if (rel.has_scalar_function())
-        getPlanParser()->parseFunctionWithDAG(rel, filter_name, filter_action, true);
+    {
+        const auto * node = expression_parser->parseFunction(rel.scalar_function(), filter_action, true);
+        filter_name = node->result_name;
+    }
     else
     {
         const auto * in_node = parseExpression(filter_action, rel);
@@ -337,8 +346,7 @@ void MergeTreeRelParser::collectColumns(const substrait::Expression & rel, NameS
 
 String MergeTreeRelParser::getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const
 {
-    auto func_signature = getPlanParser()->function_mapping.at(std::to_string(substrait_func.function_reference()));
-    return getPlanParser()->getFunctionName(func_signature, substrait_func);
+    return expression_parser->getFunctionName(substrait_func);
 }
 
 String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_rel)
@@ -368,7 +376,7 @@ String MergeTreeRelParser::filterRangesOnDriver(const substrait::ReadRel & read_
         storage_snapshot,
         *query_info,
         context,
-        context->getSettingsRef().max_block_size,
+        context->getSettingsRef()[Setting::max_block_size],
         10); // TODO: Expect use driver cores.
 
     auto * read_from_mergetree = static_cast<ReadFromMergeTree *>(read_step.get());

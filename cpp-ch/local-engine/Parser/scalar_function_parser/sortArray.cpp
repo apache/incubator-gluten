@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 #include <Parser/FunctionParser.h>
-#include <Common/CHUtil.h>
+
 #include <Core/Field.h>
 #include <DataTypes/IDataType.h>
 
@@ -34,7 +34,7 @@ namespace local_engine
 class FunctionParserSortArray : public FunctionParser
 {
 public:
-    explicit FunctionParserSortArray(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserSortArray(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserSortArray() override = default;
 
     static constexpr auto name = "sort_array";

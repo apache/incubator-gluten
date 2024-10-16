@@ -32,7 +32,7 @@ namespace local_engine
 class FunctionParserSec : public FunctionParser
 {
 public:
-    explicit FunctionParserSec(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserSec(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserSec() override = default;
 
     static constexpr auto name = "sec";

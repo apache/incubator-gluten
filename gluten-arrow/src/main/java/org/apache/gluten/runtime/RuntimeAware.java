@@ -22,8 +22,8 @@ package org.apache.gluten.runtime;
  */
 public interface RuntimeAware {
   default boolean isCompatibleWith(RuntimeAware other) {
-    return handle() == other.handle();
+    return rtHandle() == other.rtHandle();
   }
 
-  long handle();
+  long rtHandle();
 }

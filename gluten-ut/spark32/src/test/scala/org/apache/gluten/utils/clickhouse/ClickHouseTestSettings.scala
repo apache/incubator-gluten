@@ -159,7 +159,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
     .exclude("map with arrays")
-    .exclude("element_at function")
     .exclude("flatten function")
     .exclude("aggregate function - array for primitive type not containing null")
     .exclude("aggregate function - array for primitive type containing null")
@@ -655,7 +654,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCollectionExpressionsSuite]
     .exclude("ArraysZip") // wait for https://github.com/ClickHouse/ClickHouse/pull/69576
     .exclude("Sequence of numbers")
-    .exclude("elementAt")
     .exclude("Shuffle")
     .exclude("SPARK-33386: element_at ArrayIndexOutOfBoundsException")
     .exclude("SPARK-33460: element_at NoSuchElementException")
@@ -664,11 +662,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-36740: ArrayMin/ArrayMax/SortArray should handle NaN greater then non-NaN value")
     .excludeGlutenTest("Shuffle")
   enableSuite[GlutenComplexTypeSuite]
-    .exclude("SPARK-33386: GetArrayItem ArrayIndexOutOfBoundsException")
-    .exclude("SPARK-33460: GetMapValue NoSuchElementException")
-    .exclude("GetArrayStructFields")
-    .exclude("CreateMap")
-    .exclude("MapFromArrays")
   enableSuite[GlutenConditionalExpressionSuite]
     .exclude("case when")
     .exclude("if/case when - null flags of non-primitive types")

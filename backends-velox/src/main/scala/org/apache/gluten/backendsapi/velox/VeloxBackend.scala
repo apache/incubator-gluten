@@ -20,12 +20,12 @@ import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi._
+import org.apache.gluten.columnarbatch.VeloxBatch
 import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
-import org.apache.gluten.extension.columnar.transition.Convention
-import org.apache.gluten.extension.columnar.transition.ConventionFunc.BatchOverride
+import org.apache.gluten.extension.columnar.transition.{Convention, ConventionFunc}
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.gluten.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
@@ -36,7 +36,7 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, De
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile}
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
 import org.apache.spark.sql.catalyst.util.CharVarcharUtils
-import org.apache.spark.sql.execution.ColumnarCachedBatchSerializer
+import org.apache.spark.sql.execution.{ColumnarCachedBatchSerializer, SparkPlan}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
@@ -50,14 +50,10 @@ import org.apache.hadoop.fs.Path
 import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends SubstraitBackend {
+  import VeloxBackend._
   override def name(): String = VeloxBackend.BACKEND_NAME
-  override def batchType: Convention.BatchType = VeloxBatch
-  override def batchTypeFunc(): BatchOverride = {
-    case i: InMemoryTableScanExec
-        if i.supportsColumnar && i.relation.cacheBuilder.serializer
-          .isInstanceOf[ColumnarCachedBatchSerializer] =>
-      VeloxBatch
-  }
+  override def defaultBatchType: Convention.BatchType = VeloxBatch
+  override def convFuncOverride(): ConventionFunc.Override = new ConvFunc()
   override def buildInfo(): Backend.BuildInfo =
     Backend.BuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
   override def iteratorApi(): IteratorApi = new VeloxIteratorApi
@@ -73,6 +69,15 @@ class VeloxBackend extends SubstraitBackend {
 object VeloxBackend {
   val BACKEND_NAME: String = "velox"
   val CONF_PREFIX: String = GlutenConfig.prefixOf(BACKEND_NAME)
+
+  private class ConvFunc() extends ConventionFunc.Override {
+    override def batchTypeOf: PartialFunction[SparkPlan, Convention.BatchType] = {
+      case i: InMemoryTableScanExec
+          if i.supportsColumnar && i.relation.cacheBuilder.serializer
+            .isInstanceOf[ColumnarCachedBatchSerializer] =>
+        VeloxBatch
+    }
+  }
 }
 
 object VeloxBackendSettings extends BackendSettingsApi {
@@ -88,9 +93,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def validateScan(
       format: ReadFileFormat,
       fields: Array[StructField],
-      partTable: Boolean,
-      rootPaths: Seq[String],
-      paths: Seq[String]): ValidationResult = {
+      rootPaths: Seq[String]): ValidationResult = {
     val filteredRootPaths = distinctRootPaths(rootPaths)
     if (
       filteredRootPaths.nonEmpty && !VeloxFileSystemValidationJniWrapper

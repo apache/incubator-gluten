@@ -21,7 +21,7 @@
 #include <limits>
 #include <mutex>
 #include <unordered_map>
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 namespace gluten {
 using ResourceHandle = uint32_t;

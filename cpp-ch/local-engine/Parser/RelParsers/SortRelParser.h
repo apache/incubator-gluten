@@ -25,7 +25,7 @@ namespace local_engine
 class SortRelParser : public RelParser
 {
 public:
-    explicit SortRelParser(SerializedPlanParser * plan_paser_);
+    explicit SortRelParser(ParserContextPtr parser_context_);
     ~SortRelParser() override = default;
 
     DB::QueryPlanPtr

@@ -21,8 +21,6 @@
 #include <Interpreters/TableJoin.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
-#include <Columns/ColumnsCommon.h>
-
 #include <Common/logger_useful.h>
 
 namespace DB

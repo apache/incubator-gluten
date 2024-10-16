@@ -35,6 +35,10 @@
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsUInt64 max_block_size;
+}
 namespace ErrorCodes
 {
 extern const int INVALID_STATE;
@@ -107,7 +111,7 @@ Task CacheManager::cachePart(const MergeTreeTableInstance & table, const MergeTr
                 storage_snapshot,
                 *query_info,
                 context,
-                context->getSettingsRef().max_block_size,
+                context->getSettingsRef()[Setting::max_block_size],
                 1);
             QueryPlan plan;
             plan.addStep(std::move(read_step));
@@ -204,13 +208,14 @@ JobId CacheManager::cacheFiles(substrait::ReadRel::LocalFiles file_infos)
 {
     JobId id = toString(UUIDHelpers::generateV4());
     Job job(id);
+    DB::ReadSettings read_settings = context->getReadSettings();
 
     if (file_infos.items_size())
     {
         const Poco::URI file_uri(file_infos.items().Get(0).uri_file());
         const auto read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
 
-        if (read_buffer_builder->file_cache)
+        if (context->getConfigRef().getBool("gluten_cache.local.enabled", false))
             for (const auto & file : file_infos.items())
                 job.addTask(cacheFile(file, read_buffer_builder));
         else

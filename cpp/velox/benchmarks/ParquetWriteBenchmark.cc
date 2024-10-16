@@ -38,9 +38,9 @@
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
+#include "utils/Macros.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
-#include "utils/macros.h"
 #include "velox/dwio/parquet/writer/Writer.h"
 #include "velox/vector/arrow/Bridge.h"
 
@@ -257,26 +257,26 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     // reuse the ParquetWriteConverter for batches caused system % increase a lot
     auto fileName = "velox_parquet_write.parquet";
 
-    auto runtime = Runtime::create(kVeloxRuntimeKind, AllocationListener::noop());
     auto memoryManager = getDefaultMemoryManager();
+    auto runtime = Runtime::create(kVeloxBackendKind, memoryManager.get());
     auto veloxPool = memoryManager->getAggregateMemoryPool();
 
     for (auto _ : state) {
       // Init VeloxParquetDataSource
-      auto veloxParquetDatasource = std::make_unique<gluten::VeloxParquetDatasource>(
+      auto veloxParquetDataSource = std::make_unique<gluten::VeloxParquetDataSource>(
           outputPath_ + "/" + fileName,
           veloxPool->addAggregateChild("writer_benchmark"),
           veloxPool->addLeafChild("sink_pool"),
           localSchema);
 
-      veloxParquetDatasource->init(runtime->getConfMap());
+      veloxParquetDataSource->init(runtime->getConfMap());
       auto start = std::chrono::steady_clock::now();
       for (const auto& vector : vectors) {
-        veloxParquetDatasource->write(vector);
+        veloxParquetDataSource->write(vector);
       }
       auto end = std::chrono::steady_clock::now();
       writeTime += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-      veloxParquetDatasource->close();
+      veloxParquetDataSource->close();
     }
 
     state.counters["rowgroups"] =

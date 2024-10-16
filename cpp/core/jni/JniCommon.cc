@@ -39,7 +39,7 @@ jmethodID gluten::JniCommonState::runtimeAwareCtxHandle() {
 
 void gluten::JniCommonState::initialize(JNIEnv* env) {
   runtimeAwareClass_ = createGlobalClassReference(env, "Lorg/apache/gluten/runtime/RuntimeAware;");
-  runtimeAwareCtxHandle_ = getMethodIdOrError(env, runtimeAwareClass_, "handle", "()J");
+  runtimeAwareCtxHandle_ = getMethodIdOrError(env, runtimeAwareClass_, "rtHandle", "()J");
   JavaVM* vm;
   if (env->GetJavaVM(&vm) != JNI_OK) {
     throw gluten::GlutenException("Unable to get JavaVM instance");
@@ -52,7 +52,7 @@ void gluten::JniCommonState::close() {
   if (closed_) {
     return;
   }
-  JNIEnv* env;
+  JNIEnv* env = nullptr;
   attachCurrentThreadAsDaemonOrThrow(vm_, &env);
   env->DeleteGlobalRef(runtimeAwareClass_);
   closed_ = true;
@@ -94,7 +94,7 @@ gluten::JniColumnarBatchIterator::JniColumnarBatchIterator(
 }
 
 gluten::JniColumnarBatchIterator::~JniColumnarBatchIterator() {
-  JNIEnv* env;
+  JNIEnv* env = nullptr;
   attachCurrentThreadAsDaemonOrThrow(vm_, &env);
   env->DeleteGlobalRef(jColumnarBatchItr_);
   env->DeleteGlobalRef(serializedColumnarBatchIteratorClass_);
@@ -102,7 +102,7 @@ gluten::JniColumnarBatchIterator::~JniColumnarBatchIterator() {
 }
 
 std::shared_ptr<gluten::ColumnarBatch> gluten::JniColumnarBatchIterator::next() {
-  JNIEnv* env;
+  JNIEnv* env = nullptr;
   attachCurrentThreadAsDaemonOrThrow(vm_, &env);
   if (!env->CallBooleanMethod(jColumnarBatchItr_, serializedColumnarBatchIteratorHasNext_)) {
     checkException(env);

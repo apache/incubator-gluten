@@ -16,8 +16,8 @@
  */
 #include "JoinRelParser.h"
 #include <optional>
-
 #include <Core/Block.h>
+#include <Core/Settings.h>
 #include <Functions/FunctionFactory.h>
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
@@ -30,6 +30,7 @@
 #include <Join/StorageJoinFromReadBuffer.h>
 #include <Operator/EarlyStopStep.h>
 #include <Parser/AdvancedParametersParseUtil.h>
+#include <Parser/ExpressionParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
@@ -37,12 +38,14 @@
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/CHUtil.h>
 #include <Common/GlutenConfig.h>
-
 #include <Common/logger_useful.h>
-
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsJoinAlgorithm join_algorithm;
+}
 namespace ErrorCodes
 {
 extern const int LOGICAL_ERROR;
@@ -65,11 +68,7 @@ std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinTyp
     return table_join;
 }
 
-JoinRelParser::JoinRelParser(SerializedPlanParser * plan_paser_)
-    : RelParser(plan_paser_)
-    , function_mapping(plan_paser_->function_mapping)
-    , context(plan_paser_->context)
-    , extra_plan_holder(plan_paser_->extra_plan_holder)
+JoinRelParser::JoinRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_), context(parser_context_->queryContext())
 {
 }
 
@@ -83,9 +82,7 @@ std::vector<const substrait::Rel *> JoinRelParser::getInputs(const substrait::Re
 {
     const auto & join = rel.join();
     if (!join.has_left() || !join.has_right())
-    {
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "left table or right table is missing.");
-    }
 
     return {&join.left(), &join.right()};
 }
@@ -118,13 +115,9 @@ std::unordered_set<DB::JoinTableSide> JoinRelParser::extractTableSidesFromExpres
     {
         auto pos = expr.selection().direct_reference().struct_field().field();
         if (pos < left_header.columns())
-        {
             table_sides.insert(DB::JoinTableSide::Left);
-        }
         else
-        {
             table_sides.insert(DB::JoinTableSide::Right);
-        }
     }
     else if (expr.has_singular_or_list())
     {
@@ -186,16 +179,10 @@ void JoinRelParser::renamePlanColumns(DB::QueryPlan & left, DB::QueryPlan & righ
     const auto & right_header = right.getCurrentDataStream().header;
     auto left_prefix = getUniqueName("left");
     for (const auto & col : left.getCurrentDataStream().header)
-    {
         if (right_header.has(col.name))
-        {
             new_left_cols.emplace_back(col.column, col.type, left_prefix + col.name);
-        }
         else
-        {
             new_left_cols.emplace_back(col.column, col.type, col.name);
-        }
-    }
     ActionsDAG left_project = ActionsDAG::makeConvertingActions(
         left.getCurrentDataStream().header.getColumnsWithTypeAndName(), new_left_cols, ActionsDAG::MatchColumnsMode::Position);
 
@@ -214,9 +201,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
     LOG_DEBUG(getLogger("JoinRelParser"), "optimization info:{}", optimization_info.value());
     auto storage_join = join_opt_info.is_broadcast ? BroadCastJoinBuilder::getJoin(join_opt_info.storage_join_key) : nullptr;
     if (storage_join)
-    {
         renamePlanColumns(*left, *right, *storage_join);
-    }
 
     auto table_join = createDefaultTableJoin(join.type(), join_opt_info.is_existence_join, context);
     DB::Block right_header_before_convert_step = right->getCurrentDataStream().header;
@@ -296,7 +281,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
                 auto result_node = filter_is_not_null_dag.tryFindInOutputs(key_field->result_name);
                 // add a function isNotNull to filter the null key on the left side
-                const auto * cond_node = plan_parser->toFunctionNode(filter_is_not_null_dag, "isNotNull", {result_node});
+                const auto * cond_node = buildFunctionNode(filter_is_not_null_dag, "isNotNull", {result_node});
                 filter_is_not_null_dag.addOrReplaceInOutputs(*cond_node);
                 auto filter_step = std::make_unique<FilterStep>(
                     left->getCurrentDataStream(), std::move(filter_is_not_null_dag), cond_node->result_name, true);
@@ -324,12 +309,10 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
         /// It should be a inner join.
         /// TODO: make smj support mixed conditions
         if (need_post_filter && table_join->kind() != DB::JoinKind::Inner)
-        {
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Sort merge join doesn't support mixed join conditions, except inner join.");
-        }
 
         JoinPtr smj_join = std::make_shared<FullSortingMergeJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty(), -1);
-        MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef().join_algorithm;
+        MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef()[Setting::join_algorithm];
         QueryPlanStepPtr join_step
             = std::make_unique<DB::JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), smj_join, 8192, 1, false);
 
@@ -366,9 +349,7 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
     JoinUtil::reorderJoinOutput(*query_plan, after_join_names);
     /// Need to project the right table column into boolean type
     if (join_opt_info.is_existence_join)
-    {
         existenceJoinPostProject(*query_plan, left_names);
-    }
 
     return query_plan;
 }
@@ -411,9 +392,7 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
         auto origin_name = right.getCurrentDataStream().header.getByPosition(idx).name;
         auto dedup_name = table_join.columnsFromJoinedTable().getNames().at(idx);
         if (origin_name != dedup_name)
-        {
             right_table_alias.emplace_back(NameWithAlias(origin_name, dedup_name));
-        }
     }
     if (!right_table_alias.empty())
     {
@@ -436,9 +415,7 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
     }
 
     for (const auto & column : table_join.columnsFromJoinedTable())
-    {
         table_join.addJoinedColumn(column);
-    }
     std::optional<ActionsDAG> left_convert_actions;
     std::optional<ActionsDAG> right_convert_actions;
     std::tie(left_convert_actions, right_convert_actions) = table_join.createConvertingActions(
@@ -480,7 +457,7 @@ void JoinRelParser::collectJoinKeys(
         expressions_stack.pop_back();
         if (!current_expr->has_scalar_function())
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Function expression is expected");
-        auto function_name = parseFunctionName(current_expr->scalar_function().function_reference(), current_expr->scalar_function());
+        auto function_name = parseFunctionName(current_expr->scalar_function());
         if (!function_name)
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Invalid function expression");
         if (*function_name == "equals")
@@ -595,9 +572,7 @@ bool JoinRelParser::applyJoinFilter(
 
             /// clear unused columns in actions_dag
             for (const auto & col : left_header.getColumnsWithTypeAndName())
-            {
                 actions_dag.removeUnusedResult(col.name);
-            }
             actions_dag.removeUnusedActions();
 
             table_join.getClauses().back().analyzer_right_filter_condition_column_name = actions_dag.getOutputs().back()->result_name;
@@ -631,12 +606,13 @@ void JoinRelParser::addPostFilter(DB::QueryPlan & query_plan, const substrait::J
     if (!join.post_join_filter().has_scalar_function())
     {
         // It may be singular_or_list
-        auto * in_node = getPlanParser()->parseExpression(actions_dag, join.post_join_filter());
+        const auto * in_node = expression_parser->parseExpression(actions_dag, join.post_join_filter());
         filter_name = in_node->result_name;
     }
     else
     {
-        getPlanParser()->parseFunctionWithDAG(join.post_join_filter(), filter_name, actions_dag, true);
+        const auto * func_node = expression_parser->parseFunction(join.post_join_filter().scalar_function(), actions_dag, true);
+        filter_name = func_node->result_name;
     }
     auto filter_step = std::make_unique<FilterStep>(query_plan.getCurrentDataStream(), std::move(actions_dag), filter_name, true);
     filter_step->setStepDescription("Post Join Filter");
@@ -663,19 +639,15 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
     auto check_function = [&](const String function_name_, const substrait::Expression & e)
     {
         if (!e.has_scalar_function())
-        {
             return false;
-        }
-        auto function_name = parseFunctionName(e.scalar_function().function_reference(), e.scalar_function());
+        auto function_name = parseFunctionName(e.scalar_function());
         return function_name.has_value() && *function_name == function_name_;
     };
 
     auto get_field_ref = [](const substrait::Expression & e) -> std::optional<Int32>
     {
         if (e.has_selection() && e.selection().has_direct_reference() && e.selection().direct_reference().has_struct_field())
-        {
             return std::optional<Int32>(e.selection().direct_reference().struct_field().field());
-        }
         return {};
     };
 
@@ -825,7 +797,7 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
     ///   data will be spilled to disk. Don't set the limitation too small, otherwise the buckets number
     ///   will be too large and the performance will be bad.
     JoinPtr hash_join = nullptr;
-    MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef().join_algorithm;
+    MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef()[Setting::join_algorithm];
     if (join_algorithm.isSet(DB::JoinAlgorithm::GRACE_HASH))
     {
         hash_join = std::make_shared<GraceHashJoin>(
@@ -855,7 +827,7 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
 
 void registerJoinRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_paser) { return std::make_shared<JoinRelParser>(plan_paser); };
+    auto builder = [](ParserContextPtr parser_context) { return std::make_shared<JoinRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kJoin, builder);
 }
 

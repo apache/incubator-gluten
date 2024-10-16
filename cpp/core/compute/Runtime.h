@@ -27,7 +27,6 @@
 #include "operators/c2r/ColumnarToRow.h"
 #include "operators/r2c/RowToColumnar.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
-#include "operators/writer/Datasource.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
@@ -55,27 +54,36 @@ struct SparkTaskInfo {
 
 class Runtime : public std::enable_shared_from_this<Runtime> {
  public:
-  using Factory = std::function<
-      Runtime*(std::unique_ptr<AllocationListener> listener, const std::unordered_map<std::string, std::string>&)>;
-  static void registerFactory(const std::string& kind, Factory factory);
+  using Factory = std::function<Runtime*(
+      const std::string& kind,
+      MemoryManager* memoryManager,
+      const std::unordered_map<std::string, std::string>& sessionConf)>;
+  using Releaser = std::function<void(Runtime*)>;
+  static void registerFactory(const std::string& kind, Factory factory, Releaser releaser);
   static Runtime* create(
       const std::string& kind,
-      std::unique_ptr<AllocationListener> listener,
+      MemoryManager* memoryManager,
       const std::unordered_map<std::string, std::string>& sessionConf = {});
   static void release(Runtime*);
+  static std::optional<std::string>* localWriteFilesTempPath();
 
-  Runtime(std::shared_ptr<MemoryManager> memoryManager, const std::unordered_map<std::string, std::string>& confMap)
-      : memoryManager_(memoryManager), confMap_(confMap) {}
+  Runtime(
+      const std::string& kind,
+      MemoryManager* memoryManager,
+      const std::unordered_map<std::string, std::string>& confMap)
+      : kind_(kind), memoryManager_(memoryManager), confMap_(confMap) {}
 
   virtual ~Runtime() = default;
+
+  virtual std::string kind() {
+    return kind_;
+  }
 
   virtual void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) = 0;
 
   virtual void parseSplitInfo(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) = 0;
 
   virtual std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) = 0;
-
-  virtual void injectWriteFilesTempPath(const std::string& path) = 0;
 
   // Just for benchmark
   ::substrait::Plan& getPlan() {
@@ -89,10 +97,10 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
   virtual std::shared_ptr<ColumnarBatch> createOrGetEmptySchemaBatch(int32_t numRows) = 0;
 
-  virtual std::shared_ptr<ColumnarBatch> select(std::shared_ptr<ColumnarBatch>, std::vector<int32_t>) = 0;
+  virtual std::shared_ptr<ColumnarBatch> select(std::shared_ptr<ColumnarBatch>, const std::vector<int32_t>&) = 0;
 
   virtual MemoryManager* memoryManager() {
-    return memoryManager_.get();
+    return memoryManager_;
   };
 
   /// This function is used to create certain converter from the format used by
@@ -107,10 +115,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       ShuffleWriterOptions options) = 0;
 
   virtual Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) = 0;
-
-  virtual std::shared_ptr<Datasource> createDatasource(
-      const std::string& filePath,
-      std::shared_ptr<arrow::Schema> schema) = 0;
 
   virtual std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
@@ -133,13 +137,13 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   }
 
  protected:
-  std::shared_ptr<MemoryManager> memoryManager_;
+  std::string kind_;
+  MemoryManager* memoryManager_;
   std::unique_ptr<ObjectStore> objStore_ = ObjectStore::create();
   std::unordered_map<std::string, std::string> confMap_; // Session conf map
 
   ::substrait::Plan substraitPlan_;
   std::vector<::substrait::ReadRel_LocalFiles> localFiles_;
-  std::optional<std::string> writeFilesTempPath_;
   SparkTaskInfo taskInfo_;
 };
 } // namespace gluten

@@ -18,6 +18,7 @@
 #include <exception>
 #include <memory>
 #include <valarray>
+#include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/ColumnsWithTypeAndName.h>
@@ -25,7 +26,6 @@
 #include <Core/SortDescription.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/IDataType.h>
-#include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <IO/WriteBufferFromString.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/WindowDescription.h>
@@ -34,10 +34,8 @@
 #include <Parser/TypeParser.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/WindowStep.h>
-#include <base/sort.h>
 #include <base/types.h>
 #include <google/protobuf/util/json_util.h>
-#include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
 
@@ -45,14 +43,14 @@ namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int UNKNOWN_TYPE;
-    extern const int LOGICAL_ERROR;
-    extern const int BAD_ARGUMENTS;
+extern const int UNKNOWN_TYPE;
+extern const int LOGICAL_ERROR;
+extern const int BAD_ARGUMENTS;
 }
 }
 namespace local_engine
 {
-WindowRelParser::WindowRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
+WindowRelParser::WindowRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_)
 {
 }
 
@@ -95,8 +93,7 @@ WindowRelParser::parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & re
     return std::move(current_plan);
 }
 
-DB::WindowDescription
-WindowRelParser::parseWindowDescription(const WindowInfo & win_info)
+DB::WindowDescription WindowRelParser::parseWindowDescription(const WindowInfo & win_info)
 {
     DB::WindowDescription win_descr;
     win_descr.frame = parseWindowFrame(win_info);
@@ -169,11 +166,8 @@ WindowRelParser::parseWindowFrameType(const std::string & function_name, const s
     // It's weird! The frame type only could be rows in spark for rank(). But in clickhouse
     // it's should be range. If run rank() over rows frame, the result is different. The rank number
     // is different for the same values.
-    static const std::unordered_map<std::string, substrait::WindowType> special_function_frame_type = {
-        {"rank", substrait::RANGE},
-        {"dense_rank", substrait::RANGE},
-        {"percent_rank", substrait::RANGE}
-    };
+    static const std::unordered_map<std::string, substrait::WindowType> special_function_frame_type
+        = {{"rank", substrait::RANGE}, {"dense_rank", substrait::RANGE}, {"percent_rank", substrait::RANGE}};
 
     substrait::WindowType frame_type;
     auto iter = special_function_frame_type.find(function_name);
@@ -312,7 +306,7 @@ void WindowRelParser::initWindowsInfos(const substrait::WindowRel & win_rel)
         win_info.measure = &measure;
         win_info.signature_function_name = *parseSignatureFunctionName(measure.measure().function_reference());
         win_info.parser_func_info = AggregateFunctionParser::CommonFunctionInfo(measure);
-        win_info.function_parser = AggregateFunctionParserFactory::instance().get(win_info.signature_function_name, getPlanParser());
+        win_info.function_parser = AggregateFunctionParserFactory::instance().get(win_info.signature_function_name, parser_context);
         win_info.function_name = win_info.function_parser->getCHFunctionName(win_info.parser_func_info);
         win_info.partition_exprs = win_rel.partition_expressions();
         win_info.sort_fields = win_rel.sorts();
@@ -326,7 +320,7 @@ void WindowRelParser::tryAddProjectionBeforeWindow()
     ActionsDAG actions_dag{header.getColumnsWithTypeAndName()};
     auto dag_footprint = actions_dag.dumpDAG();
 
-    for (auto & win_info : win_infos )
+    for (auto & win_info : win_infos)
     {
         auto arg_nodes = win_info.function_parser->parseFunctionArguments(win_info.parser_func_info, actions_dag);
         // This may remove elements from arg_nodes, because some of them are converted to CH func parameters.
@@ -375,10 +369,9 @@ void WindowRelParser::tryAddProjectionAfterWindow()
     if (!DB::blocksHaveEqualStructure(output_header, current_header))
     {
         ActionsDAG convert_action = ActionsDAG::makeConvertingActions(
-            current_header.getColumnsWithTypeAndName(),
-            output_header.getColumnsWithTypeAndName(),
-            DB::ActionsDAG::MatchColumnsMode::Name);
-        QueryPlanStepPtr convert_step = std::make_unique<DB::ExpressionStep>(current_plan->getCurrentDataStream(), std::move(convert_action));
+            current_header.getColumnsWithTypeAndName(), output_header.getColumnsWithTypeAndName(), DB::ActionsDAG::MatchColumnsMode::Name);
+        QueryPlanStepPtr convert_step
+            = std::make_unique<DB::ExpressionStep>(current_plan->getCurrentDataStream(), std::move(convert_action));
         convert_step->setStepDescription("Convert window Output");
         steps.emplace_back(convert_step.get());
         current_plan->addStep(std::move(convert_step));
@@ -387,7 +380,7 @@ void WindowRelParser::tryAddProjectionAfterWindow()
 
 void registerWindowRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_paser) { return std::make_shared<WindowRelParser>(plan_paser); };
+    auto builder = [](ParserContextPtr parser_context) { return std::make_shared<WindowRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kWindow, builder);
 }
 }

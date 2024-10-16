@@ -30,6 +30,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{BloomFilterAggregate, RegrR2, TypedImperativeAggregate}
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -363,5 +364,17 @@ class Spark33Shims extends SparkShims {
       caseSensitive.getOrElse(conf.caseSensitiveAnalysis),
       RebaseSpec(LegacyBehaviorPolicy.CORRECTED)
     )
+  }
+
+  override def getOperatorId(plan: QueryPlan[_]): Option[Int] = {
+    plan.getTagValue(QueryPlan.OP_ID_TAG)
+  }
+
+  override def setOperatorId(plan: QueryPlan[_], opId: Int): Unit = {
+    plan.setTagValue(QueryPlan.OP_ID_TAG, opId)
+  }
+
+  override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
+    plan.unsetTagValue(QueryPlan.OP_ID_TAG)
   }
 }

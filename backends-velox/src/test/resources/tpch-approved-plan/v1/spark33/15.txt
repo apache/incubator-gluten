@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (47)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (30)
+   VeloxColumnarToRow (30)
    +- AQEShuffleRead (29)
       +- ShuffleQueryStage (28), Statistics(X)
          +- ColumnarExchange (27)
@@ -170,7 +170,7 @@ Arguments: X
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 Arguments: local
 
-(30) VeloxColumnarToRowExec
+(30) VeloxColumnarToRow
 Input [5]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X, total_revenue#X]
 
 (31) Scan parquet
@@ -259,7 +259,7 @@ Arguments: isFinalPlan=true
 Subquery:1 Hosting operator id = 22 Hosting Expression = Subquery subquery#X, [id=#X]
 AdaptiveSparkPlan (73)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (64)
+   VeloxColumnarToRow (64)
    +- ^ RegularHashAggregateExecTransformer (62)
       +- ^ RegularHashAggregateExecTransformer (61)
          +- ^ ProjectExecTransformer (60)
@@ -361,7 +361,7 @@ Results [1]: [max(total_revenue#X)#X AS max(total_revenue)#X]
 Input [1]: [max(total_revenue)#X]
 Arguments: false
 
-(64) VeloxColumnarToRowExec
+(64) VeloxColumnarToRow
 Input [1]: [max(total_revenue)#X]
 
 (65) Scan parquet

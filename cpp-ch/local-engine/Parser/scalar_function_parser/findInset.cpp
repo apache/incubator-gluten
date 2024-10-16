@@ -16,7 +16,6 @@
  */
 #include <Core/Field.h>
 #include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/IDataType.h>
 #include <Parser/FunctionParser.h>
 #include <Common/BlockTypeUtils.h>
@@ -37,7 +36,7 @@ namespace local_engine
 class FunctionParserFindInSet : public FunctionParser
 {
 public:
-    explicit FunctionParserFindInSet(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserFindInSet(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserFindInSet() override = default;
 
     static constexpr auto name = "find_in_set";

@@ -44,10 +44,7 @@ abstract class BatchScanExecShim(
 
   def metadataColumns: Seq[AttributeReference] = Seq.empty
 
-  def hasUnsupportedColumns: Boolean = {
-    // Below name has special meaning in Velox.
-    output.exists(a => a.name == "$path" || a.name == "$bucket")
-  }
+  def hasUnsupportedColumns: Boolean = false
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException("Need to implement this method")

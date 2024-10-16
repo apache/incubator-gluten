@@ -31,6 +31,11 @@ extern const Metric LocalThreadScheduled;
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsSeconds lock_acquire_timeout;
+extern const SettingsMaxThreads max_threads;
+}
 namespace ErrorCodes
 {
 extern const int NOT_IMPLEMENTED;
@@ -89,7 +94,7 @@ void restoreMetaData<ROCKSDB>(const SparkStorageMergeTreePtr & storage, const Me
             not_exists_part.emplace(part);
     }
 
-    if (auto lock = storage->lockForAlter(context.getSettingsRef().lock_acquire_timeout))
+    if (auto lock = storage->lockForAlter(context.getSettingsRef()[Setting::lock_acquire_timeout]))
     {
         // put this return clause in lockForAlter
         // so that it will not return until other thread finishes restoring
@@ -113,7 +118,9 @@ void restoreMetaData<ROCKSDB>(const SparkStorageMergeTreePtr & storage, const Me
                     transaction->createDirectoryRecursive(part_path);
                 auto key = s3->generateObjectKeyForPath(metadata_file_path.generic_string(), std::nullopt);
                 StoredObject metadata_object(key.serialize());
-                auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object));
+                auto read_settings = ReadSettings{};
+                read_settings.enable_filesystem_cache = false;
+                auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object, read_settings));
                 for (const auto & item : part_metadata)
                 {
                     auto item_path = part_path / item.first;
@@ -140,7 +147,7 @@ void restoreMetaData<LOCAL>(
             not_exists_part.emplace(part);
     }
 
-    if (auto lock = storage->lockForAlter(context.getSettingsRef().lock_acquire_timeout))
+    if (auto lock = storage->lockForAlter(context.getSettingsRef()[Setting::lock_acquire_timeout]))
     {
         // put this return clause in lockForAlter
         // so that it will not return until other thread finishes restoring
@@ -148,7 +155,7 @@ void restoreMetaData<LOCAL>(
             return;
 
         // Increase the speed of metadata recovery
-        auto max_concurrency = std::max(10UL, QueryContext::globalContext()->getSettingsRef().max_threads.value);
+        auto max_concurrency = std::max(10UL, QueryContext::globalContext()->getSettingsRef()[Setting::max_threads].value);
         auto max_threads = std::min(max_concurrency, not_exists_part.size());
         FreeThreadPool thread_pool(
             CurrentMetrics::LocalThread,
@@ -175,7 +182,9 @@ void restoreMetaData<LOCAL>(
                     metadata_disk->createDirectories(part_path);
                 auto key = s3->generateObjectKeyForPath(metadata_file_path.generic_string(), std::nullopt);
                 StoredObject metadata_object(key.serialize());
-                auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object));
+                auto read_settings = ReadSettings{};
+                read_settings.enable_filesystem_cache = false;
+                auto part_metadata = extractPartMetaData(*s3->readObject(metadata_object, read_settings));
                 for (const auto & item : part_metadata)
                 {
                     auto item_path = part_path / item.first;

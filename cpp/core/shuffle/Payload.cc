@@ -24,8 +24,8 @@
 
 #include "shuffle/Options.h"
 #include "shuffle/Utils.h"
+#include "utils/Exception.h"
 #include "utils/Timer.h"
-#include "utils/exception.h"
 
 namespace gluten {
 namespace {

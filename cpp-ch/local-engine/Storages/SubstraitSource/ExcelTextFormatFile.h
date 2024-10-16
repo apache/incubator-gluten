@@ -29,6 +29,15 @@ namespace local_engine
 
 class ExcelTextFormatFile : public FormatFile
 {
+    // use excel text parser
+    static constexpr std::string_view USE_EXCEL_PARSER = "use_excel_serialization";
+    static constexpr std::string_view EXCEL_EMPTY_AS_NULL = "use_excel_serialization.empty_as_null";
+    static constexpr std::string_view EXCEL_NUMBER_FORCE = "use_excel_serialization.number_force";
+    static constexpr std::string_view EXCEL_QUOTE_STRICT = "use_excel_serialization.quote_strict";
+
+public:
+    static bool useThis(const DB::ContextPtr & context);
+
 public:
     explicit ExcelTextFormatFile(
         DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)

@@ -45,7 +45,7 @@ class CHRuleApi extends RuleApi {
 
 private object CHRuleApi {
   def injectSpark(injector: SparkInjector): Unit = {
-    // Regular Spark rules.
+    // Inject the regular Spark rules directly.
     injector.injectQueryStagePrepRule(FallbackBroadcastHashJoinPrepQueryStage.apply)
     injector.injectQueryStagePrepRule(spark => CHAQEPropagateEmptyRelation(spark))
     injector.injectParser(

@@ -27,7 +27,7 @@
 #include "compute/VeloxBackend.h"
 #include "config/VeloxConfig.h"
 #include "memory/ArrowMemoryPool.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
 
@@ -101,7 +101,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     velox::memory::MemoryPool* candidate;
     {
       std::unique_lock guard{mutex_};
-      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool")
+      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool");
       candidate = candidates_.begin()->first;
     }
     VELOX_CHECK(pool->root() == candidate, "Illegal state in ListenableArbitrator");
@@ -111,12 +111,12 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   uint64_t shrinkCapacity(uint64_t targetBytes, bool allowSpill, bool allowAbort) override {
-    velox::memory::ScopedMemoryArbitrationContext ctx((const velox::memory::MemoryPool*)nullptr);
+    velox::memory::ScopedMemoryArbitrationContext ctx{};
     facebook::velox::exec::MemoryReclaimer::Stats status;
     velox::memory::MemoryPool* pool;
     {
       std::unique_lock guard{mutex_};
-      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool")
+      VELOX_CHECK_EQ(candidates_.size(), 1, "ListenableArbitrator should only be used within a single root pool");
       pool = candidates_.begin()->first;
     }
     pool->reclaim(targetBytes, 0, status); // ignore the output
@@ -200,8 +200,8 @@ class ArbitratorFactoryRegister {
   gluten::AllocationListener* listener_;
 };
 
-VeloxMemoryManager::VeloxMemoryManager(std::unique_ptr<AllocationListener> listener)
-    : MemoryManager(), listener_(std::move(listener)) {
+VeloxMemoryManager::VeloxMemoryManager(const std::string& kind, std::unique_ptr<AllocationListener> listener)
+    : MemoryManager(kind), listener_(std::move(listener)) {
   auto reservationBlockSize = VeloxBackend::get()->getBackendConf()->get<uint64_t>(
       kMemoryReservationBlockSize, kMemoryReservationBlockSizeDefault);
   auto memInitCapacity =
@@ -209,6 +209,11 @@ VeloxMemoryManager::VeloxMemoryManager(std::unique_ptr<AllocationListener> liste
   blockListener_ = std::make_unique<BlockAllocationListener>(listener_.get(), reservationBlockSize);
   listenableAlloc_ = std::make_unique<ListenableMemoryAllocator>(defaultMemoryAllocator().get(), blockListener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(listenableAlloc_.get());
+
+  std::unordered_map<std::string, std::string> extraArbitratorConfigs;
+  extraArbitratorConfigs["memory-pool-initial-capacity"] = folly::to<std::string>(memInitCapacity) + "B";
+  extraArbitratorConfigs["memory-pool-transfer-capacity"] = folly::to<std::string>(reservationBlockSize) + "B";
+  extraArbitratorConfigs["memory-reclaim-max-wait-time"] = folly::to<std::string>(0) + "ms";
 
   ArbitratorFactoryRegister afr(listener_.get());
   velox::memory::MemoryManagerOptions mmOptions{
@@ -219,9 +224,7 @@ VeloxMemoryManager::VeloxMemoryManager(std::unique_ptr<AllocationListener> liste
       .coreOnAllocationFailureEnabled = false,
       .allocatorCapacity = velox::memory::kMaxMemory,
       .arbitratorKind = afr.getKind(),
-      .memoryPoolInitCapacity = memInitCapacity,
-      .memoryPoolTransferCapacity = reservationBlockSize,
-      .memoryReclaimWaitMs = 0};
+      .extraArbitratorConfigs = extraArbitratorConfigs};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(

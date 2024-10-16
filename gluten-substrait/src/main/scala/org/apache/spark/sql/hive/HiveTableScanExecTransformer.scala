@@ -71,11 +71,6 @@ case class HiveTableScanExecTransformer(
 
   override def getDataSchema: StructType = relation.tableMeta.dataSchema
 
-  override def getInputFilePathsInternal: Seq[String] = {
-    // FIXME how does a hive table expose file paths?
-    Seq.empty
-  }
-
   // TODO: get root paths from hive table.
   override def getRootPathsInternal: Seq[String] = Seq.empty
 

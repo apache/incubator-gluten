@@ -61,7 +61,9 @@ object Convention {
     Impl(rowType, batchType)
   }
 
-  sealed trait RowType
+  sealed trait RowType extends TransitionGraph.Vertex with Serializable {
+    Transition.graph.addVertex(this)
+  }
 
   object RowType {
     // None indicates that the plan doesn't support row-based processing.
@@ -69,23 +71,25 @@ object Convention {
     final case object VanillaRow extends RowType
   }
 
-  trait BatchType {
-    final def fromRow(transitionDef: TransitionDef): Unit = {
-      Transition.factory.update().defineFromRowTransition(this, transitionDef)
+  trait BatchType extends TransitionGraph.Vertex with Serializable {
+    Transition.graph.addVertex(this)
+
+    final protected def fromRow(transition: Transition): Unit = {
+      Transition.graph.addEdge(RowType.VanillaRow, this, transition)
     }
 
-    final def toRow(transitionDef: TransitionDef): Unit = {
-      Transition.factory.update().defineToRowTransition(this, transitionDef)
+    final protected def toRow(transition: Transition): Unit = {
+      Transition.graph.addEdge(this, RowType.VanillaRow, transition)
     }
 
-    final def fromBatch(from: BatchType, transitionDef: TransitionDef): Unit = {
+    final protected def fromBatch(from: BatchType, transition: Transition): Unit = {
       assert(from != this)
-      Transition.factory.update().defineBatchTransition(from, this, transitionDef)
+      Transition.graph.addEdge(from, this, transition)
     }
 
-    final def toBatch(to: BatchType, transitionDef: TransitionDef): Unit = {
+    final protected def toBatch(to: BatchType, transition: Transition): Unit = {
       assert(to != this)
-      Transition.factory.update().defineBatchTransition(this, to, transitionDef)
+      Transition.graph.addEdge(this, to, transition)
     }
   }
 
@@ -93,17 +97,8 @@ object Convention {
     // None indicates that the plan doesn't support batch-based processing.
     final case object None extends BatchType
     final case object VanillaBatch extends BatchType {
-      fromRow(
-        () =>
-          (plan: SparkPlan) => {
-            RowToColumnarExec(plan)
-          })
-
-      toRow(
-        () =>
-          (plan: SparkPlan) => {
-            ColumnarToRowExec(plan)
-          })
+      fromRow(RowToColumnarExec.apply)
+      toRow(ColumnarToRowExec.apply)
     }
   }
 

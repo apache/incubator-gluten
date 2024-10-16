@@ -16,23 +16,23 @@
  */
 #include "SortRelParser.h"
 
-#include <Common/GlutenConfig.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Processors/QueryPlan/SortingStep.h>
-#include <Common/logger_useful.h>
+#include <Common/GlutenConfig.h>
 #include <Common/QueryContext.h>
+#include <Common/logger_useful.h>
 
 namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
+extern const int LOGICAL_ERROR;
 }
 }
 
 namespace local_engine
 {
-SortRelParser::SortRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
+SortRelParser::SortRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_)
 {
 }
 
@@ -50,7 +50,7 @@ SortRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, st
         return currentThreadGroupMemoryUsageRatio() > spill_mem_ratio;
     };
     auto sorting_step = std::make_unique<DB::SortingStep>(
-        query_plan->getCurrentDataStream(), sort_descr, limit, settings, false);
+        query_plan->getCurrentDataStream(), sort_descr, limit, settings);
     sorting_step->setStepDescription("Sorting step");
     steps.emplace_back(sorting_step.get());
     query_plan->addStep(std::move(sorting_step));
@@ -112,7 +112,7 @@ size_t SortRelParser::parseLimit(std::list<const substrait::Rel *> & rel_stack_)
 
 void registerSortRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_parser) { return std::make_shared<SortRelParser>(plan_parser); };
+    auto builder = [](ParserContextPtr parser_context) { return std::make_shared<SortRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kSort, builder);
 }
 }

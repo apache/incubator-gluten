@@ -22,6 +22,8 @@
 #include <Core/Field.h>
 #include <DataTypes/IDataType.h>
 #include <DataTypes/Serializations/ISerialization.h>
+#include <Parser/ExpressionParser.h>
+#include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <base/types.h>
@@ -30,11 +32,12 @@
 
 namespace local_engine
 {
+class ExpressionParser;
 /// parse a single substrait relation
 class RelParser
 {
 public:
-    explicit RelParser(SerializedPlanParser * plan_parser_) : plan_parser(plan_parser_) { }
+    explicit RelParser(ParserContextPtr parser_context_);
 
     virtual ~RelParser() = default;
     virtual DB::QueryPlanPtr
@@ -49,51 +52,33 @@ public:
     static AggregateFunctionPtr getAggregateFunction(
         const String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters = {});
 
+    virtual std::vector<DB::QueryPlanPtr> extraPlans() { return {}; }
+
 protected:
-    inline SerializedPlanParser * getPlanParser() const { return plan_parser; }
-    inline ContextPtr getContext() const { return plan_parser->context; }
+    // inline SerializedPlanParser * getPlanParser() const { return plan_parser; }
+    inline ContextPtr getContext() const { return parser_context->queryContext(); }
 
-    inline String getUniqueName(const std::string & name) const { return plan_parser->getUniqueName(name); }
+    String getUniqueName(const std::string & name) const;
 
-    inline const std::unordered_map<std::string, std::string> & getFunctionMapping() const { return plan_parser->function_mapping; }
-
-    // Get function signature name.
-    std::optional<String> parseSignatureFunctionName(UInt32 function_ref);
+    std::optional<String> parseSignatureFunctionName(UInt32 function_ref) const;
     // Get coresponding function name in ClickHouse.
-    std::optional<String> parseFunctionName(UInt32 function_ref, const substrait::Expression_ScalarFunction & function);
+    std::optional<String> parseFunctionName(const substrait::Expression_ScalarFunction & function) const;
 
-    const DB::ActionsDAG::Node * parseArgument(ActionsDAG & action_dag, const substrait::Expression & rel) const
-    {
-        return plan_parser->parseExpression(action_dag, rel);
-    }
+    const DB::ActionsDAG::Node * parseArgument(ActionsDAG & action_dag, const substrait::Expression & rel) const;
 
-    const DB::ActionsDAG::Node * parseExpression(ActionsDAG & action_dag, const substrait::Expression & rel) const
-    {
-        return plan_parser->parseExpression(action_dag, rel);
-    }
-    DB::ActionsDAG expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header) const
-    {
-        return plan_parser->expressionsToActionsDAG(expressions, header, header);
-    }
-    std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) const
-    {
-        return plan_parser->parseLiteral(literal);
-    }
+    const DB::ActionsDAG::Node * parseExpression(ActionsDAG & action_dag, const substrait::Expression & rel) const;
+
+    DB::ActionsDAG expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header) const;
+
+    std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) const;
     // collect all steps for metrics
     std::vector<IQueryPlanStep *> steps;
 
     const ActionsDAG::Node *
-    buildFunctionNode(ActionsDAG & action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args) const
-    {
-        return plan_parser->toFunctionNode(action_dag, function, args);
-    }
+    buildFunctionNode(ActionsDAG & action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args) const;
 
-    static std::map<std::string, std::string>
-    parseFormattedRelAdvancedOptimization(const substrait::extensions::AdvancedExtension & advanced_extension);
-    static std::string
-    getStringConfig(const std::map<std::string, std::string> & configs, const std::string & key, const std::string & default_value = "");
-
-    SerializedPlanParser * plan_parser;
+    ParserContextPtr parser_context;
+    std::unique_ptr<ExpressionParser> expression_parser;
 };
 
 class RelParserFactory
@@ -102,7 +87,7 @@ protected:
     RelParserFactory() = default;
 
 public:
-    using RelParserBuilder = std::function<std::shared_ptr<RelParser>(SerializedPlanParser *)>;
+    using RelParserBuilder = std::function<std::shared_ptr<RelParser>(ParserContextPtr)>;
     static RelParserFactory & instance();
     void registerBuilder(UInt32 k, RelParserBuilder builder);
     RelParserBuilder getBuilder(UInt32 k);

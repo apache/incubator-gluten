@@ -19,6 +19,7 @@
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
 #include <Interpreters/ActionsDAG.h>
+#include <Parser/ParserContext.h>
 #include <Parser/SerializedPlanParser.h>
 #include <base/types.h>
 #include <boost/noncopyable.hpp>
@@ -26,9 +27,11 @@
 #include <Poco/Logger.h>
 #include <Common/IFactoryWithAliases.h>
 #include <Common/logger_useful.h>
+#include "ParserContext.h"
 
 namespace local_engine
 {
+class ExpressionParser;
 class AggregateFunctionParser
 {
 public:
@@ -77,12 +80,9 @@ public:
         }
     };
 
-    AggregateFunctionParser(SerializedPlanParser * plan_parser_)
-        : plan_parser(plan_parser_)
-    {
-    }
+    AggregateFunctionParser(ParserContextPtr parser_context_);
 
-    virtual ~AggregateFunctionParser() = default;
+    virtual ~AggregateFunctionParser();
 
     virtual String getName() const = 0;
 
@@ -124,48 +124,33 @@ public:
     virtual DB::Array getDefaultFunctionParameters() const { return DB::Array(); }
 
 protected:
-    DB::ContextPtr getContext() const { return plan_parser->context; }
+    DB::ContextPtr getContext() const { return parser_context->queryContext(); }
 
-    String getUniqueName(const String & name) const { return plan_parser->getUniqueName(name); }
-
-    const DB::ActionsDAG::Node *
-    addColumnToActionsDAG(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
-    {
-        return &actions_dag.addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
-    }
+    String getUniqueName(const String & name) const;
 
     const DB::ActionsDAG::Node *
-    toFunctionNode(DB::ActionsDAG & action_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
-    {
-        return plan_parser->toFunctionNode(action_dag, func_name, args);
-    }
+    addColumnToActionsDAG(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const;
+
+    const DB::ActionsDAG::Node *
+    toFunctionNode(DB::ActionsDAG & action_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const;
 
     const DB::ActionsDAG::Node * toFunctionNode(
         DB::ActionsDAG & action_dag,
         const String & func_name,
         const String & result_name,
-        const DB::ActionsDAG::NodeRawConstPtrs & args) const
-    {
-        auto function_builder = DB::FunctionFactory::instance().get(func_name, getContext());
-        return &action_dag.addFunction(function_builder, args, result_name);
-    }
+        const DB::ActionsDAG::NodeRawConstPtrs & args) const;
 
-    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG& actions_dag, const substrait::Expression & rel) const
-    {
-        return plan_parser->parseExpression(actions_dag, rel);
-    }
+    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAG & actions_dag, const substrait::Expression & rel) const;
 
-    std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) const
-    {
-        return plan_parser->parseLiteral(literal);
-    }
+    std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) const;
 
-    SerializedPlanParser * plan_parser;
+    ParserContextPtr parser_context;
+    std::unique_ptr<ExpressionParser> expression_parser;
     Poco::Logger * logger = &Poco::Logger::get("AggregateFunctionParserFactory");
 };
 
 using AggregateFunctionParserPtr = std::shared_ptr<AggregateFunctionParser>;
-using AggregateFunctionParserCreator = std::function<AggregateFunctionParserPtr(SerializedPlanParser *)>;
+using AggregateFunctionParserCreator = std::function<AggregateFunctionParserPtr(ParserContextPtr)>;
 
 class AggregateFunctionParserFactory : public DB::IFactoryWithAliases<AggregateFunctionParserCreator>
 {
@@ -180,12 +165,12 @@ public:
     void registerAggregateFunctionParser(const String & name)
     {
         auto creator
-            = [](SerializedPlanParser * plan_parser) -> AggregateFunctionParserPtr { return std::make_shared<Parser>(plan_parser); };
+            = [](ParserContextPtr parser_context) -> AggregateFunctionParserPtr { return std::make_shared<Parser>(parser_context); };
         registerAggregateFunctionParser(name, creator);
     }
 
-    AggregateFunctionParserPtr get(const String & name, SerializedPlanParser * plan_parser) const;
-    AggregateFunctionParserPtr tryGet(const String & name, SerializedPlanParser * plan_parser) const;
+    AggregateFunctionParserPtr get(const String & name, ParserContextPtr parser_context) const;
+    AggregateFunctionParserPtr tryGet(const String & name, ParserContextPtr parser_context) const;
 
     const Parsers & getMap() const override { return parsers; }
 

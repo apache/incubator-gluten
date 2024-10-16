@@ -20,6 +20,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaParquetFileFormat
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
+import org.apache.spark.sql.execution.datasources.mergetree.DeltaMetaReader
 import org.apache.spark.sql.execution.datasources.v1.GlutenMergeTreeWriterInjects
 import org.apache.spark.sql.types.StructType
 
@@ -27,47 +28,6 @@ import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 
 @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
 class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileFormat(metadata) {
-
-  protected var database = ""
-  protected var tableName = ""
-  protected var snapshotId = ""
-  protected var orderByKeyOption: Option[Seq[String]] = None
-  protected var lowCardKeyOption: Option[Seq[String]] = None
-  protected var minmaxIndexKeyOption: Option[Seq[String]] = None
-  protected var bfIndexKeyOption: Option[Seq[String]] = None
-  protected var setIndexKeyOption: Option[Seq[String]] = None
-  protected var primaryKeyOption: Option[Seq[String]] = None
-  protected var partitionColumns: Seq[String] = Seq.empty[String]
-  protected var clickhouseTableConfigs: Map[String, String] = Map.empty
-
-  // scalastyle:off argcount
-  def this(
-      metadata: Metadata,
-      database: String,
-      tableName: String,
-      snapshotId: String,
-      orderByKeyOption: Option[Seq[String]],
-      lowCardKeyOption: Option[Seq[String]],
-      minmaxIndexKeyOption: Option[Seq[String]],
-      bfIndexKeyOption: Option[Seq[String]],
-      setIndexKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]],
-      clickhouseTableConfigs: Map[String, String],
-      partitionColumns: Seq[String]) {
-    this(metadata)
-    this.database = database
-    this.tableName = tableName
-    this.snapshotId = snapshotId
-    this.orderByKeyOption = orderByKeyOption
-    this.lowCardKeyOption = lowCardKeyOption
-    this.minmaxIndexKeyOption = minmaxIndexKeyOption
-    this.bfIndexKeyOption = bfIndexKeyOption
-    this.setIndexKeyOption = setIndexKeyOption
-    this.primaryKeyOption = primaryKeyOption
-    this.clickhouseTableConfigs = clickhouseTableConfigs
-    this.partitionColumns = partitionColumns
-  }
-  // scalastyle:on argcount
 
   override def shortName(): String = "mergetree"
 
@@ -92,11 +52,16 @@ class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileForma
       options: Map[String, String],
       dataSchema: StructType): OutputWriterFactory = {
     // pass compression to job conf so that the file extension can be aware of it.
-    // val conf = ContextUtil.getConfiguration(job)
+    val conf = job.getConfiguration
+
+    // just for the sake of compatibility
     val nativeConf =
       GlutenMergeTreeWriterInjects
         .getInstance()
         .nativeConf(options, "")
+
+    @transient val deltaMetaReader = DeltaMetaReader(metadata)
+    deltaMetaReader.storageConf.foreach { case (k, v) => conf.set(k, v) }
 
     new OutputWriterFactory {
       override def getFileExtension(context: TaskAttemptContext): String = {
@@ -107,25 +72,10 @@ class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileForma
           path: String,
           dataSchema: StructType,
           context: TaskAttemptContext): OutputWriter = {
+
         GlutenMergeTreeWriterInjects
           .getInstance()
-          .createOutputWriter(
-            path,
-            database,
-            tableName,
-            snapshotId,
-            orderByKeyOption,
-            lowCardKeyOption,
-            minmaxIndexKeyOption,
-            bfIndexKeyOption,
-            setIndexKeyOption,
-            primaryKeyOption,
-            partitionColumns,
-            metadata.schema,
-            clickhouseTableConfigs,
-            context,
-            nativeConf
-          )
+          .createOutputWriter(path, metadata.schema, context, nativeConf)
       }
     }
   }

@@ -27,7 +27,7 @@ namespace local_engine
 class FilterRelParser : public RelParser
 {
 public:
-    explicit FilterRelParser(SerializedPlanParser * plan_paser_);
+    explicit FilterRelParser(ParserContextPtr parser_context_);
     ~FilterRelParser() override = default;
 
     std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override { return &rel.filter().input(); }

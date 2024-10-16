@@ -255,4 +255,44 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-7389: cast map to string diff with spark") {
+    withTable("test_7389") {
+      sql("create table test_7389(a map<string, int>) using parquet")
+      sql("insert into test_7389 values(map('a', 1, 'b', 2))")
+      compareResultsAgainstVanillaSpark(
+        """
+          |select cast(a as string) from test_7389
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
+  test("GLUTEN-7550 get_json_object in IN") {
+    withTable("test_7550") {
+      sql("create table test_7550(a string) using parquet")
+      val insert_sql =
+        """
+          |insert into test_7550 values('{\'a\':\'1\'}'),('{\'a\':\'2\'}'),('{\'a\':\'3\'}')
+          |""".stripMargin
+      sql(insert_sql)
+      compareResultsAgainstVanillaSpark(
+        """
+          |select a, get_json_object(a, '$.a') in ('1', '2') from test_7550
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+      compareResultsAgainstVanillaSpark(
+        """
+          |select a in ('1', '2') from test_7550
+          |where get_json_object(a, '$.a') in ('1', '2')
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
 }

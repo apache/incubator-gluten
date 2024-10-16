@@ -95,7 +95,7 @@ class VeloxColumnarWriteFilesRDD(
     // Currently, the cb contains three columns: row, fragments, and context.
     // The first row in the row column contains the number of written numRows.
     // The fragments column contains detailed information about the file writes.
-    val loadedCb = ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance, cb)
+    val loadedCb = ColumnarBatches.load(ArrowBufferAllocators.contextInstance, cb)
     assert(loadedCb.numCols() == 3)
     val numWrittenRows = loadedCb.column(0).getLong(0)
 
