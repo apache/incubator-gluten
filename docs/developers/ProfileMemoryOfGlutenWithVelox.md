@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Profile memory consumption of Gluten
-nav_order: 15
+nav_order: 8
 has_children: true
 parent: /developer-overview/
 ---

@@ -33,7 +33,7 @@ public:
         ActionsDAG after_array_join; /// Optional
     };
 
-    explicit ProjectRelParser(SerializedPlanParser * plan_paser_);
+    explicit ProjectRelParser(ParserContextPtr parser_context_);
     ~ProjectRelParser() override = default;
 
     DB::QueryPlanPtr

@@ -33,7 +33,7 @@ namespace local_engine
 class FunctionParserElementAt : public FunctionParser
 {
 public:
-    explicit FunctionParserElementAt(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserElementAt(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserElementAt() override = default;
 
     static constexpr auto name = "element_at";

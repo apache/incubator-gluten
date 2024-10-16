@@ -346,8 +346,7 @@ jobs:
           cd $GITHUB_WORKSPACE/tools/gluten-it
           $MVN_CMD clean install -P${{ matrix.spark }}
           GLUTEN_IT_JVM_ARGS=-Xmx6G sbin/gluten-it.sh data-gen-only --local --benchmark-type=ds -s=30.0 --threads=12
-      - name: (To be fixed) TPC-DS SF30.0 Parquet local spark3.2 Q67/Q95 low memory, memory isolation off
-        continue-on-error: true
+      - name: TPC-DS SF30.0 Parquet local spark3.2 Q67/Q95 low memory, memory isolation off
         run: |
           cd tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx3G sbin/gluten-it.sh parameterized \
@@ -879,15 +878,15 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.5.1 cython && \
+          pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.1 (other tests)
+      - name: Build and Run unit test for Spark 3.5.2 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -927,15 +926,15 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5-scala2.13
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.5.1 cython && \
+          pip3 install pyspark==3.5.2 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.5.1 with scala-2.13 (other tests)
+      - name: Build and Run unit test for Spark 3.5.2 with scala-2.13 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.13
@@ -975,10 +974,10 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
-      - name: Build and Run unit test for Spark 3.5.1 (slow tests)
+      - name: Build and Run unit test for Spark 3.5.2 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Phudi -Pspark-ut \

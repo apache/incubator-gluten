@@ -29,7 +29,7 @@ namespace local_engine
 class ApproxPercentileParser : public AggregateFunctionParser
 {
 public:
-    explicit ApproxPercentileParser(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
+    explicit ApproxPercentileParser(ParserContextPtr parser_context_) : AggregateFunctionParser(parser_context_) { }
     ~ApproxPercentileParser() override = default;
     String getName() const override { return name; }
     static constexpr auto name = "approx_percentile";

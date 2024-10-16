@@ -33,7 +33,7 @@ namespace local_engine
 class FunctionParserEqualNullSafe : public FunctionParser
 {
 public:
-    explicit FunctionParserEqualNullSafe(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserEqualNullSafe(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserEqualNullSafe() override = default;
 
     static constexpr auto name = "equal_null_safe";

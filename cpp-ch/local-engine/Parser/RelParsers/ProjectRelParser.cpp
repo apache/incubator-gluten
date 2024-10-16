@@ -34,7 +34,7 @@ using namespace DB;
 
 namespace local_engine
 {
-ProjectRelParser::ProjectRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
+ProjectRelParser::ProjectRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_)
 {
 }
 DB::QueryPlanPtr
@@ -56,7 +56,7 @@ ProjectRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel,
 DB::QueryPlanPtr
 ProjectRelParser::parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & /*rel_stack_*/)
 {
-    ExpressionsRewriter rewriter(getPlanParser());
+    ExpressionsRewriter rewriter(parser_context);
     substrait::Rel final_rel = rel;
     rewriter.rewrite(final_rel);
     const auto & project_rel = final_rel.project();
@@ -85,7 +85,7 @@ ProjectRelParser::parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel
     }
 }
 
-const DB::ActionsDAG::Node * ProjectRelParser::findArrayJoinNode(const ActionsDAG& actions_dag)
+const DB::ActionsDAG::Node * ProjectRelParser::findArrayJoinNode(const ActionsDAG & actions_dag)
 {
     const ActionsDAG::Node * array_join_node = nullptr;
     const auto & nodes = actions_dag.getNodes();
@@ -101,7 +101,7 @@ const DB::ActionsDAG::Node * ProjectRelParser::findArrayJoinNode(const ActionsDA
     return array_join_node;
 }
 
-ProjectRelParser::SplittedActionsDAGs ProjectRelParser::splitActionsDAGInGenerate(const ActionsDAG& actions_dag)
+ProjectRelParser::SplittedActionsDAGs ProjectRelParser::splitActionsDAGInGenerate(const ActionsDAG & actions_dag)
 {
     SplittedActionsDAGs res;
 
@@ -121,7 +121,8 @@ ProjectRelParser::SplittedActionsDAGs ProjectRelParser::splitActionsDAGInGenerat
 
 bool ProjectRelParser::isReplicateRows(substrait::GenerateRel rel)
 {
-    return plan_parser->isFunction(rel.generator().scalar_function(), "replicaterows");
+    auto signature = expression_parser->getFunctionNameInSignature(rel.generator().scalar_function());
+    return signature == "replicaterows";
 }
 
 DB::QueryPlanPtr ProjectRelParser::parseReplicateRows(DB::QueryPlanPtr query_plan, substrait::GenerateRel generate_rel)
@@ -181,7 +182,7 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
         LOG_DEBUG(logger, "actions_dag during arrayJoin:{}", splitted_actions_dags.array_join.dumpDAG());
         LOG_DEBUG(logger, "actions_dag after arrayJoin:{}", splitted_actions_dags.after_array_join.dumpDAG());
 
-        auto ignore_actions_dag = [](const ActionsDAG& actions_dag_) -> bool
+        auto ignore_actions_dag = [](const ActionsDAG & actions_dag_) -> bool
         {
             /*
             We should ignore actions_dag like:
@@ -219,7 +220,8 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
         /// Post-projection after array join(Optional)
         if (!ignore_actions_dag(splitted_actions_dags.after_array_join))
         {
-            auto step_after_array_join = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(splitted_actions_dags.after_array_join));
+            auto step_after_array_join
+                = std::make_unique<ExpressionStep>(query_plan->getCurrentDataStream(), std::move(splitted_actions_dags.after_array_join));
             step_after_array_join->setStepDescription("Post-projection In Generate");
             steps.emplace_back(step_after_array_join.get());
             query_plan->addStep(std::move(step_after_array_join));
@@ -232,8 +234,8 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
 
 void registerProjectRelParser(RelParserFactory & factory)
 {
-    auto builder
-        = [](SerializedPlanParser * plan_parser) -> std::unique_ptr<RelParser> { return std::make_unique<ProjectRelParser>(plan_parser); };
+    auto builder = [](ParserContextPtr parser_context_) -> std::unique_ptr<RelParser>
+    { return std::make_unique<ProjectRelParser>(parser_context_); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kProject, builder);
     factory.registerBuilder(substrait::Rel::RelTypeCase::kGenerate, builder);
 }

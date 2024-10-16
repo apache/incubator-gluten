@@ -442,26 +442,26 @@ public:
         // file uri looks like: s3a://my-dev-bucket/tpch100/part/0001.parquet
         const std::string& bucket = file_uri.getHost();
         const auto client = getClient(bucket);
-        std::string key = file_uri.getPath().substr(1);
-        DB::S3::ObjectInfo object_info =  DB::S3::getObjectInfo(*client, bucket, key, "");
+        std::string pathKey = file_uri.getPath().substr(1);
+        DB::S3::ObjectInfo object_info =  DB::S3::getObjectInfo(*client, bucket, pathKey, "");
         size_t object_size = object_info.size;
         Int64 object_modified_time = object_info.last_modification_time;
 
         if (read_settings.enable_filesystem_cache)
         {
-            auto file_cache_key = DB::FileCacheKey(key);
+            auto file_cache_key = DB::FileCacheKey::fromPath(pathKey);
             auto last_cache_time = files_cache_time_map.get(file_cache_key);
             // quick check
             if (last_cache_time != std::nullopt && last_cache_time.has_value())
             {
                 if (last_cache_time.value() < object_modified_time*1000l) //second to milli second
                 {
-                    files_cache_time_map.update_cache_time(file_cache_key, key, object_modified_time*1000l, file_cache);
+                    files_cache_time_map.update_cache_time(file_cache_key, pathKey, object_modified_time*1000l, file_cache);
                 }
             }
             else
             {
-                files_cache_time_map.update_cache_time(file_cache_key, key, object_modified_time*1000l, file_cache);
+                files_cache_time_map.update_cache_time(file_cache_key, pathKey, object_modified_time*1000l, file_cache);
             }
         }
 
@@ -483,7 +483,7 @@ public:
 
         auto cache_creator = wrapWithCache(read_buffer_creator, read_settings);
 
-        DB::StoredObjects stored_objects{DB::StoredObject{key, "", object_size}};
+        DB::StoredObjects stored_objects{DB::StoredObject{pathKey, "", object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
             std::move(cache_creator), stored_objects, read_settings, /* cache_log */ nullptr, /* use_external_buffer */ true);
 
@@ -807,7 +807,7 @@ ReadBufferBuilder::wrapWithCache(ReadBufferCreator read_buffer_creator, DB::Read
         return [read_buffer_creator, read_settings, this](
                    bool restricted_seek, const DB::StoredObject & object) -> std::unique_ptr<DB::ReadBufferFromFileBase>
         {
-            auto cache_key = DB::FileCache::createKeyForPath(object.remote_path);
+            auto cache_key = DB::FileCacheKey::fromPath(object.remote_path);
             auto modified_read_settings = read_settings.withNestedBuffer();
             auto rbc = [=, this]() { return read_buffer_creator(restricted_seek, object); };
 

@@ -51,35 +51,22 @@ RUN /tmp/deps.sh \
   && dnf clean all \
   && rm -rf /var/cache/yum
 
-# Install deps from url
-ENV PATH="$PATH:/usr/lib/jvm/java-1.8.0-openjdk/bin"
-RUN wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
-    tar -xvf apache-maven-3.8.8-bin.tar.gz && \
-    rm apache-maven-3.8.8-bin.tar.gz && \
-    mv apache-maven-3.8.8 /usr/lib/maven
+# Spark binaries
+WORKDIR /opt
+ARG BUILD_SPARK_BINARIES
 
 # Build & install Spark 3.2.2
-RUN cd /opt && wget https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.2.tgz
-RUN cd /opt && mkdir spark322 && tar -xvf spark-3.2.2-bin-hadoop3.2.tgz -C spark322 --strip-components=1
+RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then wget https://archive.apache.org/dist/spark/spark-3.2.2/spark-3.2.2-bin-hadoop3.2.tgz; fi
+RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then mkdir spark322 && tar -xvf spark-3.2.2-bin-hadoop3.2.tgz -C spark322 --strip-components=1; fi
 
 # Build & install Spark 3.3.1
-RUN cd /opt && wget https://archive.apache.org/dist/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz
-RUN cd /opt && mkdir spark331 && tar -xvf spark-3.3.1-bin-hadoop3.tgz -C spark331 --strip-components=1
+RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then wget https://archive.apache.org/dist/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz; fi
+RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then mkdir spark331 && tar -xvf spark-3.3.1-bin-hadoop3.tgz -C spark331 --strip-components=1; fi
 
 # Build & install Spark 3.4.3
-RUN cd /opt && wget https://archive.apache.org/dist/spark/spark-3.4.3/spark-3.4.3-bin-hadoop3.tgz
-RUN cd /opt && mkdir spark342 && tar -xvf spark-3.4.3-bin-hadoop3.tgz -C spark342 --strip-components=1
+RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then https://archive.apache.org/dist/spark/spark-3.4.3/spark-3.4.3-bin-hadoop3.tgz; fi
+RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then mkdir spark343 && tar -xvf spark-3.4.3-bin-hadoop3.tgz -C spark343 --strip-components=1; fi
 
 # Build & install Spark 3.5.1
-RUN cd /opt && wget https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz
-RUN cd /opt && mkdir spark351 && tar -xvf spark-3.5.1-bin-hadoop3.tgz -C spark351 --strip-components=1
-
-ENV PATH="$PATH:/usr/lib/maven/bin"
-ENV LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib:/lib64:/lib
-
-# Velox setup scripts require sudo
-RUN yum -y install sudo \
-    && yum clean all
-RUN echo '%wheel ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
-
-COPY scripts/env.sh /env.sh
+RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then https://archive.apache.org/dist/spark/spark-3.5.1/spark-3.5.1-bin-hadoop3.tgz; fi
+RUN if [ "$BUILD_SPARK_BINARIES" = "ON" ]; then mkdir spark351 && tar -xvf spark-3.5.1-bin-hadoop3.tgz -C spark351 --strip-components=1; fi

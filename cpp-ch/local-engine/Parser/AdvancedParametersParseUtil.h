@@ -39,6 +39,13 @@ struct JoinOptimizationInfo
     static JoinOptimizationInfo parse(const String & advance);
 };
 
+struct AggregateOptimizationInfo
+{
+    bool has_pre_partial_aggregate = false;
+    bool has_required_child_distribution_expressions = false;
+    static AggregateOptimizationInfo parse(const String & advance);
+};
+
 struct WindowGroupOptimizationInfo
 {
     String window_function;

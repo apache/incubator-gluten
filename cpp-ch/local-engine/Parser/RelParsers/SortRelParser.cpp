@@ -16,23 +16,23 @@
  */
 #include "SortRelParser.h"
 
-#include <Common/GlutenConfig.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Processors/QueryPlan/SortingStep.h>
-#include <Common/logger_useful.h>
+#include <Common/GlutenConfig.h>
 #include <Common/QueryContext.h>
+#include <Common/logger_useful.h>
 
 namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
+extern const int LOGICAL_ERROR;
 }
 }
 
 namespace local_engine
 {
-SortRelParser::SortRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
+SortRelParser::SortRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_)
 {
 }
 
@@ -112,7 +112,7 @@ size_t SortRelParser::parseLimit(std::list<const substrait::Rel *> & rel_stack_)
 
 void registerSortRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_parser) { return std::make_shared<SortRelParser>(plan_parser); };
+    auto builder = [](ParserContextPtr parser_context) { return std::make_shared<SortRelParser>(parser_context); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kSort, builder);
 }
 }

@@ -33,7 +33,7 @@ namespace local_engine
 class FunctionParserArrayRemove : public FunctionParser
 {
 public:
-    FunctionParserArrayRemove(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    FunctionParserArrayRemove(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserArrayRemove() override = default;
 
     static constexpr auto name = "array_remove";

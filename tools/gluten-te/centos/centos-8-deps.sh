@@ -16,13 +16,12 @@
 
 set -ex
 
-sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* 
-# The connection to vault.centos.org in CI is unstable
-# sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-*
-minorver=8.5.2111
-sed -i -e \
-  "s|^#baseurl=http://mirror.centos.org/\$contentdir/\$releasever|baseurl=https://mirrors.aliyun.com/centos-vault/$minorver|g" \
-  /etc/yum.repos.d/CentOS-*.repo
+# TODO, use CentOS 7 instead.
+echo " This script is out of date!"
+exit 1
+
+sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-*
+sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-*
 
 dnf install -y epel-release sudo
 yum -y update && yum clean all && yum install -y dnf-plugins-core

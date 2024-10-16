@@ -20,6 +20,7 @@
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <Functions/FunctionHelpers.h>
+#include <Parser/ExpressionParser.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Parser/TypeParser.h>
 #include <Common/CHUtil.h>
@@ -29,18 +30,58 @@ namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int BAD_ARGUMENTS;
-    extern const int LOGICAL_ERROR;
-    extern const int UNKNOWN_FUNCTION;
+extern const int BAD_ARGUMENTS;
+extern const int LOGICAL_ERROR;
+extern const int UNKNOWN_FUNCTION;
 }
 }
 
 namespace local_engine
 {
+AggregateFunctionParser::AggregateFunctionParser(ParserContextPtr parser_context_) : parser_context(parser_context_)
+{
+    expression_parser = std::make_unique<ExpressionParser>(parser_context);
+}
 
-DB::ActionsDAG::NodeRawConstPtrs AggregateFunctionParser::parseFunctionArguments(
-    const CommonFunctionInfo & func_info,
-    DB::ActionsDAG & actions_dag) const
+AggregateFunctionParser::~AggregateFunctionParser()
+{
+}
+
+String AggregateFunctionParser::getUniqueName(const String & name) const
+{
+    return expression_parser->getUniqueName(name);
+}
+
+const DB::ActionsDAG::Node *
+AggregateFunctionParser::addColumnToActionsDAG(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
+{
+    return expression_parser->addConstColumn(actions_dag, type, field);
+}
+
+const DB::ActionsDAG::Node * AggregateFunctionParser::toFunctionNode(
+    DB::ActionsDAG & action_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+{
+    return expression_parser->toFunctionNode(action_dag, func_name, args);
+}
+
+const DB::ActionsDAG::Node * AggregateFunctionParser::toFunctionNode(
+    DB::ActionsDAG & action_dag, const String & func_name, const String & result_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+{
+    return expression_parser->toFunctionNode(action_dag, func_name, args, result_name);
+}
+
+const DB::ActionsDAG::Node * AggregateFunctionParser::parseExpression(DB::ActionsDAG & actions_dag, const substrait::Expression & rel) const
+{
+    return expression_parser->parseExpression(actions_dag, rel);
+}
+
+std::pair<DataTypePtr, Field> AggregateFunctionParser::parseLiteral(const substrait::Expression_Literal & literal) const
+{
+    return LiteralParser().parse(literal);
+}
+
+DB::ActionsDAG::NodeRawConstPtrs
+AggregateFunctionParser::parseFunctionArguments(const CommonFunctionInfo & func_info, DB::ActionsDAG & actions_dag) const
 {
     DB::ActionsDAG::NodeRawConstPtrs collected_args;
     for (const auto & arg : func_info.arguments)
@@ -50,8 +91,10 @@ DB::ActionsDAG::NodeRawConstPtrs AggregateFunctionParser::parseFunctionArguments
 
         // If the aggregate result is required to be nullable, make all inputs be nullable at the first stage.
         auto required_output_type = DB::WhichDataType(TypeParser::parseType(func_info.output_type));
-        if (required_output_type.isNullable() && (func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
-            || func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_RESULT) && !arg_node->result_type->isNullable())
+        if (required_output_type.isNullable()
+            && (func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
+                || func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_RESULT)
+            && !arg_node->result_type->isNullable())
         {
             DB::ActionsDAG::NodeRawConstPtrs args;
             args.emplace_back(arg_node);
@@ -72,9 +115,7 @@ DB::ActionsDAG::NodeRawConstPtrs AggregateFunctionParser::parseFunctionArguments
 }
 
 std::pair<String, DB::DataTypes> AggregateFunctionParser::tryApplyCHCombinator(
-    const CommonFunctionInfo & func_info,
-    const String & ch_func_name,
-    const DB::DataTypes & arg_column_types) const
+    const CommonFunctionInfo & func_info, const String & ch_func_name, const DB::DataTypes & arg_column_types) const
 {
     auto get_aggregate_function = [](const String & name, const DB::DataTypes & arg_types) -> DB::AggregateFunctionPtr
     {
@@ -88,8 +129,8 @@ std::pair<String, DB::DataTypes> AggregateFunctionParser::tryApplyCHCombinator(
     };
     String combinator_function_name = ch_func_name;
     DB::DataTypes combinator_arg_column_types = arg_column_types;
-    if (func_info.phase != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE &&
-        func_info.phase != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_RESULT)
+    if (func_info.phase != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
+        && func_info.phase != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_RESULT)
     {
         if (arg_column_types.size() != 1)
         {
@@ -145,17 +186,13 @@ std::pair<String, DB::DataTypes> AggregateFunctionParser::tryApplyCHCombinator(
 }
 
 const DB::ActionsDAG::Node * AggregateFunctionParser::convertNodeTypeIfNeeded(
-    const CommonFunctionInfo & func_info,
-    const DB::ActionsDAG::Node * func_node,
-    DB::ActionsDAG & actions_dag,
-    bool with_nullability) const
+    const CommonFunctionInfo & func_info, const DB::ActionsDAG::Node * func_node, DB::ActionsDAG & actions_dag, bool with_nullability) const
 {
     const auto & output_type = func_info.output_type;
     bool need_convert_type = !TypeParser::isTypeMatched(output_type, func_node->result_type, !with_nullability);
     if (need_convert_type)
     {
-        func_node = ActionsDAGUtil::convertNodeType(
-            actions_dag, func_node, TypeParser::parseType(output_type), func_node->result_name);
+        func_node = ActionsDAGUtil::convertNodeType(actions_dag, func_node, TypeParser::parseType(output_type), func_node->result_name);
         actions_dag.addOrReplaceInOutputs(*func_node);
     }
 
@@ -164,8 +201,8 @@ const DB::ActionsDAG::Node * AggregateFunctionParser::convertNodeTypeIfNeeded(
         String checkDecimalOverflowSparkOrNull = "checkDecimalOverflowSparkOrNull";
         DB::ActionsDAG::NodeRawConstPtrs overflow_args
             = {func_node,
-               plan_parser->addColumn(actions_dag, std::make_shared<DataTypeInt32>(), output_type.decimal().precision()),
-               plan_parser->addColumn(actions_dag, std::make_shared<DataTypeInt32>(), output_type.decimal().scale())};
+               expression_parser->addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), output_type.decimal().precision()),
+               expression_parser->addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), output_type.decimal().scale())};
         func_node = toFunctionNode(actions_dag, checkDecimalOverflowSparkOrNull, func_node->result_name, overflow_args);
         actions_dag.addOrReplaceInOutputs(*func_node);
     }
@@ -185,20 +222,19 @@ void AggregateFunctionParserFactory::registerAggregateFunctionParser(const Strin
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Aggregate function parser {} is already registered", name);
 }
 
-AggregateFunctionParserPtr AggregateFunctionParserFactory::get(const String & name, SerializedPlanParser *plan_parser) const
+AggregateFunctionParserPtr AggregateFunctionParserFactory::get(const String & name, ParserContextPtr parser_context) const
 {
-    auto parser = tryGet(name, plan_parser);
+    auto parser = tryGet(name, parser_context);
     if (!parser)
         throw DB::Exception(DB::ErrorCodes::UNKNOWN_FUNCTION, "Unknown aggregate function {}", name);
     return parser;
 }
 
-AggregateFunctionParserPtr AggregateFunctionParserFactory::tryGet(const String & name, SerializedPlanParser *plan_parser) const
+AggregateFunctionParserPtr AggregateFunctionParserFactory::tryGet(const String & name, ParserContextPtr parser_context) const
 {
     auto it = parsers.find(name);
     if (it == parsers.end())
         return nullptr;
-    return it->second(plan_parser);
+    return it->second(parser_context);
 }
-
 }

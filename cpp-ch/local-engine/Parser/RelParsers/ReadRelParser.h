@@ -24,7 +24,7 @@ namespace local_engine
 class ReadRelParser : public RelParser
 {
 public:
-    explicit ReadRelParser(SerializedPlanParser * plan_parser_) : RelParser(plan_parser_) { }
+    explicit ReadRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_) { }
     ~ReadRelParser() override = default;
 
     DB::QueryPlanPtr

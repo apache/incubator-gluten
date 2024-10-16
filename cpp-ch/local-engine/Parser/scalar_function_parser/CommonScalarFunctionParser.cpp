@@ -24,7 +24,7 @@ namespace local_engine
     class ScalarFunctionParser##cls_name : public FunctionParser \
     { \
     public: \
-        ScalarFunctionParser##cls_name(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) \
+        ScalarFunctionParser##cls_name(ParserContextPtr parser_context_) : FunctionParser(parser_context_) \
         { \
         } \
         ~ScalarFunctionParser##cls_name() override = default; \

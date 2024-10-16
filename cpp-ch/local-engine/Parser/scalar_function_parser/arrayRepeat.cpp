@@ -34,7 +34,7 @@ namespace local_engine
 class FunctionParserArrayRepeat : public FunctionParser
 {
 public:
-    FunctionParserArrayRepeat(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    FunctionParserArrayRepeat(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserArrayRepeat() override = default;
 
     static constexpr auto name = "array_repeat";

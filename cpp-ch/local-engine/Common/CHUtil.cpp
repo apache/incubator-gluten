@@ -382,6 +382,41 @@ void PlanUtil::checkOuputType(const DB::QueryPlan & plan)
     }
 }
 
+DB::IQueryPlanStep * PlanUtil::adjustQueryPlanHeader(DB::QueryPlan & plan, const DB::Block & to_header, const String & step_desc)
+{
+    auto convert_actions_dag = DB::ActionsDAG::makeConvertingActions(
+        plan.getCurrentDataStream().header.getColumnsWithTypeAndName(),
+        to_header.getColumnsWithTypeAndName(),
+        ActionsDAG::MatchColumnsMode::Name);
+    auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentDataStream(), std::move(convert_actions_dag));
+    expression_step->setStepDescription(step_desc);
+    auto * step_ptr = expression_step.get();
+    plan.addStep(std::move(expression_step));
+    return step_ptr;
+}
+
+DB::IQueryPlanStep * PlanUtil::addRemoveNullableStep(DB::ContextPtr context, DB::QueryPlan & plan, const std::set<String> & columns)
+{
+    if (columns.empty())
+        return nullptr;
+    DB::ActionsDAG remove_nullable_actions_dag{plan.getCurrentDataStream().header.getColumnsWithTypeAndName()};
+    for (const auto & col_name : columns)
+    {
+        if (const auto * required_node = remove_nullable_actions_dag.tryFindInOutputs(col_name))
+        {
+            auto function_builder = DB::FunctionFactory::instance().get("assumeNotNull", context);
+            DB::ActionsDAG::NodeRawConstPtrs args = {required_node};
+            const auto & node = remove_nullable_actions_dag.addFunction(function_builder, args, col_name);
+            remove_nullable_actions_dag.addOrReplaceInOutputs(node);
+        }
+    }
+    auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentDataStream(), std::move(remove_nullable_actions_dag));
+    expression_step->setStepDescription("Remove nullable properties");
+    auto * step_ptr = expression_step.get();
+    plan.addStep(std::move(expression_step));
+    return step_ptr;
+}
+
 NestedColumnExtractHelper::NestedColumnExtractHelper(const DB::Block & block_, bool case_insentive_)
     : block(block_), case_insentive(case_insentive_)
 {
