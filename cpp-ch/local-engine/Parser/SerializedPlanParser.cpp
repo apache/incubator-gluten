@@ -143,7 +143,15 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         auto original_header = query_plan->getCurrentHeader();
         const auto & original_cols = original_header.getColumnsWithTypeAndName();
         if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
-            throw Exception(ErrorCodes::LOGICAL_ERROR, "Mismatch output schema");
+        {
+            throw Exception(
+                ErrorCodes::LOGICAL_ERROR,
+                "Mismatch output schema. plan column size {} [header: '{}'], subtrait plan size {}[schema: {}].",
+                original_cols.size(),
+                original_header.dumpStructure(),
+                output_schema.types_size(),
+                dumpMessage(output_schema));
+        }
         bool need_final_project = false;
         ColumnsWithTypeAndName final_cols;
         for (int i = 0; i < output_schema.types_size(); ++i)
