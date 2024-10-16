@@ -73,7 +73,9 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos7-release-default
+          key: ccache-centos7-release-default-${{github.sha}}
+          restore-keys: |
+            ccache-centos7-release-default
       - name: Build Gluten native libraries
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
@@ -86,7 +88,7 @@ jobs:
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos7-release-default
+          key: ccache-centos7-release-default-${{github.sha}}
       - uses: actions/upload-artifact@v3
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
@@ -998,7 +1000,9 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos8-release-default
+          key: ccache-centos8-release-default-${{github.sha}}
+          restore-keys: |
+            ccache-centos8-release-default
       - name: Setup java and maven
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
@@ -1015,7 +1019,7 @@ jobs:
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos8-release-default
+          key: ccache-centos8-release-default-${{github.sha}}
       - name: Run CPP unit test
         run: |
           cd ./cpp/build && ctest -V

@@ -49,7 +49,9 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos7-release-default
+          key: ccache-centos7-release-default-${{github.sha}}
+          restore-keys: |
+            ccache-centos7-release-default
       - name: Build Gluten native libraries
         if: steps.check-cache.outputs.cache-hit != 'true'
         run: |
@@ -61,7 +63,7 @@ jobs:
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos7-release-default
+          key: ccache-centos7-release-default-${{github.sha}}
       - name: Cache
         if: steps.check-cache.outputs.cache-hit != 'true'
         id: cache
@@ -94,7 +96,9 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos8-release-default
+          key: ccache-centos8-release-default-${{github.sha}}
+          restore-keys: |
+            ccache-centos8-release-default
       - name: Setup java and maven
         if: steps.check-cache.outputs.cache-hit != 'true'
         run: |
@@ -113,7 +117,7 @@ jobs:
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos8-release-default
+          key: ccache-centos8-release-default-${{github.sha}}
       - name: Cache
         if: steps.check-cache.outputs.cache-hit != 'true'
         id: cache
