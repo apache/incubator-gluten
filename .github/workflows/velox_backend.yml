@@ -47,6 +47,7 @@ env:
   MVN_CMD: 'mvn -ntp'
   WGET_CMD: 'wget -nv'
   SETUP: 'bash .github/workflows/util/setup_helper.sh'
+  CCACHE_DIR: "${{ github.workspace }}/.ccache"
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -68,12 +69,26 @@ jobs:
           path: |
             ./cpp/build/releases/
           key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos7-release-default-${{github.sha}}
+          restore-keys: |
+            ccache-centos7-release-default
       - name: Build Gluten native libraries
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           df -a
+          yum install ccache -y
           cd $GITHUB_WORKSPACE/
           bash dev/ci-velox-buildstatic-centos-7.sh
+      - name: "Save ccache"
+        uses: actions/cache/save@v3
+        id: ccache
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos7-release-default-${{github.sha}}
       - uses: actions/upload-artifact@v3
         with:
           name: velox-native-lib-centos-7-${{github.sha}}
@@ -573,8 +588,6 @@ jobs:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v3
@@ -593,15 +606,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.2.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.2
@@ -628,8 +632,6 @@ jobs:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -650,15 +652,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.2.2 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.2
@@ -678,8 +671,6 @@ jobs:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -700,15 +691,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.3.1 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.3
@@ -736,8 +718,6 @@ jobs:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -758,15 +738,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.3.1 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.3
@@ -787,8 +758,6 @@ jobs:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -809,15 +778,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.4.3 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.4
@@ -845,8 +805,6 @@ jobs:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -867,15 +825,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.4.3 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.4
@@ -896,8 +845,6 @@ jobs:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -918,15 +865,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
@@ -953,8 +891,6 @@ jobs:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -975,15 +911,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5-scala2.13
@@ -1010,8 +937,6 @@ jobs:
     needs: build-native-lib-centos-7
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Download All Artifacts
@@ -1032,15 +957,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
@@ -1075,6 +991,13 @@ jobs:
             ./cpp/build/velox/benchmarks/
             /root/.m2/repository/org/apache/arrow/
           key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
+      - name: Get Ccache
+        uses: actions/cache/restore@v3
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos8-release-default-${{github.sha}}
+          restore-keys: |
+            ccache-centos8-release-default
       - name: Setup java and maven
         run: |
           sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
@@ -1086,6 +1009,12 @@ jobs:
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
+      - name: "Save ccache"
+        uses: actions/cache/save@v3
+        id: ccache
+        with:
+          path: '${{ env.CCACHE_DIR }}'
+          key: ccache-centos8-release-default-${{github.sha}}
       - name: Run CPP unit test
         run: |
           cd ./cpp/build && ctest -V
