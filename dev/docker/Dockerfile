@@ -3,7 +3,7 @@ FROM centos:7
 RUN sed -i "s/enabled=1/enabled=0/" /etc/yum/pluginconf.d/fastestmirror.conf
 
 WORKDIR /tmp/vcpkg
-COPY setup-build-depends.sh setup-build-depends.sh
+COPY vcpkg/setup-build-depends.sh setup-build-depends.sh
 RUN ./setup-build-depends.sh
 
 WORKDIR /
