@@ -172,6 +172,20 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     }
   }
 
+  private def toVeloxBatch(input: ColumnarBatch): ColumnarBatch = {
+    if (VeloxColumnarBatches.isVeloxBatch(input)) {
+      return input
+    }
+    if (ColumnarBatches.isHeavyBatch(input)) {
+      if (input.numCols() == 0) {
+        return input
+      }
+      return VeloxColumnarBatches.toVeloxBatch(
+        ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), input))
+    }
+    VeloxColumnarBatches.toVeloxBatch(input)
+  }
+
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val totalTime = longMetric("time")
     val c2r = longMetric("column_to_row_time")
@@ -195,9 +209,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
               val batchIterator = projectedBatch.map {
                 b =>
                   if (b.numCols() != 0) {
-                    val veloxBatch =
-                      if (VeloxColumnarBatches.isVeloxBatch(batch)) batch
-                      else VeloxColumnarBatches.toVeloxBatch(batch)
+                    val veloxBatch = toVeloxBatch(batch)
                     val compositeBatch = VeloxColumnarBatches.compose(veloxBatch, b)
                     b.close()
                     compositeBatch
@@ -247,12 +259,10 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
       c2r: SQLMetric,
       r2c: SQLMetric): Iterator[ColumnarBatch] = {
     // select part of child output and child data
-    val proj = UnsafeProjection.create(replacedAliasUdf, projectAttributes)
+    val proj = UnsafeProjection.create(replacedAliasUdf, projectAttributes.toSeq)
     val numOutputRows = new SQLMetric("numOutputRows")
     val numInputBatches = new SQLMetric("numInputBatches")
-    val veloxBatch =
-      if (VeloxColumnarBatches.isVeloxBatch(childData)) childData
-      else VeloxColumnarBatches.toVeloxBatch(childData)
+    val veloxBatch = toVeloxBatch(childData)
     val rows = VeloxColumnarToRowExec
       .toRowIterator(
         Iterator.single[ColumnarBatch](veloxBatch),
