@@ -104,6 +104,10 @@ private:
                 prepareOnExpression(if_then.else_());
                 break;
             }
+            case substrait::Expression::RexTypeCase::kSingularOrList: {
+                prepareOnExpression(expr.singular_or_list().value());
+                break;
+            }
             case substrait::Expression::RexTypeCase::kScalarFunction: {
                 const auto & scalar_function_pb = expr.scalar_function();
                 auto function_signature_name_opt = parser_context->getFunctionNameInSignature(scalar_function_pb);
@@ -158,6 +162,10 @@ private:
                     rewriteExpression(*ifs->Mutable(i)->mutable_then());
                 }
                 rewriteExpression(*if_then->mutable_else_());
+                break;
+            }
+            case substrait::Expression::RexTypeCase::kSingularOrList: {
+                rewriteExpression(*expr.mutable_singular_or_list()->mutable_value());
                 break;
             }
             case substrait::Expression::RexTypeCase::kScalarFunction: {
