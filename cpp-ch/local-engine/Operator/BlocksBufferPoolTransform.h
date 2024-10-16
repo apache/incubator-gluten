@@ -22,13 +22,12 @@
 #include <Processors/QueryPlan/IQueryPlanStep.h>
 #include <Processors/QueryPlan/ITransformingStep.h>
 
-
 namespace local_engine
 {
 class BlocksBufferPoolStep : public DB::ITransformingStep
 {
 public:
-    explicit BlocksBufferPoolStep(const DB::DataStream & input_stream_, size_t buffer_size_ = 4);
+    explicit BlocksBufferPoolStep(const DB::Block & input_header, size_t buffer_size_ = 4);
     ~BlocksBufferPoolStep() override = default;
 
     String getName() const override { return "BlocksBufferPoolStep"; }
@@ -36,9 +35,8 @@ public:
     void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & settings) override;
     void describePipeline(DB::IQueryPlanStep::FormatSettings & settings) const override;
 private:
-    DB::Block header;
     size_t buffer_size;
-    void updateOutputStream() override;
+    void updateOutputHeader() override;
 };
 
 class BlocksBufferPoolTransform  : public DB::IProcessor

@@ -49,7 +49,7 @@ WindowGroupLimitRelParser::parse(DB::QueryPlanPtr current_plan_, const substrait
     size_t limit = static_cast<size_t>(win_rel_def.limit());
 
     auto window_group_limit_step = std::make_unique<WindowGroupLimitStep>(
-        current_plan->getCurrentDataStream(), window_function_name, partition_fields, sort_fields, limit);
+        current_plan->getCurrentHeader(), window_function_name, partition_fields, sort_fields, limit);
     window_group_limit_step->setStepDescription("Window group limit");
     steps.emplace_back(window_group_limit_step.get());
     current_plan->addStep(std::move(window_group_limit_step));
@@ -62,20 +62,12 @@ WindowGroupLimitRelParser::parsePartitoinFields(const google::protobuf::Repeated
 {
     std::vector<size_t> fields;
     for (const auto & expr : expressions)
-    {
         if (expr.has_selection())
-        {
             fields.push_back(static_cast<size_t>(expr.selection().direct_reference().struct_field().field()));
-        }
         else if (expr.has_literal())
-        {
             continue;
-        }
         else
-        {
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknow expression: {}", expr.DebugString());
-        }
-    }
     return fields;
 }
 
@@ -83,20 +75,12 @@ std::vector<size_t> WindowGroupLimitRelParser::parseSortFields(const google::pro
 {
     std::vector<size_t> fields;
     for (const auto sort_field : sort_fields)
-    {
         if (sort_field.expr().has_literal())
-        {
             continue;
-        }
         else if (sort_field.expr().has_selection())
-        {
             fields.push_back(static_cast<size_t>(sort_field.expr().selection().direct_reference().struct_field().field()));
-        }
         else
-        {
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknown expression: {}", sort_field.expr().DebugString());
-        }
-    }
     return fields;
 }
 
