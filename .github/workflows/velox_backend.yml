@@ -608,15 +608,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.2.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.2
@@ -665,15 +656,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.2.2 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.2
@@ -715,15 +697,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.3.1 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.3
@@ -773,15 +746,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.3.1 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.3
@@ -824,15 +788,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.4.3 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.4
@@ -882,15 +837,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.4.3 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.4
@@ -933,15 +879,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
@@ -990,15 +927,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5-scala2.13
@@ -1047,15 +975,6 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Get Ccache
-        uses: actions/cache/restore@v3
-        with:
-          path: '${{ env.CCACHE_DIR }}'
-          key: ccache-centos-release-default
-      - name: Ensure Cache Dirs Exists
-        working-directory: ${{ github.workspace }}
-        run: |
-          mkdir -p '${{ env.CCACHE_DIR }}'
       - name: Prepare spark.test.home for Spark 3.5.1 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
