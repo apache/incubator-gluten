@@ -22,6 +22,7 @@ on:
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+  CCACHE_DIR: "${{ github.workspace }}/.ccache"
 
 concurrency:
   group: ${{ github.repository }}-${{ github.workflow }}
@@ -31,8 +32,6 @@ jobs:
   cache-native-lib-centos-7:
     runs-on: ubuntu-20.04
     container: apache/gluten:vcpkg-centos-7
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
@@ -75,8 +74,6 @@ jobs:
   cache-native-lib-centos-8:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
-    env:
-      CCACHE_DIR: "${{ github.workspace }}/.ccache"
     steps:
       - uses: actions/checkout@v2
       - name: Generate cache key
