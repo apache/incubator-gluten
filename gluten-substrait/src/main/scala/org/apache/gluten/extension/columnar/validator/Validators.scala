@@ -54,7 +54,7 @@ object Validators {
      * decision.
      */
     def fallbackComplexExpressions(): Builder = {
-      buffer += new ExpressionUtils.FallbackComplexExpressions(conf.fallbackExpressionsThreshold)
+      buffer += new FallbackComplexExpressions(conf.fallbackExpressionsThreshold)
       this
     }
 
@@ -111,6 +111,17 @@ object Validators {
       if (FallbackTags.nonEmpty(plan)) {
         val tag = FallbackTags.get(plan)
         return fail(tag.reason())
+      }
+      pass()
+    }
+  }
+
+  private class FallbackComplexExpressions(threshold: Int) extends Validator {
+    override def validate(plan: SparkPlan): Validator.OutCome = {
+      if (ExpressionUtils.isComplexExpression(plan, threshold)) {
+        return fail(
+          s"Disabled because at least one present expression exceeded depth threshold: " +
+            s"${plan.nodeName}")
       }
       pass()
     }

@@ -20,7 +20,6 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.expression.ExpressionUtils
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
-import org.apache.gluten.extension.columnar.validator.Validator.Passed
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.sql.shims.SparkShimLoader
@@ -157,33 +156,14 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     if (!original.projectList.forall(validateExpression(_))) {
       return ValidationResult.failed("Contains expression not supported")
     }
-    if (isComplexExpression()) {
+    if (
+      ExpressionUtils.isComplexExpression(
+        original,
+        GlutenConfig.getConf.fallbackExpressionsThreshold)
+    ) {
       return ValidationResult.failed("Fallback by complex expression")
     }
     ValidationResult.succeeded
-  }
-
-  private def isComplexExpression(): Boolean = {
-    new ExpressionUtils.FallbackComplexExpressions(
-      GlutenConfig.getConf.fallbackExpressionsThreshold)
-      .validate(original) match {
-      case Passed => false
-      case _ => true
-    }
-  }
-
-  private def toVeloxBatch(input: ColumnarBatch): ColumnarBatch = {
-    if (VeloxColumnarBatches.isVeloxBatch(input)) {
-      return input
-    }
-    if (ColumnarBatches.isHeavyBatch(input)) {
-      if (input.numCols() == 0) {
-        return input
-      }
-      return VeloxColumnarBatches.toVeloxBatch(
-        ColumnarBatches.offload(ArrowBufferAllocators.contextInstance(), input))
-    }
-    VeloxColumnarBatches.toVeloxBatch(input)
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -209,7 +189,9 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
               val batchIterator = projectedBatch.map {
                 b =>
                   if (b.numCols() != 0) {
-                    val veloxBatch = toVeloxBatch(batch)
+                    val veloxBatch =
+                      if (batch.numCols() == 0) batch
+                      else VeloxColumnarBatches.toVeloxBatch(batch)
                     val compositeBatch = VeloxColumnarBatches.compose(veloxBatch, b)
                     b.close()
                     compositeBatch
@@ -262,7 +244,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     val proj = UnsafeProjection.create(replacedAliasUdf, projectAttributes.toSeq)
     val numOutputRows = new SQLMetric("numOutputRows")
     val numInputBatches = new SQLMetric("numInputBatches")
-    val veloxBatch = toVeloxBatch(childData)
+    val veloxBatch = VeloxColumnarBatches.toVeloxBatch(childData)
     val rows = VeloxColumnarToRowExec
       .toRowIterator(
         Iterator.single[ColumnarBatch](veloxBatch),

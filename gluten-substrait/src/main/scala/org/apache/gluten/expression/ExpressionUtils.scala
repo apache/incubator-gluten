@@ -16,14 +16,12 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.extension.columnar.validator.Validator
-
 import org.apache.spark.sql.catalyst.expressions.{Expression, LeafExpression}
 import org.apache.spark.sql.execution.SparkPlan
 
 object ExpressionUtils {
 
-  def getExpressionTreeDepth(expr: Expression): Integer = {
+  private def getExpressionTreeDepth(expr: Expression): Integer = {
     if (expr.isInstanceOf[LeafExpression]) {
       return 0
     }
@@ -35,14 +33,7 @@ object ExpressionUtils {
     }
   }
 
-  class FallbackComplexExpressions(threshold: Int) extends Validator {
-    override def validate(plan: SparkPlan): Validator.OutCome = {
-      if (plan.expressions.exists(e => ExpressionUtils.getExpressionTreeDepth(e) > threshold)) {
-        return fail(
-          s"Disabled because at least one present expression exceeded depth threshold: " +
-            s"${plan.nodeName}")
-      }
-      pass()
-    }
+  def isComplexExpression(plan: SparkPlan, threshold: Int): Boolean = {
+    plan.expressions.exists(e => ExpressionUtils.getExpressionTreeDepth(e) > threshold)
   }
 }
