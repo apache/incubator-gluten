@@ -269,4 +269,30 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-7550 get_json_object in IN") {
+    withTable("test_7550") {
+      sql("create table test_7550(a string) using parquet")
+      val insert_sql =
+        """
+          |insert into test_7550 values('{\'a\':\'1\'}'),('{\'a\':\'2\'}'),('{\'a\':\'3\'}')
+          |""".stripMargin
+      sql(insert_sql)
+      compareResultsAgainstVanillaSpark(
+        """
+          |select a, get_json_object(a, '$.a') in ('1', '2') from test_7550
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+      compareResultsAgainstVanillaSpark(
+        """
+          |select a in ('1', '2') from test_7550
+          |where get_json_object(a, '$.a') in ('1', '2')
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
 }
