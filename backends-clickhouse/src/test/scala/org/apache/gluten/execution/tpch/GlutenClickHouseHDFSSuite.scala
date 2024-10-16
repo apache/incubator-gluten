@@ -149,7 +149,7 @@ class GlutenClickHouseHDFSSuite
       val fs = targetDirs.getFileSystem(spark.sessionState.newHadoopConf())
       fs.mkdirs(targetDirs)
       val out = fs.create(new Path(s"$file_path/00000_0"))
-      IOUtils.write("1\n2", out, Charset.defaultCharset())
+      IOUtils.write("1\n2\n3\n4\n5", out, Charset.defaultCharset())
       out.close()
       sql(s"""
              |CREATE external TABLE `issue_7542`(
@@ -162,16 +162,16 @@ class GlutenClickHouseHDFSSuite
       sql(s"""select * from issue_7542""").collect()
       fs.delete(new Path(s"$file_path/00000_0"), false)
       val out2 = fs.create(new Path(s"$file_path/00000_0"))
-      IOUtils.write("2\n3\n4", out2, Charset.defaultCharset())
+      IOUtils.write("1\n2\n3\n4\n3\n3\n3", out2, Charset.defaultCharset())
       out2.close()
-      val df = sql(s"""select count(*) from issue_7542""")
+      val df = sql(s"""select count(*) from issue_7542 where c_custkey=3""")
       // refresh list file
       collect(df.queryExecution.executedPlan) {
         case scanExec: FileSourceScanExecTransformer => scanExec.relation.location.refresh()
       }
       val result = df.collect()
       assert(result.length == 1)
-      assert(result.head.getLong(0) == 3)
+      assert(result.head.getLong(0) == 4)
 
       sql("drop table issue_7542")
     }
