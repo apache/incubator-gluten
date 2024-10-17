@@ -22,7 +22,7 @@ import org.apache.gluten.execution.{GlutenClickHouseTPCHAbstractSuite, GlutenMer
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreePartsPartitionsUtil
+import org.apache.spark.sql.execution.datasources.mergetree.utils.MergeTreePartsPartitionsUtil
 
 import org.apache.hadoop.fs.Path
 

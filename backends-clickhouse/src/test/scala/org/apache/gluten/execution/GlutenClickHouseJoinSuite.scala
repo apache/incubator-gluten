@@ -21,7 +21,7 @@ import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.execution.datasources.mergetree.ClickHouseConfig
 
 class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSuite {
 

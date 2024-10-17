@@ -22,7 +22,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, BindReferences, Expression, Predicate}
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.stats.DeltaScan
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.{AddFileTags, AddMergeTreeParts}
+import org.apache.spark.sql.execution.datasources.mergetree.metadata.{AddFileTags, AddMergeTreeParts}
 
 import com.google.common.base.Objects
 import com.google.common.cache.{Cache, CacheBuilder, CacheLoader, LoadingCache}

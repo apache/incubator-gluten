@@ -84,9 +84,6 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
         .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")
         .setIfMissing(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
-        .set(
-          "spark.sql.catalog.spark_catalog",
-          "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
         .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
         .set("spark.databricks.delta.snapshotPartitions", "1")
         .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
