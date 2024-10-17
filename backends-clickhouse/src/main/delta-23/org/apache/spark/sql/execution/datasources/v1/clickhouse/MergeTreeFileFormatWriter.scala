@@ -69,18 +69,13 @@ object MergeTreeFileFormatWriter extends Logging {
     val job = Job.getInstance(hadoopConf)
     job.setOutputKeyClass(classOf[Void])
     job.setOutputValueClass(classOf[InternalRow])
-
-    val outputPath = new Path(outputSpec.outputPath)
-    val outputPathName = outputPath.toString
-
-    FileOutputFormat.setOutputPath(job, outputPath)
+    FileOutputFormat.setOutputPath(job, new Path(outputSpec.outputPath))
 
     val partitionSet = AttributeSet(partitionColumns)
     // cleanup the internal metadata information of
     // the file source metadata attribute if any before write out
-    // val finalOutputSpec = outputSpec.copy(outputColumns = outputSpec.outputColumns
-    //   .map(FileSourceMetadataAttribute.cleanupFileSourceMetadataInformation))
-    val finalOutputSpec = outputSpec.copy(outputColumns = outputSpec.outputColumns)
+    val finalOutputSpec = outputSpec.copy(outputColumns = outputSpec.outputColumns
+      .map(FileSourceMetadataAttribute.cleanupFileSourceMetadataInformation))
     val dataColumns = finalOutputSpec.outputColumns.filterNot(partitionSet.contains)
 
     // TODO: check whether it needs to use `convertEmptyToNullIfNeeded` to convert empty to null
@@ -118,7 +113,7 @@ object MergeTreeFileFormatWriter extends Logging {
       dataColumns = dataColumns,
       partitionColumns = partitionColumns,
       bucketSpec = writerBucketSpec,
-      path = outputPathName,
+      path = finalOutputSpec.outputPath,
       customPartitionLocations = finalOutputSpec.customPartitionLocations,
       maxRecordsPerFile = caseInsensitiveOptions
         .get("maxRecordsPerFile")
