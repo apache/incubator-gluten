@@ -75,7 +75,7 @@ bool HbwMemoryAllocator::reallocateAligned(void* p, uint64_t alignment, int64_t 
   return true;
 }
 
-bool HbwMemoryAllocator::free(void* p, int64_t size) {
+bool HbwMemoryAllocator::free(void* p, int64_t size, int64_t alignment) {
   hbw_free(p);
   bytes_ -= size;
   return true;
