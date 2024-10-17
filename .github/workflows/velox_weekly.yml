@@ -49,6 +49,7 @@ jobs:
           yum install -y epel-release sudo dnf
           if [ "${{ matrix.os }}" = "centos:7" ]; then
             yum install -y centos-release-scl
+            source /opt/rh/devtoolset-11/enable
             rm /etc/yum.repos.d/CentOS-SCLo-scl.repo -f
             sed -i \
             -e 's/^mirrorlist/#mirrorlist/' \
@@ -59,8 +60,8 @@ jobs:
             dnf install -y --setopt=install_weak_deps=False gcc-toolset-12
             source /opt/rh/gcc-toolset-12/enable || exit 1
           else
-            dnf install -y --setopt=install_weak_deps=False gcc-toolset-9
-            source /opt/rh/gcc-toolset-9/enable || exit 1
+            dnf install -y --setopt=install_weak_deps=False gcc-toolset-11
+            source /opt/rh/gcc-toolset-11/enable || exit 1
           fi
           yum install -y java-1.8.0-openjdk-devel patch wget git perl
           export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk && \
@@ -87,6 +88,10 @@ jobs:
           # To avoid the prompt for region selection during installing tzdata.
           export DEBIAN_FRONTEND=noninteractive
           apt-get update && apt-get install -y sudo maven wget git
+          if [ "${{ matrix.os }}" = "centos:7" ]; then
+            sudo apt-get install software-properties-common
+            sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          fi
           sudo apt-get install -y openjdk-8-jdk
           export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
           cd $GITHUB_WORKSPACE/ && ./dev/package.sh
