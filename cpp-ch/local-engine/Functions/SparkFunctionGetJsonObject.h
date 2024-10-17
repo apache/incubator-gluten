@@ -15,7 +15,10 @@
  * limitations under the License.
  */
 #pragma once
+#include <cerrno>
+#include <limits>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnTuple.h>
@@ -156,8 +159,54 @@ private:
             // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeField. not field");
             return nullptr;
         }
-        copyToDst(dst, start_pos, pos - start_pos);
+        if (*start_pos == '"' || *start_pos == '\'')
+        {
+            copyToDst(dst, start_pos, pos - start_pos);
+        }
+        else
+        {
+            // If it's a too large number, replace it with "Infinity".
+            const char * inf_str = "\"\\\"Infinity\\\"\"";
+            size_t inf_str_len = 14;
+            const char * large_e = "308";
+            const auto * ep = find_first_symbols<'e', 'E'>(start_pos, pos);
+            if (pos - ep < 3)
+                copyToDst(dst, start_pos, pos - start_pos);
+            else if (pos - ep > 4 || (pos - ep == 4 and memcmp(ep + 1, large_e, 3) >= 0))
+            {
+                if (isTooLargeNumber(start_pos, pos))
+                {
+                    copyToDst(dst, inf_str, inf_str_len);
+                }
+                else
+                {
+                    copyToDst(dst, start_pos, pos - start_pos);
+                }
+            }
+            else
+            {
+                copyToDst(dst, start_pos, pos - start_pos);
+            }
+        }
         return pos;
+    }
+
+    inline static bool isTooLargeNumber(const char * start, const char * end)
+    {
+        bool res = false;
+        try
+        {
+            double num2 = std::stod(String(start, end));
+        }
+        catch (const std::invalid_argument & e)
+        {
+            res = false;
+        }
+        catch (const std::out_of_range & e)
+        {
+            res = true;
+        }
+        return res;
     }
 
     inline static const char * normalizeString(const char * pos, const char * end, char *& dst)
@@ -241,7 +290,7 @@ private:
         pos = find_first_symbols<'\''>(pos, end);
         if (!isExpectedChar('\'', pos, end))
         {
-            LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeSingleQuotesString. not '");
+            // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeSingleQuotesString. not '");
             return nullptr;
         }
         pos += 1;
@@ -642,6 +691,7 @@ private:
             for (const auto & field : tokenizer)
             {
                 auto normalized_field = JSONPathNormalizer::normalize(field);
+                // LOG_ERROR(getLogger("JSONPatch"), "xxx field {} -> {}", field, normalized_field);
                 required_fields.push_back(normalized_field);
                 tuple_columns.emplace_back(str_type->createColumn());
 
