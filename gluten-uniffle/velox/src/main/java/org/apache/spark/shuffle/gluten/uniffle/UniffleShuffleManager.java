@@ -42,6 +42,8 @@ public class UniffleShuffleManager extends RssShuffleManager {
 
   public UniffleShuffleManager(SparkConf conf, boolean isDriver) {
     super(conf, isDriver);
+    // FIXME: remove this after https://github.com/apache/incubator-uniffle/pull/2193
+    conf.set(RssSparkConfig.RSS_ENABLED.key(), "true");
   }
 
   @Override
