@@ -34,17 +34,6 @@ jobs:
     container: apache/gluten:vcpkg-centos-7
     steps:
       - uses: actions/checkout@v2
-      - name: Generate cache key
-        run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
-      - name: Check existing caches
-        id: check-cache
-        uses: actions/cache/restore@v3
-        with:
-          lookup-only: true
-          path: |
-            ./cpp/build/releases/
-          key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -58,40 +47,18 @@ jobs:
           df -a
           yum install ccache -y
           bash dev/ci-velox-buildstatic-centos-7.sh
-      - name: "Save ccache"
+      - name: Save ccache
         uses: actions/cache/save@v3
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos7-release-default-${{github.sha}}
-      - name: Cache
-        if: steps.check-cache.outputs.cache-hit != 'true'
-        id: cache
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            ./cpp/build/releases/
-          key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
 
   cache-native-lib-centos-8:
     runs-on: ubuntu-20.04
     container: apache/gluten:centos-8
     steps:
       - uses: actions/checkout@v2
-      - name: Generate cache key
-        run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
-      - name: Check existing caches
-        id: check-cache
-        uses: actions/cache/restore@v3
-        with:
-          lookup-only: true
-          path: |
-            ./cpp/build/releases/
-            ./cpp/build/velox/udf/examples/
-            ./cpp/build/velox/benchmarks/
-            /root/.m2/repository/org/apache/arrow/
-          key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -112,23 +79,12 @@ jobs:
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
           ccache -s
-      - name: "Save ccache"
+      - name: Save ccache
         uses: actions/cache/save@v3
         id: ccache
         with:
           path: '${{ env.CCACHE_DIR }}'
           key: ccache-centos8-release-default-${{github.sha}}
-      - name: Cache
-        if: steps.check-cache.outputs.cache-hit != 'true'
-        id: cache
-        uses: actions/cache/save@v3
-        with:
-          path: |
-            ./cpp/build/releases/
-            ./cpp/build/velox/udf/examples/
-            ./cpp/build/velox/benchmarks/
-            /root/.m2/repository/org/apache/arrow/
-          key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
 
   # ccache-native-lib-ubuntu-velox-ut:
   #   runs-on: ubuntu-20.04

@@ -59,16 +59,6 @@ jobs:
     container: apache/gluten:vcpkg-centos-7
     steps:
       - uses: actions/checkout@v2
-      - name: Generate cache key
-        run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
-      - name: Cache
-        id: cache
-        uses: actions/cache/restore@v3
-        with:
-          path: |
-            ./cpp/build/releases/
-          key: cache-velox-build-centos-7-${{ hashFiles('./cache-key') }}
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -77,7 +67,6 @@ jobs:
           restore-keys: |
             ccache-centos7-release-default
       - name: Build Gluten native libraries
-        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           df -a
           yum install ccache -y
@@ -978,19 +967,6 @@ jobs:
     container: apache/gluten:centos-8
     steps:
       - uses: actions/checkout@v2
-      - name: Generate cache key
-        run: |
-          echo ${{ hashFiles('./ep/build-velox/src/**', './dev/**', './cpp/*', './.github/workflows/*') }} > cache-key
-      - name: Cache
-        id: cache
-        uses: actions/cache/restore@v3
-        with:
-          path: |
-            ./cpp/build/releases/
-            ./cpp/build/velox/udf/examples/
-            ./cpp/build/velox/benchmarks/
-            /root/.m2/repository/org/apache/arrow/
-          key: cache-velox-build-centos-8-${{ hashFiles('./cache-key') }}
       - name: Get Ccache
         uses: actions/cache/restore@v3
         with:
@@ -1005,7 +981,6 @@ jobs:
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
       - name: Build Gluten native libraries
-        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
