@@ -326,4 +326,26 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-7563 too large number in json") {
+    withTable("test_7563") {
+      sql("create table test_7563(a string) using parquet")
+      val insert_sql =
+        """
+          |insert into test_7563 values
+          |('{"a":2.696539702293474E308}')
+          |,('{"a":1232}')
+          |,('{"a":1234xxx}')
+          |,('{"a":2.696539702293474E30123}')
+          |""".stripMargin
+      sql(insert_sql)
+      compareResultsAgainstVanillaSpark(
+        """
+          |select a, get_json_object(a, '$.a') from test_7563
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
 }
