@@ -481,6 +481,7 @@ public:
     }
 };
 
+/// CH uses the lexer to parse the json path, it's not a good idea.
 /// If a json field containt spaces, we wrap it by double quotes.
 /// FIXME: If it contains \t, \n, simdjson cannot parse.
 class JSONPathNormalizer
@@ -489,89 +490,41 @@ public:
     static String normalize(const String & json_path_)
     {
         DB::Tokens tokens(json_path_.data(), json_path_.data() + json_path_.size());
-        DB::IParser::Pos pos(tokens, 0, 0);
+        DB::IParser::Pos iter(tokens, 0, 0);
         String res;
-        while (pos->type != DB::TokenType::EndOfStream)
+        while (iter->type != DB::TokenType::EndOfStream)
         {
-            if (pos->type == DB::TokenType::Number)
+            if (isSubPathBegin(iter))
             {
-                ++pos;
-                // Two tokens are seperated by white spaces.
-                if (pos->type == DB::TokenType::Number || pos->type == DB::TokenType::BareWord)
+                if (iter->type == DB::TokenType::Number)
                 {
-                    --pos;
-                    if (*pos->begin == '.')
-                        res += ".";
-                    ++pos;
-                    res += "\"";
-
-                    while (pos->type == DB::TokenType::Number || pos->type == DB::TokenType::BareWord)
-                    {
-                        --pos;
-                        const auto * last_end = pos->end;
-                        const auto * begin = *pos->begin == '.' ? pos->begin + 1 : pos->begin;
-                        res += String(begin, pos->end);
-                        ++pos;
-                        res += String(last_end, pos->begin);
-                        ++pos;
-                    }
-                    --pos;
-                    const auto * last_end = pos->end;
-                    res += String(pos->begin, pos->end);
-                    ++pos;
-                    res += String(last_end, pos->begin);
-                    res += "\"";
-                }
-                else if (
-                    pos->type == DB::TokenType::Dot || pos->type == DB::TokenType::OpeningSquareBracket
-                    || pos->type == DB::TokenType::EndOfStream)
-                {
-                    --pos;
-                    if (*pos->begin == '.')
-                        res += ".";
-                    res += "\"";
-                    const auto * last_end = pos->end;
-                    const auto * begin = *pos->begin == '.' ? pos->begin + 1 : pos->begin;
-                    res += String(begin, pos->end);
-                    ++pos;
-                    res += String(last_end, pos->begin);
-                    res += "\"";
+                    normalizeOnNumber(iter, res);
                 }
                 else
                 {
-                    --pos;
-                    res += String(pos->begin, pos->end);
-                    ++pos;
+                    // It may begins with '=', '==' and so on.
+                    res += ".";
+                    ++iter;
+                    normalizeOnBareWord(iter, res);
                 }
-            }
-            else if (pos->type == DB::TokenType::BareWord)
-            {
-                res += "\"";
-                ++pos;
-                while (pos->type == DB::TokenType::Number || pos->type == DB::TokenType::BareWord)
-                {
-                    --pos;
-                    const auto * last_end = pos->end;
-                    res += String(pos->begin, pos->end);
-                    ++pos;
-                    res += String(last_end, pos->begin);
-                    ++pos;
-                }
-                --pos;
-                const auto * last_end = pos->end;
-                res += String(pos->begin, pos->end);
-                ++pos;
-                res += String(last_end, pos->begin);
-                res += "\"";
             }
             else
-            {
-                res += String(pos->begin, pos->end);
-                ++pos;
-            }
+                normalizeOnOtherTokens(iter, res);
         }
         return res;
     }
+
+private:
+    static std::pair<DB::TokenType, StringRef> prevToken(DB::IParser::Pos & iter, size_t n = 1);
+
+    static std::pair<DB::TokenType, StringRef> nextToken(DB::IParser::Pos & iter, size_t n = 1);
+
+    static bool isSubPathBegin(DB::IParser::Pos & iter);
+
+    static void normalizeOnNumber(DB::IParser::Pos & iter, String & res);
+
+    static void normalizeOnBareWord(DB::IParser::Pos & iter, String & res);
+    static void normalizeOnOtherTokens(DB::IParser::Pos & iter, String & res);
 };
 
 /// Flatten a json string into a tuple.
