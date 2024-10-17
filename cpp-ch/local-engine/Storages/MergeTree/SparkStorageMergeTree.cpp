@@ -165,7 +165,7 @@ void SparkStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string>
     read_settings.remote_fs_method = RemoteFSReadMethod::read;
     for (const auto & meta_path : meta_paths)
     {
-        if (!disk->exists(meta_path))
+        if (!disk->existsDirectory(meta_path))
             continue;
 
         auto in = disk->readFile(meta_path, read_settings);
