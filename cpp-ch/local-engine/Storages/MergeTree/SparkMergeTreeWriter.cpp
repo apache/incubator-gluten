@@ -23,8 +23,10 @@
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Storages/MergeTree/MetaDataHelper.h>
 #include <Storages/MergeTree/SparkMergeTreeSink.h>
+#include <jni/jni_common.h>
 #include <rapidjson/prettywriter.h>
 #include <Poco/StringTokenizer.h>
+#include <Common/JNIUtils.h>
 
 namespace DB::Setting
 {
@@ -52,6 +54,36 @@ Block removeColumnSuffix(const Block & block)
 
 namespace local_engine
 {
+
+namespace SparkMergeTreeWriterJNI
+{
+static jclass Java_MergeTreeCommiterHelper = nullptr;
+static jmethodID Java_set = nullptr;
+void init(JNIEnv * env)
+{
+    const char * classSig = "Lorg/apache/spark/sql/execution/datasources/v1/clickhouse/MergeTreeCommiterHelper;";
+    Java_MergeTreeCommiterHelper = CreateGlobalClassReference(env, classSig);
+    assert(Java_MergeTreeCommiterHelper != nullptr);
+
+    const char * methodName = "setCurrentTaskWriteInfo";
+    const char * methodSig = "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V";
+    Java_set = GetStaticMethodID(env, Java_MergeTreeCommiterHelper, methodName, methodSig);
+}
+void destroy(JNIEnv * env)
+{
+    env->DeleteGlobalRef(Java_MergeTreeCommiterHelper);
+}
+
+void setCurrentTaskWriteInfo(const std::string & jobID, const std::string & taskTempID, const std::string & commitInfos)
+{
+    GET_JNIENV(env)
+    const jstring Java_jobID = charTojstring(env, jobID.c_str());
+    const jstring Java_taskTempID = charTojstring(env, taskTempID.c_str());
+    const jstring Java_commitInfos = charTojstring(env, commitInfos.c_str());
+    safeCallVoidMethod(env, Java_MergeTreeCommiterHelper, Java_set, Java_jobID, Java_taskTempID, Java_commitInfos);
+    CLEAN_JNIENV
+}
+}
 
 std::string PartInfo::toJson(const std::vector<PartInfo> & part_infos)
 {
@@ -98,10 +130,10 @@ std::unique_ptr<SparkMergeTreeWriter> SparkMergeTreeWriter::create(
     Chain chain;
     auto sink = dest_storage->write(none, metadata_snapshot, context, false);
     chain.addSink(sink);
-    chain.addSource(
-        std::make_shared<ApplySquashingTransform>(header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
-    chain.addSource(
-        std::make_shared<PlanSquashingTransform>(header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
+    chain.addSource(std::make_shared<ApplySquashingTransform>(
+        header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
+    chain.addSource(std::make_shared<PlanSquashingTransform>(
+        header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
 
     std::unordered_map<String, String> partition_values;
     if (!write_settings_.partition_dir.empty())
@@ -132,7 +164,9 @@ void SparkMergeTreeWriter::write(DB::Block & block)
 std::string SparkMergeTreeWriter::close()
 {
     executor.finish();
-    return PartInfo::toJson(getAllPartInfo());
+    std::string result = PartInfo::toJson(getAllPartInfo());
+    SparkMergeTreeWriterJNI::setCurrentTaskWriteInfo("1", "2", result);
+    return result;
 }
 
 std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo() const

@@ -51,5 +51,6 @@ object CHConf {
   def runtimeConfig(key: String): String = s"$RUNTIME_CONFIG.$key"
   def runtimeSettings(key: String): String = s"$RUNTIME_SETTINGS.$key"
 
-  def startWithSettings(key: String): Boolean = key.startsWith(RUNTIME_SETTINGS)
+  def startWithSettingsPrefix(key: String): Boolean = key.startsWith(RUNTIME_SETTINGS)
+  def removeSettingsPrefix(key: String): String = key.substring(RUNTIME_SETTINGS.length + 1)
 }

@@ -30,9 +30,8 @@ import org.apache.spark.sql.delta._
 import org.apache.spark.sql.delta.actions.{AddFile, FileAction}
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.errors.QueryExecutionErrors
-import org.apache.spark.sql.execution.datasources.CHDatasourceJniWrapper
+import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.v1.CHMergeTreeWriterInjects
-import org.apache.spark.sql.execution.datasources.v1.clickhouse._
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.{AddFileTags, AddMergeTreeParts}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSourceUtils
 import org.apache.spark.sql.internal.SQLConf
@@ -73,7 +72,7 @@ object OptimizeTableCommandOverwrites extends Logging {
       sparkStageId: Int,
       sparkPartitionId: Int,
       sparkAttemptNumber: Int
-  ): MergeTreeWriteTaskResult = {
+  ): WriteTaskResult = {
     CHThreadGroup.registerNewThreadGroup()
     val jobId = SparkHadoopWriterUtils.createJobID(new Date(description.jobIdInstant), sparkStageId)
     val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
@@ -135,7 +134,7 @@ object OptimizeTableCommandOverwrites extends Logging {
 //          val summary = MergeTreeExecutedWriteSummary(
 //            updatedPartitions = updatedPartitions.toSet,
 //            stats = statsTrackers.map(_.getFinalStats(taskCommitTime)))
-          MergeTreeWriteTaskResult(taskCommitMessage, null)
+          WriteTaskResult(taskCommitMessage, null)
         } else {
           throw new IllegalStateException()
         }
@@ -172,7 +171,7 @@ object OptimizeTableCommandOverwrites extends Logging {
       sparkSession.sparkContext.parallelize(Array.empty[InternalRow], 1)
 
     val jobIdInstant = new Date().getTime
-    val ret = new Array[MergeTreeWriteTaskResult](rddWithNonEmptyPartitions.partitions.length)
+    val ret = new Array[WriteTaskResult](rddWithNonEmptyPartitions.partitions.length)
 
     val serializableHadoopConf = new SerializableConfiguration(
       sparkSession.sessionState.newHadoopConfWithOptions(
@@ -221,7 +220,7 @@ object OptimizeTableCommandOverwrites extends Logging {
         )
       },
       rddWithNonEmptyPartitions.partitions.indices,
-      (index, res: MergeTreeWriteTaskResult) => {
+      (index, res: WriteTaskResult) => {
         ret(index) = res
       }
     )
