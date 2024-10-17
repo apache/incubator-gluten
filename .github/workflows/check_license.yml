@@ -29,6 +29,6 @@ jobs:
       - name: Check License Header
         run: |
           git fetch --recurse-submodules=no origin main ${{github.event.pull_request.base.sha}}
-          pip install regex --break-system-packages
+          pip install regex
           cd $GITHUB_WORKSPACE/
           ./.github/workflows/util/check.sh ${{github.event.pull_request.base.sha}}
