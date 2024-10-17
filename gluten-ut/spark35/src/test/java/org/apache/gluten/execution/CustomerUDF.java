@@ -14,26 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.expression
+package org.apache.gluten.execution;
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, LeafExpression}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.hadoop.hive.ql.exec.Description;
+import org.apache.hadoop.hive.ql.exec.UDF;
 
-object ExpressionUtils {
-
-  private def getExpressionTreeDepth(expr: Expression): Integer = {
-    if (expr.isInstanceOf[LeafExpression]) {
-      return 0
+/**
+ * UDF that generates a the link id (MD5 hash) of a URL. Used to join with link join.
+ *
+ * <p>Usage example:
+ *
+ * <p>CREATE TEMPORARY FUNCTION linkid AS 'com.pinterest.hadoop.hive.LinkIdUDF';
+ */
+@Description(
+    name = "linkid",
+    value = "_FUNC_(String) - Returns linkid as String, it's the MD5 hash of url.")
+public class CustomerUDF extends UDF {
+  public String evaluate(String url) {
+    if (url == null || url == "") {
+      return "";
     }
-    val childrenDepth = expr.children.map(child => getExpressionTreeDepth(child))
-    if (childrenDepth.isEmpty) {
-      1
-    } else {
-      1 + childrenDepth.max
-    }
-  }
-
-  def isComplexExpression(plan: SparkPlan, threshold: Int): Boolean = {
-    plan.expressions.exists(e => ExpressionUtils.getExpressionTreeDepth(e) > threshold)
+    return "extendedudf" + url;
   }
 }

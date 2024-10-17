@@ -445,6 +445,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 
+  def enableColumnarPartialProject: Boolean = conf.getConf(ENABLE_COLUMNAR_PARTIAL_PROJECT)
+
   def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
 
   def awsS3RetryMode: String = conf.getConf(AWS_S3_RETRY_MODE)
@@ -1875,6 +1877,17 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.project.collapse")
       .internal()
       .doc("Combines two columnar project operators into one and perform alias substitution")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_COLUMNAR_PARTIAL_PROJECT =
+    buildConf("spark.gluten.sql.columnar.partial.project")
+      .doc(
+        "Break up one project node into 2 phases when some of the expressions are non " +
+          "offload-able. Phase one is a regular offloaded project transformer that " +
+          "evaluates the offload-able expressions in native, " +
+          "phase two preserves the output from phase one and evaluates the remaining " +
+          "non-offload-able expressions using vanilla Spark projections")
       .booleanConf
       .createWithDefault(true)
 

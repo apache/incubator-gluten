@@ -14,26 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.expression
+package org.apache.spark.sql.hive
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, LeafExpression}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.catalyst.expressions.Expression
 
-object ExpressionUtils {
-
-  private def getExpressionTreeDepth(expr: Expression): Integer = {
-    if (expr.isInstanceOf[LeafExpression]) {
-      return 0
-    }
-    val childrenDepth = expr.children.map(child => getExpressionTreeDepth(child))
-    if (childrenDepth.isEmpty) {
-      1
-    } else {
-      1 + childrenDepth.max
-    }
+object HiveUdfUtil {
+  def isHiveUdf(expr: Expression): Boolean = expr match {
+    case _: HiveSimpleUDF => true
+    case _: HiveGenericUDF => true
+    case _: HiveUDAFFunction => true
+    case _: HiveGenericUDTF => true
+    case _ => false
   }
 
-  def isComplexExpression(plan: SparkPlan, threshold: Int): Boolean = {
-    plan.expressions.exists(e => ExpressionUtils.getExpressionTreeDepth(e) > threshold)
-  }
 }

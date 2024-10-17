@@ -66,6 +66,7 @@ private object VeloxRuleApi {
     injector.injectTransform(_ => RewriteSparkPlanRulesManager())
     injector.injectTransform(_ => AddFallbackTagRule())
     injector.injectTransform(_ => TransformPreOverrides())
+    injector.injectTransform(c => PartialProjectRule.apply(c.session))
     injector.injectTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectTransform(c => RewriteTransformer.apply(c.session))
     injector.injectTransform(_ => PushDownFilterToScan)

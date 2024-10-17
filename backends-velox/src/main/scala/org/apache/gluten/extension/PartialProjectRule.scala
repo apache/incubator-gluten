@@ -14,26 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.expression
+package org.apache.gluten.extension
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, LeafExpression}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.gluten.execution.ColumnarPartialProjectExec
 
-object ExpressionUtils {
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 
-  private def getExpressionTreeDepth(expr: Expression): Integer = {
-    if (expr.isInstanceOf[LeafExpression]) {
-      return 0
+case class PartialProjectRule(spark: SparkSession) extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = {
+    plan.transformUp {
+      case plan: ProjectExec =>
+        val transformer = ColumnarPartialProjectExec.create(plan)
+        if (transformer.doValidate().ok()) {
+          if (transformer.child.asInstanceOf[ColumnarPartialProjectExec].doValidate().ok()) {
+            transformer
+          } else plan
+        } else plan
+      case p => p
     }
-    val childrenDepth = expr.children.map(child => getExpressionTreeDepth(child))
-    if (childrenDepth.isEmpty) {
-      1
-    } else {
-      1 + childrenDepth.max
-    }
-  }
-
-  def isComplexExpression(plan: SparkPlan, threshold: Int): Boolean = {
-    plan.expressions.exists(e => ExpressionUtils.getExpressionTreeDepth(e) > threshold)
   }
 }
