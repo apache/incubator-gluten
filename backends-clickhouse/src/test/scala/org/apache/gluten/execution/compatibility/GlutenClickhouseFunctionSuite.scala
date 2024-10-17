@@ -347,7 +347,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
       )
     }
   }
- 
+
   test("GLUTEN-7575: empty needle in regex_replace") {
     withTable("test_7575") {
       spark.sql("create table test_7575 (a string) using parquet")
