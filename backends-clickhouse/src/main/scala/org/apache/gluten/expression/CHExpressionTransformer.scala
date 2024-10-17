@@ -190,10 +190,14 @@ case class CHRegExpReplaceTransformer(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // In CH: replaceRegexpAll(subject, regexp, rep), which is equivalent
     // In Spark: regexp_replace(subject, regexp, rep, pos=1)
+    // In CH: thre regexp should not be empty
     val posNode = childrenWithPos(3).doTransform(args)
+    val needleNode = childrenWithPos(1).doTransform(args)
     if (
       !posNode.isInstanceOf[IntLiteralNode] ||
-      posNode.asInstanceOf[IntLiteralNode].getValue != 1
+      posNode.asInstanceOf[IntLiteralNode].getValue != 1 ||
+      !needleNode.isInstanceOf[StringLiteralNode] ||
+      needleNode.asInstanceOf[StringLiteralNode].getValue.isEmpty
     ) {
       throw new UnsupportedOperationException(s"$original not supported yet.")
     }
