@@ -68,5 +68,6 @@ namespace local_engine
 
 bool tryGetString(const DB::Settings & settings, std::string_view name, std::string & value);
 bool settingsEqual(const DB::Settings & settings, std::string_view name, const std::string & value);
+void updateSettings(const DB::ContextMutablePtr &, std::string_view);
 
 } // namespace local_engine

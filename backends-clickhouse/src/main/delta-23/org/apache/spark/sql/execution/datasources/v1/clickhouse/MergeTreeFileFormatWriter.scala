@@ -259,9 +259,9 @@ object MergeTreeFileFormatWriter extends Logging {
       sparkAttemptNumber: Int,
       committer: FileCommitProtocol,
       iterator: Iterator[InternalRow],
-      concurrentOutputWriterSpec: Option[ConcurrentOutputWriterSpec]
-  ): WriteTaskResult = {
+      concurrentOutputWriterSpec: Option[ConcurrentOutputWriterSpec]): WriteTaskResult = {
     CHThreadGroup.registerNewThreadGroup()
+
     val jobId = SparkHadoopWriterUtils.createJobID(new Date(jobIdInstant), sparkStageId)
     val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
     val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)
@@ -291,16 +291,13 @@ object MergeTreeFileFormatWriter extends Logging {
       } else {
         concurrentOutputWriterSpec match {
           case Some(spec) =>
-            new MergeTreeDynamicPartitionDataConcurrentWriter(
+            new DynamicPartitionDataConcurrentWriter(
               description,
               taskAttemptContext,
               committer,
               spec)
           case _ =>
-            new MergeTreeDynamicPartitionDataSingleWriter(
-              description,
-              taskAttemptContext,
-              committer)
+            new DynamicPartitionDataSingleWriter(description, taskAttemptContext, committer)
         }
       }
 

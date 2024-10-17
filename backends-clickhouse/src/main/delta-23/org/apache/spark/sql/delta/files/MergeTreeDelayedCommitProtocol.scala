@@ -16,12 +16,18 @@
  */
 package org.apache.spark.sql.delta.files
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.vectorized.ExpressionEvaluatorJniWrapper
+
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeCommiterHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddFileTags
 import org.apache.spark.util.Utils
 
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.TaskAttemptContext
+
+import scala.collection.JavaConverters._
 
 class MergeTreeDelayedCommitProtocol(
     val outputPath: String,
@@ -35,6 +41,9 @@ class MergeTreeDelayedCommitProtocol(
     MergeTreeCommiterHelper.prepareTaskWriteInfo(
       taskContext.getJobID.toString,
       taskContext.getTaskAttemptID.toString)
+
+    val settings = Map(CHConf.runtimeSettings("gluten.reserve_partition_columns") -> "true")
+    ExpressionEvaluatorJniWrapper.updateQueryRuntimeSettings(settings.asJava)
   }
 
   override def newTaskTempFile(
@@ -44,7 +53,7 @@ class MergeTreeDelayedCommitProtocol(
     // super.newTaskTempFile(taskContext, dir, spec)
     taskContext.getConfiguration.set(
       "mapreduce.task.gluten.mergetree.partition.dir",
-      dir.getOrElse(""))
+      dir.map(p => new Path(p).toUri.toString).getOrElse(""))
 
     val bucketIdStr = ext.split("\\.").headOption.filter(_.startsWith("_")).map(_.substring(1))
 
