@@ -295,4 +295,35 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-7552 normalize json path") {
+    withTable("test_7552") {
+      sql("create table test_7552(a string) using parquet")
+      val insert_sql =
+        """
+          |insert into test_7552 values('{\'a\':\'1\'}')
+          |,('{"a":3}')
+          |,('{"3a":4}')
+          |,('{"a c":5}')
+          |,('{"3 d":6"}')
+          |,('{"a:b":7}')
+          |,('{"=a":8}')
+          |""".stripMargin
+      sql(insert_sql)
+      compareResultsAgainstVanillaSpark(
+        """
+          |select a
+          |, get_json_object(a, '$.a')
+          |, get_json_object(a, '$.3a')
+          |, get_json_object(a, '$.a c')
+          |, get_json_object(a, '$.3 d')
+          |, get_json_object(a, '$.a:b')
+          |, get_json_object(a, '$.=a')
+          |from test_7552
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
 }
