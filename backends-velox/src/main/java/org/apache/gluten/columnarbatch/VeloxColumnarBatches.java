@@ -45,14 +45,6 @@ public final class VeloxColumnarBatches {
         String.format("Comprehensive batch type is already %s", COMPREHENSIVE_TYPE_VELOX));
   }
 
-  public static Boolean isVeloxBatch(ColumnarBatch batch) {
-    if (!ColumnarBatches.isLightBatch(batch)) {
-      return false;
-    }
-    final String comprehensiveType = ColumnarBatches.getComprehensiveLightBatchType(batch);
-    return Objects.equals(comprehensiveType, COMPREHENSIVE_TYPE_VELOX);
-  }
-
   public static ColumnarBatch toVeloxBatch(ColumnarBatch input) {
     checkNonVeloxBatch(input);
     final Runtime runtime = Runtimes.contextInstance("VeloxColumnarBatches#toVeloxBatch");
