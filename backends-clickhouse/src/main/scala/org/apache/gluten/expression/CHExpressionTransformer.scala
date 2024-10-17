@@ -203,10 +203,6 @@ case class CHRegExpReplaceTransformer(
       case node: StringLiteralNode =>
         val strValue = node.getValue
         val replacedValue = strValue.replaceAll("\\$(\\d+)", "\\\\$1")
-        // scalastyle:off println
-        println("replacedValue: " + replacedValue)
-        println("ori: " + strValue)
-        // scalastyle:on println line=206 column=8
         if (replacedValue != strValue) {
           val functionName = ConverterUtils.makeFuncName(
             substraitExprName,
