@@ -110,6 +110,7 @@ private object VeloxRuleApi {
 
     // Gluten RAS: Post rules.
     injector.inject(_ => RemoveTransitions)
+    injector.inject(c => PartialProjectRule.apply(c.session))
     injector.inject(_ => RemoveNativeWriteFilesSortAndProject())
     injector.inject(c => RewriteTransformer.apply(c.session))
     injector.inject(_ => PushDownFilterToScan)

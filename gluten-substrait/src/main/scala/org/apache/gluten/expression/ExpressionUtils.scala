@@ -33,7 +33,7 @@ object ExpressionUtils {
     }
   }
 
-  def isComplexExpression(plan: SparkPlan, threshold: Int): Boolean = {
+  def hasComplextExpressions(plan: SparkPlan, threshold: Int): Boolean = {
     plan.expressions.exists(e => ExpressionUtils.getExpressionTreeDepth(e) > threshold)
   }
 }
