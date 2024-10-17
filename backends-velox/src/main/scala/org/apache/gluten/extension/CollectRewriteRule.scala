@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.{Expression, WindowExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Window}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.TreePattern.{AGGREGATE_EXPRESSION, WINDOW_EXPRESSION}
+import org.apache.spark.sql.catalyst.trees.TreePattern.{AGGREGATE, AGGREGATE_EXPRESSION, WINDOW, WINDOW_EXPRESSION}
 
 import scala.reflect.{classTag, ClassTag}
 
@@ -41,7 +41,7 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
       return plan
     }
 
-    val newPlan = plan.transformUp {
+    val newPlan = plan.transformUpWithPruning(_.containsAnyPattern(WINDOW, AGGREGATE)) {
       case node =>
         replaceAggCollect(node)
     }
