@@ -25,6 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.{And, Coalesce, Expression, IsN
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Window}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.trees.TreePattern.{AGGREGATE, AGGREGATE_EXPRESSION, WINDOW, WINDOW_EXPRESSION}
 import org.apache.spark.sql.types.ArrayType
 
 import scala.reflect.{classTag, ClassTag}
@@ -37,7 +38,7 @@ import scala.reflect.{classTag, ClassTag}
 case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
   import CollectRewriteRule._
   override def apply(plan: LogicalPlan): LogicalPlan = LogicalPlanSelector.maybe(spark, plan) {
-    val out = plan.transformUp {
+    val out = plan.transformUpWithPruning(_.containsAnyPattern(WINDOW, AGGREGATE)) {
       case node =>
         val out = replaceCollectSet(replaceCollectList(node))
         out
@@ -49,7 +50,7 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
   }
 
   private def replaceCollectList(node: LogicalPlan): LogicalPlan = {
-    node.transformExpressions {
+    node.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
       case func @ AggregateExpression(l: CollectList, _, _, _, _) if has[VeloxCollectList] =>
         func.copy(VeloxCollectList(l.child))
     }
@@ -63,13 +64,13 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
     // Since https://github.com/apache/incubator-gluten/pull/4805
     node match {
       case agg: Aggregate =>
-        agg.transformExpressions {
+        agg.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
           case ToVeloxCollectSet(newAggFunc) =>
             val out = ensureNonNull(newAggFunc)
             out
         }
       case w: Window =>
-        w.transformExpressions {
+        w.transformExpressionsWithPruning(_.containsPattern(WINDOW_EXPRESSION)) {
           case func @ WindowExpression(ToVeloxCollectSet(newAggFunc), _) =>
             val out = ensureNonNull(func.copy(newAggFunc))
             out
