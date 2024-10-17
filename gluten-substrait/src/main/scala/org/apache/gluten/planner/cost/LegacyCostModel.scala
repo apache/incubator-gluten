@@ -18,6 +18,7 @@ package org.apache.gluten.planner.cost
 
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
+
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ProjectExec, RowToColumnarExec, SparkPlan}
 
 /**
