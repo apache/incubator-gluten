@@ -189,10 +189,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
               val batchIterator = projectedBatch.map {
                 b =>
                   if (b.numCols() != 0) {
-                    val veloxBatch =
-                      if (batch.numCols() == 0) batch
-                      else VeloxColumnarBatches.toVeloxBatch(batch)
-                    val compositeBatch = VeloxColumnarBatches.compose(veloxBatch, b)
+                    val compositeBatch = VeloxColumnarBatches.compose(batch, b)
                     b.close()
                     compositeBatch
                   } else {
@@ -244,10 +241,9 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     val proj = UnsafeProjection.create(replacedAliasUdf, projectAttributes.toSeq)
     val numOutputRows = new SQLMetric("numOutputRows")
     val numInputBatches = new SQLMetric("numInputBatches")
-    val veloxBatch = VeloxColumnarBatches.toVeloxBatch(childData)
     val rows = VeloxColumnarToRowExec
       .toRowIterator(
-        Iterator.single[ColumnarBatch](veloxBatch),
+        Iterator.single[ColumnarBatch](childData),
         projectAttributes.toSeq,
         numOutputRows,
         numInputBatches,
