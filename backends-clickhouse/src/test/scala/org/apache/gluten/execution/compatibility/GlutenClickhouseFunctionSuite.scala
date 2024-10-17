@@ -279,6 +279,11 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
           |'([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})',
           |'$1-$2-$3') from regexp_test
         """.stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
 
   test("GLUTEN-7550 get_json_object in IN") {
     withTable("test_7550") {
