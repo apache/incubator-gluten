@@ -90,7 +90,7 @@ void restoreMetaData<ROCKSDB>(const SparkStorageMergeTreePtr & storage, const Me
     for (const auto & part : mergeTreeTable.getPartNames())
     {
         auto part_path = table_path / part;
-        if (!metadata_storage->exists(part_path))
+        if (!metadata_storage->existsDirectory(part_path))
             not_exists_part.emplace(part);
     }
 
@@ -104,7 +104,7 @@ void restoreMetaData<ROCKSDB>(const SparkStorageMergeTreePtr & storage, const Me
         auto s3 = data_disk->getObjectStorage();
         auto transaction = metadata_storage->createTransaction();
 
-        if (!metadata_storage->exists(table_path))
+        if (!metadata_storage->existsDirectory(table_path))
             transaction->createDirectoryRecursive(table_path.generic_string());
 
         for (const auto & part : not_exists_part)
@@ -112,7 +112,7 @@ void restoreMetaData<ROCKSDB>(const SparkStorageMergeTreePtr & storage, const Me
                 auto part_path = table_path / part;
                 auto metadata_file_path = part_path / METADATA_FILE_NAME;
 
-                if (metadata_storage->exists(part_path))
+                if (metadata_storage->existsDirectory(part_path))
                     return;
                 else
                     transaction->createDirectoryRecursive(part_path);
@@ -143,7 +143,7 @@ void restoreMetaData<LOCAL>(
     for (const auto & part : mergeTreeTable.getPartNames())
     {
         auto part_path = table_path / part;
-        if (!metadata_disk->exists(part_path))
+        if (!metadata_disk->existsDirectory(part_path))
             not_exists_part.emplace(part);
     }
 
@@ -166,7 +166,7 @@ void restoreMetaData<LOCAL>(
             not_exists_part.size());
         auto s3 = data_disk->getObjectStorage();
 
-        if (!metadata_disk->exists(table_path))
+        if (!metadata_disk->existsDirectory(table_path))
             metadata_disk->createDirectories(table_path.generic_string());
 
         for (const auto & part : not_exists_part)
@@ -176,7 +176,7 @@ void restoreMetaData<LOCAL>(
                 auto part_path = table_path / part;
                 auto metadata_file_path = part_path / METADATA_FILE_NAME;
 
-                if (metadata_disk->exists(part_path))
+                if (metadata_disk->existsDirectory(part_path))
                     return;
                 else
                     metadata_disk->createDirectories(part_path);
