@@ -14,18 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 #include <Core/Block.h>
 #include <Interpreters/Aggregator.h>
 #include <Interpreters/Context.h>
 #include <Interpreters/JoinUtils.h>
 #include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
-#include <Processors/Port.h>
-#include <Processors/QueryPlan/ITransformingStep.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <Poco/Logger.h>
 #include <Common/AggregateUtil.h>
-#include <Common/logger_useful.h>
+
 
 namespace local_engine
 {

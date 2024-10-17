@@ -15,14 +15,10 @@
  * limitations under the License.
  */
 #include "GraceMergingAggregatedStep.h"
-#include <Interpreters/JoinUtils.h>
+#include <Operator/GraceAggregatingTransform.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Common/CHUtil.h>
-#include <Common/CurrentThread.h>
-#include <Common/formatReadable.h>
-#include <Common/BitHelpers.h>
-#include <Common/GlutenConfig.h>
 #include <Common/QueryContext.h>
 
 namespace DB
@@ -37,16 +33,14 @@ namespace local_engine
 {
 static DB::ITransformingStep::Traits getTraits()
 {
-    return DB::ITransformingStep::Traits
-    {
+    return DB::ITransformingStep::Traits{
         {
             .preserves_number_of_streams = false,
             .preserves_sorting = false,
         },
         {
             .preserves_number_of_rows = false,
-        }
-    };
+        }};
 }
 
 static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Aggregator::Params params_, bool final)
@@ -55,12 +49,8 @@ static DB::Block buildOutputHeader(const DB::Block & input_header_, const DB::Ag
 }
 
 GraceMergingAggregatedStep::GraceMergingAggregatedStep(
-    DB::ContextPtr context_,
-    const DB::DataStream & input_stream_,
-    DB::Aggregator::Params params_,
-    bool no_pre_aggregated_)
-    : DB::ITransformingStep(
-        input_stream_, buildOutputHeader(input_stream_.header, params_, true), getTraits())
+    DB::ContextPtr context_, const DB::Block & input_header, DB::Aggregator::Params params_, bool no_pre_aggregated_)
+    : DB::ITransformingStep(input_header, buildOutputHeader(input_header, params_, true), getTraits())
     , context(context_)
     , params(std::move(params_))
     , no_pre_aggregated(no_pre_aggregated_)
@@ -71,7 +61,8 @@ void GraceMergingAggregatedStep::transformPipeline(DB::QueryPipelineBuilder & pi
 {
     if (params.max_bytes_before_external_group_by)
     {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "max_bytes_before_external_group_by is not supported in GraceMergingAggregatedStep");
+        throw DB::Exception(
+            DB::ErrorCodes::LOGICAL_ERROR, "max_bytes_before_external_group_by is not supported in GraceMergingAggregatedStep");
     }
     auto num_streams = pipeline.getNumStreams();
     auto transform_params = std::make_shared<DB::AggregatingTransformParams>(pipeline.getHeader(), params, true);
@@ -101,10 +92,9 @@ void GraceMergingAggregatedStep::describeActions(DB::JSONBuilder::JSONMap & map)
     params.explain(map);
 }
 
-void GraceMergingAggregatedStep::updateOutputStream()
+void GraceMergingAggregatedStep::updateOutputHeader()
 {
-    output_stream = createOutputStream(input_streams.front(), buildOutputHeader(input_streams.front().header, params, true), getDataStreamTraits());
+    output_header = buildOutputHeader(input_headers.front(), params, true);
 }
-
 
 }

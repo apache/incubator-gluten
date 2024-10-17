@@ -1,3 +1,4 @@
+#!/bin/bash
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,22 +14,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: license header check
-on:
-  pull_request
-concurrency:
-  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
-  cancel-in-progress: true
+set -ex
 
-jobs:
-  license-check:
-    name: License Header Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Check License Header
-        run: |
-          git fetch --recurse-submodules=no origin main ${{github.event.pull_request.base.sha}}
-          pip install regex
-          cd $GITHUB_WORKSPACE/
-          ./.github/workflows/util/check.sh ${{github.event.pull_request.base.sha}}
+export NUM_THREADS=$(nproc)
+export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
+
+# Retry code copied from https://unix.stackexchange.com/a/137639.
+function fail {
+  echo $1 >&2
+  exit 1
+}
+
+function retry {
+  local n=1
+  local max=5
+  local delay=15
+  while true; do
+    "$@" && break || {
+      if [[ $n -lt $max ]]; then
+        ((n++))
+        echo "Command failed. Attempt $n/$max:"
+        sleep $delay;
+      else
+        fail "The command has failed after $n attempts."
+      fi
+    }
+  done
+}
+
+# FIXME: Works only in CentOS 7
+source /opt/rh/devtoolset-9/enable
+
+cd /opt/gluten
+
+BASH_ARGS=$@
+
+retry dev/builddeps-veloxbe.sh $BASH_ARGS

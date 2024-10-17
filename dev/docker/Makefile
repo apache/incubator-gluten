@@ -1,4 +1,4 @@
-DOCKER_IMAGE=apache/gluten:vcpkg-centos-7
+DOCKER_IMAGE=apache/gluten:centos-7-vcpkg-build-depends
 GLUTEN_REPO=$(shell realpath -L ../..)
 
 CCACHE_DIR=$(HOME)/.ccache
@@ -17,26 +17,32 @@ build: $(CCACHE_DIR) $(VCPKG_BINARY_CACHE_DIR) $(MAVEN_M2_DIR)
 		-e http_proxy \
 		-e https_proxy \
 		--workdir $(GLUTEN_REPO) \
-		-ti \
 		$(DOCKER_IMAGE) \
 		./dev/package-vcpkg.sh
 
 docker-image:
 	docker build \
-		--file docker/Dockerfile \
+		--file Dockerfile \
 		--build-arg BUILDER_UID=`id -u` \
 		--build-arg BUILDER_GID=`id -g` \
 		--tag "$(DOCKER_IMAGE)" \
-		.
+		..
 
-docker-image-gha:
+docker-image-static-build:
 	docker build \
-		--file docker/Dockerfile.gha \
-		--tag "$(DOCKER_IMAGE)" \
+		--file Dockerfile.centos7-static-build \
+		--tag "apache/gluten:vcpkg-centos-7" \
 		--build-arg HTTPS_PROXY="" \
 		--build-arg HTTP_PROXY="" \
 		.
 
+docker-image-dynamic-build:
+	docker build \
+		--file Dockerfile.centos8-dynamic-build \
+		--tag "apache/gluten:centos-8" \
+		--build-arg HTTPS_PROXY="" \
+		--build-arg HTTP_PROXY="" \
+		.
 
 $(CCACHE_DIR) $(VCPKG_BINARY_CACHE_DIR) $(MAVEN_M2_DIR): %:
 	mkdir -p $@

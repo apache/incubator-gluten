@@ -792,9 +792,21 @@ object GlutenConfig {
       .filter(_._1.startsWith(HADOOP_PREFIX + S3A_PREFIX))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
+    // handle ABFS config
     conf
       .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    // handle GCS config
+    if (conf.contains(SPARK_GCS_AUTH_TYPE)) {
+      nativeConfMap.put(SPARK_GCS_AUTH_TYPE, conf(SPARK_GCS_AUTH_TYPE))
+    }
+
+    if (conf.contains(SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE)) {
+      nativeConfMap.put(
+        SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
+        conf(SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE))
+    }
 
     // return
     nativeConfMap

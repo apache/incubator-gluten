@@ -28,13 +28,15 @@ namespace local_engine
 class EmptyProjectStep : public DB::ITransformingStep
 {
 public:
-    explicit EmptyProjectStep(const DB::DataStream & input_stream_);
+    explicit EmptyProjectStep(const DB::Block & input_header);
     ~EmptyProjectStep() override = default;
 
     String getName() const override { return "EmptyProjectStep"; }
 
     void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & settings) override;
     void describePipeline(DB::IQueryPlanStep::FormatSettings & settings) const override;
-    void updateOutputStream() override;
+
+protected:
+    void updateOutputHeader() override;
 };
 }

@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Velox Backend CI
-nav_order: 14
+nav_order: 6
 parent: Developer Overview
 ---
 # Velox Backend CI
@@ -9,7 +9,7 @@ parent: Developer Overview
 GHA workflows are defined under `.github/workflows/`.
 
 ## Docker Build
-We have a weekly job to build a docker based on `Dockerfile.gha` for CI verification, defined in `docker_image.yml`.
+We have a weekly job defined in `docker_image.yml` to build docker images based on `Dockerfile.centos7-static-build` and `Dockerfile.centos8-dynamic-build` for CI verification.
 
 ## Vcpkg Caching
 Gluten main branch is pulled down during docker build. And vcpkg will cache binary data of all dependencies defined under dev/vcpkg.

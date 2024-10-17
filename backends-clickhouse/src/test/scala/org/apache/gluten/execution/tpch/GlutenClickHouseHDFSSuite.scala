@@ -22,7 +22,10 @@ import org.apache.gluten.execution.{CHNativeCacheManager, FileSourceScanExecTran
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
+import org.apache.commons.io.IOUtils
 import org.apache.hadoop.fs.Path
+
+import java.nio.charset.Charset
 
 class GlutenClickHouseHDFSSuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -70,6 +73,11 @@ class GlutenClickHouseHDFSSuite
     deleteCache()
   }
 
+  override protected def afterAll(): Unit = {
+    deleteCache()
+    super.afterEach()
+  }
+
   private def deleteCache(): Unit = {
     val targetFile = new Path(tablesPath)
     val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
@@ -87,7 +95,6 @@ class GlutenClickHouseHDFSSuite
                 })
           }
         })
-    clearDataPath(hdfsCachePath)
   }
 
   val runWithoutCache: () => Unit = () => {
@@ -113,19 +120,19 @@ class GlutenClickHouseHDFSSuite
     }
   }
 
-  ignore("test hdfs cache") {
+  test("test hdfs cache") {
     runWithoutCache()
     runWithCache()
   }
 
-  ignore("test cache file command") {
+  test("test cache file command") {
     runSql(
       s"CACHE FILES select * from '$HDFS_URL_ENDPOINT/tpch-data/lineitem'",
       noFallBack = false) { _ => }
     runWithCache()
   }
 
-  ignore("test no cache by query") {
+  test("test no cache by query") {
     withSQLConf(
       runtimeSettings("read_from_filesystem_cache_if_exists_otherwise_bypass_cache") -> "true") {
       runWithoutCache()
@@ -133,5 +140,40 @@ class GlutenClickHouseHDFSSuite
 
     runWithoutCache()
     runWithCache()
+  }
+
+  test("GLUTEN-7542: Fix cache refresh") {
+    withSQLConf("spark.sql.hive.manageFilesourcePartitions" -> "false") {
+      val file_path = s"$tablesPath/issue_7542/"
+      val targetDirs = new Path(file_path)
+      val fs = targetDirs.getFileSystem(spark.sessionState.newHadoopConf())
+      fs.mkdirs(targetDirs)
+      val out = fs.create(new Path(s"$file_path/00000_0"))
+      IOUtils.write("1\n2\n3\n4\n5", out, Charset.defaultCharset())
+      out.close()
+      sql(s"""
+             |CREATE external TABLE `issue_7542`(
+             |  `c_custkey` int )
+             |using CSV
+             |LOCATION
+             |  '$file_path/'
+             |""".stripMargin)
+
+      sql(s"""select * from issue_7542""").collect()
+      fs.delete(new Path(s"$file_path/00000_0"), false)
+      val out2 = fs.create(new Path(s"$file_path/00000_0"))
+      IOUtils.write("1\n2\n3\n4\n3\n3\n3", out2, Charset.defaultCharset())
+      out2.close()
+      val df = sql(s"""select count(*) from issue_7542 where c_custkey=3""")
+      // refresh list file
+      collect(df.queryExecution.executedPlan) {
+        case scanExec: FileSourceScanExecTransformer => scanExec.relation.location.refresh()
+      }
+      val result = df.collect()
+      assert(result.length == 1)
+      assert(result.head.getLong(0) == 4)
+
+      sql("drop table issue_7542")
+    }
   }
 }
