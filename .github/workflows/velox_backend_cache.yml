@@ -46,7 +46,7 @@ jobs:
           df -a
           yum install ccache -y
           bash dev/ci-velox-buildstatic-centos-7.sh
-      - name: Save ccache
+      - name: Save Ccache
         uses: actions/cache/save@v3
         id: ccache
         with:
@@ -76,7 +76,7 @@ jobs:
           df -a
           bash dev/ci-velox-buildshared-centos-8.sh
           ccache -s
-      - name: Save ccache
+      - name: Save Ccache
         uses: actions/cache/save@v3
         id: ccache
         with:

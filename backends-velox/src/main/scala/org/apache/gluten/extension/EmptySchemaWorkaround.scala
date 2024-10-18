@@ -69,8 +69,8 @@ object EmptySchemaWorkaround {
       case p =>
         if (fallbackOnEmptySchema(p)) {
           if (p.children.exists(_.output.isEmpty)) {
-            // Some backends are not eligible to offload plan with zero-column input.
-            // If any child have empty output, mark the plan and that child as UNSUPPORTED.
+            // Some backends are not capable to offload plan with zero-column input.
+            // If any child has empty output, mark the plan and that child as UNSUPPORTED.
             FallbackTags.add(p, "at least one of its children has empty output")
             p.children.foreach {
               child =>
