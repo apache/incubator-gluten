@@ -142,6 +142,8 @@ class ClickhouseOptimisticTransaction(
           })
 
         try {
+          spark.sparkContext.setLocalProperty("isNativeApplicable", "true")
+          spark.sparkContext.setLocalProperty("staticPartitionWriteOnly", "false")
           MergeTreeFileFormatWriter.write(
             sparkSession = spark,
             plan = newQueryPlan,
@@ -168,6 +170,9 @@ class ClickhouseOptimisticTransaction(
             } else {
               throw s
             }
+        } finally {
+          spark.sparkContext.setLocalProperty("isNativeApplicable", null)
+          spark.sparkContext.setLocalProperty("staticPartitionWriteOnly", null)
         }
       }
       committer.addedStatuses.toSeq ++ committer.changeFiles

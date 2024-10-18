@@ -64,7 +64,15 @@ object MergeTreeFileFormatWriter extends Logging {
       constraints: Seq[Constraint],
       numStaticPartitionCols: Int = 0): Set[String] = {
 
-    assert(plan.isInstanceOf[IFakeRowAdaptor])
+    val nativeEnabled =
+      "true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")
+    val staticPartitionWriteOnly =
+      "true" == sparkSession.sparkContext.getLocalProperty("staticPartitionWriteOnly")
+
+    if (nativeEnabled) {
+      logInfo("Use Gluten partition write for hive")
+      assert(plan.isInstanceOf[IFakeRowAdaptor])
+    }
 
     val job = Job.getInstance(hadoopConf)
     job.setOutputKeyClass(classOf[Void])
@@ -167,7 +175,11 @@ object MergeTreeFileFormatWriter extends Logging {
 
     try {
       val (rdd, concurrentOutputWriterSpec) = if (orderingMatched) {
-        nativeWrap(empty2NullPlan)
+        if (!nativeEnabled || (staticPartitionWriteOnly && nativeEnabled)) {
+          (empty2NullPlan.execute(), None)
+        } else {
+          nativeWrap(empty2NullPlan)
+        }
       } else {
         // SPARK-21165: the `requiredOrdering` is based on the attributes from analyzed plan, and
         // the physical plan may have different attribute ids due to optimizer removing some
@@ -179,7 +191,7 @@ object MergeTreeFileFormatWriter extends Logging {
 
         val maxWriters = sparkSession.sessionState.conf.maxConcurrentOutputFileWriters
         var concurrentWritersEnabled = maxWriters > 0 && sortColumns.isEmpty
-        if (concurrentWritersEnabled) {
+        if (nativeEnabled && concurrentWritersEnabled) {
           log.warn(
             s"spark.sql.maxConcurrentOutputFileWriters(being set to $maxWriters) will be " +
               "ignored when native writer is being active. No concurrent Writers.")
@@ -191,7 +203,16 @@ object MergeTreeFileFormatWriter extends Logging {
             empty2NullPlan.execute(),
             Some(ConcurrentOutputWriterSpec(maxWriters, () => sortPlan.createSorter())))
         } else {
-          nativeWrap(sortPlan)
+          if (staticPartitionWriteOnly && nativeEnabled) {
+            // remove the sort operator for static partition write.
+            (empty2NullPlan.execute(), None)
+          } else {
+            if (!nativeEnabled) {
+              (sortPlan.execute(), None)
+            } else {
+              nativeWrap(sortPlan)
+            }
+          }
         }
       }
 
@@ -246,7 +267,8 @@ object MergeTreeFileFormatWriter extends Logging {
   }
   // scalastyle:on argcount
 
-  def executeTask(
+  /** Writes data out in a single Spark task. */
+  private def executeTask(
       description: WriteJobDescription,
       jobIdInstant: Long,
       sparkStageId: Int,
