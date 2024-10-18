@@ -78,6 +78,15 @@
         <module>spark35</module>
       </modules>
     </profile>
+    <profile>
+      <id>default</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <modules>
+        <module>spark34</module>
+      </modules>
+    </profile>
   </profiles>
 
   <build>
