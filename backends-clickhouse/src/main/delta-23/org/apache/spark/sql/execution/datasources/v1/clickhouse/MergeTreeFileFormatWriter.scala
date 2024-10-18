@@ -105,18 +105,38 @@ object MergeTreeFileFormatWriter extends Logging {
 
     val writerBucketSpec = bucketSpec.map {
       spec =>
-        val bucketColumns =
-          spec.bucketColumnNames.map(c => dataColumns.find(_.name.equalsIgnoreCase(c)).get)
-        // Spark bucketed table: use `HashPartitioning.partitionIdExpression` as bucket id
-        // expression, so that we can guarantee the data distribution is same between shuffle and
-        // bucketed data source, which enables us to only shuffle one side when join a bucketed
-        // table and a normal one.
-        val bucketIdExpression =
-          HashPartitioning(bucketColumns, spec.numBuckets).partitionIdExpression
-        WriterBucketSpec(bucketIdExpression, (_: Int) => "")
+        val bucketColumns = spec.bucketColumnNames.map(c => dataColumns.find(_.name == c).get)
+
+        if (
+          options.getOrElse(BucketingUtils.optionForHiveCompatibleBucketWrite, "false") ==
+            "true"
+        ) {
+          // Hive bucketed table: use `HiveHash` and bitwise-and as bucket id expression.
+          // Without the extra bitwise-and operation, we can get wrong bucket id when hash value of
+          // columns is negative. See Hive implementation in
+          // `org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils#getBucketNumber()`.
+          val hashId = BitwiseAnd(HiveHash(bucketColumns), Literal(Int.MaxValue))
+          val bucketIdExpression = Pmod(hashId, Literal(spec.numBuckets))
+
+          // The bucket file name prefix is following Hive, Presto and Trino conversion, so this
+          // makes sure Hive bucketed table written by Spark, can be read by other SQL engines.
+          //
+          // Hive: `org.apache.hadoop.hive.ql.exec.Utilities#getBucketIdFromFile()`.
+          // Trino: `io.trino.plugin.hive.BackgroundHiveSplitLoader#BUCKET_PATTERNS`.
+          val fileNamePrefix = (bucketId: Int) => f"$bucketId%05d_0_"
+          WriterBucketSpec(bucketIdExpression, fileNamePrefix)
+        } else {
+          // Spark bucketed table: use `HashPartitioning.partitionIdExpression` as bucket id
+          // expression, so that we can guarantee the data distribution is same between shuffle and
+          // bucketed data source, which enables us to only shuffle one side when join a bucketed
+          // table and a normal one.
+          val bucketIdExpression =
+            HashPartitioning(bucketColumns, spec.numBuckets).partitionIdExpression
+          WriterBucketSpec(bucketIdExpression, (_: Int) => "")
+        }
     }
     val sortColumns = bucketSpec.toSeq.flatMap {
-      spec => spec.sortColumnNames.map(c => dataColumns.find(_.name.equalsIgnoreCase(c)).get)
+      spec => spec.sortColumnNames.map(c => dataColumns.find(_.name == c).get)
     }
 
     val caseInsensitiveOptions = CaseInsensitiveMap(options)
@@ -176,11 +196,9 @@ object MergeTreeFileFormatWriter extends Logging {
       if (writerBucketSpec.isDefined) {
         // We need to add the bucket id expression to the output of the sort plan,
         // so that we can use backend to calculate the bucket id for each row.
-        val bucketValueExpr = bindReferences(
-          Seq(writerBucketSpec.get.bucketIdExpression),
-          finalOutputSpec.outputColumns)
-        wrapped =
-          ProjectExec(wrapped.output :+ Alias(bucketValueExpr.head, "__bucket_value__")(), wrapped)
+        wrapped = ProjectExec(
+          wrapped.output :+ Alias(writerBucketSpec.get.bucketIdExpression, "__bucket_value__")(),
+          wrapped)
         // TODO: to optimize, bucket value is computed twice here
       }
 
