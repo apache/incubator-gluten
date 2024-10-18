@@ -355,7 +355,9 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
       runQueryAndCompare(
         """
           |SELECT regexp_replace(a, '''', '') from test_7575
-          |""".stripMargin
+          |""".stripMargin,
+        true,
+        false
       )(df => checkFallbackOperators(df, 1))
     }
   }
