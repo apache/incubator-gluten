@@ -141,21 +141,14 @@ std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
     Blocks data;
     auto collect_data = [&]
     {
-        bool header_empty = header.getNamesAndTypesList().empty();
-        bool only_one_column = header_empty;
+        bool only_one_column = header.getNamesAndTypesList().empty();
+        if (only_one_column)
+            header = BlockUtil::buildRowCountBlock(0).getColumnsWithTypeAndName();
+
         NativeReader block_stream(input);
         ProfileInfo info;
         while (Block block = block_stream.read())
         {
-            if (header_empty)
-            {
-                // In bnlj, buidside output maybe empty,
-                //   we use buildside header only for loop
-                // Like: select count(*) from t1 left join t2
-                header = resetBuildTableBlockName(block, true);
-                header_empty = false;
-            }
-
             DB::ColumnsWithTypeAndName columns;
             for (size_t i = 0; i < block.columns(); ++i)
             {
