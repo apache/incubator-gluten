@@ -270,9 +270,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
     val proj = MutableProjection.create(replacedAliasUdf, projectAttributes.toSeq)
     val numRows = childData.numRows()
     val start = System.currentTimeMillis()
-    val arrowBatch = if (childData.numCols() == 0 || ColumnarBatches.isHeavyBatch(childData)) {
-      childData
-    } else ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), childData)
+    val arrowBatch = ColumnarBatches.load(ArrowBufferAllocators.contextInstance(), childData)
     c2a += System.currentTimeMillis() - start
 
     val schema =
