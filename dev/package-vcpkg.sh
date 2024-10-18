@@ -11,10 +11,10 @@ ARCH=`uname -m`
 cd "$GLUTEN_DIR"
 if [ "$LINUX_OS" == "centos" ]; then
   if [ "$VERSION" == "8" ]; then
-    source /opt/rh/gcc-toolset-9/enable
+    source /opt/rh/gcc-toolset-11/enable
   elif [ "$VERSION" == "7" ]; then
     export MANPATH=""
-    source /opt/rh/devtoolset-9/enable
+    source /opt/rh/devtoolset-11/enable
   fi
 fi
 

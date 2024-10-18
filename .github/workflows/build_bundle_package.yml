@@ -49,7 +49,7 @@ jobs:
           yum install sudo patch java-1.8.0-openjdk-devel -y && \
           cd $GITHUB_WORKSPACE/ep/build-velox/src && \
           ./get_velox.sh && \
-          source /opt/rh/devtoolset-9/enable && \
+          source /opt/rh/devtoolset-11/enable && \
           cd $GITHUB_WORKSPACE/ && \
           export NUM_THREADS=4
           ./dev/builddeps-veloxbe.sh --enable_vcpkg=ON --build_tests=OFF  --build_benchmarks=OFF --enable_s3=OFF \

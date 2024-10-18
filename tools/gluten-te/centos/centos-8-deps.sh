@@ -28,9 +28,9 @@ yum -y update && yum clean all && yum install -y dnf-plugins-core
 yum config-manager --set-enabled powertools
 dnf --enablerepo=powertools install -y ninja-build
 dnf --enablerepo=powertools install -y libdwarf-devel
-dnf install -y --setopt=install_weak_deps=False ccache gcc-toolset-9 git wget which libevent-devel \
+dnf install -y --setopt=install_weak_deps=False ccache gcc-toolset-11 git wget which libevent-devel \
   openssl-devel re2-devel libzstd-devel lz4-devel double-conversion-devel \
   curl-devel cmake libicu-devel
 
 yum -y update && yum clean all && yum install -y java-1.8.0-openjdk-devel patch
-dnf -y install gcc-toolset-9-gcc gcc-toolset-9-gcc-c++
+dnf -y install gcc-toolset-11-gcc gcc-toolset-11-gcc-c++
