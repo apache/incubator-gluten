@@ -296,6 +296,15 @@ class SubstraitToVeloxPlanConverter {
       return true;
     }
 
+    /// Function canPushdownOr will change the range. If it cannot be pushed down,
+    /// the range needs to be reset.
+    void resetMultiRange() {
+      multiRange_ = false;
+      leftBound_ = false;
+      rightBound_ = false;
+      isNull_ = false;
+    }
+
     /// Set certain existence according to function name and returns whether it
     /// can coexist with existing conditions for this field.
     bool setCertainRangeForFunction(const std::string& functionName, bool reverse = false, bool forOrRelation = false);
@@ -468,10 +477,10 @@ class SubstraitToVeloxPlanConverter {
       const ::substrait::Expression_SingularOrList& singularOrList,
       bool disableIntLike = false);
 
-  /// Check whether the children functions of this scalar function have the same
-  /// column index. Curretly used to check whether the two chilren functions of
-  /// 'or' expression are effective on the same column.
-  static bool childrenFunctionsOnSameField(const ::substrait::Expression_ScalarFunction& function);
+  /// Check whether the children functions of this scalar function have the same column index.
+  /// If the same, return field index, otherwise return UINT32_MAX. Curretly used to check whether the
+  /// two chilren functions of 'or' expression are effective on the same column.
+  static uint32_t childrenFunctionsOnSameField(const ::substrait::Expression_ScalarFunction& function);
 
   /// Extract the scalar function, and set the filter info for different types
   /// of columns. If reverse is true, the opposite filter info will be set.

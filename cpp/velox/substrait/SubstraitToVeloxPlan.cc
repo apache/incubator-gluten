@@ -1581,10 +1581,11 @@ bool SubstraitToVeloxPlanConverter::fieldOrWithLiteral(
   return fieldExists && literalExists;
 }
 
-bool SubstraitToVeloxPlanConverter::childrenFunctionsOnSameField(
+uint32_t SubstraitToVeloxPlanConverter::childrenFunctionsOnSameField(
     const ::substrait::Expression_ScalarFunction& function) {
   // Get the column indices of the children functions.
   std::vector<uint32_t> colIndices;
+  uint32_t fieldIdx = UINT32_MAX;
   for (const auto& arg : function.arguments()) {
     if (arg.value().has_scalar_function()) {
       const auto& scalarFunction = arg.value().scalar_function();
@@ -1594,7 +1595,7 @@ bool SubstraitToVeloxPlanConverter::childrenFunctionsOnSameField(
           VELOX_CHECK(field.has_direct_reference());
           uint32_t colIdx;
           if (!SubstraitParser::parseReferenceSegment(field.direct_reference(), colIdx)) {
-            return false;
+            return fieldIdx;
           }
           colIndices.emplace_back(colIdx);
         }
@@ -1603,15 +1604,17 @@ bool SubstraitToVeloxPlanConverter::childrenFunctionsOnSameField(
       const auto& singularOrList = arg.value().singular_or_list();
       colIndices.emplace_back(getColumnIndexFromSingularOrList(singularOrList));
     } else {
-      return false;
+      return fieldIdx;
     }
   }
-
+  if (colIndices.empty()) {
+    return fieldIdx;
+  }
   if (std::all_of(colIndices.begin(), colIndices.end(), [&](uint32_t idx) { return idx == colIndices[0]; })) {
     // All indices are the same.
-    return true;
+    fieldIdx = colIndices[0];
   }
-  return false;
+  return fieldIdx;
 }
 
 bool SubstraitToVeloxPlanConverter::canPushdownFunction(
@@ -1664,39 +1667,39 @@ bool SubstraitToVeloxPlanConverter::canPushdownOr(
     std::vector<RangeRecorder>& rangeRecorders) {
   // OR Conditon whose children functions are on different columns is not
   // supported to be pushed down.
-  if (!childrenFunctionsOnSameField(scalarFunction)) {
+  uint32_t fieldIdx = childrenFunctionsOnSameField(scalarFunction);
+  if (fieldIdx == UINT32_MAX || !rangeRecorders.at(fieldIdx).setMultiRange()) {
     return false;
   }
-
   static const std::unordered_set<std::string> supportedOrFunctions = {sIsNotNull, sGte, sGt, sLte, sLt, sEqual};
-
   for (const auto& arg : scalarFunction.arguments()) {
     if (arg.value().has_scalar_function()) {
       auto nameSpec =
           SubstraitParser::findFunctionSpec(functionMap_, arg.value().scalar_function().function_reference());
       auto functionName = SubstraitParser::getNameBeforeDelimiter(nameSpec);
-
-      uint32_t fieldIdx;
       bool isFieldOrWithLiteral = fieldOrWithLiteral(arg.value().scalar_function().arguments(), fieldIdx);
       if (supportedOrFunctions.find(functionName) == supportedOrFunctions.end() || !isFieldOrWithLiteral ||
           !rangeRecorders.at(fieldIdx).setCertainRangeForFunction(
               functionName, false /*reverse*/, true /*forOrRelation*/)) {
         // The arg should be field or field with literal.
+        rangeRecorders.at(fieldIdx).resetMultiRange();
         return false;
       }
     } else if (arg.value().has_singular_or_list()) {
       const auto& singularOrList = arg.value().singular_or_list();
+      // Disable IN pushdown for int-like types.
       if (!canPushdownSingularOrList(singularOrList, true)) {
+        rangeRecorders.at(fieldIdx).resetMultiRange();
         return false;
       }
-      uint32_t fieldIdx = getColumnIndexFromSingularOrList(singularOrList);
-      // Disable IN pushdown for int-like types.
       if (!rangeRecorders.at(fieldIdx).setInRange(true /*forOrRelation*/)) {
+        rangeRecorders.at(fieldIdx).resetMultiRange();
         return false;
       }
     } else {
       // Or relation betweeen other expressions is not supported to be pushded
       // down currently.
+      rangeRecorders.at(fieldIdx).resetMultiRange();
       return false;
     }
   }
