@@ -165,7 +165,7 @@ function setup_linux {
       $GLUTEN_VELOX_SCRIPT_HOME/setup-centos7.sh
       set +u
       export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
-      source /opt/rh/devtoolset-9/enable
+      source /opt/rh/devtoolset-11/enable
       set -u
       ;;
     *)
@@ -179,7 +179,7 @@ function setup_linux {
       $GLUTEN_VELOX_SCRIPT_HOME/setup-centos7.sh
       set +u
       export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
-      source /opt/rh/devtoolset-9/enable
+      source /opt/rh/devtoolset-11/enable
       set -u
       ;;
     3) $GLUTEN_VELOX_SCRIPT_HOME/setup-centos8.sh ;;
@@ -194,7 +194,7 @@ function setup_linux {
         $GLUTEN_VELOX_SCRIPT_HOME/setup-centos7.sh
         set +u
         export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
-        source /opt/rh/devtoolset-9/enable
+        source /opt/rh/devtoolset-11/enable
         set -u
         ;;
     3.2) $GLUTEN_VELOX_SCRIPT_HOME/setup-centos8.sh ;;
