@@ -17,6 +17,7 @@
 
 #include "MemoryAllocator.h"
 #include "HbwAllocator.h"
+#include "JemallocAllocator.h"
 #include "utils/Macros.h"
 
 namespace gluten {
@@ -89,8 +90,8 @@ bool ListenableMemoryAllocator::reallocateAligned(
   }
 }
 
-bool ListenableMemoryAllocator::free(void* p, int64_t size) {
-  bool succeed = delegated_->free(p, size);
+bool ListenableMemoryAllocator::free(void* p, int64_t size, int64_t alignment) {
+  bool succeed = delegated_->free(p, size, alignment);
   if (succeed) {
     updateUsage(-size);
   }
@@ -178,7 +179,7 @@ bool StdMemoryAllocator::reallocateAligned(void* p, uint64_t alignment, int64_t 
   return true;
 }
 
-bool StdMemoryAllocator::free(void* p, int64_t size) {
+bool StdMemoryAllocator::free(void* p, int64_t size, int64_t alignment) {
   std::free(p);
   bytes_ -= size;
   return true;
@@ -195,6 +196,8 @@ int64_t StdMemoryAllocator::peakBytes() const {
 std::shared_ptr<MemoryAllocator> defaultMemoryAllocator() {
 #if defined(GLUTEN_ENABLE_HBM)
   static std::shared_ptr<MemoryAllocator> alloc = HbwMemoryAllocator::newInstance();
+#elif defined(GLUTEN_ENABLE_JEMALLOC)
+  static std::shared_ptr<MemoryAllocator> alloc = JemallocMemoryAllocator::newInstance();
 #else
   static std::shared_ptr<MemoryAllocator> alloc = std::make_shared<StdMemoryAllocator>();
 #endif

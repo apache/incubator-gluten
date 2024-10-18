@@ -41,7 +41,7 @@ arrow::Status ArrowMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, int6
 }
 
 void ArrowMemoryPool::Free(uint8_t* buffer, int64_t size, int64_t alignment) {
-  allocator_->free(buffer, size);
+  allocator_->free(buffer, size, alignment);
 }
 
 int64_t ArrowMemoryPool::bytes_allocated() const {
