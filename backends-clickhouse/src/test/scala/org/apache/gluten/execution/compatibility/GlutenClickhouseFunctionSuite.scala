@@ -358,7 +358,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
           |""".stripMargin,
         true,
         false
-      )(df => checkFallbackOperators(df, 1))
+      )(df => checkFallbackOperators(df, 0))
     }
   }
 }
