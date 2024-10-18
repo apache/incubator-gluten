@@ -2,7 +2,7 @@
 AdaptiveSparkPlan (100)
 +- == Final Plan ==
    VeloxColumnarToRow (67)
-   +- TakeOrderedAndProjectExecTransformer (66)
+   +- ^ TopNTransformer (65)
       +- ^ ProjectExecTransformer (64)
          +- ^ RegularHashAggregateExecTransformer (63)
             +- ^ InputIteratorTransformer (62)
@@ -351,13 +351,13 @@ Results [8]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address
 Output [8]: [c_custkey#X, c_name#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X AS revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
 Input [8]: [c_custkey#X, c_name#X, c_acctbal#X, c_phone#X, n_name#X, c_address#X, c_comment#X, sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as decimal(13,2))) * promote_precision(CheckOverflow((1.00 - promote_precision(cast(l_discount#X as decimal(13,2)))), DecimalType(13,2)))), DecimalType(26,4)))#X]
 
-(65) WholeStageCodegenTransformer (X)
+(65) TopNTransformer
+Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
+Arguments: X, [revenue#X DESC NULLS LAST], true
+
+(66) WholeStageCodegenTransformer (X)
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
 Arguments: false
-
-(66) TakeOrderedAndProjectExecTransformer
-Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
-Arguments: X, [revenue#X DESC NULLS LAST], [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X], 0
 
 (67) VeloxColumnarToRow
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
