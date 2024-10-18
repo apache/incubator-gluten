@@ -117,6 +117,9 @@ class CHRowSplitter extends GlutenRowSplitter {
       partitionColIndice: Array[Int],
       hasBucket: Boolean,
       reserve_partition_columns: Boolean = false): CHBlockStripes = {
+    // splitBlockByPartitionAndBucket called before createOutputWriter in case of
+    // writing partitioned table, so we need to register a new thread group here
+    CHThreadGroup.registerNewThreadGroup()
     val col = row.batch.column(0).asInstanceOf[CHColumnVector]
     new CHBlockStripes(
       CHDatasourceJniWrapper

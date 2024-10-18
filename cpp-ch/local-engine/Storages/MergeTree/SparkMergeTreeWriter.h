@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 #pragma once
-
+#include <jni.h>
 #include <Interpreters/Context.h>
 #include <Processors/Executors/PushingPipelineExecutor.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
@@ -75,4 +75,11 @@ private:
 
     std::vector<PartInfo> getAllPartInfo() const;
 };
+
+namespace SparkMergeTreeWriterJNI
+{
+void init(JNIEnv *);
+void destroy(JNIEnv *);
+}
+
 }

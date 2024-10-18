@@ -38,23 +38,19 @@ void SparkMergeTreeSink::consume(Chunk & chunk)
 {
     assert(!sink_helper->metadata_snapshot->hasPartitionKey());
 
-    auto block = getHeader().cloneWithColumns(chunk.getColumns());
-    auto blocks_with_partition = MergeTreeDataWriter::splitBlockIntoParts(std::move(block), 10, sink_helper->metadata_snapshot, context);
-
-    for (auto & item : blocks_with_partition)
+    BlockWithPartition item{getHeader().cloneWithColumns(chunk.getColumns()), Row{}};
+    size_t before_write_memory = 0;
+    if (auto * memory_tracker = CurrentThread::getMemoryTracker())
     {
-        size_t before_write_memory = 0;
-        if (auto * memory_tracker = CurrentThread::getMemoryTracker())
-        {
-            CurrentThread::flushUntrackedMemory();
-            before_write_memory = memory_tracker->get();
-        }
-        sink_helper->writeTempPart(item, context, part_num);
-        part_num++;
-        /// Reset earlier to free memory
-        item.block.clear();
-        item.partition.clear();
+        CurrentThread::flushUntrackedMemory();
+        before_write_memory = memory_tracker->get();
     }
+    sink_helper->writeTempPart(item, context, part_num);
+    part_num++;
+    /// Reset earlier to free memory
+    item.block.clear();
+    item.partition.clear();
+
     sink_helper->checkAndMerge();
 }
 

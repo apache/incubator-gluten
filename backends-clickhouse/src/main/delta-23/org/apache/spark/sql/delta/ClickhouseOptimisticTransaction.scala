@@ -21,10 +21,11 @@ import org.apache.gluten.execution.ColumnarToRowExecBase
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.catalyst.catalog.CatalogUtils
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.constraints.{Constraint, Constraints}
-import org.apache.spark.sql.delta.files.MergeTreeCommitProtocol
+import org.apache.spark.sql.delta.files.MergeTreeDelayedCommitProtocol
 import org.apache.spark.sql.delta.schema.InvariantViolationException
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
@@ -84,9 +85,26 @@ class ClickhouseOptimisticTransaction(
 
       val (queryExecution, output, generatedColumnConstraints, _) =
         normalizeData(deltaLog, data)
-      val partitioningColumns = getPartitioningColumns(partitionSchema, output)
 
-      val committer = new MergeTreeCommitProtocol("delta-mergetree", outputPath.toString, None)
+      val tableV2 = ClickHouseTableV2.getTable(deltaLog)
+      val bukSpec = if (tableV2.catalogTable.isDefined) {
+        tableV2.bucketOption
+      } else {
+        tableV2.bucketOption.map {
+          bucketSpec =>
+            CatalogUtils.normalizeBucketSpec(
+              tableV2.tableName,
+              output.map(_.name),
+              bucketSpec,
+              spark.sessionState.conf.resolver)
+        }
+      }
+      val committer =
+        new MergeTreeDelayedCommitProtocol(
+          outputPath.toString,
+          None,
+          tableV2.dataBaseName,
+          tableV2.tableName)
 
       // val (optionalStatsTracker, _) =
       //   getOptionalStatsTrackerAndStatsCollection(output, outputPath, partitionSchema, data)
@@ -96,10 +114,15 @@ class ClickhouseOptimisticTransaction(
         Constraints.getAll(metadata, spark) ++ generatedColumnConstraints ++ additionalConstraints
 
       SQLExecution.withNewExecutionId(queryExecution, Option("deltaTransactionalWrite")) {
-        val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, output)
-
         val queryPlan = queryExecution.executedPlan
         val newQueryPlan = insertFakeRowAdaptor(queryPlan)
+        assert(output.size == newQueryPlan.output.size)
+        val x = newQueryPlan.output.zip(output).map {
+          case (newAttr, oldAttr) =>
+            oldAttr.withExprId(newAttr.exprId)
+        }
+        val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, x)
+        val partitioningColumns = getPartitioningColumns(partitionSchema, x)
 
         val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
 
@@ -128,7 +151,7 @@ class ClickhouseOptimisticTransaction(
         spark.conf.getAll.foreach(
           entry => {
             if (
-              CHConf.startWithSettings(entry._1)
+              CHConf.startWithSettingsPrefix(entry._1)
               || entry._1.equalsIgnoreCase(DeltaSQLConf.DELTA_OPTIMIZE_MIN_FILE_SIZE.key)
             ) {
               options += (entry._1 -> entry._2)
@@ -136,7 +159,8 @@ class ClickhouseOptimisticTransaction(
           })
 
         try {
-          val tableV2 = ClickHouseTableV2.getTable(deltaLog)
+          spark.sparkContext.setLocalProperty("isNativeApplicable", "true")
+          spark.sparkContext.setLocalProperty("staticPartitionWriteOnly", "false")
           MergeTreeFileFormatWriter.write(
             sparkSession = spark,
             plan = newQueryPlan,
@@ -148,14 +172,8 @@ class ClickhouseOptimisticTransaction(
             hadoopConf = spark.sessionState
               .newHadoopConfWithOptions(metadata.configuration ++ deltaLog.options),
             // scalastyle:on deltahadoopconfiguration
-            orderByKeyOption = tableV2.orderByKeyOption,
-            lowCardKeyOption = tableV2.lowCardKeyOption,
-            minmaxIndexKeyOption = tableV2.minmaxIndexKeyOption,
-            bfIndexKeyOption = tableV2.bfIndexKeyOption,
-            setIndexKeyOption = tableV2.setIndexKeyOption,
-            primaryKeyOption = tableV2.primaryKeyOption,
             partitionColumns = partitioningColumns,
-            bucketSpec = tableV2.bucketOption,
+            bucketSpec = bukSpec,
             statsTrackers = optionalStatsTracker.toSeq ++ statsTrackers,
             options = options,
             constraints = constraints
@@ -169,6 +187,9 @@ class ClickhouseOptimisticTransaction(
             } else {
               throw s
             }
+        } finally {
+          spark.sparkContext.setLocalProperty("isNativeApplicable", null)
+          spark.sparkContext.setLocalProperty("staticPartitionWriteOnly", null)
         }
       }
       committer.addedStatuses.toSeq ++ committer.changeFiles

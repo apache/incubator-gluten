@@ -140,7 +140,7 @@ class ClickhouseOptimisticTransaction(
         spark.conf.getAll.foreach(
           entry => {
             if (
-              CHConf.startWithSettings(entry._1)
+              CHConf.startWithSettingsPrefix(entry._1)
               || entry._1.equalsIgnoreCase(DeltaSQLConf.DELTA_OPTIMIZE_MIN_FILE_SIZE.key)
             ) {
               options += (entry._1 -> entry._2)
@@ -160,12 +160,6 @@ class ClickhouseOptimisticTransaction(
             hadoopConf = spark.sessionState
               .newHadoopConfWithOptions(metadata.configuration ++ deltaLog.options),
             // scalastyle:on deltahadoopconfiguration
-            orderByKeyOption = tableV2.orderByKeyOption,
-            lowCardKeyOption = tableV2.lowCardKeyOption,
-            minmaxIndexKeyOption = tableV2.minmaxIndexKeyOption,
-            bfIndexKeyOption = tableV2.bfIndexKeyOption,
-            setIndexKeyOption = tableV2.setIndexKeyOption,
-            primaryKeyOption = tableV2.primaryKeyOption,
             partitionColumns = partitioningColumns,
             bucketSpec = tableV2.bucketOption,
             statsTrackers = optionalStatsTracker.toSeq ++ statsTrackers,
