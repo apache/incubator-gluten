@@ -17,11 +17,10 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.vectorized.ArrowColumnarRow
-
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeRow}
 import org.apache.spark.sql.catalyst.util.UnsafeRowUtils.avoidSetNullAt
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{BinaryType, DataType, StringType}
