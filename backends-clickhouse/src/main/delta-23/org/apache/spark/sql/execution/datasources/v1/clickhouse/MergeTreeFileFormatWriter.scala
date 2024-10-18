@@ -35,6 +35,7 @@ import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.{processStats, ConcurrentOutputWriterSpec, OutputSpec}
 import org.apache.spark.sql.execution.datasources.v1.GlutenMergeTreeWriterInjects
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.StringType
 import org.apache.spark.util.{SerializableConfiguration, Utils}
 
 import org.apache.hadoop.conf.Configuration
@@ -86,8 +87,21 @@ object MergeTreeFileFormatWriter extends Logging {
       .map(FileSourceMetadataAttribute.cleanupFileSourceMetadataInformation))
     val dataColumns = finalOutputSpec.outputColumns.filterNot(partitionSet.contains)
 
-    // TODO: check whether it needs to use `convertEmptyToNullIfNeeded` to convert empty to null
-    val empty2NullPlan = plan // convertEmptyToNullIfNeeded(plan, partitionColumns, constraints)
+    var needConvert = false
+    val projectList: Seq[NamedExpression] = plan.output.map {
+      case p if partitionSet.contains(p) && p.dataType == StringType && p.nullable =>
+        needConvert = true
+        Alias(FileFormatWriter.Empty2Null(p), p.name)()
+      case attr => attr
+    }
+
+    val empty2NullPlan = if (staticPartitionWriteOnly && nativeEnabled) {
+      // Velox backend only support static partition write.
+      // And no need to add sort operator for static partition write.
+      plan
+    } else {
+      if (needConvert) ProjectExec(projectList, plan) else plan
+    }
 
     val writerBucketSpec = bucketSpec.map {
       spec =>
