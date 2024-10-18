@@ -31,12 +31,12 @@ yum -y install epel-release
 yum -y install \
   wget curl tar zip unzip which patch sudo \
   ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
-  devtoolset-9 python3 pip dnf \
+  devtoolset-11 python3 pip dnf \
   bison \
   java-1.8.0-openjdk java-1.8.0-openjdk-devel
 
 # Link c++ to the one in devtoolset.
-ln -s /opt/rh/devtoolset-9/root/usr/bin/c++ /usr/bin/c++
+ln -s /opt/rh/devtoolset-11/root/usr/bin/c++ /usr/bin/c++
 
 semver() {
     echo "$@" | awk -F. '{ printf("%d%05d%05d", $1,$2,$3); }'
