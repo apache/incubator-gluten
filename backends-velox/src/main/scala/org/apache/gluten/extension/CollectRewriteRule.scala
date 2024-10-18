@@ -21,7 +21,7 @@ import org.apache.gluten.expression.aggregate.{VeloxCollectList, VeloxCollectSet
 import org.apache.gluten.utils.LogicalPlanSelector
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.{And, Expression, IsNotNull, WindowExpression}
+import org.apache.spark.sql.catalyst.expressions.{Expression, WindowExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Window}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -72,15 +72,9 @@ case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
 object CollectRewriteRule {
   private object ToVeloxCollect {
     def unapply(expr: Expression): Option[Expression] = expr match {
-      case aggExpr @ AggregateExpression(s: CollectSet, _, _, filter, _) if has[VeloxCollectSet] =>
-        // 1. Replace null result from VeloxCollectSet with empty array to align with
-        //    vanilla Spark.
-        // 2. Filter out null inputs from VeloxCollectSet to align with vanilla Spark.
-        //
-        // Since https://github.com/apache/incubator-gluten/pull/4805
-        val newFilter = (filter ++ Some(IsNotNull(s.child))).reduceOption(And)
+      case aggExpr @ AggregateExpression(s: CollectSet, _, _, _, _) if has[VeloxCollectSet] =>
         val newAggExpr =
-          aggExpr.copy(aggregateFunction = VeloxCollectSet(s.child), filter = newFilter)
+          aggExpr.copy(aggregateFunction = VeloxCollectSet(s.child))
         Some(newAggExpr)
       case aggExpr @ AggregateExpression(l: CollectList, _, _, _, _) if has[VeloxCollectList] =>
         val newAggExpr = aggExpr.copy(VeloxCollectList(l.child))
