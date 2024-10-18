@@ -52,10 +52,10 @@ class HeuristicApplier(
 
   private def makeRule(call: ColumnarRuleCall): Rule[SparkPlan] = {
     plan =>
-      val finalPlan = prepareFallback(plan) {
+      prepareFallback(plan) {
         p =>
           val suggestedPlan = transformPlan("transform", transformRules(call), p)
-          transformPlan("fallback", fallbackPolicies(call), suggestedPlan) match {
+          val finalPlan = transformPlan("fallback", fallbackPolicies(call), suggestedPlan) match {
             case FallbackNode(fallbackPlan) =>
               // we should use vanilla c2r rather than native c2r,
               // and there should be no `GlutenPlan` any more,
@@ -64,23 +64,21 @@ class HeuristicApplier(
             case plan =>
               transformPlan("post", postRules(call), plan)
           }
+          transformPlan("final", finalRules(call), finalPlan)
       }
-      transformPlan("final", finalRules(call), finalPlan)
   }
 
   private def transformPlan(
       phase: String,
       rules: Seq[Rule[SparkPlan]],
-      plan: SparkPlan): SparkPlan = {
-    val executor = new ColumnarRuleApplier.Executor(phase, rules)
-    executor.execute(plan)
-  }
+      plan: SparkPlan): SparkPlan =
+    new ColumnarRuleApplier.ColumnarRuleExecutor(phase, rules).execute(plan)
 
-  private def prepareFallback[T](plan: SparkPlan)(f: SparkPlan => T): T = {
+  private def prepareFallback[T](p: SparkPlan)(f: SparkPlan => T): T = {
     adaptiveContext.setAdaptiveContext()
-    adaptiveContext.setOriginalPlan(plan)
+    adaptiveContext.setOriginalPlan(p)
     try {
-      f(plan)
+      f(p)
     } finally {
       adaptiveContext.resetOriginalPlan()
       adaptiveContext.resetAdaptiveContext()
