@@ -369,4 +369,20 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-7545: https://github.com/apache/incubator-gluten/issues/7545") {
+    withTable("regexp_test") {
+      sql("create table if not exists regexp_test (id string) using parquet")
+      sql("insert into regexp_test values('1999-6-1')")
+      compareResultsAgainstVanillaSpark(
+        """
+          |select regexp_replace(id,
+          |'([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})',
+          |'$1-$2-$3') from regexp_test
+        """.stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
 }
