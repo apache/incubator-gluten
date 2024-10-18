@@ -33,7 +33,9 @@ trait MetricsApi extends Serializable {
       "pipelineTime" -> SQLMetrics
         .createTimingMetric(sparkContext, WholeStageCodegenExec.PIPELINE_DURATION_METRIC))
 
-  def genInputIteratorTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
+  def genInputIteratorTransformerMetrics(
+      child: SparkPlan,
+      sparkContext: SparkContext): Map[String, SQLMetric]
 
   def genInputIteratorTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 
