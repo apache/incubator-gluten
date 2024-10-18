@@ -44,8 +44,9 @@ import org.apache.spark.unsafe.types.UTF8String;
 
 import java.math.BigDecimal;
 
-// Copy from Spark MutableColumnarRow but columns type is ArrowWritableColumnVector
-// And support string type to write
+// Copy from Spark MutableColumnarRow mostly but class member columns`type is
+// ArrowWritableColumnVector. And support string and binary type to write, Arrow writer does not
+// need to setNotNull before write a value.
 public final class ArrowColumnarRow extends InternalRow {
   public int rowId;
   private final ArrowWritableColumnVector[] columns;
@@ -248,6 +249,10 @@ public final class ArrowColumnarRow extends InternalRow {
         setDecimal(ordinal, d, t.precision());
       } else if (dt instanceof CalendarIntervalType) {
         setInterval(ordinal, (CalendarInterval) value);
+      } else if (dt instanceof StringType) {
+        setUTF8String(ordinal, (UTF8String) value);
+      } else if (dt instanceof BinaryType) {
+        setBinary(ordinal, (byte[]) value);
       } else {
         throw new UnsupportedOperationException("Datatype not supported " + dt);
       }
@@ -261,65 +266,54 @@ public final class ArrowColumnarRow extends InternalRow {
 
   @Override
   public void setBoolean(int ordinal, boolean value) {
-    columns[ordinal].putNotNull(rowId);
     columns[ordinal].putBoolean(rowId, value);
   }
 
   @Override
   public void setByte(int ordinal, byte value) {
-    columns[ordinal].putNotNull(rowId);
     columns[ordinal].putByte(rowId, value);
   }
 
   @Override
   public void setShort(int ordinal, short value) {
-    columns[ordinal].putNotNull(rowId);
     columns[ordinal].putShort(rowId, value);
   }
 
   @Override
   public void setInt(int ordinal, int value) {
-    columns[ordinal].putNotNull(rowId);
     columns[ordinal].putInt(rowId, value);
   }
 
   @Override
   public void setLong(int ordinal, long value) {
-    columns[ordinal].putNotNull(rowId);
     columns[ordinal].putLong(rowId, value);
   }
 
   @Override
   public void setFloat(int ordinal, float value) {
-    columns[ordinal].putNotNull(rowId);
     columns[ordinal].putFloat(rowId, value);
   }
 
   @Override
   public void setDouble(int ordinal, double value) {
-    columns[ordinal].putNotNull(rowId);
     columns[ordinal].putDouble(rowId, value);
   }
 
   @Override
   public void setDecimal(int ordinal, Decimal value, int precision) {
-    columns[ordinal].putNotNull(rowId);
     columns[ordinal].putDecimal(rowId, value, precision);
   }
 
   @Override
   public void setInterval(int ordinal, CalendarInterval value) {
-    columns[ordinal].putNotNull(rowId);
     columns[ordinal].putInterval(rowId, value);
   }
 
   public void setUTF8String(int ordinal, UTF8String value) {
-    columns[ordinal].putNotNull(rowId);
     columns[ordinal].putBytes(rowId, value.numBytes(), value.getBytes(), 0);
   }
 
   public void setBinary(int ordinal, byte[] value) {
-    columns[ordinal].putNotNull(rowId);
     columns[ordinal].putBytes(rowId, value.length, value, 0);
   }
 }

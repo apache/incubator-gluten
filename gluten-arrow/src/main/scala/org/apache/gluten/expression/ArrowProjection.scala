@@ -17,10 +17,9 @@
 package org.apache.gluten.expression
 
 import org.apache.gluten.vectorized.ArrowColumnarRow
-
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, Expression, ExpressionsEvaluator}
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
+import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, Expression, ExpressionsEvaluator}
 import org.apache.spark.sql.types.{DataType, StructType}
 
 // Not thread safe.
@@ -32,7 +31,7 @@ abstract class ArrowProjection extends (InternalRow => ArrowColumnarRow) with Ex
 }
 
 /** The factory object for `ArrowProjection`. */
-object ColumnarProjection {
+object ArrowProjection {
 
   /**
    * Returns an ArrowProjection for given StructType.
