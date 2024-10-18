@@ -21,7 +21,7 @@ import org.apache.gluten.expression.aggregate.{VeloxCollectList, VeloxCollectSet
 import org.apache.gluten.utils.LogicalPlanSelector
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.{And, Expression, IsNotNull, WindowExpression}
+import org.apache.spark.sql.catalyst.expressions.{Expression, WindowExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan, Window}
 import org.apache.spark.sql.catalyst.rules.Rule
