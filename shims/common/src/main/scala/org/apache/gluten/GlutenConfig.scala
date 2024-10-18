@@ -520,13 +520,17 @@ object GlutenConfig {
 
   // GCS config
   val GCS_PREFIX = "fs.gs."
-  val GCS_STORAGE_ROOT_URL = "fs.gs.storage.root.url"
-  val SPARK_GCS_STORAGE_ROOT_URL: String = HADOOP_PREFIX + GCS_STORAGE_ROOT_URL
-  val GCS_AUTH_TYPE = "fs.gs.auth.type"
-  val SPARK_GCS_AUTH_TYPE: String = HADOOP_PREFIX + GCS_AUTH_TYPE
-  val GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE = "fs.gs.auth.service.account.json.keyfile"
+  val STORAGE_ROOT_URL = "storage.root.url"
+  val AUTH_TYPE = "auth.type"
+  val AUTH_SERVICE_ACCOUNT_JSON_KEYFILE = "auth.service.account.json.keyfile"
+  val HTTP_MAX_RETRY_COUNT = "http.max.retry"
+  val HTTP_MAX_RETRY_TIME = "http.max.retry-time"
+  val SPARK_GCS_STORAGE_ROOT_URL: String = HADOOP_PREFIX + GCS_PREFIX + STORAGE_ROOT_URL
+  val SPARK_GCS_AUTH_TYPE: String = HADOOP_PREFIX + GCS_PREFIX + AUTH_TYPE
   val SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE: String =
-    HADOOP_PREFIX + GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
+    HADOOP_PREFIX + GCS_PREFIX + AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
+  val SPARK_GCS_MAX_RETRY_COUNT: String = HADOOP_PREFIX + GCS_PREFIX + HTTP_MAX_RETRY_COUNT
+  val SPARK_GCS_MAX_RETRY_TIME: String = HADOOP_PREFIX + GCS_PREFIX + HTTP_MAX_RETRY_TIME
 
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "qat"
@@ -738,14 +742,9 @@ object GlutenConfig {
 
     // some configs having default values
     val keyWithDefault = ImmutableList.of(
-      (SPARK_S3_ACCESS_KEY, ""),
-      (SPARK_S3_SECRET_KEY, ""),
-      (SPARK_S3_ENDPOINT, "localhost:9000"),
       (SPARK_S3_CONNECTION_SSL_ENABLED, "false"),
       (SPARK_S3_PATH_STYLE_ACCESS, "true"),
       (SPARK_S3_USE_INSTANCE_CREDENTIALS, "false"),
-      (SPARK_S3_IAM, ""),
-      (SPARK_S3_IAM_SESSION_NAME, ""),
       (SPARK_S3_RETRY_MAX_ATTEMPTS, "20"),
       (SPARK_S3_CONNECTION_MAXIMUM, "15"),
       (AWS_S3_CONNECT_TIMEOUT.key, AWS_S3_CONNECT_TIMEOUT.defaultValueString),
@@ -799,16 +798,10 @@ object GlutenConfig {
       .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
-    // handle GCS config
-    if (conf.contains(SPARK_GCS_AUTH_TYPE)) {
-      nativeConfMap.put(SPARK_GCS_AUTH_TYPE, conf(SPARK_GCS_AUTH_TYPE))
-    }
-
-    if (conf.contains(SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE)) {
-      nativeConfMap.put(
-        SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE,
-        conf(SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE))
-    }
+    // put in all GCS configs
+    conf
+      .filter(_._1.startsWith(HADOOP_PREFIX + GCS_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
     nativeConfMap
