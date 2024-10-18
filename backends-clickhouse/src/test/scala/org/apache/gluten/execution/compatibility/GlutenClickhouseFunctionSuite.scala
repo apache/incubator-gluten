@@ -269,6 +269,22 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-7594: cast const map to string") {
+    withSQLConf(
+      (
+        "spark.sql.optimizer.excludedRules",
+        "org.apache.spark.sql.catalyst.optimizer.ConstantFolding," +
+          "org.apache.spark.sql.catalyst.optimizer.NullPropagation")) {
+      compareResultsAgainstVanillaSpark(
+        """
+          |select cast(map(1,'2') as string)
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
   test("GLUTEN-7550 get_json_object in IN") {
     withTable("test_7550") {
       sql("create table test_7550(a string) using parquet")
