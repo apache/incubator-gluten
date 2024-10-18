@@ -56,10 +56,8 @@ class EnumeratedApplier(
     finalPlan
   }
 
-  private def apply0(rules: Seq[Rule[SparkPlan]], plan: SparkPlan): SparkPlan = {
-    val executor = new ColumnarRuleApplier.Executor("ras", rules)
-    executor.execute(plan)
-  }
+  private def apply0(rules: Seq[Rule[SparkPlan]], plan: SparkPlan): SparkPlan =
+    new ColumnarRuleApplier.ColumnarRuleExecutor("ras", rules).execute(plan)
 
   private def maybeAqe[T](f: => T): T = {
     adaptiveContext.setAdaptiveContext()
