@@ -260,9 +260,9 @@ object MergeTreeFileFormatWriter extends Logging {
       sparkAttemptNumber: Int,
       committer: FileCommitProtocol,
       iterator: Iterator[InternalRow],
-      concurrentOutputWriterSpec: Option[ConcurrentOutputWriterSpec]
-  ): WriteTaskResult = {
+      concurrentOutputWriterSpec: Option[ConcurrentOutputWriterSpec]): WriteTaskResult = {
     CHThreadGroup.registerNewThreadGroup()
+
     val jobId = SparkHadoopWriterUtils.createJobID(new Date(jobIdInstant), sparkStageId)
     val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
     val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)
@@ -286,22 +286,19 @@ object MergeTreeFileFormatWriter extends Logging {
       if (sparkPartitionId != 0 && !iterator.hasNext) {
         // In case of empty job,
         // leave first partition to save meta for file format like parquet/orc.
-        new MergeTreeEmptyDirectoryDataWriter(description, taskAttemptContext, committer)
+        new EmptyDirectoryDataWriter(description, taskAttemptContext, committer)
       } else if (description.partitionColumns.isEmpty && description.bucketSpec.isEmpty) {
-        new MergeTreeSingleDirectoryDataWriter(description, taskAttemptContext, committer)
+        new SingleDirectoryDataWriter(description, taskAttemptContext, committer)
       } else {
         concurrentOutputWriterSpec match {
           case Some(spec) =>
-            new MergeTreeDynamicPartitionDataConcurrentWriter(
+            new DynamicPartitionDataConcurrentWriter(
               description,
               taskAttemptContext,
               committer,
               spec)
           case _ =>
-            new MergeTreeDynamicPartitionDataSingleWriter(
-              description,
-              taskAttemptContext,
-              committer)
+            new DynamicPartitionDataSingleWriter(description, taskAttemptContext, committer)
         }
       }
 

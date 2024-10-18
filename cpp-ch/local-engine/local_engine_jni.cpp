@@ -171,6 +171,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 
     local_engine::BroadCastJoinBuilder::init(env);
     local_engine::CacheManager::initJNI(env);
+    local_engine::SparkMergeTreeWriterJNI::init(env);
 
     local_engine::JNIUtils::vm = vm;
     return JNI_VERSION_1_8;
@@ -186,6 +187,7 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
 
     local_engine::JniErrorsGlobalState::instance().destroy(env);
     local_engine::BroadCastJoinBuilder::destroy(env);
+    local_engine::SparkMergeTreeWriterJNI::destroy(env);
 
     env->DeleteGlobalRef(spark_row_info_class);
     env->DeleteGlobalRef(block_stripes_class);
@@ -215,6 +217,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
+/// TODO: remvoe this method
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_injectWriteFilesTempPath(
     JNIEnv * env, jclass, jbyteArray temp_path, jbyteArray filename)
 {
@@ -229,6 +232,21 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_i
         .task_write_filename = {reinterpret_cast<const char *>(filename_array.elems()), static_cast<size_t>(filename_array.length())},
     };
     settings.set(query_context);
+
+    LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
+/// Set settings for the current query. It assumes that all parameters are started with `CH_RUNTIME_SETTINGS_PREFIX` prefix,
+/// and the prefix is removed by java before passing to C++.
+JNIEXPORT void
+Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_updateQueryRuntimeSettings(JNIEnv * env, jclass, jbyteArray settings)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    const auto query_context = local_engine::QueryContext::instance().currentQueryContext();
+
+    const auto conf_plan_a = local_engine::getByteArrayElementsSafe(env, settings);
+    const std::string::size_type conf_plan_size = conf_plan_a.length();
+    local_engine::updateSettings(query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), conf_plan_size});
 
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
@@ -1063,8 +1081,12 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     for (int i = 0; i < safeArray.length(); ++i)
         partition_col_indice_vec.push_back(safeArray.elems()[i]);
 
-    local_engine::BlockStripes bs
-        = local_engine::BlockStripeSplitter::split(*block, partition_col_indice_vec, hasBucket, reserve_partition_columns);
+    auto query_context = local_engine::QueryContext::instance().currentQueryContext();
+    const DB::Settings & settings = query_context->getSettingsRef();
+
+    bool reserve_ = reserve_partition_columns || local_engine::settingsEqual(settings, "gluten.reserve_partition_columns", "true");
+
+    local_engine::BlockStripes bs = local_engine::BlockStripeSplitter::split(*block, partition_col_indice_vec, hasBucket, reserve_);
 
     auto * addresses = env->NewLongArray(bs.block_addresses.size());
     env->SetLongArrayRegion(addresses, 0, bs.block_addresses.size(), bs.block_addresses.data());
