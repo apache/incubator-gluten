@@ -70,6 +70,8 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
     spark.udf.register("plus_one", plusOne)
     val noArgument = udf(() => 15)
     spark.udf.register("no_argument", noArgument)
+    val concat = udf((x: String) => x + "_concat")
+    spark.udf.register("concat_concat", concat)
 
   }
 
@@ -135,6 +137,12 @@ abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("""select sum(hash(plus_one(l_extendedprice)) * l_discount
                          | + hash(l_orderkey) + hash(l_comment)) as revenue
                          | from   lineitem""".stripMargin) {
+      checkGlutenOperatorMatch[ColumnarPartialProjectExec]
+    }
+  }
+
+  test("test concat with string") {
+    runQueryAndCompare("SELECT concat_concat(l_comment), hash(l_partkey) from lineitem") {
       checkGlutenOperatorMatch[ColumnarPartialProjectExec]
     }
   }
