@@ -54,9 +54,6 @@ public class ColumnarBatchOutIterator extends ClosableIterator implements Runtim
 
   @Override
   public boolean hasNext0() throws IOException {
-    if (closed.get()) {
-      return false;
-    }
     return nativeHasNext(iterHandle);
   }
 
