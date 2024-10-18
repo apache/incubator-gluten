@@ -39,6 +39,7 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
   }
 
   override def genInputIteratorTransformerMetrics(
+      child: SparkPlan,
       sparkContext: SparkContext): Map[String, SQLMetric] = {
     Map(
       "iterReadTime" -> SQLMetrics.createTimingMetric(
