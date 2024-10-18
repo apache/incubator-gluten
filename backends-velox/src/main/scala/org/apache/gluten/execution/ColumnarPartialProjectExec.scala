@@ -157,7 +157,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
       return ValidationResult.failed("Contains expression not supported")
     }
     if (
-      ExpressionUtils.isComplexExpression(
+      ExpressionUtils.hasComplexExpressions(
         original,
         GlutenConfig.getConf.fallbackExpressionsThreshold)
     ) {
