@@ -27,6 +27,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{ColumnarToRowExec, LeafExecNode, SparkPlan}
 import org.apache.spark.task.{SparkTaskUtil, TaskResources}
 
@@ -48,6 +49,8 @@ object GlutenPlanModel {
 
     override protected def doExecute(): RDD[InternalRow] = throw new IllegalStateException()
     override def output: Seq[Attribute] = metadata.schema().output
+
+    override def outputPartitioning: Partitioning = metadata.outputPartitioning().partitioning
 
     override def supportsColumnar: Boolean = {
       batchType != Convention.BatchType.None
