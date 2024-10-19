@@ -130,7 +130,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   val sparkConf: SparkConf = sparkContext.getConf
   val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.getConf.numaBindingInfo
-  val substraitPlanLogLevel: String = GlutenConfig.getConf.substraitPlanLogLevel
 
   @transient
   private var wholeStageTransformerContext: Option[WholeStageTransformContext] = None
@@ -274,7 +273,9 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       doWholeStageTransform()
     }(
       t =>
-        logOnLevel(substraitPlanLogLevel, s"$nodeName generating the substrait plan took: $t ms."))
+        logOnLevel(
+          GlutenConfig.getConf.substraitPlanLogLevel,
+          s"$nodeName generating the substrait plan took: $t ms."))
     val inputRDDs = new ColumnarInputRDDsWrapper(columnarInputRDDs)
     // Check if BatchScan exists.
     val basicScanExecTransformers = findAllScanTransformers()

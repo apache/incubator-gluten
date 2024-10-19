@@ -57,8 +57,7 @@ object ColumnarRuleApplier {
     extends Rule[SparkPlan]
     with Logging
     with LogLevelUtil {
-    // Columnar plan change logging added since https://github.com/apache/incubator-gluten/pull/456.
-    private val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
+
     override val ruleName: String = delegate.ruleName
 
     private def message(oldPlan: SparkPlan, newPlan: SparkPlan, millisTime: Long): String =
@@ -71,7 +70,7 @@ object ColumnarRuleApplier {
 
     override def apply(plan: SparkPlan): SparkPlan = {
       val (out, millisTime) = GlutenTimeMetric.recordMillisTime(delegate.apply(plan))
-      logOnLevel(transformPlanLogLevel, message(plan, out, millisTime))
+      logOnLevel(GlutenConfig.getConf.transformPlanLogLevel, message(plan, out, millisTime))
       out
     }
   }

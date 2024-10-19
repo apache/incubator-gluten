@@ -53,8 +53,6 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
 
   protected val totalRegisteredExecutors = new AtomicInteger(0)
 
-  lazy val logLevel: String = GlutenConfig.getConf.softAffinityLogLevel
-
   // rdd id -> patition id, file path, start, length
   val rddPartitionInfoMap: LoadingCache[Integer, Array[(Int, String, Long, Long)]] =
     CacheBuilder
@@ -113,7 +111,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
         totalRegisteredExecutors.addAndGet(1)
       }
       logOnLevel(
-        logLevel,
+        GlutenConfig.getConf.softAffinityLogLevel,
         s"After adding executor ${execHostId._1} on host ${execHostId._2}, " +
           s"fixedIdForExecutors is ${fixedIdForExecutors.mkString(",")}, " +
           s"nodesExecutorsMap is ${nodesExecutorsMap.keySet.mkString(",")}, " +
@@ -147,7 +145,7 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
         totalRegisteredExecutors.addAndGet(-1)
       }
       logOnLevel(
-        logLevel,
+        GlutenConfig.getConf.softAffinityLogLevel,
         s"After removing executor $execId, " +
           s"fixedIdForExecutors is ${fixedIdForExecutors.mkString(",")}, " +
           s"nodesExecutorsMap is ${nodesExecutorsMap.keySet.mkString(",")}, " +
@@ -192,7 +190,8 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
                 } else {
                   (originalValues ++ value)
                 }
-                logOnLevel(logLevel, s"update host for $key: ${values.mkString(",")}")
+                logOnLevel(GlutenConfig.getConf.softAffinityLogLevel,
+                  s"update host for $key: ${values.mkString(",")}")
                 duplicateReadingInfos.put(key, values)
               }
           }
@@ -273,7 +272,8 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
 
     if (!hosts.isEmpty) {
       rand.shuffle(hosts)
-      logOnLevel(logLevel, s"get host for $f: ${hosts.distinct.mkString(",")}")
+      logOnLevel(GlutenConfig.getConf.softAffinityLogLevel,
+        s"get host for $f: ${hosts.distinct.mkString(",")}")
     }
     hosts.distinct.toSeq
   }
