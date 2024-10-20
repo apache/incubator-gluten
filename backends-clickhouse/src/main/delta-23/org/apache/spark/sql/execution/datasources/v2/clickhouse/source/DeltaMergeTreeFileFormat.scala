@@ -16,12 +16,13 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
 
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.delta.DeltaParquetFileFormat
 import org.apache.spark.sql.delta.actions.Metadata
 import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
 import org.apache.spark.sql.execution.datasources.mergetree.DeltaMetaReader
-import org.apache.spark.sql.execution.datasources.v1.GlutenMergeTreeWriterInjects
 import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
@@ -31,7 +32,7 @@ class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileForma
 
   override def shortName(): String = "mergetree"
 
-  override def toString(): String = "MergeTree"
+  override def toString: String = "MergeTree"
 
   override def equals(other: Any): Boolean = {
     other match {
@@ -54,11 +55,7 @@ class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileForma
     // pass compression to job conf so that the file extension can be aware of it.
     val conf = job.getConfiguration
 
-    // just for the sake of compatibility
-    val nativeConf =
-      GlutenMergeTreeWriterInjects
-        .getInstance()
-        .nativeConf(options, "")
+    val nativeConf = GlutenFormatFactory(shortName()).nativeConf(options, "")
 
     @transient val deltaMetaReader = DeltaMetaReader(metadata)
     deltaMetaReader.storageConf.foreach { case (k, v) => conf.set(k, v) }
@@ -73,8 +70,7 @@ class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileForma
           dataSchema: StructType,
           context: TaskAttemptContext): OutputWriter = {
 
-        GlutenMergeTreeWriterInjects
-          .getInstance()
+        GlutenFormatFactory(shortName())
           .createOutputWriter(path, metadata.schema, context, nativeConf)
       }
     }
