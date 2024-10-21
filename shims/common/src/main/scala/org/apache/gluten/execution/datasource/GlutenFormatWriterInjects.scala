@@ -27,8 +27,6 @@ import org.apache.spark.sql.types.StructType
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import java.{util => ju}
-
 trait GlutenFormatWriterInjects {
   def createOutputWriter(
       path: String,
@@ -59,29 +57,20 @@ trait GlutenRowSplitter {
 }
 
 object GlutenFormatFactory {
-  private val instanceMap: ju.Map[String, GlutenFormatWriterInjects] = new ju.HashMap()
+  private var instances: Map[String, GlutenFormatWriterInjects] = _
   private var postRuleFactory: SparkSession => Rule[SparkPlan] = _
   private var rowSplitterInstance: GlutenRowSplitter = _
 
   def register(items: GlutenFormatWriterInjects*): Unit = {
-    items.foreach {
-      item =>
-        assert(
-          !instanceMap.containsKey(item.formatName),
-          s"register: ${item.formatName} more than once.")
-        instanceMap.put(item.formatName, item)
-    }
+    instances = items.map(item => (item.formatName, item)).toMap
   }
 
-  def isRegistered(name: String): Boolean =
-    instanceMap.containsKey(name)
+  def isRegistered(name: String): Boolean = instances.contains(name)
 
   def apply(name: String): GlutenFormatWriterInjects = {
-    val instance = instanceMap.get(name)
-    if (instance == null) {
-      throw new IllegalStateException(s"GlutenFormatWriterInjects for $name is not initialized")
-    }
-    instance
+    instances.getOrElse(
+      name,
+      throw new IllegalStateException(s"GlutenFormatWriterInjects for $name is not initialized"))
   }
 
   def injectPostRuleFactory(factory: SparkSession => Rule[SparkPlan]): Unit = {
@@ -104,12 +93,5 @@ object GlutenFormatFactory {
       throw new IllegalStateException("GlutenRowSplitter is not initialized")
     }
     rowSplitterInstance
-  }
-
-  /** Clear all registered GlutenFormatWriterInjects. It's useful for testing. */
-  def clearAll(): Unit = {
-    instanceMap.clear()
-    postRuleFactory = null
-    rowSplitterInstance = null
   }
 }

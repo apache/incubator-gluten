@@ -120,7 +120,6 @@ class CHListenerApi extends ListenerApi with Logging {
   }
 
   private def shutdown(): Unit = {
-    GlutenFormatFactory.clearAll()
     CHBroadcastBuildSideCache.cleanAll()
     CHNativeExpressionEvaluator.finalizeNative()
   }

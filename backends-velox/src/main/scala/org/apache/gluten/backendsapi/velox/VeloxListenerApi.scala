@@ -168,7 +168,6 @@ class VeloxListenerApi extends ListenerApi with Logging {
   }
 
   private def shutdown(): Unit = {
-    GlutenFormatFactory.clearAll()
     // TODO shutdown implementation in velox to release resources
   }
 }

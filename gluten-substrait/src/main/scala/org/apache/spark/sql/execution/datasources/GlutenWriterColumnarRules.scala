@@ -92,6 +92,10 @@ object GlutenWriterColumnarRules {
   //  1. pull out `Empty2Null` and required ordering to `WriteFilesExec`, see Spark3.4 `V1Writes`
   //  2. support detect partition value, partition path, bucket value, bucket path at native side,
   //     see `BaseDynamicPartitionDataWriter`
+  private val formatMapping = Map(
+    "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat" -> "orc",
+    "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat" -> "parquet"
+  )
   private def getNativeFormat(cmd: DataWritingCommand): Option[String] = {
     if (!BackendsApiManager.getSettings.enableNativeWriteFiles()) {
       return None
@@ -110,9 +114,13 @@ object GlutenWriterColumnarRules {
           case _ => None
         }
       case command: InsertIntoHiveDirCommand =>
-        command.storage.outputFormat.filter(GlutenFormatFactory.isRegistered)
+        command.storage.outputFormat
+          .flatMap(formatMapping.get)
+          .filter(GlutenFormatFactory.isRegistered)
       case command: InsertIntoHiveTable =>
-        command.table.storage.outputFormat.filter(GlutenFormatFactory.isRegistered)
+        command.table.storage.outputFormat
+          .flatMap(formatMapping.get)
+          .filter(GlutenFormatFactory.isRegistered)
       case _: CreateHiveTableAsSelectCommand =>
         None
       case _ =>
