@@ -74,7 +74,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     new OutputWriter {
       override def write(row: InternalRow): Unit = {
         val batch = row.asInstanceOf[FakeRow].batch
-        Preconditions.checkState(ColumnarBatches.isLightBatch(batch))
+        ColumnarBatches.checkOffloaded(batch)
         ColumnarBatches.retain(batch)
         val batchHandle = {
           if (batch.numCols == 0) {
