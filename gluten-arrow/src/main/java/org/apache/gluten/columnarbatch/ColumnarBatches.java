@@ -25,7 +25,6 @@ import org.apache.gluten.utils.InternalRowUtl;
 import org.apache.gluten.vectorized.ArrowWritableColumnVector;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import org.apache.arrow.c.ArrowArray;
 import org.apache.arrow.c.ArrowSchema;
 import org.apache.arrow.c.CDataDictionaryProvider;
@@ -51,13 +50,14 @@ public final class ColumnarBatches {
 
   private enum BatchType {
     LIGHT,
-    HEAVY
+    HEAVY,
+    ZERO_COLUMN
   }
 
   private static BatchType identifyBatchType(ColumnarBatch batch) {
     if (batch.numCols() == 0) {
       // zero-column batch considered as heavy batch
-      return BatchType.HEAVY;
+      return BatchType.ZERO_COLUMN;
     }
 
     final ColumnVector col0 = batch.column(0);
@@ -97,6 +97,12 @@ public final class ColumnarBatches {
   @VisibleForTesting
   static boolean isLightBatch(ColumnarBatch batch) {
     return identifyBatchType(batch) == BatchType.LIGHT;
+  }
+
+  /** Zero-column batch: The batch doesn't have columns. Though it could have a fixed row count. */
+  @VisibleForTesting
+  static boolean isZeroColumnBatch(ColumnarBatch batch) {
+    return identifyBatchType(batch) == BatchType.ZERO_COLUMN;
   }
 
   /**
@@ -144,14 +150,31 @@ public final class ColumnarBatches {
   }
 
   public static void checkLoaded(ColumnarBatch batch) {
-    Preconditions.checkArgument(isHeavyBatch(batch), "Input batch is not loaded");
+    final BatchType type = identifyBatchType(batch);
+    switch (type) {
+      case HEAVY:
+      case ZERO_COLUMN:
+        break;
+      default:
+        throw new IllegalArgumentException("Input batch is not loaded");
+    }
   }
 
   public static void checkOffloaded(ColumnarBatch batch) {
-    Preconditions.checkArgument(isLightBatch(batch), "Input batch is not offloaded");
+    final BatchType type = identifyBatchType(batch);
+    switch (type) {
+      case LIGHT:
+      case ZERO_COLUMN:
+        break;
+      default:
+        throw new IllegalArgumentException("Input batch is not offloaded");
+    }
   }
 
   public static ColumnarBatch load(BufferAllocator allocator, ColumnarBatch input) {
+    if (isZeroColumnBatch(input)) {
+      return input;
+    }
     if (!ColumnarBatches.isLightBatch(input)) {
       throw new IllegalArgumentException(
           "Input is not light columnar batch. "
@@ -198,6 +221,9 @@ public final class ColumnarBatches {
   }
 
   public static ColumnarBatch offload(BufferAllocator allocator, ColumnarBatch input) {
+    if (isZeroColumnBatch(input)) {
+      return input;
+    }
     if (!isHeavyBatch(input)) {
       throw new IllegalArgumentException("batch is not Arrow columnar batch");
     }
@@ -354,6 +380,11 @@ public final class ColumnarBatches {
   }
 
   public static long getNativeHandle(ColumnarBatch batch) {
+    if (isZeroColumnBatch(batch)) {
+      return ColumnarBatchJniWrapper.create(
+              Runtimes.contextInstance("ColumnarBatches#getNativeHandle"))
+          .getForEmptySchema(batch.numRows());
+    }
     return getIndicatorVector(batch).handle();
   }
 
