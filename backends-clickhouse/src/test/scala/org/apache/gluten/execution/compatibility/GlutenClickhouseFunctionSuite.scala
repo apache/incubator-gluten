@@ -17,7 +17,7 @@
 package org.apache.gluten.execution.compatibility
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.execution.GlutenClickHouseTPCHAbstractSuite
+import org.apache.gluten.execution.{GlutenClickHouseTPCHAbstractSuite, ProjectExecTransformer}
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
@@ -280,8 +280,9 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
           |select cast(map(1,'2') as string)
           |""".stripMargin,
         true,
-        { _ => }
-      )
+        { _ => },
+        false
+      )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
   }
 
