@@ -98,7 +98,7 @@ class VeloxRuntime final : public Runtime {
   std::shared_ptr<facebook::velox::config::ConfigBase> veloxCfg_;
   bool debugModeEnabled_{false};
 
-  std::unordered_map<int32_t, std::shared_ptr<ColumnarBatch>> emptySchemaBatchLoopUp_;
+  std::unordered_map<int32_t, std::shared_ptr<VeloxColumnarBatch>> emptySchemaBatchLoopUp_;
 };
 
 } // namespace gluten

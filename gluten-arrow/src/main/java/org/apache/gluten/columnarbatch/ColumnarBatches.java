@@ -381,9 +381,10 @@ public final class ColumnarBatches {
 
   public static long getNativeHandle(ColumnarBatch batch) {
     if (isZeroColumnBatch(batch)) {
-      return ColumnarBatchJniWrapper.create(
-              Runtimes.contextInstance("ColumnarBatches#getNativeHandle"))
-          .getForEmptySchema(batch.numRows());
+      final ColumnarBatchJniWrapper jniWrapper =
+          ColumnarBatchJniWrapper.create(
+              Runtimes.contextInstance("ColumnarBatches#getNativeHandle"));
+      return jniWrapper.getForEmptySchema(batch.numRows());
     }
     return getIndicatorVector(batch).handle();
   }
