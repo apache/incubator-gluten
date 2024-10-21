@@ -21,6 +21,7 @@ import org.apache.gluten.execution.ColumnarToRowExecBase
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.catalyst.catalog.CatalogUtils
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.constraints.{Constraint, Constraints}
@@ -30,7 +31,6 @@ import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FakeRowAdaptor, FileFormatWriter, GlutenWriterColumnarRules, WriteJobStatsTracker}
-import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeFileFormatWriter
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.util.{Clock, SerializableConfiguration}
 
@@ -84,9 +84,20 @@ class ClickhouseOptimisticTransaction(
 
       val (queryExecution, output, generatedColumnConstraints, _) =
         normalizeData(deltaLog, data)
-      val partitioningColumns = getPartitioningColumns(partitionSchema, output)
 
       val tableV2 = ClickHouseTableV2.getTable(deltaLog)
+      val bukSpec = if (tableV2.catalogTable.isDefined) {
+        tableV2.bucketOption
+      } else {
+        tableV2.bucketOption.map {
+          bucketSpec =>
+            CatalogUtils.normalizeBucketSpec(
+              tableV2.tableName,
+              output.map(_.name),
+              bucketSpec,
+              spark.sessionState.conf.resolver)
+        }
+      }
       val committer =
         new MergeTreeDelayedCommitProtocol(
           outputPath.toString,
@@ -102,10 +113,15 @@ class ClickhouseOptimisticTransaction(
         Constraints.getAll(metadata, spark) ++ generatedColumnConstraints ++ additionalConstraints
 
       SQLExecution.withNewExecutionId(queryExecution, Option("deltaTransactionalWrite")) {
-        val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, output)
-
         val queryPlan = queryExecution.executedPlan
         val newQueryPlan = insertFakeRowAdaptor(queryPlan)
+        assert(output.size == newQueryPlan.output.size)
+        val x = newQueryPlan.output.zip(output).map {
+          case (newAttr, oldAttr) =>
+            oldAttr.withExprId(newAttr.exprId)
+        }
+        val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, x)
+        val partitioningColumns = getPartitioningColumns(partitionSchema, x)
 
         val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
 
@@ -145,7 +161,7 @@ class ClickhouseOptimisticTransaction(
           val tableV2 = ClickHouseTableV2.getTable(deltaLog)
           val format = tableV2.getFileFormat(metadata)
           GlutenWriterColumnarRules.injectSparkLocalProperty(spark, Some(format.shortName()))
-          MergeTreeFileFormatWriter.write(
+          FileFormatWriter.write(
             sparkSession = spark,
             plan = newQueryPlan,
             fileFormat = format,
@@ -157,10 +173,9 @@ class ClickhouseOptimisticTransaction(
               .newHadoopConfWithOptions(metadata.configuration ++ deltaLog.options),
             // scalastyle:on deltahadoopconfiguration
             partitionColumns = partitioningColumns,
-            bucketSpec = tableV2.bucketOption,
+            bucketSpec = bukSpec,
             statsTrackers = optionalStatsTracker.toSeq ++ statsTrackers,
-            options = options,
-            constraints = constraints
+            options = options
           )
         } catch {
           case s: SparkException =>
