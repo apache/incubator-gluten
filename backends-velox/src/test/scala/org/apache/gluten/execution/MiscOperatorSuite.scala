@@ -2095,7 +2095,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
           )
           checkNullTypeRepartition(
             spark.table("lineitem").selectExpr("null as x", "null as y").repartition(),
-            1
+            0
           )
         }
     }
