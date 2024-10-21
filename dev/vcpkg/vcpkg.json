@@ -1,7 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "builtin-baseline": "a7b6122f6b6504d16d96117336a0562693579933",
-  "dependencies": ["jemalloc"],
   "default-features": ["velox"],
   "features": {
     "velox": {
@@ -50,7 +49,6 @@
         "xxhash",
         "protobuf",
         "benchmark",
-        "jemalloc",
         "icu",
         "thrift",
         "libstemmer"
