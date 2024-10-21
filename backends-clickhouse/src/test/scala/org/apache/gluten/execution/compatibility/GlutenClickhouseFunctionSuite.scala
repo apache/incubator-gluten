@@ -275,12 +275,11 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
         "spark.sql.optimizer.excludedRules",
         "org.apache.spark.sql.catalyst.optimizer.ConstantFolding," +
           "org.apache.spark.sql.catalyst.optimizer.NullPropagation")) {
-      compareResultsAgainstVanillaSpark(
+      runQueryAndCompare(
         """
           |select cast(map(1,'2') as string)
           |""".stripMargin,
         true,
-        { _ => },
         false
       )(checkGlutenOperatorMatch[ProjectExecTransformer])
     }
