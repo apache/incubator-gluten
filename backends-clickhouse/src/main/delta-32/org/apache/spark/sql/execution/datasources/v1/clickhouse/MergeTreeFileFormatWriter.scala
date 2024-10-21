@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution.datasources.v1.clickhouse
 
 import org.apache.gluten.execution.datasource.GlutenFormatFactory
-import org.apache.gluten.memory.CHThreadGroup
 
 import org.apache.spark.{SparkException, TaskContext, TaskOutputFileAlreadyExistException}
 import org.apache.spark.internal.Logging
@@ -32,9 +31,10 @@ import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.delta.constraints.Constraint
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, DataSourceUtils, EmptyDirectoryDataWriter, FileFormat, IFakeRowAdaptor, WriteJobDescription, WriteJobStatsTracker, WriterBucketSpec, WriteTaskResult}
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.{processStats, ConcurrentOutputWriterSpec, OutputSpec}
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.StringType
 import org.apache.spark.util.{SerializableConfiguration, Utils}
 
 import org.apache.hadoop.conf.Configuration
@@ -64,42 +64,78 @@ object MergeTreeFileFormatWriter extends Logging {
       constraints: Seq[Constraint],
       numStaticPartitionCols: Int = 0): Set[String] = {
 
-    assert(plan.isInstanceOf[IFakeRowAdaptor])
+    val nativeEnabled =
+      "true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")
+    val staticPartitionWriteOnly =
+      "true" == sparkSession.sparkContext.getLocalProperty("staticPartitionWriteOnly")
+
+    if (nativeEnabled) {
+      logInfo("Use Gluten partition write for hive")
+      assert(plan.isInstanceOf[IFakeRowAdaptor])
+    }
 
     val job = Job.getInstance(hadoopConf)
     job.setOutputKeyClass(classOf[Void])
     job.setOutputValueClass(classOf[InternalRow])
-
-    val outputPath = new Path(outputSpec.outputPath)
-    val outputPathName = outputPath.toString
-
-    FileOutputFormat.setOutputPath(job, outputPath)
+    FileOutputFormat.setOutputPath(job, new Path(outputSpec.outputPath))
 
     val partitionSet = AttributeSet(partitionColumns)
     // cleanup the internal metadata information of
     // the file source metadata attribute if any before write out
-    // val finalOutputSpec = outputSpec.copy(outputColumns = outputSpec.outputColumns
-    //   .map(FileSourceMetadataAttribute.cleanupFileSourceMetadataInformation))
-    val finalOutputSpec = outputSpec.copy(outputColumns = outputSpec.outputColumns)
+    val finalOutputSpec = outputSpec.copy(outputColumns = outputSpec.outputColumns
+      .map(FileSourceMetadataAttribute.cleanupFileSourceMetadataInformation))
     val dataColumns = finalOutputSpec.outputColumns.filterNot(partitionSet.contains)
 
-    // TODO: check whether it needs to use `convertEmptyToNullIfNeeded` to convert empty to null
-    val empty2NullPlan = plan // convertEmptyToNullIfNeeded(plan, partitionColumns, constraints)
+    var needConvert = false
+    val projectList: Seq[NamedExpression] = plan.output.map {
+      case p if partitionSet.contains(p) && p.dataType == StringType && p.nullable =>
+        needConvert = true
+        Alias(Empty2Null(p), p.name)()
+      case attr => attr
+    }
+
+    val empty2NullPlan = if (staticPartitionWriteOnly && nativeEnabled) {
+      // Velox backend only support static partition write.
+      // And no need to add sort operator for static partition write.
+      plan
+    } else {
+      if (needConvert) ProjectExec(projectList, plan) else plan
+    }
 
     val writerBucketSpec = bucketSpec.map {
       spec =>
-        val bucketColumns =
-          spec.bucketColumnNames.map(c => dataColumns.find(_.name.equalsIgnoreCase(c)).get)
-        // Spark bucketed table: use `HashPartitioning.partitionIdExpression` as bucket id
-        // expression, so that we can guarantee the data distribution is same between shuffle and
-        // bucketed data source, which enables us to only shuffle one side when join a bucketed
-        // table and a normal one.
-        val bucketIdExpression =
-          HashPartitioning(bucketColumns, spec.numBuckets).partitionIdExpression
-        WriterBucketSpec(bucketIdExpression, (_: Int) => "")
+        val bucketColumns = spec.bucketColumnNames.map(c => dataColumns.find(_.name == c).get)
+
+        if (
+          options.getOrElse(BucketingUtils.optionForHiveCompatibleBucketWrite, "false") ==
+            "true"
+        ) {
+          // Hive bucketed table: use `HiveHash` and bitwise-and as bucket id expression.
+          // Without the extra bitwise-and operation, we can get wrong bucket id when hash value of
+          // columns is negative. See Hive implementation in
+          // `org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils#getBucketNumber()`.
+          val hashId = BitwiseAnd(HiveHash(bucketColumns), Literal(Int.MaxValue))
+          val bucketIdExpression = Pmod(hashId, Literal(spec.numBuckets))
+
+          // The bucket file name prefix is following Hive, Presto and Trino conversion, so this
+          // makes sure Hive bucketed table written by Spark, can be read by other SQL engines.
+          //
+          // Hive: `org.apache.hadoop.hive.ql.exec.Utilities#getBucketIdFromFile()`.
+          // Trino: `io.trino.plugin.hive.BackgroundHiveSplitLoader#BUCKET_PATTERNS`.
+          val fileNamePrefix = (bucketId: Int) => f"$bucketId%05d_0_"
+          WriterBucketSpec(bucketIdExpression, fileNamePrefix)
+        } else {
+          // Spark bucketed table: use `HashPartitioning.partitionIdExpression` as bucket id
+          // expression, so that we can guarantee the data distribution is same between shuffle and
+          // bucketed data source, which enables us to only shuffle one side when join a bucketed
+          // table and a normal one.
+          val bucketIdExpression =
+            HashPartitioning(bucketColumns, spec.numBuckets).partitionIdExpression
+          WriterBucketSpec(bucketIdExpression, (_: Int) => "")
+        }
     }
     val sortColumns = bucketSpec.toSeq.flatMap {
-      spec => spec.sortColumnNames.map(c => dataColumns.find(_.name.equalsIgnoreCase(c)).get)
+      spec => spec.sortColumnNames.map(c => dataColumns.find(_.name == c).get)
     }
 
     val caseInsensitiveOptions = CaseInsensitiveMap(options)
@@ -118,7 +154,7 @@ object MergeTreeFileFormatWriter extends Logging {
       dataColumns = dataColumns,
       partitionColumns = partitionColumns,
       bucketSpec = writerBucketSpec,
-      path = outputPathName,
+      path = finalOutputSpec.outputPath,
       customPartitionLocations = finalOutputSpec.customPartitionLocations,
       maxRecordsPerFile = caseInsensitiveOptions
         .get("maxRecordsPerFile")
@@ -159,11 +195,9 @@ object MergeTreeFileFormatWriter extends Logging {
       if (writerBucketSpec.isDefined) {
         // We need to add the bucket id expression to the output of the sort plan,
         // so that we can use backend to calculate the bucket id for each row.
-        val bucketValueExpr = bindReferences(
-          Seq(writerBucketSpec.get.bucketIdExpression),
-          finalOutputSpec.outputColumns)
-        wrapped =
-          ProjectExec(wrapped.output :+ Alias(bucketValueExpr.head, "__bucket_value__")(), wrapped)
+        wrapped = ProjectExec(
+          wrapped.output :+ Alias(writerBucketSpec.get.bucketIdExpression, "__bucket_value__")(),
+          wrapped)
         // TODO: to optimize, bucket value is computed twice here
       }
 
@@ -173,7 +207,11 @@ object MergeTreeFileFormatWriter extends Logging {
 
     try {
       val (rdd, concurrentOutputWriterSpec) = if (orderingMatched) {
-        nativeWrap(empty2NullPlan)
+        if (!nativeEnabled || (staticPartitionWriteOnly && nativeEnabled)) {
+          (empty2NullPlan.execute(), None)
+        } else {
+          nativeWrap(empty2NullPlan)
+        }
       } else {
         // SPARK-21165: the `requiredOrdering` is based on the attributes from analyzed plan, and
         // the physical plan may have different attribute ids due to optimizer removing some
@@ -185,7 +223,7 @@ object MergeTreeFileFormatWriter extends Logging {
 
         val maxWriters = sparkSession.sessionState.conf.maxConcurrentOutputFileWriters
         var concurrentWritersEnabled = maxWriters > 0 && sortColumns.isEmpty
-        if (concurrentWritersEnabled) {
+        if (nativeEnabled && concurrentWritersEnabled) {
           log.warn(
             s"spark.sql.maxConcurrentOutputFileWriters(being set to $maxWriters) will be " +
               "ignored when native writer is being active. No concurrent Writers.")
@@ -197,7 +235,16 @@ object MergeTreeFileFormatWriter extends Logging {
             empty2NullPlan.execute(),
             Some(ConcurrentOutputWriterSpec(maxWriters, () => sortPlan.createSorter())))
         } else {
-          nativeWrap(sortPlan)
+          if (staticPartitionWriteOnly && nativeEnabled) {
+            // remove the sort operator for static partition write.
+            (empty2NullPlan.execute(), None)
+          } else {
+            if (!nativeEnabled) {
+              (sortPlan.execute(), None)
+            } else {
+              nativeWrap(sortPlan)
+            }
+          }
         }
       }
 
@@ -252,7 +299,8 @@ object MergeTreeFileFormatWriter extends Logging {
   }
   // scalastyle:on argcount
 
-  def executeTask(
+  /** Writes data out in a single Spark task. */
+  private def executeTask(
       description: WriteJobDescription,
       jobIdInstant: Long,
       sparkStageId: Int,
@@ -260,9 +308,8 @@ object MergeTreeFileFormatWriter extends Logging {
       sparkAttemptNumber: Int,
       committer: FileCommitProtocol,
       iterator: Iterator[InternalRow],
-      concurrentOutputWriterSpec: Option[ConcurrentOutputWriterSpec]
-  ): WriteTaskResult = {
-    CHThreadGroup.registerNewThreadGroup()
+      concurrentOutputWriterSpec: Option[ConcurrentOutputWriterSpec]): WriteTaskResult = {
+
     val jobId = SparkHadoopWriterUtils.createJobID(new Date(jobIdInstant), sparkStageId)
     val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
     val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)
@@ -286,22 +333,19 @@ object MergeTreeFileFormatWriter extends Logging {
       if (sparkPartitionId != 0 && !iterator.hasNext) {
         // In case of empty job,
         // leave first partition to save meta for file format like parquet/orc.
-        new MergeTreeEmptyDirectoryDataWriter(description, taskAttemptContext, committer)
+        new EmptyDirectoryDataWriter(description, taskAttemptContext, committer)
       } else if (description.partitionColumns.isEmpty && description.bucketSpec.isEmpty) {
-        new MergeTreeSingleDirectoryDataWriter(description, taskAttemptContext, committer)
+        new SingleDirectoryDataWriter(description, taskAttemptContext, committer)
       } else {
         concurrentOutputWriterSpec match {
           case Some(spec) =>
-            new MergeTreeDynamicPartitionDataConcurrentWriter(
+            new DynamicPartitionDataConcurrentWriter(
               description,
               taskAttemptContext,
               committer,
               spec)
           case _ =>
-            new MergeTreeDynamicPartitionDataSingleWriter(
-              description,
-              taskAttemptContext,
-              committer)
+            new DynamicPartitionDataSingleWriter(description, taskAttemptContext, committer)
         }
       }
 

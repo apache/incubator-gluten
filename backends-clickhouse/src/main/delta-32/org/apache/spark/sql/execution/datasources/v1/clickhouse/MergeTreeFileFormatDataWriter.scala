@@ -20,140 +20,27 @@ import org.apache.gluten.execution.datasource.GlutenFormatFactory
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec}
-import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.connector.write.DataWriter
-import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.ConcurrentOutputWriterSpec
 import org.apache.spark.sql.execution.metric.{CustomMetrics, SQLMetric}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StringType
-import org.apache.spark.util.Utils
 
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import scala.collection.mutable
 
-/**
- * Abstract class for writing out data in a single Spark task. Exceptions thrown by the
- * implementation of this trait will automatically trigger task aborts.
- */
-abstract class MergeTreeFileFormatDataWriter(
-    description: WriteJobDescription,
-    taskAttemptContext: TaskAttemptContext,
-    committer: FileCommitProtocol,
-    customMetrics: Map[String, SQLMetric])
-  extends DataWriter[InternalRow] {
-
-  /**
-   * Max number of files a single task writes out due to file size. In most cases the number of
-   * files written should be very small. This is just a safe guard to protect some really bad
-   * settings, e.g. maxRecordsPerFile = 1.
-   */
-  protected val MAX_FILE_COUNTER: Int = 1000 * 1000
-  protected val updatedPartitions: mutable.Set[String] = mutable.Set[String]()
-  protected var currentWriter: OutputWriter = _
-
-  protected val returnedMetrics: mutable.Map[String, AddFile] = mutable.HashMap[String, AddFile]()
-
-  /** Trackers for computing various statistics on the data as it's being written out. */
-  protected val statsTrackers: Seq[WriteTaskStatsTracker] =
-    description.statsTrackers.map(_.newTaskInstance())
-
-  /** Release resources of `currentWriter`. */
-  protected def releaseCurrentWriter(): Unit = {
-    if (currentWriter != null) {
-      try {
-        currentWriter.close()
-        statsTrackers.foreach(_.closeFile(currentWriter.path()))
-        currentWriter
-          .asInstanceOf[MergeTreeOutputWriter]
-          .getAddFiles
-          .foreach(addFile => returnedMetrics.put(addFile.path, addFile))
-      } finally {
-        currentWriter = null
-      }
-    }
-  }
-
-  /** Release all resources. */
-  protected def releaseResources(): Unit = {
-    // Call `releaseCurrentWriter()` by default, as this is the only resource to be released.
-    releaseCurrentWriter()
-  }
-
-  /** Writes a record. */
-  def write(record: InternalRow): Unit
-
-  def writeWithMetrics(record: InternalRow, count: Long): Unit = {
-    if (count % CustomMetrics.NUM_ROWS_PER_UPDATE == 0) {
-      CustomMetrics.updateMetrics(currentMetricsValues, customMetrics)
-    }
-    write(record)
-  }
-
-  /** Write an iterator of records. */
-  def writeWithIterator(iterator: Iterator[InternalRow]): Unit = {
-    var count = 0L
-    while (iterator.hasNext) {
-      writeWithMetrics(iterator.next(), count)
-      count += 1
-    }
-    CustomMetrics.updateMetrics(currentMetricsValues, customMetrics)
-  }
-
-  /**
-   * Returns the summary of relative information which includes the list of partition strings
-   * written out. The list of partitions is sent back to the driver and used to update the catalog.
-   * Other information will be sent back to the driver too and used to e.g. update the metrics in
-   * UI.
-   */
-  override def commit(): WriteTaskResult = {
-    releaseResources()
-    val (taskCommitMessage, taskCommitTime) = Utils.timeTakenMs {
-      // committer.commitTask(taskAttemptContext)
-      val statuses = returnedMetrics.map(_._2).toSeq
-      new TaskCommitMessage(statuses)
-    }
-
-    val summary = ExecutedWriteSummary(
-      updatedPartitions = updatedPartitions.toSet,
-      stats = statsTrackers.map(_.getFinalStats(taskCommitTime)))
-    WriteTaskResult(taskCommitMessage, summary)
-  }
-
-  def abort(): Unit = {
-    try {
-      releaseResources()
-    } finally {
-      committer.abortTask(taskAttemptContext)
-    }
-  }
-
-  override def close(): Unit = {}
-}
-
-/** FileFormatWriteTask for empty partitions */
-class MergeTreeEmptyDirectoryDataWriter(
-    description: WriteJobDescription,
-    taskAttemptContext: TaskAttemptContext,
-    committer: FileCommitProtocol,
-    customMetrics: Map[String, SQLMetric] = Map.empty
-) extends MergeTreeFileFormatDataWriter(description, taskAttemptContext, committer, customMetrics) {
-  override def write(record: InternalRow): Unit = {}
-}
-
 /** Writes data to a single directory (used for non-dynamic-partition writes). */
-class MergeTreeSingleDirectoryDataWriter(
+class SingleDirectoryDataWriter(
     description: WriteJobDescription,
     taskAttemptContext: TaskAttemptContext,
     committer: FileCommitProtocol,
     customMetrics: Map[String, SQLMetric] = Map.empty)
-  extends MergeTreeFileFormatDataWriter(description, taskAttemptContext, committer, customMetrics) {
+  extends FileFormatDataWriter(description, taskAttemptContext, committer, customMetrics) {
   private var fileCounter: Int = _
   private var recordsInFile: Long = _
   // Initialize currentWriter and statsTrackers
@@ -165,16 +52,10 @@ class MergeTreeSingleDirectoryDataWriter(
 
     val ext = description.outputWriterFactory.getFileExtension(taskAttemptContext)
     val currentPath =
-      committer.newTaskTempFile(
-        taskAttemptContext,
-        None,
-        FileNameSpec(
-          "",
-          f"-c$fileCounter%03d" +
-            ext))
+      committer.newTaskTempFile(taskAttemptContext, None, f"-c$fileCounter%03d" + ext)
 
     currentWriter = description.outputWriterFactory.newInstance(
-      path = description.path,
+      path = currentPath,
       dataSchema = description.dataColumns.toStructType,
       context = taskAttemptContext)
 
@@ -207,18 +88,18 @@ class MergeTreeSingleDirectoryDataWriter(
  * Holds common logic for writing data with dynamic partition writes, meaning it can write to
  * multiple directories (partitions) or files (bucketing).
  */
-abstract class MergeTreeBaseDynamicPartitionDataWriter(
+abstract class BaseDynamicPartitionDataWriter(
     description: WriteJobDescription,
     taskAttemptContext: TaskAttemptContext,
     committer: FileCommitProtocol,
     customMetrics: Map[String, SQLMetric])
-  extends MergeTreeFileFormatDataWriter(description, taskAttemptContext, committer, customMetrics) {
+  extends FileFormatDataWriter(description, taskAttemptContext, committer, customMetrics) {
 
-  /** Flag saying whether the data to be written out is partitioned. */
-  protected val isPartitioned: Boolean = description.partitionColumns.nonEmpty
+  /** Flag saying whether or not the data to be written out is partitioned. */
+  protected val isPartitioned = description.partitionColumns.nonEmpty
 
-  /** Flag saying whether the data to be written out is bucketed. */
-  protected val isBucketed: Boolean = description.bucketSpec.isDefined
+  /** Flag saying whether or not the data to be written out is bucketed. */
+  protected val isBucketed = description.bucketSpec.isDefined
 
   assert(
     isPartitioned || isBucketed,
@@ -298,11 +179,10 @@ abstract class MergeTreeBaseDynamicPartitionDataWriter(
       releaseCurrentWriter()
     }
 
-    val partDir =
-      partitionValues.map(getPartitionPath(_)).map(str => new Path(str).toUri.toASCIIString)
+    val partDir = partitionValues.map(getPartitionPath(_))
     partDir.foreach(updatedPartitions.add)
 
-    val bucketIdStr = bucketId.map(id => f"$id%05d").getOrElse("")
+    val bucketIdStr = bucketId.map(BucketingUtils.bucketIdToString).getOrElse("")
 
     // The prefix and suffix must be in a form that matches our bucketing format. See BucketingUtils
     // for details. The prefix is required to represent bucket id when writing Hive-compatible
@@ -324,15 +204,8 @@ abstract class MergeTreeBaseDynamicPartitionDataWriter(
       committer.newTaskTempFile(taskAttemptContext, partDir, fileNameSpec)
     }
 
-    taskAttemptContext.getConfiguration.set(
-      "mapreduce.task.gluten.mergetree.partition.dir",
-      partDir.getOrElse(""))
-    taskAttemptContext.getConfiguration.set(
-      "mapreduce.task.gluten.mergetree.bucketid.str",
-      bucketIdStr)
-
     currentWriter = description.outputWriterFactory.newInstance(
-      path = description.path,
+      path = currentPath,
       dataSchema = description.dataColumns.toStructType,
       context = taskAttemptContext)
 
@@ -384,12 +257,12 @@ abstract class MergeTreeBaseDynamicPartitionDataWriter(
  * writing. The records to be written are required to be sorted on partition and/or bucket column(s)
  * before writing.
  */
-class MergeTreeDynamicPartitionDataSingleWriter(
+class DynamicPartitionDataSingleWriter(
     description: WriteJobDescription,
     taskAttemptContext: TaskAttemptContext,
     committer: FileCommitProtocol,
     customMetrics: Map[String, SQLMetric] = Map.empty)
-  extends MergeTreeBaseDynamicPartitionDataWriter(
+  extends BaseDynamicPartitionDataWriter(
     description,
     taskAttemptContext,
     committer,
@@ -435,11 +308,7 @@ class MergeTreeDynamicPartitionDataSingleWriter(
       case fakeRow: FakeRow =>
         if (fakeRow.batch.numRows() > 0) {
           val blockStripes = GlutenFormatFactory.rowSplitter
-            .splitBlockByPartitionAndBucket(
-              fakeRow,
-              partitionColIndice,
-              isBucketed,
-              reserve_partition_columns = true)
+            .splitBlockByPartitionAndBucket(fakeRow, partitionColIndice, isBucketed)
 
           val iter = blockStripes.iterator()
           while (iter.hasNext) {
@@ -478,17 +347,13 @@ class MergeTreeDynamicPartitionDataSingleWriter(
  *
  * Caller is expected to call `writeWithIterator()` instead of `write()` to write records.
  */
-class MergeTreeDynamicPartitionDataConcurrentWriter(
+class DynamicPartitionDataConcurrentWriter(
     description: WriteJobDescription,
     taskAttemptContext: TaskAttemptContext,
     committer: FileCommitProtocol,
     concurrentOutputWriterSpec: ConcurrentOutputWriterSpec,
     customMetrics: Map[String, SQLMetric] = Map.empty)
-  extends MergeTreeBaseDynamicPartitionDataWriter(
-    description,
-    taskAttemptContext,
-    committer,
-    customMetrics)
+  extends BaseDynamicPartitionDataWriter(description, taskAttemptContext, committer, customMetrics)
   with Logging {
 
   /** Wrapper class to index a unique concurrent output writer. */
@@ -522,10 +387,6 @@ class MergeTreeDynamicPartitionDataConcurrentWriter(
         if (status.outputWriter != null) {
           try {
             status.outputWriter.close()
-            status.outputWriter
-              .asInstanceOf[MergeTreeOutputWriter]
-              .getAddFiles
-              .foreach(addFile => returnedMetrics.put(addFile.path, addFile))
           } finally {
             status.outputWriter = null
           }
