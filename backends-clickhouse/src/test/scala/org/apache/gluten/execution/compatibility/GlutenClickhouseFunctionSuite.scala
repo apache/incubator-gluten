@@ -348,4 +348,25 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
     }
   }
 
+  test("GLUTEN-7591 get_json_object: normalize empty object fail") {
+    withTable("test_7591") {
+      sql("create table test_7591(a string) using parquet")
+      val insert_sql =
+        """
+          |insert into test_7591
+          |select if(id < 10005, concat('{"a":', id), concat('{"a":', id , ', "b":{}}')) from
+          |(SELECT explode(sequence(1, 10010)) as id);
+          |""".stripMargin
+      sql(insert_sql)
+      compareResultsAgainstVanillaSpark(
+        """
+          |select get_json_object(a, '$.a') from test_7591
+          |where get_json_object(a, '$.a') is not null
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
 }
