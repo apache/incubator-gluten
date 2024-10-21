@@ -116,12 +116,12 @@ class ClickhouseOptimisticTransaction(
         val queryPlan = queryExecution.executedPlan
         val newQueryPlan = insertFakeRowAdaptor(queryPlan)
         assert(output.size == newQueryPlan.output.size)
-        val x = newQueryPlan.output.zip(output).map {
+        val newOutput = newQueryPlan.output.zip(output).map {
           case (newAttr, oldAttr) =>
             oldAttr.withExprId(newAttr.exprId)
         }
-        val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, x)
-        val partitioningColumns = getPartitioningColumns(partitionSchema, x)
+        val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, newOutput)
+        val partitioningColumns = getPartitioningColumns(partitionSchema, newOutput)
 
         val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
 
