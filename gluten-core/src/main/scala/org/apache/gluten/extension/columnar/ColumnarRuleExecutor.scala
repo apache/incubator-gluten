@@ -27,14 +27,17 @@ import org.apache.spark.sql.execution.SparkPlan
 
 class ColumnarRuleExecutor(phase: String, rules: Seq[Rule[SparkPlan]])
   extends RuleExecutor[SparkPlan] {
+  import ColumnarRuleExecutor._
   private val batch: Batch =
     Batch(s"Columnar (Phase [$phase])", Once, rules.map(r => new LoggedRule(r)): _*)
 
-  // TODO Remove this exclusion then pass Spark's idempotence check.
+  // TODO: Remove this exclusion then manage to pass Spark's idempotence check.
   override protected val excludedOnceBatches: Set[String] = Set(batch.name)
 
   override protected def batches: Seq[Batch] = Seq(batch)
+}
 
+object ColumnarRuleExecutor {
   private class LoggedRule(delegate: Rule[SparkPlan])
     extends Rule[SparkPlan]
     with Logging
