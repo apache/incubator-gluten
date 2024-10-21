@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.v1.clickhouse
 
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.memory.CHThreadGroup
 
 import org.apache.spark.{SparkException, TaskContext, TaskOutputFileAlreadyExistException}
@@ -33,7 +34,6 @@ import org.apache.spark.sql.delta.constraints.Constraint
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.{processStats, ConcurrentOutputWriterSpec, OutputSpec}
-import org.apache.spark.sql.execution.datasources.v1.GlutenMergeTreeWriterInjects
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.{SerializableConfiguration, Utils}
 
@@ -167,7 +167,8 @@ object MergeTreeFileFormatWriter extends Logging {
         // TODO: to optimize, bucket value is computed twice here
       }
 
-      (GlutenMergeTreeWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
+      val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
+      (GlutenFormatFactory(nativeFormat).executeWriterWrappedSparkPlan(wrapped), None)
     }
 
     try {
