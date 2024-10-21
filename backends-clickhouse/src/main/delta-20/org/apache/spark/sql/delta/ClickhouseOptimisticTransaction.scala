@@ -29,7 +29,7 @@ import org.apache.spark.sql.delta.schema.InvariantViolationException
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FakeRowAdaptor, FileFormatWriter, WriteJobStatsTracker}
+import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FakeRowAdaptor, FileFormatWriter, GlutenWriterColumnarRules, WriteJobStatsTracker}
 import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeFileFormatWriter
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.util.{Clock, SerializableConfiguration}
@@ -137,10 +137,12 @@ class ClickhouseOptimisticTransaction(
 
         try {
           val tableV2 = ClickHouseTableV2.getTable(deltaLog)
+          val format = tableV2.getFileFormat(metadata)
+          GlutenWriterColumnarRules.injectSparkLocalProperty(spark, Some(format.shortName()))
           MergeTreeFileFormatWriter.write(
             sparkSession = spark,
             plan = newQueryPlan,
-            fileFormat = tableV2.getFileFormat(metadata),
+            fileFormat = format,
             // formats.
             committer = committer,
             outputSpec = outputSpec,
@@ -169,6 +171,8 @@ class ClickhouseOptimisticTransaction(
             } else {
               throw s
             }
+        } finally {
+          GlutenWriterColumnarRules.injectSparkLocalProperty(spark, None)
         }
       }
       committer.addedStatuses.toSeq ++ committer.changeFiles

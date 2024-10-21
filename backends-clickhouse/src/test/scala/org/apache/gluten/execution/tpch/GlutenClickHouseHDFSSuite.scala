@@ -179,7 +179,7 @@ class GlutenClickHouseHDFSSuite
 
   test("test set_read_util_position") {
     val tableName = "read_until_test"
-    val tablePath = s"$tablesPath/$tableName/"
+    val tablePath = s"$tablesPath/$SPARK_DIR_NAME/$tableName/"
     val targetFile = new Path(tablesPath)
     val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
     fs.delete(new Path(tablePath), true)
