@@ -178,4 +178,24 @@ class GlutenClickhouseStringFunctionsSuite extends GlutenClickHouseWholeStageTra
     }
   }
 
+  test("GLUTEN-7621: fix repeat function reports an error when times is a negative number") {
+    val tableName = "repeat_issue_7621"
+    withTable(tableName) {
+      sql(s"create table $tableName(data string ) using parquet")
+      sql(s"""
+             |insert into $tableName values
+             |  ('-1'),('0'),('2')
+            """.stripMargin)
+
+      val sql_str =
+        s"""
+           |select
+           |    repeat('1', data), data
+           |  from $tableName
+      """.stripMargin
+
+      runQueryAndCompare(sql_str) { _ => }
+    }
+  }
+
 }
