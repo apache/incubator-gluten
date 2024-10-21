@@ -36,8 +36,8 @@ public class CHDatasourceJniWrapper {
     write(instance, blockAddress);
   }
 
-  public String close() {
-    return close(instance);
+  public void close() {
+    close(instance);
   }
 
   private native void write(long instanceId, long blockAddress);

@@ -27,7 +27,6 @@ import org.apache.gluten.utils.ConfigUtil
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, OutputWriter}
 import org.apache.spark.sql.execution.datasources.mergetree.{MetaSerializer, PartSerializer, StorageConfigProvider, StorageMeta}
-import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputWriter
 import org.apache.spark.sql.types.StructType
 
 import com.google.common.collect.Lists
@@ -91,10 +90,6 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       context: TaskAttemptContext,
       nativeConf: ju.Map[String, String]): OutputWriter = {
 
-    val storage = HadoopConfReader(context.getConfiguration)
-    val database = storage.storageConf(StorageMeta.DB)
-    val tableName = storage.storageConf(StorageMeta.TABLE)
-
     val datasourceJniWrapper = new CHDatasourceJniWrapper(
       context.getTaskAttemptID.getTaskID.getId.toString,
       context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
@@ -102,7 +97,7 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       createWriteRel(outputPath, dataSchema, context),
       ConfigUtil.serialize(nativeConf)
     )
-    new MergeTreeOutputWriter(datasourceJniWrapper, database, tableName, outputPath)
+    new FakeRowOutputWriter(datasourceJniWrapper, outputPath)
   }
 
   override val formatName: String = "mergetree"

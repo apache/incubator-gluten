@@ -967,8 +967,19 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     const auto partition_dir = jstring2string(env, partition_dir_);
     const auto bucket_dir = jstring2string(env, bucket_dir_);
     auto uuid = uuid_str + "_" + task_id;
+
+    std::string part_dir_prefix;
+    if (!partition_dir.empty() && !bucket_dir.empty())
+        part_dir_prefix = fmt::format("{}/{}/{}", partition_dir, bucket_dir, uuid);
+    else if (!partition_dir.empty())
+        part_dir_prefix = fmt::format("{}/{}", partition_dir, uuid);
+    else if (!bucket_dir.empty())
+        part_dir_prefix = fmt::format("{}/{}", bucket_dir, uuid);
+    else
+        part_dir_prefix = fmt::format("{}", uuid);
+
     local_engine::SparkMergeTreeWritePartitionSettings settings{
-        .part_name_prefix{uuid}, .partition_dir{partition_dir}, .bucket_dir{bucket_dir}};
+        .part_name_prefix{part_dir_prefix}, .partition_dir{partition_dir}, .bucket_dir{bucket_dir}};
     settings.set(query_context);
 
     const auto writeRelBytes = local_engine::getByteArrayElementsSafe(env, writeRel);

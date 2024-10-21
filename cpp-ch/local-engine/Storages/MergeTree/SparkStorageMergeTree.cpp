@@ -363,8 +363,6 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     int part_num) const
 {
     const std::string & part_name_prefix = write_settings.part_name_prefix;
-    const std::string & partition_dir = write_settings.partition_dir;
-    const std::string & bucket_dir = write_settings.bucket_dir;
 
     MergeTreeDataWriter::TemporaryPart temp_part;
 
@@ -383,19 +381,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
 
     MergeTreePartInfo new_part_info(partition.getID(metadata_snapshot->getPartitionKey().sample_block), 1, 1, 0);
 
-    std::string part_dir;
-    if (!partition_dir.empty() && !bucket_dir.empty())
-        part_dir = fmt::format("{}/{}/{}_{:03d}", partition_dir, bucket_dir, part_name_prefix, part_num);
-    else if (!partition_dir.empty())
-        part_dir = fmt::format("{}/{}_{:03d}", partition_dir, part_name_prefix, part_num);
-    else if (!bucket_dir.empty())
-        part_dir = fmt::format("{}/{}_{:03d}", bucket_dir, part_name_prefix, part_num);
-    else
-        part_dir = fmt::format("{}_{:03d}", part_name_prefix, part_num);
-
-    // assert(part_num > 0 && !part_name_prefix.empty());
-
-    String part_name = part_dir;
+    std::string part_dir = fmt::format("{}_{:03d}", part_name_prefix, part_num);
 
     temp_part.temporary_directory_lock = data.getTemporaryPartDirectoryHolder(part_dir);
 
@@ -437,7 +423,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
 
     VolumePtr volume = data.getStoragePolicy()->getVolume(0);
     VolumePtr data_part_volume = std::make_shared<SingleDiskVolume>(volume->getName(), volume->getDisk(), volume->max_data_part_size);
-    auto new_data_part = data.getDataPartBuilder(part_name, data_part_volume, part_dir)
+    auto new_data_part = data.getDataPartBuilder(part_dir, data_part_volume, part_dir)
                              .withPartFormat(data.choosePartFormat(expected_size, block.rows()))
                              .withPartInfo(new_part_info)
                              .build();
