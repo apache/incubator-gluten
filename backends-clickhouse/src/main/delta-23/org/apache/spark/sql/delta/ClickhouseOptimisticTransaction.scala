@@ -158,7 +158,6 @@ class ClickhouseOptimisticTransaction(
           })
 
         try {
-          val tableV2 = ClickHouseTableV2.getTable(deltaLog)
           val format = tableV2.getFileFormat(metadata)
           GlutenWriterColumnarRules.injectSparkLocalProperty(spark, Some(format.shortName()))
           FileFormatWriter.write(

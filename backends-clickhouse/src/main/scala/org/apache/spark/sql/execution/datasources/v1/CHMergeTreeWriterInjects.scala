@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution.datasources.v1
 
 import org.apache.gluten.expression.ConverterUtils
-import org.apache.gluten.memory.CHThreadGroup
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
 import org.apache.gluten.substrait.extensions.ExtensionBuilder
@@ -91,7 +90,6 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       dataSchema: StructType,
       context: TaskAttemptContext,
       nativeConf: ju.Map[String, String]): OutputWriter = {
-    CHThreadGroup.registerNewThreadGroup()
 
     val storage = HadoopConfReader(context.getConfiguration)
     val database = storage.storageConf(StorageMeta.DB)

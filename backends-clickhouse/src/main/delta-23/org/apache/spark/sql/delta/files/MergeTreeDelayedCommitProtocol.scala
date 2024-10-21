@@ -16,65 +16,10 @@
  */
 package org.apache.spark.sql.delta.files
 
-import org.apache.gluten.backendsapi.clickhouse.CHConf
-import org.apache.gluten.vectorized.ExpressionEvaluatorJniWrapper
-
-import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
-import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeCommiterHelper
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddFileTags
-import org.apache.spark.util.Utils
-
-import org.apache.hadoop.fs.Path
-import org.apache.hadoop.mapreduce.TaskAttemptContext
-
-import scala.collection.JavaConverters._
-
 class MergeTreeDelayedCommitProtocol(
     val outputPath: String,
     randomPrefixLength: Option[Int],
-    database: String,
-    tableName: String)
-  extends DelayedCommitProtocol("delta-mergetree", outputPath, randomPrefixLength) {
-
-  override def setupTask(taskContext: TaskAttemptContext): Unit = {
-    super.setupTask(taskContext)
-    MergeTreeCommiterHelper.prepareTaskWriteInfo(
-      taskContext.getJobID.toString,
-      taskContext.getTaskAttemptID.toString)
-
-    val settings = Map(CHConf.runtimeSettings("gluten.reserve_partition_columns") -> "true")
-    ExpressionEvaluatorJniWrapper.updateQueryRuntimeSettings(settings.asJava)
-  }
-
-  override def newTaskTempFile(
-      taskContext: TaskAttemptContext,
-      dir: Option[String],
-      ext: String): String = {
-    // super.newTaskTempFile(taskContext, dir, spec)
-    taskContext.getConfiguration.set(
-      "mapreduce.task.gluten.mergetree.partition.dir",
-      dir.map(p => new Path(p).toUri.toString).getOrElse(""))
-
-    val bucketIdStr = ext.split("\\.").headOption.filter(_.startsWith("_")).map(_.substring(1))
-
-    taskContext.getConfiguration.set(
-      "mapreduce.task.gluten.mergetree.bucketid.str",
-      bucketIdStr.getOrElse(""))
-    outputPath
-  }
-
-  override def commitTask(taskContext: TaskAttemptContext): TaskCommitMessage = {
-    val returnedMetrics = MergeTreeCommiterHelper.getAndResetCurrentTaskWriteInfo(
-      taskContext.getJobID.toString,
-      taskContext.getTaskAttemptID.toString)
-    val statuses = returnedMetrics.flatMap(
-      AddFileTags.partsMetricsToAddFile(
-        database,
-        tableName,
-        outputPath,
-        _,
-        Seq(Utils.localHostName()))
-    )
-    new TaskCommitMessage(statuses)
-  }
-}
+    val database: String,
+    val tableName: String)
+  extends DelayedCommitProtocol("delta-mergetree", outputPath, randomPrefixLength)
+  with MergeTreeFileCommitProtocol {}
