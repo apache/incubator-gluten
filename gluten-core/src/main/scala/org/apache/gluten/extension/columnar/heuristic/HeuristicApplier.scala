@@ -72,7 +72,7 @@ class HeuristicApplier(
       phase: String,
       rules: Seq[Rule[SparkPlan]],
       plan: SparkPlan): SparkPlan =
-    new ColumnarRuleApplier.ColumnarRuleExecutor(phase, rules).execute(plan)
+    new ColumnarRuleExecutor(phase, rules).execute(plan)
 
   private def prepareFallback[T](p: SparkPlan)(f: SparkPlan => T): T = {
     adaptiveContext.setAdaptiveContext()
