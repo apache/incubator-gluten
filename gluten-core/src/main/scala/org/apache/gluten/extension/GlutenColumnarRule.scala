@@ -122,5 +122,3 @@ case class GlutenColumnarRule(
   }
 
 }
-
-object ColumnarOverrides {}

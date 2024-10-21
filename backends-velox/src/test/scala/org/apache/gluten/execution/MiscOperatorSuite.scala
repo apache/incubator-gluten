@@ -922,6 +922,18 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     }
   }
 
+  test("count(1) on csv scan") {
+    val df = runAndCompare("select count(1) from student") {
+      val filePath = rootPath + "/datasource/csv/student.csv"
+      val df = spark.read
+        .format("csv")
+        .option("header", "true")
+        .load(filePath)
+      df.createOrReplaceTempView("student")
+    }
+    checkLengthAndPlan(df, 1)
+  }
+
   test("combine small batches before shuffle") {
     val minBatchSize = 15
     withSQLConf(

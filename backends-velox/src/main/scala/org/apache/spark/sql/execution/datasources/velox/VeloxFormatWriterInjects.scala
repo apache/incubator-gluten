@@ -31,7 +31,6 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 
-import com.google.common.base.Preconditions
 import org.apache.arrow.c.ArrowSchema
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.hadoop.mapreduce.TaskAttemptContext
@@ -74,7 +73,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     new OutputWriter {
       override def write(row: InternalRow): Unit = {
         val batch = row.asInstanceOf[FakeRow].batch
-        Preconditions.checkState(ColumnarBatches.isLightBatch(batch))
+        ColumnarBatches.checkOffloaded(batch)
         ColumnarBatches.retain(batch)
         val batchHandle = {
           if (batch.numCols == 0) {

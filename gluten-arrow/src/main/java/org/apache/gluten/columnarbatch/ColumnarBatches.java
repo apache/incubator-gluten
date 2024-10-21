@@ -85,7 +85,8 @@ public final class ColumnarBatches {
   }
 
   /** Heavy batch: Data is readable from JVM and formatted as Arrow data. */
-  public static boolean isHeavyBatch(ColumnarBatch batch) {
+  @VisibleForTesting
+  static boolean isHeavyBatch(ColumnarBatch batch) {
     return identifyBatchType(batch) == BatchType.HEAVY;
   }
 
@@ -93,7 +94,8 @@ public final class ColumnarBatches {
    * Light batch: Data is not readable from JVM, a long int handle (which is a pointer usually) is
    * used to bind the batch to a native side implementation.
    */
-  public static boolean isLightBatch(ColumnarBatch batch) {
+  @VisibleForTesting
+  static boolean isLightBatch(ColumnarBatch batch) {
     return identifyBatchType(batch) == BatchType.LIGHT;
   }
 
