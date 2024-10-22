@@ -160,8 +160,9 @@ void SinkHelper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> &
 }
 void SinkHelper::writeTempPart(DB::BlockWithPartition & block_with_partition, const ContextPtr & context, int part_num)
 {
-    auto tmp = dataRef().getWriter().writeTempPart(
-        block_with_partition, metadata_snapshot, context, write_settings.partition_settings, part_num);
+    const std::string & part_name_prefix = write_settings.partition_settings.part_name_prefix;
+    std::string part_dir = fmt::format("{}_{:03d}", part_name_prefix, part_num);
+    auto tmp = dataRef().getWriter().writeTempPart(block_with_partition, metadata_snapshot, context, part_dir);
     new_parts.emplace_back(tmp.part);
 }
 

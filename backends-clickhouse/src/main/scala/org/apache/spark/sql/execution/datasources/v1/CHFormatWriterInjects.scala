@@ -102,10 +102,6 @@ class CHRowSplitter extends GlutenRowSplitter {
     val col = row.batch.column(0).asInstanceOf[CHColumnVector]
     new CHBlockStripes(
       CHDatasourceJniWrapper
-        .splitBlockByPartitionAndBucket(
-          col.getBlockAddress,
-          partitionColIndice,
-          hasBucket,
-          reserve_partition_columns))
+        .splitBlockByPartitionAndBucket(col.getBlockAddress, partitionColIndice, hasBucket))
   }
 }

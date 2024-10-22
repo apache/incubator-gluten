@@ -18,43 +18,34 @@ package org.apache.spark.sql.execution.datasources.v1.clickhouse
 
 import scala.collection.mutable.ArrayBuffer
 
-case class TaskWriteInfo(
-    jobID: String,
-    taskAttemptID: String,
-    addFiles: ArrayBuffer[String] = new ArrayBuffer[String]())
+case class TaskWriteInfo(id: String, addFiles: ArrayBuffer[String] = new ArrayBuffer[String]())
 
 object MergeTreeCommiterHelper {
 
   private val currentTaskWriteInfo = new ThreadLocal[TaskWriteInfo]()
 
-  private def checkAndGet(jobID: String, taskAttemptID: String): TaskWriteInfo = {
-    val currentTaskWriteInfoLocal = currentTaskWriteInfo.get()
-    require(currentTaskWriteInfoLocal != null, "currentTaskWriteInfo is null")
-    require(currentTaskWriteInfoLocal.jobID == jobID, "jobID is not equal")
-    require(currentTaskWriteInfoLocal.taskAttemptID == taskAttemptID, "taskAttemptID is not equal")
-    currentTaskWriteInfoLocal
+  private def checkAndGet(id: String): TaskWriteInfo = {
+    val localInfo = currentTaskWriteInfo.get()
+    require(localInfo != null, "currentTaskWriteInfo is null")
+    require(localInfo.id == id, s"jobTaskAttemptID not match, ${localInfo.id} != $id")
+    localInfo
   }
 
   /** called at C++ */
-  def setCurrentTaskWriteInfo(jobID: String, taskAttemptID: String, resultJson: String): Unit = {
-    // val currentTaskWriteInfoLocal = checkAndGet(jobID, taskAttemptID)
-
-    val currentTaskWriteInfoLocal = currentTaskWriteInfo.get()
-    if (currentTaskWriteInfoLocal != null) {
-      // TODO: support 3.2 and 3.5
-      assert(resultJson != null && resultJson.nonEmpty)
-      currentTaskWriteInfoLocal.addFiles.append(resultJson)
-    }
+  def setCurrentTaskWriteInfo(jobTaskAttemptID: String, resultJson: String): Unit = {
+    val localInfo = checkAndGet(jobTaskAttemptID)
+    require(resultJson != null && resultJson.nonEmpty)
+    localInfo.addFiles.append(resultJson)
   }
 
   def getAndResetCurrentTaskWriteInfo(jobID: String, taskAttemptID: String): Seq[String] = {
-    val currentTaskWriteInfoLocal = checkAndGet(jobID, taskAttemptID)
+    val localInfo = checkAndGet(s"$jobID/$taskAttemptID")
     currentTaskWriteInfo.remove()
-    currentTaskWriteInfoLocal.addFiles.toSeq
+    localInfo.addFiles.toSeq
   }
 
   def prepareTaskWriteInfo(jobID: String, taskAttemptID: String): Unit = {
     require(currentTaskWriteInfo.get() == null, "currentTaskWriteInfo is not null")
-    currentTaskWriteInfo.set(TaskWriteInfo(jobID, taskAttemptID))
+    currentTaskWriteInfo.set(TaskWriteInfo(s"$jobID/$taskAttemptID"))
   }
 }

@@ -62,9 +62,16 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
 
   override def createNativeWrite(outputPath: String, context: TaskAttemptContext): Write = {
     val conf = HadoopConfReader(context.getConfiguration).storageConf
+    val jobID = context.getJobID.toString
+    val taskAttemptID = context.getTaskAttemptID.toString
     Write
       .newBuilder()
-      .setCommon(Write.Common.newBuilder().setFormat(formatName).build())
+      .setCommon(
+        Write.Common
+          .newBuilder()
+          .setFormat(formatName)
+          .setJobTaskAttemptId(s"$jobID/$taskAttemptID")
+          .build())
       .setMergetree(
         Write.MergeTreeWrite
           .newBuilder()
@@ -91,9 +98,9 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       nativeConf: ju.Map[String, String]): OutputWriter = {
 
     val datasourceJniWrapper = new CHDatasourceJniWrapper(
-      context.getTaskAttemptID.getTaskID.getId.toString,
-      context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
-      context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
+      context.getConfiguration.get("mapreduce.task.gluten.mergetree.partPrefix"),
+      context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition"),
+      context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid"),
       createWriteRel(outputPath, dataSchema, context),
       ConfigUtil.serialize(nativeConf)
     )

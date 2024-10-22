@@ -27,9 +27,9 @@ public class CHDatasourceJniWrapper {
   }
 
   public CHDatasourceJniWrapper(
-      String taskId, String partition_dir, String bucket_dir, WriteRel write, byte[] confArray) {
+      String prefix, String partition, String bucket, WriteRel write, byte[] confArray) {
     this.instance =
-        createMergeTreeWriter(taskId, partition_dir, bucket_dir, write.toByteArray(), confArray);
+        createMergeTreeWriter(prefix, partition, bucket, write.toByteArray(), confArray);
   }
 
   public void write(long blockAddress) {
@@ -42,14 +42,14 @@ public class CHDatasourceJniWrapper {
 
   private native void write(long instanceId, long blockAddress);
 
-  private native String close(long instanceId);
+  private native void close(long instanceId);
 
   /// FileWriter
   private native long createFilerWriter(String filePath, byte[] writeRel);
 
   /// MergeTreeWriter
   private native long createMergeTreeWriter(
-      String taskId, String partition_dir, String bucket_dir, byte[] writeRel, byte[] confArray);
+      String prefix, String partition, String bucket, byte[] writeRel, byte[] confArray);
 
   public static native String nativeMergeMTParts(
       byte[] splitInfo, String partition_dir, String bucket_dir);
@@ -72,8 +72,5 @@ public class CHDatasourceJniWrapper {
    * FileFormatDataWriter to aware partition/bucket changes.
    */
   public static native BlockStripes splitBlockByPartitionAndBucket(
-      long blockAddress,
-      int[] partitionColIndices,
-      boolean hasBucket,
-      boolean reserve_partition_columns);
+      long blockAddress, int[] partitionColIndices, boolean hasBucket);
 }

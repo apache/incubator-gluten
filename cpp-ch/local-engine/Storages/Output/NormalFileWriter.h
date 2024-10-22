@@ -47,7 +47,7 @@ public:
     ~NormalFileWriter() override = default;
 
     void write(DB::Block & block) override;
-    std::string close() override;
+    void close() override;
 
 private:
     OutputFormatFilePtr file;

@@ -29,6 +29,8 @@ import org.apache.spark.util.Utils
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
+import java.util.UUID
+
 import scala.collection.JavaConverters._
 
 trait MergeTreeFileCommitProtocol extends FileCommitProtocol {
@@ -40,11 +42,10 @@ trait MergeTreeFileCommitProtocol extends FileCommitProtocol {
   override def setupTask(taskContext: TaskAttemptContext): Unit = {
     CHThreadGroup.registerNewThreadGroup()
 
-    MergeTreeCommiterHelper.prepareTaskWriteInfo(
-      taskContext.getJobID.toString,
-      taskContext.getTaskAttemptID.toString)
-
-    val settings = Map(CHConf.runtimeSettings("gluten.reserve_partition_columns") -> "true")
+    val jobID = taskContext.getJobID.toString
+    val taskAttemptID = taskContext.getTaskAttemptID.toString
+    MergeTreeCommiterHelper.prepareTaskWriteInfo(jobID, taskAttemptID)
+    val settings = Map(CHConf.runtimeSettings("gluten.write.reserve_partition_columns") -> "true")
     ExpressionEvaluatorJniWrapper.updateQueryRuntimeSettings(settings.asJava)
   }
 
@@ -54,14 +55,21 @@ trait MergeTreeFileCommitProtocol extends FileCommitProtocol {
       ext: String): String = {
 
     taskContext.getConfiguration.set(
-      "mapreduce.task.gluten.mergetree.partition.dir",
+      "mapreduce.task.gluten.mergetree.partition",
       dir.map(p => new Path(p).toUri.toString).getOrElse(""))
 
     val bucketIdStr = ext.split("\\.").headOption.filter(_.startsWith("_")).map(_.substring(1))
-
     taskContext.getConfiguration.set(
-      "mapreduce.task.gluten.mergetree.bucketid.str",
+      "mapreduce.task.gluten.mergetree.bucketid",
       bucketIdStr.getOrElse(""))
+
+    val partition = dir.map(p => new Path(p).toUri.toString + "/").getOrElse()
+    val bucket = bucketIdStr.map(_ + "/").getOrElse("")
+    val taskID = taskContext.getTaskAttemptID.getTaskID.getId.toString
+    val partPrefix = s"$partition$bucket${UUID.randomUUID.toString}_$taskID"
+
+    taskContext.getConfiguration.set("mapreduce.task.gluten.mergetree.partPrefix", partPrefix)
+
     outputPath
   }
 

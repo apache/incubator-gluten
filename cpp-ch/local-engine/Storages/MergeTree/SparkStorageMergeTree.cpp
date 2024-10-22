@@ -359,11 +359,8 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     BlockWithPartition & block_with_partition,
     const StorageMetadataPtr & metadata_snapshot,
     const ContextPtr & context,
-    const SparkMergeTreeWritePartitionSettings & write_settings,
-    int part_num) const
+    const std::string & part_dir) const
 {
-    const std::string & part_name_prefix = write_settings.part_name_prefix;
-
     MergeTreeDataWriter::TemporaryPart temp_part;
 
     Block & block = block_with_partition.block;
@@ -380,8 +377,6 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
     MergeTreePartition partition(block_with_partition.partition);
 
     MergeTreePartInfo new_part_info(partition.getID(metadata_snapshot->getPartitionKey().sample_block), 1, 1, 0);
-
-    std::string part_dir = fmt::format("{}_{:03d}", part_name_prefix, part_num);
 
     temp_part.temporary_directory_lock = data.getTemporaryPartDirectoryHolder(part_dir);
 
