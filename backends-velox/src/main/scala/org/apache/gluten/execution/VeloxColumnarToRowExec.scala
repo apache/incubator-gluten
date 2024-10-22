@@ -123,7 +123,7 @@ object VeloxColumnarToRowExec {
     }
 
     val runtime = Runtimes.contextInstance("ColumnarToRow")
-    // TODO: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
+    // TODO: Pass the jni jniWrapper and arrowSchema and serializeSchema method by broadcast.
     val jniWrapper = NativeColumnarToRowJniWrapper.create(runtime)
     val c2rId = jniWrapper.nativeColumnarToRowInit()
 

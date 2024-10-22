@@ -56,7 +56,6 @@ public final class ColumnarBatches {
 
   private static BatchType identifyBatchType(ColumnarBatch batch) {
     if (batch.numCols() == 0) {
-      // zero-column batch considered as heavy batch
       return BatchType.ZERO_COLUMN;
     }
 
