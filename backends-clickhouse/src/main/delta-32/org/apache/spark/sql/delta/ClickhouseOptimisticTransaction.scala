@@ -43,8 +43,6 @@ import org.apache.hadoop.fs.Path
 
 import scala.collection.mutable.ListBuffer
 
-object ClickhouseOptimisticTransaction {}
-
 class ClickhouseOptimisticTransaction(
     override val deltaLog: DeltaLog,
     override val catalogTable: Option[CatalogTable],
