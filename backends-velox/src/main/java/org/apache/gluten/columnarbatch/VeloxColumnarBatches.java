@@ -29,24 +29,36 @@ import java.util.Objects;
 public final class VeloxColumnarBatches {
   public static final String COMPREHENSIVE_TYPE_VELOX = "velox";
 
-  public static void checkVeloxBatch(ColumnarBatch batch) {
+  private static boolean isVeloxBatch(ColumnarBatch batch) {
     final String comprehensiveType = ColumnarBatches.getComprehensiveLightBatchType(batch);
+    return Objects.equals(comprehensiveType, COMPREHENSIVE_TYPE_VELOX);
+  }
+
+  public static void checkVeloxBatch(ColumnarBatch batch) {
+    if (ColumnarBatches.isZeroColumnBatch(batch)) {
+      return;
+    }
     Preconditions.checkArgument(
-        Objects.equals(comprehensiveType, COMPREHENSIVE_TYPE_VELOX),
+        isVeloxBatch(batch),
         String.format(
             "Expected comprehensive batch type %s, but got %s",
-            COMPREHENSIVE_TYPE_VELOX, comprehensiveType));
+            COMPREHENSIVE_TYPE_VELOX, ColumnarBatches.getComprehensiveLightBatchType(batch)));
   }
 
   public static void checkNonVeloxBatch(ColumnarBatch batch) {
-    final String comprehensiveType = ColumnarBatches.getComprehensiveLightBatchType(batch);
+    if (ColumnarBatches.isZeroColumnBatch(batch)) {
+      return;
+    }
     Preconditions.checkArgument(
-        !Objects.equals(comprehensiveType, COMPREHENSIVE_TYPE_VELOX),
+        !isVeloxBatch(batch),
         String.format("Comprehensive batch type is already %s", COMPREHENSIVE_TYPE_VELOX));
   }
 
   public static ColumnarBatch toVeloxBatch(ColumnarBatch input) {
-    checkNonVeloxBatch(input);
+    if (ColumnarBatches.isZeroColumnBatch(input)) {
+      return input;
+    }
+    Preconditions.checkArgument(!isVeloxBatch(input));
     final Runtime runtime = Runtimes.contextInstance("VeloxColumnarBatches#toVeloxBatch");
     final long handle = ColumnarBatches.getNativeHandle(input);
     final long outHandle = VeloxColumnarBatchJniWrapper.create(runtime).from(handle);

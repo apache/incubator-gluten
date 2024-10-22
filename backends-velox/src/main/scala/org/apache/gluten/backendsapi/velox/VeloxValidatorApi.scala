@@ -91,6 +91,10 @@ class VeloxValidatorApi extends ValidatorApi {
   override def doColumnarShuffleExchangeExecValidate(
       outputPartitioning: Partitioning,
       child: SparkPlan): Option[String] = {
+    if (child.output.isEmpty) {
+      // See: https://github.com/apache/incubator-gluten/issues/7600.
+      return Some("Shuffle with empty schema is not supported")
+    }
     doSchemaValidate(child.schema)
   }
 }
