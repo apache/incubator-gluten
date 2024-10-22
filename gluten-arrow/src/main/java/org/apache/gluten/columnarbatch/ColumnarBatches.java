@@ -326,6 +326,9 @@ public final class ColumnarBatches {
   }
 
   public static void forceClose(ColumnarBatch input) {
+    if (isZeroColumnBatch(input)) {
+      return;
+    }
     for (long i = 0; i < getRefCnt(input); i++) {
       input.close();
     }
@@ -356,13 +359,15 @@ public final class ColumnarBatches {
       case LIGHT:
         IndicatorVector iv = (IndicatorVector) b.column(0);
         iv.retain();
-        return;
+        break;
       case HEAVY:
         for (int i = 0; i < b.numCols(); i++) {
           ArrowWritableColumnVector col = ((ArrowWritableColumnVector) b.column(i));
           col.retain();
         }
-        return;
+        break;
+      case ZERO_COLUMN:
+        break;
       default:
         throw new IllegalStateException();
     }
