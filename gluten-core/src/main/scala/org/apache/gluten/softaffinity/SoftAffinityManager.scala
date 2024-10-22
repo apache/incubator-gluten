@@ -17,17 +17,20 @@
 package org.apache.gluten.softaffinity
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.softaffinity.strategy.SoftAffinityStrategy
 import org.apache.gluten.sql.shims.SparkShimLoader
+
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.{SparkListenerStageCompleted, SparkListenerStageSubmitted, SparkListenerTaskEnd}
 import org.apache.spark.sql.execution.datasources.FilePartition
+
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
-import org.apache.gluten.logging.LogLevelUtil
 
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantReadWriteLock
+
 import scala.collection.mutable
 import scala.util.Random
 
@@ -190,7 +193,8 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
                 } else {
                   (originalValues ++ value)
                 }
-                logOnLevel(GlutenConfig.getConf.softAffinityLogLevel,
+                logOnLevel(
+                  GlutenConfig.getConf.softAffinityLogLevel,
                   s"update host for $key: ${values.mkString(",")}")
                 duplicateReadingInfos.put(key, values)
               }
@@ -272,7 +276,8 @@ abstract class AffinityManager extends LogLevelUtil with Logging {
 
     if (!hosts.isEmpty) {
       rand.shuffle(hosts)
-      logOnLevel(GlutenConfig.getConf.softAffinityLogLevel,
+      logOnLevel(
+        GlutenConfig.getConf.softAffinityLogLevel,
         s"get host for $f: ${hosts.distinct.mkString(",")}")
     }
     hosts.distinct.toSeq

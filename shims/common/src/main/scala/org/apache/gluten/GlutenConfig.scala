@@ -561,11 +561,11 @@ object GlutenConfig {
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS = "spark.gluten.soft-affinity.min.target-hosts"
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
 
-  // Enable Soft Affinity duplicate reading detection, defalut value is true
+  // Enable Soft Affinity duplicate reading detection, default value is false
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED =
     "spark.gluten.soft-affinity.duplicateReadingDetect.enabled"
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED_DEFAULT_VALUE = false
-  // Enable Soft Affinity duplicate reading detection, defalut value is 10000
+  // Enable Soft Affinity duplicate reading detection, default value is 10000
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS =
     "spark.gluten.soft-affinity.duplicateReading.maxCacheItems"
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE = 10000
