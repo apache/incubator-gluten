@@ -16,13 +16,12 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.vectorized.ArrowColumnarRow
+import org.apache.gluten.vectorized.ColumnarRow
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
-import org.apache.spark.sql.catalyst.util.UnsafeRowUtils.avoidSetNullAt
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{BinaryType, DataType, StringType}
 import org.apache.spark.unsafe.types.UTF8String
@@ -48,15 +47,15 @@ class InterpretedColumnarProjection(expressions: Seq[Expression]) extends ArrowP
     case (NoOp, _) => false
     case _ => true
   }
-  private[this] var mutableRow: ArrowColumnarRow = null
-  def currentValue: ArrowColumnarRow = mutableRow
+  private[this] var mutableRow: ColumnarRow = null
+  override def currentValue: ColumnarRow = mutableRow
 
-  override def target(row: ArrowColumnarRow): ArrowProjection = {
+  override def target(row: ColumnarRow): ArrowProjection = {
     mutableRow = row
     this
   }
 
-  private def getStringWriter(ordinal: Int, dt: DataType): (ArrowColumnarRow, Any) => Unit =
+  private def getStringWriter(ordinal: Int, dt: DataType): (ColumnarRow, Any) => Unit =
     dt match {
       case StringType => (input, v) => input.setUTF8String(ordinal, v.asInstanceOf[UTF8String])
       case BinaryType => (input, v) => input.setBinary(ordinal, v.asInstanceOf[Array[Byte]])
@@ -68,7 +67,7 @@ class InterpretedColumnarProjection(expressions: Seq[Expression]) extends ArrowP
       val writer = if (e.dataType.isInstanceOf[StringType] || e.dataType.isInstanceOf[BinaryType]) {
         getStringWriter(i, e.dataType)
       } else InternalRow.getWriter(i, e.dataType)
-      if (!e.nullable || avoidSetNullAt(e.dataType)) { (v: Any) => writer(mutableRow, v) }
+      if (!e.nullable) { (v: Any) => writer(mutableRow, v) }
       else {
         (v: Any) =>
           {
@@ -81,7 +80,7 @@ class InterpretedColumnarProjection(expressions: Seq[Expression]) extends ArrowP
       }
   }.toArray
 
-  override def apply(input: InternalRow): ArrowColumnarRow = {
+  override def apply(input: InternalRow): ColumnarRow = {
     if (subExprEliminationEnabled) {
       runtime.setInput(input)
     }
@@ -103,8 +102,5 @@ object InterpretedColumnarProjection {
   /** Returns a [[ArrowProjection]] for given sequence of bound Expressions. */
   def createProjection(exprs: Seq[Expression]): ArrowProjection = {
     new InterpretedColumnarProjection(exprs)
-  }
-  private def isSupportedTargetType(dt: DataType): Boolean = {
-    UnsafeRow.isMutable(dt) || dt.isInstanceOf[StringType] || dt.isInstanceOf[BinaryType]
   }
 }
