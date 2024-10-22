@@ -87,6 +87,7 @@ private object CHRuleApi {
     injector.injectTransform(
       c => SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarTransformRules)(c.session))
     injector.injectTransform(c => InsertTransitions(c.outputsColumnar))
+    injector.injectTransform(c => LazyExpandRule.apply(c.session))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(
