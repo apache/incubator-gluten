@@ -16,6 +16,7 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.vectorized.ColumnarRow
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, Expression, ExpressionsEvaluator}
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
@@ -45,7 +46,7 @@ object ArrowProjection {
    * CAUTION: the returned projection object is *not* thread-safe.
    */
   def create(fields: Array[DataType]): ArrowProjection = {
-    create(fields.zipWithIndex.map(x => BoundReference(x._2, x._1, true)))
+    create(fields.zipWithIndex.map(x => BoundReference(x._2, x._1, nullable = true)))
   }
 
   /** Returns an ArrowProjection for given sequence of bound Expressions. */
