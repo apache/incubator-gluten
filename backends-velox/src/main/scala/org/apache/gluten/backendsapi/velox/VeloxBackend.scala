@@ -319,7 +319,12 @@ object VeloxBackendSettings extends BackendSettingsApi {
       windowFunctions.foreach(
         func => {
           val windowExpression = func match {
-            case alias: Alias => WindowFunctionsBuilder.extractWindowExpression(alias.child)
+            case alias: Alias =>
+              val we = WindowFunctionsBuilder.extractWindowExpression(alias.child)
+              if (we == null) {
+                throw new GlutenNotSupportException(s"$func is not supported.")
+              }
+              we
             case _ => throw new GlutenNotSupportException(s"$func is not supported.")
           }
 
