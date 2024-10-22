@@ -110,7 +110,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
         // Collect unsupported types.
         val unsupportedDataTypeReason = fields.collect(validatorFunc)
         if (unsupportedDataTypeReason.nonEmpty) {
-          Some(s"Found unsupported data type in $format: ${unsupportedDataTypeReason.mkString(", ")}.")
+          Some(
+            s"Found unsupported data type in $format: ${unsupportedDataTypeReason.mkString(", ")}.")
         } else {
           None
         }
@@ -131,7 +132,7 @@ object VeloxBackendSettings extends BackendSettingsApi {
           val typeValidator: PartialFunction[StructField, String] = {
             // Parquet timestamp is not fully supported yet
             case StructField(_, TimestampType, _, _)
-              if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
+                if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
               "TimestampType(force fallback)"
           }
           if (SQLConf.get.isParquetSchemaMergingEnabled) {
@@ -147,19 +148,19 @@ object VeloxBackendSettings extends BackendSettingsApi {
           } else {
             val typeValidator: PartialFunction[StructField, String] = {
               case StructField(_, arrayType: ArrayType, _, _)
-                if arrayType.elementType.isInstanceOf[StructType] =>
+                  if arrayType.elementType.isInstanceOf[StructType] =>
                 "StructType as element in ArrayType"
               case StructField(_, arrayType: ArrayType, _, _)
-                if arrayType.elementType.isInstanceOf[ArrayType] =>
+                  if arrayType.elementType.isInstanceOf[ArrayType] =>
                 "ArrayType as element in ArrayType"
               case StructField(_, mapType: MapType, _, _)
-                if mapType.keyType.isInstanceOf[StructType] =>
+                  if mapType.keyType.isInstanceOf[StructType] =>
                 "StructType as Key in MapType"
               case StructField(_, mapType: MapType, _, _)
-                if mapType.valueType.isInstanceOf[ArrayType] =>
+                  if mapType.valueType.isInstanceOf[ArrayType] =>
                 "ArrayType as Value in MapType"
               case StructField(_, stringType: StringType, _, metadata)
-                if isCharType(stringType, metadata) =>
+                  if isCharType(stringType, metadata) =>
                 CharVarcharUtils.getRawTypeString(metadata) + "(force fallback)"
               case StructField(_, TimestampType, _, _) => "TimestampType"
             }
