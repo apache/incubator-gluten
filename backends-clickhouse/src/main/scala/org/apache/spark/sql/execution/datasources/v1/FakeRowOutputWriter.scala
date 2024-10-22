@@ -14,23 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v1.clickhouse
+package org.apache.spark.sql.execution.datasources.v1
 
 import org.apache.gluten.vectorized.CHColumnVector
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeRow, OutputWriter}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddFileTags
-import org.apache.spark.util.Utils
 
 import scala.collection.mutable.ArrayBuffer
 
-class MergeTreeOutputWriter(
-    datasourceJniWrapper: CHDatasourceJniWrapper,
-    database: String,
-    tableName: String,
-    outputPath: String)
+class FakeRowOutputWriter(datasourceJniWrapper: CHDatasourceJniWrapper, outputPath: String)
   extends OutputWriter {
 
   protected var addFiles: ArrayBuffer[AddFile] = new ArrayBuffer[AddFile]()
@@ -46,24 +40,11 @@ class MergeTreeOutputWriter(
   }
 
   override def close(): Unit = {
-    val returnedMetrics = datasourceJniWrapper.close()
-    if (returnedMetrics != null && returnedMetrics.nonEmpty) {
-      addFiles.appendAll(
-        AddFileTags.partsMetricsToAddFile(
-          database,
-          tableName,
-          outputPath,
-          returnedMetrics,
-          Seq(Utils.localHostName())))
-    }
+    datasourceJniWrapper.close()
   }
 
   // Do NOT add override keyword for compatibility on spark 3.1.
   def path(): String = {
     outputPath
-  }
-
-  def getAddFiles: ArrayBuffer[AddFile] = {
-    addFiles
   }
 }

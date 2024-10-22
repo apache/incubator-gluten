@@ -14,22 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
+package org.apache.spark.sql.delta.files
 
-import org.apache.spark.sql.delta.{DeltaParquetFileFormat, MergeTreeFileFormat}
-import org.apache.spark.sql.delta.actions.Metadata
-
-class DeltaMergeTreeFileFormat(val metadata: Metadata)
-  extends DeltaParquetFileFormat(metadata.columnMappingMode, metadata.schema)
-  with MergeTreeFileFormat {
-
-  override def equals(other: Any): Boolean = {
-    other match {
-      case ff: DeltaMergeTreeFileFormat =>
-        ff.columnMappingMode == columnMappingMode && ff.referenceSchema == referenceSchema
-      case _ => false
-    }
-  }
-
-  override def hashCode(): Int = getClass.getCanonicalName.hashCode()
-}
+class MergeTreeDelayedCommitProtocol(
+    val outputPath: String,
+    randomPrefixLength: Option[Int],
+    val database: String,
+    val tableName: String)
+  extends DelayedCommitProtocol("delta-mergetree", outputPath, randomPrefixLength)
+  with MergeTreeFileCommitProtocol {}

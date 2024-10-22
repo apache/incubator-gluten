@@ -15,7 +15,10 @@
  * limitations under the License.
  */
 #include "GlutenSettings.h"
+
 #include <Core/Settings.h>
+#include <Interpreters/Context.h>
+#include <Common/GlutenConfig.h>
 
 using namespace DB;
 namespace local_engine
@@ -35,5 +38,11 @@ bool settingsEqual(const DB::Settings & settings, std::string_view name, const s
     if (DB::Field field; settings.tryGet(name, field))
         return field.safeGet<String>() == value;
     return false;
+}
+void updateSettings(const DB::ContextMutablePtr & context, std::string_view plan)
+{
+    std::map<std::string, std::string> spark_conf_map = SparkConfigs::load(plan);
+    for (const auto & [key, value] : spark_conf_map)
+        context->setSetting(key, value);
 }
 }
