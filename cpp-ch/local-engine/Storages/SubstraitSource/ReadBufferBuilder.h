@@ -37,10 +37,10 @@ public:
 
     /// build a new read buffer
     virtual std::unique_ptr<DB::ReadBuffer>
-    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position = false) = 0;
+    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info) = 0;
 
     /// build a new read buffer, consider compression method
-    std::unique_ptr<DB::ReadBuffer> buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position = false);
+    std::unique_ptr<DB::ReadBuffer> buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info);
 
 protected:
     using ReadBufferCreator = std::function<std::unique_ptr<DB::ReadBufferFromFileBase>(bool restricted_seek, const DB::StoredObject & object)>;
@@ -49,14 +49,14 @@ protected:
         ReadBufferCreator read_buffer_creator,
         DB::ReadSettings & read_settings,
         const String & key,
-        const size_t & last_modified_time,
-        const size_t & file_size);
+        size_t last_modified_time,
+        size_t file_size);
 
     DB::ReadSettings getReadSettings() const;
     DB::ContextPtr context;
 
 private:
-    void updateCaches(const String & key, const size_t & last_modified_time, const size_t & file_size) const;
+    void updateCaches(const String & key, size_t last_modified_time, size_t file_size) const;
 
 public:
     DB::FileCachePtr file_cache = nullptr;

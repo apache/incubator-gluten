@@ -111,7 +111,6 @@ struct ExecutorConfig
 struct HdfsConfig
 {
     inline static const String HDFS_ASYNC = "hdfs.enable_async_io";
-
     bool hdfs_async;
 
     static HdfsConfig loadFromContext(const Poco::Util::AbstractConfiguration & config, const DB::ReadSettings & read_settings);
