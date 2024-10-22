@@ -207,4 +207,7 @@ trait HashAggregateExecPullOutBaseHelper {
 
   /** This method calculates the output attributes of Aggregation. */
   protected def getAttrForAggregateExprs: List[Attribute]
+
+  /** Whether same groupings will be distincted to one */
+  def distinctGroupings(groupingExpressions: Seq[NamedExpression]): Boolean = false
 }
