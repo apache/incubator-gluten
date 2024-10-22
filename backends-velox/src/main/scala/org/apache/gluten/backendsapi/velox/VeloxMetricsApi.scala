@@ -40,7 +40,8 @@ class VeloxMetricsApi extends MetricsApi with Logging {
 
   override def genInputIteratorTransformerMetrics(
       child: SparkPlan,
-      sparkContext: SparkContext): Map[String, SQLMetric] = {
+      sparkContext: SparkContext,
+      forBroadcast: Boolean): Map[String, SQLMetric] = {
     def metricsPlan(plan: SparkPlan): SparkPlan = {
       plan match {
         case ColumnarInputAdapter(child) => metricsPlan(child)
@@ -49,24 +50,26 @@ class VeloxMetricsApi extends MetricsApi with Logging {
       }
     }
 
-    val outputMetrics = metricsPlan(child).metrics
-      .filterKeys(key => key.equals("numOutputRows") || key.equals("outputVectors"))
+    val outputMetrics = if (forBroadcast) {
+      metricsPlan(child).metrics
+        .filterKeys(key => key.equals("numOutputRows") || key.equals("outputVectors"))
+    } else {
+      Map(
+        "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+        "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors")
+      )
+    }
 
     Map(
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of input iterator"),
-      "numOutputRowsConsumed" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of output rows being consumed"),
-      "outputVectorsConsumed" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of output vectors being consumed")
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time of input iterator")
     ) ++ outputMetrics
   }
 
   override def genInputIteratorTransformerMetricsUpdater(
-      metrics: Map[String, SQLMetric]): MetricsUpdater = {
-    InputIteratorMetricsUpdater(metrics)
+      metrics: Map[String, SQLMetric],
+      forBroadcast: Boolean): MetricsUpdater = {
+    InputIteratorMetricsUpdater(metrics, forBroadcast)
   }
 
   override def genBatchScanTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =

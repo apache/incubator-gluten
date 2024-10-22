@@ -21,7 +21,9 @@ import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.InputIteratorTransformer
+import org.apache.spark.sql.execution.{ColumnarInputAdapter, InputIteratorTransformer}
+import org.apache.spark.sql.execution.adaptive.BroadcastQueryStageExec
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeLike
 import org.apache.spark.task.TaskResources
 
 import scala.collection.JavaConverters._
@@ -412,6 +414,41 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       assert(
         nativeMetricsDataFinal.metricsDataList.get(1).getSteps.get(1).getName.equals("Expression"))
       assert(nativeMetricsDataFinal.metricsDataList.get(2).getName.equals("kProject"))
+    }
+  }
+
+  test("Metrics for input iterator of broadcast exchange") {
+    createTPCHNotNullTables()
+    val partTableRecords = spark.sql("select * from part").count()
+
+    // Repartition to make sure we have multiple tasks executing the join.
+    spark
+      .sql("select * from lineitem")
+      .repartition(2)
+      .createOrReplaceTempView("lineitem")
+
+    Seq("true", "false").foreach {
+      adaptiveEnabled =>
+        withSQLConf("spark.sql.adaptive.enabled" -> adaptiveEnabled) {
+          val sqlStr =
+            """
+              |select /*+ BROADCAST(part) */ * from part join lineitem
+              |on l_partkey = p_partkey
+              |""".stripMargin
+
+          runQueryAndCompare(sqlStr) {
+            df =>
+              val inputIterator = find(df.queryExecution.executedPlan) {
+                case InputIteratorTransformer(ColumnarInputAdapter(child)) =>
+                  child.isInstanceOf[BroadcastQueryStageExec] || child
+                    .isInstanceOf[BroadcastExchangeLike]
+                case _ => false
+              }
+              assert(inputIterator.isDefined)
+              val metrics = inputIterator.get.metrics
+              assert(metrics("numOutputRows").value == partTableRecords)
+          }
+        }
     }
   }
 }

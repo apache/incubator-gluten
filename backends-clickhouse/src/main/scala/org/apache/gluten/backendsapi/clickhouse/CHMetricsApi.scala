@@ -23,7 +23,8 @@ import org.apache.gluten.substrait.{AggregationParams, JoinParams}
 
 import org.apache.spark.SparkContext
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ColumnarInputAdapter, SparkPlan}
+import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
 import java.lang.{Long => JLong}
@@ -40,21 +41,39 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   override def genInputIteratorTransformerMetrics(
       child: SparkPlan,
-      sparkContext: SparkContext): Map[String, SQLMetric] = {
+      sparkContext: SparkContext,
+      forBroadcast: Boolean): Map[String, SQLMetric] = {
+    def metricsPlan(plan: SparkPlan): SparkPlan = {
+      plan match {
+        case ColumnarInputAdapter(child) => metricsPlan(child)
+        case q: QueryStageExec => metricsPlan(q.plan)
+        case _ => plan
+      }
+    }
+
+    val outputMetrics = if (forBroadcast) {
+      metricsPlan(child).metrics
+        .filterKeys(key => key.equals("numOutputRows"))
+    } else {
+      Map(
+        "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows")
+      )
+    }
+
     Map(
       "iterReadTime" -> SQLMetrics.createTimingMetric(
         sparkContext,
         "time of reading from iterator"),
       "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "fillingRightJoinSideTime" -> SQLMetrics.createTimingMetric(
         sparkContext,
         "filling right join side time")
-    )
+    ) ++ outputMetrics
   }
 
   override def genInputIteratorTransformerMetricsUpdater(
-      metrics: Map[String, SQLMetric]): MetricsUpdater = {
+      metrics: Map[String, SQLMetric],
+      forBroadcast: Boolean): MetricsUpdater = {
     InputIteratorMetricsUpdater(metrics)
   }
 

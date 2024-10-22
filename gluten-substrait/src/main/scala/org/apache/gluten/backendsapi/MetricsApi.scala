@@ -35,9 +35,12 @@ trait MetricsApi extends Serializable {
 
   def genInputIteratorTransformerMetrics(
       child: SparkPlan,
-      sparkContext: SparkContext): Map[String, SQLMetric]
+      sparkContext: SparkContext,
+      forBroadcast: Boolean): Map[String, SQLMetric]
 
-  def genInputIteratorTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
+  def genInputIteratorTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric],
+      forBroadcast: Boolean): MetricsUpdater
 
   def metricsUpdatingFunction(
       child: SparkPlan,
