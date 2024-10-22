@@ -88,78 +88,91 @@ object VeloxBackendSettings extends BackendSettingsApi {
   val GLUTEN_VELOX_INTERNAL_UDF_LIB_PATHS = VeloxBackend.CONF_PREFIX + ".internal.udfLibraryPaths"
   val GLUTEN_VELOX_UDF_ALLOW_TYPE_CONVERSION = VeloxBackend.CONF_PREFIX + ".udfAllowTypeConversion"
 
-  val MAXIMUM_BATCH_SIZE: Int = 32768
-
-  override def validateScan(
+  override def validateScanExec(
       format: ReadFileFormat,
       fields: Array[StructField],
       rootPaths: Seq[String]): ValidationResult = {
-    val filteredRootPaths = distinctRootPaths(rootPaths)
-    if (
-      filteredRootPaths.nonEmpty && !VeloxFileSystemValidationJniWrapper
-        .allSupportedByRegisteredFileSystems(filteredRootPaths.toArray)
-    ) {
-      return ValidationResult.failed(
-        s"Scheme of [$filteredRootPaths] is not supported by registered file systems.")
-    }
-    // Validate if all types are supported.
-    def validateTypes(validatorFunc: PartialFunction[StructField, String]): ValidationResult = {
-      // Collect unsupported types.
-      val unsupportedDataTypeReason = fields.collect(validatorFunc)
-      if (unsupportedDataTypeReason.isEmpty) {
-        ValidationResult.succeeded
+
+    def validateScheme(): Option[String] = {
+      val filteredRootPaths = distinctRootPaths(rootPaths)
+      if (
+        filteredRootPaths.nonEmpty && !VeloxFileSystemValidationJniWrapper
+          .allSupportedByRegisteredFileSystems(filteredRootPaths.toArray)
+      ) {
+        Some(s"Scheme of [$filteredRootPaths] is not supported by registered file systems.")
       } else {
-        ValidationResult.failed(
-          s"Found unsupported data type in $format: ${unsupportedDataTypeReason.mkString(", ")}.")
+        None
       }
     }
 
-    format match {
-      case ParquetReadFormat =>
-        val typeValidator: PartialFunction[StructField, String] = {
-          // Parquet timestamp is not fully supported yet
-          case StructField(_, TimestampType, _, _)
-              if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
-            "TimestampType"
-        }
-        validateTypes(typeValidator)
-      case DwrfReadFormat => ValidationResult.succeeded
-      case OrcReadFormat =>
-        if (!GlutenConfig.getConf.veloxOrcScanEnabled) {
-          ValidationResult.failed(s"Velox ORC scan is turned off.")
+    def validateFormat(): Option[String] = {
+      def validateTypes(validatorFunc: PartialFunction[StructField, String]): Option[String] = {
+        // Collect unsupported types.
+        val unsupportedDataTypeReason = fields.collect(validatorFunc)
+        if (unsupportedDataTypeReason.nonEmpty) {
+          Some(s"Found unsupported data type in $format: ${unsupportedDataTypeReason.mkString(", ")}.")
         } else {
-          val typeValidator: PartialFunction[StructField, String] = {
-            case StructField(_, arrayType: ArrayType, _, _)
-                if arrayType.elementType.isInstanceOf[StructType] =>
-              "StructType as element in ArrayType"
-            case StructField(_, arrayType: ArrayType, _, _)
-                if arrayType.elementType.isInstanceOf[ArrayType] =>
-              "ArrayType as element in ArrayType"
-            case StructField(_, mapType: MapType, _, _)
-                if mapType.keyType.isInstanceOf[StructType] =>
-              "StructType as Key in MapType"
-            case StructField(_, mapType: MapType, _, _)
-                if mapType.valueType.isInstanceOf[ArrayType] =>
-              "ArrayType as Value in MapType"
-            case StructField(_, stringType: StringType, _, metadata)
-                if isCharType(stringType, metadata) =>
-              CharVarcharUtils.getRawTypeString(metadata) + " not support"
-            case StructField(_, TimestampType, _, _) => "TimestampType not support"
-          }
-          validateTypes(typeValidator)
+          None
         }
-      case _ => ValidationResult.failed(s"Unsupported file format for $format.")
-    }
-  }
+      }
 
-  def isCharType(stringType: StringType, metadata: Metadata): Boolean = {
-    val charTypePattern = "char\\((\\d+)\\)".r
-    GlutenConfig.getConf.forceOrcCharTypeScanFallbackEnabled && charTypePattern
-      .findFirstIn(
-        CharVarcharUtils
-          .getRawTypeString(metadata)
-          .getOrElse(stringType.catalogString))
-      .isDefined
+      def isCharType(stringType: StringType, metadata: Metadata): Boolean = {
+        val charTypePattern = "char\\((\\d+)\\)".r
+        GlutenConfig.getConf.forceOrcCharTypeScanFallbackEnabled && charTypePattern
+          .findFirstIn(
+            CharVarcharUtils
+              .getRawTypeString(metadata)
+              .getOrElse(stringType.catalogString))
+          .isDefined
+      }
+
+      format match {
+        case ParquetReadFormat =>
+          val typeValidator: PartialFunction[StructField, String] = {
+            // Parquet timestamp is not fully supported yet
+            case StructField(_, TimestampType, _, _)
+              if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
+              "TimestampType(force fallback)"
+          }
+          if (SQLConf.get.isParquetSchemaMergingEnabled) {
+            // https://github.com/apache/incubator-gluten/issues/7174
+            Some(s"not support when ${SQLConf.PARQUET_SCHEMA_MERGING_ENABLED.key} is true")
+          } else {
+            validateTypes(typeValidator)
+          }
+        case DwrfReadFormat => None
+        case OrcReadFormat =>
+          if (!GlutenConfig.getConf.veloxOrcScanEnabled) {
+            Some(s"Velox ORC scan is turned off, ${GlutenConfig.VELOX_ORC_SCAN_ENABLED.key}")
+          } else {
+            val typeValidator: PartialFunction[StructField, String] = {
+              case StructField(_, arrayType: ArrayType, _, _)
+                if arrayType.elementType.isInstanceOf[StructType] =>
+                "StructType as element in ArrayType"
+              case StructField(_, arrayType: ArrayType, _, _)
+                if arrayType.elementType.isInstanceOf[ArrayType] =>
+                "ArrayType as element in ArrayType"
+              case StructField(_, mapType: MapType, _, _)
+                if mapType.keyType.isInstanceOf[StructType] =>
+                "StructType as Key in MapType"
+              case StructField(_, mapType: MapType, _, _)
+                if mapType.valueType.isInstanceOf[ArrayType] =>
+                "ArrayType as Value in MapType"
+              case StructField(_, stringType: StringType, _, metadata)
+                if isCharType(stringType, metadata) =>
+                CharVarcharUtils.getRawTypeString(metadata) + "(force fallback)"
+              case StructField(_, TimestampType, _, _) => "TimestampType"
+            }
+            validateTypes(typeValidator)
+          }
+        case _ => Some(s"Unsupported file format for $format.")
+      }
+    }
+
+    validateScheme().orElse(validateFormat()) match {
+      case Some(reason) => ValidationResult.failed(reason)
+      case _ => ValidationResult.succeeded
+    }
   }
 
   def distinctRootPaths(paths: Seq[String]): Seq[String] = {

@@ -142,7 +142,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       .toLowerCase(Locale.getDefault)
   }
 
-  override def validateScan(
+  override def validateScanExec(
       format: ReadFileFormat,
       fields: Array[StructField],
       rootPaths: Seq[String]): ValidationResult = {
