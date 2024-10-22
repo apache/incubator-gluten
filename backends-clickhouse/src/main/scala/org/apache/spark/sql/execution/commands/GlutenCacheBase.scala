@@ -72,9 +72,8 @@ object GlutenCacheBase {
               case Status.ERROR =>
                 status = false
                 messages.append(
-                  s"executor : {}, failed with message: {};",
-                  job._1,
-                  result.getMessage)
+                  s"executor : ${job._1}, failed with message: ${result.getMessage};"
+                )
                 complete = true
               case Status.SUCCESS =>
                 complete = true
