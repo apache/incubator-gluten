@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.vectorized;
+package org.apache.gluten.vectorized
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.unsafe.types.UTF8String;
+import org.apache.spark.unsafe.types.UTF8String
 
 abstract class ColumnarRow extends InternalRow {
-  def setUTF8String(ordinal: Int, value: UTF8String)
+  def setUTF8String(ordinal: Int, value: UTF8String): Unit
 
-  def setBinary(ordinal: Int, value: Array[Byte])
+  def setBinary(ordinal: Int, value: Array[Byte]): Unit
 }
