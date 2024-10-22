@@ -76,6 +76,7 @@ GraceMergingAggregateConfig GraceMergingAggregateConfig::loadFromContext(const D
         = context->getConfigRef().getDouble(MAX_ALLOWED_MEMORY_USAGE_RATIO_FOR_AGGREGATE_MERGING, 0.9);
     return config;
 }
+
 StreamingAggregateConfig StreamingAggregateConfig::loadFromContext(const DB::ContextPtr & context)
 {
     StreamingAggregateConfig config;
@@ -88,6 +89,7 @@ StreamingAggregateConfig StreamingAggregateConfig::loadFromContext(const DB::Con
     config.enable_streaming_aggregating = context->getConfigRef().getBool(ENABLE_STREAMING_AGGREGATING, true);
     return config;
 }
+
 JoinConfig JoinConfig::loadFromContext(const DB::ContextPtr & context)
 {
     JoinConfig config;
@@ -96,22 +98,13 @@ JoinConfig JoinConfig::loadFromContext(const DB::ContextPtr & context)
         = context->getConfigRef().getUInt64(MULTI_JOIN_ON_CLAUSES_BUILD_SIDE_ROWS_LIMIT, 10000000);
     return config;
 }
+
 ExecutorConfig ExecutorConfig::loadFromContext(const DB::ContextPtr & context)
 {
     ExecutorConfig config;
     config.dump_pipeline = context->getConfigRef().getBool(DUMP_PIPELINE, false);
     config.use_local_format = context->getConfigRef().getBool(USE_LOCAL_FORMAT, false);
     return config;
-}
-HdfsConfig HdfsConfig::loadFromContext(const Poco::Util::AbstractConfiguration & config, const DB::ReadSettings & read_settings)
-{
-    HdfsConfig hdfs;
-    if (read_settings.enable_filesystem_cache)
-        hdfs.hdfs_async = false;
-    else
-        hdfs.hdfs_async = config.getBool(HDFS_ASYNC, true);
-
-    return hdfs;
 }
 
 S3Config S3Config::loadFromContext(const DB::ContextPtr & context)
