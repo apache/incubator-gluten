@@ -929,4 +929,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       limitExpr: ExpressionTransformer,
       original: StringSplit): ExpressionTransformer =
     CHStringSplitTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
+
+  override def supportHiveTableScanNestedColumnPruning(): Boolean = true
 }
