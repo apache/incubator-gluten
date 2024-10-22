@@ -17,20 +17,18 @@
 package org.apache.spark.sql.delta
 
 import org.apache.gluten.backendsapi.clickhouse.CHConf
-import org.apache.gluten.execution.ColumnarToRowExecBase
 
 import org.apache.spark.SparkException
 import org.apache.spark.sql.Dataset
-import org.apache.spark.sql.catalyst.catalog.CatalogUtils
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.constraints.{Constraint, Constraints}
 import org.apache.spark.sql.delta.files.MergeTreeDelayedCommitProtocol
 import org.apache.spark.sql.delta.schema.InvariantViolationException
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
-import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FakeRowAdaptor, FileFormatWriter, GlutenWriterColumnarRules, WriteJobStatsTracker}
+import org.apache.spark.sql.execution.SQLExecution
+import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FileFormatWriter, GlutenWriterColumnarRules, WriteJobStatsTracker}
+import org.apache.spark.sql.execution.datasources.v1.MergeTreeWriterInjects
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.util.{Clock, SerializableConfiguration}
 
@@ -51,26 +49,6 @@ class ClickhouseOptimisticTransaction(
     )
   }
 
-  def insertFakeRowAdaptor(queryPlan: SparkPlan): SparkPlan = queryPlan match {
-    // if the child is columnar, we can just wrap&transfer the columnar data
-    case c2r: ColumnarToRowExecBase =>
-      FakeRowAdaptor(c2r.child)
-    // If the child is aqe, we make aqe "support columnar",
-    // then aqe itself will guarantee to generate columnar outputs.
-    // So FakeRowAdaptor will always consumes columnar data,
-    // thus avoiding the case of c2r->aqe->r2c->writer
-    case aqe: AdaptiveSparkPlanExec =>
-      FakeRowAdaptor(
-        AdaptiveSparkPlanExec(
-          aqe.inputPlan,
-          aqe.context,
-          aqe.preprocessingRules,
-          aqe.isSubquery,
-          supportsColumnar = true
-        ))
-    case other => FakeRowAdaptor(other)
-  }
-
   override def writeFiles(
       inputData: Dataset[_],
       writeOptions: Option[DeltaOptions],
@@ -86,18 +64,6 @@ class ClickhouseOptimisticTransaction(
         normalizeData(deltaLog, data)
 
       val tableV2 = ClickHouseTableV2.getTable(deltaLog)
-      val bukSpec = if (tableV2.catalogTable.isDefined) {
-        tableV2.bucketOption
-      } else {
-        tableV2.bucketOption.map {
-          bucketSpec =>
-            CatalogUtils.normalizeBucketSpec(
-              tableV2.tableName,
-              output.map(_.name),
-              bucketSpec,
-              spark.sessionState.conf.resolver)
-        }
-      }
       val committer =
         new MergeTreeDelayedCommitProtocol(
           outputPath.toString,
@@ -114,12 +80,8 @@ class ClickhouseOptimisticTransaction(
 
       SQLExecution.withNewExecutionId(queryExecution, Option("deltaTransactionalWrite")) {
         val queryPlan = queryExecution.executedPlan
-        val newQueryPlan = insertFakeRowAdaptor(queryPlan)
-        assert(output.size == newQueryPlan.output.size)
-        val newOutput = newQueryPlan.output.zip(output).map {
-          case (newAttr, oldAttr) =>
-            oldAttr.withExprId(newAttr.exprId)
-        }
+        val (newQueryPlan, newOutput) =
+          MergeTreeWriterInjects.insertFakeRowAdaptor(queryPlan, output)
         val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, newOutput)
         val partitioningColumns = getPartitioningColumns(partitionSchema, newOutput)
         val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
@@ -171,7 +133,8 @@ class ClickhouseOptimisticTransaction(
               .newHadoopConfWithOptions(metadata.configuration ++ deltaLog.options),
             // scalastyle:on deltahadoopconfiguration
             partitionColumns = partitioningColumns,
-            bucketSpec = bukSpec,
+            bucketSpec =
+              tableV2.normalizedBucketSpec(output.map(_.name), spark.sessionState.conf.resolver),
             statsTrackers = optionalStatsTracker.toSeq ++ statsTrackers,
             options = options
           )

@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.v1
 
+import org.apache.gluten.execution.ColumnarToRowExecBase
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
@@ -25,7 +26,9 @@ import org.apache.gluten.substrait.rel.RelBuilder
 import org.apache.gluten.utils.ConfigUtil
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, OutputWriter}
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
+import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeRowAdaptor, OutputWriter}
 import org.apache.spark.sql.execution.datasources.mergetree.{MetaSerializer, PartSerializer, StorageConfigProvider, StorageMeta}
 import org.apache.spark.sql.types.StructType
 
@@ -110,6 +113,37 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
   override val formatName: String = "mergetree"
 }
 
+object MergeTreeWriterInjects {
+  def insertFakeRowAdaptor(
+      queryPlan: SparkPlan,
+      output: Seq[Attribute]): (SparkPlan, Seq[Attribute]) = {
+    var result = queryPlan match {
+      // if the child is columnar, we can just wrap&transfer the columnar data
+      case c2r: ColumnarToRowExecBase =>
+        FakeRowAdaptor(c2r.child)
+      // If the child is aqe, we make aqe "support columnar",
+      // then aqe itself will guarantee to generate columnar outputs.
+      // So FakeRowAdaptor will always consumes columnar data,
+      // thus avoiding the case of c2r->aqe->r2c->writer
+      case aqe: AdaptiveSparkPlanExec =>
+        FakeRowAdaptor(
+          AdaptiveSparkPlanExec(
+            aqe.inputPlan,
+            aqe.context,
+            aqe.preprocessingRules,
+            aqe.isSubquery,
+            supportsColumnar = true
+          ))
+      case other => FakeRowAdaptor(other)
+    }
+    assert(output.size == result.output.size)
+    val newOutput = result.output.zip(output).map {
+      case (newAttr, oldAttr) =>
+        oldAttr.withExprId(newAttr.exprId)
+    }
+    (result, newOutput)
+  }
+}
 object CHMergeTreeWriterInjects {
 
   // scalastyle:off argcount
