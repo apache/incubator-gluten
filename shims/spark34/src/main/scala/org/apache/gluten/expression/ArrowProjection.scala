@@ -16,19 +16,17 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.vectorized.ArrowColumnarRow
-
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, Expression, ExpressionsEvaluator}
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
 import org.apache.spark.sql.types.{DataType, StructType}
 
 // Not thread safe.
-abstract class ArrowProjection extends (InternalRow => ArrowColumnarRow) with ExpressionsEvaluator {
-  def currentValue: ArrowColumnarRow
+abstract class ArrowProjection extends (InternalRow => ColumnarRow) with ExpressionsEvaluator {
+  def currentValue: ColumnarRow
 
   /** Uses the given row to store the output of the projection. */
-  def target(row: ArrowColumnarRow): ArrowProjection
+  def target(row: ColumnarRow): ArrowProjection
 }
 
 /** The factory object for `ArrowProjection`. */
