@@ -52,6 +52,11 @@ public class CacheResult implements Serializable {
     this.message = message;
   }
 
+  public CacheResult(Status status, String message) {
+    this.status = status;
+    this.message = message;
+  }
+
   public Status getStatus() {
     return status;
   }

@@ -285,7 +285,6 @@ object ExpressionMappings {
     Sig[CheckOverflow](CHECK_OVERFLOW),
     Sig[MakeDecimal](MAKE_DECIMAL),
     Sig[PromotePrecision](PROMOTE_PRECISION),
-    Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID),
     Sig[SparkPartitionID](SPARK_PARTITION_ID),
     Sig[AtLeastNNonNulls](AT_LEAST_N_NON_NULLS),
     Sig[WidthBucket](WIDTH_BUCKET),

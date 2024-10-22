@@ -210,14 +210,6 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
-    if ((list == null || list.isEmpty) && childCtx != null) {
-      // The computing for this project is not needed.
-      // the child may be an input adapter and childCtx is null. In this case we want to
-      // make a read node with non-empty base_schema.
-      context.registerEmptyRelToOperator(operatorId)
-      return childCtx
-    }
-
     val currRel =
       getRelNode(context, list, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Project Rel should be valid")

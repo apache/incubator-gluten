@@ -23,7 +23,6 @@ import org.apache.gluten.execution._
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
@@ -48,55 +47,6 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
  */
 sealed trait OffloadSingleNode extends Logging {
   def offload(plan: SparkPlan): SparkPlan
-}
-
-// Aggregation transformation.
-case class OffloadAggregate() extends OffloadSingleNode with LogLevelUtil {
-  override def offload(plan: SparkPlan): SparkPlan = plan match {
-    case plan if FallbackTags.nonEmpty(plan) =>
-      plan
-    case agg: HashAggregateExec =>
-      genHashAggregateExec(agg)
-    case other => other
-  }
-
-  /**
-   * Generate a plan for hash aggregation.
-   *
-   * @param plan
-   *   : the original Spark plan.
-   * @return
-   *   the actually used plan for execution.
-   */
-  private def genHashAggregateExec(plan: HashAggregateExec): SparkPlan = {
-    if (FallbackTags.nonEmpty(plan)) {
-      return plan
-    }
-
-    val aggChild = plan.child
-
-    // If child's output is empty, fallback or offload both the child and aggregation.
-    if (
-      aggChild.output.isEmpty && BackendsApiManager.getSettings
-        .fallbackAggregateWithEmptyOutputChild()
-    ) {
-      aggChild match {
-        case _: TransformSupport =>
-          // If the child is transformable, transform aggregation as well.
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          HashAggregateExecBaseTransformer.from(plan)
-        case p: SparkPlan if PlanUtil.isGlutenTableCache(p) =>
-          HashAggregateExecBaseTransformer.from(plan)
-        case _ =>
-          // If the child is not transformable, do not transform the agg.
-          FallbackTags.add(plan, "child output schema is empty")
-          plan
-      }
-    } else {
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      HashAggregateExecBaseTransformer.from(plan)
-    }
-  }
 }
 
 // Exchange transformation.
@@ -276,6 +226,9 @@ object OffloadOthers {
           val columnarChild = plan.child
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           ProjectExecTransformer(plan.projectList, columnarChild)
+        case plan: HashAggregateExec =>
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          HashAggregateExecBaseTransformer.from(plan)
         case plan: SortAggregateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           HashAggregateExecBaseTransformer.from(plan)

@@ -81,7 +81,8 @@ include_directories(
   ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-common/inc
   ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/llvm/include
   ${ClickHouse_SOURCE_DIR}/contrib/llvm-project/utils/bazel/llvm-project-overlay/llvm/include
-)
+  ${ClickHouse_SOURCE_DIR}/contrib/libdivide
+  ${ClickHouse_SOURCE_DIR}/contrib/libdivide-cmake)
 
 add_subdirectory(Storages/Parquet)
 add_subdirectory(Storages/SubstraitSource)
