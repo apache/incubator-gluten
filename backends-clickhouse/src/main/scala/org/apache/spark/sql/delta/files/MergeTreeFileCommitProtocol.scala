@@ -63,7 +63,7 @@ trait MergeTreeFileCommitProtocol extends FileCommitProtocol {
       "mapreduce.task.gluten.mergetree.bucketid",
       bucketIdStr.getOrElse(""))
 
-    val partition = dir.map(p => new Path(p).toUri.toString + "/").getOrElse()
+    val partition = dir.map(p => new Path(p).toUri.toString + "/").getOrElse("")
     val bucket = bucketIdStr.map(_ + "/").getOrElse("")
     val taskID = taskContext.getTaskAttemptID.getTaskID.getId.toString
     val partPrefix = s"$partition$bucket${UUID.randomUUID.toString}_$taskID"
