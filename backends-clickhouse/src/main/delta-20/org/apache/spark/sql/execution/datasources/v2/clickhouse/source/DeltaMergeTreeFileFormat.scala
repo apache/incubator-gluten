@@ -58,6 +58,7 @@ class DeltaMergeTreeFileFormat(metadata: Metadata)
     deltaMetaReader.storageConf.foreach { case (k, v) => conf.set(k, v) }
 
     new OutputWriterFactory {
+
       /** no extension for MergeTree */
       override def getFileExtension(context: TaskAttemptContext): String = ""
 
