@@ -76,12 +76,13 @@ public:
             return res;
         
         const DateLUTImpl * local_date_lut = &DateLUT::instance();
-        const DateLUTImpl * utc_date_lut = &DateLUT::instance("UTC");
-        UInt32 timeoffset_from_utc = utc_date_lut->getOffsetAtStartOfEpoch() - local_date_lut->getOffsetAtStartOfEpoch();
         for (size_t i = 0; i < input_rows; ++i)
         {
             const T t = col_src->getElement(i);
-            data[i] = static_cast<UInt32>(t * DATE_SECONDS_PER_DAY) + timeoffset_from_utc;
+            if constexpr (std::is_same_v<T, UInt16>)
+                data[i] = local_date_lut->fromDayNum(DayNum(t));
+            else
+                data[i] = local_date_lut->fromDayNum(ExtendedDayNum(t));
         }
         return res;
     }
