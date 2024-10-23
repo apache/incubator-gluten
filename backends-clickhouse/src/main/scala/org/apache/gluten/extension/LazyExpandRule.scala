@@ -16,14 +16,15 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.execution._
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.aggregate._
+import org.apache.spark.sql.execution.exchange._
 
 /*
  * For aggregation with grouping sets, we need to expand the grouping sets
@@ -40,8 +41,7 @@ import org.apache.spark.sql.execution.SparkPlan
  * So the plan is transformed from
  *   expand -> partial aggregating -> shuffle -> final merge aggregating
  * to
- *   partial aggregating -> shuffle -> merge aggregating -> expand
- *   -> final merge aggregating
+ *   partial aggregating -> expand -> shuffle -> final merge aggregating
  *
  * Notice:
  * If the aggregation involves distinct, we can't do this optimization.
@@ -49,32 +49,42 @@ import org.apache.spark.sql.execution.SparkPlan
 
 case class LazyExpandRule(session: SparkSession) extends Rule[SparkPlan] with Logging {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
-    case shuffle @ ColumnarShuffleExchangeExec(
-          outputPartitioning,
-          CHHashAggregateExecTransformer(
-            requiredChildDistributionExpressions,
-            groupingExpressions,
-            aggregateExpressions,
-            aggregateAttributes,
-            initialInputBufferOffset,
-            resultExpressions,
-            ExpandExecTransformer(projections, output, child)
-          ),
-          shuffleOrigin,
-          projectOutputAttributes,
-          advisoryPartitionSize
+    case finalAggregate @ HashAggregateExec(
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          ShuffleExchangeExec(
+            HashPartitioning(hashExpressions, _),
+            HashAggregateExec(
+              _,
+              _,
+              _,
+              groupingExpressions,
+              _,
+              _,
+              _,
+              resultExpressions,
+              ExpandExec(projections, output, child)),
+            _)
         ) =>
+      // move expand node after shuffle node
       if (
         projections.exists(
           projection =>
             projection.forall(
               e => !e.isInstanceOf[Literal] || e.asInstanceOf[Literal].value != null)) &&
-        groupingExpressions.forall(_.isInstanceOf[Attribute])
+        groupingExpressions.forall(_.isInstanceOf[Attribute]) &&
+        hashExpressions.forall(_.isInstanceOf[Attribute])
       ) {
-        // Build a new hash aggregate node. Need to replace the grouping keys with attributes from
-        // expand node's input. aggregateExpressions and aggregateExpressions doesn't neeed to be
-        // applied the replacement, since all the attributes in them are from the input of the
-        // expand node.
+        val shuffle =
+          finalAggregate.asInstanceOf[HashAggregateExec].child.asInstanceOf[ShuffleExchangeExec]
+        val partialAggregate = shuffle.child.asInstanceOf[HashAggregateExec]
+
         val attributesToReplace = buildReplaceAttributeMapForAggregate(
           groupingExpressions,
           projections,
@@ -88,52 +98,47 @@ case class LazyExpandRule(session: SparkSession) extends Rule[SparkPlan] with Lo
           resultExpressions
             .filter(_.name.startsWith("spark_grouping_id") == false)
             .map(e => attributesToReplace.getOrElse(e.name, e))
-        val newAggregate = CHHashAggregateExecTransformer(
-          requiredChildDistributionExpressions,
-          newGroupingExpresion,
-          aggregateExpressions,
-          aggregateAttributes,
-          initialInputBufferOffset,
-          newResultExpressions,
-          child
-        )
-        val hashAggregateOutput = newAggregate.output
-
-        // build a new expand node
-        val newExpandOutput = shuffle.child
-          .asInstanceOf[CHHashAggregateExecTransformer]
-          .output
+        val newHashExpresions =
+          hashExpressions
+            .filter(_.asInstanceOf[Attribute].name.startsWith("spark_grouping_id") == false)
+            .map {
+              e =>
+                e match {
+                  case ne: NamedExpression => attributesToReplace.getOrElse(ne.name, e)
+                  case _ => e
+                }
+            }
         val newExpandProjectionTemplate =
-          newExpandOutput.map(e => attributesToReplace.getOrElse(e.name, e))
+          partialAggregate.output.map(e => attributesToReplace.getOrElse(e.name, e))
         val newExpandProjections = buildNewExpandProjections(
           groupingExpressions,
           projections,
           output,
           newExpandProjectionTemplate
         )
-        val newExpand = ExpandExecTransformer(newExpandProjections, newExpandOutput, newAggregate)
-        logError(s"xxx new expand: $newExpand")
-        ColumnarShuffleExchangeExec(
-          outputPartitioning,
-          newExpand,
-          shuffleOrigin,
-          projectOutputAttributes,
-          advisoryPartitionSize)
+        val newPartialAggregate = partialAggregate.copy(
+          groupingExpressions = newGroupingExpresion,
+          resultExpressions = newResultExpressions,
+          child = child
+        )
+        val newExpand =
+          ExpandExec(newExpandProjections, partialAggregate.output, newPartialAggregate)
+        val newShuffle = shuffle.copy(child = newExpand)
+        finalAggregate.copy(child = newShuffle)
       } else {
-        // It may be a case that involves two distinct aggregations.e.g.
-        // select k, count(distinct v1), count(distinct v2) from t group by k with cube
-        shuffle
+        finalAggregate
       }
-    case node =>
-      logError(s"xxx node: ${node.getClass}")
-      node
   }
 
   def buildReplaceAttributeMapForAggregate(
       originalGroupingExpressions: Seq[NamedExpression],
       originalExpandProjections: Seq[Seq[Expression]],
       originalExpandOutput: Seq[Attribute]): Map[String, Attribute] = {
-    val fullExpandProjection = originalExpandProjections(0)
+    val fullExpandProjection = originalExpandProjections
+      .filter(
+        projection =>
+          projection.forall(
+            e => !e.isInstanceOf[Literal] || e.asInstanceOf[Literal].value != null))(0)
     var attributeMap = Map[String, Attribute]()
     originalGroupingExpressions.filter(_.name.startsWith("spark_grouping_id") == false).foreach {
       e =>
