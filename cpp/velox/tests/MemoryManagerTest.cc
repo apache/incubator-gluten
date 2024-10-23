@@ -142,6 +142,12 @@ class AllocationListenerWrapper : public AllocationListener {
   }
 
   void allocationChanged(int64_t diff) override {
+    if (delegate_ == nullptr)  {
+      if (diff > 0) {
+        throw std::runtime_error("changed without delegate");
+      }
+      return;
+    }
     delegate_->allocationChanged(diff);
   }
   int64_t currentBytes() override {
@@ -331,7 +337,7 @@ class MultiMemoryManagerTest : public ::testing::Test {
   static void SetUpTestCase() {
     std::unordered_map<std::string, std::string> conf = {
         {kMemoryReservationBlockSize, std::to_string(kMemoryReservationBlockSizeDefault)},
-        {kVeloxMemInitCapacity, std::to_string(kVeloxMemInitCapacityDefault)}};
+        {kVeloxMemInitCapacity, std::to_string(0)}};
     gluten::VeloxBackend::create(conf);
   }
 
@@ -373,7 +379,7 @@ TEST_F(MultiMemoryManagerTest, spill) {
             [](uint64_t bytes) -> uint64_t { return 0; },
             [i, &vmms, &mutex](uint64_t bytes) -> uint64_t {
               std::unique_lock<std::recursive_mutex> l(mutex);
-              return vmms[i]->getMemoryManager()->arbitrator()->shrinkCapacity(bytes);
+              return vmms[i]->getMemoryManager()->shrinkPools(bytes);
             }));
       }
       {
@@ -393,7 +399,7 @@ TEST_F(MultiMemoryManagerTest, spill) {
 
   for (auto& vmm : vmms) {
     assertCapacitiesMatch(tmm, vmms);
-    vmm->getMemoryManager()->arbitrator()->shrinkCapacity(allocateSize * numAllocations);
+    vmm->getMemoryManager()->shrinkPools(allocateSize * numAllocations);
     assertCapacitiesMatch(tmm, vmms);
   }
 
