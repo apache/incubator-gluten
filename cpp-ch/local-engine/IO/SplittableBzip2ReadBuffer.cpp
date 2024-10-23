@@ -1,4 +1,5 @@
 #include "SplittableBzip2ReadBuffer.h"
+#include "base/find_symbols.h"
 
 #if USE_BZIP2
 #include <IO/SeekableReadBuffer.h>
@@ -135,8 +136,16 @@ void SplittableBzip2ReadBuffer::hbCreateDecodeTables(
 }
 
 SplittableBzip2ReadBuffer::SplittableBzip2ReadBuffer(
-    std::unique_ptr<ReadBuffer> in_, size_t buf_size, char * existing_memory, size_t alignment)
+    std::unique_ptr<ReadBuffer> in_,
+    bool start_need_special_process_,
+    bool end_need_special_process_,
+    size_t buf_size,
+    char * existing_memory,
+    size_t alignment)
     : CompressedReadBufferWrapper(std::move(in_), buf_size, existing_memory, alignment)
+    , start_need_special_process(start_need_special_process_)
+    , end_need_special_process(end_need_special_process_)
+    , is_first_block(true)
     , blockSize100k(9)
     , currentState(STATE::NO_PROCESS_STATE)
     , skipResult(false)
@@ -155,9 +164,9 @@ SplittableBzip2ReadBuffer::SplittableBzip2ReadBuffer(
 {
     auto * seekable = dynamic_cast<SeekableReadBuffer*>(in.get());
     skipResult = skipToNextMarker(BLOCK_DELIMITER, DELIMITER_BIT_LENGTH);
-    /// Update adjusted_start
     if (seekable && skipResult)
     {
+        /// Update adjusted_start
         adjusted_start = seekable->getPosition();
     }
     changeStateToProcessABlock();
@@ -197,6 +206,34 @@ bool SplittableBzip2ReadBuffer::nextImpl()
         result = read(dest, dest_size, offset, dest_size - offset);
         if (result > 0)
             offset += result;
+        else if (result == BZip2Constants::END_OF_BLOCK && is_first_block && start_need_special_process)
+        {
+            /// Special processing for the first block
+            /// Notice that row delim could be \n (Unix) or \r\n (DOS/Windows) or \n\r (Mac OS Classic)
+
+            is_first_block = false;
+            Position end = dest + offset;
+            auto * pos = find_last_symbols_or_null<'\n'>(dest, end);
+            if (pos)
+            {
+                if (pos == end - 1 || (pos == end - 2 && *(pos + 1) == '\r'))
+                {
+                    /// The last row ends with \n or \r\n or \n\r, discard all lines in internal buffer
+                    offset = 0;
+                }
+                else
+                {
+                    /// The last row does not end with \n or \r\n or \n\r, rewrite the last row to internal buffer
+                    Position last_line = pos + 1;
+                    size_t last_line_size = end - pos - 1;
+                    if (*(pos + 1) == '\r')
+                        last_line_size--;
+
+                    memmove(dest, last_line, last_line_size);
+                    offset = last_line_size;
+                }
+            }
+        }
     } while (result != BZip2Constants::END_OF_STREAM && offset < dest_size);
 
     if (offset)

@@ -29,6 +29,7 @@
 #include <IO/ReadBufferFromFile.h>
 #include <IO/ReadBufferFromS3.h>
 #include <IO/ReadSettings.h>
+#include <IO/SplittableBzip2ReadBuffer.h>
 #include <IO/S3/getObjectInfo.h>
 #include <IO/S3Common.h>
 #include <IO/SeekableReadBuffer.h>
@@ -674,7 +675,68 @@ ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFi
     /// Wrap the read buffer with compression method if exists
     Poco::URI file_uri(file_info.uri_file());
     DB::CompressionMethod compression = DB::chooseCompressionMethod(file_uri.getPath(), "auto");
-    return compression != DB::CompressionMethod::None ? DB::wrapReadBufferWithCompressionMethod(std::move(in), compression) : std::move(in);
+
+    if (compression == CompressionMethod::None)
+        return std::move(in);
+    if (compression != CompressionMethod::Bzip2)
+        return DB::wrapReadBufferWithCompressionMethod(std::move(in), compression);
+
+    /// Bzip2 compressed file is splittable and we need to adjust read range for each split
+    auto * seekable = dynamic_cast<SeekableReadBuffer *>(in.release());
+    if (!seekable)
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "ReadBuffer underlying BZIP2 decompressor must be seekable");
+    std::unique_ptr<SeekableReadBuffer> seekable_in(seekable);
+
+    size_t file_size = getFileSizeFromReadBuffer(*in);
+    size_t start = file_info.start();
+    size_t end = file_info.start() + file_info.length();
+
+    /// No need to adjust start becuase it is processed inside SplittableBzip2ReadBuffer
+    size_t new_start = start;
+
+    /// Adjust end
+    size_t new_end = end;
+    if (end < file_size)
+    {
+        Int64 bs_buff = 0;
+        Int64 bs_live = 0;
+
+        /// From end position skip to the second block delimiter.
+        seekable_in->seek(end, SEEK_SET);
+        for (size_t i = 0; i < 2; ++i)
+        {
+            size_t pos = seekable->getPosition();
+            bool ok = SplittableBzip2ReadBuffer::skipToNextMarker(
+                SplittableBzip2ReadBuffer::BLOCK_DELIMITER,
+                SplittableBzip2ReadBuffer::DELIMITER_BIT_LENGTH,
+                *seekable_in,
+                bs_buff,
+                bs_live);
+
+            if (!ok)
+                throw Exception(ErrorCodes::LOGICAL_ERROR, "Can't find next block delimiter in after offset: {}", pos);
+        }
+        new_end = seekable->getPosition() - SplittableBzip2ReadBuffer::DELIMITER_BIT_LENGTH / 8 + 1;
+    }
+    LOG_DEBUG(
+        &Poco::Logger::get("ReadBufferBuilder"),
+        "File read start and end position adjusted from {},{} to {},{}",
+        start,
+        end,
+        new_start,
+        new_end);
+
+    std::unique_ptr<SeekableReadBuffer> bounded_in;
+    if (dynamic_cast<DB::ReadBufferFromHDFS *>(seekable_in.get()) || dynamic_cast<DB::ReadBufferFromFile *>(seekable_in.get()))
+        bounded_in = std::make_unique<BoundedReadBuffer>(std::move(seekable_in));
+    else
+        bounded_in = std::move(seekable_in);
+
+    seekable->seek(new_start, SEEK_SET);
+    seekable->setReadUntilPosition(new_end);
+
+    auto decompressed_in = std::make_unique<SplittableBzip2ReadBuffer>(std::move(bounded_in));
+    return std::move(decompressed_in);
 }
 
 ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
