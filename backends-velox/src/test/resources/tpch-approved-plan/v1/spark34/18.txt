@@ -2,7 +2,7 @@
 AdaptiveSparkPlan (110)
 +- == Final Plan ==
    VeloxColumnarToRow (70)
-   +- TakeOrderedAndProjectExecTransformer (69)
+   +- ^ TopNTransformer (68)
       +- ^ RegularHashAggregateExecTransformer (67)
          +- ^ RegularHashAggregateExecTransformer (66)
             +- ^ ProjectExecTransformer (65)
@@ -386,13 +386,13 @@ Functions [1]: [sum(l_quantity#X)]
 Aggregate Attributes [1]: [sum(l_quantity#X)#X]
 Results [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity#X)#X AS sum(l_quantity)#X]
 
-(68) WholeStageCodegenTransformer (X)
+(68) TopNTransformer
+Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
+Arguments: X, [o_totalprice#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], true
+
+(69) WholeStageCodegenTransformer (X)
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
 Arguments: false
-
-(69) TakeOrderedAndProjectExecTransformer
-Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
-Arguments: X, [o_totalprice#X DESC NULLS LAST, o_orderdate#X ASC NULLS FIRST], [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X], 0
 
 (70) VeloxColumnarToRow
 Input [6]: [c_name#X, c_custkey#X, o_orderkey#X, o_orderdate#X, o_totalprice#X, sum(l_quantity)#X]
