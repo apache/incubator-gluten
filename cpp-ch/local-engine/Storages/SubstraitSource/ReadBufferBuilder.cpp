@@ -676,7 +676,7 @@ ReadBufferBuilder::wrapWithBzip2(std::unique_ptr<DB::ReadBuffer> in, const subst
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "ReadBuffer underlying BZIP2 decompressor must be seekable");
     std::unique_ptr<SeekableReadBuffer> seekable_in(seekable);
 
-    size_t file_size = getFileSizeFromReadBuffer(*in);
+    size_t file_size = getFileSizeFromReadBuffer(*seekable_in);
     size_t start = file_info.start();
     size_t end = file_info.start() + file_info.length();
 
