@@ -109,6 +109,8 @@ public class TreeMemoryConsumerTest {
   @Test
   public void testSpill() {
     final SQLConf conf = new SQLConf();
+    conf.setConfString("spark.memory.offHeap.enabled", "true");
+    conf.setConfString("spark.memory.offHeap.size", "400");
     conf.setConfString(
         GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
     test(
@@ -151,6 +153,8 @@ public class TreeMemoryConsumerTest {
   @Test
   public void testOverSpill() {
     final SQLConf conf = new SQLConf();
+    conf.setConfString("spark.memory.offHeap.enabled", "true");
+    conf.setConfString("spark.memory.offHeap.size", "400");
     conf.setConfString(
         GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
     test(
