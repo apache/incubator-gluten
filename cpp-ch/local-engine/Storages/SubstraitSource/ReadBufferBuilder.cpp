@@ -743,7 +743,7 @@ ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFi
         return wrapWithBzip2(std::move(in), file_info);
     else
         return wrapReadBufferWithCompressionMethod(std::move(in), compression);
-
+}
 
 ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
     ReadBufferCreator read_buffer_creator,
