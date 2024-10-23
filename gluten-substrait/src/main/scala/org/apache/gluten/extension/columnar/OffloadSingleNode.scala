@@ -201,7 +201,7 @@ object OffloadOthers {
   // Do not look-up on children on the input node in this rule. Otherwise
   // it may break RAS which would group all the possible input nodes to
   // search for validate candidates.
-  class ReplaceSingleNode() extends LogLevelUtil with Logging {
+  private class ReplaceSingleNode() extends LogLevelUtil with Logging {
 
     def doReplace(p: SparkPlan): SparkPlan = {
       val plan = p
