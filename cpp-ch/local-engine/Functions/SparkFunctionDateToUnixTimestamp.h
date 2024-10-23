@@ -23,6 +23,7 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <Functions/FunctionFactory.h>
+#include <iostream>
 
 namespace DB
 {
@@ -42,14 +43,7 @@ class SparkFunctionDateToUnixTimestamp : public IFunction
 public:
     static constexpr auto name = "sparkDateToUnixTimestamp";
     static FunctionPtr create(ContextPtr) { return std::make_shared<SparkFunctionDateToUnixTimestamp>(); }
-    SparkFunctionDateToUnixTimestamp()
-    {
-        const DateLUTImpl * date_lut = &DateLUT::instance("UTC");
-        UInt32 utc_timestamp = static_cast<UInt32>(0);
-        LocalDateTime date_time(utc_timestamp, *date_lut);
-        UInt32 unix_timestamp = date_time.to_time_t();
-        delta_timestamp_from_utc = unix_timestamp - utc_timestamp;
-    }
+    SparkFunctionDateToUnixTimestamp() {}
     ~SparkFunctionDateToUnixTimestamp() override = default;
     String getName() const override { return name; }
     bool isSuitableForShortCircuitArgumentsExecution(const DB::DataTypesWithConstInfo &) const override { return true; }
@@ -82,16 +76,16 @@ public:
         if (col->size() == 0)
             return res;
         
+        const DateLUTImpl * local_date_lut = &DateLUT::instance();
+        const DateLUTImpl * utc_date_lut = &DateLUT::instance("UTC");
+        UInt32 timeoffset_from_utc = utc_date_lut->getOffsetAtStartOfEpoch() - local_date_lut->getOffsetAtStartOfEpoch();
         for (size_t i = 0; i < input_rows; ++i)
         {
             const T t = col_src->getElement(i);
-            data[i] = static_cast<UInt32>(t * DATE_SECONDS_PER_DAY) + delta_timestamp_from_utc;
+            data[i] = static_cast<UInt32>(t * DATE_SECONDS_PER_DAY) + timeoffset_from_utc;
         }
         return res;
     }
-
-private:
-    UInt32 delta_timestamp_from_utc;
 };
 
 }

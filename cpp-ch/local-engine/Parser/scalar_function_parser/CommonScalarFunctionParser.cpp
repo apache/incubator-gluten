@@ -59,7 +59,6 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Xor, xor, xor);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Cast, cast, CAST);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(GetTimestamp, get_timestamp, parseDateTimeInJodaSyntaxOrNull);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Quarter, quarter, toQuarter);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ToUnixTimestamp, to_unix_timestamp, parseDateTimeInJodaSyntaxOrNull);
 
 // math functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Position, positive, identity);
