@@ -16,7 +16,7 @@
  */
 
 #include "VeloxMemoryManager.h"
-#ifdef ENABLE_JEMALLOC
+#ifdef ENABLE_JEMALLOC_STATS
 #include <jemalloc/jemalloc.h>
 #endif
 
@@ -377,7 +377,7 @@ VeloxMemoryManager::~VeloxMemoryManager() {
     LOG(ERROR) << "Failed to release Velox memory manager after " << accumulatedWaitMs
                << "ms as there are still outstanding memory resources. ";
   }
-#ifdef ENABLE_JEMALLOC
+#ifdef ENABLE_JEMALLOC_STATS
   je_gluten_malloc_stats_print(NULL, NULL, NULL);
 #endif
 }
