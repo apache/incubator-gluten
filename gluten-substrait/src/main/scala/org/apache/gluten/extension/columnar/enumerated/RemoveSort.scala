@@ -30,7 +30,7 @@ import org.apache.spark.sql.execution.SparkPlan
  * Removes unnecessary sort if its parent doesn't require for sorted input.
  *
  * TODO: Sort's removal could be made much simpler once output ordering is added as a physical
- * property in RAS planer.
+ *  property in RAS planer.
  */
 object RemoveSort extends RasRule[SparkPlan] {
   private val appliedTypes: Seq[Class[_ <: GlutenPlan]] =
