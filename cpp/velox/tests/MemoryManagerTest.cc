@@ -373,7 +373,8 @@ TEST_F(MultiMemoryManagerTest, spill) {
             [](uint64_t bytes) -> uint64_t { return 0; },
             [i, &vmms, &mutex](uint64_t bytes) -> uint64_t {
               std::unique_lock<std::recursive_mutex> l(mutex);
-              return vmms[i]->getMemoryManager()->arbitrator()->shrinkCapacity(bytes);
+              auto p = vmms[i]->getLeafMemoryPool().get();
+              return vmms[i]->getMemoryManager()->arbitrator()->shrinkCapacity(p, bytes);
             }));
       }
       {
@@ -393,7 +394,8 @@ TEST_F(MultiMemoryManagerTest, spill) {
 
   for (auto& vmm : vmms) {
     assertCapacitiesMatch(tmm, vmms);
-    vmm->getMemoryManager()->arbitrator()->shrinkCapacity(allocateSize * numAllocations);
+    auto pool = vmm->getLeafMemoryPool().get();
+    vmm->getMemoryManager()->arbitrator()->shrinkCapacity(pool, allocateSize * numAllocations);
     assertCapacitiesMatch(tmm, vmms);
   }
 
