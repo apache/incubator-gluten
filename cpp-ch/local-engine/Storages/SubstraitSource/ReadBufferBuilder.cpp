@@ -668,19 +668,8 @@ DB::ReadSettings ReadBufferBuilder::getReadSettings() const
 }
 
 std::unique_ptr<DB::ReadBuffer>
-ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info)
+ReadBufferBuilder::wrapWithBzip2(std::unique_ptr<DB::ReadBuffer> in, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info)
 {
-    auto in = build(file_info);
-
-    /// Wrap the read buffer with compression method if exists
-    Poco::URI file_uri(file_info.uri_file());
-    DB::CompressionMethod compression = DB::chooseCompressionMethod(file_uri.getPath(), "auto");
-
-    if (compression == CompressionMethod::None)
-        return std::move(in);
-    if (compression != CompressionMethod::Bzip2)
-        return DB::wrapReadBufferWithCompressionMethod(std::move(in), compression);
-
     /// Bzip2 compressed file is splittable and we need to adjust read range for each split
     auto * seekable = dynamic_cast<SeekableReadBuffer *>(in.release());
     if (!seekable)
@@ -691,10 +680,10 @@ ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFi
     size_t start = file_info.start();
     size_t end = file_info.start() + file_info.length();
 
-    /// No need to adjust start becuase it is processed inside SplittableBzip2ReadBuffer
+    /// No need to adjust start becuase it is already processed inside SplittableBzip2ReadBuffer
     size_t new_start = start;
 
-    /// Adjust end
+    /// Extend end to the end of next block.
     size_t new_end = end;
     if (end < file_size)
     {
@@ -705,7 +694,7 @@ ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFi
         seekable_in->seek(end, SEEK_SET);
         for (size_t i = 0; i < 2; ++i)
         {
-            size_t pos = seekable->getPosition();
+            size_t pos = seekable_in->getPosition();
             bool ok = SplittableBzip2ReadBuffer::skipToNextMarker(
                 SplittableBzip2ReadBuffer::BLOCK_DELIMITER,
                 SplittableBzip2ReadBuffer::DELIMITER_BIT_LENGTH,
@@ -716,7 +705,7 @@ ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFi
             if (!ok)
                 throw Exception(ErrorCodes::LOGICAL_ERROR, "Can't find next block delimiter in after offset: {}", pos);
         }
-        new_end = seekable->getPosition() - SplittableBzip2ReadBuffer::DELIMITER_BIT_LENGTH / 8 + 1;
+        new_end = seekable_in->getPosition() - SplittableBzip2ReadBuffer::DELIMITER_BIT_LENGTH / 8 + 1;
     }
     LOG_DEBUG(
         &Poco::Logger::get("ReadBufferBuilder"),
@@ -732,12 +721,29 @@ ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFi
     else
         bounded_in = std::move(seekable_in);
 
-    seekable->seek(new_start, SEEK_SET);
-    seekable->setReadUntilPosition(new_end);
-
-    auto decompressed_in = std::make_unique<SplittableBzip2ReadBuffer>(std::move(bounded_in));
+    bounded_in->seek(new_start, SEEK_SET);
+    bounded_in->setReadUntilPosition(new_end);
+    bool first_block_need_special_process = (new_start > 0);
+    bool last_block_need_special_process = (new_end < file_size);
+    auto decompressed_in = std::make_unique<SplittableBzip2ReadBuffer>(
+        std::move(bounded_in), first_block_need_special_process, last_block_need_special_process);
     return std::move(decompressed_in);
 }
+
+std::unique_ptr<DB::ReadBuffer>
+ReadBufferBuilder::buildWithCompressionWrapper(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info)
+{
+    auto in = build(file_info);
+
+    /// Wrap the read buffer with compression method if exists
+    Poco::URI file_uri(file_info.uri_file());
+    DB::CompressionMethod compression = DB::chooseCompressionMethod(file_uri.getPath(), "auto");
+
+    if (compression == CompressionMethod::Bzip2)
+        return wrapWithBzip2(std::move(in), file_info);
+    else
+        return wrapReadBufferWithCompressionMethod(std::move(in), compression);
+
 
 ReadBufferBuilder::ReadBufferCreator ReadBufferBuilder::wrapWithCache(
     ReadBufferCreator read_buffer_creator,
