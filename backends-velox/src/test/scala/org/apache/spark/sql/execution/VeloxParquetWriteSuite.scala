@@ -29,12 +29,11 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    //createTPCHNotNullTables()
+    createTPCHNotNullTables()
   }
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf.set("spark.gluten.sql.native.writer.enabled", "true")
-      .set("spark.gluten.sql.debug", "true")
   }
 
   test("test Array(Struct) fallback") {
@@ -124,15 +123,6 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
         "CREATE TABLE bucket USING PARQUET CLUSTERED BY (p) INTO 7 BUCKETS " +
           "AS SELECT * FROM bucket_temp")
       Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
-    }
-  }
-
-  test("yc test") {
-    withTable("t") {
-      sql("create table t (id string) using parquet");
-      sql("insert into t values('\\t\\n\\u001F 123\\u000B')")
-      sql("select * from t").show()
-      sql("select cast(id as int) from t").show()
     }
   }
 }
