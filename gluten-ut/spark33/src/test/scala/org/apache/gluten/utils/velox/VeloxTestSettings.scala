@@ -652,10 +652,10 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetDeltaByteArrayEncodingSuite]
   enableSuite[GlutenParquetDeltaEncodingInteger]
   enableSuite[GlutenParquetDeltaEncodingLong]
-    // Velox does not support rle encoding.
-    .exclude("parquet v2 pages - rle encoding for boolean value columns")
   enableSuite[GlutenParquetDeltaLengthByteArrayEncodingSuite]
   enableSuite[GlutenParquetEncodingSuite]
+    // Velox does not support rle encoding.
+    .exclude("parquet v2 pages - rle encoding for boolean value columns")
   enableSuite[GlutenParquetFieldIdIOSuite]
   enableSuite[GlutenParquetFileFormatV1Suite]
   enableSuite[GlutenParquetFileFormatV2Suite]
