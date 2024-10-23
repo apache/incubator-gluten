@@ -150,10 +150,10 @@ public class TreeMemoryConsumerTest {
 
   @Test
   public void testOverSpill() {
-      final SQLConf conf = new SQLConf();
-      conf.setConfString(
-          GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
-      test(
+    final SQLConf conf = new SQLConf();
+    conf.setConfString(
+        GlutenConfig.COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES().key(), "100");
+    test(
         conf,
         () -> {
           final Spillers.AppendableSpillerList spillers = Spillers.appendable();
@@ -190,7 +190,7 @@ public class TreeMemoryConsumerTest {
         });
   }
 
- private void test(SQLConf conf, Runnable r) {
+  private void test(SQLConf conf, Runnable r) {
     TaskResources$.MODULE$.runUnsafe(
         new Function0<Object>() {
           @Override
