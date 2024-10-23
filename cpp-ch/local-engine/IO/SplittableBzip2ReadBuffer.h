@@ -51,6 +51,11 @@ public:
 
 class SplittableBzip2ReadBuffer : public CompressedReadBufferWrapper
 {
+public:
+    static constexpr Int64 BLOCK_DELIMITER = 0X314159265359L;
+    static constexpr Int64 EOS_DELIMITER = 0X177245385090L;
+    static constexpr Int32 DELIMITER_BIT_LENGTH = 48;
+
 private:
     struct Data
     {
@@ -164,9 +169,24 @@ private:
         NO_PROCESS_STATE
     };
 
-    static constexpr Int64 BLOCK_DELIMITER = 0X314159265359L;
-    static constexpr Int64 EOS_DELIMITER = 0X177245385090L;
-    static constexpr Int32 DELIMITER_BIT_LENGTH = 48;
+    /// If current bzip2 file split is not the fist one, then start_need_special_process should be true.
+    /// When it is true, the decompressed result of the first block will be ignored except the last line.
+    /// Case1:
+    /// e.g. "line1 \n line2 \n line3", line1 and line2 will be ignored because they are processed in the previous split.
+    /// We are not sure if line3 is a completed line, so line3 will be concated before the decompressed result of the next block in current split.
+    /// Case2:
+    /// e.g. "line2 \n line2 \n line3 \n", all lines will be ignored because they are processed in the previous split.
+    const bool start_need_special_process;
+
+    /// If current bzip2 file split is not the last one, then end_need_special_process should be true.
+    /// When it is true, the decompressed result of the last block will be processed except the last line.
+    /// Case1:
+    /// e.g. "line1 \n line2 \n line3", line3 will be ignored because it is processed in the next split.
+    /// Case2:
+    /// e.g. "line1 \n line2 \n line3 \n", all lines will be processed because we are pretty sure that line3 is a completed line.
+    const bool end_need_special_process;
+    bool is_first_block;
+
 
     Int32 blockSize100k;
     STATE currentState;
@@ -212,6 +232,8 @@ private:
 public:
     explicit SplittableBzip2ReadBuffer(
         std::unique_ptr<ReadBuffer> in_,
+        bool start_need_special_process_ = false,
+        bool end_need_special_process_ = false,
         size_t buf_size = DBMS_DEFAULT_BUFFER_SIZE,
         char * existing_memory = nullptr,
         size_t alignment = 0);
