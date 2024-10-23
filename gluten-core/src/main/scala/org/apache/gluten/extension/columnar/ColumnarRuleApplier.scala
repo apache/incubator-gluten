@@ -38,10 +38,4 @@ object ColumnarRuleApplier {
       new GlutenConfig(session.sessionState.conf)
     }
   }
-
-  // A temporary workaround for applying toggle `spark.gluten.enabled`, to be removed.
-  trait SkipCondition {
-    // True if the rule execution should be skipped.
-    def skip(session: SparkSession, plan: SparkPlan): Boolean
-  }
 }

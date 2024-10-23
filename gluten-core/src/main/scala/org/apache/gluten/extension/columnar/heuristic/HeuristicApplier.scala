@@ -17,7 +17,7 @@
 package org.apache.gluten.extension.columnar.heuristic
 
 import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.ColumnarRuleApplier.{ColumnarRuleBuilder, ColumnarRuleCall, SkipCondition}
+import org.apache.gluten.extension.columnar.ColumnarRuleApplier.{ColumnarRuleBuilder, ColumnarRuleCall}
 import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
 
@@ -32,7 +32,6 @@ import org.apache.spark.sql.execution.SparkPlan
  */
 class HeuristicApplier(
     session: SparkSession,
-    skipConditions: Seq[SkipCondition],
     transformBuilders: Seq[ColumnarRuleBuilder],
     fallbackPolicyBuilders: Seq[ColumnarRuleBuilder],
     postBuilders: Seq[ColumnarRuleBuilder],
@@ -43,9 +42,6 @@ class HeuristicApplier(
   private val adaptiveContext = AdaptiveContext(session)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    if (skipConditions.exists(_.skip(session, plan))) {
-      return plan
-    }
     val call = new ColumnarRuleCall(session, adaptiveContext, outputsColumnar)
     makeRule(call).apply(plan)
   }

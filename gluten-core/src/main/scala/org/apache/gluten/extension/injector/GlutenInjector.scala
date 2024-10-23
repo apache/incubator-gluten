@@ -19,7 +19,7 @@ package org.apache.gluten.extension.injector
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.GlutenColumnarRule
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier
-import org.apache.gluten.extension.columnar.ColumnarRuleApplier.{ColumnarRuleBuilder, SkipCondition}
+import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleBuilder
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedApplier
 import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
 
@@ -28,9 +28,8 @@ import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import scala.collection.mutable
 
 /** Injector used to inject query planner rules into Gluten. */
-class GlutenInjector private[injector] {
+class GlutenInjector private[injector](control: InjectorControl) {
   import GlutenInjector._
-  private val skipConditions: mutable.ListBuffer[SkipCondition] = mutable.ListBuffer()
   val legacy: LegacyInjector = new LegacyInjector()
   val ras: RasInjector = new RasInjector()
 
@@ -41,13 +40,9 @@ class GlutenInjector private[injector] {
   private def applier(session: SparkSession): ColumnarRuleApplier = {
     val conf = new GlutenConfig(session.sessionState.conf)
     if (conf.enableRas) {
-      return ras.createApplier(session, skipConditions.toSeq)
+      return ras.createApplier(session)
     }
-    legacy.createApplier(session, skipConditions.toSeq)
-  }
-
-  def skipOn(skipCondition: SkipCondition): Unit = {
-    skipConditions += skipCondition
+    legacy.createApplier(session)
   }
 }
 
@@ -75,11 +70,9 @@ object GlutenInjector {
     }
 
     private[injector] def createApplier(
-        session: SparkSession,
-        skipConditions: Seq[SkipCondition]): ColumnarRuleApplier = {
+        session: SparkSession): ColumnarRuleApplier = {
       new HeuristicApplier(
         session,
-        skipConditions,
         transformBuilders.toSeq,
         fallbackPolicyBuilders.toSeq,
         postBuilders.toSeq,
@@ -95,9 +88,8 @@ object GlutenInjector {
     }
 
     private[injector] def createApplier(
-        session: SparkSession,
-        skipConditions: Seq[SkipCondition]): ColumnarRuleApplier = {
-      new EnumeratedApplier(session, skipConditions, ruleBuilders.toSeq)
+        session: SparkSession): ColumnarRuleApplier = {
+      new EnumeratedApplier(session, ruleBuilders.toSeq)
     }
   }
 }

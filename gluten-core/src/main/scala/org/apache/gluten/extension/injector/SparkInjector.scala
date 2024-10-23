@@ -26,10 +26,9 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
 /** Injector used to inject query planner rules into Spark. */
-class SparkInjector private[injector] (extensions: SparkSessionExtensions) {
-
+class SparkInjector private[injector] (control: InjectorControl, extensions: SparkSessionExtensions) {
   def injectQueryStagePrepRule(builder: SparkSession => Rule[SparkPlan]): Unit = {
-    extensions.injectQueryStagePrepRule(builder)
+    extensions.injectQueryStagePrepRule(session => control.physicalRuleWithDisabler(session, builder(session)))
   }
 
   def injectResolutionRule(builder: SparkSession => Rule[LogicalPlan]): Unit = {
