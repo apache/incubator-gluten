@@ -29,7 +29,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.aggregate.{ObjectHashAggregateExec, SortAggregateExec}
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 import org.apache.spark.sql.execution.exchange.Exchange
@@ -62,16 +62,14 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
     Seq(
       RasOffload.from[Exchange](OffloadExchange()),
       RasOffload.from[BaseJoinExec](OffloadJoin()),
-      RasOffloadHashAggregate,
-      RasOffloadFilter,
-      RasOffloadProject,
+      RasOffload.from[FilterExec](OffloadOthers()),
+      RasOffload.from[ProjectExec](OffloadOthers()),
       RasOffload.from[DataSourceV2ScanExecBase](OffloadOthers()),
       RasOffload.from[DataSourceScanExec](OffloadOthers()),
       RasOffload
-        .from(
-          (node: SparkPlan) => HiveTableScanExecTransformer.isHiveTableScan(node),
-          OffloadOthers()),
+        .from(HiveTableScanExecTransformer.isHiveTableScan, OffloadOthers()),
       RasOffload.from[CoalesceExec](OffloadOthers()),
+      RasOffload.from[HashAggregateExec](OffloadOthers()),
       RasOffload.from[SortAggregateExec](OffloadOthers()),
       RasOffload.from[ObjectHashAggregateExec](OffloadOthers()),
       RasOffload.from[UnionExec](OffloadOthers()),
@@ -81,9 +79,7 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
       RasOffload.from[TakeOrderedAndProjectExec](OffloadOthers()),
       RasOffload.from[WindowExec](OffloadOthers()),
       RasOffload
-        .from(
-          (node: SparkPlan) => SparkShimLoader.getSparkShims.isWindowGroupLimitExec(node),
-          OffloadOthers()),
+        .from(SparkShimLoader.getSparkShims.isWindowGroupLimitExec, OffloadOthers()),
       RasOffload.from[LimitExec](OffloadOthers()),
       RasOffload.from[GenerateExec](OffloadOthers()),
       RasOffload.from[EvalPythonExec](OffloadOthers())
