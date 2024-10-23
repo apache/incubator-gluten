@@ -48,6 +48,7 @@ private object CHRuleApi {
     // Inject the regular Spark rules directly.
     injector.injectQueryStagePrepRule(FallbackBroadcastHashJoinPrepQueryStage.apply)
     injector.injectQueryStagePrepRule(spark => CHAQEPropagateEmptyRelation(spark))
+    injector.injectQueryStagePrepRule(spark => LazyExpandRule(spark))
     injector.injectParser(
       (spark, parserInterface) => new GlutenCacheFilesSqlParser(spark, parserInterface))
     injector.injectParser(
@@ -87,7 +88,6 @@ private object CHRuleApi {
     injector.injectTransform(
       c => SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarTransformRules)(c.session))
     injector.injectTransform(c => InsertTransitions(c.outputsColumnar))
-    injector.injectTransform(c => LazyExpandRule.apply(c.session))
 
     // Gluten columnar: Fallback policies.
     injector.injectFallbackPolicy(
