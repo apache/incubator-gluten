@@ -52,7 +52,7 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
 
   def shouldUseGluten(session: SparkSession, plan: T): Boolean = {
     val glutenEnabled = session.conf
-      .get(GlutenConfig.GLUTEN_ENABLE_KEY, GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT.toString)
+      .get(GlutenConfig.GLUTEN_ENABLED_KEY, GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT.toString)
       .toBoolean && isGlutenEnabledForCurrentThread(session)
     if (log.isDebugEnabled) {
       logDebug(s"shouldUseGluten: $glutenEnabled")
