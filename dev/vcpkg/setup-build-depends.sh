@@ -160,11 +160,10 @@ install_alinux_3() {
 }
 
 install_tencentos_3.2() {
-    # FIXME: upgrade to gcc-11.
     yum -y install \
         wget curl tar zip unzip git which \
         cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
-        gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
+        gcc-toolset-11 \
         flex bison python3 \
         java-8-konajdk
 
