@@ -18,7 +18,6 @@ package org.apache.gluten.expression
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.exception.GlutenNotSupportException
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.test.TestStats
 import org.apache.gluten.utils.DecimalArithmeticUtil
@@ -319,20 +318,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case s: ScalarSubquery =>
         ScalarSubqueryTransformer(substraitExprName, s)
       case c: Cast =>
-        if (GlutenConfig.getConf.castFromVarcharAddTrimNode) {
-          // Add trim node, as necessary.
-          val newCast =
-            BackendsApiManager.getSparkPlanExecApiInstance.genCastWithNewChild(c)
-          CastTransformer(
-            substraitExprName,
-            replaceWithExpressionTransformer0(newCast.child, attributeSeq, expressionsMap),
-            newCast)
-        } else {
-          CastTransformer(
-            substraitExprName,
-            replaceWithExpressionTransformer0(c.child, attributeSeq, expressionsMap),
-            c)
-        }
+        // Add trim node, as necessary.
+        val newCast =
+          BackendsApiManager.getSparkPlanExecApiInstance.genCastWithNewChild(c)
+        CastTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer0(newCast.child, attributeSeq, expressionsMap),
+          newCast)
       case s: String2TrimExpression =>
         val (srcStr, trimStr) = s match {
           case StringTrim(srcStr, trimStr) => (srcStr, trimStr)

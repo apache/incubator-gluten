@@ -730,20 +730,28 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
       case FloatType | DoubleType | _: DecimalType =>
         c.child.dataType match {
           case StringType =>
-            val trimNode = StringTrim(c.child, Some(Literal(trimSpaceStr)))
-            c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
+            if (GlutenConfig.getConf.castFromVarcharAddTrimNode) {
+              val trimNode = StringTrim(c.child, Some(Literal(trimSpaceStr)))
+              c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
+            } else {
+              c
+            }
           case _ =>
             c
         }
       case _ =>
         c.child.dataType match {
           case StringType =>
-            val trimNode = StringTrim(
-              c.child,
-              Some(
-                Literal(trimWhitespaceStr +
-                  trimSpaceSepStr + trimLineSepStr + trimParaSepStr)))
-            c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
+            if (GlutenConfig.getConf.castFromVarcharAddTrimNode) {
+              val trimNode = StringTrim(
+                c.child,
+                Some(
+                  Literal(trimWhitespaceStr +
+                    trimSpaceSepStr + trimLineSepStr + trimParaSepStr)))
+              c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
+            } else {
+              c
+            }
           case _ =>
             c
         }
