@@ -47,7 +47,7 @@ import java.math.BigDecimal;
 // Copy from Spark MutableColumnarRow mostly but class member columns`type is
 // ArrowWritableColumnVector. And support string and binary type to write, Arrow writer does not
 // need to setNotNull before write a value.
-public final class ArrowColumnarRow extends org.apache.gluten.vectorized.ColumnarRow {
+public final class ArrowColumnarRow extends InternalRow {
   public int rowId;
   private final ArrowWritableColumnVector[] columns;
 
@@ -309,12 +309,10 @@ public final class ArrowColumnarRow extends org.apache.gluten.vectorized.Columna
     columns[ordinal].putInterval(rowId, value);
   }
 
-  @Override
   public void setUTF8String(int ordinal, UTF8String value) {
     columns[ordinal].putBytes(rowId, value.numBytes(), value.getBytes(), 0);
   }
 
-  @Override
   public void setBinary(int ordinal, byte[] value) {
     columns[ordinal].putBytes(rowId, value.length, value, 0);
   }

@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.expression
 
-import org.apache.gluten.vectorized.ColumnarRow
+import org.apache.gluten.vectorized.ArrowColumnarRow
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
@@ -47,15 +47,17 @@ class InterpretedColumnarProjection(expressions: Seq[Expression]) extends ArrowP
     case (NoOp, _) => false
     case _ => true
   }
-  private[this] var mutableRow: ColumnarRow = null
-  override def currentValue: ColumnarRow = mutableRow
 
-  override def target(row: ColumnarRow): ArrowProjection = {
+  private[this] var mutableRow: ArrowColumnarRow = null
+
+  override def currentValue: ArrowColumnarRow = mutableRow
+
+  override def target(row: ArrowColumnarRow): ArrowProjection = {
     mutableRow = row
     this
   }
 
-  private def getStringWriter(ordinal: Int, dt: DataType): (ColumnarRow, Any) => Unit =
+  private def getStringWriter(ordinal: Int, dt: DataType): (ArrowColumnarRow, Any) => Unit =
     dt match {
       case StringType => (input, v) => input.setUTF8String(ordinal, v.asInstanceOf[UTF8String])
       case BinaryType => (input, v) => input.setBinary(ordinal, v.asInstanceOf[Array[Byte]])
@@ -80,7 +82,7 @@ class InterpretedColumnarProjection(expressions: Seq[Expression]) extends ArrowP
       }
   }.toArray
 
-  override def apply(input: InternalRow): ColumnarRow = {
+  override def apply(input: InternalRow): ArrowColumnarRow = {
     if (subExprEliminationEnabled) {
       runtime.setInput(input)
     }
