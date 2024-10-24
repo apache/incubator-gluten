@@ -38,7 +38,8 @@ private[gluten] class GlutenSessionExtensions
             .forall(_.toBoolean)
         val disabled = !glutenEnabledGlobally || !glutenEnabledForThread
         logDebug(
-          s"Gluten is disabled. Variables: glutenEnabledGlobally: $glutenEnabledGlobally, glutenEnabledForThread: $glutenEnabledForThread")
+          s"Gluten is disabled. Variables: glutenEnabledGlobally: $glutenEnabledGlobally, " +
+            s"glutenEnabledForThread: $glutenEnabledForThread")
         disabled
     }
     Backend.get().injectRules(injector)
