@@ -81,7 +81,6 @@ protected:
     ReadBufferBuilderPtr read_buffer_builder;
     std::vector<String> partition_keys;
     std::map<String, String> partition_values;
-    // std::optional<SourceFilter> filter;
     std::shared_ptr<const DB::KeyCondition> key_condition;
 };
 using FormatFilePtr = std::shared_ptr<FormatFile>;
