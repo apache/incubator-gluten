@@ -79,6 +79,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     return kind_;
   }
 
+  void shutdown() override {}
+
   void addPool(const std::shared_ptr<velox::memory::MemoryPool>& pool) override {
     VELOX_CHECK_EQ(pool->capacity(), 0);
 
