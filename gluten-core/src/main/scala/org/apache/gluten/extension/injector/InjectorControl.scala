@@ -17,15 +17,14 @@
 package org.apache.gluten.extension.injector
 
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
-import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
-import org.apache.spark.sql.types.{DataType, StructType}
+
+import java.lang.reflect.{InvocationHandler, Method}
 
 import scala.collection.mutable
 
@@ -84,56 +83,21 @@ object InjectorControl {
       def wrapParser(parserBuilder: ParserBuilder): ParserBuilder = (session, parser) => {
         val before = parser
         val after = parserBuilder(session, before)
-        new ParserInterface {
-          override def parsePlan(sqlText: String): LogicalPlan = {
-            if (disabler.disabled(session)) {
-              return before.parsePlan(sqlText)
+        // Use dynamic proxy to get rid of 3.2 compatibility issues.
+        java.lang.reflect.Proxy
+          .newProxyInstance(
+            classOf[ParserInterface].getClassLoader,
+            classOf[ParserInterface].getInterfaces,
+            new InvocationHandler {
+              override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
+                if (disabler.disabled(session)) {
+                  return method.invoke(before, args)
+                }
+                method.invoke(after, args)
+              }
             }
-            after.parsePlan(sqlText)
-          }
-          override def parseExpression(sqlText: String): Expression = {
-            if (disabler.disabled(session)) {
-              return before.parseExpression(sqlText)
-            }
-            after.parseExpression(sqlText)
-          }
-          override def parseTableIdentifier(sqlText: String): TableIdentifier = {
-            if (disabler.disabled(session)) {
-              return before.parseTableIdentifier(sqlText)
-            }
-            after.parseTableIdentifier(sqlText)
-          }
-          override def parseFunctionIdentifier(sqlText: String): FunctionIdentifier = {
-            if (disabler.disabled(session)) {
-              return before.parseFunctionIdentifier(sqlText)
-            }
-            after.parseFunctionIdentifier(sqlText)
-          }
-          override def parseMultipartIdentifier(sqlText: String): Seq[String] = {
-            if (disabler.disabled(session)) {
-              return before.parseMultipartIdentifier(sqlText)
-            }
-            after.parseMultipartIdentifier(sqlText)
-          }
-          override def parseQuery(sqlText: String): LogicalPlan = {
-            if (disabler.disabled(session)) {
-              return before.parseQuery(sqlText)
-            }
-            after.parseQuery(sqlText)
-          }
-          override def parseTableSchema(sqlText: String): StructType = {
-            if (disabler.disabled(session)) {
-              return before.parseTableSchema(sqlText)
-            }
-            after.parseTableSchema(sqlText)
-          }
-          override def parseDataType(sqlText: String): DataType = {
-            if (disabler.disabled(session)) {
-              return before.parseDataType(sqlText)
-            }
-            after.parseDataType(sqlText)
-          }
-        }
+          )
+          .asInstanceOf[ParserInterface]
       }
 
       def wrapFunction(functionDescription: FunctionDescription): FunctionDescription = {

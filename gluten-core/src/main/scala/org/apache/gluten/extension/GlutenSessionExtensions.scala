@@ -46,6 +46,7 @@ private[gluten] class GlutenSessionExtensions
   }
 }
 
-private[gluten] object GlutenSessionExtensions {
+object GlutenSessionExtensions {
   val GLUTEN_SESSION_EXTENSION_NAME: String = classOf[GlutenSessionExtensions].getCanonicalName
+  val GLUTEN_ENABLE_FOR_THREAD_KEY: String = "gluten.enabledForCurrentThread"
 }
