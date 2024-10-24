@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.ColumnarRuleApplier.{ColumnarRuleBuilder, ColumnarRuleCall}
+import org.apache.gluten.extension.columnar.{ColumnarRuleApplier, ColumnarRuleExecutor}
+import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
 
@@ -36,7 +36,9 @@ import org.apache.spark.sql.execution.SparkPlan
  * implementing them in EnumeratedTransform.
  */
 @Experimental
-class EnumeratedApplier(session: SparkSession, ruleBuilders: Seq[ColumnarRuleBuilder])
+class EnumeratedApplier(
+    session: SparkSession,
+    ruleBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]])
   extends ColumnarRuleApplier
   with Logging
   with LogLevelUtil {

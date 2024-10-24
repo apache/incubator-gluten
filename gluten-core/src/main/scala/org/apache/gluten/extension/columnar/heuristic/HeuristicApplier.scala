@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.extension.columnar.heuristic
 
-import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.ColumnarRuleApplier.{ColumnarRuleBuilder, ColumnarRuleCall}
+import org.apache.gluten.extension.columnar.{ColumnarRuleApplier, ColumnarRuleExecutor}
+import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
 
@@ -32,10 +32,10 @@ import org.apache.spark.sql.execution.SparkPlan
  */
 class HeuristicApplier(
     session: SparkSession,
-    transformBuilders: Seq[ColumnarRuleBuilder],
-    fallbackPolicyBuilders: Seq[ColumnarRuleBuilder],
-    postBuilders: Seq[ColumnarRuleBuilder],
-    finalBuilders: Seq[ColumnarRuleBuilder])
+    transformBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]],
+    fallbackPolicyBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]],
+    postBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]],
+    finalBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]])
   extends ColumnarRuleApplier
   with Logging
   with LogLevelUtil {

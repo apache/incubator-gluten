@@ -18,10 +18,9 @@ package org.apache.spark.sql.execution
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.BasicScanExecTransformer
-import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.GlutenSessionExtensions
+import org.apache.gluten.extension.{GlutenPlan, GlutenSessionExtensions}
 import org.apache.gluten.extension.columnar.{ExpandFallbackPolicy, FallbackTags, RemoveFallbackTagRule}
-import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleBuilder
+import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.MiscColumnarRules.RemoveTopmostColumnarToRow
 import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
 import org.apache.gluten.extension.columnar.transition.InsertTransitions
@@ -176,7 +175,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
 private object FallbackStrategiesSuite {
   def newRuleApplier(
       spark: SparkSession,
-      transformBuilders: Seq[ColumnarRuleBuilder]): HeuristicApplier = {
+      transformBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]]): HeuristicApplier = {
     new HeuristicApplier(
       spark,
       transformBuilders,

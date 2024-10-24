@@ -19,11 +19,13 @@ package org.apache.gluten.extension.injector
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.GlutenColumnarRule
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier
-import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleBuilder
+import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedApplier
 import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
 
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.mutable
 
@@ -49,24 +51,24 @@ class GlutenInjector private[injector] (control: InjectorControl) {
 
 object GlutenInjector {
   class LegacyInjector {
-    private val transformBuilders = mutable.Buffer.empty[ColumnarRuleBuilder]
-    private val fallbackPolicyBuilders = mutable.Buffer.empty[ColumnarRuleBuilder]
-    private val postBuilders = mutable.Buffer.empty[ColumnarRuleBuilder]
-    private val finalBuilders = mutable.Buffer.empty[ColumnarRuleBuilder]
+    private val transformBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
+    private val fallbackPolicyBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
+    private val postBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
+    private val finalBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
 
-    def injectTransform(builder: ColumnarRuleBuilder): Unit = {
+    def injectTransform(builder: ColumnarRuleCall => Rule[SparkPlan]): Unit = {
       transformBuilders += builder
     }
 
-    def injectFallbackPolicy(builder: ColumnarRuleBuilder): Unit = {
+    def injectFallbackPolicy(builder: ColumnarRuleCall => Rule[SparkPlan]): Unit = {
       fallbackPolicyBuilders += builder
     }
 
-    def injectPost(builder: ColumnarRuleBuilder): Unit = {
+    def injectPost(builder: ColumnarRuleCall => Rule[SparkPlan]): Unit = {
       postBuilders += builder
     }
 
-    def injectFinal(builder: ColumnarRuleBuilder): Unit = {
+    def injectFinal(builder: ColumnarRuleCall => Rule[SparkPlan]): Unit = {
       finalBuilders += builder
     }
 
@@ -81,9 +83,9 @@ object GlutenInjector {
   }
 
   class RasInjector {
-    private val ruleBuilders = mutable.Buffer.empty[ColumnarRuleBuilder]
+    private val ruleBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
 
-    def inject(builder: ColumnarRuleBuilder): Unit = {
+    def inject(builder: ColumnarRuleCall => Rule[SparkPlan]): Unit = {
       ruleBuilders += builder
     }
 
