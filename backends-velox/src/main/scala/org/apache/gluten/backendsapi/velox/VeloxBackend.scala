@@ -35,12 +35,12 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Lag, Lead, NamedExpression, NthValue, NTile, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile}
 import org.apache.spark.sql.catalyst.plans.{JoinType, LeftOuter, RightOuter}
-import org.apache.spark.sql.catalyst.util.CharVarcharUtils
+import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, CharVarcharUtils}
 import org.apache.spark.sql.execution.{ColumnarCachedBatchSerializer, SparkPlan}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.parquet.{ParquetFileFormat, ParquetOptions}
 import org.apache.spark.sql.hive.execution.HiveFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -91,7 +91,8 @@ object VeloxBackendSettings extends BackendSettingsApi {
   override def validateScanExec(
       format: ReadFileFormat,
       fields: Array[StructField],
-      rootPaths: Seq[String]): ValidationResult = {
+      rootPaths: Seq[String],
+      properties: Map[String, String]): ValidationResult = {
 
     def validateScheme(): Option[String] = {
       val filteredRootPaths = distinctRootPaths(rootPaths)
@@ -135,9 +136,10 @@ object VeloxBackendSettings extends BackendSettingsApi {
                 if GlutenConfig.getConf.forceParquetTimestampTypeScanFallbackEnabled =>
               "TimestampType(force fallback)"
           }
-          if (SQLConf.get.isParquetSchemaMergingEnabled) {
+          val parquetOptions = new ParquetOptions(CaseInsensitiveMap(properties), SQLConf.get)
+          if (parquetOptions.mergeSchema) {
             // https://github.com/apache/incubator-gluten/issues/7174
-            Some(s"not support when ${SQLConf.PARQUET_SCHEMA_MERGING_ENABLED.key} is true")
+            Some(s"not support when merge schema is true")
           } else {
             validateTypes(typeValidator)
           }

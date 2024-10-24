@@ -95,7 +95,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
 
     val validationResult = BackendsApiManager.getSettings
-      .validateScanExec(fileFormat, fields, getRootFilePaths)
+      .validateScanExec(fileFormat, fields, getRootFilePaths, getProperties)
     if (!validationResult.ok()) {
       return validationResult
     }
