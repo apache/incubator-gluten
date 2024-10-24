@@ -19,7 +19,6 @@
 
 #include <memory>
 #include <shared_mutex>
-#include <thread>
 #include <Core/Settings.h>
 #include <Disks/IO/AsynchronousBoundedReadBuffer.h>
 #include <Disks/IO/CachedOnDiskReadBufferFromFile.h>
@@ -702,11 +701,15 @@ ReadBufferBuilder::wrapWithBzip2(std::unique_ptr<DB::ReadBuffer> in, const subst
                 bs_buff,
                 bs_live);
 
+            if (seekable_in->eof())
+                break;
+
             if (!ok)
                 throw Exception(ErrorCodes::LOGICAL_ERROR, "Can't find next block delimiter in after offset: {}", pos);
         }
-        new_end = seekable_in->getPosition() - SplittableBzip2ReadBuffer::DELIMITER_BIT_LENGTH / 8 + 1;
+        new_end = seekable->eof() ? file_size : seekable_in->getPosition() - SplittableBzip2ReadBuffer::DELIMITER_BIT_LENGTH / 8 + 1;
     }
+
     LOG_DEBUG(
         &Poco::Logger::get("ReadBufferBuilder"),
         "File read start and end position adjusted from {},{} to {},{}",
