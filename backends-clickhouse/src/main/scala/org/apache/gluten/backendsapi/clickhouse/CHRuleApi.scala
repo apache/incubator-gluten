@@ -26,7 +26,6 @@ import org.apache.gluten.extension.injector.{RuleInjector, SparkInjector}
 import org.apache.gluten.extension.injector.GlutenInjector.{LegacyInjector, RasInjector}
 import org.apache.gluten.parser.{GlutenCacheFilesSqlParser, GlutenClickhouseSqlParser}
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.utils.PhysicalPlanSelector
 
 import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRewrite}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -39,8 +38,6 @@ import org.apache.spark.util.SparkPlanRules
 class CHRuleApi extends RuleApi {
   import CHRuleApi._
   override def injectRules(injector: RuleInjector): Unit = {
-    injector.gluten.skipOn(PhysicalPlanSelector.skipCond)
-
     injectSpark(injector.spark)
     injectLegacy(injector.gluten.legacy)
     injectRas(injector.gluten.ras)

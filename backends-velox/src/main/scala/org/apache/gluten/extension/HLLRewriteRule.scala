@@ -18,7 +18,6 @@ package org.apache.gluten.extension
 
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.expression.aggregate.HLLAdapter
-import org.apache.gluten.utils.LogicalPlanSelector
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Literal
@@ -29,7 +28,7 @@ import org.apache.spark.sql.catalyst.trees.TreePattern.{AGGREGATE, AGGREGATE_EXP
 import org.apache.spark.sql.types._
 
 case class HLLRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
-  override def apply(plan: LogicalPlan): LogicalPlan = LogicalPlanSelector.maybe(spark, plan) {
+  override def apply(plan: LogicalPlan): LogicalPlan = {
     plan.transformUpWithPruning(_.containsPattern(AGGREGATE)) {
       case a: Aggregate =>
         a.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {

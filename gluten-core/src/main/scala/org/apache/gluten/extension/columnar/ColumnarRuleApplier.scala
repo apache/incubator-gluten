@@ -20,7 +20,6 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.extension.util.AdaptiveContext
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
 trait ColumnarRuleApplier {
@@ -28,8 +27,6 @@ trait ColumnarRuleApplier {
 }
 
 object ColumnarRuleApplier {
-  type ColumnarRuleBuilder = ColumnarRuleCall => Rule[SparkPlan]
-
   class ColumnarRuleCall(
       val session: SparkSession,
       val ac: AdaptiveContext,
@@ -37,11 +34,5 @@ object ColumnarRuleApplier {
     val conf: GlutenConfig = {
       new GlutenConfig(session.sessionState.conf)
     }
-  }
-
-  // A temporary workaround for applying toggle `spark.gluten.enabled`, to be removed.
-  trait SkipCondition {
-    // True if the rule execution should be skipped.
-    def skip(session: SparkSession, plan: SparkPlan): Boolean
   }
 }

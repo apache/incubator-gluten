@@ -18,7 +18,6 @@ package org.apache.gluten.extension
 
 import org.apache.gluten.expression.ExpressionMappings
 import org.apache.gluten.expression.aggregate.{VeloxCollectList, VeloxCollectSet}
-import org.apache.gluten.utils.LogicalPlanSelector
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{Expression, WindowExpression}
@@ -36,7 +35,7 @@ import scala.reflect.{classTag, ClassTag}
  */
 case class CollectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
   import CollectRewriteRule._
-  override def apply(plan: LogicalPlan): LogicalPlan = LogicalPlanSelector.maybe(spark, plan) {
+  override def apply(plan: LogicalPlan): LogicalPlan = {
     if (!has[VeloxCollectSet] && !has[VeloxCollectList]) {
       return plan
     }
