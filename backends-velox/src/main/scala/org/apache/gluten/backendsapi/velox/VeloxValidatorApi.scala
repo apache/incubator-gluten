@@ -43,8 +43,6 @@ class VeloxValidatorApi extends ValidatorApi {
     }
   }
 
-  override def doSparkPlanValidate(plan: SparkPlan): Boolean = true
-
   private def asValidationResult(info: NativePlanValidationInfo): ValidationResult = {
     if (info.isSupported == 1) {
       return ValidationResult.succeeded

@@ -25,19 +25,13 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
-
+g
 object PhysicalPlanSelector extends QueryPlanSelector[SparkPlan] {
   val skipCond: SkipCondition = (session: SparkSession, plan: SparkPlan) =>
     !shouldUseGluten(session, plan)
-
-  override protected def validate(plan: SparkPlan): Boolean = {
-    BackendsApiManager.getValidatorApiInstance.doSparkPlanValidate(plan)
-  }
 }
 
-object LogicalPlanSelector extends QueryPlanSelector[LogicalPlan] {
-  override protected def validate(plan: LogicalPlan): Boolean = true
-}
+object LogicalPlanSelector extends QueryPlanSelector[LogicalPlan] {}
 
 /** Select to decide whether a Spark plan can be accepted by Gluten for further execution. */
 abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
@@ -57,8 +51,6 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
     }
   }
 
-  protected def validate(plan: T): Boolean
-
   def shouldUseGluten(session: SparkSession, plan: T): Boolean = {
     val glutenEnabled = session.conf
       .get(GlutenConfig.GLUTEN_ENABLE_KEY, GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT.toString)
@@ -71,7 +63,7 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
           s"plan:\n${plan.treeString}\n" +
           "=========================")
     }
-    glutenEnabled & validate(plan)
+    glutenEnabled
   }
 
   def maybe(session: SparkSession, plan: T)(func: => T): T = {
