@@ -87,13 +87,13 @@ object InjectorControl {
         java.lang.reflect.Proxy
           .newProxyInstance(
             classOf[ParserInterface].getClassLoader,
-            classOf[ParserInterface].getInterfaces,
+            Array(classOf[ParserInterface]),
             new InvocationHandler {
               override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
                 if (disabler.disabled(session)) {
-                  return method.invoke(before, args)
+                  return method.invoke(before, args: _*)
                 }
-                method.invoke(after, args)
+                method.invoke(after, args: _*)
               }
             }
           )
