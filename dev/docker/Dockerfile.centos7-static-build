@@ -13,6 +13,9 @@ RUN sed -i \
 
 RUN yum install -y git patch wget sudo java-1.8.0-openjdk-devel ccache
 
+# TODO: Remove this after branch 1.2 EOL, just for branch 1.2 GHA
+RUN yum install -y devtoolset-9
+
 RUN git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
 
 RUN echo "check_certificate = off" >> ~/.wgetrc
