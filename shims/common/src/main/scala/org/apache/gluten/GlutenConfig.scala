@@ -2131,7 +2131,8 @@ object GlutenConfig {
   val CAST_FROM_VARCHAR_ADD_TRIM_NODE =
     buildConf("spark.gluten.velox.castFromVarcharAddTrimNode")
       .internal()
-      .doc("If true, will add a trim node which has the same sementic as vanilla Spark to CAST-from-varchar." +
+      .doc("If true, will add a trim node " +
+        "which has the same sementic as vanilla Spark to CAST-from-varchar." +
         "Otherwise, do nothing.")
       .booleanConf
       .createWithDefault(false)
