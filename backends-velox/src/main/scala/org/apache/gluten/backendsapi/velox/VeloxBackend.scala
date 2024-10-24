@@ -216,14 +216,23 @@ object VeloxBackendSettings extends BackendSettingsApi {
 
     // Validate if all types are supported.
     def validateDataTypes(): Option[String] = {
-      val unsupportedTypes = fields.flatMap {
-        field =>
-          field.dataType match {
-            case _: StructType => Some("StructType")
-            case _: ArrayType => Some("ArrayType")
-            case _: MapType => Some("MapType")
-            case _: YearMonthIntervalType => Some("YearMonthIntervalType")
+      val unsupportedTypes = format match {
+        case _: ParquetFileFormat =>
+          fields.flatMap {
+            case StructField(_, _: YearMonthIntervalType, _, _) =>
+              Some("YearMonthIntervalType")
             case _ => None
+          }
+        case _ =>
+          fields.flatMap {
+            field =>
+              field.dataType match {
+                case _: StructType => Some("StructType")
+                case _: ArrayType => Some("ArrayType")
+                case _: MapType => Some("MapType")
+                case _: YearMonthIntervalType => Some("YearMonthIntervalType")
+                case _ => None
+              }
           }
       }
       if (unsupportedTypes.nonEmpty) {
