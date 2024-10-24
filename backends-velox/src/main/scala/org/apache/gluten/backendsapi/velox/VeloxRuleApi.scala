@@ -46,10 +46,6 @@ private object VeloxRuleApi {
     injector.injectOptimizerRule(CollectRewriteRule.apply)
     injector.injectOptimizerRule(HLLRewriteRule.apply)
     injector.injectPostHocResolutionRule(ArrowConvertorRule.apply)
-    injector.injectParser(
-      (s, p) => {
-        p
-      })
   }
 
   def injectLegacy(injector: LegacyInjector): Unit = {
