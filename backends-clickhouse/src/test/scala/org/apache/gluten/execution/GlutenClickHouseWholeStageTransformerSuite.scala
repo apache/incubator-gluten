@@ -53,8 +53,8 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   val HDFS_URL_ENDPOINT = "hdfs://127.0.0.1:8020"
   val HDFS_URL = s"$HDFS_URL_ENDPOINT/$sparkVersion"
 
-  val S3_ACCESS_KEY = "BypTYzcXOlfr03FFIvt4"
-  val S3_SECRET_KEY = "K9MDaGItPSaphorZM8t4hXf30gHF9dBWi6L2dK5E"
+  val S3_ACCESS_KEY = "minioadmin"
+  val S3_SECRET_KEY = "minioadmin"
 
   val CH_DEFAULT_STORAGE_DIR = "/data"
 
