@@ -50,7 +50,7 @@ public final class MemoryTargets {
     return memoryTarget;
   }
 
-  public static MemoryTarget newConsumer(
+  public static TreeMemoryTarget newConsumer(
       TaskMemoryManager tmm,
       String name,
       Spiller spiller,

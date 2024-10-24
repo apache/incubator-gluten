@@ -17,6 +17,7 @@
 package org.apache.spark.util
 
 import org.apache.spark.TaskContext
+import org.apache.spark.memory.TaskMemoryManager
 
 object SparkTaskUtil {
   def setTaskContext(taskContext: TaskContext): Unit = {
@@ -25,5 +26,9 @@ object SparkTaskUtil {
 
   def unsetTaskContext(): Unit = {
     TaskContext.unset()
+  }
+
+  def getTaskMemoryManager(taskContext: TaskContext): TaskMemoryManager = {
+    taskContext.taskMemoryManager()
   }
 }

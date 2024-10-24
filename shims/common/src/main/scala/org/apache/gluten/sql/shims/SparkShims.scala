@@ -50,7 +50,7 @@ import org.apache.spark.storage.{BlockId, BlockManagerId}
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.parquet.schema.MessageType
 
-import java.util.{ArrayList => JArrayList, Map => JMap}
+import java.util.{Map => JMap, Properties}
 
 import scala.reflect.ClassTag
 
@@ -156,7 +156,7 @@ trait SparkShims {
 
   def enableNativeWriteFilesByDefault(): Boolean = false
 
-  def createTestTaskContext(): TaskContext
+  def createTestTaskContext(properties: Properties): TaskContext
 
   def broadcastInternal[T: ClassTag](sc: SparkContext, value: T): Broadcast[T] = {
     // Since Spark 3.4, the `sc.broadcast` has been optimized to use `sc.broadcastInternal`.

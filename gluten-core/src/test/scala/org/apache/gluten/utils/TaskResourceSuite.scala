@@ -16,13 +16,16 @@
  */
 package org.apache.gluten.utils
 
-import org.apache.spark.util.{TaskResource, TaskResources}
+import org.apache.spark.memory.{MemoryConsumer, MemoryMode}
+import org.apache.spark.sql.catalyst.plans.SQLHelper
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.util.{SparkTaskUtil, TaskResource, TaskResources}
 
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.util.UUID
 
-class TaskResourceSuite extends AnyFunSuite {
+class TaskResourceSuite extends AnyFunSuite with SQLHelper {
   test("Run unsafe") {
     val out = TaskResources.runUnsafe {
       1
@@ -34,6 +37,28 @@ class TaskResourceSuite extends AnyFunSuite {
     TaskResources.runUnsafe {
       assert(TaskResources.inSparkTask())
       assert(TaskResources.getLocalTaskContext() != null)
+    }
+  }
+
+  test("Run unsafe - propagate Spark config") {
+    val total = 128 * 1024 * 1024
+    withSQLConf(
+      "spark.memory.offHeap.enabled" -> "true",
+      "spark.memory.offHeap.size" -> s"$total",
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
+      TaskResources.runUnsafe {
+        assert(TaskResources.inSparkTask())
+        assert(TaskResources.getLocalTaskContext() != null)
+
+        val tmm = SparkTaskUtil.getTaskMemoryManager(TaskResources.getLocalTaskContext())
+        val consumer = new MemoryConsumer(tmm, MemoryMode.OFF_HEAP) {
+          override def spill(size: Long, trigger: MemoryConsumer): Long = 0L
+        }
+        assert(consumer.acquireMemory(total) == total)
+        assert(consumer.acquireMemory(1) == 0)
+
+        assert(!SQLConf.get.adaptiveExecutionEnabled)
+      }
     }
   }
 
