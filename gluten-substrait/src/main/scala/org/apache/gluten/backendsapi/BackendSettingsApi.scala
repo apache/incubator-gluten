@@ -33,7 +33,8 @@ trait BackendSettingsApi {
   def validateScanExec(
       format: ReadFileFormat,
       fields: Array[StructField],
-      rootPaths: Seq[String]): ValidationResult = ValidationResult.succeeded
+      rootPaths: Seq[String],
+      properties: Map[String, String]): ValidationResult = ValidationResult.succeeded
 
   def supportWriteFilesExec(
       format: FileFormat,
