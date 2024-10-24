@@ -36,7 +36,7 @@ class GlutenClickHouseTPCHParquetAQEConcurrentSuite
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */

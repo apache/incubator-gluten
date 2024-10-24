@@ -35,7 +35,7 @@ class GlutenParquetFilterSuite
   with Logging {
 
   private val tpchQueriesResourceFolder: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
 
   override protected def sparkConf: SparkConf =
     super.sparkConf
