@@ -24,7 +24,7 @@ import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.mutable
 
-private class InjectorControl() {
+class InjectorControl private[injector]() {
   import InjectorControl._
   private val logicalRuleDisablerBuffer: mutable.ListBuffer[Disabler[LogicalPlan]] =
     mutable.ListBuffer()
@@ -75,7 +75,6 @@ object InjectorControl {
           }
           rule(plan)
         }
-
       }
     }
 
