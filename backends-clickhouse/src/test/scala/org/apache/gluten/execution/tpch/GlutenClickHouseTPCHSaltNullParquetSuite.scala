@@ -39,7 +39,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   override protected def sparkConf: SparkConf = {

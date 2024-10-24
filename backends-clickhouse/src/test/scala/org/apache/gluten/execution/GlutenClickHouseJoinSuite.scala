@@ -27,7 +27,7 @@ class GlutenClickHouseJoinSuite extends GlutenClickHouseWholeStageTransformerSui
 
   protected val tablesPath: String = basePath + "/tpch-data"
   protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"
 
   private val joinAlgorithm = CHConf.runtimeSettings("join_algorithm")
