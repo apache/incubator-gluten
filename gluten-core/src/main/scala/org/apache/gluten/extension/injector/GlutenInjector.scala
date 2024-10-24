@@ -28,13 +28,14 @@ import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import scala.collection.mutable
 
 /** Injector used to inject query planner rules into Gluten. */
-class GlutenInjector private[injector](control: InjectorControl) {
+class GlutenInjector private[injector] (control: InjectorControl) {
   import GlutenInjector._
   val legacy: LegacyInjector = new LegacyInjector()
   val ras: RasInjector = new RasInjector()
 
   private[injector] def inject(extensions: SparkSessionExtensions): Unit = {
-    extensions.injectColumnar(session => new GlutenColumnarRule(session, applier))
+    extensions.injectColumnar(
+      control.disabler().wrapColumnarRule(s => new GlutenColumnarRule(s, applier)))
   }
 
   private def applier(session: SparkSession): ColumnarRuleApplier = {
@@ -69,8 +70,7 @@ object GlutenInjector {
       finalBuilders += builder
     }
 
-    private[injector] def createApplier(
-        session: SparkSession): ColumnarRuleApplier = {
+    private[injector] def createApplier(session: SparkSession): ColumnarRuleApplier = {
       new HeuristicApplier(
         session,
         transformBuilders.toSeq,
@@ -87,8 +87,7 @@ object GlutenInjector {
       ruleBuilders += builder
     }
 
-    private[injector] def createApplier(
-        session: SparkSession): ColumnarRuleApplier = {
+    private[injector] def createApplier(session: SparkSession): ColumnarRuleApplier = {
       new EnumeratedApplier(session, ruleBuilders.toSeq)
     }
   }

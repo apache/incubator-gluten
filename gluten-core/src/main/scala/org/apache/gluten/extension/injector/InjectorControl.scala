@@ -17,91 +17,167 @@
 package org.apache.gluten.extension.injector
 
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.plans.QueryPlan
+import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
+import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.catalyst.trees.TreeNode
+import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
+import org.apache.spark.sql.types.{DataType, StructType}
 
 import scala.collection.mutable
 
-class InjectorControl private[injector]() {
+class InjectorControl private[injector] () {
   import InjectorControl._
-  private val logicalRuleDisablerBuffer: mutable.ListBuffer[Disabler[LogicalPlan]] =
-    mutable.ListBuffer()
-  private val physicalRuleDisablerBuffer: mutable.ListBuffer[Disabler[SparkPlan]] =
+  private val disablerBuffer: mutable.ListBuffer[Disabler] =
     mutable.ListBuffer()
 
-  def disableLogicalRulesOn(disabler: Disabler[LogicalPlan]): Unit = synchronized {
-    logicalRuleDisablerBuffer += disabler
+  def disableOn(disabler: Disabler): Unit = synchronized {
+    disablerBuffer += disabler
   }
 
-  def disablePhysicalRulesOn(disabler: Disabler[SparkPlan]): Unit = synchronized {
-    physicalRuleDisablerBuffer += disabler
+  private[injector] def disabler(): Disabler = synchronized {
+    session =>
+      {
+        disablerBuffer.exists(_.disabled(session))
+      }
   }
-
-  private[injector] def logicalRuleWithDisabler(
-      session: SparkSession,
-      rule: Rule[LogicalPlan]): Rule[LogicalPlan] =
-    synchronized {
-      logicalRuleDisablerBuffer.foldLeft(rule) { case (r, d) => d.wrapLogicalRule(session, r) }
-    }
-
-  private[injector] def physicalRuleWithDisabler(
-      session: SparkSession,
-      rule: Rule[SparkPlan]): Rule[SparkPlan] =
-    synchronized {
-      physicalRuleDisablerBuffer.foldLeft(rule) { case (r, d) => d.wrapPhysicalRule(session, r) }
-    }
-
-  private[injector] def strategyWithDisabler(session: SparkSession, rule: Strategy): Strategy =
-    synchronized {
-      logicalRuleDisablerBuffer.foldLeft(rule) { case (r, d) => d.wrapStrategy(session, r) }
-    }
 }
 
 object InjectorControl {
-  trait Disabler[T <: QueryPlan[_]] {
+  trait Disabler {
     // If true, the injected rule will be disabled.
-    def disabledFor(session: SparkSession, plan: T): Boolean
+    def disabled(session: SparkSession): Boolean
   }
 
-  implicit private class LogicalDisablerOps(d: Disabler[LogicalPlan]) {
-    def wrapLogicalRule(session: SparkSession, rule: Rule[LogicalPlan]): Rule[LogicalPlan] = {
-      new Rule[LogicalPlan] {
-        override val ruleName: String = rule.ruleName
-        override def apply(plan: LogicalPlan): LogicalPlan = {
-          if (d.disabledFor(session, plan)) {
-            return plan
+  object Disabler {
+    implicit class DisablerOps(disabler: Disabler) {
+      def wrapRule[TreeType <: TreeNode[_]](
+          ruleBuilder: SparkSession => Rule[TreeType]): SparkSession => Rule[TreeType] = session =>
+        {
+          val rule = ruleBuilder(session)
+          new Rule[TreeType] {
+            override val ruleName: String = rule.ruleName
+            override def apply(plan: TreeType): TreeType = {
+              if (disabler.disabled(session)) {
+                return plan
+              }
+              rule(plan)
+            }
           }
-          rule(plan)
+        }
+
+      def wrapStrategy(strategyBuilder: StrategyBuilder): StrategyBuilder = session => {
+        val strategy = strategyBuilder(session)
+        new Strategy {
+          override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
+            if (disabler.disabled(session)) {
+              return Nil
+            }
+            strategy(plan)
+          }
         }
       }
-    }
 
-    def wrapStrategy(session: SparkSession, rule: Strategy): Strategy = {
-      new Strategy {
-        override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
-          if (d.disabledFor(session, plan)) {
-            return Nil
+      def wrapParser(parserBuilder: ParserBuilder): ParserBuilder = (session, parser) => {
+        val before = parser
+        val after = parserBuilder(session, before)
+        new ParserInterface {
+          override def parsePlan(sqlText: String): LogicalPlan = {
+            if (disabler.disabled(session)) {
+              return before.parsePlan(sqlText)
+            }
+            after.parsePlan(sqlText)
           }
-          rule(plan)
+          override def parseExpression(sqlText: String): Expression = {
+            if (disabler.disabled(session)) {
+              return before.parseExpression(sqlText)
+            }
+            after.parseExpression(sqlText)
+          }
+          override def parseTableIdentifier(sqlText: String): TableIdentifier = {
+            if (disabler.disabled(session)) {
+              return before.parseTableIdentifier(sqlText)
+            }
+            after.parseTableIdentifier(sqlText)
+          }
+          override def parseFunctionIdentifier(sqlText: String): FunctionIdentifier = {
+            if (disabler.disabled(session)) {
+              return before.parseFunctionIdentifier(sqlText)
+            }
+            after.parseFunctionIdentifier(sqlText)
+          }
+          override def parseMultipartIdentifier(sqlText: String): Seq[String] = {
+            if (disabler.disabled(session)) {
+              return before.parseMultipartIdentifier(sqlText)
+            }
+            after.parseMultipartIdentifier(sqlText)
+          }
+          override def parseQuery(sqlText: String): LogicalPlan = {
+            if (disabler.disabled(session)) {
+              return before.parseQuery(sqlText)
+            }
+            after.parseQuery(sqlText)
+          }
+          override def parseTableSchema(sqlText: String): StructType = {
+            if (disabler.disabled(session)) {
+              return before.parseTableSchema(sqlText)
+            }
+            after.parseTableSchema(sqlText)
+          }
+          override def parseDataType(sqlText: String): DataType = {
+            if (disabler.disabled(session)) {
+              return before.parseDataType(sqlText)
+            }
+            after.parseDataType(sqlText)
+          }
         }
       }
-    }
-  }
 
-  implicit private class PhysicalDisablerOps(d: Disabler[SparkPlan]) {
-    def wrapPhysicalRule(session: SparkSession, rule: Rule[SparkPlan]): Rule[SparkPlan] = {
-      new Rule[SparkPlan] {
-        override val ruleName: String = rule.ruleName
-
-        override def apply(plan: SparkPlan): SparkPlan = {
-          if (d.disabledFor(session, plan)) {
-            return plan
+      def wrapFunction(functionDescription: FunctionDescription): FunctionDescription = {
+        val (identifier, info, builder) = functionDescription
+        val wrappedBuilder: FunctionBuilder = children => {
+          if (
+            disabler.disabled(SparkSession.getActiveSession.getOrElse(
+              throw new IllegalStateException("Active Spark session not found")))
+          ) {
+            throw new UnsupportedOperationException(
+              s"Function ${info.getName} is not callable as Gluten is disabled")
           }
-          rule(plan)
+          builder(children)
         }
+        (identifier, info, wrappedBuilder)
       }
+
+      def wrapColumnarRule(columnarRuleBuilder: ColumnarRuleBuilder): ColumnarRuleBuilder =
+        session => {
+          val columnarRule = columnarRuleBuilder(session)
+          new ColumnarRule {
+            override val preColumnarTransitions: Rule[SparkPlan] = {
+              new Rule[SparkPlan] {
+                override def apply(plan: SparkPlan): SparkPlan = {
+                  if (disabler.disabled(session)) {
+                    return plan
+                  }
+                  columnarRule.preColumnarTransitions.apply(plan)
+                }
+              }
+            }
+
+            override val postColumnarTransitions: Rule[SparkPlan] = {
+              new Rule[SparkPlan] {
+                override def apply(plan: SparkPlan): SparkPlan = {
+                  if (disabler.disabled(session)) {
+                    return plan
+                  }
+                  columnarRule.postColumnarTransitions.apply(plan)
+                }
+              }
+            }
+          }
+        }
     }
   }
 }

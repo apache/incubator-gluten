@@ -16,14 +16,31 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.extension.injector.RuleInjector
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
 
-private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions => Unit) {
+private[gluten] class GlutenSessionExtensions
+  extends (SparkSessionExtensions => Unit)
+  with Logging {
   override def apply(exts: SparkSessionExtensions): Unit = {
     val injector = new RuleInjector(exts)
+    injector.control.disableOn {
+      session =>
+        val glutenEnabledGlobally = session.conf
+          .get(GlutenConfig.GLUTEN_ENABLED_KEY, GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT.toString)
+          .toBoolean
+        val glutenEnabledForThread =
+          Option(session.sparkContext.getLocalProperty("gluten.enabledForCurrentThread"))
+            .forall(_.toBoolean)
+        val disabled = !glutenEnabledGlobally || !glutenEnabledForThread
+        logDebug(
+          s"Gluten is disabled. Variables: glutenEnabledGlobally: $glutenEnabledGlobally, glutenEnabledForThread: $glutenEnabledForThread")
+        disabled
+    }
     Backend.get().injectRules(injector)
     injector.inject()
   }
