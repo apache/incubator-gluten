@@ -2486,15 +2486,19 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     runQueryAndCompare(sql)({ _ => })
   }
 
-  test("GLUTEN-4085: Fix unix_timestamp") {
+  test("GLUTEN-4085: Fix unix_timestamp/to_unix_timestamp") {
     val tbl_create_sql = "create table test_tbl_4085(id bigint, data string) using parquet"
     val data_insert_sql =
       "insert into test_tbl_4085 values(1, '2023-12-18'),(2, '2023-12-19'), (3, '2023-12-20')"
     val select_sql =
       "select id, unix_timestamp(to_date(data), 'yyyy-MM-dd') from test_tbl_4085"
+    val select_sql_1 = "select id, to_unix_timestamp(to_date(data)) from test_tbl_4085"
+    val select_sql_2 = "select id, to_unix_timestamp(to_timestamp(data)) from test_tbl_4085"
     spark.sql(tbl_create_sql)
     spark.sql(data_insert_sql)
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_1, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_2, true, { _ => })
     spark.sql("drop table test_tbl_4085")
   }
 
