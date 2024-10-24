@@ -3,7 +3,7 @@ FROM centos:8
 RUN sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
 RUN sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
 
-RUN yum update -y && yum install -y epel-release sudo dnf ccache
+RUN yum update -y && yum install -y epel-release sudo dnf && yum install -y ccache
 RUN dnf install -y --setopt=install_weak_deps=False gcc-toolset-11
 RUN echo "check_certificate = off" >> ~/.wgetrc
 
