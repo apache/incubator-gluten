@@ -17,7 +17,6 @@
 package org.apache.gluten.utils
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.columnar.ColumnarRuleApplier.SkipCondition
 
 import org.apache.spark.internal.Logging
@@ -25,7 +24,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
-g
+
 object PhysicalPlanSelector extends QueryPlanSelector[SparkPlan] {
   val skipCond: SkipCondition = (session: SparkSession, plan: SparkPlan) =>
     !shouldUseGluten(session, plan)
