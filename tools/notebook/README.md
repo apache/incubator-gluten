@@ -9,7 +9,6 @@ The recommended OS is ubuntu22.04 with kernel 5.15. To prepare the environment, 
 - Install system dependencies and set up jupyter notebook
 - Configure Hadoop and Spark
 - Configure kernel parameters
-- Install monitoring tools (e.g., sar, emon)
 - Build Gluten using Docker
 - Generate TPC-H/TPC-DS tables
 
@@ -37,6 +36,3 @@ We also provide a script [run_tpc_workload.sh](./run_tpc_workload.sh). This scri
 ## Analyzing Performance Results
 
 You can check the **Show Performance** section in the output notebook after execution. It shows the cpu% per query, and draws charts for the cpu%, memory throughput, disk throughput/util%, network throughput and pagefaults.
-
-To get more detailed metrics, We use a performance analysis cluster to analyze the output from event log and system monitors (TBD).
-
