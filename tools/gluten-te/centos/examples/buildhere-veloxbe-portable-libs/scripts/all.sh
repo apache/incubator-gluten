@@ -43,7 +43,7 @@ function retry {
 }
 
 # FIXME: Works only in CentOS 7
-source /opt/rh/devtoolset-9/enable
+source /opt/rh/devtoolset-11/enable
 
 cd /opt/gluten
 
