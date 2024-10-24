@@ -54,14 +54,13 @@ class GlutenClickHouseTPCHParquetAQEConcurrentSuite
       queriesResults: String,
       compareResult: Boolean = true,
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    val sqlNum = "q" + "%02d".format(queryNum)
     withDataFrame(tpchSQL(queryNum, tpchQueries)) {
       df =>
         val result = df.collect()
         if (compareResult) {
           val schema = df.schema
           if (schema.exists(_.dataType == DoubleType)) {} else {
-            compareResultStr(sqlNum, result, queriesResults)
+            compareResultStr(s"q$queryNum", result, queriesResults)
           }
         } else {
           df.collect()

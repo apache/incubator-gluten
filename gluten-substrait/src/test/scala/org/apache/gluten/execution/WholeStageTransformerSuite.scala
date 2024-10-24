@@ -164,7 +164,7 @@ abstract class WholeStageTransformerSuite
     withDataFrame(tpchSQL(queryNum, tpchQueries)) {
       df =>
         if (compareResult) {
-          verifyTPCHResult(df, s"q${"%02d".format(queryNum)}", queriesResults)
+          verifyTPCHResult(df, s"q$queryNum", queriesResults)
         } else {
           df.collect()
         }
@@ -384,9 +384,7 @@ abstract class WholeStageTransformerSuite
   protected def withDataFrame[R](sql: String)(f: DataFrame => R): R = f(spark.sql(sql))
 
   protected def tpchSQL(queryNum: Int, tpchQueries: String): String =
-    Arm.withResource(
-      Source.fromFile(new File(s"$tpchQueries/q${"%02d".format(queryNum)}.sql"), "UTF-8"))(
-      _.mkString)
+    Arm.withResource(Source.fromFile(new File(s"$tpchQueries/q$queryNum.sql"), "UTF-8"))(_.mkString)
 
   protected def verifyTPCHResult(df: DataFrame, sqlNum: String, queriesResults: String): Unit = {
     val result = df.collect()
