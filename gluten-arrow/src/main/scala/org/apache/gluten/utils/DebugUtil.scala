@@ -17,6 +17,7 @@
 package org.apache.gluten.utils
 
 import org.apache.gluten.GlutenConfig
+
 import org.apache.spark.TaskContext
 
 object DebugUtil {
