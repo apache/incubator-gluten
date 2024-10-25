@@ -24,8 +24,9 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 
-import java.lang.reflect.{InvocationHandler, Method}
+import java.lang.reflect.{InvocationHandler, Method, UndeclaredThrowableException}
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 
 class InjectorControl private[injector] () {
@@ -91,10 +92,16 @@ object InjectorControl {
             Array(classOf[ParserInterface], classOf[DisablerAware]),
             new InvocationHandler {
               override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
-                if (disabler.disabled(session)) {
-                  return method.invoke(before, args: _*)
+                try {
+                  if (disabler.disabled(session)) {
+                    return method.invoke(before, args: _*)
+                  }
+                  method.invoke(after, args: _*)
+                } catch {
+                  case e: UndeclaredThrowableException =>
+                    // Unwrap the UTE.
+                    throw e.getUndeclaredThrowable
                 }
-                method.invoke(after, args: _*)
               }
             }
           )
