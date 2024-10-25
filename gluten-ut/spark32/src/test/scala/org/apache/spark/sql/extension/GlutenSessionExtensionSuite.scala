@@ -42,7 +42,7 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
     assert(spark.sessionState.optimizer.batches.flatMap(_.rules).contains(MyRule(spark)))
     if (BackendTestUtils.isCHBackendLoaded()) {
       assert(
-        spark.sessionState.sqlParser.getClass.getSimpleName.equals("GlutenClickhouseSqlParser"))
+        spark.sessionState.sqlParser.isInstanceOf[InjectorControl.DisablerAware])
     } else {
       assert(spark.sessionState.sqlParser.isInstanceOf[MyParser])
     }
