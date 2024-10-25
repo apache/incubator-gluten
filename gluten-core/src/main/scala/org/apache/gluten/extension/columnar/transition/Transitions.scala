@@ -64,7 +64,17 @@ case class InsertTransitions(outputsColumnar: Boolean) extends Rule[SparkPlan] {
 }
 
 object RemoveTransitions extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = plan.transformDown { case p => removeForNode(p) }
+  override def apply(plan: SparkPlan): SparkPlan = {
+    if (!existsTransition(plan)) {
+      return plan
+    }
+
+    plan.transformDown {
+      case ColumnarToRowLike(child) => child
+      case RowToColumnarLike(child) => child
+      case ColumnarToColumnarLike(child) => child
+    }
+  }
 
   @tailrec
   private[transition] def removeForNode(plan: SparkPlan): SparkPlan = plan match {
@@ -107,7 +117,7 @@ object Transitions {
 
   private def enforceReq(plan: SparkPlan, req: ConventionReq): SparkPlan = {
     val convFunc = ConventionFunc.create()
-    val removed = RemoveTransitions.removeForNode(plan)
+    val removed = RemoveTransitions(plan)
     val transition = Transition.factory.findTransition(
       convFunc.conventionOf(removed),
       req,

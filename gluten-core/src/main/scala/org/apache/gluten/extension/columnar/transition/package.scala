@@ -40,6 +40,13 @@ package object transition {
     case _ => false
   }
 
+  def existsTransition(plan: SparkPlan): Boolean = plan match {
+    case _: ColumnarToRowTransition | _: RowToColumnarTransition |
+        _: ColumnarToColumnarTransition =>
+      true
+    case _ => false
+  }
+
   // Extractor for Spark/Gluten's C2R
   object ColumnarToRowLike {
     def unapply(plan: SparkPlan): Option[SparkPlan] = {
