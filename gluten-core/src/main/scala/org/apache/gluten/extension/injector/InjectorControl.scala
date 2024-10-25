@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 
-import java.lang.reflect.{InvocationHandler, Method, UndeclaredThrowableException}
+import java.lang.reflect.{InvocationHandler, InvocationTargetException, Method}
 
 import scala.collection.mutable
 
@@ -97,9 +97,9 @@ object InjectorControl {
                   }
                   method.invoke(after, args: _*)
                 } catch {
-                  case e: UndeclaredThrowableException =>
+                  case e: InvocationTargetException =>
                     // Unwrap the UTE.
-                    throw e.getUndeclaredThrowable
+                    throw e.getCause
                 }
               }
             }
