@@ -65,12 +65,13 @@ case class LazyExpandRule(session: SparkSession) extends Rule[SparkPlan] with Lo
               _,
               _,
               groupingExpressions,
-              _,
+              aggregateExpressions,
               _,
               _,
               resultExpressions,
               ExpandExec(projections, output, child)),
-            _)
+            _
+          )
         ) =>
       // move expand node after shuffle node
       if (
@@ -79,7 +80,8 @@ case class LazyExpandRule(session: SparkSession) extends Rule[SparkPlan] with Lo
             projection.forall(
               e => !e.isInstanceOf[Literal] || e.asInstanceOf[Literal].value != null)) &&
         groupingExpressions.forall(_.isInstanceOf[Attribute]) &&
-        hashExpressions.forall(_.isInstanceOf[Attribute])
+        hashExpressions.forall(_.isInstanceOf[Attribute]) &&
+        aggregateExpressions.forall(_.filter.isEmpty)
       ) {
         val shuffle =
           finalAggregate.asInstanceOf[HashAggregateExec].child.asInstanceOf[ShuffleExchangeExec]

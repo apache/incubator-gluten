@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 #include "ExpandRelParser.h"
+#include <ratio>
 #include <vector>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
+#include <Operator/AdvancedExpandStep.h>
 #include <Operator/ExpandStep.h>
-#include <Parser/ExpandField.h>
 #include <Parser/RelParsers/RelParser.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Common/logger_useful.h>
@@ -45,11 +46,17 @@ void updateType(DB::DataTypePtr & type, const DB::DataTypePtr & new_type)
     }
 }
 
-DB::QueryPlanPtr ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
+DB::QueryPlanPtr
+ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
 {
-    const auto & expand_rel = rel.expand();
-    const auto & header = query_plan->getCurrentHeader();
+    if (!isLazyAggregateExpand(rel.expand()))
+        return normalParse(std::move(query_plan), rel, rel_stack);
+    else
+        return lazyAggregateExpandParse(std::move(query_plan), rel, rel_stack);
+}
 
+ExpandField ExpandRelParser::buildExpandField(const DB::Block & header, const substrait::ExpandRel & expand_rel)
+{
     std::vector<std::vector<ExpandFieldKind>> expand_kinds;
     std::vector<std::vector<DB::Field>> expand_fields;
     std::vector<DB::DataTypePtr> types;
@@ -123,11 +130,103 @@ DB::QueryPlanPtr ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const subst
     }
 
     ExpandField expand_field(names, types, expand_kinds, expand_fields);
+    return expand_field;
+}
+
+bool ExpandRelParser::isLazyAggregateExpand(const substrait::ExpandRel & expand_rel)
+{
+    const auto & input_rel = expand_rel.input();
+    if (input_rel.rel_type_case() != substrait::Rel::RelTypeCase::kAggregate)
+        return false;
+    const auto & aggregate_rel = input_rel.aggregate();
+    for (const auto & measure : aggregate_rel.measures())
+    {
+        if (measure.measure().phase() != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
+            return false;
+    }
+    return true;
+}
+
+DB::QueryPlanPtr ExpandRelParser::normalParse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
+{
+    const auto & expand_rel = rel.expand();
+    const auto & header = query_plan->getCurrentHeader();
+    auto expand_field = buildExpandField(header, expand_rel);
     auto expand_step = std::make_unique<ExpandStep>(query_plan->getCurrentHeader(), std::move(expand_field));
     expand_step->setStepDescription("Expand Step");
     steps.emplace_back(expand_step.get());
     query_plan->addStep(std::move(expand_step));
     return query_plan;
+}
+
+DB::QueryPlanPtr ExpandRelParser::lazyAggregateExpandParse(
+    DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
+{
+    DB::Block input_header = query_plan->getCurrentHeader();
+    const auto & expand_rel = rel.expand();
+    auto expand_field = buildExpandField(input_header, expand_rel);
+    auto aggregate_rel = rel.expand().input().aggregate();
+    auto aggregate_descriptions = buildAggregations(input_header, expand_field, aggregate_rel);
+
+    DB::Names grouping_keys;
+    for (size_t i = 0; i < aggregate_rel.groupings(0).grouping_expressions_size(); ++i)
+    {
+        const auto & col = input_header.getByPosition(i);
+        grouping_keys.push_back(col.name);
+    }
+
+    auto expand_step
+        = std::make_unique<AdvancedExpandStep>(getContext(), input_header, grouping_keys, aggregate_descriptions, expand_field);
+    expand_step->setStepDescription("Advanced Expand Step");
+    steps.emplace_back(expand_step.get());
+    query_plan->addStep(std::move(expand_step));
+    return query_plan;
+}
+
+DB::AggregateDescriptions ExpandRelParser::buildAggregations(
+    const DB::Block & input_header, const ExpandField & expand_field, const substrait::AggregateRel & aggregate_rel)
+{
+    auto header = AdvancedExpandStep::buildOutputHeader(input_header, expand_field);
+    //auto header = input_header;
+    LOG_ERROR(getLogger("ExpandRelParser"), "xxx this header is: {}", header.dumpStructure());
+    DB::AggregateDescriptions descriptions;
+    size_t grouping_keys_size = aggregate_rel.groupings(0).grouping_expressions_size();
+
+    for (size_t i = 0; i < aggregate_rel.measures_size(); ++i)
+    {
+        /// The output header of the aggregate is [grouping keys] ++ [grouping id] ++  [aggregation columns]
+        const auto & measure = aggregate_rel.measures(i);
+        const auto & col = header.getByPosition(grouping_keys_size + i + 1);
+        DB::AggregateDescription description;
+        auto aggregate_col = typeid_cast<const DB::ColumnAggregateFunction *>(col.column.get());
+        if (!aggregate_col)
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR,
+                "The column is not an aggregate column: {}, grouping_keys_size: {}, i: {}",
+                col.column->dumpStructure(),
+                grouping_keys_size,
+                i);
+
+        description.column_name = col.name;
+        description.argument_names = {col.name};
+
+        auto aggregate_function = aggregate_col->getAggregateFunction();
+        description.parameters = aggregate_function->getParameters();
+
+        // Need apply "PartialMerge" combinator for the aggregate function.
+        auto function_name_with_combinator = aggregate_function->getName() + "PartialMerge";
+        DB::AggregateFunctionProperties aggregate_function_properties;
+        description.function
+            = getAggregateFunction(function_name_with_combinator, {col.type}, aggregate_function_properties, description.parameters);
+        LOG_ERROR(
+            getLogger("ExpandRelParser"),
+            "xxx this aggregate function is: {}, {}",
+            function_name_with_combinator,
+            description.function->getName());
+
+        descriptions.emplace_back(description);
+    }
+    return descriptions;
 }
 
 void registerExpandRelParser(RelParserFactory & factory)

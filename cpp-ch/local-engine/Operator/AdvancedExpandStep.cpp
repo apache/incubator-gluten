@@ -34,6 +34,9 @@
 #include <Common/CHUtil.h>
 #include <Common/WeakHash.h>
 
+#include <Poco/Logger.h>
+#include <Common/logger_useful.h>
+
 namespace DB
 {
 namespace Setting
@@ -102,8 +105,11 @@ DB::Block AdvancedExpandStep::buildOutputHeader(const DB::Block &, const ExpandF
 void AdvancedExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings &)
 {
     const auto & settings = context->getSettingsRef();
+    // aggregate grouping keys need a extra grouping id column.
+    auto aggregate_grouping_keys = grouping_keys;
+    aggregate_grouping_keys.push_back(output_header->getByPosition(grouping_keys.size()).name);
     DB::Aggregator::Params params(
-        grouping_keys,
+        aggregate_grouping_keys,
         aggregate_descriptions,
         false,
         settings[DB::Setting::max_rows_to_group_by],
@@ -135,8 +141,11 @@ void AdvancedExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, 
             DB::connect(*output, expand_processor->getInputs().front());
             new_processors.push_back(expand_processor);
 
-            auto transform_params = std::make_shared<DB::AggregatingTransformParams>(*output_header, params, false);
-            auto aggregate_processor = std::make_shared<GraceAggregatingTransform>(*output_header, transform_params, context, false, false);
+            auto expand_output_header = expand_processor->getOutputs().front().getHeader();
+
+            auto transform_params = std::make_shared<DB::AggregatingTransformParams>(expand_output_header, params, false);
+            auto aggregate_processor
+                = std::make_shared<GraceAggregatingTransform>(expand_output_header, transform_params, context, false, false);
             DB::connect(expand_processor->getOutputs().back(), aggregate_processor->getInputs().front());
             new_processors.push_back(aggregate_processor);
 
@@ -200,10 +209,13 @@ DB::IProcessor::Status AdvancedExpandTransform::prepare()
         {
             output_port.push(std::move(output_chunk));
             has_output = false;
-            return expand_expr_iterator >= project_set_exprs.getExpandRows() ? Status::NeedData : Status::Ready;
+            auto status = expand_expr_iterator >= project_set_exprs.getExpandRows() ? Status::NeedData : Status::Ready;
+            return status;
         }
         else
+        {
             return Status::PortFull;
+        }
     }
 
     if (!has_input)
@@ -225,11 +237,14 @@ DB::IProcessor::Status AdvancedExpandTransform::prepare()
 
         input.setNeeded();
         if (!input.hasData())
+        {
             return Status::NeedData;
+        }
         input_chunk = input.pull(true);
         has_input = true;
         expand_expr_iterator = 0;
     }
+
     return Status::Ready;
 }
 
@@ -239,12 +254,13 @@ void AdvancedExpandTransform::work()
     {
         cardinality_detect_blocks.push_back(input_header.cloneWithColumns(input_chunk.detachColumns()));
         cardinality_detect_rows += cardinality_detect_blocks.back().rows();
+        has_input = false;
     }
     if ((input_finished || cardinality_detect_rows >= rows_for_detect_cardinality) && !cardinality_detect_blocks.empty())
     {
         detectCardinality();
     }
-    else if (cardinality_detect_rows < rows_for_detect_cardinality)
+    else if (!input_finished && cardinality_detect_rows < rows_for_detect_cardinality)
         return;
 
     /// The phase of detecting grouping keys' cardinality is finished here.
@@ -279,6 +295,9 @@ void AdvancedExpandTransform::detectCardinality()
             }
         }
     }
+
+    input_chunk = DB::Chunk(block.getColumns(), block.rows());
+    cardinality_detect_blocks.clear();
 }
 
 void AdvancedExpandTransform::expandInputChunk()

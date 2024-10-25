@@ -47,6 +47,8 @@ public:
     void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & settings) override;
     void describePipeline(DB::IQueryPlanStep::FormatSettings & settings) const override;
 
+    static DB::Block buildOutputHeader(const DB::Block & header, const ExpandField & project_set_exprs_);
+
 protected:
     DB::ContextPtr context;
     DB::Names grouping_keys;
@@ -54,8 +56,6 @@ protected:
     ExpandField project_set_exprs;
 
     void updateOutputHeader() override;
-
-    static DB::Block buildOutputHeader(const DB::Block & header, const ExpandField & project_set_exprs_);
 };
 
 class AdvancedExpandTransform : public DB::IProcessor
