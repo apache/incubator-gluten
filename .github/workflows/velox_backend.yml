@@ -72,6 +72,7 @@ jobs:
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           df -a
+          yum install -y devtoolset-9
           cd $GITHUB_WORKSPACE/
           bash dev/ci-velox-buildstatic-centos-7.sh
       - uses: actions/upload-artifact@v3
