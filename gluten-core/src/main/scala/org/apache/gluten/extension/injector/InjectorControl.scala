@@ -32,7 +32,7 @@ class InjectorControl private[injector] () {
   import InjectorControl._
   private val disablerBuffer: mutable.ListBuffer[Disabler] =
     mutable.ListBuffer()
-  private var combined: Disabler = _ => false
+  private var combined: Disabler = (_: SparkSession) => false
 
   def disableOn(one: Disabler): Unit = synchronized {
     disablerBuffer += one
