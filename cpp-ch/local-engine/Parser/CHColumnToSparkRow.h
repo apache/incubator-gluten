@@ -44,8 +44,8 @@ public:
     explicit SparkRowInfo(
         const DB::ColumnsWithTypeAndName & cols,
         const DB::DataTypes & types,
-        const size_t & col_size,
-        const size_t & row_size,
+        size_t col_size,
+        size_t row_size,
         const MaskVector & masks = nullptr);
 
     const DB::DataTypes & getDataTypes() const;

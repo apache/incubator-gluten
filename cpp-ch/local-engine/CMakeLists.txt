@@ -63,6 +63,7 @@ add_headers_and_sources(jni jni)
 add_headers_and_sources(aggregate_functions AggregateFunctions)
 add_headers_and_sources(disks Disks)
 add_headers_and_sources(disks Disks/ObjectStorages)
+add_headers_and_sources(io IO)
 
 include_directories(
   ${JNI_INCLUDE_DIRS}
@@ -101,7 +102,8 @@ add_library(
   ${operator_sources}
   ${aggregate_functions_sources}
   ${jni_sources}
-  ${disks_sources})
+  ${disks_sources}
+  ${io_sources})
 
 target_link_libraries(
   gluten_clickhouse_backend_libs

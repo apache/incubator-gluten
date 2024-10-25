@@ -299,8 +299,8 @@ static void writeValue(
 SparkRowInfo::SparkRowInfo(
     const DB::ColumnsWithTypeAndName & cols,
     const DB::DataTypes & dataTypes,
-    const size_t & col_size,
-    const size_t & row_size,
+    size_t col_size,
+    size_t row_size,
     const MaskVector & masks)
     : types(dataTypes)
     , num_rows(masks == nullptr ? row_size : masks->size())
