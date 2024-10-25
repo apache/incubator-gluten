@@ -142,9 +142,9 @@ class AllocationListenerWrapper : public AllocationListener {
   }
 
   void allocationChanged(int64_t diff) override {
-    if (delegate_ == nullptr)  {
+    if (delegate_ == nullptr) {
       if (diff > 0) {
-        throw std::runtime_error("changed without delegate");
+        throw std::runtime_error("Allocation changed without delegate");
       }
       return;
     }
