@@ -53,8 +53,10 @@ class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("avoid adding r2c whose schema contains complex data types") {
-    withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
+  test("avoid adding r2c if r2c cost greater than native") {
+    withSQLConf(
+      GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false",
+      GlutenConfig.RAS_ROUGH_SIZEBYTES_THRESHOLD.key -> "1") {
       runQueryAndCompare("select array_contains(c3, 0) as list from tmp1") {
         checkSparkOperatorMatch[ProjectExec]
       }
