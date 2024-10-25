@@ -371,5 +371,24 @@ class GlutenClickHouseTPCHParquetAQESuite
            |""".stripMargin)(df => {})
     }
   }
+
+  test("GLUTEN-7673: fix substrait infinite loop") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      val result = sql(
+        s"""
+           |select l_orderkey
+           |from lineitem
+           |inner join orders
+           |on l_orderkey = o_orderkey
+           |  and ((l_shipdate = '2024-01-01' and l_partkey=1
+           |  and l_suppkey>2 and o_orderpriority=-987)
+           |  or l_shipmode>o_comment)
+           |order by l_orderkey limit 1
+           |""".stripMargin
+      ).collect()
+      // check no exception
+      assert(result.length == 1)
+    }
+  }
 }
 // scalastyle:off line.size.limit
