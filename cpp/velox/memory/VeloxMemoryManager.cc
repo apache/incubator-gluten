@@ -46,7 +46,6 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   uint64_t growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
-    // std::lock_guard<std::recursive_mutex> l(mutex_);
     listener_->allocationChanged(targetBytes);
     if (!growPool(pool, targetBytes, 0)) {
       VELOX_FAIL("Failed to grow root pool's capacity for {}", velox::succinctBytes(targetBytes));
