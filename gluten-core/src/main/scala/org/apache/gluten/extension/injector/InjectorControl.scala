@@ -49,7 +49,7 @@ class InjectorControl private[injector] () {
 object InjectorControl {
   trait Disabler {
     // If true, the injected rule will be disabled.
-    def disabled(session: SparkSession): Boolean
+    protected[injector] def disabled(session: SparkSession): Boolean
   }
 
   private object Disabler {
