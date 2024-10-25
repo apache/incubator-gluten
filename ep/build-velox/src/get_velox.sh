@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/JkSelf/velox.git
-VELOX_BRANCH=libhdfs-replace
+VELOX_BRANCH=libhdfs-test
 VELOX_HOME=""
 
 OS=`uname -s`
