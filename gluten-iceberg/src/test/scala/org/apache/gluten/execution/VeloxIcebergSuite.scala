@@ -128,7 +128,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
                 case plan if plan.isInstanceOf[IcebergScanTransformer] =>
                   assert(
                     plan.asInstanceOf[IcebergScanTransformer].getKeyGroupPartitioning.isDefined)
-                  assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos.length == 3)
+                  assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos(null).length == 3)
                 case _ => // do nothing
               }
               checkLengthAndPlan(df, 7)
@@ -208,7 +208,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
                 case plan if plan.isInstanceOf[IcebergScanTransformer] =>
                   assert(
                     plan.asInstanceOf[IcebergScanTransformer].getKeyGroupPartitioning.isDefined)
-                  assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos.length == 3)
+                  assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos(null).length == 3)
                 case _ => // do nothing
               }
               checkLengthAndPlan(df, 7)
@@ -289,7 +289,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
                 case plan if plan.isInstanceOf[IcebergScanTransformer] =>
                   assert(
                     plan.asInstanceOf[IcebergScanTransformer].getKeyGroupPartitioning.isDefined)
-                  assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos.length == 1)
+                  assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos(null).length == 1)
                 case _ => // do nothing
               }
               checkLengthAndPlan(df, 5)
