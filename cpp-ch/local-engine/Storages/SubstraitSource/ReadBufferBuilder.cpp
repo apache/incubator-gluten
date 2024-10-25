@@ -259,7 +259,12 @@ public:
         std::optional<size_t> modified_time;
         if (file_info.has_properties())
         {
-            file_size = file_info.properties().filesize();
+            if (file_info.properties().filesize() > 0)
+            {
+                /// filesize may be zero, under such condition we should not set file_size
+                file_size = file_info.properties().filesize();
+            }
+
             modified_time = file_info.properties().modificationtime();
         }
 
