@@ -28,7 +28,7 @@ export CFLAGS=$(get_cxx_flags $CPU_TARGET)  # Used by LZO.
 export CXXFLAGS=$CFLAGS  # Used by boost.
 export CPPFLAGS=$CFLAGS  # Used by LZO.
 export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
-FB_OS_VERSION=v2024.02.26.00
+FB_OS_VERSION="v2024.07.01.00"
 
 # shellcheck disable=SC2037
 SUDO="sudo -E"
