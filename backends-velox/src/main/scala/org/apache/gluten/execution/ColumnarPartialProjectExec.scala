@@ -128,9 +128,7 @@ case class ColumnarPartialProjectExec(original: ProjectExec, child: SparkPlan)(
           true
         } else true
       case p =>
-        {
-          getProjectIndexInChildOutput(p.children)
-        }
+        getProjectIndexInChildOutput(p.children)
         true
     }
   }
