@@ -26,7 +26,6 @@ import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 
 import java.lang.reflect.{InvocationHandler, Method, UndeclaredThrowableException}
 
-import scala.annotation.tailrec
 import scala.collection.mutable
 
 class InjectorControl private[injector] () {
