@@ -34,13 +34,17 @@ private[gluten] class GlutenSessionExtensions
         val glutenEnabledGlobally = session.conf
           .get(GlutenConfig.GLUTEN_ENABLED_KEY, GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT.toString)
           .toBoolean
+        val disabled = !glutenEnabledGlobally
+        logDebug(s"Gluten is disabled by variable: glutenEnabledGlobally: $glutenEnabledGlobally")
+        disabled
+    }
+    injector.control.disableOn {
+      session =>
         val glutenEnabledForThread =
           Option(session.sparkContext.getLocalProperty(GLUTEN_ENABLE_FOR_THREAD_KEY))
             .forall(_.toBoolean)
-        val disabled = !glutenEnabledGlobally || !glutenEnabledForThread
-        logDebug(
-          s"Gluten is disabled. Variables: glutenEnabledGlobally: $glutenEnabledGlobally, " +
-            s"glutenEnabledForThread: $glutenEnabledForThread")
+        val disabled = !glutenEnabledForThread
+        logDebug(s"Gluten is disabled by variable: glutenEnabledForThread: $glutenEnabledForThread")
         disabled
     }
     Backend.get().injectRules(injector)
