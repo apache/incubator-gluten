@@ -32,16 +32,17 @@ class InjectorControl private[injector] () {
   import InjectorControl._
   private val disablerBuffer: mutable.ListBuffer[Disabler] =
     mutable.ListBuffer()
+  private var combined: Disabler = _ => false
 
-  def disableOn(disabler: Disabler): Unit = synchronized {
-    disablerBuffer += disabler
+  def disableOn(one: Disabler): Unit = synchronized {
+    disablerBuffer += one
+    // Update the combined disabler.
+    val disablerList = disablerBuffer.toList
+    combined = s => disablerList.exists(_.disabled(s))
   }
 
   private[injector] def disabler(): Disabler = synchronized {
-    session =>
-      {
-        disablerBuffer.exists(_.disabled(session))
-      }
+    combined
   }
 }
 
