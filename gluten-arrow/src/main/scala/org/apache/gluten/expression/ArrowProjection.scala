@@ -52,7 +52,7 @@ object ArrowProjection {
 
   /** Returns an ArrowProjection for given sequence of bound Expressions. */
   def create(exprs: Seq[Expression]): ArrowProjection = {
-    InterpretedColumnarProjection.createProjection(exprs)
+    InterpretedArrowProjection.createProjection(exprs)
   }
 
   def create(expr: Expression): ArrowProjection = create(Seq(expr))

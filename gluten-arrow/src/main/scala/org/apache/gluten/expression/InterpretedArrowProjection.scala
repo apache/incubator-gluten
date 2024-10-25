@@ -32,7 +32,7 @@ import org.apache.spark.unsafe.types.UTF8String
  * @param expressions
  *   a sequence of expressions that determine the value of each column of the output row.
  */
-class InterpretedColumnarProjection(expressions: Seq[Expression]) extends ArrowProjection {
+class InterpretedArrowProjection(expressions: Seq[Expression]) extends ArrowProjection {
   def this(expressions: Seq[Expression], inputSchema: Seq[Attribute]) =
     this(bindReferences(expressions, inputSchema))
 
@@ -98,11 +98,11 @@ class InterpretedColumnarProjection(expressions: Seq[Expression]) extends ArrowP
   }
 }
 
-/** Helper functions for creating an [[InterpretedColumnarProjection]]. */
-object InterpretedColumnarProjection {
+/** Helper functions for creating an [[InterpretedArrowProjection]]. */
+object InterpretedArrowProjection {
 
   /** Returns a [[ArrowProjection]] for given sequence of bound Expressions. */
   def createProjection(exprs: Seq[Expression]): ArrowProjection = {
-    new InterpretedColumnarProjection(exprs)
+    new InterpretedArrowProjection(exprs)
   }
 }
