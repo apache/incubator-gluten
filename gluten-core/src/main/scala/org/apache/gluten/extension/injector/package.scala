@@ -16,24 +16,20 @@
  */
 package org.apache.gluten.extension
 
-import org.apache.gluten.datasource.ArrowCSVFileFormat
-import org.apache.gluten.datasource.v2.ArrowCSVScan
-import org.apache.gluten.execution.datasource.v2.ArrowBatchScanExec
-
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{SparkSession, Strategy}
+import org.apache.spark.sql.catalyst.FunctionIdentifier
+import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
+import org.apache.spark.sql.catalyst.expressions.ExpressionInfo
+import org.apache.spark.sql.catalyst.parser.ParserInterface
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ArrowFileSourceScanExec, FileSourceScanExec, SparkPlan}
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.{ColumnarRule, SparkPlan}
 
-case class ArrowScanReplaceRule(spark: SparkSession) extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = {
-    plan.transformUp {
-      case plan: FileSourceScanExec if plan.relation.fileFormat.isInstanceOf[ArrowCSVFileFormat] =>
-        ArrowFileSourceScanExec(plan)
-      case plan: BatchScanExec if plan.scan.isInstanceOf[ArrowCSVScan] =>
-        ArrowBatchScanExec(plan)
-      case plan: BatchScanExec => plan
-      case p => p
-    }
-  }
+package object injector {
+  type RuleBuilder = SparkSession => Rule[LogicalPlan]
+  type StrategyBuilder = SparkSession => Strategy
+  type ParserBuilder = (SparkSession, ParserInterface) => ParserInterface
+  type FunctionDescription = (FunctionIdentifier, ExpressionInfo, FunctionBuilder)
+  type QueryStagePrepRuleBuilder = SparkSession => Rule[SparkPlan]
+  type ColumnarRuleBuilder = SparkSession => ColumnarRule
 }

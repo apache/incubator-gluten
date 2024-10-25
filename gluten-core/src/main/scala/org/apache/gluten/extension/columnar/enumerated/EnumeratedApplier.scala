@@ -16,8 +16,8 @@
  */
 package org.apache.gluten.extension.columnar.enumerated
 
-import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.ColumnarRuleApplier.{ColumnarRuleBuilder, ColumnarRuleCall, SkipCondition}
+import org.apache.gluten.extension.columnar.{ColumnarRuleApplier, ColumnarRuleExecutor}
+import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.util.AdaptiveContext
 import org.apache.gluten.logging.LogLevelUtil
 
@@ -38,17 +38,13 @@ import org.apache.spark.sql.execution.SparkPlan
 @Experimental
 class EnumeratedApplier(
     session: SparkSession,
-    skipConditions: Seq[SkipCondition],
-    ruleBuilders: Seq[ColumnarRuleBuilder])
+    ruleBuilders: Seq[ColumnarRuleCall => Rule[SparkPlan]])
   extends ColumnarRuleApplier
   with Logging
   with LogLevelUtil {
   private val adaptiveContext = AdaptiveContext(session)
 
   override def apply(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    if (skipConditions.exists(_.skip(session, plan))) {
-      return plan
-    }
     val call = new ColumnarRuleCall(session, adaptiveContext, outputsColumnar)
     val finalPlan = maybeAqe {
       apply0(ruleBuilders.map(b => b(call)), plan)
