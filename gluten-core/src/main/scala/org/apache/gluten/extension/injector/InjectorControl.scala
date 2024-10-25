@@ -53,7 +53,7 @@ object InjectorControl {
   }
 
   private object Disabler {
-    private[injector] implicit class DisablerOps(disabler: Disabler) {
+    implicit private[injector] class DisablerOps(disabler: Disabler) {
       def wrapRule[TreeType <: TreeNode[_]](
           ruleBuilder: SparkSession => Rule[TreeType]): SparkSession => Rule[TreeType] = session =>
         {
