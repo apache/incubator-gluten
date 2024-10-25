@@ -33,7 +33,7 @@ class GlutenClickHouseHDFSSuite
 
   override protected val tablesPath: String = HDFS_URL_ENDPOINT + "/tpch-data"
   override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   private val hdfsCachePath = "/tmp/gluten_hdfs_cache/"
@@ -179,7 +179,7 @@ class GlutenClickHouseHDFSSuite
 
   test("test set_read_util_position") {
     val tableName = "read_until_test"
-    val tablePath = s"$tablesPath/$tableName/"
+    val tablePath = s"$tablesPath/$SPARK_DIR_NAME/$tableName/"
     val targetFile = new Path(tablesPath)
     val fs = targetFile.getFileSystem(spark.sessionState.newHadoopConf())
     fs.delete(new Path(tablePath), true)

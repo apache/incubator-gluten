@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 #pragma once
-
+#include <jni.h>
 #include <Interpreters/Context.h>
 #include <Processors/Executors/PushingPipelineExecutor.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
@@ -55,16 +55,18 @@ public:
     static std::unique_ptr<SparkMergeTreeWriter> create(
         const MergeTreeTable & merge_tree_table,
         const SparkMergeTreeWritePartitionSettings & write_settings_,
-        const DB::ContextMutablePtr & context);
+        const DB::ContextMutablePtr & context,
+        const std::string & spark_job_id);
 
     SparkMergeTreeWriter(
         const DB::Block & header_,
         const SinkHelper & sink_helper_,
         DB::QueryPipeline && pipeline_,
-        std::unordered_map<String, String> && partition_values_);
+        std::unordered_map<String, String> && partition_values_,
+        const std::string & spark_job_id_);
 
     void write(DB::Block & block) override;
-    std::string close() override;
+    void close() override;
 
 private:
     DB::Block header;
@@ -73,6 +75,15 @@ private:
     DB::PushingPipelineExecutor executor;
     std::unordered_map<String, String> partition_values;
 
+    const std::string spark_job_id;
+
     std::vector<PartInfo> getAllPartInfo() const;
 };
+
+namespace SparkMergeTreeWriterJNI
+{
+void init(JNIEnv *);
+void destroy(JNIEnv *);
+}
+
 }

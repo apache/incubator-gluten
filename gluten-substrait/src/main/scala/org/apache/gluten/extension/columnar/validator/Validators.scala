@@ -118,7 +118,7 @@ object Validators {
 
   private class FallbackComplexExpressions(threshold: Int) extends Validator {
     override def validate(plan: SparkPlan): Validator.OutCome = {
-      if (ExpressionUtils.isComplexExpression(plan, threshold)) {
+      if (ExpressionUtils.hasComplexExpressions(plan, threshold)) {
         return fail(
           s"Disabled because at least one present expression exceeded depth threshold: " +
             s"${plan.nodeName}")

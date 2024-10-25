@@ -54,9 +54,6 @@ object ValidationResult {
 
 /** Every Gluten Operator should extend this trait. */
 trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelUtil {
-
-  private lazy val validationLogLevel = glutenConf.validationLogLevel
-  private lazy val printStackOnValidationFailure = glutenConf.printStackOnValidationFailure
   protected lazy val enableNativeValidation = glutenConf.enableNativeValidation
 
   protected def glutenConf: GlutenConfig = GlutenConfig.getConf
@@ -115,7 +112,7 @@ trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelU
   protected def doValidateInternal(): ValidationResult = ValidationResult.succeeded
 
   protected def doNativeValidation(context: SubstraitContext, node: RelNode): ValidationResult = {
-    if (node != null && enableNativeValidation) {
+    if (node != null && glutenConf.enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(node))
       BackendsApiManager.getValidatorApiInstance
         .doNativeValidateWithFailureReason(planNode)
@@ -125,10 +122,10 @@ trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelU
   }
 
   private def logValidationMessage(msg: => String, e: Throwable): Unit = {
-    if (printStackOnValidationFailure) {
-      logOnLevel(validationLogLevel, msg, e)
+    if (glutenConf.printStackOnValidationFailure) {
+      logOnLevel(glutenConf.validationLogLevel, msg, e)
     } else {
-      logOnLevel(validationLogLevel, msg)
+      logOnLevel(glutenConf.validationLogLevel, msg)
     }
   }
 }

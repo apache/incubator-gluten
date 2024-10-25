@@ -195,7 +195,31 @@ case class CHRegExpReplaceTransformer(
       !posNode.isInstanceOf[IntLiteralNode] ||
       posNode.asInstanceOf[IntLiteralNode].getValue != 1
     ) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
+      throw new UnsupportedOperationException(s"$original dose not supported position yet.")
+    }
+    // Replace $num in rep with \num used in CH
+    val repNode = childrenWithPos(2).doTransform(args)
+    repNode match {
+      case node: StringLiteralNode =>
+        val strValue = node.getValue
+        val replacedValue = strValue.replaceAll("\\$(\\d+)", "\\\\$1")
+        if (replacedValue != strValue) {
+          val functionName = ConverterUtils.makeFuncName(
+            substraitExprName,
+            Seq(original.subject.dataType, original.regexp.dataType, original.rep.dataType),
+            FunctionConfig.OPT)
+          val replacedRepNode = ExpressionBuilder.makeLiteral(replacedValue, StringType, false)
+          val exprNodes = Lists.newArrayList(
+            childrenWithPos(0).doTransform(args),
+            childrenWithPos(1).doTransform(args),
+            replacedRepNode)
+          val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+          return ExpressionBuilder.makeScalarFunction(
+            ExpressionBuilder.newScalarFunction(functionMap, functionName),
+            exprNodes,
+            ConverterUtils.getTypeNode(original.dataType, original.nullable))
+        }
+      case _ =>
     }
 
     super.doTransform(args)

@@ -9,6 +9,7 @@ option java_multiple_files = true;
 message Write {
   message Common {
     string format = 1;
+    string job_task_attempt_id = 2; // currently used in mergetree format
   }
   message ParquetWrite{}
   message OrcWrite{}

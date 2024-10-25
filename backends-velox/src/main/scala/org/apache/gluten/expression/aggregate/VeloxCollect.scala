@@ -29,6 +29,8 @@ abstract class VeloxCollect(child: Expression)
 
   override def dataType: DataType = ArrayType(child.dataType, false)
 
+  override def nullable: Boolean = false
+
   override def aggBufferAttributes: Seq[AttributeReference] = Seq(buffer)
 
   override lazy val initialValues: Seq[Expression] = Seq(Literal.create(Array(), dataType))
@@ -49,10 +51,6 @@ abstract class VeloxCollect(child: Expression)
 
 case class VeloxCollectSet(child: Expression) extends VeloxCollect(child) {
 
-  // Velox's collect_set implementation allows null output. Thus we usually wrap
-  // the function to enforce non-null output. See CollectRewriteRule#ensureNonNull.
-  override def nullable: Boolean = true
-
   override lazy val evaluateExpression: Expression =
     ArrayDistinct(buffer)
 
@@ -63,8 +61,6 @@ case class VeloxCollectSet(child: Expression) extends VeloxCollect(child) {
 }
 
 case class VeloxCollectList(child: Expression) extends VeloxCollect(child) {
-
-  override def nullable: Boolean = false
 
   override val evaluateExpression: Expression = buffer
 

@@ -40,9 +40,6 @@ trait ValidatorApi {
    */
   def doExprValidate(substraitExprName: String, expr: Expression): Boolean = true
 
-  /** Validate against a whole Spark plan, before being interpreted by Gluten. */
-  def doSparkPlanValidate(plan: SparkPlan): Boolean
-
   /** Validate against Substrait plan node in native backend. */
   def doNativeValidateWithFailureReason(plan: PlanNode): ValidationResult
 

@@ -38,7 +38,6 @@ object MiscColumnarRules {
         List(),
         List(
           OffloadOthers(),
-          OffloadAggregate(),
           OffloadExchange(),
           OffloadJoin()
         )

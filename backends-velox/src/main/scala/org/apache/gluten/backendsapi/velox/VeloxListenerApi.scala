@@ -20,7 +20,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.ListenerApi
 import org.apache.gluten.columnarbatch.ArrowBatches.{ArrowJavaBatch, ArrowNativeBatch}
 import org.apache.gluten.columnarbatch.VeloxBatch
-import org.apache.gluten.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.UDFMappings
 import org.apache.gluten.init.NativeBackendInitializer
 import org.apache.gluten.jni.{JniLibLoader, JniWorkspace}
@@ -31,6 +31,7 @@ import org.apache.spark.{HdfsConfGenerator, SparkConf, SparkContext}
 import org.apache.spark.api.plugin.PluginContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.ByteUnit
+import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.{GlutenConfigUtil, StaticSQLConf}
@@ -160,9 +161,10 @@ class VeloxListenerApi extends ListenerApi with Logging {
     NativeBackendInitializer.initializeBackend(parsed)
 
     // Inject backend-specific implementations to override spark classes.
-    GlutenParquetWriterInjects.setInstance(new VeloxParquetWriterInjects())
-    GlutenOrcWriterInjects.setInstance(new VeloxOrcWriterInjects())
-    GlutenRowSplitter.setInstance(new VeloxRowSplitter())
+    GlutenFormatFactory.register(new VeloxParquetWriterInjects, new VeloxOrcWriterInjects)
+    GlutenFormatFactory.injectPostRuleFactory(
+      session => GlutenWriterColumnarRules.NativeWritePostRule(session))
+    GlutenFormatFactory.register(new VeloxRowSplitter())
   }
 
   private def shutdown(): Unit = {

@@ -28,7 +28,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   override protected val tablesPath: String = basePath + "/tpch-data"
   override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -342,6 +342,43 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
         """
           |select a, get_json_object(a, '$.a') from test_7563
           |""".stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
+  test("GLUTEN-7591 get_json_object: normalize empty object fail") {
+    withTable("test_7591") {
+      sql("create table test_7591(a string) using parquet")
+      val insert_sql =
+        """
+          |insert into test_7591
+          |select if(id < 10005, concat('{"a":', id), concat('{"a":', id , ', "b":{}}')) from
+          |(SELECT explode(sequence(1, 10010)) as id);
+          |""".stripMargin
+      sql(insert_sql)
+      compareResultsAgainstVanillaSpark(
+        """
+          |select get_json_object(a, '$.a') from test_7591
+          |where get_json_object(a, '$.a') is not null
+          |""".stripMargin,
+        true,
+        { _ => }
+      )
+    }
+  }
+
+  test("GLUTEN-7545: https://github.com/apache/incubator-gluten/issues/7545") {
+    withTable("regexp_test") {
+      sql("create table if not exists regexp_test (id string) using parquet")
+      sql("insert into regexp_test values('1999-6-1')")
+      compareResultsAgainstVanillaSpark(
+        """
+          |select regexp_replace(id,
+          |'([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})',
+          |'$1-$2-$3') from regexp_test
+        """.stripMargin,
         true,
         { _ => }
       )

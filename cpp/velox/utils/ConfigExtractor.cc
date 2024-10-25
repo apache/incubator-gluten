@@ -125,19 +125,9 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
   auto gsStorageRootUrl = conf->get<std::string>("spark.hadoop.fs.gs.storage.root.url");
   if (gsStorageRootUrl.hasValue()) {
-    std::string url = gsStorageRootUrl.value();
-    std::string gcsScheme;
-    std::string gcsEndpoint;
+    std::string gcsEndpoint = gsStorageRootUrl.value();
 
-    const auto sep = std::string("://");
-    const auto pos = url.find_first_of(sep);
-    if (pos != std::string::npos) {
-      gcsScheme = url.substr(0, pos);
-      gcsEndpoint = url.substr(pos + sep.length());
-    }
-
-    if (!gcsEndpoint.empty() && !gcsScheme.empty()) {
-      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSScheme] = gcsScheme;
+    if (!gcsEndpoint.empty()) {
       hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSEndpoint] = gcsEndpoint;
     }
   }

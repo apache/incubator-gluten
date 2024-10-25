@@ -679,7 +679,7 @@ bool JoinRelParser::couldRewriteToMultiJoinOnClauses(
             and_expression_stack.pop_back();
             if (check_function("and", current_expr))
             {
-                for (const auto & arg : e.scalar_function().arguments())
+                for (const auto & arg : current_expr.scalar_function().arguments())
                     and_expression_stack.push_back(&arg.value());
             }
             else if (check_function("equals", current_expr))

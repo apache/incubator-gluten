@@ -32,7 +32,7 @@ class CHOrcWriterInjects extends CHFormatWriterInjects {
 
   override def createNativeWrite(outputPath: String, context: TaskAttemptContext): Write = Write
     .newBuilder()
-    .setCommon(Write.Common.newBuilder().setFormat(formatName).build())
+    .setCommon(Write.Common.newBuilder().setFormat(formatName).setJobTaskAttemptId("").build())
     .setOrc(Write.OrcWrite.newBuilder().build())
     .build()
 

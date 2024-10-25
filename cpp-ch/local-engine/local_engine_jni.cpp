@@ -171,6 +171,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
 
     local_engine::BroadCastJoinBuilder::init(env);
     local_engine::CacheManager::initJNI(env);
+    local_engine::SparkMergeTreeWriterJNI::init(env);
 
     local_engine::JNIUtils::vm = vm;
     return JNI_VERSION_1_8;
@@ -186,6 +187,7 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
 
     local_engine::JniErrorsGlobalState::instance().destroy(env);
     local_engine::BroadCastJoinBuilder::destroy(env);
+    local_engine::SparkMergeTreeWriterJNI::destroy(env);
 
     env->DeleteGlobalRef(spark_row_info_class);
     env->DeleteGlobalRef(block_stripes_class);
@@ -215,6 +217,7 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_n
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
+/// TODO: remvoe this method
 JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_injectWriteFilesTempPath(
     JNIEnv * env, jclass, jbyteArray temp_path, jbyteArray filename)
 {
@@ -229,6 +232,21 @@ JNIEXPORT void Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_i
         .task_write_filename = {reinterpret_cast<const char *>(filename_array.elems()), static_cast<size_t>(filename_array.length())},
     };
     settings.set(query_context);
+
+    LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
+/// Set settings for the current query. It assumes that all parameters are started with `CH_RUNTIME_SETTINGS_PREFIX` prefix,
+/// and the prefix is removed by java before passing to C++.
+JNIEXPORT void
+Java_org_apache_gluten_vectorized_ExpressionEvaluatorJniWrapper_updateQueryRuntimeSettings(JNIEnv * env, jclass, jbyteArray settings)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    const auto query_context = local_engine::QueryContext::instance().currentQueryContext();
+
+    const auto conf_plan_a = local_engine::getByteArrayElementsSafe(env, settings);
+    const std::string::size_type conf_plan_size = conf_plan_a.length();
+    local_engine::updateSettings(query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), conf_plan_size});
 
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
@@ -935,7 +953,7 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
 }
 
 JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_createMergeTreeWriter(
-    JNIEnv * env, jobject, jstring task_id_, jstring partition_dir_, jstring bucket_dir_, jbyteArray writeRel, jbyteArray conf_plan)
+    JNIEnv * env, jobject, jstring prefix, jstring partition, jstring bucket, jbyteArray writeRel, jbyteArray conf_plan)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto query_context = local_engine::QueryContext::instance().currentQueryContext();
@@ -944,20 +962,27 @@ JNIEXPORT jlong Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniW
     local_engine::SparkConfigs::updateConfig(
         query_context, {reinterpret_cast<const char *>(conf_plan_a.elems()), static_cast<size_t>(conf_plan_a.length())});
 
-    const auto uuid_str = toString(DB::UUIDHelpers::generateV4());
-    const auto task_id = jstring2string(env, task_id_);
-    const auto partition_dir = jstring2string(env, partition_dir_);
-    const auto bucket_dir = jstring2string(env, bucket_dir_);
-    auto uuid = uuid_str + "_" + task_id;
+    const auto part_dir_prefix = jstring2string(env, prefix);
+    const auto partition_ = jstring2string(env, partition);
+    const auto bucket_ = jstring2string(env, bucket);
+
     local_engine::SparkMergeTreeWritePartitionSettings settings{
-        .part_name_prefix{uuid}, .partition_dir{partition_dir}, .bucket_dir{bucket_dir}};
+        .part_name_prefix{part_dir_prefix}, .partition_dir{partition_}, .bucket_dir{bucket_}};
     settings.set(query_context);
 
     const auto writeRelBytes = local_engine::getByteArrayElementsSafe(env, writeRel);
     substrait::WriteRel write_rel = local_engine::BinaryToMessage<substrait::WriteRel>(
         {reinterpret_cast<const char *>(writeRelBytes.elems()), static_cast<size_t>(writeRelBytes.length())});
     local_engine::MergeTreeTable merge_tree_table(write_rel);
-    auto * writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, settings, query_context).release();
+
+    assert(write_rel.has_named_table());
+    const substrait::NamedObjectWrite & named_table = write_rel.named_table();
+    local_engine::Write write_opt;
+    named_table.advanced_extension().optimization().UnpackTo(&write_opt);
+    assert(write_opt.has_common());
+    auto * writer
+        = local_engine::SparkMergeTreeWriter::create(merge_tree_table, settings, query_context, write_opt.common().job_task_attempt_id())
+              .release();
 
     return reinterpret_cast<jlong>(writer);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
@@ -997,14 +1022,13 @@ Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_write(JNI
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_close(JNIEnv * env, jobject, jlong instanceId)
+JNIEXPORT void Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_close(JNIEnv * env, jobject, jlong instanceId)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * writer = reinterpret_cast<local_engine::NativeOutputWriter *>(instanceId);
     SCOPE_EXIT({ delete writer; });
-    const auto result = writer->close();
-    return local_engine::charTojstring(env, result.c_str());
-    LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
+    writer->close();
+    LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
 JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_nativeMergeMTParts(
@@ -1053,7 +1077,7 @@ JNIEXPORT jstring Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 
 
 JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJniWrapper_splitBlockByPartitionAndBucket(
-    JNIEnv * env, jclass, jlong blockAddress, jintArray partitionColIndice, jboolean hasBucket, jboolean reserve_partition_columns)
+    JNIEnv * env, jclass, jlong blockAddress, jintArray partitionColIndice, jboolean hasBucket)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * block = reinterpret_cast<DB::Block *>(blockAddress);
@@ -1063,8 +1087,12 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     for (int i = 0; i < safeArray.length(); ++i)
         partition_col_indice_vec.push_back(safeArray.elems()[i]);
 
-    local_engine::BlockStripes bs
-        = local_engine::BlockStripeSplitter::split(*block, partition_col_indice_vec, hasBucket, reserve_partition_columns);
+    auto query_context = local_engine::QueryContext::instance().currentQueryContext();
+    const DB::Settings & settings = query_context->getSettingsRef();
+
+    bool reserve_ = local_engine::settingsEqual(settings, "gluten.write.reserve_partition_columns", "true");
+
+    local_engine::BlockStripes bs = local_engine::BlockStripeSplitter::split(*block, partition_col_indice_vec, hasBucket, reserve_);
 
     auto * addresses = env->NewLongArray(bs.block_addresses.size());
     env->SetLongArrayRegion(addresses, 0, bs.block_addresses.size(), bs.block_addresses.data());

@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.v1
 
+import org.apache.gluten.execution.ColumnarToRowExecBase
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
 import org.apache.gluten.substrait.SubstraitContext
@@ -25,9 +26,10 @@ import org.apache.gluten.substrait.rel.RelBuilder
 import org.apache.gluten.utils.ConfigUtil
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, OutputWriter}
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
+import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeRowAdaptor, OutputWriter}
 import org.apache.spark.sql.execution.datasources.mergetree.{MetaSerializer, PartSerializer, StorageConfigProvider, StorageMeta}
-import org.apache.spark.sql.execution.datasources.v1.clickhouse.MergeTreeOutputWriter
 import org.apache.spark.sql.types.StructType
 
 import com.google.common.collect.Lists
@@ -63,9 +65,16 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
 
   override def createNativeWrite(outputPath: String, context: TaskAttemptContext): Write = {
     val conf = HadoopConfReader(context.getConfiguration).storageConf
+    val jobID = context.getJobID.toString
+    val taskAttemptID = context.getTaskAttemptID.toString
     Write
       .newBuilder()
-      .setCommon(Write.Common.newBuilder().setFormat(formatName).build())
+      .setCommon(
+        Write.Common
+          .newBuilder()
+          .setFormat(formatName)
+          .setJobTaskAttemptId(s"$jobID/$taskAttemptID")
+          .build())
       .setMergetree(
         Write.MergeTreeWrite
           .newBuilder()
@@ -91,23 +100,50 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       context: TaskAttemptContext,
       nativeConf: ju.Map[String, String]): OutputWriter = {
 
-    val storage = HadoopConfReader(context.getConfiguration)
-    val database = storage.storageConf(StorageMeta.DB)
-    val tableName = storage.storageConf(StorageMeta.TABLE)
-
     val datasourceJniWrapper = new CHDatasourceJniWrapper(
-      context.getTaskAttemptID.getTaskID.getId.toString,
-      context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition.dir"),
-      context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid.str"),
+      context.getConfiguration.get("mapreduce.task.gluten.mergetree.partPrefix"),
+      context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition"),
+      context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid"),
       createWriteRel(outputPath, dataSchema, context),
       ConfigUtil.serialize(nativeConf)
     )
-    new MergeTreeOutputWriter(datasourceJniWrapper, database, tableName, outputPath)
+    new FakeRowOutputWriter(datasourceJniWrapper, outputPath)
   }
 
   override val formatName: String = "mergetree"
 }
 
+object MergeTreeWriterInjects {
+  def insertFakeRowAdaptor(
+      queryPlan: SparkPlan,
+      output: Seq[Attribute]): (SparkPlan, Seq[Attribute]) = {
+    var result = queryPlan match {
+      // if the child is columnar, we can just wrap&transfer the columnar data
+      case c2r: ColumnarToRowExecBase =>
+        FakeRowAdaptor(c2r.child)
+      // If the child is aqe, we make aqe "support columnar",
+      // then aqe itself will guarantee to generate columnar outputs.
+      // So FakeRowAdaptor will always consumes columnar data,
+      // thus avoiding the case of c2r->aqe->r2c->writer
+      case aqe: AdaptiveSparkPlanExec =>
+        FakeRowAdaptor(
+          AdaptiveSparkPlanExec(
+            aqe.inputPlan,
+            aqe.context,
+            aqe.preprocessingRules,
+            aqe.isSubquery,
+            supportsColumnar = true
+          ))
+      case other => FakeRowAdaptor(other)
+    }
+    assert(output.size == result.output.size)
+    val newOutput = result.output.zip(output).map {
+      case (newAttr, oldAttr) =>
+        oldAttr.withExprId(newAttr.exprId)
+    }
+    (result, newOutput)
+  }
+}
 object CHMergeTreeWriterInjects {
 
   // scalastyle:off argcount

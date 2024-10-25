@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.datasources
 
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.execution.ColumnarToRowExecBase
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.transition.Transitions
 
@@ -30,10 +31,9 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.{CreateDataSourceTableAsSelectCommand, DataWritingCommand, DataWritingCommandExec}
-import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2.{AppendDataExec, OverwriteByExpressionExec}
 import org.apache.spark.sql.hive.execution.{CreateHiveTableAsSelectCommand, InsertIntoHiveDirCommand, InsertIntoHiveTable}
+import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 private case class FakeRowLogicAdaptor(child: LogicalPlan) extends OrderPreservingUnaryNode {
@@ -92,56 +92,35 @@ object GlutenWriterColumnarRules {
   //  1. pull out `Empty2Null` and required ordering to `WriteFilesExec`, see Spark3.4 `V1Writes`
   //  2. support detect partition value, partition path, bucket value, bucket path at native side,
   //     see `BaseDynamicPartitionDataWriter`
-  def getNativeFormat(cmd: DataWritingCommand): Option[String] = {
-    val parquetHiveFormat = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
-    val orcHiveFormat = "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat"
-
+  private val formatMapping = Map(
+    "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat" -> "orc",
+    "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat" -> "parquet"
+  )
+  private def getNativeFormat(cmd: DataWritingCommand): Option[String] = {
     if (!BackendsApiManager.getSettings.enableNativeWriteFiles()) {
       return None
     }
 
     cmd match {
-      case command: CreateDataSourceTableAsSelectCommand =>
-        if (BackendsApiManager.getSettings.skipNativeCtas(command)) {
-          return None
-        }
-        if ("parquet".equals(command.table.provider.get)) {
-          Some("parquet")
-        } else if ("orc".equals(command.table.provider.get)) {
-          Some("orc")
-        } else {
-          None
-        }
+      case command: CreateDataSourceTableAsSelectCommand
+          if !BackendsApiManager.getSettings.skipNativeCtas(command) =>
+        command.table.provider.filter(GlutenFormatFactory.isRegistered)
       case command: InsertIntoHadoopFsRelationCommand
-          if command.fileFormat.isInstanceOf[ParquetFileFormat] ||
-            command.fileFormat.isInstanceOf[OrcFileFormat] =>
-        if (BackendsApiManager.getSettings.skipNativeInsertInto(command)) {
-          return None
-        }
-
-        if (command.fileFormat.isInstanceOf[ParquetFileFormat]) {
-          Some("parquet")
-        } else if (command.fileFormat.isInstanceOf[OrcFileFormat]) {
-          Some("orc")
-        } else {
-          None
+          if !BackendsApiManager.getSettings.skipNativeInsertInto(command) =>
+        command.fileFormat match {
+          case register: DataSourceRegister
+              if GlutenFormatFactory.isRegistered(register.shortName()) =>
+            Some(register.shortName())
+          case _ => None
         }
       case command: InsertIntoHiveDirCommand =>
-        if (command.storage.outputFormat.get.equals(parquetHiveFormat)) {
-          Some("parquet")
-        } else if (command.storage.outputFormat.get.equals(orcHiveFormat)) {
-          Some("orc")
-        } else {
-          None
-        }
+        command.storage.outputFormat
+          .flatMap(formatMapping.get)
+          .filter(GlutenFormatFactory.isRegistered)
       case command: InsertIntoHiveTable =>
-        if (command.table.storage.outputFormat.get.equals(parquetHiveFormat)) {
-          Some("parquet")
-        } else if (command.table.storage.outputFormat.get.equals(orcHiveFormat)) {
-          Some("orc")
-        } else {
-          None
-        }
+        command.table.storage.outputFormat
+          .flatMap(formatMapping.get)
+          .filter(GlutenFormatFactory.isRegistered)
       case _: CreateHiveTableAsSelectCommand =>
         None
       case _ =>
@@ -163,27 +142,22 @@ object GlutenWriterColumnarRules {
             BackendsApiManager.getSettings.enableNativeWriteFiles() =>
         injectFakeRowAdaptor(rc, rc.child)
       case rc @ DataWritingCommandExec(cmd, child) =>
-        // These properties can be set by the same thread in last query submission.
-        session.sparkContext.setLocalProperty("isNativeApplicable", null)
-        session.sparkContext.setLocalProperty("nativeFormat", null)
-        session.sparkContext.setLocalProperty("staticPartitionWriteOnly", null)
-        if (BackendsApiManager.getSettings.supportNativeWrite(child.output.toStructType.fields)) {
-          val format = getNativeFormat(cmd)
-          session.sparkContext.setLocalProperty(
-            "staticPartitionWriteOnly",
-            BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
-          // FIXME: We should only use context property if having no other approaches.
-          //  Should see if there is another way to pass these options.
-          session.sparkContext.setLocalProperty("isNativeApplicable", format.isDefined.toString)
-          session.sparkContext.setLocalProperty("nativeFormat", format.getOrElse(""))
-          if (format.isDefined) {
-            injectFakeRowAdaptor(rc, child)
+        // The same thread can set these properties in the last query submission.
+        val fields = child.output.toStructType.fields
+        val format =
+          if (BackendsApiManager.getSettings.supportNativeWrite(fields)) {
+            getNativeFormat(cmd)
           } else {
-            rc.withNewChildren(rc.children.map(apply))
+            None
           }
-        } else {
-          rc.withNewChildren(rc.children.map(apply))
+        injectSparkLocalProperty(session, format)
+        format match {
+          case Some(_) =>
+            injectFakeRowAdaptor(rc, child)
+          case None =>
+            rc.withNewChildren(rc.children.map(apply))
         }
+
       case plan: SparkPlan => plan.withNewChildren(plan.children.map(apply))
     }
 
@@ -209,6 +183,20 @@ object GlutenWriterColumnarRules {
                 ))))
         case other => command.withNewChildren(Array(FakeRowAdaptor(other)))
       }
+    }
+  }
+
+  def injectSparkLocalProperty(spark: SparkSession, format: Option[String]): Unit = {
+    if (format.isDefined) {
+      spark.sparkContext.setLocalProperty("isNativeApplicable", true.toString)
+      spark.sparkContext.setLocalProperty("nativeFormat", format.get)
+      spark.sparkContext.setLocalProperty(
+        "staticPartitionWriteOnly",
+        BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
+    } else {
+      spark.sparkContext.setLocalProperty("isNativeApplicable", null)
+      spark.sparkContext.setLocalProperty("nativeFormat", null)
+      spark.sparkContext.setLocalProperty("staticPartitionWriteOnly", null)
     }
   }
 }

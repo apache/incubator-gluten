@@ -24,7 +24,21 @@ import org.apache.spark.sql.functions.udf
 
 import java.io.File
 
-class UDFPartialProjectSuite extends WholeStageTransformerSuite {
+class UDFPartialProjectSuiteRasOff extends UDFPartialProjectSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.gluten.ras.enabled", "false")
+  }
+}
+
+class UDFPartialProjectSuiteRasOn extends UDFPartialProjectSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.gluten.ras.enabled", "true")
+  }
+}
+
+abstract class UDFPartialProjectSuite extends WholeStageTransformerSuite {
   disableFallbackCheck
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"

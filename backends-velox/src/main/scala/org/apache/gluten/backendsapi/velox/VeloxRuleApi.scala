@@ -19,7 +19,6 @@ package org.apache.gluten.backendsapi.velox
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.datasource.ArrowConvertorRule
 import org.apache.gluten.extension._
-import org.apache.gluten.extension.EmptySchemaWorkaround.{FallbackEmptySchemaRelation, PlanOneRowRelation}
 import org.apache.gluten.extension.columnar._
 import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast, TransformPreOverrides}
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedTransform
@@ -58,11 +57,9 @@ private object VeloxRuleApi {
     injector.injectTransform(_ => PushDownInputFileExpression.PreOffload)
     injector.injectTransform(c => FallbackOnANSIMode.apply(c.session))
     injector.injectTransform(c => FallbackMultiCodegens.apply(c.session))
-    injector.injectTransform(c => PlanOneRowRelation.apply(c.session))
     injector.injectTransform(_ => RewriteSubqueryBroadcast())
     injector.injectTransform(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
     injector.injectTransform(c => ArrowScanReplaceRule.apply(c.session))
-    injector.injectTransform(_ => FallbackEmptySchemaRelation())
     injector.injectTransform(_ => RewriteSparkPlanRulesManager())
     injector.injectTransform(_ => AddFallbackTagRule())
     injector.injectTransform(_ => TransformPreOverrides())
@@ -99,8 +96,6 @@ private object VeloxRuleApi {
     injector.inject(_ => RemoveTransitions)
     injector.inject(_ => PushDownInputFileExpression.PreOffload)
     injector.inject(c => FallbackOnANSIMode.apply(c.session))
-    injector.inject(c => PlanOneRowRelation.apply(c.session))
-    injector.inject(_ => FallbackEmptySchemaRelation())
     injector.inject(_ => RewriteSubqueryBroadcast())
     injector.inject(c => BloomFilterMightContainJointRewriteRule.apply(c.session))
     injector.inject(c => ArrowScanReplaceRule.apply(c.session))
@@ -110,6 +105,7 @@ private object VeloxRuleApi {
 
     // Gluten RAS: Post rules.
     injector.inject(_ => RemoveTransitions)
+    injector.inject(c => PartialProjectRule.apply(c.session))
     injector.inject(_ => RemoveNativeWriteFilesSortAndProject())
     injector.inject(c => RewriteTransformer.apply(c.session))
     injector.inject(_ => PushDownFilterToScan)

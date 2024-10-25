@@ -572,6 +572,12 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
     return false;
   }
 
+  if (types.empty()) {
+    // See: https://github.com/apache/incubator-gluten/issues/7600.
+    LOG_VALIDATION_MSG("Validation failed for empty input schema in WindowRel.");
+    return false;
+  }
+
   int32_t inputPlanNodeId = 0;
   std::vector<std::string> names;
   names.reserve(types.size());

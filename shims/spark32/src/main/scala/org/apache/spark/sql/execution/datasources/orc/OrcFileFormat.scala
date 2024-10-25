@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.orc
 
-import org.apache.gluten.execution.datasource.GlutenOrcWriterInjects
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 
 import org.apache.spark.TaskContext
 import org.apache.spark.sql.SparkSession
@@ -104,9 +104,7 @@ class OrcFileFormat extends FileFormat with DataSourceRegister with Serializable
     if ("true" == sparkSession.sparkContext.getLocalProperty("isNativeApplicable")) {
       // pass compression to job conf so that the file extension can be aware of it.
       val nativeConf =
-        GlutenOrcWriterInjects
-          .getInstance()
-          .nativeConf(options, orcOptions.compressionCodec)
+        GlutenFormatFactory(shortName()).nativeConf(options, orcOptions.compressionCodec)
 
       new OutputWriterFactory {
         override def getFileExtension(context: TaskAttemptContext): String = {
@@ -122,9 +120,8 @@ class OrcFileFormat extends FileFormat with DataSourceRegister with Serializable
             path: String,
             dataSchema: StructType,
             context: TaskAttemptContext): OutputWriter = {
-          GlutenOrcWriterInjects
-            .getInstance()
-            .createOutputWriter(path, dataSchema, context, nativeConf);
+          GlutenFormatFactory(shortName())
+            .createOutputWriter(path, dataSchema, context, nativeConf)
 
         }
       }
@@ -188,7 +185,7 @@ class OrcFileFormat extends FileFormat with DataSourceRegister with Serializable
       requiredSchema: StructType,
       filters: Seq[Filter],
       options: Map[String, String],
-      hadoopConf: Configuration): (PartitionedFile) => Iterator[InternalRow] = {
+      hadoopConf: Configuration): PartitionedFile => Iterator[InternalRow] = {
 
     val resultSchema = StructType(requiredSchema.fields ++ partitionSchema.fields)
     val sqlConf = sparkSession.sessionState.conf

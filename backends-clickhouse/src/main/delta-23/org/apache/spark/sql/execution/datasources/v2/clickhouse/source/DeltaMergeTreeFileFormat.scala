@@ -16,22 +16,13 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
 
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.delta.DeltaParquetFileFormat
+import org.apache.spark.sql.delta.{DeltaParquetFileFormat, MergeTreeFileFormat}
 import org.apache.spark.sql.delta.actions.Metadata
-import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
-import org.apache.spark.sql.execution.datasources.mergetree.DeltaMetaReader
-import org.apache.spark.sql.execution.datasources.v1.GlutenMergeTreeWriterInjects
-import org.apache.spark.sql.types.StructType
-
-import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 
 @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
-class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileFormat(metadata) {
-
-  override def shortName(): String = "mergetree"
-
-  override def toString(): String = "MergeTree"
+class DeltaMergeTreeFileFormat(metadata: Metadata)
+  extends DeltaParquetFileFormat(metadata)
+  with MergeTreeFileFormat {
 
   override def equals(other: Any): Boolean = {
     other match {
@@ -45,38 +36,4 @@ class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileForma
   }
 
   override def hashCode(): Int = getClass.getCanonicalName.hashCode()
-
-  override def prepareWrite(
-      sparkSession: SparkSession,
-      job: Job,
-      options: Map[String, String],
-      dataSchema: StructType): OutputWriterFactory = {
-    // pass compression to job conf so that the file extension can be aware of it.
-    val conf = job.getConfiguration
-
-    // just for the sake of compatibility
-    val nativeConf =
-      GlutenMergeTreeWriterInjects
-        .getInstance()
-        .nativeConf(options, "")
-
-    @transient val deltaMetaReader = DeltaMetaReader(metadata)
-    deltaMetaReader.storageConf.foreach { case (k, v) => conf.set(k, v) }
-
-    new OutputWriterFactory {
-      override def getFileExtension(context: TaskAttemptContext): String = {
-        ".mergetree"
-      }
-
-      override def newInstance(
-          path: String,
-          dataSchema: StructType,
-          context: TaskAttemptContext): OutputWriter = {
-
-        GlutenMergeTreeWriterInjects
-          .getInstance()
-          .createOutputWriter(path, metadata.schema, context, nativeConf)
-      }
-    }
-  }
 }

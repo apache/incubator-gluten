@@ -62,14 +62,12 @@ void NormalFileWriter::write(DB::Block & block)
     writer->push(materializeBlock(block));
 }
 
-std::string NormalFileWriter::close()
+void NormalFileWriter::close()
 {
     /// When insert into a table with empty dataset, NormalFileWriter::consume would be never called.
     /// So we need to skip when writer is nullptr.
     if (writer)
         writer->finish();
-
-    return std::string{};
 }
 
 OutputFormatFilePtr createOutputFormatFile(

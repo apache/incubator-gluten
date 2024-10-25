@@ -394,6 +394,8 @@ private:
                     pos = normalizeSingleQuotesString(pos, end, dst);
                 else if (*pos == '"')
                     pos = normalizeString(pos, end, dst);
+                else if (*pos == '}')
+                    continue;
                 else
                     return nullptr;
             }
@@ -656,7 +658,7 @@ private:
         {
             is_doc_ok = parser.parse(str, doc);
         }
-        if (!is_doc_ok)
+        if (!is_doc_ok && str.size() > 0)
         {
             total_normalized_rows++;
             std::vector<char> buf;
