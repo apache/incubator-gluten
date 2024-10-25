@@ -17,7 +17,6 @@
 package org.apache.gluten.extension
 
 import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
-import org.apache.gluten.utils.PhysicalPlanSelector
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.plans.LeftAnti
@@ -28,8 +27,7 @@ import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ClickHouseBuildSideRelation}
 
 case class CHAQEPropagateEmptyRelation(session: SparkSession) extends Rule[SparkPlan] {
-
-  def apply(plan: SparkPlan): SparkPlan = PhysicalPlanSelector.maybe(session, plan) {
+  def apply(plan: SparkPlan): SparkPlan = {
     if (!(session.conf.get(CHBackendSettings.GLUTEN_AQE_PROPAGATEEMPTY, "true").toBoolean)) {
       plan
     } else {

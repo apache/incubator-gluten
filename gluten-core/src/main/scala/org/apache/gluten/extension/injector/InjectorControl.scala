@@ -51,13 +51,13 @@ object InjectorControl {
     def disabled(session: SparkSession): Boolean
   }
 
-  object Disabler {
+  private object Disabler {
     implicit class DisablerOps(disabler: Disabler) {
       def wrapRule[TreeType <: TreeNode[_]](
           ruleBuilder: SparkSession => Rule[TreeType]): SparkSession => Rule[TreeType] = session =>
         {
           val rule = ruleBuilder(session)
-          new Rule[TreeType] {
+          new Rule[TreeType] with DisablerAware {
             override val ruleName: String = rule.ruleName
             override def apply(plan: TreeType): TreeType = {
               if (disabler.disabled(session)) {
@@ -70,7 +70,7 @@ object InjectorControl {
 
       def wrapStrategy(strategyBuilder: StrategyBuilder): StrategyBuilder = session => {
         val strategy = strategyBuilder(session)
-        new Strategy {
+        new Strategy with DisablerAware {
           override def apply(plan: LogicalPlan): Seq[SparkPlan] = {
             if (disabler.disabled(session)) {
               return Nil
@@ -87,7 +87,7 @@ object InjectorControl {
         java.lang.reflect.Proxy
           .newProxyInstance(
             classOf[ParserInterface].getClassLoader,
-            Array(classOf[ParserInterface]),
+            Array(classOf[ParserInterface], classOf[DisablerAware]),
             new InvocationHandler {
               override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
                 if (disabler.disabled(session)) {
@@ -118,7 +118,7 @@ object InjectorControl {
       def wrapColumnarRule(columnarRuleBuilder: ColumnarRuleBuilder): ColumnarRuleBuilder =
         session => {
           val columnarRule = columnarRuleBuilder(session)
-          new ColumnarRule {
+          new ColumnarRule with DisablerAware {
             override val preColumnarTransitions: Rule[SparkPlan] = {
               new Rule[SparkPlan] {
                 override def apply(plan: SparkPlan): SparkPlan = {
@@ -144,4 +144,10 @@ object InjectorControl {
         }
     }
   }
+
+  /**
+   * The entity (could be a rule, a parser, cost evaluator) that is dynamically injected to Spark,
+   * whose effectivity is under the control by a disabler.
+   */
+  trait DisablerAware
 }
