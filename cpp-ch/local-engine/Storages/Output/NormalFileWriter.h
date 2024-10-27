@@ -233,7 +233,7 @@ public:
 
 private:
     const std::string base_path_;
-    const std::string filenmame_;
+    const std::string filename_;
     DB::ContextPtr context_;
     const DB::Block sample_block_;
     const std::string format_hint_;
@@ -250,7 +250,7 @@ public:
         const std::string & format_hint)
         : PartitionedSink(make_partition_expression(partition_by), context, input_header)
         , base_path_(base_path)
-        , filenmame_(filename)
+        , filename_(filename)
         , context_(context)
         , sample_block_(sample_block)
         , format_hint_(format_hint)
@@ -259,9 +259,9 @@ public:
     DB::SinkPtr createSinkForPartition(const String & partition_id) override
     {
         assert(stats_);
-        const auto partition_path = fmt::format("{}/{}", partition_id, filenmame_);
+        const auto partition_path = fmt::format("{}/{}", partition_id, filename_);
         PartitionedSink::validatePartitionKey(partition_path, true);
-        auto file_sink = std::make_shared<SubstraitFileSink>(context_, base_path_, partition_id, filenmame_, format_hint_, sample_block_);
+        auto file_sink = std::make_shared<SubstraitFileSink>(context_, base_path_, partition_id, filename_, format_hint_, sample_block_);
         file_sink->setStats(stats_);
         return file_sink;
     }
