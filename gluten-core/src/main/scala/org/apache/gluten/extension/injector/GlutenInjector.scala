@@ -50,7 +50,7 @@ class GlutenInjector private[injector] (control: InjectorControl) {
   }
 }
 
-object GlutenInjector extends Logging {
+object GlutenInjector {
   class LegacyInjector {
     private val transformBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
     private val fallbackPolicyBuilders = mutable.Buffer.empty[ColumnarRuleCall => Rule[SparkPlan]]
