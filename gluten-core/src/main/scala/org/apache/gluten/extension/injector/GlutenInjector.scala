@@ -23,7 +23,6 @@ import org.apache.gluten.extension.columnar.ColumnarRuleApplier.ColumnarRuleCall
 import org.apache.gluten.extension.columnar.enumerated.EnumeratedApplier
 import org.apache.gluten.extension.columnar.heuristic.HeuristicApplier
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
