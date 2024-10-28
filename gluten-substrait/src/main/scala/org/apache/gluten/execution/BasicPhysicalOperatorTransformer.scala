@@ -48,7 +48,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetrics(sparkContext)
 
   // Split out all the IsNotNulls from condition.
-  private val (notNullPreds, otherPreds) = splitConjunctivePredicates(cond).partition {
+  private val (notNullPreds, _) = splitConjunctivePredicates(cond).partition {
     case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
     case _ => false
   }
@@ -170,14 +170,6 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   }
 }
 
-object FilterExecTransformerBase {
-  implicit class FilterExecTransformerBaseImplicits(filter: FilterExecTransformerBase) {
-    def isNoop(): Boolean = {
-      filter.getRemainingCondition == null
-    }
-  }
-}
-
 abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val input: SparkPlan)
   extends UnaryTransformSupport
   with OrderPreservingNodeShim
@@ -265,13 +257,11 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
 
 // An alternatives for UnionExec.
 case class ColumnarUnionExec(children: Seq[SparkPlan]) extends GlutenPlan {
-  children.foreach(
-    child =>
-      child match {
-        case w: WholeStageTransformer =>
-          w.setOutputSchemaForPlan(output)
-        case _ =>
-      })
+  children.foreach {
+    case w: WholeStageTransformer =>
+      w.setOutputSchemaForPlan(output)
+    case _ =>
+  }
 
   override def supportsColumnar: Boolean = true
 
