@@ -311,6 +311,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxBloomFilterMaxNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS)
 
+  def castFromVarcharAddTrimNode: Boolean = conf.getConf(CAST_FROM_VARCHAR_ADD_TRIM_NODE)
+
   case class ResizeRange(min: Int, max: Int) {
     assert(max >= min)
     assert(min > 0, "Min batch size should be larger than 0")
@@ -469,7 +471,7 @@ object GlutenConfig {
   import SQLConf._
 
   var GLUTEN_ENABLE_BY_DEFAULT = true
-  val GLUTEN_ENABLE_KEY = "spark.gluten.enabled"
+  val GLUTEN_ENABLED_KEY = "spark.gluten.enabled"
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
   val GLUTEN_EXECUTOR_LIB_PATH = "spark.gluten.sql.columnar.executor.libpath"
@@ -561,11 +563,11 @@ object GlutenConfig {
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS = "spark.gluten.soft-affinity.min.target-hosts"
   val GLUTEN_SOFT_AFFINITY_MIN_TARGET_HOSTS_DEFAULT_VALUE = 1
 
-  // Enable Soft Affinity duplicate reading detection, defalut value is true
+  // Enable Soft Affinity duplicate reading detection, default value is false
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED =
     "spark.gluten.soft-affinity.duplicateReadingDetect.enabled"
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_DETECT_ENABLED_DEFAULT_VALUE = false
-  // Enable Soft Affinity duplicate reading detection, defalut value is 10000
+  // Enable Soft Affinity duplicate reading detection, default value is 10000
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS =
     "spark.gluten.soft-affinity.duplicateReading.maxCacheItems"
   val GLUTEN_SOFT_AFFINITY_DUPLICATE_READING_MAX_CACHE_ITEMS_DEFAULT_VALUE = 10000
@@ -808,7 +810,7 @@ object GlutenConfig {
   }
 
   val GLUTEN_ENABLED =
-    buildConf(GLUTEN_ENABLE_KEY)
+    buildConf(GLUTEN_ENABLED_KEY)
       .internal()
       .doc("Whether to enable gluten. Default value is true. Just an experimental property." +
         " Recommend to enable/disable Gluten through the setting for spark.plugins.")
@@ -2125,4 +2127,14 @@ object GlutenConfig {
         "Otherwise, throw an exception.")
       .booleanConf
       .createWithDefault(true)
+
+  val CAST_FROM_VARCHAR_ADD_TRIM_NODE =
+    buildConf("spark.gluten.velox.castFromVarcharAddTrimNode")
+      .internal()
+      .doc(
+        "If true, will add a trim node " +
+          "which has the same sementic as vanilla Spark to CAST-from-varchar." +
+          "Otherwise, do nothing.")
+      .booleanConf
+      .createWithDefault(false)
 }

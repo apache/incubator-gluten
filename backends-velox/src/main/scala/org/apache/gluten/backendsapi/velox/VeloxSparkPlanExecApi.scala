@@ -729,7 +729,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         c
       case FloatType | DoubleType | _: DecimalType =>
         c.child.dataType match {
-          case StringType =>
+          case StringType if GlutenConfig.getConf.castFromVarcharAddTrimNode =>
             val trimNode = StringTrim(c.child, Some(Literal(trimSpaceStr)))
             c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
           case _ =>
@@ -737,7 +737,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         }
       case _ =>
         c.child.dataType match {
-          case StringType =>
+          case StringType if GlutenConfig.getConf.castFromVarcharAddTrimNode =>
             val trimNode = StringTrim(
               c.child,
               Some(

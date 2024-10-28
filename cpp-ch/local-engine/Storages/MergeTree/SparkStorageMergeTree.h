@@ -38,8 +38,7 @@ public:
         DB::BlockWithPartition & block_with_partition,
         const DB::StorageMetadataPtr & metadata_snapshot,
         const ContextPtr & context,
-        const SparkMergeTreeWritePartitionSettings & write_settings,
-        int part_num) const;
+        const std::string & part_dir) const;
 
 private:
     MergeTreeData & data;

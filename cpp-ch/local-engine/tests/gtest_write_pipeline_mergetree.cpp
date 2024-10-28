@@ -226,7 +226,7 @@ TEST(MergeTree, SparkMergeTree)
     };
     gm_write_settings.set(context);
 
-    auto writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, gm_write_settings, context);
+    auto writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, gm_write_settings, context, "no job id");
     SparkMergeTreeWriter & spark_merge_tree_writer = *writer;
 
     auto [_, local_executor] = test::create_plan_and_executor(EMBEDDED_PLAN(_1_read_), split_template, file);
@@ -237,8 +237,7 @@ TEST(MergeTree, SparkMergeTree)
         spark_merge_tree_writer.write(*local_executor->nextColumnar());
     } while (local_executor->hasNext());
 
-    auto json_info = spark_merge_tree_writer.close();
-    std::cerr << json_info << std::endl;
+    spark_merge_tree_writer.close();
 
     ///
     {

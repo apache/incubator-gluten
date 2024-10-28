@@ -16,7 +16,7 @@
  */
 
 #include "VeloxMemoryManager.h"
-#ifdef ENABLE_JEMALLOC
+#ifdef ENABLE_JEMALLOC_STATS
 #include <jemalloc/jemalloc.h>
 #endif
 
@@ -78,6 +78,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   std::string kind() const override {
     return kind_;
   }
+
+  void shutdown() override {}
 
   void addPool(const std::shared_ptr<velox::memory::MemoryPool>& pool) override {
     VELOX_CHECK_EQ(pool->capacity(), 0);
@@ -377,7 +379,7 @@ VeloxMemoryManager::~VeloxMemoryManager() {
     LOG(ERROR) << "Failed to release Velox memory manager after " << accumulatedWaitMs
                << "ms as there are still outstanding memory resources. ";
   }
-#ifdef ENABLE_JEMALLOC
+#ifdef ENABLE_JEMALLOC_STATS
   je_gluten_malloc_stats_print(NULL, NULL, NULL);
 #endif
 }

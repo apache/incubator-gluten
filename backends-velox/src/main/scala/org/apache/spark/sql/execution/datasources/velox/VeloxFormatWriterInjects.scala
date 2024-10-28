@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.velox
 
-import org.apache.gluten.columnarbatch.{ColumnarBatches, ColumnarBatchJniWrapper}
+import org.apache.gluten.columnarbatch.ColumnarBatches
 import org.apache.gluten.datasource.{VeloxDataSourceJniWrapper, VeloxDataSourceUtil}
 import org.apache.gluten.exception.GlutenException
 import org.apache.gluten.execution.datasource.GlutenRowSplitter
@@ -76,13 +76,8 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
         ColumnarBatches.checkOffloaded(batch)
         ColumnarBatches.retain(batch)
         val batchHandle = {
-          if (batch.numCols == 0) {
-            // the operation will find a zero column batch from a task-local pool
-            ColumnarBatchJniWrapper.create(runtime).getForEmptySchema(batch.numRows)
-          } else {
-            ColumnarBatches.checkOffloaded(batch)
-            ColumnarBatches.getNativeHandle(batch)
-          }
+          ColumnarBatches.checkOffloaded(batch)
+          ColumnarBatches.getNativeHandle(batch)
         }
         datasourceJniWrapper.writeBatch(dsHandle, batchHandle)
         batch.close()

@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_10_22
+VELOX_BRANCH=2024_10_28
 VELOX_HOME=""
 
 OS=`uname -s`
@@ -69,6 +69,17 @@ function process_setup_ubuntu {
   # Do not install libunwind which can cause interruption when catching native exception.
   ensure_pattern_matched '\${SUDO} apt install -y libunwind-dev' scripts/setup-ubuntu.sh
   sed -i 's/${SUDO} apt install -y libunwind-dev//' scripts/setup-ubuntu.sh
+  # Overwrite gcc installed by build-essential.
+  ensure_pattern_matched '\${SUDO} pip3 install cmake==3.28.3' scripts/setup-ubuntu.sh
+  sed -i '/^  ${SUDO} pip3 install cmake==3.28.3/a\
+  \VERSION=`cat /etc/os-release | grep VERSION_ID`\
+  if [[ $VERSION =~ "20.04" ]]; then\
+    sudo apt install -y software-properties-common\
+    sudo add-apt-repository ppa:ubuntu-toolchain-r/test\
+    sudo apt update && sudo apt install -y gcc-11 g++-11\
+    sudo ln -sf /usr/bin/gcc-11 /usr/bin/gcc\
+    sudo ln -sf /usr/bin/g++-11 /usr/bin/g++\
+  fi' scripts/setup-ubuntu.sh
   ensure_pattern_matched 'ccache' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\    *thrift* \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\    libiberty-dev \\' scripts/setup-ubuntu.sh
@@ -121,10 +132,10 @@ function process_setup_alinux3 {
   sed -i "s/.*dnf_install epel-release/#&/" ${CURRENT_DIR}/setup-centos8.sh
   sed -i "s/.*run_and_time install_conda/#&/" ${CURRENT_DIR}/setup-centos8.sh
   sed -i "s/.*dnf config-manager --set-enabled powertools/#&/" ${CURRENT_DIR}/setup-centos8.sh
-  sed -i "s/gcc-toolset-9 //" ${CURRENT_DIR}/setup-centos8.sh
-  sed -i "s/.*source \/opt\/rh\/gcc-toolset-9\/enable/#&/" ${CURRENT_DIR}/setup-centos8.sh
-  sed -i 's|^export CC=/opt/rh/gcc-toolset-9/root/bin/gcc|# &|' ${CURRENT_DIR}/setup-centos8.sh
-  sed -i 's|^export CXX=/opt/rh/gcc-toolset-9/root/bin/g++|# &|' ${CURRENT_DIR}/setup-centos8.sh
+  sed -i "s/gcc-toolset-11 //" ${CURRENT_DIR}/setup-centos8.sh
+  sed -i "s/.*source \/opt\/rh\/gcc-toolset-11\/enable/#&/" ${CURRENT_DIR}/setup-centos8.sh
+  sed -i 's|^export CC=/opt/rh/gcc-toolset-11/root/bin/gcc|# &|' ${CURRENT_DIR}/setup-centos8.sh
+  sed -i 's|^export CXX=/opt/rh/gcc-toolset-11/root/bin/g++|# &|' ${CURRENT_DIR}/setup-centos8.sh
   sed -i 's/python39 python39-devel python39-pip //g' ${CURRENT_DIR}/setup-centos8.sh
   sed -i "s/.*pip.* install/#&/" ${CURRENT_DIR}/setup-centos8.sh
 }
