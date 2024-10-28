@@ -63,7 +63,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
       // Partition key of string type.
-      withSQLConf(GlutenConfig.GLUTEN_ENABLE_KEY -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
                      |create table $leftTable(id int, name string, p string)
@@ -84,7 +84,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
 
       // Partition key of integer type.
       withSQLConf(
-        GlutenConfig.GLUTEN_ENABLE_KEY -> "false"
+        GlutenConfig.GLUTEN_ENABLED_KEY -> "false"
       ) {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
@@ -128,7 +128,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
                 case plan if plan.isInstanceOf[IcebergScanTransformer] =>
                   assert(
                     plan.asInstanceOf[IcebergScanTransformer].getKeyGroupPartitioning.isDefined)
-                  assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos.length == 3)
+                  assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos(null).length == 3)
                 case _ => // do nothing
               }
               checkLengthAndPlan(df, 7)
@@ -143,7 +143,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
       // Partition key of string type.
-      withSQLConf(GlutenConfig.GLUTEN_ENABLE_KEY -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
                      |create table $leftTable(id int, name string, p int)
@@ -164,7 +164,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
 
       // Partition key of integer type.
       withSQLConf(
-        GlutenConfig.GLUTEN_ENABLE_KEY -> "false"
+        GlutenConfig.GLUTEN_ENABLED_KEY -> "false"
       ) {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
@@ -208,7 +208,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
                 case plan if plan.isInstanceOf[IcebergScanTransformer] =>
                   assert(
                     plan.asInstanceOf[IcebergScanTransformer].getKeyGroupPartitioning.isDefined)
-                  assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos.length == 3)
+                  assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos(null).length == 3)
                 case _ => // do nothing
               }
               checkLengthAndPlan(df, 7)
@@ -223,7 +223,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
     val rightTable = "p_int_tb"
     withTable(leftTable, rightTable) {
       // Partition key of string type.
-      withSQLConf(GlutenConfig.GLUTEN_ENABLE_KEY -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
                      |create table $leftTable(id int, name string, p int)
@@ -244,7 +244,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
 
       // Partition key of integer type.
       withSQLConf(
-        GlutenConfig.GLUTEN_ENABLE_KEY -> "false"
+        GlutenConfig.GLUTEN_ENABLED_KEY -> "false"
       ) {
         // Gluten does not support write iceberg table.
         spark.sql(s"""
@@ -289,7 +289,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
                 case plan if plan.isInstanceOf[IcebergScanTransformer] =>
                   assert(
                     plan.asInstanceOf[IcebergScanTransformer].getKeyGroupPartitioning.isDefined)
-                  assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos.length == 1)
+                  assert(plan.asInstanceOf[IcebergScanTransformer].getSplitInfos(null).length == 1)
                 case _ => // do nothing
               }
               checkLengthAndPlan(df, 5)
@@ -338,7 +338,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
 
   test("iceberg read mor table - delete and update") {
     withTable("iceberg_mor_tb") {
-      withSQLConf(GlutenConfig.GLUTEN_ENABLE_KEY -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
         spark.sql("""
                     |create table iceberg_mor_tb (
                     |  id int,
@@ -390,7 +390,7 @@ class VeloxIcebergSuite extends WholeStageTransformerSuite {
 
   test("iceberg read mor table - merge into") {
     withTable("iceberg_mor_tb", "merge_into_source_tb") {
-      withSQLConf(GlutenConfig.GLUTEN_ENABLE_KEY -> "false") {
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
         spark.sql("""
                     |create table iceberg_mor_tb (
                     |  id int,

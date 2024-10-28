@@ -477,7 +477,7 @@ object GlutenConfig {
   import SQLConf._
 
   var GLUTEN_ENABLE_BY_DEFAULT = true
-  val GLUTEN_ENABLE_KEY = "spark.gluten.enabled"
+  val GLUTEN_ENABLED_KEY = "spark.gluten.enabled"
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
   val GLUTEN_EXECUTOR_LIB_PATH = "spark.gluten.sql.columnar.executor.libpath"
@@ -816,7 +816,7 @@ object GlutenConfig {
   }
 
   val GLUTEN_ENABLED =
-    buildConf(GLUTEN_ENABLE_KEY)
+    buildConf(GLUTEN_ENABLED_KEY)
       .internal()
       .doc("Whether to enable gluten. Default value is true. Just an experimental property." +
         " Recommend to enable/disable Gluten through the setting for spark.plugins.")

@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.delta.commands
 
-import org.apache.gluten.utils.QueryPlanSelector
+import org.apache.gluten.extension.GlutenSessionExtensions
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.delta._
@@ -145,9 +145,11 @@ object VacuumCommand extends VacuumCommandImpl with Serializable {
 
       // --- modified start
       val originalEnabledGluten =
-        spark.sparkContext.getLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY)
+        spark.sparkContext.getLocalProperty(GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY)
       // gluten can not support vacuum command
-      spark.sparkContext.setLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, "false")
+      spark.sparkContext.setLocalProperty(
+        GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY,
+        "false")
       // --- modified end
 
       val validFiles = snapshot.stateDS
@@ -284,31 +286,37 @@ object VacuumCommand extends VacuumCommandImpl with Serializable {
         } else {
           allFilesAndDirs
             .where('modificationTime < deleteBeforeTimestamp || 'isDir)
-            .mapPartitions { fileStatusIterator =>
-              val reservoirBase = new Path(basePath)
-              val fs = reservoirBase.getFileSystem(hadoopConf.value.value)
-              fileStatusIterator.flatMap { fileStatus =>
-                if (fileStatus.isDir) {
-                  Iterator.single(relativize(fileStatus.getPath, fs, reservoirBase, isDir = true))
-                } else {
-                  val dirs = getAllSubdirs(basePath, fileStatus.path, fs)
-                  val dirsWithSlash = dirs.map { p =>
-                    relativize(new Path(p), fs, reservoirBase, isDir = true)
-                  }
-                  dirsWithSlash ++ Iterator(
-                    relativize(new Path(fileStatus.path), fs, reservoirBase, isDir = false))
+            .mapPartitions {
+              fileStatusIterator =>
+                val reservoirBase = new Path(basePath)
+                val fs = reservoirBase.getFileSystem(hadoopConf.value.value)
+                fileStatusIterator.flatMap {
+                  fileStatus =>
+                    if (fileStatus.isDir) {
+                      Iterator.single(
+                        relativize(fileStatus.getPath, fs, reservoirBase, isDir = true))
+                    } else {
+                      val dirs = getAllSubdirs(basePath, fileStatus.path, fs)
+                      val dirsWithSlash = dirs.map {
+                        p => relativize(new Path(p), fs, reservoirBase, isDir = true)
+                      }
+                      dirsWithSlash ++ Iterator(
+                        relativize(new Path(fileStatus.path), fs, reservoirBase, isDir = false))
+                    }
                 }
-              }
-            }.groupBy($"value" as 'path)
+            }
+            .groupBy($"value".as('path))
             .count()
             .join(validFiles, Seq("path"), "leftanti")
             .where('count === 1)
             .select('path)
             .as[String]
-            .map { relativePath =>
-              assert(!stringToPath(relativePath).isAbsolute,
-                "Shouldn't have any absolute paths for deletion here.")
-              pathToString(DeltaFileOperations.absolutePath(basePath, relativePath))
+            .map {
+              relativePath =>
+                assert(
+                  !stringToPath(relativePath).isAbsolute,
+                  "Shouldn't have any absolute paths for deletion here.")
+                pathToString(DeltaFileOperations.absolutePath(basePath, relativePath))
             }
         }
         // --- modified end
@@ -371,10 +379,12 @@ object VacuumCommand extends VacuumCommandImpl with Serializable {
         // --- modified start
         if (originalEnabledGluten != null) {
           spark.sparkContext.setLocalProperty(
-            QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, originalEnabledGluten)
+            GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY,
+            originalEnabledGluten)
         } else {
           spark.sparkContext.setLocalProperty(
-            QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, "true")
+            GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY,
+            "true")
         }
         // --- modified end
       }

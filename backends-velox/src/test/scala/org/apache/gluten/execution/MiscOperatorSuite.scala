@@ -64,35 +64,6 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       .set(GlutenConfig.NATIVE_ARROW_READER_ENABLED.key, "true")
   }
 
-  test("field names contain non-ASCII characters") {
-    withTempPath {
-      path =>
-        // scalastyle:off nonascii
-        Seq((1, 2, 3, 4)).toDF("товары", "овары", "国ⅵ", "中文").write.parquet(path.getCanonicalPath)
-        // scalastyle:on
-        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
-        runQueryAndCompare("select * from view") {
-          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
-        }
-    }
-
-    withTempPath {
-      path =>
-        // scalastyle:off nonascii
-        spark.range(10).toDF("中文").write.parquet(path.getCanonicalPath)
-        spark.read.parquet(path.getCanonicalPath).filter("`中文`>1").createOrReplaceTempView("view")
-        // scalastyle:on
-        runQueryAndCompare("select * from view") {
-          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
-        }
-    }
-  }
-
-  test("simple_select") {
-    val df = runQueryAndCompare("select * from lineitem limit 1") { _ => }
-    checkLengthAndPlan(df, 1)
-  }
-
   test("select_part_column") {
     val df = runQueryAndCompare("select l_shipdate, l_orderkey from lineitem limit 1") {
       df =>
@@ -1921,6 +1892,47 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
             .filter("c1.A > 1")
             .select("c1.A")
           checkAnswer(df, Seq(Row(2), Row(2)))
+      }
+    }
+  }
+
+  // Since https://github.com/apache/incubator-gluten/pull/7330.
+  test("field names contain non-ASCII characters") {
+    withTempPath {
+      path =>
+        // scalastyle:off nonascii
+        Seq((1, 2, 3, 4)).toDF("товары", "овары", "国ⅵ", "中文").write.parquet(path.getCanonicalPath)
+        // scalastyle:on
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("view")
+        runQueryAndCompare("select * from view") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+    }
+
+    withTempPath {
+      path =>
+        // scalastyle:off nonascii
+        spark.range(10).toDF("中文").write.parquet(path.getCanonicalPath)
+        spark.read.parquet(path.getCanonicalPath).filter("`中文`>1").createOrReplaceTempView("view")
+        // scalastyle:on
+        runQueryAndCompare("select * from view") {
+          checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+        }
+    }
+  }
+
+  test("test 'spark.gluten.enabled'") {
+    withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "true") {
+      runQueryAndCompare("select * from lineitem limit 1") {
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+      }
+      withSQLConf(GlutenConfig.GLUTEN_ENABLED_KEY -> "false") {
+        runQueryAndCompare("select * from lineitem limit 1") {
+          checkSparkOperatorMatch[FileSourceScanExec]
+        }
+      }
+      runQueryAndCompare("select * from lineitem limit 1") {
+        checkGlutenOperatorMatch[FileSourceScanExecTransformer]
       }
     }
   }

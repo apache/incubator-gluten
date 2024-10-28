@@ -393,7 +393,7 @@ public:
                     bucket,
                     object.remote_path,
                     "",
-                    DB::S3::RequestSettings(),
+                    DB::S3::S3RequestSettings(),
                     read_settings,
                     /* use_external_buffer */ true,
                     /* offset */ 0,
