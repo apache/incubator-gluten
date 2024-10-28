@@ -26,10 +26,11 @@ import org.apache.spark.sql.execution.ScalarSubquery
 
 class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
-  protected val veloxTPCHQueries: String = rootPath + "/tpch-queries-velox"
+  protected val tpchQueries: String =
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"
 
   override protected def sparkConf: SparkConf = super.sparkConf
@@ -41,7 +42,7 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
 
   test("tpch q22 subquery filter pushdown - v1") {
     createTPCHNotNullTables()
-    runTPCHQuery(22, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+    runTPCHQuery(22, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
       df =>
         val plan = df.queryExecution.executedPlan
         val exist = plan.collect { case scan: FileSourceScanExecTransformer => scan }.exists {
@@ -61,7 +62,7 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
       createTPCHNotNullTables()
       runTPCHQuery(
         22,
-        veloxTPCHQueries,
+        tpchQueries,
         queriesResults,
         compareResult = false,
         noFallBack = false) {
