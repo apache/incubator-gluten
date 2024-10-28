@@ -16,9 +16,8 @@
  */
 package org.apache.gluten.planner.cost
 
-import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
+import org.apache.gluten.extension.columnar.transition.{ColumnarToColumnarLike, ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
-
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ProjectExec, RowToColumnarExec, SparkPlan}
 
 /**
@@ -36,6 +35,7 @@ class LegacyCostModel extends LongCostModel {
       case RowToColumnarExec(_) => 10L
       case ColumnarToRowLike(_) => 10L
       case RowToColumnarLike(_) => 10L
+      case ColumnarToColumnarLike(_) => 5L
       case p if PlanUtil.isGlutenColumnarOp(p) => 10L
       // 1. 100L << 1000L, to keep the pulled out non-offload-able projects if the main op
       // turns into offload-able after pulling.
