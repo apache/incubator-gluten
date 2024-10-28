@@ -288,7 +288,12 @@ bool SubstraitToVeloxPlanValidator::validateIfThen(
     const ::substrait::Expression_IfThen& ifThen,
     const RowTypePtr& inputType) {
   for (const auto& subIfThen : ifThen.ifs()) {
-    return validateExpression(subIfThen.if_(), inputType) && validateExpression(subIfThen.then(), inputType);
+    if (!validateExpression(subIfThen.if_(), inputType) || !validateExpression(subIfThen.then(), inputType)) {
+      return false;
+    }
+  }
+  if (ifThen.has_else_() && !validateExpression(ifThen.else_(), inputType)) {
+    return false;
   }
   return true;
 }
