@@ -30,17 +30,18 @@ using namespace facebook::velox;
 namespace {
 
 RowVectorPtr makeRowVector(
-    std::vector<std::string> childNames,
-    const std::vector<VectorPtr>& children,
+    velox::memory::MemoryPool* pool,
     int32_t numRows,
-    velox::memory::MemoryPool* pool) {
+    std::vector<std::string> childNames,
+    BufferPtr nulls,
+    const std::vector<VectorPtr>& children) {
   std::vector<std::shared_ptr<const Type>> childTypes;
   childTypes.resize(children.size());
   for (int i = 0; i < children.size(); i++) {
     childTypes[i] = children[i]->type();
   }
   auto rowType = ROW(std::move(childNames), std::move(childTypes));
-  return std::make_shared<RowVector>(pool, rowType, BufferPtr(nullptr), numRows, std::move(children));
+  return std::make_shared<RowVector>(pool, rowType, nulls, numRows, std::move(children));
 }
 } // namespace
 
@@ -97,34 +98,51 @@ std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::from(
   if (cb->getType() == "velox") {
     return std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   }
-  if (cb->getType() == "composite") {
-    auto composite = std::dynamic_pointer_cast<gluten::CompositeColumnarBatch>(cb);
-    auto children = composite->getBatches();
-    std::vector<std::string> childNames;
-    std::vector<VectorPtr> childVectors;
-
-    for (const auto& child : children) {
-      auto asVelox = from(pool, child);
-      auto names = facebook::velox::asRowType(asVelox->getRowVector()->type())->names();
-      for (const auto& name : names) {
-        childNames.push_back(name);
-      }
-      auto vectors = asVelox->getRowVector()->children();
-      for (const auto& vector : vectors) {
-        childVectors.push_back(vector);
-      }
-    }
-
-    auto compositeVeloxVector = makeRowVector(childNames, childVectors, cb->numRows(), pool);
-    return std::make_shared<VeloxColumnarBatch>(compositeVeloxVector);
-  }
   auto vp = velox::importFromArrowAsOwner(*cb->exportArrowSchema(), *cb->exportArrowArray(), pool);
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
 }
 
-std::shared_ptr<ColumnarBatch> VeloxColumnarBatch::select(
+std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::compose(
     facebook::velox::memory::MemoryPool* pool,
-    std::vector<int32_t> columnIndices) {
+    const std::vector<std::shared_ptr<ColumnarBatch>>& batches) {
+  GLUTEN_CHECK(!batches.empty(), "No batches to compose");
+
+  int32_t numRows = -1;
+  for (const auto& batch : batches) {
+    GLUTEN_CHECK(batch->getType() == kType, "At least one of the input batches is not in Velox format");
+    if (numRows == -1) {
+      numRows = batch->numRows();
+      continue;
+    }
+    if (batch->numRows() != numRows) {
+      throw GlutenException("Mismatched row counts among the input batches during composing columnar batches");
+    }
+    auto vb = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch);
+    auto rv = vb->getRowVector();
+    GLUTEN_CHECK(rv->nulls() == nullptr, "Vectors to compose contain null bits");
+  }
+
+  GLUTEN_CHECK(numRows > 0, "Illegal state");
+
+  std::vector<std::string> childNames;
+  std::vector<VectorPtr> children;
+  for (const auto& batch : batches) {
+    auto vb = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch);
+    auto rv = vb->getRowVector();
+    for (const std::string& name : rv->type()->asRow().names()) {
+      childNames.push_back(name);
+    }
+    for (const VectorPtr& vec : rv->children()) {
+      children.push_back(vec);
+    }
+  }
+  RowVectorPtr outRv = makeRowVector(pool, numRows, std::move(childNames), nullptr, std::move(children));
+  return std::make_shared<VeloxColumnarBatch>(outRv);
+}
+
+std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::select(
+    facebook::velox::memory::MemoryPool* pool,
+    const std::vector<int32_t>& columnIndices) {
   std::vector<std::string> childNames;
   std::vector<VectorPtr> childVectors;
   childNames.reserve(columnIndices.size());
@@ -139,7 +157,7 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatch::select(
     childVectors.push_back(child);
   }
 
-  auto rowVector = makeRowVector(std::move(childNames), std::move(childVectors), numRows(), pool);
+  auto rowVector = makeRowVector(pool, numRows(), std::move(childNames), vector->nulls(), std::move(childVectors));
   return std::make_shared<VeloxColumnarBatch>(rowVector);
 }
 

@@ -22,8 +22,17 @@
 
 namespace gluten {
 template <typename T>
+/// Round function
+/// When AlwaysRoundNegDec is true, spark semantics is followed which
+/// rounds negative decimals for integrals and does not round it otherwise
+/// Note that is is likely techinically impossible for this function to return
+/// expected results in all cases as the loss of precision plagues it on both
+/// paths: factor multiplication for large numbers and addition of truncated
+/// number to the rounded fraction for small numbers.
+/// We are trying to minimize the loss of precision by using the best path for
+/// the number, but the journey is likely not over yet.
 struct RoundFunction {
-  template <typename TNum, typename TDecimals, bool alwaysRoundNegDec = false>
+  template <typename TNum, typename TDecimals, bool alwaysRoundNegDec = true>
   FOLLY_ALWAYS_INLINE TNum round(const TNum& number, const TDecimals& decimals = 0) {
     static_assert(!std::is_same_v<TNum, bool> && "round not supported for bool");
 

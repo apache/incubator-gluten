@@ -35,7 +35,7 @@ namespace local_engine
 class FunctionParserArraySlice : public FunctionParser
 {
 public:
-    explicit FunctionParserArraySlice(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserArraySlice(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
 
     static constexpr auto name = "slice";
 

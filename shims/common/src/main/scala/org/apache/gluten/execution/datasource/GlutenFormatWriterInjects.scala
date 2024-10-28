@@ -34,26 +34,6 @@ trait GlutenFormatWriterInjects {
       context: TaskAttemptContext,
       nativeConf: java.util.Map[String, String]): OutputWriter
 
-  // scalastyle:off argcount
-  /** For CH MergeTree format */
-  def createOutputWriter(
-      path: String,
-      database: String,
-      tableName: String,
-      snapshotId: String,
-      orderByKeyOption: Option[Seq[String]],
-      lowCardKeyOption: Option[Seq[String]],
-      minmaxIndexKeyOption: Option[Seq[String]],
-      bfIndexKeyOption: Option[Seq[String]],
-      setIndexKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]],
-      partitionColumns: Seq[String],
-      tableSchema: StructType,
-      clickhouseTableConfigs: Map[String, String],
-      context: TaskAttemptContext,
-      nativeConf: java.util.Map[String, String]): OutputWriter = null
-  // scalastyle:on argcount
-
   def inferSchema(
       sparkSession: SparkSession,
       options: Map[String, String],
@@ -65,9 +45,7 @@ trait GlutenFormatWriterInjects {
       options: Map[String, String],
       compressionCodec: String): java.util.Map[String, String]
 
-  def getFormatName(): String
-
-  def getExtendedColumnarPostRule(session: SparkSession): Rule[SparkPlan]
+  def formatName: String
 }
 
 trait GlutenRowSplitter {
@@ -78,17 +56,42 @@ trait GlutenRowSplitter {
       reserve_partition_columns: Boolean = false): BlockStripes
 }
 
-object GlutenRowSplitter {
-  private var INSTANCE: GlutenRowSplitter = _
+object GlutenFormatFactory {
+  private var instances: Map[String, GlutenFormatWriterInjects] = _
+  private var postRuleFactory: SparkSession => Rule[SparkPlan] = _
+  private var rowSplitterInstance: GlutenRowSplitter = _
 
-  def setInstance(instance: GlutenRowSplitter): Unit = {
-    INSTANCE = instance
+  def register(items: GlutenFormatWriterInjects*): Unit = {
+    instances = items.map(item => (item.formatName, item)).toMap
   }
 
-  def getInstance(): GlutenRowSplitter = {
-    if (INSTANCE == null) {
-      throw new IllegalStateException("GlutenOutputWriterFactoryCreator is not initialized")
+  def isRegistered(name: String): Boolean = instances.contains(name)
+
+  def apply(name: String): GlutenFormatWriterInjects = {
+    instances.getOrElse(
+      name,
+      throw new IllegalStateException(s"GlutenFormatWriterInjects for $name is not initialized"))
+  }
+
+  def injectPostRuleFactory(factory: SparkSession => Rule[SparkPlan]): Unit = {
+    postRuleFactory = factory
+  }
+
+  def getExtendedColumnarPostRule(session: SparkSession): Rule[SparkPlan] = {
+    if (postRuleFactory == null) {
+      throw new IllegalStateException("GlutenFormatFactory is not initialized")
     }
-    INSTANCE
+    postRuleFactory(session)
+  }
+
+  def register(rowSplitter: GlutenRowSplitter): Unit = {
+    rowSplitterInstance = rowSplitter
+  }
+
+  def rowSplitter: GlutenRowSplitter = {
+    if (rowSplitterInstance == null) {
+      throw new IllegalStateException("GlutenRowSplitter is not initialized")
+    }
+    rowSplitterInstance
   }
 }

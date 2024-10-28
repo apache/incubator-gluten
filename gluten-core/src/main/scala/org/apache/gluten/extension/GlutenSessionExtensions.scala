@@ -16,24 +16,43 @@
  */
 package org.apache.gluten.extension
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.extension.injector.RuleInjector
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSessionExtensions
-import org.apache.spark.sql.internal.StaticSQLConf
 
-import java.util.Objects
-
-private[gluten] class GlutenSessionExtensions extends (SparkSessionExtensions => Unit) {
+private[gluten] class GlutenSessionExtensions
+  extends (SparkSessionExtensions => Unit)
+  with Logging {
+  import GlutenSessionExtensions._
   override def apply(exts: SparkSessionExtensions): Unit = {
-    val injector = new RuleInjector()
+    val injector = new RuleInjector(exts)
+    injector.control.disableOn {
+      session =>
+        val glutenEnabledGlobally = session.conf
+          .get(GlutenConfig.GLUTEN_ENABLED_KEY, GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT.toString)
+          .toBoolean
+        val disabled = !glutenEnabledGlobally
+        logDebug(s"Gluten is disabled by variable: glutenEnabledGlobally: $glutenEnabledGlobally")
+        disabled
+    }
+    injector.control.disableOn {
+      session =>
+        val glutenEnabledForThread =
+          Option(session.sparkContext.getLocalProperty(GLUTEN_ENABLE_FOR_THREAD_KEY))
+            .forall(_.toBoolean)
+        val disabled = !glutenEnabledForThread
+        logDebug(s"Gluten is disabled by variable: glutenEnabledForThread: $glutenEnabledForThread")
+        disabled
+    }
     Backend.get().injectRules(injector)
-    injector.inject(exts)
+    injector.inject()
   }
 }
 
-private[gluten] object GlutenSessionExtensions {
-  val SPARK_SESSION_EXTS_KEY: String = StaticSQLConf.SPARK_SESSION_EXTENSIONS.key
-  val GLUTEN_SESSION_EXTENSION_NAME: String =
-    Objects.requireNonNull(classOf[GlutenSessionExtensions].getCanonicalName)
+object GlutenSessionExtensions {
+  val GLUTEN_SESSION_EXTENSION_NAME: String = classOf[GlutenSessionExtensions].getCanonicalName
+  val GLUTEN_ENABLE_FOR_THREAD_KEY: String = "gluten.enabledForCurrentThread"
 }

@@ -28,7 +28,5 @@ class VeloxOrcWriterInjects extends VeloxFormatWriterInjects {
     sparkOptions.asJava
   }
 
-  override def getFormatName(): String = {
-    "orc"
-  }
+  override val formatName: String = "orc"
 }

@@ -24,19 +24,29 @@ using namespace DB;
 
 namespace local_engine
 {
+namespace pb_util = google::protobuf::util;
 void logDebugMessage(const google::protobuf::Message & message, const char * type)
 {
-    auto * logger = &Poco::Logger::get("SubstraitPlan");
-    if (logger->debug())
+    if (auto * logger = &Poco::Logger::get("SubstraitPlan"); logger->debug())
     {
-        namespace pb_util = google::protobuf::util;
         pb_util::JsonOptions options;
         std::string json;
-        auto s = pb_util::MessageToJsonString(message, &json, options);
-        if (!s.ok())
+        if (auto s = MessageToJsonString(message, &json, options); !s.ok())
             throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert {} to Json", type);
         LOG_DEBUG(logger, "{}:\n{}", type, json);
     }
+}
+std::string dumpMessage(const google::protobuf::Message & message)
+{
+    pb_util::JsonOptions options;
+    std::string json;
+    if (auto s = MessageToJsonString(message, &json, options); !s.ok())
+    {
+        if (auto * logger = &Poco::Logger::get("SubstraitPlan"))
+            LOG_ERROR(logger, "Can not convert message to Json");
+        return "";
+    }
+    return json;
 }
 std::string toString(const google::protobuf::Any & any)
 {

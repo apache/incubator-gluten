@@ -27,6 +27,7 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.util.SerializableConfiguration
 
 import org.apache.iceberg.spark.source.GlutenIcebergSourceUtil
 
@@ -48,18 +49,19 @@ case class IcebergScanTransformer(
 
   override def filterExprs(): Seq[Expression] = pushdownFilters.getOrElse(Seq.empty)
 
-  override def getPartitionSchema: StructType = GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
+  override lazy val getPartitionSchema: StructType =
+    GlutenIcebergSourceUtil.getReadPartitionSchema(scan)
 
   override def getDataSchema: StructType = new StructType()
-
-  override def getInputFilePathsInternal: Seq[String] = Seq.empty
 
   // TODO: get root paths from table.
   override def getRootPathsInternal: Seq[String] = Seq.empty
 
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
-  override def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
+  override def getSplitInfosFromPartitions(
+      partitions: Seq[InputPartition],
+      serializableHadoopConf: SerializableConfiguration): Seq[SplitInfo] = {
     val groupedPartitions = SparkShimLoader.getSparkShims.orderPartitions(
       scan,
       keyGroupedPartitioning,
@@ -80,6 +82,8 @@ case class IcebergScanTransformer(
   }
   // Needed for tests
   private[execution] def getKeyGroupPartitioning: Option[Seq[Expression]] = keyGroupedPartitioning
+
+  override def nodeName: String = "Iceberg" + super.nodeName
 }
 
 object IcebergScanTransformer {

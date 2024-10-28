@@ -288,7 +288,12 @@ bool SubstraitToVeloxPlanValidator::validateIfThen(
     const ::substrait::Expression_IfThen& ifThen,
     const RowTypePtr& inputType) {
   for (const auto& subIfThen : ifThen.ifs()) {
-    return validateExpression(subIfThen.if_(), inputType) && validateExpression(subIfThen.then(), inputType);
+    if (!validateExpression(subIfThen.if_(), inputType) || !validateExpression(subIfThen.then(), inputType)) {
+      return false;
+    }
+  }
+  if (ifThen.has_else_() && !validateExpression(ifThen.else_(), inputType)) {
+    return false;
   }
   return true;
 }
@@ -569,6 +574,12 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   std::vector<TypePtr> types;
   if (!validateInputTypes(extension, types)) {
     LOG_VALIDATION_MSG("Validation failed for input types in WindowRel.");
+    return false;
+  }
+
+  if (types.empty()) {
+    // See: https://github.com/apache/incubator-gluten/issues/7600.
+    LOG_VALIDATION_MSG("Validation failed for empty input schema in WindowRel.");
     return false;
   }
 

@@ -11,17 +11,15 @@ ARCH=`uname -m`
 cd "$GLUTEN_DIR"
 if [ "$LINUX_OS" == "centos" ]; then
   if [ "$VERSION" == "8" ]; then
-    source /opt/rh/gcc-toolset-9/enable
+    source /opt/rh/gcc-toolset-11/enable
   elif [ "$VERSION" == "7" ]; then
     export MANPATH=""
-    source /opt/rh/devtoolset-9/enable
+    source /opt/rh/devtoolset-11/enable
   fi
 fi
 
-# prepare vcpkg environments
-source ./dev/vcpkg/env.sh
 
 # build gluten with velox backend, prompt always respond y
 export PROMPT_ALWAYS_RESPOND=y
 
-./dev/buildbundle-veloxbe.sh --build_tests=ON --build_arrow=OFF --build_benchmarks=ON --enable_s3=ON  --enable_hdfs=ON "$@"
+./dev/buildbundle-veloxbe.sh --enable_vcpkg=ON --build_tests=ON --build_arrow=OFF --build_benchmarks=ON --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON "$@"

@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.utils
 
-import org.apache.gluten.columnarbatch.ColumnarBatches
+import org.apache.gluten.columnarbatch.{ColumnarBatches, VeloxColumnarBatches}
 import org.apache.gluten.iterator.Iterators
 import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators
 import org.apache.gluten.runtime.Runtimes
@@ -145,13 +145,14 @@ object ExecUtil {
                     val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
                     pidVec.putInt(i, pid)
                 }
-                val pidBatch = ColumnarBatches.ensureOffloaded(
-                  ArrowBufferAllocators.contextInstance(),
-                  new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows))
-                val newHandle = ColumnarBatches.compose(pidBatch, cb)
+                val pidBatch = VeloxColumnarBatches.toVeloxBatch(
+                  ColumnarBatches.offload(
+                    ArrowBufferAllocators.contextInstance(),
+                    new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows)))
+                val newBatch = VeloxColumnarBatches.compose(pidBatch, cb)
                 // Composed batch already hold pidBatch's shared ref, so close is safe.
                 ColumnarBatches.forceClose(pidBatch)
-                (0, ColumnarBatches.create(newHandle))
+                (0, newBatch)
             })
         .recyclePayload(p => ColumnarBatches.forceClose(p._2)) // FIXME why force close?
         .create()

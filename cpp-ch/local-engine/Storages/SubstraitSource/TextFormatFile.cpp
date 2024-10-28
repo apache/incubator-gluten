@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include <Formats/FormatFactory.h>
 #include <Formats/FormatSettings.h>
 #include <Processors/Formats/Impl/HiveTextRowInputFormat.h>
 #include <Poco/URI.h>
@@ -34,7 +35,7 @@ TextFormatFile::TextFormatFile(
 FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
-    res->read_buffer = read_buffer_builder->buildWithCompressionWrapper(file_info, true);
+    res->read_buffer = read_buffer_builder->buildWithCompressionWrapper(file_info);
 
     /// Initialize format params
     size_t max_block_size = file_info.text().max_block_size();

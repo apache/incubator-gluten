@@ -38,10 +38,11 @@ export CXXFLAGS=$CFLAGS  # Used by boost.
 export CPPFLAGS=$CFLAGS  # Used by LZO.
 CMAKE_BUILD_TYPE="${BUILD_TYPE:-Release}"
 BUILD_DUCKDB="${BUILD_DUCKDB:-true}"
-export CC=/opt/rh/gcc-toolset-9/root/bin/gcc
-export CXX=/opt/rh/gcc-toolset-9/root/bin/g++
+export CC=/opt/rh/gcc-toolset-11/root/bin/gcc
+export CXX=/opt/rh/gcc-toolset-11/root/bin/g++
+DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)/deps-download}
 
-FB_OS_VERSION="v2024.05.20.00"
+FB_OS_VERSION="v2024.07.01.00"
 FMT_VERSION="10.1.1"
 BOOST_VERSION="boost-1.84.0"
 
@@ -55,7 +56,7 @@ function install_build_prerequisites {
   dnf_install epel-release dnf-plugins-core # For ccache, ninja
   dnf config-manager --set-enabled powertools
   dnf update -y
-  dnf_install ninja-build curl ccache gcc-toolset-9 git wget which
+  dnf_install ninja-build curl ccache gcc-toolset-11 git wget which
   dnf_install yasm
   dnf_install autoconf automake python39 python39-devel python39-pip libtool
   pip3.9 install cmake==3.28.3
@@ -78,7 +79,7 @@ function install_conda {
 function install_openssl {
   wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl
   (
-    cd openssl
+    cd ${DEPENDENCY_DIR}/openssl
     ./config no-shared && make depend && make && sudo make install
   )
 }
@@ -87,18 +88,18 @@ function install_gflags {
   # Remove an older version if present.
   dnf remove -y gflags
   wget_and_untar https://github.com/gflags/gflags/archive/v2.2.2.tar.gz gflags
-  cmake_install gflags -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_gflags_LIB=ON -DLIB_SUFFIX=64
+  cmake_install_dir gflags -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=ON -DBUILD_gflags_LIB=ON -DLIB_SUFFIX=64
 }
 
 function install_glog {
   wget_and_untar https://github.com/google/glog/archive/v0.6.0.tar.gz glog
-  cmake_install glog -DBUILD_SHARED_LIBS=ON
+  cmake_install_dir glog -DBUILD_SHARED_LIBS=ON
 }
 
 function install_lzo {
   wget_and_untar http://www.oberhumer.com/opensource/lzo/download/lzo-2.10.tar.gz lzo
   (
-    cd lzo
+    cd ${DEPENDENCY_DIR}/lzo
     ./configure --prefix=/usr --enable-shared --disable-static --docdir=/usr/share/doc/lzo-2.10
     make "-j$(nproc)"
     make install
@@ -108,7 +109,7 @@ function install_lzo {
 function install_boost {
   wget_and_untar https://github.com/boostorg/boost/releases/download/${BOOST_VERSION}/${BOOST_VERSION}.tar.gz boost
   (
-   cd boost
+   cd ${DEPENDENCY_DIR}/boost
    ./bootstrap.sh --prefix=/usr/local
    ./b2 "-j$(nproc)" -d0 install threading=multi --without-python
   )
@@ -116,18 +117,18 @@ function install_boost {
 
 function install_snappy {
   wget_and_untar https://github.com/google/snappy/archive/1.1.8.tar.gz snappy
-  cmake_install snappy -DSNAPPY_BUILD_TESTS=OFF
+  cmake_install_dir snappy -DSNAPPY_BUILD_TESTS=OFF
 }
 
 function install_fmt {
   wget_and_untar https://github.com/fmtlib/fmt/archive/${FMT_VERSION}.tar.gz fmt
-  cmake_install fmt -DFMT_TEST=OFF
+  cmake_install_dir fmt -DFMT_TEST=OFF
 }
 
 function install_protobuf {
   wget_and_untar https://github.com/protocolbuffers/protobuf/releases/download/v21.8/protobuf-all-21.8.tar.gz protobuf
   (
-    cd protobuf
+    cd ${DEPENDENCY_DIR}/protobuf
     ./configure CXXFLAGS="-fPIC" --prefix=/usr/local
     make "-j${NPROC}"
     make install
@@ -137,34 +138,34 @@ function install_protobuf {
 
 function install_fizz {
   wget_and_untar https://github.com/facebookincubator/fizz/archive/refs/tags/${FB_OS_VERSION}.tar.gz fizz
-  cmake_install fizz/fizz -DBUILD_TESTS=OFF
+  cmake_install_dir fizz/fizz -DBUILD_TESTS=OFF
 }
 
 function install_folly {
   wget_and_untar https://github.com/facebook/folly/archive/refs/tags/${FB_OS_VERSION}.tar.gz folly
-  cmake_install folly -DFOLLY_HAVE_INT128_T=ON
+  cmake_install_dir folly -DFOLLY_HAVE_INT128_T=ON
 }
 
 function install_wangle {
   wget_and_untar https://github.com/facebook/wangle/archive/refs/tags/${FB_OS_VERSION}.tar.gz wangle
-  cmake_install wangle/wangle -DBUILD_TESTS=OFF
+  cmake_install_dir wangle/wangle -DBUILD_TESTS=OFF
 }
 
 function install_fbthrift {
   wget_and_untar https://github.com/facebook/fbthrift/archive/refs/tags/${FB_OS_VERSION}.tar.gz fbthrift
-  cmake_install fbthrift -Denable_tests=OFF -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=OFF
+  cmake_install_dir fbthrift -Denable_tests=OFF -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTS=OFF -DBUILD_SHARED_LIBS=OFF
 }
 
 function install_mvfst {
   wget_and_untar https://github.com/facebook/mvfst/archive/refs/tags/${FB_OS_VERSION}.tar.gz mvfst
-  cmake_install mvfst -DBUILD_TESTS=OFF
+  cmake_install_dir mvfst -DBUILD_TESTS=OFF
 }
 
 function install_duckdb {
   if $BUILD_DUCKDB ; then
     echo 'Building DuckDB'
     wget_and_untar https://github.com/duckdb/duckdb/archive/refs/tags/v0.8.1.tar.gz duckdb
-    cmake_install duckdb -DBUILD_UNITTESTS=OFF -DENABLE_SANITIZER=OFF -DENABLE_UBSAN=OFF -DBUILD_SHELL=OFF -DEXPORT_DLL_SYMBOLS=OFF -DCMAKE_BUILD_TYPE=Release
+    cmake_install_dir duckdb -DBUILD_UNITTESTS=OFF -DENABLE_SANITIZER=OFF -DENABLE_UBSAN=OFF -DBUILD_SHELL=OFF -DEXPORT_DLL_SYMBOLS=OFF -DCMAKE_BUILD_TYPE=Release
   fi
 }
 
@@ -197,8 +198,8 @@ function install_velox_deps {
 
 (
   if [[ $# -ne 0 ]]; then
-    # Activate gcc9; enable errors on unset variables afterwards.
-    source /opt/rh/gcc-toolset-9/enable || exit 1
+    # Activate gcc11; enable errors on unset variables afterwards.
+    source /opt/rh/gcc-toolset-11/enable || exit 1
     set -u
     for cmd in "$@"; do
       run_and_time "${cmd}"
@@ -211,8 +212,8 @@ function install_velox_deps {
     else
       echo "Skipping installation of build dependencies since INSTALL_PREREQUISITES is not set"
     fi
-    # Activate gcc9; enable errors on unset variables afterwards.
-    source /opt/rh/gcc-toolset-9/enable || exit 1
+    # Activate gcc11; enable errors on unset variables afterwards.
+    source /opt/rh/gcc-toolset-11/enable || exit 1
     set -u
     install_velox_deps
     echo "All dependencies for Velox installed!"

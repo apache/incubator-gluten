@@ -22,7 +22,7 @@
 #include <map>
 #include "shuffle/rss/RssClient.h"
 #include "utils/Common.h"
-#include "utils/macros.h"
+#include "utils/Macros.h"
 
 namespace gluten {
 

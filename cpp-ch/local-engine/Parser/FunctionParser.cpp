@@ -16,6 +16,7 @@
  */
 
 #include "FunctionParser.h"
+#include <memory>
 #include <Core/Field.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/IDataType.h>
@@ -24,20 +25,26 @@
 #include <Parser/TypeParser.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
+#include "ExpressionParser.h"
 
 namespace DB
 {
 
 namespace ErrorCodes
 {
-    extern const int UNKNOWN_FUNCTION;
-    extern const int NOT_IMPLEMENTED;
+extern const int UNKNOWN_FUNCTION;
+extern const int NOT_IMPLEMENTED;
 }
 }
 
 namespace local_engine
 {
 using namespace DB;
+
+FunctionParser::FunctionParser(ParserContextPtr ctx) : parser_context(ctx)
+{
+    expression_parser = std::make_unique<ExpressionParser>(parser_context);
+}
 
 String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const
 {
@@ -46,20 +53,57 @@ String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunct
     return "";
 }
 
-ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
-    const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const
+String FunctionParser::getUniqueName(const String & name) const
 {
-    ActionsDAG::NodeRawConstPtrs parsed_args;
-    const auto & args = substrait_func.arguments();
-    parsed_args.reserve(args.size());
-    plan_parser->parseFunctionArguments(actions_dag, parsed_args, substrait_func);
-    return parsed_args;
+    return expression_parser->getUniqueName(name);
 }
 
 
+const DB::ActionsDAG::Node *
+FunctionParser::addColumnToActionsDAG(DB::ActionsDAG & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
+{
+    return expression_parser->addConstColumn(actions_dag, type, field);
+}
 
-const ActionsDAG::Node *
-FunctionParser::parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const
+const DB::ActionsDAG::Node *
+FunctionParser::toFunctionNode(DB::ActionsDAG & action_dag, const String & func_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+{
+    return expression_parser->toFunctionNode(action_dag, func_name, args);
+}
+
+const DB::ActionsDAG::Node * FunctionParser::toFunctionNode(
+    DB::ActionsDAG & action_dag, const String & func_name, const String & result_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+{
+    return expression_parser->toFunctionNode(action_dag, func_name, args, result_name);
+}
+
+const ActionsDAG::Node * FunctionParser::parseFunctionWithDAG(
+    const substrait::Expression & rel, std::string & result_name, DB::ActionsDAG & actions_dag, bool keep_result) const
+{
+    const auto * node = expression_parser->parseFunction(rel.scalar_function(), actions_dag, keep_result);
+    result_name = node->result_name;
+    return node;
+}
+
+const DB::ActionsDAG::Node * FunctionParser::parseExpression(DB::ActionsDAG & actions_dag, const substrait::Expression & rel) const
+{
+    return expression_parser->parseExpression(actions_dag, rel);
+}
+
+std::pair<DataTypePtr, Field> FunctionParser::parseLiteral(const substrait::Expression_Literal & literal) const
+{
+    return LiteralParser().parse(literal);
+}
+
+ActionsDAG::NodeRawConstPtrs
+FunctionParser::parseFunctionArguments(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const
+{
+    ActionsDAG::NodeRawConstPtrs parsed_args;
+    return expression_parser->parseFunctionArguments(actions_dag, substrait_func);
+}
+
+
+const ActionsDAG::Node * FunctionParser::parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const
 {
     auto ch_func_name = getCHFunctionName(substrait_func);
     auto parsed_args = parseFunctionArguments(substrait_func, actions_dag);
@@ -106,9 +150,9 @@ void FunctionParserFactory::registerFunctionParser(const String & name, Value va
         throw Exception(ErrorCodes::LOGICAL_ERROR, "FunctionParserFactory: function parser name '{}' is not unique", name);
 }
 
-FunctionParserPtr FunctionParserFactory::get(const String & name, SerializedPlanParser * plan_parser)
+FunctionParserPtr FunctionParserFactory::get(const String & name, ParserContextPtr ctx)
 {
-    auto res = tryGet(name, plan_parser);
+    auto res = tryGet(name, ctx);
     if (!res)
     {
         throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unknown function parser {}", name);
@@ -117,13 +161,13 @@ FunctionParserPtr FunctionParserFactory::get(const String & name, SerializedPlan
     return res;
 }
 
-FunctionParserPtr FunctionParserFactory::tryGet(const String & name, SerializedPlanParser * plan_parser)
+FunctionParserPtr FunctionParserFactory::tryGet(const String & name, ParserContextPtr ctx)
 {
     auto it = parsers.find(name);
     if (it != parsers.end())
     {
         auto creator = it->second;
-        return creator(plan_parser);
+        return creator(ctx);
     }
     else
         return {};

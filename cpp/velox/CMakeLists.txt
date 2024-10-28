@@ -109,28 +109,6 @@ macro(add_duckdb)
   endif()
 endmacro()
 
-macro(find_libhdfs3)
-  find_package(libhdfs3 CONFIG)
-  if(libhdfs3_FOUND AND TARGET HDFS::hdfs3)
-    set(LIBHDFS3_LIBRARY HDFS::hdfs3)
-  else()
-    find_path(libhdfs3_INCLUDE_DIR hdfs/hdfs.h)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-    find_library(libhdfs3_LIBRARY NAMES hdfs3)
-    find_package_handle_standard_args(libhdfs3 DEFAULT_MSG libhdfs3_INCLUDE_DIR
-                                      libhdfs3_LIBRARY)
-    add_library(HDFS::hdfs3 SHARED IMPORTED)
-    set_target_properties(
-      HDFS::hdfs3
-      PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${libhdfs3_INCLUDE_DIR}"
-                 IMPORTED_LOCATION "${libhdfs3_LIBRARY}")
-  endif()
-
-  if(NOT libhdfs3_FOUND)
-    message(FATAL_ERROR "LIBHDFS3 Library Not Found")
-  endif()
-endmacro()
-
 macro(find_re2)
   find_package(re2 CONFIG)
   if(re2_FOUND AND TARGET re2::re2)
@@ -187,7 +165,7 @@ set(VELOX_SRCS
     operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
     operators/serializer/VeloxRowToColumnarConverter.cc
-    operators/writer/VeloxParquetDatasource.cc
+    operators/writer/VeloxParquetDataSource.cc
     shuffle/VeloxShuffleReader.cc
     shuffle/VeloxShuffleWriter.cc
     shuffle/VeloxHashShuffleWriter.cc
@@ -209,10 +187,6 @@ set(VELOX_SRCS
     utils/Common.cc
     utils/VeloxBatchResizer.cc)
 
-if(ENABLE_HDFS)
-  list(APPEND VELOX_SRCS utils/HdfsUtils.cc)
-endif()
-
 if(ENABLE_S3)
   find_package(ZLIB)
 endif()
@@ -231,7 +205,11 @@ endif()
 
 target_include_directories(
   velox PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS}
-               ${CMAKE_CURRENT_SOURCE_DIR} ${VELOX_HOME}/ ${VELOX_BUILD_PATH}/)
+               ${VELOX_BUILD_PATH} ${CMAKE_CURRENT_SOURCE_DIR} ${VELOX_HOME})
+
+if(BUILD_TESTS)
+  target_include_directories(velox PUBLIC ${VELOX_BUILD_PATH})
+endif()
 
 set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
                                        ${root_directory}/releases)
@@ -241,17 +219,14 @@ set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
 # applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
 
-target_include_directories(velox PUBLIC ${GTEST_INCLUDE_DIRS}
-                                        ${PROTOBUF_INCLUDE})
-
-if(BUILD_JEMALLOC)
+if(ENABLE_JEMALLOC_STATS)
   include(Findjemalloc_pic)
   find_jemalloc()
   if(JEMALLOC_NOT_FOUND)
     include(Buildjemalloc_pic)
     build_jemalloc()
   endif()
-  add_definitions(-DENABLE_JEMALLOC)
+  add_definitions(-DENABLE_JEMALLOC_STATS)
   target_link_libraries(velox PUBLIC jemalloc::libjemalloc)
 endif()
 
@@ -335,8 +310,6 @@ endif()
 
 if(ENABLE_HDFS)
   add_definitions(-DENABLE_HDFS)
-  find_libhdfs3()
-  target_link_libraries(velox PUBLIC HDFS::hdfs3)
 endif()
 
 if(ENABLE_S3)

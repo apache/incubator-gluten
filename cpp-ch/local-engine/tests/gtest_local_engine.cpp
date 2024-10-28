@@ -18,7 +18,6 @@
 #include <iostream>
 #include <gluten_test_util.h>
 #include <incbin.h>
-
 #include <Builder/SerializedPlanBuilder.h>
 #include <Disks/DiskLocal.h>
 #include <Formats/FormatFactory.h>
@@ -31,8 +30,9 @@
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
 #include <gtest/gtest.h>
-#include <substrait/plan.pb.h>
+#include <config.pb.h>
 #include <Common/CHUtil.h>
+#include <Common/GlutenConfig.h>
 
 using namespace local_engine;
 using namespace dbms;
@@ -85,7 +85,7 @@ TEST(ReadBufferFromFile, seekBackwards)
     ASSERT_EQ(x, 8);
 }
 
-INCBIN(resource_embedded_config_json, SOURCE_DIR "/utils/extern-local-engine/tests/json/gtest_local_engine_config.json");
+INCBIN(_config_json, SOURCE_DIR "/utils/extern-local-engine/tests/json/gtest_local_engine_config.json");
 
 namespace DB
 {
@@ -94,8 +94,8 @@ void registerOutputFormatParquet(DB::FormatFactory & factory);
 
 int main(int argc, char ** argv)
 {
-    BackendInitializerUtil::init(local_engine::JsonStringToBinary<substrait::Plan>(
-        {reinterpret_cast<const char *>(gresource_embedded_config_jsonData), gresource_embedded_config_jsonSize}));
+    BackendInitializerUtil::initBackend(
+        SparkConfigs::load(local_engine::JsonStringToBinary<gluten::ConfigMap>(EMBEDDED_PLAN(_config_json)), true));
 
     auto & factory = FormatFactory::instance();
     DB::registerOutputFormatParquet(factory);

@@ -123,10 +123,6 @@ abstract class FileSourceScanExecTransformerBase(
 
   override def getDataSchema: StructType = relation.dataSchema
 
-  override def getInputFilePathsInternal: Seq[String] = {
-    relation.location.inputFiles.toSeq
-  }
-
   override def getRootPathsInternal: Seq[String] = {
     FileIndexUtil.getRootPath(relation.location)
   }

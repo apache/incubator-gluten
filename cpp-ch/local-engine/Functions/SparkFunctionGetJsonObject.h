@@ -15,22 +15,23 @@
  * limitations under the License.
  */
 #pragma once
+#include <cerrno>
+#include <limits>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <Columns/ColumnNullable.h>
+#include <Columns/ColumnTuple.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionSQLJSON.h>
 #include <Functions/IFunction.h>
-#include <Functions/JSONPath/ASTs/ASTJSONPath.h>
 #include <Functions/JSONPath/Generator/GeneratorJSONPath.h>
 #include <Functions/JSONPath/Parsers/ParserJSONPath.h>
 #include <Interpreters/Context.h>
-#include <Parsers/IAST.h>
 #include <Parsers/IParser.h>
-#include <Parsers/Lexer.h>
 #include <Parsers/TokenIterator.h>
 #include <base/find_symbols.h>
 #include <base/range.h>
@@ -44,13 +45,19 @@
 
 namespace DB
 {
+namespace Setting
+{
+extern const SettingsBool allow_simdjson;
+extern const SettingsUInt64 max_parser_depth;
+extern const SettingsUInt64 max_parser_backtracks;
+}
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
-    extern const int TOO_FEW_ARGUMENTS_FOR_FUNCTION;
-    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
-    extern const int ILLEGAL_COLUMN;
-    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+extern const int LOGICAL_ERROR;
+extern const int TOO_FEW_ARGUMENTS_FOR_FUNCTION;
+extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+extern const int ILLEGAL_COLUMN;
+extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 }
 }
 namespace local_engine
@@ -152,8 +159,54 @@ private:
             // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeField. not field");
             return nullptr;
         }
-        copyToDst(dst, start_pos, pos - start_pos);
+        if (*start_pos == '"' || *start_pos == '\'')
+        {
+            copyToDst(dst, start_pos, pos - start_pos);
+        }
+        else
+        {
+            // If it's a too large number, replace it with "Infinity".
+            const char * inf_str = "\"\\\"Infinity\\\"\"";
+            size_t inf_str_len = 14;
+            const char * large_e = "308";
+            const auto * ep = find_first_symbols<'e', 'E'>(start_pos, pos);
+            if (pos - ep < 3)
+                copyToDst(dst, start_pos, pos - start_pos);
+            else if (pos - ep > 4 || (pos - ep == 4 and memcmp(ep + 1, large_e, 3) >= 0))
+            {
+                if (isTooLargeNumber(start_pos, pos))
+                {
+                    copyToDst(dst, inf_str, inf_str_len);
+                }
+                else
+                {
+                    copyToDst(dst, start_pos, pos - start_pos);
+                }
+            }
+            else
+            {
+                copyToDst(dst, start_pos, pos - start_pos);
+            }
+        }
         return pos;
+    }
+
+    inline static bool isTooLargeNumber(const char * start, const char * end)
+    {
+        bool res = false;
+        try
+        {
+            double num2 = std::stod(String(start, end));
+        }
+        catch (const std::invalid_argument & e)
+        {
+            res = false;
+        }
+        catch (const std::out_of_range & e)
+        {
+            res = true;
+        }
+        return res;
     }
 
     inline static const char * normalizeString(const char * pos, const char * end, char *& dst)
@@ -211,7 +264,7 @@ private:
     /// To use simdjson, we need to convert single quotes to double quotes.
     /// FIXME: It will be OK if we just return a leaf value, but it will have different result for
     /// returning a object with strings which are wrapped by single quotes.
-    inline static const char * normalizeSingleQuotesString(const char * pos, const char * end, char *&dst)
+    inline static const char * normalizeSingleQuotesString(const char * pos, const char * end, char *& dst)
     {
         if (!isExpectedChar('\'', pos, end)) [[unlikely]]
         {
@@ -237,7 +290,7 @@ private:
         pos = find_first_symbols<'\''>(pos, end);
         if (!isExpectedChar('\'', pos, end))
         {
-            LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeSingleQuotesString. not '");
+            // LOG_DEBUG(getLogger("GetJsonObject"), "xxx normalizeSingleQuotesString. not '");
             return nullptr;
         }
         pos += 1;
@@ -341,6 +394,8 @@ private:
                     pos = normalizeSingleQuotesString(pos, end, dst);
                 else if (*pos == '"')
                     pos = normalizeString(pos, end, dst);
+                else if (*pos == '}')
+                    continue;
                 else
                     return nullptr;
             }
@@ -399,7 +454,7 @@ class GetJsonObjectImpl
 public:
     using Element = typename JSONParser::Element;
 
-    static DB::DataTypePtr getReturnType(const char *, const DB::ColumnsWithTypeAndName &, bool )
+    static DB::DataTypePtr getReturnType(const char *, const DB::ColumnsWithTypeAndName &, bool)
     {
         auto nested_type = std::make_shared<DB::DataTypeString>();
         return std::make_shared<DB::DataTypeNullable>(nested_type);
@@ -407,8 +462,7 @@ public:
 
     static size_t getNumberOfIndexArguments(const DB::ColumnsWithTypeAndName & arguments) { return arguments.size() - 1; }
 
-    bool insertResultToColumn(
-        DB::IColumn & dest, const Element & root, DB::GeneratorJSONPath<JSONParser> & generator_json_path, bool )
+    bool insertResultToColumn(DB::IColumn & dest, const Element & root, DB::GeneratorJSONPath<JSONParser> & generator_json_path, bool)
     {
         Element current_element = root;
         DB::VisitorStatus status;
@@ -443,7 +497,7 @@ public:
             if (elements[0].isNull())
                 return false;
             nullable_col_str.getNullMapData().push_back(0);
-            
+
             if (elements[0].isString())
             {
                 auto str = elements[0].getString();
@@ -458,15 +512,15 @@ public:
         {
             const char * array_begin = "[";
             const char * array_end = "]";
-            const char * comma = ", ";
+            const char * comma = ",";
             bool flag = false;
             serializer.addRawData(array_begin, 1);
+            nullable_col_str.getNullMapData().push_back(0);
             for (auto & element : elements)
             {
-                nullable_col_str.getNullMapData().push_back(0);
                 if (flag)
                 {
-                    serializer.addRawData(comma, 2);
+                    serializer.addRawData(comma, 1);
                 }
                 serializer.addElement(element);
                 flag = true;
@@ -476,8 +530,52 @@ public:
         serializer.commit();
         return true;
     }
+};
+
+/// CH uses the lexer to parse the json path, it's not a good idea.
+/// If a json field containt spaces, we wrap it by double quotes.
+/// FIXME: If it contains \t, \n, simdjson cannot parse.
+class JSONPathNormalizer
+{
+public:
+    static String normalize(const String & json_path_)
+    {
+        DB::Tokens tokens(json_path_.data(), json_path_.data() + json_path_.size());
+        DB::IParser::Pos iter(tokens, 0, 0);
+        String res;
+        while (iter->type != DB::TokenType::EndOfStream)
+        {
+            if (isSubPathBegin(iter))
+            {
+                if (iter->type == DB::TokenType::Number)
+                {
+                    normalizeOnNumber(iter, res);
+                }
+                else
+                {
+                    // It may begins with '=', '==' and so on.
+                    res += ".";
+                    ++iter;
+                    normalizeOnBareWord(iter, res);
+                }
+            }
+            else
+                normalizeOnOtherTokens(iter, res);
+        }
+        return res;
+    }
 
 private:
+    static std::pair<DB::TokenType, StringRef> prevToken(DB::IParser::Pos & iter, size_t n = 1);
+
+    static std::pair<DB::TokenType, StringRef> nextToken(DB::IParser::Pos & iter, size_t n = 1);
+
+    static bool isSubPathBegin(DB::IParser::Pos & iter);
+
+    static void normalizeOnNumber(DB::IParser::Pos & iter, String & res);
+
+    static void normalizeOnBareWord(DB::IParser::Pos & iter, String & res);
+    static void normalizeOnOtherTokens(DB::IParser::Pos & iter, String & res);
 };
 
 /// Flatten a json string into a tuple.
@@ -526,7 +624,7 @@ public:
         const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & /*result_type*/, size_t /*input_rows_count*/) const override
     {
 #if USE_SIMDJSON
-        if (context->getSettingsRef().allow_simdjson)
+        if (context->getSettingsRef()[DB::Setting::allow_simdjson])
         {
             return innerExecuteImpl<
                 DB::SimdJSONParser,
@@ -546,7 +644,7 @@ private:
     mutable size_t total_parsed_rows = 0;
     mutable size_t total_normalized_rows = 0;
 
-    template<typename JSONParser>
+    template <typename JSONParser>
     bool safeParseJson(std::string_view str, JSONParser & parser, JSONParser::Element & doc) const
     {
         total_parsed_rows++;
@@ -560,9 +658,9 @@ private:
         {
             is_doc_ok = parser.parse(str, doc);
         }
-        if (!is_doc_ok)
+        if (!is_doc_ok && str.size() > 0)
         {
-            total_normalized_rows ++;
+            total_normalized_rows++;
             std::vector<char> buf;
             buf.resize(str.size(), 0);
             char * buf_pos = buf.data();
@@ -594,14 +692,16 @@ private:
             bool path_parsed = true;
             for (const auto & field : tokenizer)
             {
-                required_fields.push_back(field);
+                auto normalized_field = JSONPathNormalizer::normalize(field);
+                // LOG_ERROR(getLogger("JSONPatch"), "xxx field {} -> {}", field, normalized_field);
+                required_fields.push_back(normalized_field);
                 tuple_columns.emplace_back(str_type->createColumn());
 
                 const char * query_begin = reinterpret_cast<const char *>(required_fields.back().c_str());
                 const char * query_end = required_fields.back().c_str() + required_fields.back().size();
                 DB::Tokens tokens(query_begin, query_end);
-                UInt32 max_parser_depth = static_cast<UInt32>(context->getSettingsRef().max_parser_depth);
-                UInt32 max_parser_backtracks = static_cast<UInt32>(context->getSettingsRef().max_parser_backtracks);
+                UInt32 max_parser_depth = static_cast<UInt32>(context->getSettingsRef()[DB::Setting::max_parser_depth]);
+                UInt32 max_parser_backtracks = static_cast<UInt32>(context->getSettingsRef()[DB::Setting::max_parser_backtracks]);
                 DB::IParser::Pos token_iterator(tokens, max_parser_depth, max_parser_backtracks);
                 DB::ASTPtr json_path_ast;
                 DB::ParserJSONPath path_parser;

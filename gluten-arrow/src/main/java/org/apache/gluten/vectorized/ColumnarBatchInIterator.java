@@ -16,10 +16,7 @@
  */
 package org.apache.gluten.vectorized;
 
-import org.apache.gluten.columnarbatch.ColumnarBatchJniWrapper;
 import org.apache.gluten.columnarbatch.ColumnarBatches;
-import org.apache.gluten.memory.arrow.alloc.ArrowBufferAllocators;
-import org.apache.gluten.runtime.Runtimes;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
@@ -40,13 +37,7 @@ public class ColumnarBatchInIterator {
   // For being called by native code.
   public long next() {
     final ColumnarBatch next = delegated.next();
-    if (next.numCols() == 0) {
-      // the operation will find a zero column batch from a task-local pool
-      return ColumnarBatchJniWrapper.create(Runtimes.contextInstance("ColumnarBatchInIterator"))
-          .getForEmptySchema(next.numRows());
-    }
-    final ColumnarBatch offloaded =
-        ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), next);
-    return ColumnarBatches.getNativeHandle(offloaded);
+    ColumnarBatches.checkOffloaded(next);
+    return ColumnarBatches.getNativeHandle(next);
   }
 }

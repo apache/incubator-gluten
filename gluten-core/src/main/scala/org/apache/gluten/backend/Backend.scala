@@ -39,38 +39,39 @@ trait Backend {
   def onExecutorStart(pc: PluginContext): Unit = {}
   def onExecutorShutdown(): Unit = {}
 
-  /** The columnar-batch type this backend is using. */
-  def batchType: Convention.BatchType
+  /** The columnar-batch type this backend is by default using. */
+  def defaultBatchType: Convention.BatchType
 
   /**
    * Overrides [[org.apache.gluten.extension.columnar.transition.ConventionFunc]] Gluten is using to
    * determine the convention (its row-based processing / columnar-batch processing support) of a
-   * plan with a user-defined function that accepts a plan then returns batch type it outputs.
+   * plan with a user-defined function that accepts a plan then returns convention type it outputs,
+   * and input conventions it requires.
    */
-  def batchTypeFunc(): ConventionFunc.BatchOverride = PartialFunction.empty
+  def convFuncOverride(): ConventionFunc.Override = ConventionFunc.Override.Empty
 
   /** Query planner rules. */
   def injectRules(injector: RuleInjector): Unit
 }
 
 object Backend {
-  private val be: Backend = {
+  private val backend: Backend = {
     val discoveredBackends =
-      JavaConverters.iterableAsScalaIterable(ServiceLoader.load(classOf[Backend])).toSeq
-    if (discoveredBackends.isEmpty) {
-      throw new IllegalStateException("Backend implementation not discovered from JVM classpath")
+      JavaConverters.iterableAsScalaIterable(ServiceLoader.load(classOf[Backend])).toList
+    discoveredBackends match {
+      case Nil =>
+        throw new IllegalStateException("Backend implementation not discovered from JVM classpath")
+      case head :: Nil =>
+        head
+      case backends =>
+        val backendNames = backends.map(_.name())
+        throw new IllegalStateException(
+          s"More than one Backend implementation discovered from JVM classpath: $backendNames")
     }
-    if (discoveredBackends.size != 1) {
-      throw new IllegalStateException(
-        s"More than one Backend implementation discovered from JVM classpath: " +
-          s"${discoveredBackends.map(_.name()).toList}")
-    }
-    val backend = discoveredBackends.head
-    backend
   }
 
   def get(): Backend = {
-    be
+    backend
   }
 
   case class BuildInfo(name: String, branch: String, revision: String, revisionTime: String)

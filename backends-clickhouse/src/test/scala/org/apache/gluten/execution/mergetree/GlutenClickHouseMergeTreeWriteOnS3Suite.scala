@@ -63,7 +63,6 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .setCHConfig("logger.level", "error")
-      .setCHConfig("path", "/data")
   }
 
   override protected def beforeEach(): Unit = {
@@ -772,7 +771,7 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
             case scanExec: BasicScanExecTransformer => scanExec
           }
           assertResult(1)(plans.size)
-          assertResult(1)(plans.head.getSplitInfos.size)
+          assertResult(1)(plans.head.getSplitInfos(null).size)
       }
     }
   }

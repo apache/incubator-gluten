@@ -20,6 +20,7 @@
 #include <vector>
 #include <Core/Block.h>
 #include <Core/Settings.h>
+#include <Interpreters/Context.h>
 #include <Interpreters/TemporaryDataOnDisk.h>
 #include <Shuffle/ShuffleCommon.h>
 #include <jni/CelebornClient.h>
@@ -29,6 +30,10 @@
 namespace DB
 {
 class MergingSortedAlgorithm;
+namespace Setting
+{
+extern const SettingsUInt64 prefer_external_sort_block_bytes;
+}
 }
 
 namespace local_engine
@@ -156,12 +161,12 @@ protected:
     {
         max_merge_block_size = options.split_size;
         max_sort_buffer_size = options.max_sort_buffer_size;
-        max_merge_block_bytes = QueryContext::globalContext()->getSettingsRef().prefer_external_sort_block_bytes;
+        max_merge_block_bytes = QueryContext::globalContext()->getSettingsRef()[DB::Setting::prefer_external_sort_block_bytes];
     }
 public:
     String getName() const override { return "SortBasedPartitionWriter"; }
     void write(const PartitionInfo & info, DB::Block & block) override;
-    size_t adaptiveBlockSize()
+    size_t adaptiveBlockSize() const
     {
         size_t res = max_merge_block_size;
         if (max_merge_block_bytes)

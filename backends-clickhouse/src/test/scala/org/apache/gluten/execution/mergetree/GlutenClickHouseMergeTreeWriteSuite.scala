@@ -55,6 +55,7 @@ class GlutenClickHouseMergeTreeWriteSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "20000000")
+      .set("spark.gluten.sql.native.writer.enabled", "true")
       .setCHSettings("min_insert_block_size_rows", 100000)
       .setCHSettings("mergetree.merge_after_insert", false)
       .setCHSettings("input_format_parquet_max_block_size", 8192)
@@ -69,6 +70,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  |DROP TABLE IF EXISTS lineitem_mergetree;
                  |""".stripMargin)
 
+    // write.format.default = mergetree
     spark.sql(s"""
                  |CREATE TABLE IF NOT EXISTS lineitem_mergetree
                  |(
@@ -90,6 +92,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | l_comment       string
                  |)
                  |USING clickhouse
+                 |TBLPROPERTIES (write.format.default = 'mergetree')
                  |LOCATION '$basePath/lineitem_mergetree'
                  |""".stripMargin)
 
@@ -1798,7 +1801,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                 case scanExec: BasicScanExecTransformer => scanExec
               }
               assertResult(1)(plans.size)
-              assertResult(conf._2)(plans.head.getSplitInfos.size)
+              assertResult(conf._2)(plans.head.getSplitInfos(null).size)
           }
         }
       })
@@ -1907,7 +1910,7 @@ class GlutenClickHouseMergeTreeWriteSuite
                 case f: BasicScanExecTransformer => f
               }
               assertResult(2)(scanExec.size)
-              assertResult(conf._2)(scanExec(1).getSplitInfos.size)
+              assertResult(conf._2)(scanExec(1).getSplitInfos(null).size)
           }
         }
       })
@@ -2048,5 +2051,58 @@ class GlutenClickHouseMergeTreeWriteSuite
          |SELECT * from lineitem_mergetree_partition_with_whitespace
          |""".stripMargin
     runSql(sqlStr) { _ => }
+  }
+
+  test("GLUTEN-7358: Optimize the strategy of the partition split according to the files count") {
+    spark.sql(s"""
+                 |DROP TABLE IF EXISTS lineitem_split;
+                 |""".stripMargin)
+    spark.sql(s"""
+                 |CREATE TABLE IF NOT EXISTS lineitem_split
+                 |(
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      double,
+                 | l_extendedprice double,
+                 | l_discount      double,
+                 | l_tax           double,
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string
+                 |)
+                 |USING clickhouse
+                 |LOCATION '$basePath/lineitem_split'
+                 |""".stripMargin)
+    spark.sql(s"""
+                 | insert into table lineitem_split
+                 | select * from lineitem
+                 |""".stripMargin)
+    Seq(("-1", 3), ("3", 3), ("6", 1)).foreach(
+      conf => {
+        withSQLConf(
+          ("spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold" -> conf._1)) {
+          val sql =
+            s"""
+               |select count(1), min(l_returnflag) from lineitem_split
+               |""".stripMargin
+          runSql(sql) {
+            df =>
+              val result = df.collect()
+              assertResult(1)(result.length)
+              assertResult("600572")(result(0).getLong(0).toString)
+              val scanExec = collect(df.queryExecution.executedPlan) {
+                case f: FileSourceScanExecTransformer => f
+              }
+              assert(scanExec(0).getPartitions.size == conf._2)
+          }
+        }
+      })
   }
 }

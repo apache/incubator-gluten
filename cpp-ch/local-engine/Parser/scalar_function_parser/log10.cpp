@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include <Parser/scalar_function_parser/logarithm.h>
+#include <Parser/ExpressionParser.h>
 
 namespace local_engine
 {
@@ -22,7 +23,7 @@ namespace local_engine
 class FunctionParserLog10 : public FunctionParserLogBase
 {
 public:
-    explicit FunctionParserLog10(SerializedPlanParser * plan_parser_) : FunctionParserLogBase(plan_parser_) {}
+    explicit FunctionParserLog10(ParserContextPtr parser_context_) : FunctionParserLogBase(parser_context_) {}
     ~FunctionParserLog10() override = default;
 
     static constexpr auto name = "log10";

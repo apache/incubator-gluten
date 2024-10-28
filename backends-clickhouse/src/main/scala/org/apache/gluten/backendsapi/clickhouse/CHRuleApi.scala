@@ -26,17 +26,18 @@ import org.apache.gluten.extension.injector.{RuleInjector, SparkInjector}
 import org.apache.gluten.extension.injector.GlutenInjector.{LegacyInjector, RasInjector}
 import org.apache.gluten.parser.{GlutenCacheFilesSqlParser, GlutenClickhouseSqlParser}
 import org.apache.gluten.sql.shims.SparkShimLoader
-import org.apache.gluten.utils.PhysicalPlanSelector
 
 import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRewrite}
-import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, GlutenFallbackReporter}
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.delta.DeltaLogFileIndex
+import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, CommandResultExec, FileSourceScanExec, GlutenFallbackReporter, RDDScanExec, SparkPlan}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 import org.apache.spark.util.SparkPlanRules
 
 class CHRuleApi extends RuleApi {
   import CHRuleApi._
   override def injectRules(injector: RuleInjector): Unit = {
-    injector.gluten.skipOn(PhysicalPlanSelector.skipCond)
-
     injectSpark(injector.spark)
     injectLegacy(injector.gluten.legacy)
     injectRas(injector.gluten.ras)
@@ -45,7 +46,7 @@ class CHRuleApi extends RuleApi {
 
 private object CHRuleApi {
   def injectSpark(injector: SparkInjector): Unit = {
-    // Regular Spark rules.
+    // Inject the regular Spark rules directly.
     injector.injectQueryStagePrepRule(FallbackBroadcastHashJoinPrepQueryStage.apply)
     injector.injectQueryStagePrepRule(spark => CHAQEPropagateEmptyRelation(spark))
     injector.injectParser(
@@ -64,6 +65,7 @@ private object CHRuleApi {
   }
 
   def injectLegacy(injector: LegacyInjector): Unit = {
+
     // Gluten columnar: Transform rules.
     injector.injectTransform(_ => RemoveTransitions)
     injector.injectTransform(_ => PushDownInputFileExpression.PreOffload)
@@ -72,11 +74,11 @@ private object CHRuleApi {
     injector.injectTransform(_ => RewriteSubqueryBroadcast())
     injector.injectTransform(c => FallbackBroadcastHashJoin.apply(c.session))
     injector.injectTransform(c => MergeTwoPhasesHashBaseAggregate.apply(c.session))
-    injector.injectTransform(_ => RewriteSparkPlanRulesManager())
-    injector.injectTransform(_ => AddFallbackTagRule())
-    injector.injectTransform(_ => TransformPreOverrides())
+    injector.injectTransform(_ => intercept(RewriteSparkPlanRulesManager()))
+    injector.injectTransform(_ => intercept(AddFallbackTagRule()))
+    injector.injectTransform(_ => intercept(TransformPreOverrides()))
     injector.injectTransform(_ => RemoveNativeWriteFilesSortAndProject())
-    injector.injectTransform(c => RewriteTransformer.apply(c.session))
+    injector.injectTransform(c => intercept(RewriteTransformer.apply(c.session)))
     injector.injectTransform(_ => PushDownFilterToScan)
     injector.injectTransform(_ => PushDownInputFileExpression.PostOffload)
     injector.injectTransform(_ => EnsureLocalSortRequirements)
@@ -85,7 +87,9 @@ private object CHRuleApi {
     injector.injectTransform(c => RewriteSortMergeJoinToHashJoinRule.apply(c.session))
     injector.injectTransform(c => PushdownAggregatePreProjectionAheadExpand.apply(c.session))
     injector.injectTransform(
-      c => SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarTransformRules)(c.session))
+      c =>
+        intercept(
+          SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarTransformRules)(c.session)))
     injector.injectTransform(c => InsertTransitions(c.outputsColumnar))
 
     // Gluten columnar: Fallback policies.
@@ -96,10 +100,11 @@ private object CHRuleApi {
     injector.injectPost(c => RemoveTopmostColumnarToRow(c.session, c.ac.isAdaptiveContext()))
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
-      .foreach(each => injector.injectPost(c => each(c.session)))
+      .foreach(each => injector.injectPost(c => intercept(each(c.session))))
     injector.injectPost(c => ColumnarCollapseTransformStages(c.conf))
     injector.injectTransform(
-      c => SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarPostRules)(c.session))
+      c =>
+        intercept(SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarPostRules)(c.session)))
 
     // Gluten columnar: Final rules.
     injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
@@ -115,5 +120,53 @@ private object CHRuleApi {
         new SparkPlanRules.AbortRule(
           "Clickhouse backend doesn't yet have RAS support, please try disabling RAS and" +
             " rerunning the application"))
+  }
+
+  /**
+   * Since https://github.com/apache/incubator-gluten/pull/883.
+   *
+   * TODO: Remove this since tricky to maintain.
+   */
+  private class CHSparkRuleInterceptor(delegate: Rule[SparkPlan])
+    extends Rule[SparkPlan]
+    with AdaptiveSparkPlanHelper {
+    override val ruleName: String = delegate.ruleName
+
+    override def apply(plan: SparkPlan): SparkPlan = {
+      if (skipOn(plan)) {
+        return plan
+      }
+      delegate(plan)
+    }
+
+    private def skipOn(plan: SparkPlan): Boolean = {
+      // TODO: Currently there are some fallback issues on CH backend when SparkPlan is
+      // TODO: SerializeFromObjectExec, ObjectHashAggregateExec and V2CommandExec.
+      // For example:
+      //   val tookTimeArr = Array(12, 23, 56, 100, 500, 20)
+      //   import spark.implicits._
+      //   val df = spark.sparkContext.parallelize(tookTimeArr.toSeq, 1).toDF("time")
+      //   df.summary().show(100, false)
+
+      def includedDeltaOperator(scanExec: FileSourceScanExec): Boolean = {
+        scanExec.relation.location.isInstanceOf[DeltaLogFileIndex]
+      }
+
+      val includedUnsupportedPlans = collect(plan) {
+        // case s: SerializeFromObjectExec => true
+        // case d: DeserializeToObjectExec => true
+        // case o: ObjectHashAggregateExec => true
+        case rddScanExec: RDDScanExec if rddScanExec.nodeName.contains("Delta Table State") => true
+        case f: FileSourceScanExec if includedDeltaOperator(f) => true
+        case v2CommandExec: V2CommandExec => true
+        case commandResultExec: CommandResultExec => true
+      }
+
+      includedUnsupportedPlans.contains(true)
+    }
+  }
+
+  private def intercept(delegate: Rule[SparkPlan]): Rule[SparkPlan] = {
+    new CHSparkRuleInterceptor(delegate)
   }
 }

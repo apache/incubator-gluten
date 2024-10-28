@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.execution.WholeStageTransformer
 import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.extension.columnar.FallbackTags
+import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.AnalysisException
@@ -49,7 +50,7 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
       p: SparkPlan,
       reason: String,
       fallbackNodeToReason: mutable.HashMap[String, String]): Unit = {
-    p.getTagValue(QueryPlan.OP_ID_TAG).foreach {
+    SparkShimLoader.getSparkShims.getOperatorId(p).foreach {
       opId =>
         // e.g., 002 project, it is used to help analysis by `substring(4)`
         val formattedNodeName = f"$opId%03d ${p.nodeName}"
@@ -150,94 +151,99 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
   // scalastyle:off
   /**
    * Given a input physical plan, performs the following tasks.
-   *   1. Generates the explain output for the input plan excluding the subquery plans.
-   *   2. Generates the explain output for each subquery referenced in the plan.
+   *   1. Generates the explain output for the input plan excluding the subquery plans. 2. Generates
+   *      the explain output for each subquery referenced in the plan.
    */
+  // scalastyle:on
+  // spotless:on
   def processPlan[T <: QueryPlan[T]](
       plan: T,
       append: String => Unit,
-      collectFallbackFunc: Option[QueryPlan[_] => FallbackInfo] = None): FallbackInfo = synchronized {
-    try {
-      // Initialize a reference-unique set of Operators to avoid accdiental overwrites and to allow
-      // intentional overwriting of IDs generated in previous AQE iteration
-      val operators = newSetFromMap[QueryPlan[_]](new util.IdentityHashMap())
-      // Initialize an array of ReusedExchanges to help find Adaptively Optimized Out
-      // Exchanges as part of SPARK-42753
-      val reusedExchanges = ArrayBuffer.empty[ReusedExchangeExec]
+      collectFallbackFunc: Option[QueryPlan[_] => FallbackInfo] = None): FallbackInfo =
+    synchronized {
+      SparkShimLoader.getSparkShims.withOperatorIdMap(
+        new java.util.IdentityHashMap[QueryPlan[_], Int]()) {
+        try {
+          // Initialize a reference-unique set of Operators to avoid accdiental overwrites and to
+          // allow intentional overwriting of IDs generated in previous AQE iteration
+          val operators = newSetFromMap[QueryPlan[_]](new util.IdentityHashMap())
+          // Initialize an array of ReusedExchanges to help find Adaptively Optimized Out
+          // Exchanges as part of SPARK-42753
+          val reusedExchanges = ArrayBuffer.empty[ReusedExchangeExec]
 
-      var currentOperatorID = 0
-      currentOperatorID =
-        generateOperatorIDs(plan, currentOperatorID, operators, reusedExchanges, true)
+          var currentOperatorID = 0
+          currentOperatorID =
+            generateOperatorIDs(plan, currentOperatorID, operators, reusedExchanges, true)
 
-      val subqueries = ArrayBuffer.empty[(SparkPlan, Expression, BaseSubqueryExec)]
-      getSubqueries(plan, subqueries)
+          val subqueries = ArrayBuffer.empty[(SparkPlan, Expression, BaseSubqueryExec)]
+          getSubqueries(plan, subqueries)
 
-      currentOperatorID = subqueries.foldLeft(currentOperatorID) {
-        (curId, plan) => generateOperatorIDs(plan._3.child, curId, operators, reusedExchanges, true)
-      }
-
-      // SPARK-42753: Process subtree for a ReusedExchange with unknown child
-      val optimizedOutExchanges = ArrayBuffer.empty[Exchange]
-      reusedExchanges.foreach {
-        reused =>
-          val child = reused.child
-          if (!operators.contains(child)) {
-            optimizedOutExchanges.append(child)
-            currentOperatorID =
-              generateOperatorIDs(child, currentOperatorID, operators, reusedExchanges, false)
+          currentOperatorID = subqueries.foldLeft(currentOperatorID) {
+            (curId, plan) =>
+              generateOperatorIDs(plan._3.child, curId, operators, reusedExchanges, true)
           }
-      }
 
-      val collectedOperators = BitSet.empty
-      processPlanSkippingSubqueries(plan, append, collectedOperators)
-
-      var i = 0
-      for (sub <- subqueries) {
-        if (i == 0) {
-          append("\n===== Subqueries =====\n\n")
-        }
-        i = i + 1
-        append(
-          s"Subquery:$i Hosting operator id = " +
-            s"${getOpId(sub._1)} Hosting Expression = ${sub._2}\n")
-
-        // For each subquery expression in the parent plan, process its child plan to compute
-        // the explain output. In case of subquery reuse, we don't print subquery plan more
-        // than once. So we skip [[ReusedSubqueryExec]] here.
-        if (!sub._3.isInstanceOf[ReusedSubqueryExec]) {
-          processPlanSkippingSubqueries(sub._3.child, append, collectedOperators)
-        }
-        append("\n")
-      }
-
-      i = 0
-      optimizedOutExchanges.foreach {
-        exchange =>
-          if (i == 0) {
-            append("\n===== Adaptively Optimized Out Exchanges =====\n\n")
+          // SPARK-42753: Process subtree for a ReusedExchange with unknown child
+          val optimizedOutExchanges = ArrayBuffer.empty[Exchange]
+          reusedExchanges.foreach {
+            reused =>
+              val child = reused.child
+              if (!operators.contains(child)) {
+                optimizedOutExchanges.append(child)
+                currentOperatorID =
+                  generateOperatorIDs(child, currentOperatorID, operators, reusedExchanges, false)
+              }
           }
-          i = i + 1
-          append(s"Subplan:$i\n")
-          processPlanSkippingSubqueries[SparkPlan](exchange, append, collectedOperators)
-          append("\n")
-      }
 
-      (subqueries.filter(!_._3.isInstanceOf[ReusedSubqueryExec]).map(_._3.child) :+ plan)
-        .map {
-          plan =>
-            if (collectFallbackFunc.isEmpty) {
-              collectFallbackNodes(plan)
-            } else {
-              collectFallbackFunc.get.apply(plan)
+          val collectedOperators = BitSet.empty
+          processPlanSkippingSubqueries(plan, append, collectedOperators)
+
+          var i = 0
+          for (sub <- subqueries) {
+            if (i == 0) {
+              append("\n===== Subqueries =====\n\n")
             }
+            i = i + 1
+            append(
+              s"Subquery:$i Hosting operator id = " +
+                s"${getOpId(sub._1)} Hosting Expression = ${sub._2}\n")
+
+            // For each subquery expression in the parent plan, process its child plan to compute
+            // the explain output. In case of subquery reuse, we don't print subquery plan more
+            // than once. So we skip [[ReusedSubqueryExec]] here.
+            if (!sub._3.isInstanceOf[ReusedSubqueryExec]) {
+              processPlanSkippingSubqueries(sub._3.child, append, collectedOperators)
+            }
+            append("\n")
+          }
+
+          i = 0
+          optimizedOutExchanges.foreach {
+            exchange =>
+              if (i == 0) {
+                append("\n===== Adaptively Optimized Out Exchanges =====\n\n")
+              }
+              i = i + 1
+              append(s"Subplan:$i\n")
+              processPlanSkippingSubqueries[SparkPlan](exchange, append, collectedOperators)
+              append("\n")
+          }
+
+          (subqueries.filter(!_._3.isInstanceOf[ReusedSubqueryExec]).map(_._3.child) :+ plan)
+            .map {
+              plan =>
+                if (collectFallbackFunc.isEmpty) {
+                  collectFallbackNodes(plan)
+                } else {
+                  collectFallbackFunc.get.apply(plan)
+                }
+            }
+            .reduce((a, b) => (a._1 + b._1, a._2 ++ b._2))
+        } finally {
+          removeTags(plan)
         }
-        .reduce((a, b) => (a._1 + b._1, a._2 ++ b._2))
-    } finally {
-      removeTags(plan)
+      }
     }
-  }
-  // scalastyle:on
-  // spotless:on
 
   /**
    * Traverses the supplied input plan in a bottom-up fashion and records the operator id via
@@ -288,7 +294,7 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
       }
       visited.add(plan)
       currentOperationID += 1
-      plan.setTagValue(QueryPlan.OP_ID_TAG, currentOperationID)
+      SparkShimLoader.getSparkShims.setOperatorId(plan, currentOperationID)
     }
 
     plan.foreachUp {
@@ -358,12 +364,12 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
    * value.
    */
   private def getOpId(plan: QueryPlan[_]): String = {
-    plan.getTagValue(QueryPlan.OP_ID_TAG).map(v => s"$v").getOrElse("unknown")
+    SparkShimLoader.getSparkShims.getOperatorId(plan).map(v => s"$v").getOrElse("unknown")
   }
 
   private def removeTags(plan: QueryPlan[_]): Unit = {
     def remove(p: QueryPlan[_], children: Seq[QueryPlan[_]]): Unit = {
-      p.unsetTagValue(QueryPlan.OP_ID_TAG)
+      SparkShimLoader.getSparkShims.unsetOperatorId(p)
       children.foreach(removeTags)
     }
 

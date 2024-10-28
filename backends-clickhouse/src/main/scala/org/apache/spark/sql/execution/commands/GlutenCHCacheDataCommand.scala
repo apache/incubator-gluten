@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution.commands
 
 import org.apache.gluten.expression.ConverterUtils
-import org.apache.gluten.substrait.rel.ExtensionTableBuilder
 
 import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.rpc.GlutenDriverEndpoint
@@ -28,7 +27,8 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference,
 import org.apache.spark.sql.delta._
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.execution.commands.GlutenCacheBase._
-import org.apache.spark.sql.execution.datasources.utils.MergeTreeDeltaUtil
+import org.apache.spark.sql.execution.datasources.clickhouse.ExtensionTableBuilder
+import org.apache.spark.sql.execution.datasources.mergetree.{PartSerializer, StorageMeta}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.AddMergeTreeParts
 import org.apache.spark.sql.types.{BooleanType, StringType}
 
@@ -169,28 +169,20 @@ case class GlutenCHCacheDataCommand(
         val executorId = value._1
         if (parts.nonEmpty) {
           val onePart = parts(0)
-          val partNameList = parts.map(_.name).toSeq
-          // starts and lengths is useless for write
-          val partRanges = Seq.range(0L, partNameList.length).map(_ => long2Long(0L)).asJava
-
           val extensionTableNode = ExtensionTableBuilder.makeExtensionTable(
-            -1,
-            -1,
             onePart.database,
             onePart.table,
             ClickhouseSnapshot.genSnapshotId(snapshot),
             onePart.tablePath,
             pathToCache.toString,
             snapshot.metadata.configuration
-              .getOrElse("orderByKey", MergeTreeDeltaUtil.DEFAULT_ORDER_BY_KEY),
+              .getOrElse("orderByKey", StorageMeta.DEFAULT_ORDER_BY_KEY),
             snapshot.metadata.configuration.getOrElse("lowCardKey", ""),
             snapshot.metadata.configuration.getOrElse("minmaxIndexKey", ""),
             snapshot.metadata.configuration.getOrElse("bloomfilterIndexKey", ""),
             snapshot.metadata.configuration.getOrElse("setIndexKey", ""),
             snapshot.metadata.configuration.getOrElse("primaryKey", ""),
-            partNameList.asJava,
-            partRanges,
-            partRanges,
+            PartSerializer.fromPartNames(parts.map(_.name).toSeq),
             ConverterUtils.convertNamedStructJson(snapshot.metadata.schema),
             snapshot.metadata.configuration.asJava,
             new JList[String]()

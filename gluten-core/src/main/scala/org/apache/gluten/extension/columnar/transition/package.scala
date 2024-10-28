@@ -16,11 +16,17 @@
  */
 package org.apache.gluten.extension.columnar
 
+import org.apache.gluten.execution.ColumnarToColumnarTransition
+
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.debug.DebugExec
 
 package object transition {
+  type TransitionGraph = FloydWarshallGraph[TransitionGraph.Vertex, Transition]
   // These 5 plan operators (as of Spark 3.5) are operators that have the
   // same convention with their children.
   //
@@ -54,5 +60,22 @@ package object transition {
         case _ => None
       }
     }
+  }
+
+  // Extractor for Gluten's C2C
+  object ColumnarToColumnarLike {
+    def unapply(plan: SparkPlan): Option[SparkPlan] = {
+      plan match {
+        case c2c: ColumnarToColumnarTransition =>
+          Some(c2c.child)
+        case _ => None
+      }
+    }
+  }
+
+  case class DummySparkPlan() extends LeafExecNode {
+    override def supportsColumnar: Boolean = true // To bypass the assertion in ColumnarToRowExec.
+    override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
+    override def output: Seq[Attribute] = Nil
   }
 }

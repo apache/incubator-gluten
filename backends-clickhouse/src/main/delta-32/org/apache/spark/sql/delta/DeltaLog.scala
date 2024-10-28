@@ -784,9 +784,6 @@ object DeltaLog extends DeltaLogging {
       FileSourceOptions.IGNORE_CORRUPT_FILES -> "false",
       FileSourceOptions.IGNORE_MISSING_FILES -> "false"
     )
-    // --- modified start
-    // Don't need to add the bucketOption here, it handles the delta log meta json file
-    // --- modified end
     val fsRelation = HadoopFsRelation(
       index, index.partitionSchema, schema, None, index.format, allOptions)(spark)
     LogicalRelation(fsRelation)

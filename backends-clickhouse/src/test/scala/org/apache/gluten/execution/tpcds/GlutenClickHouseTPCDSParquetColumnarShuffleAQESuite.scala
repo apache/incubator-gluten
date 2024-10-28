@@ -241,4 +241,28 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleAQESuite
     // There are some BroadcastHashJoin with NOT condition
     compareResultsAgainstVanillaSpark(sql, true, { df => })
   }
+
+  test("GLUTEN-7358: Optimize the strategy of the partition split according to the files count") {
+    Seq(("-1", 8), ("100", 8), ("2000", 1)).foreach(
+      conf => {
+        withSQLConf(
+          ("spark.gluten.sql.columnar.backend.ch.files.per.partition.threshold" -> conf._1)) {
+          val sql =
+            s"""
+               |select count(1) from store_sales
+               |""".stripMargin
+          compareResultsAgainstVanillaSpark(
+            sql,
+            true,
+            {
+              df =>
+                val scanExec = collect(df.queryExecution.executedPlan) {
+                  case f: FileSourceScanExecTransformer => f
+                }
+                assert(scanExec(0).getPartitions.size == conf._2)
+            }
+          )
+        }
+      })
+  }
 }

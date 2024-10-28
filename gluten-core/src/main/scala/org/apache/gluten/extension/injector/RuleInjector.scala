@@ -19,12 +19,14 @@ package org.apache.gluten.extension.injector
 import org.apache.spark.sql.SparkSessionExtensions
 
 /** Injector used to inject query planner rules into Spark and Gluten. */
-class RuleInjector {
-  val spark: SparkInjector = new SparkInjector()
-  val gluten: GlutenInjector = new GlutenInjector()
+class RuleInjector(extensions: SparkSessionExtensions) {
+  val control = new InjectorControl()
+  val spark: SparkInjector = new SparkInjector(control, extensions)
+  val gluten: GlutenInjector = new GlutenInjector(control)
 
-  private[extension] def inject(extensions: SparkSessionExtensions): Unit = {
-    spark.inject(extensions)
+  private[extension] def inject(): Unit = {
+    // The regular Spark rules already injected with the `injectRules` of `RuleApi` directly.
+    // Only inject the Spark columnar rule here.
     gluten.inject(extensions)
   }
 }

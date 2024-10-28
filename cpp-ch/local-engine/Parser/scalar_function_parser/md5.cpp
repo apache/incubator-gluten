@@ -33,7 +33,7 @@ namespace local_engine
 class FunctionParserMd5 : public FunctionParser
 {
 public:
-    explicit FunctionParserMd5(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserMd5(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserMd5() override = default;
 
     static constexpr auto name = "md5";

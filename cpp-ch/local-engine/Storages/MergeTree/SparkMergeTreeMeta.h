@@ -77,6 +77,9 @@ struct MergeTreeTable
     SparkStorageMergeTreePtr copyToVirtualStorage(const ContextMutablePtr & context) const;
 
     std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(const DB::Block & header, const ContextPtr & context) const;
+
+    MergeTreeTable() = default;
+    explicit MergeTreeTable(const substrait::WriteRel & write_rel);
 };
 
 struct MergeTreeTableInstance : MergeTreeTable

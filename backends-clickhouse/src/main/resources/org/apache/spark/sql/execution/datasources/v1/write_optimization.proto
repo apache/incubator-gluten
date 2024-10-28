@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: Apache-2.0
+syntax = "proto3";
+
+package local_engine;
+
+option java_package = "org.apache.spark.sql.execution.datasources.v1";
+option java_multiple_files = true;
+
+message Write {
+  message Common {
+    string format = 1;
+    string job_task_attempt_id = 2; // currently used in mergetree format
+  }
+  message ParquetWrite{}
+  message OrcWrite{}
+  message MergeTreeWrite{
+    string database = 1;
+    string table = 2;
+    string snapshot_id = 3;
+    string order_by_key = 4;
+    string low_card_key = 5;
+    string minmax_index_key = 6;
+    string bf_index_key = 7;
+    string set_index_key = 8;
+    string primary_key = 9;
+    string relative_path = 10;
+    string absolute_path = 11;
+
+    string storage_policy = 12;
+  }
+
+  Common common = 1;
+  oneof file_format {
+    ParquetWrite parquet = 2;
+    OrcWrite orc = 3;
+    MergeTreeWrite mergetree = 4;
+  }
+}

@@ -15,12 +15,13 @@
  * limitations under the License.
  */
 #pragma once
-
+#include <jni.h>
 #include <Interpreters/Context.h>
 #include <Processors/Executors/PushingPipelineExecutor.h>
 #include <Storages/MergeTree/IMergeTreeDataPart.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
+#include <Storages/NativeOutputWriter.h>
 
 namespace DB
 {
@@ -44,26 +45,28 @@ struct PartInfo
     String bucket_id;
 
     bool operator<(const PartInfo & rhs) const { return disk_size < rhs.disk_size; }
+
+    static std::string toJson(const std::vector<PartInfo> & part_infos);
 };
 
-class SparkMergeTreeWriter
+class SparkMergeTreeWriter : public NativeOutputWriter
 {
 public:
-    static String partInfosToJson(const std::vector<PartInfo> & part_infos);
     static std::unique_ptr<SparkMergeTreeWriter> create(
         const MergeTreeTable & merge_tree_table,
         const SparkMergeTreeWritePartitionSettings & write_settings_,
-        const DB::ContextMutablePtr & context);
+        const DB::ContextMutablePtr & context,
+        const std::string & spark_job_id);
 
     SparkMergeTreeWriter(
         const DB::Block & header_,
         const SinkHelper & sink_helper_,
         DB::QueryPipeline && pipeline_,
-        std::unordered_map<String, String> && partition_values_);
+        std::unordered_map<String, String> && partition_values_,
+        const std::string & spark_job_id_);
 
-    void write(const DB::Block & block);
-    void finalize();
-    std::vector<PartInfo> getAllPartInfo() const;
+    void write(DB::Block & block) override;
+    void close() override;
 
 private:
     DB::Block header;
@@ -71,5 +74,16 @@ private:
     DB::QueryPipeline pipeline;
     DB::PushingPipelineExecutor executor;
     std::unordered_map<String, String> partition_values;
+
+    const std::string spark_job_id;
+
+    std::vector<PartInfo> getAllPartInfo() const;
 };
+
+namespace SparkMergeTreeWriterJNI
+{
+void init(JNIEnv *);
+void destroy(JNIEnv *);
+}
+
 }

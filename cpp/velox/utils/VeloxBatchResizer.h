@@ -17,7 +17,7 @@
 
 #include "memory/ColumnarBatchIterator.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 #include "velox/common/memory/MemoryPool.h"
 #include "velox/vector/ComplexVector.h"
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 #include <Parser/FunctionParser.h>
-#include <Common/CHUtil.h>
+
 #include <Core/Field.h>
 #include <DataTypes/IDataType.h>
 
@@ -34,7 +34,7 @@ namespace local_engine
 class FunctionParserArrayDistinct : public FunctionParser
 {
 public:
-    explicit FunctionParserArrayDistinct(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserArrayDistinct(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
 
     static constexpr auto name = "array_distinct";
 

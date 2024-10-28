@@ -18,7 +18,6 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/IDataType.h>
 #include <Parser/FunctionParser.h>
-#include <Common/CHUtil.h>
 
 namespace DB
 {
@@ -35,7 +34,7 @@ namespace local_engine
 class FunctionParserEmpty2Null : public FunctionParser
 {
 public:
-    explicit FunctionParserEmpty2Null(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserEmpty2Null(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
 
     static constexpr auto name = "empty2null";
 

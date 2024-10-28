@@ -123,14 +123,7 @@ class ColumnarShuffleWriter[K, V](
   @throws[IOException]
   def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
-      partitionLengths = new Array[Long](dep.partitioner.numPartitions)
-      shuffleBlockResolver.writeMetadataFileAndCommit(
-        dep.shuffleId,
-        mapId,
-        partitionLengths,
-        Array[Long](),
-        null)
-      mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+      handleEmptyInput()
       return
     }
 
@@ -167,19 +160,21 @@ class ColumnarShuffleWriter[K, V](
             GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, taskContext.partitionId),
             shuffleWriterType
           )
-          runtime.addSpiller(new Spiller() {
-            override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
-              if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
-                return 0L
+          runtime
+            .memoryManager()
+            .addSpiller(new Spiller() {
+              override def spill(self: MemoryTarget, phase: Spiller.Phase, size: Long): Long = {
+                if (!Spillers.PHASE_SET_SPILL_ONLY.contains(phase)) {
+                  return 0L
+                }
+                logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+                // fixme pass true when being called by self
+                val spilled =
+                  jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+                logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+                spilled
               }
-              logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
-              // fixme pass true when being called by self
-              val spilled =
-                jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
-              logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
-              spilled
-            }
-          })
+            })
         }
         val startTime = System.nanoTime()
         jniWrapper.write(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
@@ -190,6 +185,11 @@ class ColumnarShuffleWriter[K, V](
         writeMetrics.incRecordsWritten(rows)
       }
       cb.close()
+    }
+
+    if (nativeShuffleWriter == -1L) {
+      handleEmptyInput()
+      return
     }
 
     val startTime = System.nanoTime()
@@ -239,16 +239,28 @@ class ColumnarShuffleWriter[K, V](
     mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
   }
 
+  private def handleEmptyInput(): Unit = {
+    partitionLengths = new Array[Long](dep.partitioner.numPartitions)
+    shuffleBlockResolver.writeMetadataFileAndCommit(
+      dep.shuffleId,
+      mapId,
+      partitionLengths,
+      Array[Long](),
+      null)
+    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+  }
+
   @throws[IOException]
   override def write(records: Iterator[Product2[K, V]]): Unit = {
     internalWrite(records)
   }
 
   private def closeShuffleWriter(): Unit = {
-    if (nativeShuffleWriter != -1L) {
-      jniWrapper.close(nativeShuffleWriter)
-      nativeShuffleWriter = -1L
+    if (nativeShuffleWriter == -1L) {
+      return
     }
+    jniWrapper.close(nativeShuffleWriter)
+    nativeShuffleWriter = -1L
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {

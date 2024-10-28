@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (100)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (67)
+   VeloxColumnarToRow (67)
    +- TakeOrderedAndProjectExecTransformer (66)
       +- ^ ProjectExecTransformer (64)
          +- ^ RegularHashAggregateExecTransformer (63)
@@ -359,7 +359,7 @@ Arguments: false
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
 Arguments: X, [revenue#X DESC NULLS LAST], [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X], 0
 
-(67) VeloxColumnarToRowExec
+(67) VeloxColumnarToRow
 Input [8]: [c_custkey#X, c_name#X, revenue#X, c_acctbal#X, n_name#X, c_address#X, c_phone#X, c_comment#X]
 
 (68) Scan parquet

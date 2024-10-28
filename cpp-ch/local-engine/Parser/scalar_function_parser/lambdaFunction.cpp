@@ -14,15 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <Functions/FunctionsMiscellaneous.h>
+#include <Interpreters/ExpressionActions.h>
+#include <Interpreters/ExpressionActionsSettings.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/TypeParser.h>
+#include <Parser/ExpressionParser.h>
 #include <Common/Exception.h>
 #include <Poco/Logger.h>
+#include <Common/Exception.h>
 #include <Common/logger_useful.h>
-#include <Interpreters/ExpressionActionsSettings.h>
-#include <Interpreters/ExpressionActions.h>
-#include <Functions/FunctionsMiscellaneous.h>
-#include <Common/CHUtil.h>
+
 #include <unordered_set>
 
 namespace DB::ErrorCodes
@@ -32,7 +34,7 @@ namespace DB::ErrorCodes
 
 namespace local_engine
 {
-DB::NamesAndTypesList collectLambdaArguments(const SerializedPlanParser & plan_parser_, const substrait::Expression_ScalarFunction & substrait_func)
+DB::NamesAndTypesList collectLambdaArguments(ParserContextPtr parser_context_, const substrait::Expression_ScalarFunction & substrait_func)
 {
     DB::NamesAndTypesList lambda_arguments;
     std::unordered_set<String> collected_names;
@@ -40,9 +42,9 @@ DB::NamesAndTypesList collectLambdaArguments(const SerializedPlanParser & plan_p
     for (const auto & arg : substrait_func.arguments())
     {
         if (arg.value().has_scalar_function()
-            && plan_parser_.getFunctionSignatureName(arg.value().scalar_function().function_reference()) == "namedlambdavariable")
+            && parser_context_->getFunctionNameInSignature(arg.value().scalar_function().function_reference()) == "namedlambdavariable")
         {
-            auto [_, col_name_field] = plan_parser_.parseLiteral(arg.value().scalar_function().arguments()[0].value().literal());
+            auto [_, col_name_field] = LiteralParser().parse(arg.value().scalar_function().arguments()[0].value().literal());
             String col_name = col_name_field.safeGet<String>();
             if (collected_names.contains(col_name))
             {
@@ -61,7 +63,7 @@ class FunctionParserLambda : public FunctionParser
 {
 public:
     static constexpr auto name = "lambdafunction";
-    explicit FunctionParserLambda(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserLambda(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserLambda() override = default;
 
     String getName() const override { return name; }
@@ -102,7 +104,7 @@ public:
         DB::Names captured_column_names;
         DB::Names required_column_names = lambda_actions->getRequiredColumns();
         DB::ActionsDAG::NodeRawConstPtrs lambda_children;
-        auto lambda_function_args = collectLambdaArguments(*plan_parser, substrait_func);
+        auto lambda_function_args = collectLambdaArguments(parser_context, substrait_func);
         const auto & lambda_actions_inputs = lambda_actions->getActionsDAG().getInputs();
 
         std::unordered_map<String, const DB::ActionsDAG::Node *> parent_nodes;
@@ -174,7 +176,7 @@ class NamedLambdaVariable : public FunctionParser
 {
 public:
     static constexpr auto name = "namedlambdavariable";
-    explicit NamedLambdaVariable(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit NamedLambdaVariable(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~NamedLambdaVariable() override = default;
 
     String getName() const override { return name; }

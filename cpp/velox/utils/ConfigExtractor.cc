@@ -19,11 +19,8 @@
 
 #include "ConfigExtractor.h"
 #include <stdexcept>
-#ifdef ENABLE_GCS
-#include <fstream>
-#endif
 
-#include "utils/exception.h"
+#include "utils/Exception.h"
 #include "velox/connectors/hive/HiveConfig.h"
 
 namespace {
@@ -128,19 +125,9 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
   auto gsStorageRootUrl = conf->get<std::string>("spark.hadoop.fs.gs.storage.root.url");
   if (gsStorageRootUrl.hasValue()) {
-    std::string url = gsStorageRootUrl.value();
-    std::string gcsScheme;
-    std::string gcsEndpoint;
+    std::string gcsEndpoint = gsStorageRootUrl.value();
 
-    const auto sep = std::string("://");
-    const auto pos = url.find_first_of(sep);
-    if (pos != std::string::npos) {
-      gcsScheme = url.substr(0, pos);
-      gcsEndpoint = url.substr(pos + sep.length());
-    }
-
-    if (!gcsEndpoint.empty() && !gcsScheme.empty()) {
-      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSScheme] = gcsScheme;
+    if (!gcsEndpoint.empty()) {
       hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSEndpoint] = gcsEndpoint;
     }
   }
@@ -166,10 +153,8 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
       auto gsAuthServiceAccountJsonKeyfile =
           conf->get<std::string>("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
       if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
-        auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile.value());
-        stream.exceptions(std::ios::badbit);
-        std::string gsAuthServiceAccountJson = std::string(std::istreambuf_iterator<char>(stream.rdbuf()), {});
-        hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSCredentials] = gsAuthServiceAccountJson;
+        hiveConfMap[facebook::velox::connector::hive::HiveConfig::kGCSCredentialsPath] =
+            gsAuthServiceAccountJsonKeyfile.value();
       } else {
         LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
                         "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";

@@ -16,10 +16,6 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.columnarbatch.ArrowBatch
-import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.transition.Convention
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -29,7 +25,7 @@ import scala.concurrent.duration.NANOSECONDS
 
 case class ArrowFileSourceScanExec(original: FileSourceScanExec)
   extends ArrowFileSourceScanLikeShim(original)
-  with GlutenPlan {
+  with BaseArrowScanExec {
 
   lazy val inputRDD: RDD[InternalRow] = original.inputRDD
 
@@ -40,10 +36,6 @@ case class ArrowFileSourceScanExec(original: FileSourceScanExec)
   override def supportsColumnar: Boolean = original.supportsColumnar
 
   override def doCanonicalize(): FileSourceScanExec = original.doCanonicalize()
-
-  override protected def batchType0(): Convention.BatchType = {
-    ArrowBatch
-  }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("numOutputRows")

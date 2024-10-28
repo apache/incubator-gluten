@@ -20,6 +20,7 @@ import org.apache.gluten.GlutenBuildInfo._
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backend.Backend
 import org.apache.gluten.backendsapi._
+import org.apache.gluten.columnarbatch.CHBatch
 import org.apache.gluten.execution.WriteFilesExecTransformer
 import org.apache.gluten.expression.WindowFunctionsBuilder
 import org.apache.gluten.extension.ValidationResult
@@ -47,8 +48,8 @@ import java.util.Locale
 import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends SubstraitBackend {
-  override def name(): String = CHBackend.BACKEND_NAME
-  override def batchType: Convention.BatchType = CHBatch
+  override def name(): String = CHConf.BACKEND_NAME
+  override def defaultBatchType: Convention.BatchType = CHBatch
   override def buildInfo(): Backend.BuildInfo =
     Backend.BuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
   override def iteratorApi(): IteratorApi = new CHIteratorApi
@@ -59,10 +60,6 @@ class CHBackend extends SubstraitBackend {
   override def listenerApi(): ListenerApi = new CHListenerApi
   override def ruleApi(): RuleApi = new CHRuleApi
   override def settings(): BackendSettingsApi = CHBackendSettings
-}
-
-object CHBackend {
-  val BACKEND_NAME: String = CHConf.BACKEND_NAME
 }
 
 object CHBackendSettings extends BackendSettingsApi with Logging {
@@ -130,6 +127,12 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   val GLUTEN_AQE_PROPAGATEEMPTY: String = CHConf.prefixOf("aqe.propagate.empty.relation")
 
+  val GLUTEN_CLICKHOUSE_DELTA_SCAN_CACHE_SIZE: String = CHConf.prefixOf("deltascan.cache.size")
+  val GLUTEN_CLICKHOUSE_ADDFILES_TO_MTPS_CACHE_SIZE: String =
+    CHConf.prefixOf("addfiles.to.mtps.cache.size")
+  val GLUTEN_CLICKHOUSE_TABLE_PATH_TO_MTPS_CACHE_SIZE: String =
+    CHConf.prefixOf("table.path.to.mtps.cache.size")
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(
@@ -142,18 +145,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def validateScan(
       format: ReadFileFormat,
       fields: Array[StructField],
-      partTable: Boolean,
-      rootPaths: Seq[String],
-      paths: Seq[String]): ValidationResult = {
-
-    def validateFilePath: Boolean = {
-      // Fallback to vanilla spark when the input path
-      // does not contain the partition info.
-      if (partTable && !paths.forall(_.contains("="))) {
-        return false
-      }
-      true
-    }
+      rootPaths: Seq[String]): ValidationResult = {
 
     // Validate if all types are supported.
     def hasComplexType: Boolean = {
@@ -173,12 +165,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       !unsupportedDataTypes.isEmpty
     }
     format match {
-      case ParquetReadFormat =>
-        if (validateFilePath) {
-          ValidationResult.succeeded
-        } else {
-          ValidationResult.failed("Validate file path failed.")
-        }
+      case ParquetReadFormat => ValidationResult.succeeded
       case OrcReadFormat => ValidationResult.succeeded
       case MergeTreeReadFormat => ValidationResult.succeeded
       case TextReadFormat =>
@@ -326,6 +313,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   override def supportStructType(): Boolean = true
 
+  override def structFieldToLowerCase(): Boolean = false
+
   override def supportExpandExec(): Boolean = true
 
   override def excludeScanExecFromCollapsedStage(): Boolean =
@@ -338,8 +327,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   override def transformCheckOverflow: Boolean = false
 
-  override def requiredInputFilePaths(): Boolean = true
-
   override def requireBloomFilterAggMightContainJointFallback(): Boolean = false
 
   def maxShuffleReadRows(): Long = {
@@ -350,23 +337,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   def maxShuffleReadBytes(): Long = {
     SparkEnv.get.conf
       .getLong(GLUTEN_MAX_SHUFFLE_READ_BYTES, GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT)
-  }
-
-  // Reorder hash join tables, make sure to use the smaller table to build the hash table.
-  // Need to enable AQE
-  def enableReorderHashJoinTables(): Boolean = {
-    SparkEnv.get.conf.getBoolean(
-      CHConf.prefixOf("enable_reorder_hash_join_tables"),
-      defaultValue = true
-    )
-  }
-  // The threshold to reorder hash join tables, if The result of dividing two tables' size is
-  // large then this threshold, reorder the tables. e.g. a/b > threshold or b/a > threshold
-  def reorderHashJoinTablesThreshold(): Int = {
-    SparkEnv.get.conf.getInt(
-      CHConf.prefixOf("reorder_hash_join_tables_thresdhold"),
-      10
-    )
   }
 
   // Move the pre-prejection for a aggregation ahead of the expand node

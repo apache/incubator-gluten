@@ -68,27 +68,27 @@ setting up build dependencies.
 ./dev/buildbundle-veloxbe.sh --enable_ep_cache=ON --build_arrow=OFF --run_setup_script=OFF
 ```
 
-**For aarch64 build:**
+**For aarch64 build**
 
 ```bash
 export CPU_TARGET="aarch64"
 
-./dev/builddeps-veloxbe.sh
+./dev/buildbundle-veloxbe.sh
 ```
 
-**Build Velox separately**
+**Step-by-step build**
 
+Alternative to the above one-step build, you can follow the below guide for step-by-step build.
 Currently, Gluten is using a [forked Velox](https://github.com/oap-project/velox/) which is daily updated based on [upstream Velox](https://github.com/facebookincubator/velox).
 
-Scripts under `/path/to/gluten/ep/build-velox/src` provide `get_velox.sh` and `build_velox.sh` to build Velox separately, you could use these scripts with custom repo/branch/location.
-
-Velox provides arrow/parquet lib. Gluten cpp module need a required VELOX_HOME parsed by --velox_home, if you specify custom ep location, make sure these variables be passed correctly.
-
 ```bash
-## fetch Velox and compile
+
+# Build arrow with some patches applied. We need these slight code changes till arrow is upgraded
+# to 17.0.0 or newer versions.
+./dev/builddeps-veloxbe.sh build_arrow
+
 ./dev/builddeps-veloxbe.sh build_velox
 
-## compile Gluten cpp module
 ./dev/builddeps-veloxbe.sh build_gluten_cpp
 
 ## compile Gluten java module and create package jar
@@ -103,15 +103,20 @@ mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.4 -DskipTests
 mvn clean package -Pbackends-velox -Pceleborn -Puniffle -Pspark-3.5 -DskipTests
 ```
 
-Notes： Building Velox may fail caused by `oom`. You can prevent this failure by adjusting `NUM_THREADS` (e.g., `export NUM_THREADS=4`) before building Gluten/Velox.
+Notes： Building Velox may fail caused by OOM. You can prevent this failure by adjusting `NUM_THREADS` (e.g., `export NUM_THREADS=4`) before building Gluten/Velox.
 
-Once building successfully, the Jar file will be generated in the directory: package/target/\<gluten-jar\> for Spark 3.2.x/Spark 3.3.x/Spark 3.4.x/Spark 3.5.x.
+After the above build process, the Jar file will be generated under `package/target/`.
 
 ## Dependency library deployment
 
-With config `enable_vcpkg=ON`, the dependency libraries will be built and statically linked into libvelox.so and libgluten.so, which is packed into the gluten-jar. In this way, only the gluten-jar is needed to add to `spark.<driver|executor>.extraClassPath` and spark will deploy the jar to each worker node. It's better to build the static version using a clean docker image without any extra libraries installed. On host with some libraries like jemalloc installed, the script may crash with odd message. You may need to uninstall those libraries to get a clean host.
+With build option `enable_vcpkg=ON`, all dependency libraries will be statically linked to `libvelox.so` and `libgluten.so` which are packed into the gluten-jar.
+In this way, only the gluten-jar is needed to add to `spark.<driver|executor>.extraClassPath` and spark will deploy the jar to each worker node. It's better to build
+the static version using a clean docker image without any extra libraries installed. On host with some libraries like jemalloc installed, the script may crash with
+odd message. You may need to uninstall those libraries to get a clean host. We strongly recommend user to build Gluten in this way to avoid dependency lacking issue.
 
-With config `enable_vcpkg=OFF`, not all dependency libraries will be statically linked, instead the script will install the libraries to system then pack the dependency libraries into another jar named `gluten-package-${Maven-artifact-version}.jar`. Then you need to add the jar to `extraClassPath` and set `spark.gluten.loadLibFromJar=true`. Otherwise, you need to install shared dependency libraries on each worker node. You may find the libraries list from the gluten-package jar.
+With build option `enable_vcpkg=OFF`, not all dependency libraries will be statically linked. You need to separately execute `./dev/build-thirdparty.sh` to pack required
+shared libraries into another jar named `gluten-thirdparty-lib-$LINUX_OS-$VERSION-$ARCH.jar`. Then you need to add the jar to Spark config `extraClassPath` and set
+`spark.gluten.loadLibFromJar=true`. Otherwise, you need to install required shared libraries on each worker node. You may find the libraries list from the third-party jar.
 
 ## HDFS support
 
@@ -662,8 +667,8 @@ All TPC-H and TPC-DS queries are supported in Gluten Velox backend.
 The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
 [TPC-DS dategen script](../../tools/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh).
 
-The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original)
-and [TPC-H queries](../../gluten-core/src/test/resources/tpch-queries).
+The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../tools/gluten-it/common/src/main/resources/tpcds-queries)
+and [TPC-H queries](../../tools/gluten-it/common/src/main/resources/tpch-queries).
 
 Some other versions of TPC-DS queries are also provided, but are **not** recommended for testing, including:
 

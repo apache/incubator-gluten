@@ -32,7 +32,7 @@ object GlutenBuildInfo {
     throw new GlutenException(s"Can not load the core build file: $buildFile")
   }
 
-  val unknown = "<unknown>"
+  private val unknown = "<unknown>"
   private val props = new Properties()
 
   try {

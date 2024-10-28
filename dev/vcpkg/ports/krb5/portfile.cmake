@@ -1,5 +1,5 @@
 vcpkg_download_distfile(ARCHIVE
-    URLS "https://web.mit.edu/kerberos/dist/krb5/1.20/krb5-1.20.tar.gz"
+    URLS "https://kerberos.org/dist/krb5/1.20/krb5-1.20.tar.gz"
     FILENAME "krb5-1.20.tar.gz"
     SHA512 9aed84a971a4d74188468870260087ec7c3a614cceb5fe32ad7da1cb8db3d66e00df801c9f900f0131ac56eb828674b8be93df474c2d13b892b70c7977388604
 )

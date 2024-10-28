@@ -31,7 +31,7 @@ namespace local_engine
 class FunctionParserBitLength : public FunctionParser
 {
 public:
-    explicit FunctionParserBitLength(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserBitLength(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserBitLength() override = default;
 
     static constexpr auto name = "bit_length";

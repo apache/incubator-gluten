@@ -15,8 +15,13 @@
  * limitations under the License.
  */
 #pragma once
+
 #include <Interpreters/Context_fwd.h>
 
+namespace DB
+{
+struct Settings;
+}
 namespace local_engine
 {
 
@@ -59,5 +64,10 @@ namespace local_engine
         LIST_OF_SETTINGS_MACRO(IMPLEMENT_GLUTEN_SET_, SKIP_ALIAS, _) \
     }
 
+// workaround for tryGetString
 
-}
+bool tryGetString(const DB::Settings & settings, std::string_view name, std::string & value);
+bool settingsEqual(const DB::Settings & settings, std::string_view name, const std::string & value);
+void updateSettings(const DB::ContextMutablePtr &, std::string_view);
+
+} // namespace local_engine

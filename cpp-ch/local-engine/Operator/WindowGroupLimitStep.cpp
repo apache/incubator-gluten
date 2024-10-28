@@ -16,12 +16,10 @@
  */
 
 #include "WindowGroupLimitStep.h"
-#include <memory>
+
 #include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Poco/Logger.h>
-#include <Common/CHUtil.h>
 #include <Common/logger_useful.h>
 
 namespace DB::ErrorCodes
@@ -304,12 +302,12 @@ static DB::ITransformingStep::Traits getTraits()
 }
 
 WindowGroupLimitStep::WindowGroupLimitStep(
-    const DB::DataStream & input_stream_,
+    const DB::Block & input_header_,
     const String & function_name_,
-    const std::vector<size_t> partition_columns_,
-    const std::vector<size_t> sort_columns_,
+    const std::vector<size_t> & partition_columns_,
+    const std::vector<size_t> & sort_columns_,
     size_t limit_)
-    : DB::ITransformingStep(input_stream_, input_stream_.header, getTraits())
+    : DB::ITransformingStep(input_header_, input_header_, getTraits())
     , function_name(function_name_)
     , partition_columns(partition_columns_)
     , sort_columns(sort_columns_)
@@ -323,9 +321,9 @@ void WindowGroupLimitStep::describePipeline(DB::IQueryPlanStep::FormatSettings &
         DB::IQueryPlanStep::describePipeline(processors, settings);
 }
 
-void WindowGroupLimitStep::updateOutputStream()
+void WindowGroupLimitStep::updateOutputHeader()
 {
-    output_stream = createOutputStream(input_streams.front(), input_streams.front().header, getDataStreamTraits());
+    output_header = input_headers.front();
 }
 
 

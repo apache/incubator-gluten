@@ -30,6 +30,8 @@
 #include "velox/common/memory/MmapAllocator.h"
 
 namespace gluten {
+// This kind string must be same with VeloxBackend#name in java side.
+inline static const std::string kVeloxBackendKind{"velox"};
 /// As a static instance in per executor, initialized at executor startup.
 /// Should not put heavily work here.
 class VeloxBackend {

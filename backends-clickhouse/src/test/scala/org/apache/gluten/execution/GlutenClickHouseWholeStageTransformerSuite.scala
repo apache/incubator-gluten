@@ -20,7 +20,6 @@ import org.apache.gluten.GlutenConfig
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 
 import org.apache.commons.io.FileUtils
 import org.scalatest.Tag
@@ -45,7 +44,8 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   val S3_CACHE_PATH = s"/tmp/s3_cache/$sparkVersion/"
   val S3_ENDPOINT = "s3://127.0.0.1:9000/"
   val MINIO_ENDPOINT: String = S3_ENDPOINT.replace("s3", "http")
-  val BUCKET_NAME: String = sparkVersion.replace(".", "-")
+  val SPARK_DIR_NAME: String = sparkVersion.replace(".", "-")
+  val BUCKET_NAME: String = SPARK_DIR_NAME
   val WHOLE_PATH: String = MINIO_ENDPOINT + BUCKET_NAME + "/"
 
   val HDFS_METADATA_PATH = s"/tmp/metadata/hdfs/$sparkVersion/"
@@ -79,10 +79,10 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
 
     val conf = super.sparkConf
       .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
-      .set(ClickHouseConfig.USE_DATASOURCE_V2, ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2)
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .setCHConfig("user_defined_path", "/tmp/user_defined")
+      .setCHConfig("path", UTSystemParameters.diskOutputDataPath)
     if (UTSystemParameters.testMergeTreeOnObjectStorage) {
       conf
         .set("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
@@ -157,7 +157,9 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   }
 
   final protected val rootPath: String = this.getClass.getResource("/").getPath
-  final protected val basePath: String = rootPath + "tests-working-home"
+  final protected val basePath: String =
+    if (UTSystemParameters.diskOutputDataPath.equals("/")) rootPath + "tests-working-home"
+    else UTSystemParameters.diskOutputDataPath + "/" + rootPath + "tests-working-home"
   final protected val warehouse: String = basePath + "/spark-warehouse"
   final protected val metaStorePathAbsolute: String = basePath + "/meta"
 

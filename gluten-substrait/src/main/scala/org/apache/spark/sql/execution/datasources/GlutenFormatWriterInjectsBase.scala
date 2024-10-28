@@ -23,12 +23,9 @@ import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverri
 import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, SparkPlan}
 import org.apache.spark.sql.execution.ColumnarCollapseTransformStages.transformStageCounter
-import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 
 trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
 
@@ -74,9 +71,5 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
     val wst = WholeStageTransformer(transformedWithAdapter, materializeInput = true)(
       transformStageCounter.incrementAndGet())
     FakeRowAdaptor(wst).execute()
-  }
-
-  override def getExtendedColumnarPostRule(session: SparkSession): Rule[SparkPlan] = {
-    NativeWritePostRule(session)
   }
 }

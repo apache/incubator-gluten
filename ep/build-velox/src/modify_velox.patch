@@ -74,27 +74,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 7f7cbc92f..52adb1250 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -242,10 +242,15 @@ if(VELOX_ENABLE_ABFS)
- endif()
- 
- if(VELOX_ENABLE_HDFS)
--  find_library(
--    LIBHDFS3
--    NAMES libhdfs3.so libhdfs3.dylib
--    HINTS "${CMAKE_SOURCE_DIR}/hawq/depends/libhdfs3/_build/src/" REQUIRED)
-+  find_package(libhdfs3)
-+  if(libhdfs3_FOUND AND TARGET HDFS::hdfs3)
-+    set(LIBHDFS3 HDFS::hdfs3)
-+  else()
-+    find_library(
-+      LIBHDFS3
-+      NAMES libhdfs3.so libhdfs3.dylib
-+      HINTS "${CMAKE_SOURCE_DIR}/hawq/depends/libhdfs3/_build/src/" REQUIRED)
-+  endif()
-   add_definitions(-DVELOX_ENABLE_HDFS3)
- endif()
- 
-@@ -385,7 +390,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+@@ -386,7 +391,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
  
  set_source(gflags)
@@ -103,18 +83,6 @@ index 7f7cbc92f..52adb1250 100644
  if(NOT TARGET gflags::gflags)
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
-diff --git a/velox/common/process/tests/CMakeLists.txt b/velox/common/process/tests/CMakeLists.txt
-index 23ef279c2..7e4c2f2b2 100644
---- a/velox/common/process/tests/CMakeLists.txt
-+++ b/velox/common/process/tests/CMakeLists.txt
-@@ -24,4 +24,6 @@ target_link_libraries(
-     fmt::fmt
-     velox_time
-     GTest::gtest
--    GTest::gtest_main)
-+    GTest::gtest_main
-+    glog::glog
-+    gflags::gflags)
 diff --git a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 index a8b0df52a..254c56b70 100644
 --- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
@@ -139,19 +107,4 @@ index 10ee508ba..027a58ecc 100644
 +  hadoopHomeDirectory.remove_filename().remove_filename();
    setupEnvironment(hadoopHomeDirectory.string());
  }
- 
-diff --git a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
-index 0cda25430..b15565796 100644
---- a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
-+++ b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
-@@ -38,7 +38,9 @@ target_link_libraries(
-   GTest::gtest
-   GTest::gtest_main
-   arrow
--  arrow_testing)
-+  arrow_testing
-+  glog::glog
-+  gflags::gflags)
- 
- add_library(
-   velox_dwio_arrow_parquet_writer_test_lib
+

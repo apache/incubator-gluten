@@ -31,6 +31,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution, KeyGroupedPartitioning, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -523,5 +524,29 @@ class Spark35Shims extends SparkShims {
   override def extractExpressionArrayInsert(arrayInsert: Expression): Seq[Expression] = {
     val expr = arrayInsert.asInstanceOf[ArrayInsert]
     Seq(expr.srcArrayExpr, expr.posExpr, expr.itemExpr, Literal(expr.legacyNegativeIndex))
+  }
+
+  override def withOperatorIdMap[T](idMap: java.util.Map[QueryPlan[_], Int])(body: => T): T = {
+    val prevIdMap = QueryPlan.localIdMap.get()
+    try {
+      QueryPlan.localIdMap.set(idMap)
+      body
+    } finally {
+      QueryPlan.localIdMap.set(prevIdMap)
+    }
+  }
+
+  override def getOperatorId(plan: QueryPlan[_]): Option[Int] = {
+    Option(QueryPlan.localIdMap.get().get(plan))
+  }
+
+  override def setOperatorId(plan: QueryPlan[_], opId: Int): Unit = {
+    val map = QueryPlan.localIdMap.get()
+    assert(!map.containsKey(plan))
+    map.put(plan, opId)
+  }
+
+  override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
+    QueryPlan.localIdMap.get().remove(plan)
   }
 }

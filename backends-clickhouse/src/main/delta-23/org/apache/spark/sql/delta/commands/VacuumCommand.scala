@@ -21,19 +21,16 @@ package org.apache.spark.sql.delta.commands
 import java.net.URI
 import java.util.Date
 import java.util.concurrent.TimeUnit
-
 import scala.collection.JavaConverters._
-
 import org.apache.spark.sql.delta._
 import org.apache.spark.sql.delta.actions.{FileAction, RemoveFile}
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.util.DeltaFileOperations
 import org.apache.spark.sql.delta.util.DeltaFileOperations.tryDeleteNonRecursive
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import org.apache.gluten.extension.GlutenSessionExtensions
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
-
-import org.apache.gluten.utils.QueryPlanSelector
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.{Column, DataFrame, Dataset, SparkSession}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
@@ -161,9 +158,9 @@ object VacuumCommand extends VacuumCommandImpl with Serializable {
 
       // --- modified start
       val originalEnabledGluten =
-        spark.sparkContext.getLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY)
+        spark.sparkContext.getLocalProperty(GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY)
       // gluten can not support vacuum command
-      spark.sparkContext.setLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, "false")
+      spark.sparkContext.setLocalProperty(GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY, "false")
       // --- modified end
 
       val validFiles = snapshot.stateDS
@@ -362,10 +359,10 @@ object VacuumCommand extends VacuumCommandImpl with Serializable {
         // --- modified start
         if (originalEnabledGluten != null) {
           spark.sparkContext.setLocalProperty(
-            QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, originalEnabledGluten)
+            GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY, originalEnabledGluten)
         } else {
           spark.sparkContext.setLocalProperty(
-            QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, "true")
+            GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY, "true")
         }
         // --- modified end
       }

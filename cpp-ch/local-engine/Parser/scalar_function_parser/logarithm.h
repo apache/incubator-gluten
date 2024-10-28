@@ -18,7 +18,7 @@
 #include <Core/Field.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Parser/FunctionParser.h>
-#include <Common/CHUtil.h>
+
 
 namespace DB
 {
@@ -35,7 +35,7 @@ namespace local_engine
 class FunctionParserLogBase : public FunctionParser
 {
 public:
-    explicit FunctionParserLogBase(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    explicit FunctionParserLogBase(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserLogBase() override = default;
 
     virtual String getCHFunctionName() const = 0;

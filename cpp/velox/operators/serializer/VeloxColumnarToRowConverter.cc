@@ -20,7 +20,7 @@
 #include <cstdint>
 
 #include "memory/VeloxColumnarBatch.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 #include "velox/row/UnsafeRowDeserializers.h"
 #include "velox/row/UnsafeRowFast.h"
 

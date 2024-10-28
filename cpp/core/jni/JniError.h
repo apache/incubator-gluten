@@ -20,7 +20,7 @@
 #include <stdexcept>
 
 #include "JniCommon.h"
-#include "utils/exception.h"
+#include "utils/Exception.h"
 
 #ifndef JNI_METHOD_START
 #define JNI_METHOD_START try {

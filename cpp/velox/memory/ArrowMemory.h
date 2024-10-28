@@ -18,7 +18,7 @@
 #pragma once
 
 #include <arrow/io/memory.h>
-#include "utils/exception.h"
+#include "utils/Exception.h"
 #include "velox/common/memory/ByteStream.h"
 
 namespace gluten {

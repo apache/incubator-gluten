@@ -15,11 +15,11 @@
  * limitations under the License.
  */
 #include "FormatFile.h"
-
 #include <memory>
+#include <Core/Settings.h>
 #include <IO/ReadBufferFromFile.h>
-#include <Common/CHUtil.h>
-#include <Common/Exception.h>
+#include <Storages/SubstraitSource/JSONFormatFile.h>
+#include <Common/GlutenConfig.h>
 #include <Common/GlutenStringUtils.h>
 #include <Common/logger_useful.h>
 
@@ -36,9 +36,6 @@
 #include <Storages/SubstraitSource/TextFormatFile.h>
 #endif
 
-#include <Common/GlutenConfig.h>
-#include <Storages/SubstraitSource/JSONFormatFile.h>
-
 namespace DB
 {
 namespace ErrorCodes
@@ -54,12 +51,19 @@ FormatFile::FormatFile(
     const ReadBufferBuilderPtr & read_buffer_builder_)
     : context(context_), file_info(file_info_), read_buffer_builder(read_buffer_builder_)
 {
-    PartitionValues part_vals = GlutenStringUtils::parsePartitionTablePath(file_info.uri_file());
-    for (size_t i = 0; i < part_vals.size(); ++i)
+    if (file_info.partition_columns_size())
     {
-        const auto & part = part_vals[i];
-        partition_keys.push_back(part.first);
-        partition_values[part.first] = part.second;
+        for (size_t i = 0; i < file_info.partition_columns_size(); ++i)
+        {
+            const auto & partition_column = file_info.partition_columns(i);
+            std::string unescaped_key;
+            std::string unescaped_value;
+            Poco::URI::decode(partition_column.key(), unescaped_key);
+            Poco::URI::decode(partition_column.value(), unescaped_value);
+            auto key = std::move(unescaped_key);
+            partition_keys.push_back(key);
+            partition_values[key] = std::move(unescaped_value);
+        }
     }
 
     LOG_INFO(
@@ -69,7 +73,7 @@ FormatFile::FormatFile(
         file_info.file_format_case(),
         std::to_string(file_info.start()) + "-" + std::to_string(file_info.start() + file_info.length()),
         file_info.partition_index(),
-        GlutenStringUtils::dumpPartitionValues(part_vals));
+        GlutenStringUtils::dumpPartitionValues(partition_values));
 }
 
 FormatFilePtr FormatFileUtil::createFile(
@@ -91,8 +95,7 @@ FormatFilePtr FormatFileUtil::createFile(
 #if USE_HIVE
     if (file.has_text())
     {
-        if (context->getSettingsRef().has(BackendInitializerUtil::USE_EXCEL_PARSER)
-            && context->getSettingsRef().getString(BackendInitializerUtil::USE_EXCEL_PARSER) == "'true'")
+        if (ExcelTextFormatFile::useThis(context))
             return std::make_shared<ExcelTextFormatFile>(context, file, read_buffer_builder);
         else
             return std::make_shared<TextFormatFile>(context, file, read_buffer_builder);
@@ -102,6 +105,5 @@ FormatFilePtr FormatFileUtil::createFile(
     if (file.has_json())
         return std::make_shared<JSONFormatFile>(context, file, read_buffer_builder);
     throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Format not supported:{}", file.DebugString());
-    __builtin_unreachable();
 }
 }

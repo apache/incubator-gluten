@@ -19,11 +19,11 @@ package org.apache.gluten.substrait.rel;
 import org.apache.gluten.substrait.extensions.AdvancedExtensionNode;
 import org.apache.gluten.substrait.type.ColumnTypeNode;
 import org.apache.gluten.substrait.type.TypeNode;
+import org.apache.gluten.utils.SubstraitUtil;
 
 import io.substrait.proto.NamedObjectWrite;
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.Rel;
-import io.substrait.proto.Type;
 import io.substrait.proto.WriteRel;
 
 import java.io.Serializable;
@@ -57,21 +57,8 @@ public class WriteRelNode implements RelNode, Serializable {
 
     WriteRel.Builder writeBuilder = WriteRel.newBuilder();
 
-    Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
-    for (TypeNode typeNode : types) {
-      structBuilder.addTypes(typeNode.toProtobuf());
-    }
-
-    NamedStruct.Builder nStructBuilder = NamedStruct.newBuilder();
-    nStructBuilder.setStruct(structBuilder.build());
-    for (String name : names) {
-      nStructBuilder.addNames(name);
-    }
-    if (!columnTypeNodes.isEmpty()) {
-      for (ColumnTypeNode columnTypeNode : columnTypeNodes) {
-        nStructBuilder.addColumnTypes(columnTypeNode.toProtobuf());
-      }
-    }
+    NamedStruct.Builder nStructBuilder =
+        SubstraitUtil.createNameStructBuilder(types, names, columnTypeNodes);
 
     writeBuilder.setTableSchema(nStructBuilder);
 
