@@ -26,9 +26,11 @@
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <Interpreters/Aggregator.h>
+#include <Interpreters/ExpressionActions.h>
 #include <Interpreters/castColumn.h>
 #include <Operator/GraceAggregatingTransform.h>
 #include <Processors/ResizeProcessor.h>
+#include <Processors/Transforms/ExpressionTransform.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Common/CHUtil.h>
@@ -77,7 +79,7 @@ static DB::ITransformingStep::Traits getTraits()
 AdvancedExpandStep::AdvancedExpandStep(
     DB::ContextPtr context_,
     const DB::Block & input_header_,
-    const DB::Names & grouping_keys_,
+    size_t grouping_keys_,
     const DB::AggregateDescriptions & aggregate_descriptions_,
     const ExpandField & project_set_exprs_)
     : DB::ITransformingStep(input_header_, buildOutputHeader(input_header_, project_set_exprs_), getTraits())
@@ -102,12 +104,17 @@ DB::Block AdvancedExpandStep::buildOutputHeader(const DB::Block &, const ExpandF
     return DB::Block(std::move(cols));
 }
 
-void AdvancedExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings &)
+void AdvancedExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & pipeline_settings)
 {
     const auto & settings = context->getSettingsRef();
-    // aggregate grouping keys need a extra grouping id column.
-    auto aggregate_grouping_keys = grouping_keys;
-    aggregate_grouping_keys.push_back(output_header->getByPosition(grouping_keys.size()).name);
+    DB::Names aggregate_grouping_keys;
+    for (size_t i = 0; i < output_header->columns(); ++i)
+    {
+        const auto & col = output_header->getByPosition(i);
+        if (typeid_cast<const DB::ColumnAggregateFunction *>(col.column.get()))
+            break;
+        aggregate_grouping_keys.push_back(col.name);
+    }
     DB::Aggregator::Params params(
         aggregate_grouping_keys,
         aggregate_descriptions,
@@ -137,19 +144,20 @@ void AdvancedExpandStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, 
         for (auto & output : outputs)
         {
             auto expand_processor
-                = std::make_shared<AdvancedExpandTransform>(input_header, *output_header, grouping_keys.size(), project_set_exprs);
+                = std::make_shared<AdvancedExpandTransform>(input_header, *output_header, grouping_keys, project_set_exprs);
             DB::connect(*output, expand_processor->getInputs().front());
             new_processors.push_back(expand_processor);
 
             auto expand_output_header = expand_processor->getOutputs().front().getHeader();
-
+            
             auto transform_params = std::make_shared<DB::AggregatingTransformParams>(expand_output_header, params, false);
             auto aggregate_processor
                 = std::make_shared<GraceAggregatingTransform>(expand_output_header, transform_params, context, false, false);
             DB::connect(expand_processor->getOutputs().back(), aggregate_processor->getInputs().front());
             new_processors.push_back(aggregate_processor);
+            auto aggregate_output_header = aggregate_processor->getOutputs().front().getHeader();
 
-            auto resize_processor = std::make_shared<DB::ResizeProcessor>(*output_header, 2, 1);
+            auto resize_processor = std::make_shared<DB::ResizeProcessor>(expand_output_header, 2, 1);
             DB::connect(aggregate_processor->getOutputs().front(), resize_processor->getInputs().front());
             DB::connect(expand_processor->getOutputs().front(), resize_processor->getInputs().back());
             new_processors.push_back(resize_processor);

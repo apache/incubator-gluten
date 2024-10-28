@@ -89,6 +89,10 @@ ExpandField ExpandRelParser::buildExpandField(const DB::Block & header, const su
                 auto field = project_expr.selection().direct_reference().struct_field().field();
                 kinds.push_back(ExpandFieldKind::EXPAND_FIELD_KIND_SELECTION);
                 fields.push_back(field);
+                if (field >= header.columns())
+                {
+                    throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Field index out of range: {}, header: {}", field, header.dumpStructure());
+                }
                 updateType(types[i], header.getByPosition(field).type);
                 const auto & name = header.getByPosition(field).name;
                 if (names[i].empty())
@@ -168,12 +172,7 @@ DB::QueryPlanPtr ExpandRelParser::lazyAggregateExpandParse(
     auto aggregate_rel = rel.expand().input().aggregate();
     auto aggregate_descriptions = buildAggregations(input_header, expand_field, aggregate_rel);
 
-    DB::Names grouping_keys;
-    for (size_t i = 0; i < aggregate_rel.groupings(0).grouping_expressions_size(); ++i)
-    {
-        const auto & col = input_header.getByPosition(i);
-        grouping_keys.push_back(col.name);
-    }
+    size_t  grouping_keys = aggregate_rel.groupings(0).grouping_expressions_size();
 
     auto expand_step
         = std::make_unique<AdvancedExpandStep>(getContext(), input_header, grouping_keys, aggregate_descriptions, expand_field);
@@ -187,25 +186,21 @@ DB::AggregateDescriptions ExpandRelParser::buildAggregations(
     const DB::Block & input_header, const ExpandField & expand_field, const substrait::AggregateRel & aggregate_rel)
 {
     auto header = AdvancedExpandStep::buildOutputHeader(input_header, expand_field);
-    //auto header = input_header;
-    LOG_ERROR(getLogger("ExpandRelParser"), "xxx this header is: {}", header.dumpStructure());
     DB::AggregateDescriptions descriptions;
-    size_t grouping_keys_size = aggregate_rel.groupings(0).grouping_expressions_size();
+    DB::ColumnsWithTypeAndName aggregate_columns;
+    for (const auto & col : header.getColumnsWithTypeAndName())
+    {
+        if (typeid_cast<const DB::ColumnAggregateFunction *>(col.column.get()))
+            aggregate_columns.push_back(col);
+    }
 
     for (size_t i = 0; i < aggregate_rel.measures_size(); ++i)
     {
-        /// The output header of the aggregate is [grouping keys] ++ [grouping id] ++  [aggregation columns]
+        /// The output header of the aggregate is [grouping keys] ++ [aggregation columns]
         const auto & measure = aggregate_rel.measures(i);
-        const auto & col = header.getByPosition(grouping_keys_size + i + 1);
+        const auto & col = aggregate_columns[i];
         DB::AggregateDescription description;
         auto aggregate_col = typeid_cast<const DB::ColumnAggregateFunction *>(col.column.get());
-        if (!aggregate_col)
-            throw DB::Exception(
-                DB::ErrorCodes::LOGICAL_ERROR,
-                "The column is not an aggregate column: {}, grouping_keys_size: {}, i: {}",
-                col.column->dumpStructure(),
-                grouping_keys_size,
-                i);
 
         description.column_name = col.name;
         description.argument_names = {col.name};
@@ -218,11 +213,6 @@ DB::AggregateDescriptions ExpandRelParser::buildAggregations(
         DB::AggregateFunctionProperties aggregate_function_properties;
         description.function
             = getAggregateFunction(function_name_with_combinator, {col.type}, aggregate_function_properties, description.parameters);
-        LOG_ERROR(
-            getLogger("ExpandRelParser"),
-            "xxx this aggregate function is: {}, {}",
-            function_name_with_combinator,
-            description.function->getName());
 
         descriptions.emplace_back(description);
     }

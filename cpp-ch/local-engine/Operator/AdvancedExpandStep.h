@@ -37,7 +37,7 @@ public:
     explicit AdvancedExpandStep(
         DB::ContextPtr context_,
         const DB::Block & input_header_,
-        const DB::Names & grouping_keys_,
+        size_t grouping_keys_,
         const DB::AggregateDescriptions & aggregate_descriptions_,
         const ExpandField & project_set_exprs_);
     ~AdvancedExpandStep() override = default;
@@ -51,7 +51,7 @@ public:
 
 protected:
     DB::ContextPtr context;
-    DB::Names grouping_keys;
+    size_t grouping_keys;
     DB::AggregateDescriptions aggregate_descriptions;
     ExpandField project_set_exprs;
 

@@ -570,5 +570,62 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
       ", split(concat('a|b|c', cast(id as string)), '|') from range(10)"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+  test("GLLUTEN-7647 lazy expand") {
+    var sql =
+      """
+        |select n_regionkey, n_nationkey, sum(n_regionkey), count(n_name)
+        |from nation group by n_regionkey, n_nationkey with cube
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+    sql = """
+            |select n_regionkey, n_nationkey, sum(n_regionkey), count(distinct n_name)
+            |from nation group by n_regionkey, n_nationkey with cube
+            |order by n_regionkey, n_nationkey
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+    sql = """
+            |select n_regionkey, n_nationkey, sum(distinct n_regionkey), count(distinct n_name)
+            |from nation group by n_regionkey, n_nationkey with cube
+            |order by n_regionkey, n_nationkey
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+    sql =
+      """
+        |select n_regionkey, n_nationkey, sum(distinct n_regionkey), count(distinct n_name)
+        |from nation group by n_regionkey, n_nationkey grouping sets((n_regionkey), (n_nationkey))
+        |order by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+    sql = """
+            |select n_regionkey, n_nationkey, sum(distinct n_regionkey), count(distinct n_name)
+            |from nation group by n_regionkey, n_nationkey
+            |grouping sets((n_regionkey, null), (null, n_nationkey))
+            |order by n_regionkey, n_nationkey
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+    sql = """
+            |select * from(
+            |select n_regionkey, n_nationkey, sum(n_regionkey), count(n_name)
+            |from nation group by n_regionkey, n_nationkey with cube
+            |) where n_regionkey != 0
+            |order by n_regionkey, n_nationkey
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+    sql = """
+            |select * from(
+            |select n_regionkey, n_nationkey, sum(n_regionkey), count(distinct n_name)
+            |from nation group by n_regionkey, n_nationkey with cube
+            |) where n_regionkey != 0
+            |order by n_regionkey, n_nationkey
+            |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 }
 // scalastyle:off line.size.limit
