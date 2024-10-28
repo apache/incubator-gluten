@@ -854,7 +854,7 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.3 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
           dnf module -y install python39 && \
@@ -900,7 +900,7 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.3 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5-scala2.13
           dnf module -y install python39 && \
@@ -946,7 +946,7 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Prepare spark.test.home for Spark 3.5.2 (other tests)
+      - name: Prepare spark.test.home for Spark 3.5.3 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
       - name: Build and Run unit test for Spark 3.5.3 (slow tests)
@@ -954,6 +954,94 @@ jobs:
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
           -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/" \
+          -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-spark35-slow
+          path: '**/surefire-reports/TEST-*.xml'
+
+  run-spark-test-spark35-ras:
+    needs: build-native-lib-centos-7
+    runs-on: ubuntu-20.04
+    container: apache/gluten:centos-8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v3
+        with:
+          name: arrow-jars-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup build dependency
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
+          $SETUP install_maven
+      - name: Prepare spark.test.home for Spark 3.5.3 (other tests)
+        run: |
+          bash .github/workflows/util/install_spark_resources.sh 3.5
+          dnf module -y install python39 && \
+          alternatives --set python3 /usr/bin/python3.9 && \
+          pip3 install setuptools && \
+          pip3 install pyspark==3.5.3 cython && \
+          pip3 install pandas pyarrow
+      - name: (To be fixed) Build and Run unit test for Spark 3.5.3 (other tests)
+        continue-on-error: true
+        run: |
+          cd $GITHUB_WORKSPACE/
+          export SPARK_SCALA_VERSION=2.12
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true" \
+          -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-spark35
+          path: '**/surefire-reports/TEST-*.xml'
+
+  run-spark-test-spark35-slow-ras:
+    needs: build-native-lib-centos-7
+    runs-on: ubuntu-20.04
+    container: apache/gluten:centos-8
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: velox-native-lib-centos-7-${{github.sha}}
+          path: ./cpp/build/releases
+      - name: Download Arrow Jars
+        uses: actions/download-artifact@v3
+        with:
+          name: arrow-jars-centos-7-${{github.sha}}
+          path: /root/.m2/repository/org/apache/arrow/
+      - name: Update mirror list
+        run: |
+          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
+          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
+      - name: Setup build dependency
+        run: |
+          yum install sudo patch java-1.8.0-openjdk-devel wget -y
+          $SETUP install_maven
+      - name: Prepare spark.test.home for Spark 3.5.3 (slow tests)
+        run: |
+          bash .github/workflows/util/install_spark_resources.sh 3.5
+      - name: (To be fixed) Build and Run unit test for Spark 3.5.3 (slow tests)
+        continue-on-error: true
+        run: |
+          cd $GITHUB_WORKSPACE/
+          $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
+          -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
       - name: Upload test report
         if: always()
