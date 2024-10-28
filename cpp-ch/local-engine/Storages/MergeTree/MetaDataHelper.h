@@ -34,11 +34,8 @@ void saveFileStatus(
 
 std::vector<MergeTreeDataPartPtr> mergeParts(
     std::vector<DB::DataPartPtr> selected_parts,
-    std::unordered_map<String, String> & partition_values,
     const String & new_part_uuid,
     SparkStorageMergeTree & storage,
     const String & partition_dir,
     const String & bucket_dir);
-
-void extractPartitionValues(const String & partition_dir, std::unordered_map<String, String> & partition_values);
 }

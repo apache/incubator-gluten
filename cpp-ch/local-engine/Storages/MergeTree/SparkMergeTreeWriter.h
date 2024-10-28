@@ -41,7 +41,7 @@ struct PartInfo
     size_t mark_count;
     size_t disk_size;
     size_t row_count;
-    std::unordered_map<String, String> partition_values;
+    String partition_values;
     String bucket_id;
 
     bool operator<(const PartInfo & rhs) const { return disk_size < rhs.disk_size; }
@@ -62,7 +62,6 @@ public:
         const DB::Block & header_,
         const SinkHelper & sink_helper_,
         DB::QueryPipeline && pipeline_,
-        std::unordered_map<String, String> && partition_values_,
         const std::string & spark_job_id_);
 
     void write(DB::Block & block) override;
@@ -73,8 +72,6 @@ private:
     const SinkHelper & sink_helper;
     DB::QueryPipeline pipeline;
     DB::PushingPipelineExecutor executor;
-    std::unordered_map<String, String> partition_values;
-
     const std::string spark_job_id;
 
     std::vector<PartInfo> getAllPartInfo() const;

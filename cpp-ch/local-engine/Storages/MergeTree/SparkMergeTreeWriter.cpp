@@ -103,13 +103,7 @@ std::string PartInfo::toJson(const std::vector<PartInfo> & part_infos)
         writer.Key("bucket_id");
         writer.String(item.bucket_id.c_str());
         writer.Key("partition_values");
-        writer.StartObject();
-        for (const auto & key_value : item.partition_values)
-        {
-            writer.Key(key_value.first.c_str());
-            writer.String(key_value.second.c_str());
-        }
-        writer.EndObject();
+        writer.String(item.partition_values.c_str());
         writer.EndObject();
     }
     writer.EndArray();
@@ -135,14 +129,10 @@ std::unique_ptr<SparkMergeTreeWriter> SparkMergeTreeWriter::create(
     chain.addSource(std::make_shared<PlanSquashingTransform>(
         header, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
 
-    std::unordered_map<String, String> partition_values;
-    if (!write_settings_.partition_dir.empty())
-        extractPartitionValues(write_settings_.partition_dir, partition_values);
     return std::make_unique<SparkMergeTreeWriter>(
         header,
         assert_cast<const SparkMergeTreeSink &>(*sink).sinkHelper(),
         QueryPipeline{std::move(chain)},
-        std::move(partition_values),
         spark_job_id);
 }
 
@@ -150,13 +140,11 @@ SparkMergeTreeWriter::SparkMergeTreeWriter(
     const DB::Block & header_,
     const SinkHelper & sink_helper_,
     DB::QueryPipeline && pipeline_,
-    std::unordered_map<String, String> && partition_values_,
     const std::string & spark_job_id_)
     : header{header_}
     , sink_helper{sink_helper_}
     , pipeline{std::move(pipeline_)}
     , executor{pipeline}
-    , partition_values{partition_values_}
     , spark_job_id(spark_job_id_)
 {
 }
@@ -191,7 +179,7 @@ std::vector<PartInfo> SparkMergeTreeWriter::getAllPartInfo() const
             part->getMarksCount(),
             part->getBytesOnDisk(),
             part->rows_count,
-            partition_values,
+            sink_helper.write_settings.partition_settings.partition_dir,
             sink_helper.write_settings.partition_settings.bucket_dir});
     }
     return res;
