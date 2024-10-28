@@ -97,7 +97,7 @@ DB::Array PercentileParserBase::parseFunctionParameters(
             if (idx == PERCENTAGE_INDEX && isArray(removeNullable(type)))
             {
                 /// Multiple percentages for quantilesXXX
-                const Array & percentags = field.get<Array>();
+                const Array & percentags = field.safeGet<Array>();
                 for (const auto & percentage : percentags)
                     params.emplace_back(percentage);
             }
@@ -107,8 +107,15 @@ DB::Array PercentileParserBase::parseFunctionParameters(
             }
         }
 
-        /// Only keep one argument in CH aggregate function for compatiability
-        arg_nodes.resize(1);
+        /// Collect arguments in substrait plan that are not CH parameters as CH arguments
+        ActionsDAG::NodeRawConstPtrs new_arg_nodes;
+        for (size_t i = 0; i < arg_nodes.size(); ++i)
+        {
+            if (std::find(param_indexes.begin(), param_indexes.end(), i) == param_indexes.end())
+                new_arg_nodes.emplace_back(arg_nodes[i]);
+        }
+        new_arg_nodes.swap(arg_nodes);
+
         return params;
     }
     else

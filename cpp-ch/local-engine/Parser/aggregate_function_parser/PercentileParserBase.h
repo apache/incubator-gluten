@@ -23,7 +23,7 @@ namespace local_engine
 class PercentileParserBase : public AggregateFunctionParser
 {
 public:
-    explicit PercentileParserBase(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) { }
+    explicit PercentileParserBase(ParserContextPtr parser_context_) : AggregateFunctionParser(parser_context_) { }
 
     String getCHFunctionName(const CommonFunctionInfo & func_info) const override;
     String getCHFunctionName(DB::DataTypes & types) const override;
@@ -42,7 +42,7 @@ protected:
     virtual size_t expectedTupleElementsNumberInSecondStage() const = 0;
 
     /// Get argument indexes in first stage substrait function which should be treated as parameters in CH aggregate function.
-    /// Note: the indexes are 0-based, should guarantee the order of parameters.
+    /// Note: the indexes are 0-based, and we must guarantee the order of returned parameters matches the order of parameters in CH aggregate function
     virtual ColumnNumbers getArgumentsThatAreParameters() const = 0;
 
     virtual DB::Array getDefaultFunctionParametersImpl() const = 0;
@@ -51,13 +51,9 @@ protected:
     void assertArgumentsSize(substrait::AggregationPhase phase, size_t size, size_t expect) const;
     const substrait::Expression::Literal & assertAndGetLiteral(substrait::AggregationPhase phase, const substrait::Expression & expr) const;
 
-    /// column index in substrait function arguments(both in first and second stage), which is always 0
-    /// All derived implementations must obey this rule
-    static constexpr size_t COLUMN_INDEX= 0;
-
     /// percentage index in substrait function arguments(both in first and second stage), which is always 1
     /// All derived implementations must obey this rule
-    static constexpr size_t PERCENTAGE_INDEX= 1;
+    static constexpr size_t PERCENTAGE_INDEX = 1;
 };
 
 }

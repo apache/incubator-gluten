@@ -395,8 +395,10 @@ case class CHHashAggregateExecTransformer(
               // Use percentile.nullable as the nullable of the struct type
               // to make sure it returns null when input is empty
               fields = fields :+ (percentile.child.dataType, percentile.nullable)
-              fields = fields :+ (percentile.percentageExpression.dataType,
-              percentile.percentageExpression.nullable)
+              fields = fields :+ (
+                percentile.percentageExpression.dataType,
+                percentile.percentageExpression.nullable)
+              fields = fields :+ (percentile.frequencyExpression.dataType, percentile.nullable)
               (makeStructType(fields), attr.nullable)
             case _ =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)

@@ -105,6 +105,7 @@ AggregateFunctionParser::parseFunctionArguments(const CommonFunctionInfo & func_
 
         collected_args.push_back(arg_node);
     }
+
     if (func_info.has_filter)
     {
         // With `If` combinator, the function take one more argument which refers to the condition.

@@ -30,12 +30,13 @@ class PercentileParser : public PercentileParserBase
 public:
     static constexpr auto name = "percentile";
 
-    explicit PercentileParser(SerializedPlanParser * plan_parser_) : PercentileParserBase(plan_parser_) { }
+    explicit PercentileParser(ParserContextPtr parser_context_) : PercentileParserBase(parser_context_) { }
 
     String getName() const override { return name; }
-    String getCHSingularName() const override { return "quantileExact"; }
-    String getCHPluralName() const override { return "quantilesExact"; }
+    String getCHSingularName() const override { return "quantileExactWeightedInterpolated"; }
+    String getCHPluralName() const override { return "quantilesExactWeightedInterpolated"; }
 
+    /// spark percentile(col, percentile[s], frequency)
     size_t expectedArgumentsNumberInFirstStage() const override { return 3; }
     size_t expectedTupleElementsNumberInSecondStage() const override { return 2; }
 

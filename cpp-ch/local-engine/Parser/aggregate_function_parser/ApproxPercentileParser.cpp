@@ -30,7 +30,7 @@ class ApproxPercentileParser : public PercentileParserBase
 public:
     static constexpr auto name = "approx_percentile";
 
-    explicit ApproxPercentileParser(SerializedPlanParser * plan_parser_) : PercentileParserBase(plan_parser_) { }
+    explicit ApproxPercentileParser(ParserContextPtr parser_context_) : PercentileParserBase(parser_context_) { }
 
     String getName() const override { return name; }
     String getCHSingularName() const override { return "quantileGK"; }

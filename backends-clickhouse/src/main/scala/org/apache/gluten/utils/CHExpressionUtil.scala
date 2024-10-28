@@ -167,25 +167,24 @@ case class FormatStringValidator() extends FunctionValidator {
   }
 }
 
-case class PercentileValidator() extends FunctionValidator {
-  override def doValidate(expr: Expression): Boolean = {
-    // Currently clickhouse backend doesn't support quantileExact with frequency argument
-    // unless frequencyExpression is literal
-    val freqExpr = expr.asInstanceOf[Percentile].frequencyExpression
-    if (!freqExpr.isInstanceOf[Literal]) {
-      return false
-    }
-
-    true
-  }
-}
+//case class PercentileValidator() extends FunctionValidator {
+//  override def doValidate(expr: Expression): Boolean = {
+//    // Currently clickhouse backend doesn't support quantileExact with frequency argument
+//    // unless frequencyExpression is literal
+//    val freqExpr = expr.asInstanceOf[Percentile].frequencyExpression
+//    if (!freqExpr.isInstanceOf[Literal]) {
+//      return false
+//    }
+//
+//    true
+//  }
+//}
 
 object CHExpressionUtil {
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
     MAX_BY -> DefaultValidator(),
-    MIN_BY -> DefaultValidator(),
-    PERCENTILE -> PercentileValidator()
+    MIN_BY -> DefaultValidator()
   )
 
   final val CH_BLACKLIST_SCALAR_FUNCTION: Map[String, FunctionValidator] = Map(
