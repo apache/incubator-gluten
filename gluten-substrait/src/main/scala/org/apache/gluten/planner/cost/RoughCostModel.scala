@@ -42,7 +42,7 @@ class RoughCostModel extends LongCostModel {
       case a: AdaptiveSparkPlanExec => getStatSizeBytes(a.inputPlan)
       case _ =>
         plan.logicalLink match {
-          case Some(logicalPlan) => logicalPlan.stats.sizeInBytes.longValue()
+          case Some(logicalPlan) => logicalPlan.stats.sizeInBytes.toLong
           case _ => plan.children.map(getStatSizeBytes).sum
         }
     }
