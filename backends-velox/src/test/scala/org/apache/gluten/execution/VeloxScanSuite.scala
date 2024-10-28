@@ -60,12 +60,7 @@ class VeloxScanSuite extends VeloxWholeStageTransformerSuite {
     withSQLConf("spark.sql.sources.useV1SourceList" -> "") {
       // Tables must be created here, otherwise v2 scan will not be used.
       createTPCHNotNullTables()
-      runTPCHQuery(
-        22,
-        tpchQueries,
-        queriesResults,
-        compareResult = false,
-        noFallBack = false) {
+      runTPCHQuery(22, tpchQueries, queriesResults, compareResult = false, noFallBack = false) {
         df =>
           val plan = df.queryExecution.executedPlan
           val exist = plan.collect { case scan: BatchScanExecTransformer => scan }.exists {
