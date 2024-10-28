@@ -20,7 +20,6 @@ import org.apache.gluten.expression.ExpressionNames._
 import org.apache.gluten.utils.FunctionValidator._
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -167,21 +166,7 @@ case class FormatStringValidator() extends FunctionValidator {
   }
 }
 
-//case class PercentileValidator() extends FunctionValidator {
-//  override def doValidate(expr: Expression): Boolean = {
-//    // Currently clickhouse backend doesn't support quantileExact with frequency argument
-//    // unless frequencyExpression is literal
-//    val freqExpr = expr.asInstanceOf[Percentile].frequencyExpression
-//    if (!freqExpr.isInstanceOf[Literal]) {
-//      return false
-//    }
-//
-//    true
-//  }
-//}
-
 object CHExpressionUtil {
-
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
     MAX_BY -> DefaultValidator(),
     MIN_BY -> DefaultValidator()
