@@ -470,7 +470,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 object GlutenConfig {
   import SQLConf._
 
-  var GLUTEN_ENABLE_BY_DEFAULT = true
+  var GLUTEN_ENABLED_BY_DEFAULT = true
   val GLUTEN_ENABLED_KEY = "spark.gluten.enabled"
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
@@ -815,7 +815,7 @@ object GlutenConfig {
       .doc("Whether to enable gluten. Default value is true. Just an experimental property." +
         " Recommend to enable/disable Gluten through the setting for spark.plugins.")
       .booleanConf
-      .createWithDefault(GLUTEN_ENABLE_BY_DEFAULT)
+      .createWithDefault(GLUTEN_ENABLED_BY_DEFAULT)
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   val NATIVE_VALIDATION_ENABLED =

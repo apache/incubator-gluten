@@ -18,6 +18,7 @@ package org.apache.gluten.extension.injector
 
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -98,7 +99,7 @@ object InjectorControl {
                   method.invoke(after, args: _*)
                 } catch {
                   case e: InvocationTargetException =>
-                    // Unwrap the UTE.
+                    // Unwrap the ITE.
                     throw e.getCause
                 }
               }
@@ -109,15 +110,17 @@ object InjectorControl {
 
       def wrapFunction(functionDescription: FunctionDescription): FunctionDescription = {
         val (identifier, info, builder) = functionDescription
-        val wrappedBuilder: FunctionBuilder = children => {
-          if (
-            disabler.disabled(SparkSession.getActiveSession.getOrElse(
-              throw new IllegalStateException("Active Spark session not found")))
-          ) {
-            throw new UnsupportedOperationException(
-              s"Function ${info.getName} is not callable as Gluten is disabled")
+        val wrappedBuilder: FunctionBuilder = new FunctionBuilder with DisablerAware {
+          override def apply(children: Seq[Expression]): Expression = {
+            if (
+              disabler.disabled(SparkSession.getActiveSession.getOrElse(
+                throw new IllegalStateException("Active Spark session not found")))
+            ) {
+              throw new UnsupportedOperationException(
+                s"Function ${info.getName} is not callable as Gluten is disabled")
+            }
+            builder(children)
           }
-          builder(children)
         }
         (identifier, info, wrappedBuilder)
       }
