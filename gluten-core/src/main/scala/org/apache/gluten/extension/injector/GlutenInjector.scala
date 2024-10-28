@@ -102,7 +102,7 @@ object GlutenInjector extends Logging {
     if (enabled) {
       logWarning(
         s"RAS is enabled using testing system property $key, please make sure you are " +
-          s"in test mode.")
+          s"running test workloads.")
     }
     enabled
   }
