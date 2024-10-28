@@ -49,7 +49,7 @@ public:
     {
         /*
         spark function: unix_timestamp(expr, fmt) / to_unix_timestamp(expr, fmt)
-        1. If expr type is string, ch function = parseDateTimeInJodaSyntaxOrNull(expr, format)
+        1. If expr type is string, ch function = parseDateTime64InJodaSyntaxOrNull(expr, format)
         2. If expr type is date/TIMESTAMP, ch function = toUnixTimestamp(expr, format)
         3. Otherwise, throw exception
         */
@@ -65,7 +65,7 @@ public:
 
         const DB::ActionsDAG::Node * result_node = nullptr;
         if (isString(expr_type))
-            result_node = toFunctionNode(actions_dag, "parseDateTimeInJodaSyntaxOrNull", {expr_arg, fmt_arg, time_zone_node});
+            result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_arg, time_zone_node});
         else if (isDateOrDate32(expr_type))
             result_node = toFunctionNode(actions_dag, "sparkDateToUnixTimestamp", {expr_arg, time_zone_node});
         else if (isDateTime(expr_type) || isDateTime64(expr_type))
