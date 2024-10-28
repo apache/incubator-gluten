@@ -23,6 +23,7 @@ import org.apache.gluten.utils.PlanUtil
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, DataSourceScanExec, LeafExecNode, ProjectExec, RowToColumnarExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
 
 /** A rough cost model with some empirical heuristics. */
 class RoughCostModel extends LongCostModel {
@@ -30,7 +31,8 @@ class RoughCostModel extends LongCostModel {
   private def getSizeFactor(plan: SparkPlan): Long = {
     // Get the bytes size that the plan needs to consume
     val sizeBytes = plan match {
-      case scan: DataSourceScanExec => getStatSizeBytes(scan)
+      case _: DataSourceScanExec | _: DataSourceV2ScanExecBase => getStatSizeBytes(plan)
+      case a: AdaptiveSparkPlanExec => getStatSizeBytes(a)
       case _: LeafExecNode => 0L
       case p => p.children.map(getStatSizeBytes).sum
     }
