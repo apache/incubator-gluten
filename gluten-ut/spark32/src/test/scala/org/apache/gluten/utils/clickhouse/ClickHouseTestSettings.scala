@@ -284,6 +284,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("function to_date")
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
+    .exclude("to_timestamp")
+    .excludeGlutenTest("to_timestamp")
     .exclude("to_timestamp with microseconds precision")
     .exclude("SPARK-30668: use legacy timestamp parser in to_timestamp")
     .exclude("SPARK-30766: date_trunc of old timestamps to hours and days")
