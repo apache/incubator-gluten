@@ -101,7 +101,7 @@ object GlutenInjector extends Logging {
     val enabled = sys.props.get(key).map(_.toBoolean).getOrElse(defaultValue)
     if (enabled) {
       logWarning(
-        s"RAS is enabled using testing system property $key, please make sure you are " +
+        s"RAS is enabled using test system property $key, please make sure you are " +
           s"running test workloads.")
     }
     enabled
