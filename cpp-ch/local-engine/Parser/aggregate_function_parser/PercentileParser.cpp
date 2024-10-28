@@ -38,6 +38,8 @@ public:
 
     /// spark percentile(col, percentile[s], frequency)
     size_t expectedArgumentsNumberInFirstStage() const override { return 3; }
+
+    /// intermediate result: struct{col, percentile[s]}
     size_t expectedTupleElementsNumberInSecondStage() const override { return 2; }
 
     ColumnNumbers getArgumentsThatAreParameters() const override { return {1}; }

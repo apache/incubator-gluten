@@ -21,6 +21,7 @@
 #include <Interpreters/ActionsDAG.h>
 #include <Parser/AggregateFunctionParser.h>
 #include <Parser/aggregate_function_parser/PercentileParserBase.h>
+#include <Common/CHUtil.h>
 
 #include <substrait/algebra.pb.h>
 
@@ -74,11 +75,18 @@ String PercentileParserBase::getCHFunctionName(DB::DataTypes & types) const
 
     auto type = removeNullable(types[PERCENTAGE_INDEX]);
     types.resize(1);
+
+    if (getName() == "percentile")
+    {
+        /// Corresponding CH function requires two arguments: quantileExactWeightedInterpolated(xxx)(col, weight)
+        types.push_back(std::make_shared<DataTypeUInt64>());
+    }
+
     return isArray(type) ? getCHPluralName() : getCHSingularName();
 }
 
 DB::Array PercentileParserBase::parseFunctionParameters(
-    const CommonFunctionInfo & func_info, DB::ActionsDAG::NodeRawConstPtrs & arg_nodes) const
+    const CommonFunctionInfo & func_info, DB::ActionsDAG::NodeRawConstPtrs & arg_nodes, DB::ActionsDAG & actions_dag) const
 {
     if (func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
         || func_info.phase == substrait::AGGREGATION_PHASE_INITIAL_TO_RESULT || func_info.phase == substrait::AGGREGATION_PHASE_UNSPECIFIED)
@@ -112,7 +120,20 @@ DB::Array PercentileParserBase::parseFunctionParameters(
         for (size_t i = 0; i < arg_nodes.size(); ++i)
         {
             if (std::find(param_indexes.begin(), param_indexes.end(), i) == param_indexes.end())
+            {
+                if (getName() == "percentile" && i == 2)
+                {
+                    /// In spark percentile(col, percentage, weight), the last argument weight is a signed integer
+                    /// But CH requires weight as an unsigned integer
+                    DataTypePtr dst_type = std::make_shared<DataTypeUInt64>();
+                    if (arg_nodes[i]->result_type->isNullable())
+                        dst_type = std::make_shared<DataTypeNullable>(dst_type);
+
+                    arg_nodes[i] = ActionsDAGUtil::convertNodeTypeIfNeeded(actions_dag, arg_nodes[i], dst_type);
+                }
+
                 new_arg_nodes.emplace_back(arg_nodes[i]);
+            }
         }
         new_arg_nodes.swap(arg_nodes);
 

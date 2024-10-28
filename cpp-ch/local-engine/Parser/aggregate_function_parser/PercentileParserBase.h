@@ -27,7 +27,10 @@ public:
 
     String getCHFunctionName(const CommonFunctionInfo & func_info) const override;
     String getCHFunctionName(DB::DataTypes & types) const override;
-    DB::Array parseFunctionParameters(const CommonFunctionInfo & /*func_info*/, DB::ActionsDAG::NodeRawConstPtrs & arg_nodes) const override;
+    DB::Array parseFunctionParameters(
+        const CommonFunctionInfo & /*func_info*/,
+        DB::ActionsDAG::NodeRawConstPtrs & arg_nodes,
+        DB::ActionsDAG & actions_dag) const override;
     DB::Array getDefaultFunctionParameters() const override { return getDefaultFunctionParametersImpl(); }
 
 protected:

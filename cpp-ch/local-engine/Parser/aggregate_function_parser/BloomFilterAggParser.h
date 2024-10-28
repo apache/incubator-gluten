@@ -32,6 +32,6 @@ public:
     String getCHFunctionName(DB::DataTypes &) const override { return "groupBloomFilterState"; }
 
     DB::Array
-    parseFunctionParameters(const CommonFunctionInfo & /*func_info*/, DB::ActionsDAG::NodeRawConstPtrs & arg_nodes) const override;
+    parseFunctionParameters(const CommonFunctionInfo & /*func_info*/, DB::ActionsDAG::NodeRawConstPtrs & arg_nodes, DB::ActionsDAG & /*actions_dag*/) const override;
 };
 }

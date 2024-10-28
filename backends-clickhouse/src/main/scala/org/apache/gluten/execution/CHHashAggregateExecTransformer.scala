@@ -398,7 +398,6 @@ case class CHHashAggregateExecTransformer(
               fields = fields :+ (
                 percentile.percentageExpression.dataType,
                 percentile.percentageExpression.nullable)
-              fields = fields :+ (percentile.frequencyExpression.dataType, percentile.nullable)
               (makeStructType(fields), attr.nullable)
             case _ =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)

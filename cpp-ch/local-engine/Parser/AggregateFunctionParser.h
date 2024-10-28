@@ -114,8 +114,8 @@ public:
 
     /// Parameters are only used in aggregate functions at present. e.g. percentiles(0.5)(x).
     /// 0.5 is the parameter of percentiles function.
-    virtual DB::Array
-    parseFunctionParameters(const CommonFunctionInfo & /*func_info*/, DB::ActionsDAG::NodeRawConstPtrs & /*arg_nodes*/) const
+    virtual DB::Array parseFunctionParameters(
+        const CommonFunctionInfo & /*func_info*/, DB::ActionsDAG::NodeRawConstPtrs & /*arg_nodes*/, DB::ActionsDAG & /*actions_dag*/) const
     {
         return DB::Array();
     }

@@ -324,7 +324,7 @@ void WindowRelParser::tryAddProjectionBeforeWindow()
     {
         auto arg_nodes = win_info.function_parser->parseFunctionArguments(win_info.parser_func_info, actions_dag);
         // This may remove elements from arg_nodes, because some of them are converted to CH func parameters.
-        win_info.params = win_info.function_parser->parseFunctionParameters(win_info.parser_func_info, arg_nodes);
+        win_info.params = win_info.function_parser->parseFunctionParameters(win_info.parser_func_info, arg_nodes, actions_dag);
         for (auto & arg_node : arg_nodes)
         {
             win_info.arg_column_names.emplace_back(arg_node->result_name);
