@@ -43,7 +43,7 @@ class GlutenInjector private[injector] (control: InjectorControl) {
 
   private def applier(session: SparkSession): ColumnarRuleApplier = {
     val conf = new GlutenConfig(session.sessionState.conf)
-    if (conf.enableRas || testingEnableRas()) {
+    if (conf.enableRas) {
       return ras.createApplier(session)
     }
     legacy.createApplier(session)
@@ -93,17 +93,5 @@ object GlutenInjector extends Logging {
     private[injector] def createApplier(session: SparkSession): ColumnarRuleApplier = {
       new EnumeratedApplier(session, ruleBuilders.toSeq)
     }
-  }
-
-  private def testingEnableRas(): Boolean = {
-    val key = "spark.gluten.ras.enabled"
-    val defaultValue = false
-    val enabled = sys.props.get(key).map(_.toBoolean).getOrElse(defaultValue)
-    if (enabled) {
-      logWarning(
-        s"RAS is enabled using test system property $key, please make sure you are " +
-          s"running test workloads.")
-    }
-    enabled
   }
 }
