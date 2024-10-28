@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.extension
 
-import org.apache.gluten.extension.GlutenColumnarRule
+import org.apache.gluten.extension.injector.InjectorControl
 import org.apache.gluten.utils.BackendTestUtils
 
 import org.apache.spark.SparkConf
@@ -31,7 +31,9 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
   }
 
   testGluten("test gluten extensions") {
-    assert(spark.sessionState.columnarRules.map(_.getClass).contains(classOf[GlutenColumnarRule]))
+    assert(
+      spark.sessionState.columnarRules
+        .exists(_.isInstanceOf[InjectorControl.DisablerAware]))
 
     assert(spark.sessionState.planner.strategies.contains(MySparkStrategy(spark)))
     assert(spark.sessionState.analyzer.extendedResolutionRules.contains(MyRule(spark)))
@@ -39,8 +41,7 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
     assert(spark.sessionState.analyzer.extendedCheckRules.contains(MyCheckRule(spark)))
     assert(spark.sessionState.optimizer.batches.flatMap(_.rules).contains(MyRule(spark)))
     if (BackendTestUtils.isCHBackendLoaded()) {
-      assert(
-        spark.sessionState.sqlParser.getClass.getSimpleName.equals("GlutenClickhouseSqlParser"))
+      assert(spark.sessionState.sqlParser.isInstanceOf[InjectorControl.DisablerAware])
     } else {
       assert(spark.sessionState.sqlParser.isInstanceOf[MyParser])
     }
