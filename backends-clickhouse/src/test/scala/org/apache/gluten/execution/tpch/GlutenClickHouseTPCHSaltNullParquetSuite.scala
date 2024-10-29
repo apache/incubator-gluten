@@ -1318,7 +1318,8 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
       "to_date(date_add(date'2024-05-07', cast(id as int)), 'yyyy') as a6, " +
       "to_date(to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String))), 'yyyy-MM-dd HH:mm:ss') as a7, " +
       "to_timestamp(date_add(date'2024-05-07', cast(id as int)), 'yyyy-MM') as a8, " +
-      "to_timestamp(to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String))), 'yyyy-MM-dd HH:mm:ss') as a9 " +
+      "to_timestamp(to_timestamp(concat('2022-01-01 10:30:0', cast(id+1 as String))), 'yyyy-MM-dd HH:mm:ss') as a9," +
+      "to_timestamp('2024-10-09 11:22:33.123', 'yyyy-MM-dd HH:mm:ss.SSS') " +
       "from range(9)"
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
   }
@@ -2486,15 +2487,24 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     runQueryAndCompare(sql)({ _ => })
   }
 
-  test("GLUTEN-4085: Fix unix_timestamp") {
+  test("GLUTEN-4085: Fix unix_timestamp/to_unix_timestamp") {
     val tbl_create_sql = "create table test_tbl_4085(id bigint, data string) using parquet"
     val data_insert_sql =
       "insert into test_tbl_4085 values(1, '2023-12-18'),(2, '2023-12-19'), (3, '2023-12-20')"
     val select_sql =
       "select id, unix_timestamp(to_date(data), 'yyyy-MM-dd') from test_tbl_4085"
+    val select_sql_1 = "select id, to_unix_timestamp(to_date(data)) from test_tbl_4085"
+    val select_sql_2 = "select id, to_unix_timestamp(to_timestamp(data)) from test_tbl_4085"
+    val select_sql_3 =
+      "select id, unix_timestamp('2024-10-15 07:35:26.486', 'yyyy-MM-dd HH:mm:ss') from test_tbl_4085"
     spark.sql(tbl_create_sql)
     spark.sql(data_insert_sql)
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_1, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_2, true, { _ => })
+    withSQLConf("spark.sql.legacy.timeParserPolicy" -> "LEGACY") {
+      compareResultsAgainstVanillaSpark(select_sql_3, true, { _ => })
+    }
     spark.sql("drop table test_tbl_4085")
   }
 

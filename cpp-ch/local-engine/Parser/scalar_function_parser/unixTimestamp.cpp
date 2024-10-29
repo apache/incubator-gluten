@@ -33,23 +33,23 @@ namespace ErrorCodes
 namespace local_engine
 {
 
+template<typename Name>
 class FunctionParserUnixTimestamp : public FunctionParser
 {
 public:
     explicit FunctionParserUnixTimestamp(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
     ~FunctionParserUnixTimestamp() override = default;
 
-    static constexpr auto name = "unix_timestamp";
-
-    String getName() const override { return name; }
+    static constexpr auto name = Name::name;
+    String getName() const override { return Name::name; }
 
     const ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,
         ActionsDAG & actions_dag) const override
     {
         /*
-        spark function: unix_timestamp(expr, fmt)
-        1. If expr type is string, ch function = parseDateTimeInJodaSyntaxOrNull(expr, format)
+        spark function: unix_timestamp(expr, fmt) / to_unix_timestamp(expr, fmt)
+        1. If expr type is string, ch function = parseDateTime64InJodaSyntaxOrNull(expr, format)
         2. If expr type is date/TIMESTAMP, ch function = toUnixTimestamp(expr, format)
         3. Otherwise, throw exception
         */
@@ -65,7 +65,7 @@ public:
 
         const DB::ActionsDAG::Node * result_node = nullptr;
         if (isString(expr_type))
-            result_node = toFunctionNode(actions_dag, "parseDateTimeInJodaSyntaxOrNull", {expr_arg, fmt_arg, time_zone_node});
+            result_node = toFunctionNode(actions_dag, "parseDateTime64InJodaSyntaxOrNull", {expr_arg, fmt_arg, time_zone_node});
         else if (isDateOrDate32(expr_type))
             result_node = toFunctionNode(actions_dag, "sparkDateToUnixTimestamp", {expr_arg, time_zone_node});
         else if (isDateTime(expr_type) || isDateTime64(expr_type))
@@ -76,5 +76,19 @@ public:
         return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
 };
-static FunctionParserRegister<FunctionParserUnixTimestamp> register_unix_timestamp;
+
+struct FunctionNameUnixTimestamp
+{
+    static constexpr auto name = "unix_timestamp";
+};
+
+struct FunctionNameToUnixTimestamp
+{
+    static constexpr auto name = "to_unix_timestamp";
+};
+
+using FunctionParserForUnixTimestamp = FunctionParserUnixTimestamp<FunctionNameUnixTimestamp>;
+using FunctionParseToUnixTimestamp = FunctionParserUnixTimestamp<FunctionNameToUnixTimestamp>;
+static FunctionParserRegister<FunctionParserForUnixTimestamp> register_unix_timestamp;
+static FunctionParserRegister<FunctionParseToUnixTimestamp> register_to_unix_timestamp;
 }

@@ -282,7 +282,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("groupBy.as")
   enableSuite[GlutenDateFunctionsSuite]
     .exclude("function to_date")
-    .exclude("from_unixtime")
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
     .exclude("to_timestamp")
