@@ -24,7 +24,7 @@ import org.apache.spark.SparkConf
 import org.junit.Assert
 
 class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
   override def beforeAll(): Unit = {
