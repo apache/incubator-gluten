@@ -16,3 +16,8 @@
 clickhouse_add_executable(signal_demo signal_demo.cpp)
 target_link_libraries(signal_demo PRIVATE gluten_clickhouse_backend_libs
                                           loggers)
+
+clickhouse_add_executable(splittable_bzip2_read_buffer
+                          splittable_bzip2_read_buffer.cpp)
+target_link_libraries(splittable_bzip2_read_buffer
+                      PRIVATE gluten_clickhouse_backend_libs loggers)
