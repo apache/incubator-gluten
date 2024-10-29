@@ -21,6 +21,7 @@ import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 import org.apache.spark.sql._
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.connector._
 import org.apache.spark.sql.errors._
 import org.apache.spark.sql.execution._
@@ -1715,6 +1716,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[SparkFunctionStatistics]
   enableSuite[GlutenSparkSessionExtensionSuite]
   enableSuite[GlutenHiveSQLQueryCHSuite]
+  enableSuite[GlutenPercentileSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }

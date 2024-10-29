@@ -226,7 +226,7 @@ void AggregateRelParser::addPreProjection()
     {
         auto arg_nodes = agg_info.function_parser->parseFunctionArguments(agg_info.parser_func_info, projection_action);
         // This may remove elements from arg_nodes, because some of them are converted to CH func parameters.
-        agg_info.params = agg_info.function_parser->parseFunctionParameters(agg_info.parser_func_info, arg_nodes);
+        agg_info.params = agg_info.function_parser->parseFunctionParameters(agg_info.parser_func_info, arg_nodes, projection_action);
         for (auto & arg_node : arg_nodes)
         {
             agg_info.arg_column_names.emplace_back(arg_node->result_name);

@@ -390,6 +390,15 @@ case class CHHashAggregateExecTransformer(
                 approxPercentile.percentageExpression.dataType,
                 approxPercentile.percentageExpression.nullable)
               (makeStructType(fields), attr.nullable)
+            case percentile: Percentile =>
+              var fields = Seq[(DataType, Boolean)]()
+              // Use percentile.nullable as the nullable of the struct type
+              // to make sure it returns null when input is empty
+              fields = fields :+ (percentile.child.dataType, percentile.nullable)
+              fields = fields :+ (
+                percentile.percentageExpression.dataType,
+                percentile.percentageExpression.nullable)
+              (makeStructType(fields), attr.nullable)
             case _ =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)
           }
