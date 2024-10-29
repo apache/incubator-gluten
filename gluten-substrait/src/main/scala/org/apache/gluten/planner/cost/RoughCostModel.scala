@@ -16,63 +16,50 @@
  */
 package org.apache.gluten.planner.cost
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.execution.RowToColumnarExecBase
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression}
-import org.apache.spark.sql.execution.{ColumnarToRowExec, DataSourceScanExec, LeafExecNode, ProjectExec, RowToColumnarExec, SparkPlan}
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanExecBase
+import org.apache.spark.sql.execution.{ColumnarToRowExec, ProjectExec, RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.types.{ArrayType, MapType, StructType}
 
 /** A rough cost model with some empirical heuristics. */
 class RoughCostModel extends LongCostModel {
 
-  private def getSizeFactor(plan: SparkPlan): Long = {
-    // Get the bytes size that the plan needs to consume
-    val sizeBytes = plan match {
-      case _: DataSourceScanExec | _: DataSourceV2ScanExecBase => getStatSizeBytes(plan)
-      case _: LeafExecNode => 0L
-      case p => p.children.map(getStatSizeBytes).sum
-    }
-    sizeBytes / GlutenConfig.getConf.rasRoughSizeBytesThreshold
-  }
-
-  private def getStatSizeBytes(plan: SparkPlan): Long = {
-    plan match {
-      case a: AdaptiveSparkPlanExec => getStatSizeBytes(a.inputPlan)
-      case _ =>
-        plan.logicalLink match {
-          case Some(logicalPlan) => logicalPlan.stats.sizeInBytes.toLong
-          case _ => plan.children.map(getStatSizeBytes).sum
-        }
-    }
-  }
-
   override def selfLongCostOf(node: SparkPlan): Long = {
-    val sizeFactor = getSizeFactor(node)
-    val opCost = node match {
+    node match {
       case ProjectExec(projectList, _) if projectList.forall(isCheapExpression) =>
         // Make trivial ProjectExec has the same cost as ProjectExecTransform to reduce unnecessary
         // c2r and r2c.
-        1L
-      case ColumnarToRowExec(_) => 1L
-      case RowToColumnarExec(_) => 1L
-      case ColumnarToRowLike(_) => 1L
-      case RowToColumnarLike(_) =>
-        // If sizeBytes is less than the threshold, the cost of RowToColumnarLike is ignored.
-        if (sizeFactor == 0) 1L else GlutenConfig.getConf.rasRoughR2cCost
-      case p if PlanUtil.isGlutenColumnarOp(p) => 1L
-      case p if PlanUtil.isVanillaColumnarOp(p) => GlutenConfig.getConf.rasRoughVanillaCost
+        10L
+      case r2c: RowToColumnarExecBase if hasComplexTypes(r2c.schema) =>
+        // Avoid moving computation back to native when transition has complex types in schema.
+        // Such transitions are observed to be extremely expensive as of now.
+        Long.MaxValue
+      case ColumnarToRowExec(_) => 10L
+      case RowToColumnarExec(_) => 10L
+      case ColumnarToRowLike(_) => 10L
+      case RowToColumnarLike(_) => 10L
+      case p if PlanUtil.isGlutenColumnarOp(p) => 10L
+      case p if PlanUtil.isVanillaColumnarOp(p) => 1000L
       // Other row ops. Usually a vanilla row op.
-      case _ => GlutenConfig.getConf.rasRoughVanillaCost
+      case _ => 1000L
     }
-    opCost * Math.max(1, sizeFactor)
   }
 
   private def isCheapExpression(ne: NamedExpression): Boolean = ne match {
     case Alias(_: Attribute, _) => true
     case _: Attribute => true
     case _ => false
+  }
+
+  private def hasComplexTypes(schema: StructType): Boolean = {
+    schema.exists(_.dataType match {
+      case _: StructType => true
+      case _: ArrayType => true
+      case _: MapType => true
+      case _ => false
+    })
   }
 }

@@ -21,7 +21,7 @@ import org.apache.gluten.GlutenConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.ProjectExec
 
-class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
+class VeloxRoughCostModel2Suite extends VeloxWholeStageTransformerSuite {
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
 
@@ -42,7 +42,7 @@ class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
 
   override protected def sparkConf: SparkConf = super.sparkConf
     .set(GlutenConfig.RAS_ENABLED.key, "true")
-    .set(GlutenConfig.RAS_COST_MODEL.key, "rough")
+    .set(GlutenConfig.RAS_COST_MODEL.key, "rough2")
     .set(GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED.key, "false")
 
   test("fallback trivial project if its neighbor nodes fell back") {
@@ -53,8 +53,10 @@ class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("avoid adding r2c whose schema contains complex data types") {
-    withSQLConf(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false") {
+  test("avoid adding r2c if r2c cost greater than native") {
+    withSQLConf(
+      GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false",
+      GlutenConfig.RAS_ROUGH2_SIZEBYTES_THRESHOLD.key -> "1") {
       runQueryAndCompare("select array_contains(c3, 0) as list from tmp1") {
         checkSparkOperatorMatch[ProjectExec]
       }
