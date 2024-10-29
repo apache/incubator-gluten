@@ -96,7 +96,7 @@ public:
 /// Sequential implementation for ARM. Also used for scalar arguments
 
 template <typename T>
-class FloatRoundingHalfUpComputationBase<T, Vectorize::No>
+class BaseFloatRoundingHalfUpComputation<T, Vectorize::No>
 {
 public:
     using ScalarType = T;
@@ -166,7 +166,7 @@ private:
 #endif
     >
     using Op = FloatRoundingHalfUpComputation<T, rounding_mode, scale_mode, vectorize>;
-    using Data = std::array<T, Op::data_count>;
+    using Data = std::array<T, Op<>::data_count>;
     using ColumnType = ColumnVector<T>;
     using Container = typename ColumnType::Container;
 
