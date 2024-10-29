@@ -958,12 +958,14 @@ RowRanges ColumnIndexFilter::calculateRowRanges(const ColumnIndexStore & index_s
                 CALL_OPERATOR(element, [](const ColumnIndex & index, const RPNElement & e) { return index.in(e.column); });
                 break;
             case RPNElement::FUNCTION_NOT_IN:
+                rpn_stack.emplace_back(RowRanges::createSingle(rowgroup_count));
                 break;
             case RPNElement::FUNCTION_UNKNOWN:
                 rpn_stack.emplace_back(RowRanges::createSingle(rowgroup_count));
                 break;
             case RPNElement::FUNCTION_NOT:
-                assert(false);
+                assert(!rpn_stack.empty());
+                rpn_stack.back() = RowRanges::createSingle(rowgroup_count);
                 break;
             case RPNElement::FUNCTION_AND:
                 CALL_LOGICAL_OP(RowRanges::intersection);
@@ -972,10 +974,10 @@ RowRanges ColumnIndexFilter::calculateRowRanges(const ColumnIndexStore & index_s
                 CALL_LOGICAL_OP(RowRanges::unionRanges);
                 break;
             case RPNElement::ALWAYS_FALSE:
-                assert(false);
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "RPNElement::ALWAYS_FALSE in ColumnIndexFilter::calculateRowRanges");
                 break;
             case RPNElement::ALWAYS_TRUE:
-                assert(false);
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "RPNElement::ALWAYS_TRUE in ColumnIndexFilter::calculateRowRanges");
                 break;
         }
     }
