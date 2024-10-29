@@ -19,7 +19,7 @@ package org.apache.gluten.planner.cost
 import org.apache.gluten.extension.columnar.transition.{ColumnarToColumnarLike, ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
 
-import org.apache.spark.sql.execution.{ColumnarToRowExec, ProjectExec, RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarToRowExec, ColumnarWriteFilesExec, ProjectExec, RowToColumnarExec, SparkPlan}
 
 /**
  * A cost model that is supposed to drive RAS planner create the same query plan with legacy
@@ -32,6 +32,7 @@ class LegacyCostModel extends LongCostModel {
   // much as possible.
   override def selfLongCostOf(node: SparkPlan): Long = {
     node match {
+      case ColumnarWriteFilesExec.OnNoopLeafPath(_) => 0
       case ColumnarToRowExec(_) => 10L
       case RowToColumnarExec(_) => 10L
       case ColumnarToRowLike(_) => 10L
