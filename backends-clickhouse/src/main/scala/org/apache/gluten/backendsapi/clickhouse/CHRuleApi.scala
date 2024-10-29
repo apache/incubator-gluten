@@ -53,12 +53,9 @@ private object CHRuleApi {
       (spark, parserInterface) => new GlutenCacheFilesSqlParser(spark, parserInterface))
     injector.injectParser(
       (spark, parserInterface) => new GlutenClickhouseSqlParser(spark, parserInterface))
-    injector.injectResolutionRule(
-      spark => new RewriteToDateExpresstionRule(spark, spark.sessionState.conf))
-    injector.injectResolutionRule(
-      spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
-    injector.injectOptimizerRule(
-      spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf))
+    injector.injectResolutionRule(spark => new RewriteToDateExpresstionRule(spark))
+    injector.injectResolutionRule(spark => new RewriteDateTimestampComparisonRule(spark))
+    injector.injectOptimizerRule(spark => new CommonSubexpressionEliminateRule(spark))
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))
     injector.injectOptimizerRule(_ => CountDistinctWithoutExpand)
     injector.injectOptimizerRule(_ => EqualToRewrite)
