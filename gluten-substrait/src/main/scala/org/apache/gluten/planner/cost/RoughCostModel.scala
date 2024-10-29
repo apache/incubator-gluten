@@ -19,6 +19,7 @@ package org.apache.gluten.planner.cost
 import org.apache.gluten.execution.RowToColumnarExecBase
 import org.apache.gluten.extension.columnar.transition.{ColumnarToColumnarLike, ColumnarToRowLike, RowToColumnarLike}
 import org.apache.gluten.utils.PlanUtil
+
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, NamedExpression}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ProjectExec, RowToColumnarExec, SparkPlan}
 import org.apache.spark.sql.types.{ArrayType, MapType, StructType}
