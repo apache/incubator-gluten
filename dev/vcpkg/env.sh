@@ -12,9 +12,9 @@ export VCPKG_ROOT="$SCRIPT_ROOT/.vcpkg"
 export VCPKG="$SCRIPT_ROOT/.vcpkg/vcpkg"
 ARCH=`uname -m`
 if [ $ARCH == 'x86_64' ]; then
-  VCPKG_TRIPLET=x64-linux-avx
+  export VCPKG_TRIPLET=x64-linux-avx
 elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
-  VCPKG_TRIPLET=arm64-linux
+  export VCPKG_TRIPLET=arm64-linux
 else
   echo "Unsupported arch: $ARCH"
   exit 1
