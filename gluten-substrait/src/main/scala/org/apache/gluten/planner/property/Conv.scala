@@ -89,10 +89,6 @@ object ConvDef extends PropertyDef[SparkPlan, Conv] {
 
 case class ConvEnforcerRule(reqConv: Conv) extends RasRule[SparkPlan] {
   override def shift(node: SparkPlan): Iterable[SparkPlan] = {
-    if (node.output.isEmpty) {
-      // Disable transitions for node that has output with empty schema.
-      return List.empty
-    }
     val conv = Conv.get(node)
     if (conv.satisfies(reqConv)) {
       return List.empty

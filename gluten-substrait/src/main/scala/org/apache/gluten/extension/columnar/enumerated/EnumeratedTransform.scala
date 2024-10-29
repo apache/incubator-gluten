@@ -82,7 +82,8 @@ case class EnumeratedTransform(session: SparkSession, outputsColumnar: Boolean)
         .from(SparkShimLoader.getSparkShims.isWindowGroupLimitExec, OffloadOthers()),
       RasOffload.from[LimitExec](OffloadOthers()),
       RasOffload.from[GenerateExec](OffloadOthers()),
-      RasOffload.from[EvalPythonExec](OffloadOthers())
+      RasOffload.from[EvalPythonExec](OffloadOthers()),
+      RasOffload.from[SampleExec](OffloadOthers())
     ).map(RasOffload.Rule(_, validator))
 
   private val optimization = {
