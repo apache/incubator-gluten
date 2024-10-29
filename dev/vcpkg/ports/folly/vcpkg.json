@@ -25,6 +25,7 @@
     "glog",
     "libevent",
     "openssl",
+    "libdwarf",
     {
       "name": "vcpkg-cmake",
       "host": true
