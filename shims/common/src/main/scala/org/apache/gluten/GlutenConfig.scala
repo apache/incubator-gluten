@@ -270,6 +270,12 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def rasCostModel: String = conf.getConf(RAS_COST_MODEL)
 
+  def rasRough2SizeBytesThreshold: Long = conf.getConf(RAS_ROUGH2_SIZEBYTES_THRESHOLD)
+
+  def rasRough2R2cCost: Long = conf.getConf(RAS_ROUGH2_R2C_COST)
+
+  def rasRough2VanillaCost: Long = conf.getConf(RAS_ROUGH2_VANILLA_COST)
+
   def enableVeloxCache: Boolean = conf.getConf(COLUMNAR_VELOX_CACHE_ENABLED)
 
   def veloxMemCacheSize: Long = conf.getConf(COLUMNAR_VELOX_MEM_CACHE_SIZE)
@@ -1365,6 +1371,26 @@ object GlutenConfig {
           "will be used.")
       .stringConf
       .createWithDefaultString("legacy")
+
+  val RAS_ROUGH2_SIZEBYTES_THRESHOLD =
+    buildConf("spark.gluten.ras.rough2.sizeBytesThreshold")
+      .doc(
+        "Experimental: Threshold of the byte size consumed by sparkPlan, coefficient used " +
+          "to calculate cost in RAS rough2 model")
+      .longConf
+      .createWithDefault(1073741824L)
+
+  val RAS_ROUGH2_R2C_COST =
+    buildConf("spark.gluten.ras.rough2.r2c.cost")
+      .doc("Experimental: Cost of RowToVeloxColumnarExec in RAS rough2 model")
+      .longConf
+      .createWithDefault(100L)
+
+  val RAS_ROUGH2_VANILLA_COST =
+    buildConf("spark.gluten.ras.rough2.vanilla.cost")
+      .doc("Experimental: Cost of vanilla spark operater in RAS rough model")
+      .longConf
+      .createWithDefault(20L)
 
   // velox caching options.
   val COLUMNAR_VELOX_CACHE_ENABLED =

@@ -26,7 +26,10 @@ import org.apache.spark.sql.utils.ReflectionUtil
 object GlutenCostModel extends Logging {
   def find(): CostModel[SparkPlan] = {
     val aliases: Map[String, Class[_ <: CostModel[SparkPlan]]] =
-      Map("legacy" -> classOf[LegacyCostModel], "rough" -> classOf[RoughCostModel])
+      Map(
+        "legacy" -> classOf[LegacyCostModel],
+        "rough" -> classOf[RoughCostModel],
+        "rough2" -> classOf[RoughCostModel2])
     val aliasOrClass = GlutenConfig.getConf.rasCostModel
     val clazz: Class[_ <: CostModel[SparkPlan]] = if (aliases.contains(aliasOrClass)) {
       aliases(aliasOrClass)
