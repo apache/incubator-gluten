@@ -22,6 +22,8 @@ ENABLE_S3=OFF
 ENABLE_GCS=OFF
 # Enable HDFS connector.
 ENABLE_HDFS=OFF
+# Enable HDFS connector.
+ENABLE_HDFS3=OFF
 # Enable ABFS connector.
 ENABLE_ABFS=OFF
 BUILD_TYPE=release
@@ -55,6 +57,10 @@ for arg in "$@"; do
     ;;
   --enable_hdfs=*)
     ENABLE_HDFS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_hdfs3=*)
+    ENABLE_HDFS3=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_abfs=*)
@@ -103,6 +109,9 @@ function compile {
   fi
   if [ $ENABLE_HDFS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS=ON"
+  fi
+  if [ $ENABLE_HDFS3 == "ON" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS3=ON"
   fi
   if [ $ENABLE_S3 == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"

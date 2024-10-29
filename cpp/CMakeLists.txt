@@ -55,6 +55,7 @@ option(ENABLE_IAA "Enable IAA for de/compression" OFF)
 option(ENABLE_GCS "Enable GCS" OFF)
 option(ENABLE_S3 "Enable S3" OFF)
 option(ENABLE_HDFS "Enable HDFS" OFF)
+option(ENABLE_HDFS3 "Enable HDFS3" OFF)
 option(ENABLE_ORC "Enable ORC" OFF)
 option(ENABLE_ABFS "Enable ABFS" OFF)
 

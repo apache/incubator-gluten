@@ -6,6 +6,7 @@ BUILD_TESTS=OFF
 ENABLE_S3=OFF
 ENABLE_GCS=OFF
 ENABLE_HDFS=OFF
+ENABLE_HDFS3=OFF
 ENABLE_ABFS=OFF
 
 for arg in "$@"; do
@@ -24,6 +25,10 @@ for arg in "$@"; do
     ;;
   --enable_hdfs=*)
     ENABLE_HDFS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_hdfs3=*)
+    ENABLE_HDFS3=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_abfs=*)

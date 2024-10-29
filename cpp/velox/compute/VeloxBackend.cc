@@ -135,7 +135,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
 
-#ifdef ENABLE_HDFS
+#if (defined(ENABLE_HDFS) || defined(ENABLE_HDFS3))
   velox::filesystems::registerHdfsFileSystem();
 #endif
 #ifdef ENABLE_S3

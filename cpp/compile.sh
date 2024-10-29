@@ -27,6 +27,7 @@ ENABLE_HBM=OFF
 ENABLE_GCS=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
+ENABLE_HDFS3=OFF
 ENABLE_ABFS=OFF
 VELOX_HOME=
 # set default number of threads as cpu cores minus 2
@@ -97,6 +98,10 @@ for arg in "$@"; do
     ENABLE_HDFS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+  --enable_hdfs3=*)
+    ENABLE_HDFS3=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
   *)
     OTHER_ARGUMENTS+=("$1")
     shift # Remove generic argument from processing
@@ -127,6 +132,7 @@ echo "ENABLE_HBM=${ENABLE_HBM}"
 echo "ENABLE_GCS=${ENABLE_GCS}"
 echo "ENABLE_S3=${ENABLE_S3}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
+echo "ENABLE_HDFS3=${ENABLE_HDFS3}"
 echo "ENABLE_ABFS=${ENABLE_ABFS}"
 
 if [ -d build ]; then
@@ -147,5 +153,6 @@ cmake .. \
   -DENABLE_GCS=${ENABLE_GCS} \
   -DENABLE_S3=${ENABLE_S3} \
   -DENABLE_HDFS=${ENABLE_HDFS} \
+  -DENABLE_HDFS3=${ENABLE_HDFS3} \
   -DENABLE_ABFS=${ENABLE_ABFS} 
 make -j$NPROC

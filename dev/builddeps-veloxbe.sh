@@ -21,6 +21,7 @@ ENABLE_HBM=OFF
 ENABLE_GCS=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
+ENABLE_HDFS3=OFF
 ENABLE_ABFS=OFF
 ENABLE_EP_CACHE=OFF
 ENABLE_VCPKG=OFF
@@ -90,6 +91,10 @@ do
         ;;
         --enable_hdfs=*)
         ENABLE_HDFS=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+	      --enable_hdfs3=*)
+        ENABLE_HDFS3=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --enable_abfs=*)
@@ -167,7 +172,7 @@ function concat_velox_param {
 if [ "$ENABLE_VCPKG" = "ON" ]; then
     # vcpkg will install static depends and init build environment
     BUILD_OPTIONS="--build_tests=$BUILD_TESTS --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS \
-                   --enable_hdfs=$ENABLE_HDFS --enable_abfs=$ENABLE_ABFS"
+                   --enable_hdfs=$ENABLE_HDFS --enable_hdfs3=$ENABLE_HDFS3 --enable_abfs=$ENABLE_ABFS"
     source ./dev/vcpkg/env.sh ${BUILD_OPTIONS}
 fi
 
@@ -191,7 +196,7 @@ function build_velox {
   echo "Start to build Velox"
   cd $GLUTEN_DIR/ep/build-velox/src
   # When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
-  ./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
+  ./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS --enable_hdfs3=$ENABLE_HDFS3 \
                    --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_test_utils=$BUILD_TESTS \
                    --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS --num_threads=$NUM_THREADS \
                    --velox_home=$VELOX_HOME
@@ -207,7 +212,7 @@ function build_gluten_cpp {
         -DVELOX_HOME=${VELOX_HOME} \
         -DBUILD_TESTS=$BUILD_TESTS -DBUILD_EXAMPLES=$BUILD_EXAMPLES -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DENABLE_JEMALLOC_STATS=$ENABLE_JEMALLOC_STATS \
         -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DENABLE_IAA=$ENABLE_IAA -DENABLE_GCS=$ENABLE_GCS \
-        -DENABLE_S3=$ENABLE_S3 -DENABLE_HDFS=$ENABLE_HDFS -DENABLE_ABFS=$ENABLE_ABFS ..
+        -DENABLE_S3=$ENABLE_S3 -DENABLE_HDFS=$ENABLE_HDFS -DENABLE_HDFS3=$ENABLE_HDFS3 -DENABLE_ABFS=$ENABLE_ABFS ..
   make -j $NUM_THREADS
 }
 
