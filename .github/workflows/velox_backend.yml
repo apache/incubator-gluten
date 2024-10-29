@@ -1000,13 +1000,13 @@ jobs:
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
           $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
-          -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true -DdisableXmlReport=true" \
+          -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true" \
           -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,org.apache.gluten.tags.UDFTest,org.apache.gluten.tags.SkipTestTags
-      - name: Upload test report
-        if: always()
+      - name: (To be enabled) Upload test report
+        if: false
         uses: actions/upload-artifact@v4
         with:
-          name: test-report-spark35
+          name: test-report-spark35-ras
           path: '**/surefire-reports/TEST-*.xml'
 
   run-spark-test-spark35-slow-ras:
@@ -1041,13 +1041,13 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean test -Pspark-3.5 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut \
-          -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true -DdisableXmlReport=true" \
+          -DargLine="-Dspark.test.home=$GITHUB_WORKSPACE//shims/spark35/spark_home/ -Dspark.gluten.ras.enabled=true" \
           -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest
-      - name: Upload test report
-        if: always()
+      - name: (To be enabled) Upload test report
+        if: false
         uses: actions/upload-artifact@v4
         with:
-          name: test-report-spark35-slow
+          name: test-report-spark35-slow-ras
           path: '**/surefire-reports/TEST-*.xml'
 
   run-cpp-test-udf-test:
