@@ -32,7 +32,6 @@ class RoughCostModel extends LongCostModel {
     // Get the bytes size that the plan needs to consume
     val sizeBytes = plan match {
       case _: DataSourceScanExec | _: DataSourceV2ScanExecBase => getStatSizeBytes(plan)
-      case a: AdaptiveSparkPlanExec => getStatSizeBytes(a)
       case _: LeafExecNode => 0L
       case p => p.children.map(getStatSizeBytes).sum
     }
