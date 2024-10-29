@@ -476,7 +476,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 object GlutenConfig {
   import SQLConf._
 
-  var GLUTEN_ENABLED_BY_DEFAULT = true
+  val GLUTEN_ENABLED_BY_DEFAULT = true
   val GLUTEN_ENABLED_KEY = "spark.gluten.enabled"
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
