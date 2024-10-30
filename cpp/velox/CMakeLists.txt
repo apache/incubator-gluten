@@ -298,20 +298,20 @@ else()
   target_link_libraries(velox PUBLIC external::simdjson)
 endif()
 
+set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
+
 set(icu_components i18n uc data)
 foreach(component ${icu_components})
-  find_library(ICU_${component}_LIB NAMES libicu${component}.a)
+  find_library(ICU_${component}_LIB NAMES icu${component})
   if(NOT ICU_${component}_LIB)
-    message(FATAL_ERROR "libicu${component}.a not found")
+    message(FATAL_ERROR "icu${component} library not found")
   endif()
   message(STATUS "Found ICU::${component}: ${ICU_${component}_LIB}")
-  add_library(ICU::${component} STATIC IMPORTED)
+  add_library(ICU::${component} UNKNOWN IMPORTED)
   set_target_properties(ICU::${component} PROPERTIES IMPORTED_LOCATION
                                                      ${ICU_${component}_LIB})
   target_link_libraries(velox PUBLIC ICU::${component})
 endforeach()
-
-set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
