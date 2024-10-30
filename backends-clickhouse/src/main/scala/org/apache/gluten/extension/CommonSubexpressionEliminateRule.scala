@@ -24,7 +24,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.internal.SQLConf
 
 import scala.collection.mutable
 
@@ -33,9 +32,7 @@ import scala.collection.mutable
 // 2. append two options to spark config
 //    --conf spark.sql.planChangeLog.level=error
 //    --conf spark.sql.planChangeLog.batches=all
-class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
-  extends Rule[LogicalPlan]
-  with Logging {
+class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
   private var lastPlan: LogicalPlan = null
 
