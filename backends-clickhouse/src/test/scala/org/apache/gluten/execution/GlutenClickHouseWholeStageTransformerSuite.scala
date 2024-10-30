@@ -157,6 +157,7 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
   }
 
   final protected val rootPath: String = this.getClass.getResource("/").getPath
+  final protected val queryPath: String = s"${rootPath}queries"
   final protected val basePath: String =
     if (UTSystemParameters.diskOutputDataPath.equals("/")) rootPath + "tests-working-home"
     else UTSystemParameters.diskOutputDataPath + "/" + rootPath + "tests-working-home"

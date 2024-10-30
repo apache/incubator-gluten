@@ -1038,8 +1038,7 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("read data from orc file format") {
-    val filePath = basePath + "/orc_test.orc"
-    // val filePath = "/data2/case_insensitive_column_matching.orc"
+    val filePath = s"$orcDataPath/all_data_types_with_non_primitive_type.snappy.orc"
     val orcFileFormat = "orc"
     val sql =
       s"""
@@ -1047,7 +1046,7 @@ class GlutenClickHouseFileFormatSuite
          | from $orcFileFormat.`$filePath`
          | where long_field > 30
          |""".stripMargin
-    testFileFormatBase(filePath, orcFileFormat, sql, df => {})
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, df => {}, noFallBack = true)
   }
 
   // TODO: Fix: if the field names has upper case form, it will return null value
@@ -1085,8 +1084,9 @@ class GlutenClickHouseFileFormatSuite
       customCheck: DataFrame => Unit,
       noFallBack: Boolean = true
   ): Unit = {
+    val data = genTestData()
     spark
-      .createDataFrame(genTestData())
+      .createDataFrame(data)
       .write
       .mode("overwrite")
       .format(fileFormat)
