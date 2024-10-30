@@ -115,6 +115,7 @@ object MetricsUtil extends Logging {
     var numDynamicFiltersAccepted: Long = 0
     var numReplacedWithDynamicFilterRows: Long = 0
     var flushRowCount: Long = 0
+    var loadedToValueHook: Long = 0
     var scanTime: Long = 0
     var skippedSplits: Long = 0
     var processedSplits: Long = 0
@@ -141,6 +142,7 @@ object MetricsUtil extends Logging {
       numDynamicFiltersAccepted += metrics.numDynamicFiltersAccepted
       numReplacedWithDynamicFilterRows += metrics.numReplacedWithDynamicFilterRows
       flushRowCount += metrics.flushRowCount
+      loadedToValueHook += metrics.loadedToValueHook
       scanTime += metrics.scanTime
       skippedSplits += metrics.skippedSplits
       processedSplits += metrics.processedSplits
@@ -174,6 +176,7 @@ object MetricsUtil extends Logging {
       numDynamicFiltersAccepted,
       numReplacedWithDynamicFilterRows,
       flushRowCount,
+      loadedToValueHook,
       scanTime,
       skippedSplits,
       processedSplits,

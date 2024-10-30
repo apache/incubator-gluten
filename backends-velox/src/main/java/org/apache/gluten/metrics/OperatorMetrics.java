@@ -39,6 +39,7 @@ public class OperatorMetrics implements IOperatorMetrics {
   public long numDynamicFiltersAccepted;
   public long numReplacedWithDynamicFilterRows;
   public long flushRowCount;
+  public long loadedToValueHook;
   public long skippedSplits;
   public long processedSplits;
   public long skippedStrides;
@@ -74,6 +75,7 @@ public class OperatorMetrics implements IOperatorMetrics {
       long numDynamicFiltersAccepted,
       long numReplacedWithDynamicFilterRows,
       long flushRowCount,
+      long loadedToValueHook,
       long scanTime,
       long skippedSplits,
       long processedSplits,
@@ -107,6 +109,7 @@ public class OperatorMetrics implements IOperatorMetrics {
     this.numDynamicFiltersAccepted = numDynamicFiltersAccepted;
     this.numReplacedWithDynamicFilterRows = numReplacedWithDynamicFilterRows;
     this.flushRowCount = flushRowCount;
+    this.loadedToValueHook = loadedToValueHook;
     this.skippedSplits = skippedSplits;
     this.processedSplits = processedSplits;
     this.skippedStrides = skippedStrides;
