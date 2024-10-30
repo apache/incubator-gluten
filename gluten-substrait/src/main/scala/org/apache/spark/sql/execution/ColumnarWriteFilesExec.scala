@@ -155,7 +155,7 @@ object ColumnarWriteFilesExec {
   private val NoopTag =
     TreeNodeTag[Boolean]("org.apache.spark.sql.execution.ColumnarWriteFilesExec.NoopTag")
 
-  // Decides whether a plan not is on the dummy `WriteFilesExec + NoopLeaf` path.
+  // Decides whether a plan node is on the dummy `WriteFilesExec + NoopLeaf` path.
   object OnNoopLeafPath {
     def unapply(plan: SparkPlan): Option[NoopLeaf] = {
       val leafs = traverseDown(plan)

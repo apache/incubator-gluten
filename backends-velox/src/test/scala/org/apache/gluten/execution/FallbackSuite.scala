@@ -233,6 +233,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     Seq("true", "false").foreach {
       ignoreRowToColumnar =>
         withSQLConf(
+          GlutenConfig.RAS_ENABLED.key -> "false",
           GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> ignoreRowToColumnar,
           GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_set",
           GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1"
