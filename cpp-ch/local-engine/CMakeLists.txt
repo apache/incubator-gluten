@@ -139,9 +139,9 @@ add_library(
   local_engine_jni.cpp ${local_udfs_sources} ${function_parsers_sources}
   $<TARGET_OBJECTS:clickhouse_malloc>) # why add clickhouse_malloc? check
                                        # clickhouse PR-8046
-
-target_compile_options(${LOCALENGINE_SHARED_LIB} PUBLIC -fPIC -fno-semantic-interposition
-                                                        -Wno-shorten-64-to-32)
+target_compile_options(
+  ${LOCALENGINE_SHARED_LIB} PUBLIC -fPIC -fno-semantic-interposition
+                                   -Wno-shorten-64-to-32)
 
 target_link_libraries(
   ${LOCALENGINE_SHARED_LIB}
@@ -159,8 +159,7 @@ target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
 
 if(ENABLE_JEMALLOC)
   target_link_options(
-    ${LOCALENGINE_SHARED_LIB} PRIVATE
-    -fno-semantic-interposition
+    ${LOCALENGINE_SHARED_LIB} PRIVATE -fno-semantic-interposition
     -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libch.map
     -Wl,-Bsymbolic-functions)
 else()
