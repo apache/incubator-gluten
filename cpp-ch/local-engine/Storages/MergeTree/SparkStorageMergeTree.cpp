@@ -473,6 +473,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
         txn ? txn->tid : Tx::PrehistoricTID,
         false,
         false,
+        false,
         context->getWriteSettings());
 
     out->writeWithPermutation(block, perm_ptr);
