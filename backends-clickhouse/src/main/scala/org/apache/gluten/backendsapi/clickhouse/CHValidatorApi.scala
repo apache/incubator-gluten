@@ -28,7 +28,7 @@ import org.apache.gluten.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
@@ -71,6 +71,7 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logg
   }
 
   override def doColumnarShuffleExchangeExecValidate(
+      outputAttributes: Seq[Attribute],
       outputPartitioning: Partitioning,
       child: SparkPlan): Option[String] = {
     val outputAttributes = child.output
