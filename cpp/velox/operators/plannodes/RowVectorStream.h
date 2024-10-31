@@ -40,6 +40,12 @@ class RowVectorStream {
     {
       // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
       // driver to make the current task open to spilling.
+      //
+      // When a task is getting spilled, it should have been suspended so has zero running threads, otherwise there's
+      // possibility that this spill call hangs. See https://github.com/apache/incubator-gluten/issues/7243.
+      // As of now, non-zero running threads usually happens when:
+      // 1. Task A spills task B;
+      // 2. Task A trys to grow buffers created by task B, during which spill is requested on task A again;
       facebook::velox::exec::SuspendedSection(driverCtx_->driver);
       hasNext = iterator_->hasNext();
     }
