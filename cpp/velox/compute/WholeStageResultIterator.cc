@@ -225,18 +225,6 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
   std::string logPrefix{"Spill[" + poolName + "]: "};
   int64_t shrunken = memoryManager_->shrink(size);
   if (spillStrategy_ == "auto") {
-    if (task_->numThreads() != 0) {
-      // Task should have zero running threads, otherwise there's
-      // possibility that this spill call hangs. See https://github.com/apache/incubator-gluten/issues/7243.
-      // As of now, non-zero running threads usually happens when:
-      // 1. Task A spills task B;
-      // 2. Task A trys to grow buffers created by task B, during which spill is requested on task A again;
-      LOG(INFO) << fmt::format(
-          "{} spill is requested on a task {} that has non-zero running threads, which is not currently supported. Skipping.",
-          logPrefix,
-          task_->taskId());
-      return shrunken;
-    }
     int64_t remaining = size - shrunken;
     LOG(INFO) << fmt::format("{} trying to request spill for {}.", logPrefix, velox::succinctBytes(remaining));
     auto mm = memoryManager_->getMemoryManager();

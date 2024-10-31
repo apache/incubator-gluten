@@ -26,16 +26,27 @@ namespace gluten {
 class RowVectorStream {
  public:
   explicit RowVectorStream(
+      facebook::velox::exec::DriverCtx* driverCtx,
       facebook::velox::memory::MemoryPool* pool,
-      std::shared_ptr<ResultIterator> iterator,
+      ResultIterator* iterator,
       const facebook::velox::RowTypePtr& outputType)
-      : iterator_(std::move(iterator)), outputType_(outputType), pool_(pool) {}
+      : driverCtx_(driverCtx), pool_(pool), outputType_(outputType), iterator_(iterator) {}
 
   bool hasNext() {
-    if (!finished_) {
-      finished_ = !iterator_->hasNext();
+    if (finished_) {
+      return false;
     }
-    return !finished_;
+    bool hasNext;
+    {
+      // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
+      // driver to make the current task open to spilling.
+      facebook::velox::exec::SuspendedSection(driverCtx_->driver);
+      hasNext = iterator_->hasNext();
+    }
+    if (!hasNext) {
+      finished_ = true;
+    }
+    return hasNext;
   }
 
   // Convert arrow batch to rowvector and use new output columns
@@ -43,7 +54,14 @@ class RowVectorStream {
     if (finished_) {
       return nullptr;
     }
-    const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(pool_, iterator_->next());
+    std::shared_ptr<ColumnarBatch> cb;
+    {
+      // We are leaving Velox task execution and are probably entering Spark code through JNI. Suspend the current
+      // driver to make the current task open to spilling.
+      facebook::velox::exec::SuspendedSection(driverCtx_->driver);
+      cb = iterator_->next();
+    }
+    const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(pool_, cb);
     auto vp = vb->getRowVector();
     VELOX_DCHECK(vp != nullptr);
     return std::make_shared<facebook::velox::RowVector>(
@@ -51,10 +69,12 @@ class RowVectorStream {
   }
 
  private:
-  bool finished_{false};
-  std::shared_ptr<ResultIterator> iterator_;
-  const facebook::velox::RowTypePtr outputType_;
+  facebook::velox::exec::DriverCtx* driverCtx_;
   facebook::velox::memory::MemoryPool* pool_;
+  const facebook::velox::RowTypePtr outputType_;
+  ResultIterator* iterator_;
+
+  bool finished_{false};
 };
 
 class ValueStreamNode final : public facebook::velox::core::PlanNode {
@@ -62,9 +82,9 @@ class ValueStreamNode final : public facebook::velox::core::PlanNode {
   ValueStreamNode(
       const facebook::velox::core::PlanNodeId& id,
       const facebook::velox::RowTypePtr& outputType,
-      std::unique_ptr<RowVectorStream> valueStream)
-      : facebook::velox::core::PlanNode(id), outputType_(outputType), valueStream_(std::move(valueStream)) {
-    VELOX_CHECK_NOT_NULL(valueStream_);
+      std::unique_ptr<ResultIterator> iterator)
+      : facebook::velox::core::PlanNode(id), outputType_(outputType), iterator_(std::move(iterator)) {
+    VELOX_CHECK_NOT_NULL(iterator_);
   }
 
   const facebook::velox::RowTypePtr& outputType() const override {
@@ -72,11 +92,11 @@ class ValueStreamNode final : public facebook::velox::core::PlanNode {
   }
 
   const std::vector<facebook::velox::core::PlanNodePtr>& sources() const override {
-    return kEmptySources;
+    return kEmptySources_;
   };
 
-  RowVectorStream* rowVectorStream() const {
-    return valueStream_.get();
+  ResultIterator* iterator() const {
+    return iterator_.get();
   }
 
   std::string_view name() const override {
@@ -91,8 +111,8 @@ class ValueStreamNode final : public facebook::velox::core::PlanNode {
   void addDetails(std::stringstream& stream) const override{};
 
   const facebook::velox::RowTypePtr outputType_;
-  std::unique_ptr<RowVectorStream> valueStream_;
-  const std::vector<facebook::velox::core::PlanNodePtr> kEmptySources;
+  std::unique_ptr<ResultIterator> iterator_;
+  const std::vector<facebook::velox::core::PlanNodePtr> kEmptySources_;
 };
 
 class ValueStream : public facebook::velox::exec::SourceOperator {
@@ -107,7 +127,7 @@ class ValueStream : public facebook::velox::exec::SourceOperator {
             operatorId,
             valueStreamNode->id(),
             valueStreamNode->name().data()) {
-    valueStream_ = valueStreamNode->rowVectorStream();
+    valueStream_ = std::make_unique<RowVectorStream>(driverCtx, pool(), valueStreamNode->iterator(), outputType_);
   }
 
   facebook::velox::RowVectorPtr getOutput() override {
@@ -132,7 +152,7 @@ class ValueStream : public facebook::velox::exec::SourceOperator {
 
  private:
   bool finished_ = false;
-  RowVectorStream* valueStream_;
+  std::unique_ptr<RowVectorStream> valueStream_;
 };
 
 class RowVectorStreamOperatorTranslator : public facebook::velox::exec::Operator::PlanNodeTranslator {
