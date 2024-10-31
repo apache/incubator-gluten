@@ -1805,6 +1805,29 @@ class GlutenClickHouseMergeTreeWriteSuite
           }
         }
       })
+
+    // GLUTEN-7670: fix enable 'files.per.partition.threshold'
+    withSQLConf(
+      CHConf.runtimeSettings("enabled_driver_filter_mergetree_index") -> "true",
+      CHConf.prefixOf("files.per.partition.threshold") -> "10"
+    ) {
+      runTPCHQueryBySQL(6, sqlStr) {
+        df =>
+          val scanExec = collect(df.queryExecution.executedPlan) {
+            case f: FileSourceScanExecTransformer => f
+          }
+          assertResult(1)(scanExec.size)
+
+          val mergetreeScan = scanExec.head
+          assert(mergetreeScan.nodeName.startsWith("Scan mergetree"))
+
+          val plans = collect(df.queryExecution.executedPlan) {
+            case scanExec: BasicScanExecTransformer => scanExec
+          }
+          assertResult(1)(plans.size)
+          assertResult(1)(plans.head.getSplitInfos(null).size)
+      }
+    }
   }
 
   test("test mergetree with primary keys filter pruning by driver with bucket") {
