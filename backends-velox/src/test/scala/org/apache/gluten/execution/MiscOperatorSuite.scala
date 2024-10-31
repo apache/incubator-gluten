@@ -84,27 +84,6 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
     checkLengthAndPlan(df, 1)
   }
 
-  test("select_as2") {
-    spark.sql("CREATE TEMPORARY VIEW t AS SELECT 1").show()
-    val df = spark.sql("SELECT COUNT(*) OVER (PARTITION BY 1 ORDER BY cast(1 as tinyint)) FROM t")
-    df.collect()
-    df.show()
-    df.explain()
-    Thread.sleep(3600000)
-  }
-
-  test("window2") {
-    spark.sql("set spark.sql.ansi.enabled = true").show()
-    val df = spark.sql(
-      "select max(l_partkey) over" +
-        " (partition by l_suppkey order by l_orderkey" +
-        " RANGE BETWEEN 6 PRECEDING AND CURRENT ROW) from lineitem ")
-    df.collect()
-    df.show()
-    df.explain()
-    Thread.sleep(3600000)
-  }
-
   test("where") {
     val df = runQueryAndCompare("select * from lineitem where l_shipdate < '1998-09-02'") { _ => }
     checkLengthAndPlan(df, 59288)
