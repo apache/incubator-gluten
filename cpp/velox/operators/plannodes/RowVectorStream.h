@@ -88,7 +88,7 @@ class ValueStreamNode final : public facebook::velox::core::PlanNode {
   ValueStreamNode(
       const facebook::velox::core::PlanNodeId& id,
       const facebook::velox::RowTypePtr& outputType,
-      std::unique_ptr<ResultIterator> iterator)
+      std::shared_ptr<ResultIterator> iterator)
       : facebook::velox::core::PlanNode(id), outputType_(outputType), iterator_(std::move(iterator)) {
     VELOX_CHECK_NOT_NULL(iterator_);
   }
@@ -117,7 +117,7 @@ class ValueStreamNode final : public facebook::velox::core::PlanNode {
   void addDetails(std::stringstream& stream) const override{};
 
   const facebook::velox::RowTypePtr outputType_;
-  std::unique_ptr<ResultIterator> iterator_;
+  std::shared_ptr<ResultIterator> iterator_;
   const std::vector<facebook::velox::core::PlanNodePtr> kEmptySources_;
 };
 
