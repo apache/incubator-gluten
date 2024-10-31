@@ -201,7 +201,8 @@ adjustReadRangeIfNeeded(std::unique_ptr<SeekableReadBuffer> read_buffer, const s
         start_end.second);
 
     /// If read buffer doesn't support right bounded reads, wrap it with BoundedReadBuffer to enable right bounded reads.
-    if (dynamic_cast<DB::ReadBufferFromHDFS *>(read_buffer.get()) || dynamic_cast<DB::ReadBufferFromFile *>(read_buffer.get()))
+    if (dynamic_cast<DB::ReadBufferFromHDFS *>(read_buffer.get()) || dynamic_cast<DB::AsynchronousReadBufferFromHDFS *>(read_buffer.get())
+        || dynamic_cast<DB::ReadBufferFromFile *>(read_buffer.get()))
         read_buffer = std::make_unique<DB::BoundedReadBuffer>(std::move(read_buffer));
 
     read_buffer->seek(start_end.first, SEEK_SET);
@@ -724,7 +725,8 @@ ReadBufferBuilder::wrapWithBzip2(std::unique_ptr<DB::ReadBuffer> in, const subst
         new_end);
 
     std::unique_ptr<SeekableReadBuffer> bounded_in;
-    if (dynamic_cast<DB::ReadBufferFromHDFS *>(seekable_in.get()) || dynamic_cast<DB::ReadBufferFromFile *>(seekable_in.get()))
+    if (dynamic_cast<DB::ReadBufferFromHDFS *>(seekable_in.get()) || dynamic_cast<DB::AsynchronousReadBufferFromHDFS *>(seekable_in.get())
+        || dynamic_cast<DB::ReadBufferFromFile *>(seekable_in.get()))
         bounded_in = std::make_unique<BoundedReadBuffer>(std::move(seekable_in));
     else
         bounded_in = std::move(seekable_in);
