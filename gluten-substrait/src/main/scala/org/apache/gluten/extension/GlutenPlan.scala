@@ -62,16 +62,16 @@ trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelU
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.
    */
   final def doValidate(): ValidationResult = {
-    val schemaVaidationResult = BackendsApiManager.getValidatorApiInstance
+    val schemaValidationResult = BackendsApiManager.getValidatorApiInstance
       .doSchemaValidate(schema)
       .map {
         reason =>
           ValidationResult.failed(s"Found schema check failure for $schema, due to: $reason")
       }
       .getOrElse(ValidationResult.succeeded)
-    if (!schemaVaidationResult.ok()) {
+    if (!schemaValidationResult.ok()) {
       TestStats.addFallBackClassName(this.getClass.toString)
-      return schemaVaidationResult
+      return schemaValidationResult
     }
     try {
       TransformerState.enterValidation
