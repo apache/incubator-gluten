@@ -45,7 +45,7 @@ class RowVectorStream {
       // possibility that this spill call hangs. See https://github.com/apache/incubator-gluten/issues/7243.
       // As of now, non-zero running threads usually happens when:
       // 1. Task A spills task B;
-      // 2. Task A trys to grow buffers created by task B, during which spill is requested on task A again;
+      // 2. Task A trys to grow buffers created by task B, during which spill is requested on task A again.
       facebook::velox::exec::SuspendedSection(driverCtx_->driver);
       hasNext = iterator_->hasNext();
     }
