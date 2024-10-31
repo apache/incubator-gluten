@@ -33,6 +33,7 @@ const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
 const std::string kFlushRowCount = "flushRowCount";
+const std::string kLoadedToValueHook = "loadedToValueHook";
 const std::string kTotalScanTime = "totalScanTime";
 const std::string kSkippedSplits = "skippedSplits";
 const std::string kProcessedSplits = "processedSplits";
@@ -389,6 +390,8 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kNumReplacedWithDynamicFilterRows)[metricIndex] =
           runtimeMetric("sum", second->customStats, kReplacedWithDynamicFilterRows);
       metrics_->get(Metrics::kFlushRowCount)[metricIndex] = runtimeMetric("sum", second->customStats, kFlushRowCount);
+      metrics_->get(Metrics::kLoadedToValueHook)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kLoadedToValueHook);
       metrics_->get(Metrics::kScanTime)[metricIndex] = runtimeMetric("sum", second->customStats, kTotalScanTime);
       metrics_->get(Metrics::kSkippedSplits)[metricIndex] = runtimeMetric("sum", second->customStats, kSkippedSplits);
       metrics_->get(Metrics::kProcessedSplits)[metricIndex] =
