@@ -19,14 +19,14 @@ To run TPC-H/TPC-DS benchmarks, use [tpc_workload.ipynb](./tpc_workload.ipynb). 
 The required parameters are specified in [params.yaml.template](./params.yaml.template). To use it, create your own YAML file by copying and modifying the template. The command to run the notebook is:
 
 ```bash
-papermill tpc_workload.ipynb -f params.yaml gluten_tpch.ipynb
+papermill tpc_workload.ipynb --inject-output-path -f params.yaml gluten_tpch.ipynb
 ```
 After execution, the output notebook will be saved as `gluten_tpch.ipynb`.
 
 If you want to use different parameters, you can specify them via the `-f` option. It will overwrite the previously defined parameters in `params.yaml`. e.g. To switch to the TPC-DS workload, run:
 
 ```bash
-papermill tpc_workload.ipynb -f params.yaml -p workoad tpcds gluten_tpcds.ipynb
+papermill tpc_workload.ipynb --inject-output-path -f params.yaml -p workoad tpcds gluten_tpcds.ipynb
 ```
 
 Please refer to the Papermill documentation for additional usage details.

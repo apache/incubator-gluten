@@ -2,7 +2,7 @@
 gluten_home: /home/sparkuser/gluten
 
 # Local path to gluten jar.
-gluten_target_jar: /home/sparkuser/gluten/package/target/gluten-velox-bundle-spark3.3_2.12-ubuntu_22.04_x86_64-1.2.0-SNAPSHOT.jar
+gluten_target_jar: /home/sparkuser/gluten-velox-bundle-spark3.3_2.12-centos_7_x86_64-1.3.0-SNAPSHOT.jar
 
 # Spark app master.
 master: yarn
@@ -20,12 +20,6 @@ disk_dev:
 nic_dev:
   - ens787f0
 
-# Set collect_emon=False if emon cannot be installed.
-collect_emon: True
-
-# Emon event file for `emon -i`. Supported emon events on platform can be verified via `emon -i emon.list`
-emon_list: /home/sparkuser/ipython/emon_emr.list
-
 # Hostname or IP to server for perf analysis. Able to connect via ssh.
 server: ''
 
@@ -35,8 +29,8 @@ base_dir: emr
 # Proxy used to connect to server for perf analysis.
 proxy: ''
 
-# Whether to upload perf files to server.
-upload_perf: True
+# Whether to upload profile to perf analysis server.
+upload_profile: True
 
 # Select workload. Can be either 'tpch' or 'tpcds'.
 workload: tpch
