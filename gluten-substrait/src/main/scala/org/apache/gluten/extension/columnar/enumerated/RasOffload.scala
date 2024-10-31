@@ -77,7 +77,15 @@ object RasOffload {
         // 0. If the node is already offloaded, fail fast.
         assert(typeIdentifier.isInstance(node))
 
-        // 1. Rewrite the node to form that native library supports.
+        // 1. Pre-validate the input node. Fast fail if no good.
+        validator.validate(node) match {
+          case Validator.Passed =>
+          case Validator.Failed(reason) =>
+            FallbackTags.add(node, reason)
+            return List.empty
+        }
+
+        // 2. Rewrite the node to form that native library supports.
         val rewritten = rewrites.foldLeft(node) {
           case (node, rewrite) =>
             node.transformUp {
@@ -87,17 +95,17 @@ object RasOffload {
             }
         }
 
-        // 2. Walk the rewritten tree.
+        // 3. Walk the rewritten tree.
         val offloaded = rewritten.transformUp {
           case from if typeIdentifier.isInstance(from) =>
-            // 3. Validate current node. If passed, offload it.
+            // 4. Validate current node. If passed, offload it.
             validator.validate(from) match {
               case Validator.Passed =>
                 val offloadedPlan = base.offload(from)
                 val offloadedNodes = offloadedPlan.collect[GlutenPlan] { case t: GlutenPlan => t }
                 val outComes = offloadedNodes.map(_.doValidate()).filter(!_.ok())
                 if (outComes.nonEmpty) {
-                  // 4. If native validation fails on the offloaded node, return the
+                  // 5. If native validation fails on the offloaded node, return the
                   // original one.
                   outComes.foreach(FallbackTags.add(from, _))
                   from
@@ -110,12 +118,12 @@ object RasOffload {
             }
         }
 
-        // 5. If rewritten plan is not offload-able, discard it.
+        // 6. If rewritten plan is not offload-able, discard it.
         if (offloaded.fastEquals(rewritten)) {
           return List.empty
         }
 
-        // 6. Otherwise, return the final tree.
+        // 7. Otherwise, return the final tree.
         List(offloaded)
       }
 
