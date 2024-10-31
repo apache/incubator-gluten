@@ -104,9 +104,9 @@ class GlutenExpressionMappingSuite
       sql("create table t2 (b decimal(10,4)) using parquet")
 
       val msg =
-        "CheckOverflowInTableInsert is used in ansi mode, but gluten does not support ANSI mode."
+        "CheckOverflowInTableInsert is used in ANSI mode, but Gluten does not support ANSI mode."
       import org.apache.spark.sql.execution.GlutenImplicits._
-      val fallbackSummary = sql("insert overwrite t2 select * from t1").fallbackSummary
+      val fallbackSummary = sql("insert overwrite t2 select * from t1").fallbackSummary()
       assert(fallbackSummary.fallbackNodeToReason.flatMap(_.values).exists(_.contains(msg)))
     }
   }

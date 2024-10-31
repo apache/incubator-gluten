@@ -17,7 +17,7 @@
 package org.apache.gluten.extension.columnar.enumerated
 
 import org.apache.gluten.extension.GlutenPlan
-import org.apache.gluten.extension.columnar.OffloadSingleNode
+import org.apache.gluten.extension.columnar.{FallbackTags, OffloadSingleNode}
 import org.apache.gluten.extension.columnar.rewrite.RewriteSingleNode
 import org.apache.gluten.extension.columnar.validator.Validator
 import org.apache.gluten.ras.path.Pattern
@@ -93,16 +93,19 @@ object RasOffload {
             // 3. Validate current node. If passed, offload it.
             validator.validate(from) match {
               case Validator.Passed =>
-                val offloaded = base.offload(from)
-                val offloadedNodes = offloaded.collect[GlutenPlan] { case t: GlutenPlan => t }
-                if (offloadedNodes.exists(!_.doValidate().ok())) {
+                val offloadedPlan = base.offload(from)
+                val offloadedNodes = offloadedPlan.collect[GlutenPlan] { case t: GlutenPlan => t }
+                val outComes = offloadedNodes.map(_.doValidate()).filter(!_.ok())
+                if (outComes.nonEmpty) {
                   // 4. If native validation fails on the offloaded node, return the
                   // original one.
+                  outComes.foreach(FallbackTags.add(from, _))
                   from
                 } else {
-                  offloaded
+                  offloadedPlan
                 }
               case Validator.Failed(reason) =>
+                FallbackTags.add(from, reason)
                 from
             }
         }
