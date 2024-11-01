@@ -89,9 +89,7 @@ class ValueStreamNode final : public facebook::velox::core::PlanNode {
       const facebook::velox::core::PlanNodeId& id,
       const facebook::velox::RowTypePtr& outputType,
       std::shared_ptr<ResultIterator> iterator)
-      : facebook::velox::core::PlanNode(id), outputType_(outputType), iterator_(std::move(iterator)) {
-    VELOX_CHECK_NOT_NULL(iterator_);
-  }
+      : facebook::velox::core::PlanNode(id), outputType_(outputType), iterator_(std::move(iterator)) {}
 
   const facebook::velox::RowTypePtr& outputType() const override {
     return outputType_;
@@ -133,15 +131,15 @@ class ValueStream : public facebook::velox::exec::SourceOperator {
             operatorId,
             valueStreamNode->id(),
             valueStreamNode->name().data()) {
-    valueStream_ = std::make_unique<RowVectorStream>(driverCtx, pool(), valueStreamNode->iterator(), outputType_);
+    rvStream_ = std::make_unique<RowVectorStream>(driverCtx, pool(), valueStreamNode->iterator(), outputType_);
   }
 
   facebook::velox::RowVectorPtr getOutput() override {
     if (finished_) {
       return nullptr;
     }
-    if (valueStream_->hasNext()) {
-      return valueStream_->next();
+    if (rvStream_->hasNext()) {
+      return rvStream_->next();
     } else {
       finished_ = true;
       return nullptr;
@@ -158,7 +156,7 @@ class ValueStream : public facebook::velox::exec::SourceOperator {
 
  private:
   bool finished_ = false;
-  std::unique_ptr<RowVectorStream> valueStream_;
+  std::unique_ptr<RowVectorStream> rvStream_;
 };
 
 class RowVectorStreamOperatorTranslator : public facebook::velox::exec::Operator::PlanNodeTranslator {
