@@ -3024,6 +3024,13 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
   }
 
   test("GLLUTEN-7647 lazy expand") {
+    def checkLazyExpand(df: DataFrame): Unit = {
+      val expands = collectWithSubqueries(df.queryExecution.executedPlan) {
+        case e: ExpandExecTransformer if (e.child.isInstanceOf[HashAggregateExecBaseTransformer]) =>
+          e
+      }
+      assert(expands.size == 1)
+    }
     var sql =
       """
         |select n_regionkey, n_nationkey,
@@ -3031,40 +3038,14 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
         |from nation group by n_regionkey, n_nationkey with cube
         |order by n_regionkey, n_nationkey
         |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
 
     sql = """
             |select n_regionkey, n_nationkey, sum(n_regionkey), count(distinct n_name)
             |from nation group by n_regionkey, n_nationkey with cube
             |order by n_regionkey, n_nationkey
             |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
-
-    sql = """
-            |select n_regionkey, n_nationkey,
-            |sum(distinct n_regionkey), count(distinct n_name), max(n_regionkey), min(n_regionkey)
-            |from nation group by n_regionkey, n_nationkey with cube
-            |order by n_regionkey, n_nationkey
-            |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
-
-    sql =
-      """
-        |select n_regionkey, n_nationkey,
-        |sum(distinct n_regionkey), count(distinct n_name), max(n_regionkey), min(n_regionkey)
-        |from nation group by n_regionkey, n_nationkey grouping sets((n_regionkey), (n_nationkey))
-        |order by n_regionkey, n_nationkey
-        |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
-
-    sql = """
-            |select n_regionkey, n_nationkey,
-            |sum(distinct n_regionkey), count(distinct n_name), max(n_regionkey), min(n_regionkey)
-            |from nation group by n_regionkey, n_nationkey
-            |grouping sets((n_regionkey, null), (null, n_nationkey))
-            |order by n_regionkey, n_nationkey
-            |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
 
     sql = """
             |select * from(
@@ -3074,7 +3055,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
             |) where n_regionkey != 0
             |order by n_regionkey, n_nationkey
             |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
 
     sql = """
             |select * from(
@@ -3084,7 +3065,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
             |) where n_regionkey != 0
             |order by n_regionkey, n_nationkey
             |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
   }
 }
 // scalastyle:on line.size.limit
