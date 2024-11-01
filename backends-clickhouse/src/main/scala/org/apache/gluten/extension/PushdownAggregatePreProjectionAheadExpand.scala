@@ -83,7 +83,7 @@ case class PushdownAggregatePreProjectionAheadExpand(session: SparkSession)
         val originInputAttributes = aheadProjectExprs.filter(e => isAttributeOrLiteral(e))
 
         val preProjectExprs = aheadProjectExprs.filter(e => !isAttributeOrLiteral(e))
-        if (preProjectExprs.length == 0) {
+        if (preProjectExprs.isEmpty) {
           return hashAggregate
         }
 
@@ -93,11 +93,33 @@ case class PushdownAggregatePreProjectionAheadExpand(session: SparkSession)
           return hashAggregate
         }
 
+        def projectInputExists(expr: Expression, inputs: Seq[Attribute]): Boolean = {
+          expr.children.foreach {
+            case a: Attribute =>
+              var exist = false
+              for (input <- inputs if input.name.equals(a.name) && input.exprId.equals(a.exprId)) {
+                exist = true
+              }
+              return exist
+            case p: Expression =>
+              return projectInputExists(p, inputs)
+            case _ =>
+              return true
+          }
+          true
+        }
+
+        preProjectExprs.foreach(
+          p => {
+            if (!projectInputExists(p, rootChild.output)) {
+              return hashAggregate
+            }
+          })
+
         // The new ahead project node will take rootChild's output and preProjectExprs as the
         // the projection expressions.
         val aheadProject = ProjectExecTransformer(rootChild.output ++ preProjectExprs, rootChild)
         val aheadProjectOuput = aheadProject.output
-
         val preProjectOutputAttrs = aheadProjectOuput.filter(
           e =>
             !originInputAttributes.exists(_.exprId.equals(e.asInstanceOf[NamedExpression].exprId)))
