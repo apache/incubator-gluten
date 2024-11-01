@@ -75,7 +75,7 @@ fi
 if [ "$ENABLE_GCS" = "ON" ]; then
   EXTRA_FEATURES+="--x-feature=velox-gcs "
 fi
-if [ "$ENABLE_HDFS" = "ON" ]; then
+if [ "$ENABLE_HDFS3" = "ON" ]; then
   EXTRA_FEATURES+="--x-feature=velox-hdfs "
 fi
 if [ "$ENABLE_ABFS" = "ON" ]; then

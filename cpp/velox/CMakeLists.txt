@@ -332,7 +332,6 @@ if(ENABLE_HDFS)
   add_definitions(-DENABLE_HDFS)
 endif()
 
-
 macro(find_libhdfs3)
   find_package(libhdfs3 CONFIG)
   if(libhdfs3_FOUND AND TARGET HDFS::hdfs3)
