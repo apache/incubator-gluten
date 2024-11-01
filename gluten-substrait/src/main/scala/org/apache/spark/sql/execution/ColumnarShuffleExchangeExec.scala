@@ -115,7 +115,7 @@ case class ColumnarShuffleExchangeExec(
 
   override protected def doValidateInternal(): ValidationResult = {
     BackendsApiManager.getValidatorApiInstance
-      .doColumnarShuffleExchangeExecValidate(outputPartitioning, child)
+      .doColumnarShuffleExchangeExecValidate(output, outputPartitioning, child)
       .map {
         reason =>
           ValidationResult.failed(
