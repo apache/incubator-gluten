@@ -81,7 +81,7 @@ object RasOffload {
         validator.validate(node) match {
           case Validator.Passed =>
           case Validator.Failed(reason) =>
-            FallbackTags.add(node, reason)
+            // TODO: Tag the original plan with fallback reason.
             return List.empty
         }
 
@@ -105,15 +105,18 @@ object RasOffload {
                 val offloadedNodes = offloadedPlan.collect[GlutenPlan] { case t: GlutenPlan => t }
                 val outComes = offloadedNodes.map(_.doValidate()).filter(!_.ok())
                 if (outComes.nonEmpty) {
-                  // 5. If native validation fails on the offloaded node, return the
-                  // original one.
-                  outComes.foreach(FallbackTags.add(from, _))
+                  // 4. If native validation fails on at least one of the offloaded nodes, return
+                  // the original one.
+                  //
+                  // TODO: Tag the original plan with fallback reason. This is a non-trivial work
+                  //  in RAS as the query plan we got here may be a copy so may not propagate tags
+                  //  to original plan.
                   from
                 } else {
                   offloadedPlan
                 }
               case Validator.Failed(reason) =>
-                FallbackTags.add(from, reason)
+                // TODO: Tag the original plan with fallback reason.
                 from
             }
         }
