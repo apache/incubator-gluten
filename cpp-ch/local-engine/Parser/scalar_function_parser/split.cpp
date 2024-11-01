@@ -19,11 +19,11 @@
 
 namespace local_engine
 {
-class SparkFunctionSplitParser : public FunctionParser
+class FunctionSplitParser : public FunctionParser
 {
 public:
-    SparkFunctionSplitParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
-    ~SparkFunctionSplitParser() override = default;
+    FunctionSplitParser(ParserContextPtr parser_context_) : FunctionParser(parser_context_) {}
+    ~FunctionSplitParser() override = default;
     static constexpr auto name = "split";
     String getName() const override { return name; }
     String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return "splitByRegexpSpark"; }
@@ -43,6 +43,6 @@ public:
         return convertNodeTypeIfNeeded(substrait_func, func_node, actions_dag);
     }
 };
-static FunctionParserRegister<SparkFunctionSplitParser> register_split;
+static FunctionParserRegister<FunctionSplitParser> register_split;
 }
 
