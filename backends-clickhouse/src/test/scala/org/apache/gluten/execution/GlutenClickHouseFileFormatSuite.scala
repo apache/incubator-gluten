@@ -1461,4 +1461,26 @@ class GlutenClickHouseFileFormatSuite
     spark.createDataFrame(data, schema).toDF().write.parquet(fileName)
     fileName
   }
+
+  /** TODO: fix the issue and test in spark 3.5 */
+  testSparkVersionLE33("write into hdfs") {
+
+    /**
+     * There is a bug in pipeline write to HDFS; when a pipeline returns column batch, it doesn't
+     * close the hdfs file, and hence the file is not flushed.HDFS file is closed when LocalExecutor
+     * is destroyed, but before that, the file moved by spark committer.
+     */
+    val tableName = "write_into_hdfs"
+    val tablePath = s"$HDFS_URL_ENDPOINT/$SPARK_DIR_NAME/$tableName/"
+    val format = "parquet"
+    val sql =
+      s"""
+         | select *
+         | from $format.`$tablePath`
+         | where long_field > 30
+         |""".stripMargin
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      testFileFormatBase(tablePath, format, sql, df => {})
+    }
+  }
 }
