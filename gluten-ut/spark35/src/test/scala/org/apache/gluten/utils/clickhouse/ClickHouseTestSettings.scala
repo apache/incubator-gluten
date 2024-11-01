@@ -740,8 +740,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-32110: compare special double/float values in struct")
   enableSuite[GlutenRandomSuite].exclude("random").exclude("SPARK-9127 codegen with long seed")
   enableSuite[GlutenRegexpExpressionsSuite]
-    .exclude("LIKE ALL")
-    .exclude("LIKE ANY")
     .exclude("LIKE Pattern")
     .exclude("LIKE Pattern ESCAPE '/'")
     .exclude("LIKE Pattern ESCAPE '#'")
@@ -750,8 +748,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("RegexReplace")
     .exclude("RegexExtract")
     .exclude("RegexExtractAll")
-    .exclude("SPLIT")
-    .exclude("SPARK - 34814: LikeSimplification should handleNULL")
   enableSuite[GlutenSortOrderExpressionsSuite].exclude("SortPrefix")
   enableSuite[GlutenStringExpressionsSuite]
     .exclude("StringComparison")

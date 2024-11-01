@@ -26,7 +26,7 @@ public:
     ~SparkFunctionSplitParser() override = default;
     static constexpr auto name = "split";
     String getName() const override { return name; }
-    String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return "splitByRegexp"; }
+    String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override { return "splitByRegexpSpark"; }
 
     const DB::ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, DB::ActionsDAG & actions_dag) const override
     {
@@ -35,7 +35,7 @@ public:
         for (const auto & arg : args)
             parsed_args.emplace_back(parseExpression(actions_dag, arg.value()));
         /// In Spark: split(str, regex [, limit] )
-        /// In CH: splitByRegexp(regexp, str [, limit])
+        /// In CH: splitByRegexpSpark(regexp, str [, limit])
         if (parsed_args.size() >= 2)
             std::swap(parsed_args[0], parsed_args[1]);
         auto ch_function_name = getCHFunctionName(substrait_func);
