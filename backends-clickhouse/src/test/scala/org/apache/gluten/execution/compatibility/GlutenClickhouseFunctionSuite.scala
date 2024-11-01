@@ -421,7 +421,7 @@ class GlutenClickhouseFunctionSuite extends GlutenClickHouseTPCHAbstractSuite {
       sql("insert into test_7755 values('aAbBcC')")
       compareResultsAgainstVanillaSpark(
         """
-          |select translate(id, 'abc', '12') from regexp_test
+          |select translate(id, 'abc', '12') from test_7755
         """.stripMargin,
         true,
         { _ => }
