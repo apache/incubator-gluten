@@ -1340,8 +1340,8 @@ JNIEXPORT void Java_org_apache_gluten_utils_TestExceptionUtils_generateNativeExc
 }
 
 
-JNIEXPORT jstring
-Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * env, jobject, jstring table_, jstring columns_)
+JNIEXPORT jstring Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(
+    JNIEnv * env, jobject, jstring table_, jstring columns_, jboolean only_meta_cache_)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto table_def = jstring2string(env, table_);
@@ -1351,7 +1351,7 @@ Java_org_apache_gluten_execution_CHNativeCacheManager_nativeCacheParts(JNIEnv * 
     for (const auto & col : tokenizer)
         column_set.insert(col);
     local_engine::MergeTreeTableInstance table(table_def);
-    auto id = local_engine::CacheManager::instance().cacheParts(table, column_set);
+    auto id = local_engine::CacheManager::instance().cacheParts(table, column_set, only_meta_cache_);
     return local_engine::charTojstring(env, id.c_str());
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr);
 }

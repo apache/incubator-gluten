@@ -22,6 +22,12 @@
 #include <Storages/MergeTree/SparkMergeTreeSink.h>
 #include <Storages/MergeTree/checkDataPart.h>
 
+namespace ProfileEvents
+{
+extern const Event LoadedDataParts;
+extern const Event LoadedDataPartsMicroseconds;
+}
+
 namespace DB
 {
 namespace MergeTreeSetting
@@ -176,6 +182,7 @@ void SparkStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string>
 
 std::vector<MergeTreeDataPartPtr> SparkStorageMergeTree::loadDataPartsWithNames(const std::unordered_set<std::string> & parts)
 {
+    Stopwatch watch;
     prefetchMetaDataFile(parts);
     std::vector<MergeTreeDataPartPtr> data_parts;
     const auto disk = getStoragePolicy()->getDisks().at(0);
@@ -187,6 +194,10 @@ std::vector<MergeTreeDataPartPtr> SparkStorageMergeTree::loadDataPartsWithNames(
         data_parts.emplace_back(res.part);
     }
 
+    watch.stop();
+    LOG_DEBUG(log, "Loaded data parts ({} items) took {} microseconds", parts.size(), watch.elapsedMicroseconds());
+    ProfileEvents::increment(ProfileEvents::LoadedDataParts, parts.size());
+    ProfileEvents::increment(ProfileEvents::LoadedDataPartsMicroseconds, watch.elapsedMicroseconds());
     return data_parts;
 }
 
