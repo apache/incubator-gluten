@@ -131,7 +131,9 @@ class ValueStream : public facebook::velox::exec::SourceOperator {
             operatorId,
             valueStreamNode->id(),
             valueStreamNode->name().data()) {
-    rvStream_ = std::make_unique<RowVectorStream>(driverCtx, pool(), valueStreamNode->iterator(), outputType_);
+    ResultIterator* itr = valueStreamNode->iterator();
+    VELOX_CHECK_NOT_NULL(itr);
+    rvStream_ = std::make_unique<RowVectorStream>(driverCtx, pool(), itr, outputType_);
   }
 
   facebook::velox::RowVectorPtr getOutput() override {
