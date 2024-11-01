@@ -3067,5 +3067,30 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
             |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
   }
+
+  test("GLUTEN-7759: Fix bug of agg pre-project push down") {
+    val table_create_sql =
+      "create table test_tbl_7759(id bigint, name string, day string) using parquet"
+    val insert_data_sql =
+      "insert into test_tbl_7759 values(1, 'a123', '2024-11-01'),(2, 'a124', '2024-11-01')"
+    val query_sql =
+      """
+        |select distinct day, name from(
+        |select '2024-11-01' as day
+        |,coalesce(name,'all') name
+        |,cnt
+        |from
+        |(
+        |select count(distinct id) as cnt, name
+        |from test_tbl_7759
+        |group by name
+        |with cube
+        |)) limit 10
+        |""".stripMargin
+    spark.sql(table_create_sql)
+    spark.sql(insert_data_sql)
+    compareResultsAgainstVanillaSpark(query_sql, true, { _ => })
+    spark.sql("drop table test_tbl_7759")
+  }
 }
 // scalastyle:on line.size.limit
