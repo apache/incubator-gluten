@@ -88,7 +88,10 @@ class RewriteSparkPlanRulesManager private (rewriteRules: Seq[RewriteSingleNode]
       }
       (rewrittenPlan, None)
     } catch {
-      case e: Exception => (origin, Option(e.getMessage))
+      case e: Exception =>
+        // TODO: Remove this catch block
+        //  See https://github.com/apache/incubator-gluten/issues/7766
+        (origin, Option(e.getMessage))
     }
   }
 

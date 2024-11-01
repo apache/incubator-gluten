@@ -25,6 +25,7 @@ import org.apache.gluten.ras.path.Pattern.node
 import org.apache.gluten.ras.rule.{RasRule, Shape}
 import org.apache.gluten.ras.rule.Shapes.pattern
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 
 import scala.reflect.{classTag, ClassTag}
@@ -70,7 +71,9 @@ object RasOffload {
       new RuleImpl(base, validator)
     }
 
-    private class RuleImpl(base: RasOffload, validator: Validator) extends RasRule[SparkPlan] {
+    private class RuleImpl(base: RasOffload, validator: Validator)
+      extends RasRule[SparkPlan]
+      with Logging {
       private val typeIdentifier: TypeIdentifier = base.typeIdentifier()
 
       final override def shift(node: SparkPlan): Iterable[SparkPlan] = {
@@ -86,14 +89,25 @@ object RasOffload {
         }
 
         // 2. Rewrite the node to form that native library supports.
-        val rewritten = rewrites.foldLeft(node) {
-          case (node, rewrite) =>
-            node.transformUp {
-              case p =>
-                val out = rewrite.rewrite(p)
-                out
+        val rewritten =
+          try {
+            rewrites.foldLeft(node) {
+              case (node, rewrite) =>
+                node.transformUp {
+                  case p =>
+                    val out = rewrite.rewrite(p)
+                    out
+                }
             }
-        }
+          } catch {
+            case e: Exception =>
+              // TODO: Remove this catch block
+              //  See https://github.com/apache/incubator-gluten/issues/7766
+              logWarning(
+                s"Exception thrown during rewriting the plan ${node.nodeName}. Skip offloading it",
+                e)
+              return List.empty
+          }
 
         // 3. Walk the rewritten tree.
         val offloaded = rewritten.transformUp {
