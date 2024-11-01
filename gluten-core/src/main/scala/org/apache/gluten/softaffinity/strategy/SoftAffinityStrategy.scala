@@ -26,7 +26,7 @@ class SoftAffinityStrategy extends SoftAffinityAllocationTrait with Logging {
   /** allocate target executors for file */
   override def allocateExecs(
       file: String,
-      candidates: ListBuffer[Option[(String, String)]]): Array[(String, String)] = {
+      candidates: ListBuffer[(String, String)]): Array[(String, String)] = {
     if (candidates.size < 1) {
       Array.empty
     } else {
@@ -37,15 +37,10 @@ class SoftAffinityStrategy extends SoftAffinityAllocationTrait with Logging {
       // TODO: try to use ConsistentHash
       val mod = file.hashCode % candidatesSize
       val c1 = if (mod < 0) (mod + candidatesSize) else mod
-      // check whether the executor with index c1 is down
-      if (candidates(c1).isDefined) {
-        resultSet.add(candidates(c1).get)
-      }
+      resultSet.add(candidates(c1))
       for (i <- 1 until softAffinityReplicationNum) {
         val c2 = (c1 + halfCandidatesSize + i) % candidatesSize
-        if (candidates(c2).isDefined) {
-          resultSet.add(candidates(c2).get)
-        }
+        resultSet.add(candidates(c2))
       }
       resultSet.toArray
     }
