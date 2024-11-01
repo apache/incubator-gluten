@@ -88,7 +88,8 @@ Task CacheManager::cachePart(
     job_context.table.parts.clear();
     job_context.table.parts.push_back(part);
     job_context.table.snapshot_id = "";
-    Task task = [job_detail = job_context, context = this->context, read_columns = columns, only_meta_cache]()
+    Task task = [job_detail = job_context, context = this->context, read_columns = columns, only_meta_cache,
+        prefetch_data = config.enable_data_prefetch]()
     {
         try
         {
@@ -106,6 +107,9 @@ Task CacheManager::cachePart(
                     job_detail.table.parts.front().name);
                 return;
             }
+            // prefetch data.bin
+            if (prefetch_data)
+                storage->prefetchPartDataFile({job_detail.table.parts.front().name});
 
             auto storage_snapshot = std::make_shared<StorageSnapshot>(*storage, storage->getInMemoryMetadataPtr());
             NamesAndTypesList names_and_types_list;

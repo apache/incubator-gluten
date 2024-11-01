@@ -159,25 +159,34 @@ SparkStorageMergeTree::SparkStorageMergeTree(
 
 std::atomic<int> SparkStorageMergeTree::part_num;
 
-void SparkStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string> parts) const
+void SparkStorageMergeTree::prefetchPartDataFile(std::unordered_set<std::string> parts) const
+{
+    prefetchPartFiles(parts, "data.bin");
+}
+
+void SparkStorageMergeTree::prefetchPartFiles(std::unordered_set<std::string> parts, String file_name) const
 {
     auto disk = getDisks().front();
     if (!disk->isRemote())
         return;
-    std::vector<String> meta_paths;
-    std::ranges::for_each(parts, [&](const String & name) { meta_paths.emplace_back(fs::path(relative_data_path) / name / "meta.bin"); });
+    std::vector<String> data_paths;
+    std::ranges::for_each(parts, [&](const String & name) { data_paths.emplace_back(fs::path(relative_data_path) / name / file_name); });
     auto read_settings = ReadSettings{};
-    // read_settings.enable_filesystem_cache = false;
     read_settings.remote_fs_method = RemoteFSReadMethod::read;
-    for (const auto & meta_path : meta_paths)
+    for (const auto & data_path : data_paths)
     {
-        if (!disk->existsDirectory(meta_path))
+        if (!disk->existsFile(data_path))
             continue;
-
-        auto in = disk->readFile(meta_path, read_settings);
+        LOG_DEBUG(log, "Prefetching part file {}", data_path);
+        auto in = disk->readFile(data_path, read_settings);
         String ignore_data;
         readStringUntilEOF(ignore_data, *in);
     }
+}
+
+void SparkStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string> parts) const
+{
+    prefetchPartFiles(parts, "meta.bin");
 }
 
 std::vector<MergeTreeDataPartPtr> SparkStorageMergeTree::loadDataPartsWithNames(const std::unordered_set<std::string> & parts)

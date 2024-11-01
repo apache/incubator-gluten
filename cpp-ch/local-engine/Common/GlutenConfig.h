@@ -142,4 +142,13 @@ struct GlutenJobSchedulerConfig
 
     static GlutenJobSchedulerConfig loadFromContext(const DB::ContextPtr & context);
 };
+
+struct MergeTreeCacheConfig
+{
+    inline static const String ENABLE_DATA_PREFETCH = "enable_data_prefetch";
+
+    bool enable_data_prefetch = true;
+
+    static MergeTreeCacheConfig loadFromContext(const DB::ContextPtr & context);
+};
 }
