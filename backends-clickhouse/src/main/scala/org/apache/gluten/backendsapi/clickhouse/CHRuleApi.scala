@@ -30,6 +30,7 @@ import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRewrite}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.DeltaLogFileIndex
+import org.apache.spark.sql.delta.rules.CHOptimizeMetadataOnlyDeltaQuery
 import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, CommandResultExec, FileSourceScanExec, GlutenFallbackReporter, RDDScanExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
@@ -59,6 +60,7 @@ private object CHRuleApi {
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))
     injector.injectOptimizerRule(_ => CountDistinctWithoutExpand)
     injector.injectOptimizerRule(_ => EqualToRewrite)
+    injector.injectPreCBORule(spark => new CHOptimizeMetadataOnlyDeltaQuery(spark))
   }
 
   def injectLegacy(injector: LegacyInjector): Unit = {

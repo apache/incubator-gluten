@@ -44,7 +44,7 @@ import org.apache.spark.util.{Clock, SerializableConfiguration, SystemClock}
 /**
  * Gluten overwrite Delta:
  *
- * This file is copied from Delta 3.2.0. It is modified to overcome the following issues:
+ * This file is copied from Delta 3.2.1. It is modified to overcome the following issues:
  *   1. In Gluten, part is a directory, but VacuumCommand assumes part is a file. So we need some
  *      modifications to make it work.
  *   2. Set the 'gluten.enabledForCurrentThread' to false, now gluten can not support vacuum cmd.
@@ -255,7 +255,8 @@ object VacuumCommand extends VacuumCommandImpl with Serializable {
       val originalEnabledGluten =
         spark.sparkContext.getLocalProperty(GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY)
       // gluten can not support vacuum command
-      spark.sparkContext.setLocalProperty(GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY, "false")
+      spark.sparkContext
+        .setLocalProperty(GlutenSessionExtensions.GLUTEN_ENABLE_FOR_THREAD_KEY, "false")
       // --- modified end
 
       val validFiles =

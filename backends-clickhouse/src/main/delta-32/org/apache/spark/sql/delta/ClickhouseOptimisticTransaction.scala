@@ -196,8 +196,9 @@ class ClickhouseOptimisticTransaction(
       isOptimize: Boolean,
       additionalConstraints: Seq[Constraint]): Seq[FileAction] = {
 
-    if (isOptimize)
+    if (isOptimize) {
       throw new UnsupportedOperationException("Optimize is not supported for ClickHouse")
+    }
 
     hasWritten = true
 
@@ -258,7 +259,7 @@ class ClickhouseOptimisticTransaction(
           DeltaOptimizedWriterExec(checkInvariants, metadata.partitionColumns, deltaLog)
         } else {
           checkInvariants
-        }*/
+        } */
       val statsTrackers: ListBuffer[WriteJobStatsTracker] = ListBuffer()
 
       if (spark.conf.get(DeltaSQLConf.DELTA_HISTORY_METRICS_ENABLED)) {
@@ -304,10 +305,11 @@ class ClickhouseOptimisticTransaction(
          committer.addedStatuses
        })
         .filter {
-          // In some cases, we can write out an empty `inputData`. Some examples of this (though, they
-          // may be fixed in the future) are the MERGE command when you delete with empty source, or
-          // empty target, or on disjoint tables. This is hard to catch before the write without
-          // collecting the DF ahead of time. Instead, we can return only the AddFiles that
+          // In some cases, we can write out an empty `inputData`. Some examples of this (though,
+          // they may be fixed in the future) are the MERGE command when you delete with empty
+          // source, or empty target, or on disjoint tables. This is hard to catch before
+          // the write without collecting the DF ahead of time. Instead,
+          // we can return only the AddFiles that
           // a) actually add rows, or
           // b) don't have any stats so we don't know the number of rows at all
           case a: AddFile => a.numLogicalRecords.forall(_ > 0)
