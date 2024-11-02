@@ -30,7 +30,5 @@ trait SoftAffinityAllocationTrait {
   )
 
   /** allocate target executors for file */
-  def allocateExecs(
-      file: String,
-      candidates: ListBuffer[Option[(String, String)]]): Array[(String, String)]
+  def allocateExecs(file: String, candidates: ListBuffer[(String, String)]): Array[(String, String)]
 }
