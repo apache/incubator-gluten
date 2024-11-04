@@ -726,37 +726,25 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     // ISOControl characters, refer java.lang.Character.isISOControl(int)
     val isoControlControlStr = (('\u0000' to '\u001F') ++ ('\u007F' to '\u009F')).toList.mkString
     // scalastyle:on nonascii
-    c.dataType match {
-      case BinaryType | _: ArrayType | _: MapType | _: StructType | _: UserDefinedType[_] =>
-        c
-      case FloatType | DoubleType | _: DecimalType =>
-        c.child.dataType match {
-          case StringType if GlutenConfig.getConf.castFromVarcharAddTrimNode =>
-            val trimNode = StringTrim(c.child, Some(Literal(trimSpaceStr)))
-            c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
-          case _ =>
-            c
+    if (GlutenConfig.getConf.castFromVarcharAddTrimNode && c.child.dataType == StringType) {
+      val trimStr = c.dataType match {
+        case BinaryType | _: ArrayType | _: MapType | _: StructType | _: UserDefinedType[_] =>
+          None
+        case FloatType | DoubleType | _: DecimalType =>
+          Some(trimSpaceStr)
+        case ByteType | ShortType | IntegerType | LongType =>
+          Some((trimWhitespaceStr + isoControlControlStr).toSet.mkString)
+        case _ =>
+          Some(trimWhitespaceStr + trimSpaceSepStr + trimLineSepStr + trimParaSepStr)
+      }
+      trimStr
+        .map {
+          trim =>
+            c.withNewChildren(Seq(StringTrim(c.child, Some(Literal(trim))))).asInstanceOf[Cast]
         }
-      case ByteType | ShortType | IntegerType | LongType =>
-        c.child.dataType match {
-          case StringType if GlutenConfig.getConf.castFromVarcharAddTrimNode =>
-            val trimNode = StringTrim(c.child, Some(Literal(trimWhitespaceStr + isoControlControlStr)))
-            c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
-          case _ =>
-            c
-        }
-      case _ =>
-        c.child.dataType match {
-          case StringType if GlutenConfig.getConf.castFromVarcharAddTrimNode =>
-            val trimNode = StringTrim(
-              c.child,
-              Some(
-                Literal(trimWhitespaceStr +
-                  trimSpaceSepStr + trimLineSepStr + trimParaSepStr)))
-            c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
-          case _ =>
-            c
-        }
+        .getOrElse(c)
+    } else {
+      c
     }
   }
 
