@@ -29,8 +29,8 @@ base_dir: emr
 # Proxy used to connect to server for perf analysis.
 proxy: ''
 
-# Whether to upload profile to perf analysis server.
-upload_profile: True
+# Whether to upload profile to perf analysis server and run perf analysis scripts. Only takes effect if server is set.
+analyze_perf: True
 
 # Select workload. Can be either 'tpch' or 'tpcds'.
 workload: tpch
