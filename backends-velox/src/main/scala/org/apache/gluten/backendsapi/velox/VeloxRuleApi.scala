@@ -80,11 +80,11 @@ private object VeloxRuleApi {
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => each(c.session)))
-    injector.injectPost(c => ColumnarCollapseTransformStages(c.conf))
+    injector.injectPost(c => ColumnarCollapseTransformStages(c.glutenConf))
 
     // Gluten columnar: Final rules.
     injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
-    injector.injectFinal(c => GlutenFallbackReporter(c.conf, c.session))
+    injector.injectFinal(c => GlutenFallbackReporter(c.glutenConf, c.session))
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 
@@ -116,9 +116,9 @@ private object VeloxRuleApi {
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.inject(c => each(c.session)))
-    injector.inject(c => ColumnarCollapseTransformStages(c.conf))
+    injector.inject(c => ColumnarCollapseTransformStages(c.glutenConf))
     injector.inject(c => RemoveGlutenTableCacheColumnarToRow(c.session))
-    injector.inject(c => GlutenFallbackReporter(c.conf, c.session))
+    injector.inject(c => GlutenFallbackReporter(c.glutenConf, c.session))
     injector.inject(_ => RemoveFallbackTagRule())
   }
 }

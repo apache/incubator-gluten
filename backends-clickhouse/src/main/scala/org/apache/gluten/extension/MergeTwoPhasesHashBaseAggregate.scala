@@ -38,9 +38,9 @@ case class MergeTwoPhasesHashBaseAggregate(session: SparkSession)
   extends Rule[SparkPlan]
   with Logging {
 
-  val columnarConf: GlutenConfig = GlutenConfig.getConf
-  val scanOnly: Boolean = columnarConf.enableScanOnly
-  val enableColumnarHashAgg: Boolean = !scanOnly && columnarConf.enableColumnarHashAgg
+  val glutenConf: GlutenConfig = GlutenConfig.getConf
+  val scanOnly: Boolean = glutenConf.enableScanOnly
+  val enableColumnarHashAgg: Boolean = !scanOnly && glutenConf.enableColumnarHashAgg
   val replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
 
   private def isPartialAgg(partialAgg: BaseAggregateExec, finalAgg: BaseAggregateExec): Boolean = {

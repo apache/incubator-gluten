@@ -38,7 +38,7 @@ import scala.util.control.Breaks.{break, breakable}
 // queryStagePrepRules.
 case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
-    val columnarConf: GlutenConfig = GlutenConfig.getConf
+    val glutenConf: GlutenConfig = GlutenConfig.getConf
     plan.foreach {
       case bhj: BroadcastHashJoinExec =>
         val buildSidePlan = bhj.buildSide match {
@@ -53,8 +53,8 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
           case Some(exchange @ BroadcastExchangeExec(mode, child)) =>
             val isTransformable =
               if (
-                !columnarConf.enableColumnarBroadcastExchange ||
-                !columnarConf.enableColumnarBroadcastJoin
+                !glutenConf.enableColumnarBroadcastExchange ||
+                !glutenConf.enableColumnarBroadcastJoin
               ) {
                 ValidationResult.failed(
                   "columnar broadcast exchange is disabled or " +
