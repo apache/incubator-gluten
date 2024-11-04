@@ -83,7 +83,7 @@ case class PushdownAggregatePreProjectionAheadExpand(session: SparkSession)
         val originInputAttributes = aheadProjectExprs.filter(e => isAttributeOrLiteral(e))
 
         val preProjectExprs = aheadProjectExprs.filter(e => !isAttributeOrLiteral(e))
-        if (preProjectExprs.isEmpty) {
+        if (preProjectExprs.isEmpty || originInputAttributes.nonEmpty) {
           return hashAggregate
         }
 
