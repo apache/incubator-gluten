@@ -723,6 +723,8 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     val trimParaSepStr = "\u2029"
     // Needs to be trimmed for casting to float/double/decimal
     val trimSpaceStr = ('\u0000' to '\u0020').toList.mkString
+    // ISOControl characters, refer java.lang.Character.isISOControl(int)
+    val isoControlControlStr = (('\u0000' to '\u001F') ++ ('\u007F' to '\u009F')).toList.mkString
     // scalastyle:on nonascii
     c.dataType match {
       case BinaryType | _: ArrayType | _: MapType | _: StructType | _: UserDefinedType[_] =>
@@ -731,6 +733,14 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         c.child.dataType match {
           case StringType if GlutenConfig.getConf.castFromVarcharAddTrimNode =>
             val trimNode = StringTrim(c.child, Some(Literal(trimSpaceStr)))
+            c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
+          case _ =>
+            c
+        }
+      case ByteType | ShortType | IntegerType | LongType =>
+        c.child.dataType match {
+          case StringType =>
+            val trimNode = StringTrim(c.child, Some(Literal(trimWhitespaceStr + isoControlControlStr)))
             c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
           case _ =>
             c

@@ -329,12 +329,12 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
     }
 
     // scalastyle:off nonascii
-    Seq(" 123", "123 ", " 123 ", "\u2000123\n\n\n", "123\r\r\r", "123\f\f\f", "123\u000C")
+    Seq(" 123", "123 ", " 123 ", "\u2000123\n\n\n", "123\r\r\r", "123\f\f\f", "123\u000C", "123\u0000")
       .toDF("col1")
       .createOrReplaceTempView("t1")
     // scalastyle:on nonascii
     val expectedIntResult = Row(123) :: Row(123) ::
-      Row(123) :: Row(123) :: Row(123) :: Row(123) :: Row(123) :: Nil
+      Row(123) :: Row(123) :: Row(123) :: Row(123) :: Row(123) :: Row(123) :: Nil
     var df = spark.sql("select cast(col1 as int) from t1")
     checkResult(df, expectedIntResult)
     df = spark.sql("select cast(col1 as long) from t1")
