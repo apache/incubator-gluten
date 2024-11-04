@@ -563,5 +563,12 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
     spark.sql("drop table t1")
   }
+
+  test("GLUTEN-7780 fix split diff") {
+    val sql = "select split(concat('a|b|c', cast(id as string)), '\\|')" +
+      ", split(concat('a|b|c', cast(id as string)), '\\\\|')" +
+      ", split(concat('a|b|c', cast(id as string)), '|') from range(10)"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 }
 // scalastyle:off line.size.limit
