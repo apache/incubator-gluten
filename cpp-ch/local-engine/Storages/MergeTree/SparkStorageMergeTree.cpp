@@ -16,6 +16,7 @@
  */
 #include "SparkStorageMergeTree.h"
 
+#include <Disks/ObjectStorages/CompactObjectStorageDiskTransaction.h>
 #include <Interpreters/MergeTreeTransaction.h>
 #include <Storages/MergeTree/DataPartStorageOnDiskFull.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
@@ -159,12 +160,12 @@ SparkStorageMergeTree::SparkStorageMergeTree(
 
 std::atomic<int> SparkStorageMergeTree::part_num;
 
-void SparkStorageMergeTree::prefetchPartDataFile(std::unordered_set<std::string> parts) const
+void SparkStorageMergeTree::prefetchPartDataFile(const std::unordered_set<std::string>& parts) const
 {
-    prefetchPartFiles(parts, "data.bin");
+    prefetchPartFiles(parts, CompactObjectStorageDiskTransaction::PART_DATA_FILE_NAME);
 }
 
-void SparkStorageMergeTree::prefetchPartFiles(std::unordered_set<std::string> parts, String file_name) const
+void SparkStorageMergeTree::prefetchPartFiles(const std::unordered_set<std::string>& parts, String file_name) const
 {
     auto disk = getDisks().front();
     if (!disk->isRemote())
@@ -184,9 +185,9 @@ void SparkStorageMergeTree::prefetchPartFiles(std::unordered_set<std::string> pa
     }
 }
 
-void SparkStorageMergeTree::prefetchMetaDataFile(std::unordered_set<std::string> parts) const
+void SparkStorageMergeTree::prefetchMetaDataFile(const std::unordered_set<std::string>& parts) const
 {
-    prefetchPartFiles(parts, "meta.bin");
+    prefetchPartFiles(parts, CompactObjectStorageDiskTransaction::PART_META_FILE_NAME);
 }
 
 std::vector<MergeTreeDataPartPtr> SparkStorageMergeTree::loadDataPartsWithNames(const std::unordered_set<std::string> & parts)

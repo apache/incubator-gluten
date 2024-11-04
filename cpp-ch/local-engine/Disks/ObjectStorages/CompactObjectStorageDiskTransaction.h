@@ -34,6 +34,9 @@ namespace local_engine
 
 class CompactObjectStorageDiskTransaction: public DB::IDiskTransaction {
     public:
+    static inline const String PART_DATA_FILE_NAME = "part_data.gluten";
+    static inline const String PART_META_FILE_NAME = "part_meta.gluten";
+
     explicit CompactObjectStorageDiskTransaction(DB::IDisk & disk_, const DB::DiskPtr tmp_)
         : disk(disk_), tmp_data(tmp_)
     {
