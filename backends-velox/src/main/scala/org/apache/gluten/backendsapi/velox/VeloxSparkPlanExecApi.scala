@@ -739,7 +739,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         }
       case ByteType | ShortType | IntegerType | LongType =>
         c.child.dataType match {
-          case StringType =>
+          case StringType if GlutenConfig.getConf.castFromVarcharAddTrimNode =>
             val trimNode = StringTrim(c.child, Some(Literal(trimWhitespaceStr + isoControlControlStr)))
             c.withNewChildren(Seq(trimNode)).asInstanceOf[Cast]
           case _ =>
