@@ -542,6 +542,37 @@ class GlutenClickHouseHiveTableSuite
     )
   }
 
+  test("GLUTEN-7700: test hive table with partition values contain space") {
+    val tbl = "test_7700"
+    val create_table_sql =
+      s"""
+         |create table if not exists $tbl (
+         |  id int
+         |) partitioned by (itime string)
+         |stored as orc;
+         |""".stripMargin
+    val insert_sql =
+      s"""
+         |insert overwrite table $tbl partition (itime = '2024-10-24 10:02:04')
+         |select id from range(3)
+         |""".stripMargin
+    val select_sql =
+      s"""
+         |select * from $tbl
+         |""".stripMargin
+    val drop_sql = s"drop table if exists $tbl"
+
+    spark.sql(create_table_sql)
+    spark.sql(insert_sql)
+
+    compareResultsAgainstVanillaSpark(
+      select_sql,
+      compareResult = true,
+      df => assert(df.count() == 3)
+    )
+    spark.sql(drop_sql)
+  }
+
   test("test hive compressed txt table") {
     withSQLConf(SQLConf.FILES_MAX_PARTITION_BYTES.key -> "11") {
       Seq("DefaultCodec", "BZip2Codec").foreach {
