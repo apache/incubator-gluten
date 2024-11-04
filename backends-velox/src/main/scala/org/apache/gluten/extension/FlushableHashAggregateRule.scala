@@ -31,10 +31,13 @@ import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
  * To transform regular aggregation to intermediate aggregation that internally enables
  * optimizations such as flushing and abandoning.
  */
-case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkPlan] {
+case class FlushableHashAggregateRule(spark: SparkSession) extends Rule[SparkPlan] {
   import FlushableHashAggregateRule._
+
+  private val glutenConf = new GlutenConfig(spark)
+
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!GlutenConfig.getConf.enableVeloxFlushablePartialAggregation) {
+    if (!glutenConf.enableVeloxFlushablePartialAggregation) {
       return plan
     }
     plan.transformUpWithPruning(_.containsPattern(EXCHANGE)) {

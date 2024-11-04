@@ -34,14 +34,11 @@ import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, HashAggregat
  * Note: this rule must be applied before the `PullOutPreProject` rule, because the
  * `PullOutPreProject` rule will modify the attributes in some cases.
  */
-case class MergeTwoPhasesHashBaseAggregate(session: SparkSession)
+case class MergeTwoPhasesHashBaseAggregate(spark: SparkSession)
   extends Rule[SparkPlan]
   with Logging {
 
-  val glutenConf: GlutenConfig = GlutenConfig.getConf
-  val scanOnly: Boolean = glutenConf.enableScanOnly
-  val enableColumnarHashAgg: Boolean = !scanOnly && glutenConf.enableColumnarHashAgg
-  val replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
+  private val glutenConf: GlutenConfig = new GlutenConfig(spark)
 
   private def isPartialAgg(partialAgg: BaseAggregateExec, finalAgg: BaseAggregateExec): Boolean = {
     // TODO: now it can not support to merge agg which there are the filters in the aggregate exprs.
@@ -59,7 +56,7 @@ case class MergeTwoPhasesHashBaseAggregate(session: SparkSession)
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (!enableColumnarHashAgg) {
+    if (glutenConf.enableScanOnly || !glutenConf.enableColumnarHashAgg) {
       plan
     } else {
       plan.transformDown {
@@ -111,7 +108,7 @@ case class MergeTwoPhasesHashBaseAggregate(session: SparkSession)
               _,
               resultExpressions,
               child: SortAggregateExec)
-            if replaceSortAggWithHashAgg && !isStreaming && isPartialAgg(child, sortAgg) =>
+            if glutenConf.forceToUseHashAgg && !isStreaming && isPartialAgg(child, sortAgg) =>
           // convert to complete mode aggregate expressions
           val completeAggregateExpressions = aggregateExpressions.map(_.copy(mode = Complete))
           sortAgg.copy(

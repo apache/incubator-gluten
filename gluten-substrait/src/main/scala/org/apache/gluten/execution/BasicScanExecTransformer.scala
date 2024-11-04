@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.expression.{ConverterUtils, ExpressionConverter}
 import org.apache.gluten.extension.ValidationResult
@@ -52,7 +51,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   val fileFormat: ReadFileFormat
 
   def getRootFilePaths: Seq[String] = {
-    if (GlutenConfig.getConf.scanFileSchemeValidationEnabled) {
+    if (glutenConf.scanFileSchemeValidationEnabled) {
       getRootPathsInternal
     } else {
       Seq.empty

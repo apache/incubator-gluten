@@ -52,12 +52,11 @@ case class GlutenFallbackReporter(glutenConf: GlutenConfig, spark: SparkSession)
   }
 
   private def printFallbackReason(plan: SparkPlan): Unit = {
-    val validationLogLevel = glutenConf.validationLogLevel
     plan.foreachUp {
       case _: GlutenPlan => // ignore
       case p: SparkPlan if FallbackTags.nonEmpty(p) =>
         val tag = FallbackTags.get(p)
-        logFallbackReason(validationLogLevel, p.nodeName, tag.reason())
+        logFallbackReason(glutenConf.validationLogLevel, p.nodeName, tag.reason())
         // With in next round stage in AQE, the physical plan would be a new instance that
         // can not preserve the tag, so we need to set the fallback reason to logical plan.
         // Then we can be aware of the fallback reason for the whole plan.

@@ -68,29 +68,29 @@ private object CHRuleApi {
     // Gluten columnar: Transform rules.
     injector.injectTransform(_ => RemoveTransitions)
     injector.injectTransform(_ => PushDownInputFileExpression.PreOffload)
-    injector.injectTransform(c => FallbackOnANSIMode.apply(c.session))
-    injector.injectTransform(c => FallbackMultiCodegens.apply(c.session))
+    injector.injectTransform(c => FallbackOnANSIMode.apply(c.spark))
+    injector.injectTransform(c => FallbackMultiCodegens.apply(c.spark))
     injector.injectTransform(_ => RewriteSubqueryBroadcast())
-    injector.injectTransform(c => FallbackBroadcastHashJoin.apply(c.session))
-    injector.injectTransform(c => MergeTwoPhasesHashBaseAggregate.apply(c.session))
+    injector.injectTransform(c => FallbackBroadcastHashJoin.apply(c.spark))
+    injector.injectTransform(c => MergeTwoPhasesHashBaseAggregate.apply(c.spark))
     injector.injectTransform(_ => intercept(RewriteSparkPlanRulesManager()))
     injector.injectTransform(_ => intercept(AddFallbackTagRule()))
     injector.injectTransform(_ => intercept(TransformPreOverrides()))
     injector.injectTransform(_ => RemoveNativeWriteFilesSortAndProject())
-    injector.injectTransform(c => intercept(RewriteTransformer.apply(c.session)))
+    injector.injectTransform(c => intercept(RewriteTransformer.apply(c.spark)))
     injector.injectTransform(_ => PushDownFilterToScan)
     injector.injectTransform(_ => PushDownInputFileExpression.PostOffload)
     injector.injectTransform(_ => EnsureLocalSortRequirements)
     injector.injectTransform(_ => EliminateLocalSort)
     injector.injectTransform(_ => CollapseProjectExecTransformer)
-    injector.injectTransform(c => RewriteSortMergeJoinToHashJoinRule.apply(c.session))
-    injector.injectTransform(c => PushdownAggregatePreProjectionAheadExpand.apply(c.session))
-    injector.injectTransform(c => LazyAggregateExpandRule.apply(c.session))
+    injector.injectTransform(c => RewriteSortMergeJoinToHashJoinRule.apply(c.spark))
+    injector.injectTransform(c => PushdownAggregatePreProjectionAheadExpand.apply(c.spark))
+    injector.injectTransform(c => LazyAggregateExpandRule.apply(c.spark))
     injector.injectTransform(
       c =>
         intercept(
           SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarTransformRules)(
-            c.session)))
+            c.spark)))
     injector.injectTransform(c => InsertTransitions(c.outputsColumnar))
 
     // Gluten columnar: Fallback policies.
@@ -98,19 +98,19 @@ private object CHRuleApi {
       c => ExpandFallbackPolicy(c.ac.isAdaptiveContext(), c.ac.originalPlan()))
 
     // Gluten columnar: Post rules.
-    injector.injectPost(c => RemoveTopmostColumnarToRow(c.session, c.ac.isAdaptiveContext()))
+    injector.injectPost(c => RemoveTopmostColumnarToRow(c.spark, c.ac.isAdaptiveContext()))
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
-      .foreach(each => injector.injectPost(c => intercept(each(c.session))))
+      .foreach(each => injector.injectPost(c => intercept(each(c.spark))))
     injector.injectPost(c => ColumnarCollapseTransformStages(c.glutenConf))
     injector.injectTransform(
       c =>
         intercept(
-          SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarPostRules)(c.session)))
+          SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarPostRules)(c.spark)))
 
     // Gluten columnar: Final rules.
-    injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
-    injector.injectFinal(c => GlutenFallbackReporter(c.glutenConf, c.session))
+    injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.spark))
+    injector.injectFinal(c => GlutenFallbackReporter(c.glutenConf, c.spark))
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 

@@ -28,11 +28,9 @@ trait ColumnarRuleApplier {
 
 object ColumnarRuleApplier {
   class ColumnarRuleCall(
-      val session: SparkSession,
+      val spark: SparkSession,
       val ac: AdaptiveContext,
       val outputsColumnar: Boolean) {
-    val glutenConf: GlutenConfig = {
-      new GlutenConfig(session.sessionState.conf)
-    }
+    val glutenConf: GlutenConfig = new GlutenConfig(spark)
   }
 }

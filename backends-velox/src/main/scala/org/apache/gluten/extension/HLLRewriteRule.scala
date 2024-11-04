@@ -28,13 +28,16 @@ import org.apache.spark.sql.catalyst.trees.TreePattern.{AGGREGATE, AGGREGATE_EXP
 import org.apache.spark.sql.types._
 
 case class HLLRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
+
+  private val glutenConf = new GlutenConfig(spark)
+
   override def apply(plan: LogicalPlan): LogicalPlan = {
     plan.transformUpWithPruning(_.containsPattern(AGGREGATE)) {
       case a: Aggregate =>
         a.transformExpressionsWithPruning(_.containsPattern(AGGREGATE_EXPRESSION)) {
           case aggExpr @ AggregateExpression(hll: HyperLogLogPlusPlus, _, _, _, _)
-              if GlutenConfig.getConf.enableNativeHyperLogLogAggregateFunction &&
-                GlutenConfig.getConf.enableColumnarHashAgg &&
+              if glutenConf.enableNativeHyperLogLogAggregateFunction &&
+                glutenConf.enableColumnarHashAgg &&
                 isSupportedDataType(hll.child.dataType) =>
             val hllAdapter = HLLAdapter(
               hll.child,

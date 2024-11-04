@@ -34,13 +34,15 @@ import scala.collection.mutable
 //    --conf spark.sql.planChangeLog.batches=all
 class CommonSubexpressionEliminateRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
+  private val glutenConf = new GlutenConfig(spark)
+
   private var lastPlan: LogicalPlan = null
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
     val newPlan =
       if (
-        plan.resolved && GlutenConfig.getConf.enableGluten
-        && GlutenConfig.getConf.enableCommonSubexpressionEliminate && !plan.fastEquals(lastPlan)
+        plan.resolved && glutenConf.enableGluten
+        && glutenConf.enableCommonSubexpressionEliminate && !plan.fastEquals(lastPlan)
       ) {
         lastPlan = plan
         visitPlan(plan)

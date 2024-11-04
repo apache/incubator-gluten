@@ -54,9 +54,8 @@ object ValidationResult {
 
 /** Every Gluten Operator should extend this trait. */
 trait GlutenPlan extends SparkPlan with Convention.KnownBatchType with LogLevelUtil {
-  protected lazy val enableNativeValidation = glutenConf.enableNativeValidation
 
-  protected def glutenConf: GlutenConfig = GlutenConfig.getConf
+  protected def glutenConf: GlutenConfig = new GlutenConfig(session)
 
   /**
    * Validate whether this SparkPlan supports to be transformed into substrait node in Native Code.

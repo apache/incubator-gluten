@@ -31,12 +31,15 @@ import org.apache.spark.sql.types._
  * @param spark
  */
 case class CHAggregateFunctionRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
+
+  private val glutenConf = new GlutenConfig(spark)
+
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
     case a: Aggregate =>
       a.transformExpressions {
         case avgExpr @ AggregateExpression(avg: Average, _, _, _, _)
-            if GlutenConfig.getConf.enableCastAvgAggregateFunction &&
-              GlutenConfig.getConf.enableColumnarHashAgg &&
+            if glutenConf.enableCastAvgAggregateFunction &&
+              glutenConf.enableColumnarHashAgg &&
               !avgExpr.isDistinct && isDataTypeNeedConvert(avg.child.dataType) =>
           AggregateExpression(
             avg.copy(child = Cast(avg.child, DoubleType)),

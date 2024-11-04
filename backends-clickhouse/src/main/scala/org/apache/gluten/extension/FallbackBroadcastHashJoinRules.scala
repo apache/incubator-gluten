@@ -36,9 +36,11 @@ import scala.util.control.Breaks.{break, breakable}
 // see each other during transformation. In order to prevent BroadcastExec being transformed
 // to columnar while BHJ fallbacks, BroadcastExec need to be tagged not transformable when applying
 // queryStagePrepRules.
-case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extends Rule[SparkPlan] {
+case class FallbackBroadcastHashJoinPrepQueryStage(spark: SparkSession) extends Rule[SparkPlan] {
+
+  private val glutenConf: GlutenConfig = new GlutenConfig(spark)
+
   override def apply(plan: SparkPlan): SparkPlan = {
-    val glutenConf: GlutenConfig = GlutenConfig.getConf
     plan.foreach {
       case bhj: BroadcastHashJoinExec =>
         val buildSidePlan = bhj.buildSide match {
@@ -144,15 +146,17 @@ case class FallbackBroadcastHashJoinPrepQueryStage(session: SparkSession) extend
 
 // For similar purpose with FallbackBroadcastHashJoinPrepQueryStage, executed during applying
 // columnar rules.
-case class FallbackBroadcastHashJoin(session: SparkSession) extends Rule[SparkPlan] {
+case class FallbackBroadcastHashJoin(spark: SparkSession) extends Rule[SparkPlan] {
+
+  private val glutenConf: GlutenConfig = new GlutenConfig(spark)
 
   private val enableColumnarBroadcastJoin: Boolean =
-    GlutenConfig.getConf.enableColumnarBroadcastJoin &&
-      GlutenConfig.getConf.enableColumnarBroadcastExchange
+    glutenConf.enableColumnarBroadcastJoin &&
+      glutenConf.enableColumnarBroadcastExchange
 
   private val enableColumnarBroadcastNestedLoopJoin: Boolean =
-    GlutenConfig.getConf.broadcastNestedLoopJoinTransformerTransformerEnabled &&
-      GlutenConfig.getConf.enableColumnarBroadcastExchange
+    glutenConf.broadcastNestedLoopJoinTransformerTransformerEnabled &&
+      glutenConf.enableColumnarBroadcastExchange
 
   override def apply(plan: SparkPlan): SparkPlan = {
     plan.foreachUp {

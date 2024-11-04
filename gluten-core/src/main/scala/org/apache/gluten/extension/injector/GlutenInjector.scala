@@ -40,12 +40,12 @@ class GlutenInjector private[injector] (control: InjectorControl) {
       control.disabler().wrapColumnarRule(s => new GlutenColumnarRule(s, applier)))
   }
 
-  private def applier(session: SparkSession): ColumnarRuleApplier = {
-    val conf = new GlutenConfig(session.sessionState.conf)
-    if (conf.enableRas) {
-      return ras.createApplier(session)
+  private def applier(spark: SparkSession): ColumnarRuleApplier = {
+    val glutenConf = new GlutenConfig(spark)
+    if (glutenConf.enableRas) {
+      return ras.createApplier(spark)
     }
-    legacy.createApplier(session)
+    legacy.createApplier(spark)
   }
 }
 

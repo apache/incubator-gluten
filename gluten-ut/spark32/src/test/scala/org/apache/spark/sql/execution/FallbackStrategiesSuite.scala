@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.execution
 
-import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.BasicScanExecTransformer
 import org.apache.gluten.extension.{GlutenPlan, GlutenSessionExtensions}
 import org.apache.gluten.extension.columnar.{ExpandFallbackPolicy, RemoveFallbackTagRule}
@@ -170,8 +169,8 @@ private object FallbackStrategiesSuite {
       transformBuilders,
       List(c => ExpandFallbackPolicy(c.ac.isAdaptiveContext(), c.ac.originalPlan())),
       List(
-        c => RemoveTopmostColumnarToRow(c.session, c.ac.isAdaptiveContext()),
-        _ => ColumnarCollapseTransformStages(GlutenConfig.getConf)
+        c => RemoveTopmostColumnarToRow(c.spark, c.ac.isAdaptiveContext()),
+        c => ColumnarCollapseTransformStages(c.glutenConf)
       ),
       List(_ => RemoveFallbackTagRule())
     )

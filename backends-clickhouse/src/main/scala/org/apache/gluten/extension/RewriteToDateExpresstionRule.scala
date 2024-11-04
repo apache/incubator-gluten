@@ -39,12 +39,10 @@ import org.apache.spark.sql.types._
 // Optimized result is `to_date(stringType)`
 class RewriteToDateExpresstionRule(spark: SparkSession) extends Rule[LogicalPlan] with Logging {
 
+  private val glutenConf = new GlutenConfig(spark)
+
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    if (
-      plan.resolved &&
-      GlutenConfig.getConf.enableGluten &&
-      GlutenConfig.getConf.enableCHRewriteDateConversion
-    ) {
+    if (plan.resolved && glutenConf.enableGluten && glutenConf.enableCHRewriteDateConversion) {
       visitPlan(plan)
     } else {
       plan

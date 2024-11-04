@@ -180,7 +180,7 @@ abstract class BroadcastNestedLoopJoinExecTransformer(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (!GlutenConfig.getConf.broadcastNestedLoopJoinTransformerTransformerEnabled) {
+    if (!glutenConf.broadcastNestedLoopJoinTransformerTransformerEnabled) {
       return ValidationResult.failed(
         s"Config ${GlutenConfig.BROADCAST_NESTED_LOOP_JOIN_TRANSFORMER_ENABLED.key} not enabled")
     }

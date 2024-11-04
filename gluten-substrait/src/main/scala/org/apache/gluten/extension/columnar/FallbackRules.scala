@@ -159,30 +159,32 @@ object FallbackTags {
   }
 }
 
-case class FallbackOnANSIMode(session: SparkSession) extends Rule[SparkPlan] {
+case class FallbackOnANSIMode(spark: SparkSession) extends Rule[SparkPlan] {
+
+  private val glutenConf = new GlutenConfig(spark)
+
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (GlutenConfig.getConf.enableAnsiMode) {
+    if (glutenConf.enableAnsiMode) {
       plan.foreach(FallbackTags.add(_, "does not support ansi mode"))
     }
     plan
   }
 }
 
-case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] {
-  lazy val glutenConf: GlutenConfig = GlutenConfig.getConf
-  lazy val physicalJoinOptimize = glutenConf.enablePhysicalJoinOptimize
-  lazy val optimizeLevel: Integer = glutenConf.physicalJoinOptimizationThrottle
+case class FallbackMultiCodegens(spark: SparkSession) extends Rule[SparkPlan] {
+
+  private val glutenConf: GlutenConfig = new GlutenConfig(spark)
 
   def existsMultiCodegens(plan: SparkPlan, count: Int = 0): Boolean =
     plan match {
       case plan: CodegenSupport if plan.supportCodegen =>
-        if ((count + 1) >= optimizeLevel) return true
+        if ((count + 1) >= glutenConf.physicalJoinOptimizationThrottle) return true
         plan.children.exists(existsMultiCodegens(_, count + 1))
       case plan: ShuffledHashJoinExec =>
-        if ((count + 1) >= optimizeLevel) return true
+        if ((count + 1) >= glutenConf.physicalJoinOptimizationThrottle) return true
         plan.children.exists(existsMultiCodegens(_, count + 1))
-      case plan: SortMergeJoinExec if GlutenConfig.getConf.forceShuffledHashJoin =>
-        if ((count + 1) >= optimizeLevel) return true
+      case plan: SortMergeJoinExec if glutenConf.forceShuffledHashJoin =>
+        if ((count + 1) >= glutenConf.physicalJoinOptimizationThrottle) return true
         plan.children.exists(existsMultiCodegens(_, count + 1))
       case _ => false
     }
@@ -232,7 +234,7 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    if (physicalJoinOptimize) {
+    if (glutenConf.enablePhysicalJoinOptimize) {
       tagOnFallbackForMultiCodegens(plan)
     } else plan
   }
