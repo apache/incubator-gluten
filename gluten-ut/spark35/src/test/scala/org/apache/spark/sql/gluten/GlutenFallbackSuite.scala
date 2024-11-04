@@ -21,6 +21,7 @@ import org.apache.gluten.events.GlutenPlanFallbackEvent
 import org.apache.gluten.execution.FileSourceScanExecTransformer
 import org.apache.gluten.utils.BackendTestUtils
 
+import org.apache.spark.SparkConf
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
 import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
 import org.apache.spark.sql.execution.ProjectExec
@@ -32,6 +33,10 @@ import org.apache.spark.status.ElementTrackingStore
 import scala.collection.mutable.ArrayBuffer
 
 class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelper {
+  override def sparkConf: SparkConf = {
+    super.sparkConf
+      .set(GlutenConfig.RAS_ENABLED.key, "false")
+  }
 
   testGluten("test fallback logging") {
     val testAppender = new LogAppender("fallback reason")
