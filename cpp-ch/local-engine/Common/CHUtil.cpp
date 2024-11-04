@@ -49,6 +49,7 @@
 #include <IO/SharedThreadPools.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
 #include <Parser/RelParsers/RelParser.h>
+#include <Parser/TypeParser.h>
 #include <Planner/PlannerActionsVisitor.h>
 #include <Processors/Chunk.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
@@ -525,7 +526,7 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeTypeIfNeeded(
     const std::string & result_name,
     CastType cast_type)
 {
-    if (node->result_type->equals(*dst_type))
+    if (TypeParser::isEquivalentTypes(node->result_type, dst_type))
         return node;
 
     return convertNodeType(actions_dag, node, dst_type, result_name, cast_type);
