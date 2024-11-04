@@ -29,12 +29,13 @@ import org.apache.gluten.utils.SubstraitUtil
 
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, Literal}
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.{ArrayType, MapType}
 import org.apache.spark.sql.types.MetadataBuilder
 
 import io.substrait.proto.NamedStruct
@@ -127,6 +128,25 @@ case class WriteFilesExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     val finalChildOutput = getFinalChildOutput
+
+    def isConstantComplexType(e: Expression): Boolean =
+      e match {
+        case Literal(_, ArrayType(_, _)) => true
+        case Literal(_, MapType(_, _, _)) => true
+        case _ => false
+      }
+
+    val hasConstantComplexType = child match {
+      case t: ProjectExecTransformer =>
+        t.projectList.exists(isConstantComplexType)
+      case p: ProjectExec =>
+        p.projectList.exists(isConstantComplexType)
+      case _ => false
+    }
+    if (hasConstantComplexType) {
+      return ValidationResult.failed("Unsupported native write: complex data type with constant")
+    }
+
     val validationResult =
       BackendsApiManager.getSettings.supportWriteFilesExec(
         fileFormat,

@@ -35,7 +35,7 @@ class GlutenFileSourceCharVarcharTestSuite
         sql(s"CREATE TABLE t(c STRUCT<c: $typeName(5)>) USING $format")
         sql("INSERT INTO t SELECT struct(null)")
         checkAnswer(spark.table("t"), Row(Row(null)))
-        val e = intercept[SparkException] {
+        val e = intercept[RuntimeException] {
           sql("INSERT INTO t SELECT struct('123456')")
         }
         assert(e.getMessage.contains(ERROR_MESSAGE))
