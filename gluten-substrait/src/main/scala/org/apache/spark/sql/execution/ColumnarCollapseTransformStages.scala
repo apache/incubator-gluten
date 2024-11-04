@@ -114,7 +114,7 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
  * generate/compile code.
  */
 case class ColumnarCollapseTransformStages(
-    glutenConfig: GlutenConfig,
+    glutenConf: GlutenConfig,
     transformStageCounter: AtomicInteger = ColumnarCollapseTransformStages.transformStageCounter)
   extends Rule[SparkPlan] {
 

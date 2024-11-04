@@ -23,6 +23,7 @@
 #include <vector>
 #include <IO/CompressedReadBufferWrapper.h>
 #include <base/StringRef.h>
+#include <iostream>
 
 namespace DB
 {
@@ -157,6 +158,7 @@ private:
             if (temp < 0)
                 temp = 256 + temp;
             globalCrc = (globalCrc << 8) ^ static_cast<Int32>(crc32Table[temp]);
+            // std::cout << "input:" << inCh << " crc:" << globalCrc << std::endl;
         }
         void updateCRC(Int32 inCh, Int32 repeat)
         {
@@ -237,7 +239,7 @@ private:
     Int32 su_rNToGo;
     Int32 su_rTPos;
     Int32 su_tPos;
-    char su_z;
+    UInt16 su_z;
 
     /// SplittableBzip2ReadBuffer will skip bytes before the first block header. adjusted_start records file position after skipping.
     /// It is only valid when input stream is seekable and block header could be found in input stream.

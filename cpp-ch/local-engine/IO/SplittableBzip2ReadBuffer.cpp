@@ -192,7 +192,7 @@ SplittableBzip2ReadBuffer::SplittableBzip2ReadBuffer(
     changeStateToProcessABlock();
     LOG_DEBUG(
         getLogger("SplittableBzip2ReadBuffer"),
-        "adjusted_start: {} first_block_need_special_process: {} last_block_need_special_process: {}",
+        "adjusted_start:{} first_block_need_special_process:{} last_block_need_special_process:{}",
         *adjusted_start,
         first_block_need_special_process,
         last_block_need_special_process);
@@ -217,8 +217,6 @@ Int32 SplittableBzip2ReadBuffer::read(char * dest, size_t dest_size, size_t offs
         result = b;
         skipResult = skipToNextMarker(SplittableBzip2ReadBuffer::BLOCK_DELIMITER, DELIMITER_BIT_LENGTH);
 
-        // auto * seekable = dynamic_cast<SeekableReadBuffer*>(in.get());
-        // std::cout << "skipResult:" << skipResult << " position:" << seekable->getPosition() << " b:" << b << std::endl;
         changeStateToProcessABlock();
     }
     return result;
@@ -413,7 +411,13 @@ bool SplittableBzip2ReadBuffer::skipToNextMarker(Int64 marker, Int32 markerBitLe
 
 void SplittableBzip2ReadBuffer::reportCRCError()
 {
-    throw Exception(ErrorCodes::LOGICAL_ERROR, "CRC error");
+    auto * seekable = dynamic_cast<SeekableReadBuffer*>(in.get());
+    throw Exception(
+        ErrorCodes::LOGICAL_ERROR,
+        "CRC error in position:{} computedBlockCRC:{} storedBlockCRC:{}",
+        seekable->getPosition(),
+        computedBlockCRC,
+        storedBlockCRC);
 }
 
 void SplittableBzip2ReadBuffer::makeMaps()
@@ -440,6 +444,8 @@ void SplittableBzip2ReadBuffer::changeStateToProcessABlock()
 
 void SplittableBzip2ReadBuffer::initBlock()
 {
+    auto * seekable = dynamic_cast<SeekableReadBuffer*>(in.get());
+    size_t position = seekable->getPosition();
     storedBlockCRC = bsGetInt();
     blockRandomised = (bsR(1) == 1);
 
@@ -914,7 +920,7 @@ void SplittableBzip2ReadBuffer::setupRandPartB()
     }
     else if (++su_count >= 4)
     {
-        su_z = static_cast<char>(data->ll8[su_tPos] & 0xff);
+        su_z = data->ll8[su_tPos] & 0xff;
         su_tPos = data->tt[su_tPos];
         if (su_rNToGo == 0)
         {
@@ -965,7 +971,7 @@ void SplittableBzip2ReadBuffer::setupNoRandPartB()
     }
     else if (++su_count >= 4)
     {
-        su_z = static_cast<char>(data->ll8[su_tPos] & 0xff);
+        su_z = data->ll8[su_tPos] & 0xff;
         su_tPos = data->tt[su_tPos];
         su_j2 = 0;
         setupNoRandPartC();
