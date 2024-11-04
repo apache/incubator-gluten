@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
- #include <Columns/ColumnConst.h>
+#include <Columns/ColumnConst.h>
 #include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
