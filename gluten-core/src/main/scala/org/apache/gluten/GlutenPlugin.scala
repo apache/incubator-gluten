@@ -148,8 +148,9 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
           minOffHeapSize))
     ) {
       throw new GlutenException(
-        s"Must set '$SPARK_OFFHEAP_ENABLED' to true " +
-          s"and set '$SPARK_OFFHEAP_SIZE_KEY' to be greater than $minOffHeapSize")
+        s"Must set '$SPARK_OFFHEAP_ENABLED' to true and set " +
+          s"'$SPARK_OFFHEAP_SIZE_KEY' to be greater than $minOffHeapSize, or set " +
+          s"'$GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED' to true to enable dynamic offheap feature.")
     }
 
     // Session's local time zone must be set. If not explicitly set by user, its default
@@ -159,8 +160,6 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     // Task slots.
     val taskSlots = SparkResourceUtil.getTaskSlots(conf)
     conf.set(GLUTEN_NUM_TASK_SLOTS_PER_EXECUTOR_KEY, taskSlots.toString)
-
-    val onHeapSize: Long = conf.getSizeAsBytes(SPARK_ONHEAP_SIZE_KEY, 1024 * 1024 * 1024)
 
     // If dynamic off-heap sizing is enabled, the off-heap size is calculated based on the on-heap
     // size. Otherwise, the off-heap size is set to the value specified by the user (if any).
@@ -178,7 +177,11 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
       // We will be careful to use the same configuration settings as Spark to ensure
       // that we are sizing the off-heap memory in the same way as Spark sizes on-heap memory.
       // The 300MB value, unfortunately, is hard-coded in Spark code.
-      ((onHeapSize - (300 * 1024 * 1024)) *
+      val originalOnHeapSize: Long = conf.getSizeAsBytes(SPARK_ONHEAP_SIZE_KEY, 1024 * 1024 * 1024)
+      val originalOffHeapSize: Long = conf.getSizeAsBytes(SPARK_OFFHEAP_SIZE_KEY, 0)
+      val totalMemorySize = originalOnHeapSize + originalOffHeapSize
+      conf.set(SPARK_ONHEAP_SIZE_KEY, totalMemorySize.toString)
+      ((totalMemorySize - (300 * 1024 * 1024)) *
         conf.getDouble(GLUTEN_DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION, 0.6d)).toLong
     } else {
       // Optimistic off-heap sizes, assuming all storage memory can be borrowed into execution
