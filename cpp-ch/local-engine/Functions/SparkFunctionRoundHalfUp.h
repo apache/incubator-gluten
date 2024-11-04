@@ -111,7 +111,14 @@ public:
     template <RoundingMode mode>
     static VectorType apply(VectorType val)
     {
-        return roundWithMode(val, mode);
+        if constexpr (std::is_same_v<ScalarType, Float32>)
+        {
+            return std::roundf(val);
+        }
+        else
+        {
+            return std::round(val);
+        }
     }
 
     static VectorType prepare(size_t scale)
