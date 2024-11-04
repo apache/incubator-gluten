@@ -86,7 +86,8 @@ private object CHRuleApi {
     injector.injectTransform(
       c =>
         intercept(
-          SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarTransformRules)(c.session)))
+          SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarTransformRules)(
+            c.session)))
     injector.injectTransform(c => InsertTransitions(c.outputsColumnar))
 
     // Gluten columnar: Fallback policies.
@@ -98,14 +99,15 @@ private object CHRuleApi {
     SparkShimLoader.getSparkShims
       .getExtendedColumnarPostRules()
       .foreach(each => injector.injectPost(c => intercept(each(c.session))))
-    injector.injectPost(c => ColumnarCollapseTransformStages(c.conf))
+    injector.injectPost(c => ColumnarCollapseTransformStages(c.glutenConf))
     injector.injectTransform(
       c =>
-        intercept(SparkPlanRules.extendedColumnarRule(c.conf.extendedColumnarPostRules)(c.session)))
+        intercept(
+          SparkPlanRules.extendedColumnarRule(c.glutenConf.extendedColumnarPostRules)(c.session)))
 
     // Gluten columnar: Final rules.
     injector.injectFinal(c => RemoveGlutenTableCacheColumnarToRow(c.session))
-    injector.injectFinal(c => GlutenFallbackReporter(c.conf, c.session))
+    injector.injectFinal(c => GlutenFallbackReporter(c.glutenConf, c.session))
     injector.injectFinal(_ => RemoveFallbackTagRule())
   }
 
