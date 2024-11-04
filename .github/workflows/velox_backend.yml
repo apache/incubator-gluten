@@ -766,15 +766,15 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Prepare spark.test.home for Spark 3.4.3 (other tests)
+      - name: Prepare spark.test.home for Spark 3.4.4 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.4
           dnf module -y install python39 && \
           alternatives --set python3 /usr/bin/python3.9 && \
           pip3 install setuptools && \
-          pip3 install pyspark==3.4.3 cython && \
+          pip3 install pyspark==3.4.4 cython && \
           pip3 install pandas pyarrow
-      - name: Build and Run unit test for Spark 3.4.3 (other tests)
+      - name: Build and Run unit test for Spark 3.4.4 (other tests)
         run: |
           cd $GITHUB_WORKSPACE/
           export SPARK_SCALA_VERSION=2.12
@@ -813,10 +813,10 @@ jobs:
         run: |
           yum install sudo patch java-1.8.0-openjdk-devel wget -y
           $SETUP install_maven
-      - name: Prepare spark.test.home for Spark 3.4.3 (slow tests)
+      - name: Prepare spark.test.home for Spark 3.4.4 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.4
-      - name: Build and Run unit test for Spark 3.4.3 (slow tests)
+      - name: Build and Run unit test for Spark 3.4.4 (slow tests)
         run: |
           cd $GITHUB_WORKSPACE/
           $MVN_CMD clean test -Pspark-3.4 -Pbackends-velox -Pceleborn -Piceberg -Pdelta -Pspark-ut -Phudi \
