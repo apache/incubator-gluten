@@ -14,27 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+package org.apache.gluten.vectorized
 
-#include <Common/GlutenSettings.h>
+import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.utils.ConfigUtil
 
-namespace local_engine
-{
-#define MERGE_TREE_WRITE_RELATED_SETTINGS(M, ALIAS) \
-    M(String, part_name_prefix, , "The part name prefix for writing data") \
-    M(String, partition_dir, , "The parition directory for writing data") \
-    M(String, bucket_dir, , "The bucket directory for writing data")
+import scala.collection.JavaConverters._
 
-DECLARE_GLUTEN_SETTINGS(SparkMergeTreeWritePartitionSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
+// TODO: move CHNativeExpressionEvaluator to NativeExpressionEvaluator
+/** Scala Wrapper for ExpressionEvaluatorJniWrapper */
+object NativeExpressionEvaluator {
 
-struct SparkMergeTreeWriteSettings
-{
-    SparkMergeTreeWritePartitionSettings partition_settings;
-    bool merge_after_insert{true};
-    bool insert_without_local_storage{false};
-    size_t merge_min_size = 1024 * 1024 * 1024;
-    size_t merge_limit_parts = 10;
-
-    void load(const DB::ContextPtr & context);
-};
+  def updateQueryRuntimeSettings(settings: Map[String, String]): Unit = {
+    ExpressionEvaluatorJniWrapper.updateQueryRuntimeSettings(
+      ConfigUtil.serialize(
+        settings
+          .filter(t => CHConf.startWithSettingsPrefix(t._1) && t._2.nonEmpty)
+          .map {
+            case (k, v) =>
+              (CHConf.removeSettingsPrefix(k), v)
+          }
+          .asJava))
+  }
 }

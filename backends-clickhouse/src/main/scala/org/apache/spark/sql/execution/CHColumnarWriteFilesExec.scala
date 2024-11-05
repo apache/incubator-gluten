@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.memory.CHThreadGroup
+
 import org.apache.spark.{Partition, SparkException, TaskContext, TaskOutputFileAlreadyExistException}
 import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
 import org.apache.spark.rdd.RDD
@@ -78,6 +80,7 @@ class CHColumnarWriteFilesRDD(
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[WriterCommitMessage] = {
+    CHThreadGroup.registerNewThreadGroup()
 
     val commitProtocol = CHColumnarWrite(jobTrackerID, description, committer)
     commitProtocol.setupTask()

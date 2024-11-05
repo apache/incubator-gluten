@@ -17,6 +17,7 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
+import org.apache.gluten.backendsapi.clickhouse.RuntimeConfig
 import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
@@ -82,8 +83,8 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.sql.warehouse.dir", warehouse)
       .setCHConfig("user_defined_path", "/tmp/user_defined")
-      .setCHConfig("path", UTSystemParameters.diskOutputDataPath)
-      .setCHConfig("tmp_path", s"/tmp/libch/$SPARK_DIR_NAME")
+      .set(RuntimeConfig.PATH.key, UTSystemParameters.diskOutputDataPath)
+      .set(RuntimeConfig.TMP_PATH.key, s"/tmp/libch/$SPARK_DIR_NAME")
     if (UTSystemParameters.testMergeTreeOnObjectStorage) {
       conf
         .set("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)

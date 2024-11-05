@@ -30,28 +30,26 @@ namespace local_engine
 
 void SparkConfigs::updateConfig(const DB::ContextMutablePtr & context, std::string_view plan)
 {
-    std::map<std::string, std::string> spark_conf_map = load(plan);
-    // configs cannot be updated per query
-    // settings can be updated per query
-    auto settings = context->getSettingsCopy(); // make a copy
+    update(
+        plan,
+        [&](const ConfigMap & spark_conf_map)
+        {
+            // configs cannot be updated per query
+            // settings can be updated per query
+            auto settings = context->getSettingsCopy(); // make a copy
 
-    // TODO: Remove BackendInitializerUtil::initSettings
-    BackendInitializerUtil::initSettings(spark_conf_map, settings);
-    context->setSettings(settings);
+            // TODO: Remove BackendInitializerUtil::initSettings
+            BackendInitializerUtil::initSettings(spark_conf_map, settings);
+            context->setSettings(settings);
+        });
 }
 
-std::map<std::string, std::string> SparkConfigs::load(std::string_view plan, bool processStart)
+void SparkConfigs::update(std::string_view plan, const std::function<void(const ConfigMap &)> & callback, bool processStart)
 {
-    std::map<std::string, std::string> configs{};
     auto configMaps = local_engine::BinaryToMessage<gluten::ConfigMap>(plan);
-
     if (!processStart)
         debug::dumpMessage(configMaps, "Update Config Map Plan");
-
-    for (const auto & pair : configMaps.configs())
-        configs.emplace(pair.first, pair.second);
-
-    return configs;
+    callback(configMaps.configs());
 }
 
 MemoryConfig MemoryConfig::loadFromContext(const DB::ContextPtr & context)

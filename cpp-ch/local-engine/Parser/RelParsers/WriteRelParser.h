@@ -42,9 +42,9 @@ void addSinkTransform(const DB::ContextPtr & context, const substrait::WriteRel 
 
 DB::Names collect_partition_cols(const DB::Block & header, const substrait::NamedStruct & struct_);
 
-#define WRITE_RELATED_SETTINGS(M, ALIAS, UNIQ) \
-    M(String, task_write_tmp_dir, , "The temporary directory for writing data", UNIQ) \
-    M(String, task_write_filename, , "The filename for writing data", UNIQ)
+#define WRITE_RELATED_SETTINGS(M, ALIAS) \
+    M(String, task_write_tmp_dir, , "The temporary directory for writing data") \
+    M(String, task_write_filename, , "The filename for writing data")
 
 DECLARE_GLUTEN_SETTINGS(GlutenWriteSettings, WRITE_RELATED_SETTINGS)
 

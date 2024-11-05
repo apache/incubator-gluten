@@ -19,6 +19,7 @@
 
 #include <Interpreters/Context_fwd.h>
 #include <base/unit.h>
+#include <google/protobuf/map.h>
 
 namespace Poco::Util
 {
@@ -33,8 +34,9 @@ namespace local_engine
 
 struct SparkConfigs
 {
+    using ConfigMap = google::protobuf::Map<std::string, std::string>;
     static void updateConfig(const DB::ContextMutablePtr &, std::string_view);
-    static std::map<std::string, std::string> load(std::string_view plan, bool processStart = false);
+    static void update(std::string_view plan, const std::function<void(const ConfigMap &)> & callback, bool processStart = false);
 };
 
 struct MemoryConfig
@@ -150,5 +152,11 @@ struct MergeTreeCacheConfig
     bool enable_data_prefetch = true;
 
     static MergeTreeCacheConfig loadFromContext(const DB::ContextPtr & context);
+};
+
+namespace PathConfig
+{
+inline constexpr const char * USE_CURRENT_DIRECTORY_AS_TMP = "use_current_directory_as_tmp";
+inline constexpr const char * DEFAULT_TEMP_FILE_PATH = "/tmp/libch";
 };
 }

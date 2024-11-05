@@ -87,12 +87,10 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       nativeConf: ju.Map[String, String]): OutputWriter = {
 
     val datasourceJniWrapper = new CHDatasourceJniWrapper(
-      context.getConfiguration.get("mapreduce.task.gluten.mergetree.partPrefix"),
-      context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition"),
-      context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid"),
       createWriteRel(outputPath, dataSchema, context),
       ConfigUtil.serialize(nativeConf)
     )
+
     new FakeRowOutputWriter(datasourceJniWrapper, outputPath)
   }
 
