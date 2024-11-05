@@ -12,5 +12,5 @@
     # Hide symbols from glog and gflags.
     *google::*;
     # Hide all other symbols except the above global symbols.
-    *;
+    #*;
 };
