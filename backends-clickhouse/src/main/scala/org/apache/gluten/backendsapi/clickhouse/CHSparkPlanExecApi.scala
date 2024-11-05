@@ -194,7 +194,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       aggregateAttributes,
       initialInputBufferOffset,
       // resultExpressions.distinct,
-      replacedResultExpressions,
+      replacedResultExpressions.distinct,
       child
     )
     agg

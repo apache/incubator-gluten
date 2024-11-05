@@ -56,6 +56,8 @@ object CHHashAggregateExecTransformer {
       aggExpr =>
         aggExpr.mode match {
           case Partial | PartialMerge =>
+            // For partial aggregate, the size of the result expressions of an aggregate expression
+            // is the same as aggBufferAttributes' length
             val aggBufferAttributesCount = aggExpr.aggregateFunction.aggBufferAttributes.length
             aggExpr.aggregateFunction match {
               case avg: Average =>
