@@ -133,6 +133,10 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   val GLUTEN_CLICKHOUSE_TABLE_PATH_TO_MTPS_CACHE_SIZE: String =
     CHConf.prefixOf("table.path.to.mtps.cache.size")
 
+  val GLUTEN_CLICKHOUSE_DELTA_METADATA_OPTIMIZE: String =
+    CHConf.prefixOf("delta.metadata.optimize")
+  val GLUTEN_CLICKHOUSE_DELTA_METADATA_OPTIMIZE_DEFAULT_VALUE: String = "true"
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(

@@ -1977,24 +1977,29 @@ class GlutenClickHouseMergeTreeWriteSuite
                  | select * from lineitem
                  |""".stripMargin)
 
-    val sqlStr =
-      s"""
-         |SELECT
-         |    count(*) AS count_order
-         |FROM
-         |    lineitem_mergetree_count_opti
-         |""".stripMargin
-    runSql(sqlStr)(
-      df => {
-        val result = df.collect()
-        assertResult(1)(result.length)
-        assertResult("600572")(result(0).getLong(0).toString)
+    Seq("true", "false").foreach {
+      skip =>
+        withSQLConf("spark.databricks.delta.stats.skipping" -> skip.toString) {
+          val sqlStr =
+            s"""
+               |SELECT
+               |    count(*) AS count_order
+               |FROM
+               |    lineitem_mergetree_count_opti
+               |""".stripMargin
+          runSql(sqlStr)(
+            df => {
+              val result = df.collect()
+              assertResult(1)(result.length)
+              assertResult("600572")(result(0).getLong(0).toString)
 
-        // Spark 3.2 + Delta 2.0 does not support this feature
-        if (!spark32) {
-          assert(df.queryExecution.executedPlan.isInstanceOf[LocalTableScanExec])
+              // Spark 3.2 + Delta 2.0 does not support this feature
+              if (!spark32) {
+                assert(df.queryExecution.executedPlan.isInstanceOf[LocalTableScanExec])
+              }
+            })
         }
-      })
+    }
   }
 
   test("test mergetree with column case sensitive") {
@@ -2127,5 +2132,87 @@ class GlutenClickHouseMergeTreeWriteSuite
           }
         }
       })
+  }
+
+  test(
+    "GLUTEN-7812: Fix the query failed for the mergetree format " +
+      "when the 'spark.databricks.delta.stats.skipping' is off") {
+    // Spark 3.2 + Delta 2.0 doesn't not support this feature
+    if (!spark32) {
+      withSQLConf(("spark.databricks.delta.stats.skipping", "false")) {
+        spark.sql(s"""
+                     |DROP TABLE IF EXISTS lineitem_mergetree_stats_skipping;
+                     |""".stripMargin)
+
+        spark.sql(s"""
+                     |CREATE TABLE IF NOT EXISTS lineitem_mergetree_stats_skipping
+                     |(
+                     | l_orderkey      bigint,
+                     | l_partkey       bigint,
+                     | l_suppkey       bigint,
+                     | l_linenumber    bigint,
+                     | l_quantity      double,
+                     | l_extendedprice double,
+                     | l_discount      double,
+                     | l_tax           double,
+                     | l_returnflag    string,
+                     | l_linestatus    string,
+                     | l_shipdate      date,
+                     | l_commitdate    date,
+                     | l_receiptdate   date,
+                     | l_shipinstruct  string,
+                     | l_shipmode      string,
+                     | l_comment       string
+                     |)
+                     |USING clickhouse
+                     |PARTITIONED BY (l_returnflag)
+                     |TBLPROPERTIES (orderByKey='l_orderkey',
+                     |               primaryKey='l_orderkey')
+                     |LOCATION '$basePath/lineitem_mergetree_stats_skipping'
+                     |""".stripMargin)
+
+        // dynamic partitions
+        spark.sql(s"""
+                     | insert into table lineitem_mergetree_stats_skipping
+                     | select * from lineitem
+                     |""".stripMargin)
+
+        val sqlStr =
+          s"""
+             |SELECT
+             |    o_orderpriority,
+             |    count(*) AS order_count
+             |FROM
+             |    orders
+             |WHERE
+             |    o_orderdate >= date'1993-07-01'
+             |    AND o_orderdate < date'1993-07-01' + interval 3 month
+             |    AND EXISTS (
+             |        SELECT
+             |            *
+             |        FROM
+             |            lineitem
+             |        WHERE
+             |            l_orderkey = o_orderkey
+             |            AND l_commitdate < l_receiptdate)
+             |GROUP BY
+             |    o_orderpriority
+             |ORDER BY
+             |    o_orderpriority;
+             |
+             |""".stripMargin
+        runSql(sqlStr)(
+          df => {
+            val result = df.collect()
+            assertResult(5)(result.length)
+            assertResult("1-URGENT")(result(0).getString(0))
+            assertResult(999)(result(0).getLong(1))
+            assertResult("2-HIGH")(result(1).getString(0))
+            assertResult(997)(result(1).getLong(1))
+            assertResult("5-LOW")(result(4).getString(0))
+            assertResult(1077)(result(4).getLong(1))
+          })
+      }
+    }
   }
 }
