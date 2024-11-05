@@ -197,7 +197,7 @@ endif()
 
 add_library(velox SHARED ${VELOX_SRCS})
 
-if(ENABLE_GLUTEN_VCPKG)
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
   # Hide symbols of static dependencies
   target_link_options(
     velox PRIVATE -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/symbols.map)
