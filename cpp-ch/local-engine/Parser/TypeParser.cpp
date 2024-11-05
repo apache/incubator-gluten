@@ -332,6 +332,21 @@ bool TypeParser::isTypeMatched(const substrait::Type & substrait_type, const Dat
 
 bool TypeParser::isEquivalentTypes(const DB::DataTypePtr & lhs, const DB::DataTypePtr & rhs)
 {
+    if (lhs->equals(*rhs))
+    {
+        auto denull_lhs = removeNullable(lhs);
+        auto denull_rhs = removeNullable(rhs);
+
+        /// UInt8 and Bool are not equivalent because they have different deser
+        if ((isBool(denull_lhs) && isUInt8(denull_rhs)) || (isUInt8(denull_lhs) && isBool(denull_rhs)))
+            return false;
+
+        return true;
+    }
+    else
+        return false;
+
+    /*
     bool is_left_custom = lhs->hasCustomName();
     bool is_right_custom = rhs->hasCustomName();
 
@@ -341,6 +356,7 @@ bool TypeParser::isEquivalentTypes(const DB::DataTypePtr & lhs, const DB::DataTy
         return lhs->equals(*rhs);
     else
         return lhs->getCustomName() == rhs->getCustomName() && lhs->equals(*rhs);
+    */
 }
 
 DB::DataTypePtr TypeParser::tryWrapNullable(substrait::Type_Nullability nullable, DB::DataTypePtr nested_type)
