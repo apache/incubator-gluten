@@ -347,7 +347,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
 SerializedPlanParser::SerializedPlanParser(ParserContextPtr parser_context_) : parser_context(parser_context_)
 {
     context = parser_context->queryContext();
-    log = getLogger("SerializedPlanParser(" + QueryContext::instance().currentTaskId() + ")");
+    log = getLogger("SerializedPlanParser(" + QueryContext::instance().currentTaskIdOrEmpty() + ")");
 }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(
