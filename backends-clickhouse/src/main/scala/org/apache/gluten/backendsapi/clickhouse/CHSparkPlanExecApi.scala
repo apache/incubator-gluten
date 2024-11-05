@@ -171,12 +171,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
     }
     val modes = aggregateExpressions.map(_.mode)
     logError(s"xxx modes: $modes")
-    val xoutputs = CHHashAggregateExecTransformer.getCHAggregateResultAttributes(
+    val replacedResultExpressions = CHHashAggregateExecTransformer.getCHAggregateResultExpressions(
+      groupingExpressions,
       aggregateExpressions,
-      resultExpressions.slice(groupingExpressions.length, resultExpressions.length))
-    logError(s"xxx adjust agg output: $xoutputs")
-    val replacedResultExpressions =
-      groupingExpressions ++ xoutputs
+      resultExpressions)
+    logError(s"xxx adjust agg output: $replacedResultExpressions")
     val agg1 = CHHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
       groupingExpressions.distinct,

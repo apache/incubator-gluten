@@ -46,11 +46,13 @@ object CHHashAggregateExecTransformer {
   // The result attributes of aggregate expressions from vanilla may be different from CH native.
   // For example, the result attributes of `avg(x)` are `sum(x)` and `count(x)`. This could bring
   // some unexpected issues. So we need to make the result attributes consistent with CH native.
-  def getCHAggregateResultAttributes(
+  def getCHAggregateResultExpressions(
+      groupingExpressions: Seq[NamedExpression],
       aggregateExpressions: Seq[AggregateExpression],
-      resultExpressions: Seq[NamedExpression]): Seq[Attribute] = {
-    var resultExpressionIndex = 0
-    aggregateExpressions.flatMap {
+      resultExpressions: Seq[NamedExpression]): Seq[NamedExpression] = {
+    var adjustedResultExpressions = resultExpressions.slice(0, groupingExpressions.length)
+    var resultExpressionIndex = groupingExpressions.length
+    adjustedResultExpressions ++ aggregateExpressions.flatMap {
       aggExpr =>
         aggExpr.mode match {
           case Partial | PartialMerge =>
@@ -61,18 +63,17 @@ object CHHashAggregateExecTransformer {
                 resultExpressionIndex += aggBufferAttributesCount
                 res
               case sum: Sum if (sum.dataType.isInstanceOf[DecimalType]) =>
-                val res = Seq(resultExpressions(resultExpressionIndex).toAttribute)
+                val res = Seq(resultExpressions(resultExpressionIndex))
                 resultExpressionIndex += aggBufferAttributesCount
                 res
               case _ =>
                 val res = resultExpressions
                   .slice(resultExpressionIndex, resultExpressionIndex + aggBufferAttributesCount)
-                  .map(_.toAttribute)
                 resultExpressionIndex += aggBufferAttributesCount
                 res
             }
           case _ =>
-            val res = Seq(resultExpressions(resultExpressionIndex).toAttribute)
+            val res = Seq(resultExpressions(resultExpressionIndex))
             resultExpressionIndex += 1
             res
         }
