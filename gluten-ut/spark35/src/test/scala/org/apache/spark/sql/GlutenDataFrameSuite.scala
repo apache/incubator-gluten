@@ -327,11 +327,20 @@ class GlutenDataFrameSuite extends DataFrameSuite with GlutenSQLTestsTrait {
     withSQLConf(GlutenConfig.CAST_FROM_VARCHAR_ADD_TRIM_NODE.key -> "true") {
       def checkResult(df: DataFrame, expectedResult: Seq[Row]): Unit = {
         checkAnswer(df, expectedResult)
-        assert(find(df.queryExecution.executedPlan)(_.isInstanceOf[ProjectExecTransformer]).isDefined)
+        assert(
+          find(df.queryExecution.executedPlan)(_.isInstanceOf[ProjectExecTransformer]).isDefined)
       }
 
       // scalastyle:off nonascii
-      Seq(" 123", "123 ", " 123 ", "\u2000123\n\n\n", "123\r\r\r", "123\f\f\f", "123\u000C", "123\u0000")
+      Seq(
+        " 123",
+        "123 ",
+        " 123 ",
+        "\u2000123\n\n\n",
+        "123\r\r\r",
+        "123\f\f\f",
+        "123\u000C",
+        "123\u0000")
         .toDF("col1")
         .createOrReplaceTempView("t1")
       // scalastyle:on nonascii
