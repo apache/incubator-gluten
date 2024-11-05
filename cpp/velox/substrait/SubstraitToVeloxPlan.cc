@@ -1113,8 +1113,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
     VELOX_CHECK_LT(streamIdx, inputIters_.size(), "Could not find stream index {} in input iterator list.", streamIdx);
     iterator = inputIters_[streamIdx];
   }
-  auto valueStream = std::make_unique<RowVectorStream>(pool_, iterator, outputType);
-  auto node = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(valueStream));
+  auto node = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(iterator));
 
   auto splitInfo = std::make_shared<SplitInfo>();
   splitInfo->isStream = true;
