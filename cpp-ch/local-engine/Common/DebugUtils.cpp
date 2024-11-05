@@ -25,9 +25,59 @@
 #include <Formats/FormatSettings.h>
 #include <Functions/FunctionHelpers.h>
 #include <IO/WriteBufferFromString.h>
+#include <Processors/QueryPlan/QueryPlan.h>
+#include <google/protobuf/json/json.h>
+#include <google/protobuf/util/json_util.h>
+#include <google/protobuf/wrappers.pb.h>
+#include <Common/CHUtil.h>
+#include <Common/logger_useful.h>
+
+namespace pb_util = google::protobuf::util;
 
 namespace debug
 {
+
+void dumpPlan(DB::QueryPlan & plan, Poco::Logger * logger, bool force)
+{
+    if (logger == nullptr)
+    {
+        logger = &Poco::Logger::get("SubstraitPlan");
+        if (logger == nullptr)
+            return;
+    }
+
+    if (!force && !logger->debug())
+        return;
+
+    auto out = local_engine::PlanUtil::explainPlan(plan);
+    if (force) // force
+        LOG_ERROR(logger, "clickhouse plan:\n{}", out);
+    else
+        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
+}
+
+void dumpMessage(const google::protobuf::Message & message, const char * type, Poco::Logger * logger, bool force)
+{
+    if (logger == nullptr)
+    {
+        logger = &Poco::Logger::get("SubstraitPlan");
+        if (logger == nullptr)
+            return;
+    }
+
+    if (!force && !logger->debug())
+        return;
+    pb_util::JsonOptions options;
+    std::string json;
+    if (auto s = google::protobuf::json::MessageToJsonString(message, &json, options); !s.ok())
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Can not convert {} to Json", type);
+
+    if (force) // force
+        LOG_ERROR(logger, "{}:\n{}", type, json);
+    else
+        LOG_DEBUG(logger, "{}:\n{}", type, json);
+}
+
 void headBlock(const DB::Block & block, size_t count)
 {
     std::cout << "============Block============" << std::endl;
