@@ -20,35 +20,20 @@
 #include <string>
 #include <string_view>
 #include <AggregateFunctions/AggregateFunctionFactory.h>
-#include <Columns/ColumnSet.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
-#include <Core/Field.h>
 #include <Core/Names.h>
 #include <Core/NamesAndTypes.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
-#include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeDate32.h>
-#include <DataTypes/DataTypeDateTime64.h>
-#include <DataTypes/DataTypeMap.h>
-#include <DataTypes/DataTypeNothing.h>
 #include <DataTypes/DataTypeNullable.h>
-#include <DataTypes/DataTypeSet.h>
-#include <DataTypes/DataTypeString.h>
-#include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesDecimal.h>
-#include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/IDataType.h>
-#include <DataTypes/Serializations/ISerialization.h>
-#include <DataTypes/getLeastSupertype.h>
 #include <Functions/FunctionFactory.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context.h>
-#include <Interpreters/PreparedSets.h>
 #include <Interpreters/ProcessList.h>
 #include <Interpreters/QueryPriorities.h>
-#include <Join/StorageJoinFromReadBuffer.h>
 #include <Operator/BlocksBufferPoolTransform.h>
 #include <Parser/ExpressionParser.h>
 #include <Parser/FunctionParser.h>
@@ -73,6 +58,7 @@
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/BlockTypeUtils.h>
 #include <Common/CHUtil.h>
+#include <Common/DebugUtils.h>
 #include <Common/Exception.h>
 #include <Common/GlutenConfig.h>
 #include <Common/JNIUtils.h>
@@ -121,13 +107,17 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
     {
         ActionsDAG actions_dag{blockToNameAndTypeList(query_plan->getCurrentHeader())};
         NamesWithAliases aliases;
-        auto cols = query_plan->getCurrentHeader().getNamesAndTypesList();
+        const auto cols = query_plan->getCurrentHeader().getNamesAndTypesList();
         if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
+        {
+            debug::dumpPlan(*query_plan, true);
+            debug::dumpMessage(root_rel, "substrait::PlanRel", true);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
-                "Missmatch result columns size. plan column size {}, subtrait plan size {}.",
+                "Missmatch result columns size. plan column size {}, subtrait plan name size {}.",
                 cols.getNames().size(),
                 root_rel.root().names_size());
+        }
         for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
             aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
         actions_dag.project(aliases);
@@ -144,13 +134,14 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         const auto & original_cols = original_header.getColumnsWithTypeAndName();
         if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
         {
+            debug::dumpPlan(*query_plan, true);
+            debug::dumpMessage(root_rel, "substrait::PlanRel", true);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
-                "Mismatch output schema. plan column size {} [header: '{}'], subtrait plan size {}[schema: {}].",
+                "Missmatch result columns size. plan column size {}, subtrait plan output schema size {}, subtrait plan name size {}.",
                 original_cols.size(),
-                original_header.dumpStructure(),
                 output_schema.types_size(),
-                dumpMessage(output_schema));
+                root_rel.root().names_size());
         }
         bool need_final_project = false;
         ColumnsWithTypeAndName final_cols;
@@ -192,7 +183,7 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
 
 QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
 {
-    logDebugMessage(plan, "substrait plan");
+    debug::dumpMessage(plan, "substrait::Plan");
     //parseExtensions(plan.extensions());
     if (plan.relations_size() != 1)
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "too many relations found");
@@ -213,12 +204,7 @@ QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
     PlanUtil::checkOuputType(*query_plan);
 #endif
 
-    if (auto * logger = &Poco::Logger::get("SerializedPlanParser"); logger->debug())
-    {
-        auto out = PlanUtil::explainPlan(*query_plan);
-        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
-    }
-
+    debug::dumpPlan(*query_plan);
     return query_plan;
 }
 

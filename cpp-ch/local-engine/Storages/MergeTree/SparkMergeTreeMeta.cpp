@@ -27,9 +27,9 @@
 #include <Storages/MergeTree/StorageMergeTreeFactory.h>
 #include <google/protobuf/util/json_util.h>
 #include <rapidjson/document.h>
-#include <Poco/StringTokenizer.h>
-
 #include <write_optimization.pb.h>
+#include <Poco/StringTokenizer.h>
+#include <Common/DebugUtils.h>
 
 using namespace DB;
 using namespace local_engine;
@@ -228,7 +228,7 @@ MergeTreeTableInstance::MergeTreeTableInstance(const google::protobuf::Any & any
 MergeTreeTableInstance::MergeTreeTableInstance(const substrait::ReadRel::ExtensionTable & extension_table)
     : MergeTreeTableInstance(extension_table.detail())
 {
-    logDebugMessage(extension_table, "merge_tree_table");
+    debug::dumpMessage(extension_table, "merge_tree_table");
 }
 
 SparkStorageMergeTreePtr MergeTreeTableInstance::restoreStorage(const ContextMutablePtr & context) const

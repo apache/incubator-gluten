@@ -22,6 +22,7 @@
 #include <config.pb.h>
 #include <Poco/Util/AbstractConfiguration.h>
 #include <Common/CHUtil.h>
+#include <Common/DebugUtils.h>
 #include <Common/logger_useful.h>
 
 namespace local_engine
@@ -45,7 +46,7 @@ std::map<std::string, std::string> SparkConfigs::load(std::string_view plan, boo
     auto configMaps = local_engine::BinaryToMessage<gluten::ConfigMap>(plan);
 
     if (!processStart)
-        logDebugMessage(configMaps, "Update Config Map Plan");
+        debug::dumpMessage(configMaps, "Update Config Map Plan");
 
     for (const auto & pair : configMaps.configs())
         configs.emplace(pair.first, pair.second);
