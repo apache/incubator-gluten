@@ -62,6 +62,7 @@
 #include <Common/Exception.h>
 #include <Common/GlutenConfig.h>
 #include <Common/JNIUtils.h>
+#include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
 
@@ -323,7 +324,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     }
     catch (...)
     {
-        LOG_ERROR(getLogger("SerializedPlanParser"), "Invalid plan:\n{}", PlanUtil::explainPlan(*query_plan));
+        LOG_ERROR(log, "Invalid plan:\n{}", PlanUtil::explainPlan(*query_plan));
         throw;
     }
 
@@ -332,10 +333,9 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     assert(root_rel.has_root());
     if (root_rel.root().input().has_write())
         addSinkTransform(parser_context->queryContext(), root_rel.root().input().write(), builder);
-    auto * logger = &Poco::Logger::get("SerializedPlanParser");
-    LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
+    LOG_INFO(log, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
     LOG_DEBUG(
-        logger,
+        log,
         "clickhouse plan [optimization={}]:\n{}",
         settings[Setting::query_plan_enable_optimizations],
         PlanUtil::explainPlan(*query_plan));
@@ -347,6 +347,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
 SerializedPlanParser::SerializedPlanParser(ParserContextPtr parser_context_) : parser_context(parser_context_)
 {
     context = parser_context->queryContext();
+    log = getLogger("SerializedPlanParser(" + QueryContext::instance().currentTaskId() + ")");
 }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(

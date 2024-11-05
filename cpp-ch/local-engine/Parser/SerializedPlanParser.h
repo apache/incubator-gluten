@@ -119,6 +119,7 @@ public:
 private:
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
 
+    LoggerPtr log;
     std::vector<jobject> input_iters;
     std::vector<std::string> split_infos;
     int split_info_index = 0;
