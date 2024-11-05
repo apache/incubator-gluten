@@ -84,7 +84,7 @@ DB::ContextPtr QueryContext::globalContext()
     return Data::global_context;
 }
 
-int64_t QueryContext::initializeQuery(String task_id)
+int64_t QueryContext::initializeQuery(const String & task_id)
 {
     std::shared_ptr<Data> query_context = std::make_shared<Data>();
     query_context->query_context = Context::createCopy(globalContext());
@@ -130,13 +130,13 @@ String QueryContext::currentTaskIdOrEmpty()
 {
     if (auto thread_group = CurrentThread::getGroup())
     {
-        const int64_t id = reinterpret_cast<int64_t>(CurrentThread::getGroup().get());
+        const int64_t id = reinterpret_cast<int64_t>(thread_group.get());
         return query_map_.get(id)->task_id;
     }
    return "";
 }
 
-void QueryContext::logCurrentPerformanceCounters(ProfileEvents::Counters & counters, String task_id) const
+void QueryContext::logCurrentPerformanceCounters(ProfileEvents::Counters & counters, const String & task_id) const
 {
     if (!CurrentThread::getGroup())
         return;
