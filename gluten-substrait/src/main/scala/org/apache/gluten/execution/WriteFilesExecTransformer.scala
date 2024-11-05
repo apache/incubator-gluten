@@ -33,6 +33,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, Literal
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{ArrayType, MapType}
@@ -129,22 +130,26 @@ case class WriteFilesExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     val finalChildOutput = getFinalChildOutput
 
-    def isConstantComplexType(e: Expression): Boolean =
+    def isConstantComplexType(e: Expression): Boolean = {
       e match {
-        case Literal(_, ArrayType(_, _)) => true
-        case Literal(_, MapType(_, _, _)) => true
-        case _ => false
+        case Literal(_, _: ArrayType | _: MapType) => true
+        case _ => e.children.exists(isConstantComplexType)
       }
+    }
 
-    val hasConstantComplexType = child match {
+    lazy val hasConstantComplexType = child match {
       case t: ProjectExecTransformer =>
         t.projectList.exists(isConstantComplexType)
       case p: ProjectExec =>
         p.projectList.exists(isConstantComplexType)
       case _ => false
     }
-    if (hasConstantComplexType) {
-      return ValidationResult.failed("Unsupported native write: complex data type with constant")
+    // TODO: currently the velox don't support parquet write with complex data type
+    //  with constant.
+    if (fileFormat.isInstanceOf[ParquetFileFormat] && hasConstantComplexType) {
+      return ValidationResult.failed(
+        "Unsupported native parquet write: " +
+          "complex data type with constant")
     }
 
     val validationResult =
