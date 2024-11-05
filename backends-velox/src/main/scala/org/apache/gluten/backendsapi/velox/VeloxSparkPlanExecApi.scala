@@ -732,10 +732,11 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
           None
         case FloatType | DoubleType | _: DecimalType =>
           Some(trimSpaceStr)
-        case ByteType | ShortType | IntegerType | LongType =>
-          Some((trimWhitespaceStr + isoControlControlStr).toSet.mkString)
         case _ =>
-          Some(trimWhitespaceStr + trimSpaceSepStr + trimLineSepStr + trimParaSepStr)
+          Some(
+            (trimWhitespaceStr + trimSpaceSepStr + trimLineSepStr
+              + trimParaSepStr + isoControlControlStr).toSet.mkString
+          )
       }
       trimStr
         .map {
