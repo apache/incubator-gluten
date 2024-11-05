@@ -43,6 +43,42 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 object CHHashAggregateExecTransformer {
+  // The result attributes of aggregate expressions from vanilla may be different from CH native.
+  // For example, the result attributes of `avg(x)` are `sum(x)` and `count(x)`. This could bring
+  // some unexpected issues. So we need to make the result attributes consistent with CH native.
+  def getCHAggregateResultAttributes(
+      aggregateExpressions: Seq[AggregateExpression],
+      resultExpressions: Seq[NamedExpression]): Seq[Attribute] = {
+    var resultExpressionIndex = 0
+    aggregateExpressions.flatMap {
+      aggExpr =>
+        aggExpr.mode match {
+          case Partial | PartialMerge =>
+            val aggBufferAttributesCount = aggExpr.aggregateFunction.aggBufferAttributes.length
+            aggExpr.aggregateFunction match {
+              case avg: Average =>
+                val res = Seq(aggExpr.resultAttribute)
+                resultExpressionIndex += aggBufferAttributesCount
+                res
+              case sum: Sum if (sum.dataType.isInstanceOf[DecimalType]) =>
+                val res = Seq(resultExpressions(resultExpressionIndex).toAttribute)
+                resultExpressionIndex += aggBufferAttributesCount
+                res
+              case _ =>
+                val res = resultExpressions
+                  .slice(resultExpressionIndex, resultExpressionIndex + aggBufferAttributesCount)
+                  .map(_.toAttribute)
+                resultExpressionIndex += aggBufferAttributesCount
+                res
+            }
+          case _ =>
+            val res = Seq(resultExpressions(resultExpressionIndex).toAttribute)
+            resultExpressionIndex += 1
+            res
+        }
+    }
+  }
+
   def getAggregateResultAttributes(
       groupingExpressions: Seq[NamedExpression],
       aggregateExpressions: Seq[AggregateExpression]): Seq[Attribute] = {

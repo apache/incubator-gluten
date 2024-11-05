@@ -158,16 +158,48 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       aggregateAttributes: Seq[Attribute],
       initialInputBufferOffset: Int,
       resultExpressions: Seq[NamedExpression],
-      child: SparkPlan): HashAggregateExecBaseTransformer =
-    CHHashAggregateExecTransformer(
+      child: SparkPlan): HashAggregateExecBaseTransformer = {
+    logError(s"xxx aggregateExpressions:$aggregateExpressions")
+    logError(s"xxx aggregateAttributes:$aggregateAttributes")
+    logError(s"xxx resultExpressions:$resultExpressions")
+    logError(s"xxx agg expr to result: ${aggregateExpressions.map(_.resultAttribute)}")
+    logError(
+      s"xxx agg:" +
+        s"${aggregateExpressions.map(e => e.aggregateFunction.aggBufferAttributes.length)}")
+    aggregateExpressions.foreach {
+      e => logError(s"xxx agg fun:$e, ${e.aggregateFunction.aggBufferAttributes}")
+    }
+    val modes = aggregateExpressions.map(_.mode)
+    logError(s"xxx modes: $modes")
+    val xoutputs = CHHashAggregateExecTransformer.getCHAggregateResultAttributes(
+      aggregateExpressions,
+      resultExpressions.slice(groupingExpressions.length, resultExpressions.length))
+    logError(s"xxx adjust agg output: $xoutputs")
+    val replacedResultExpressions =
+      groupingExpressions ++ xoutputs
+    val agg1 = CHHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
       groupingExpressions.distinct,
       aggregateExpressions,
       aggregateAttributes,
       initialInputBufferOffset,
       resultExpressions.distinct,
+      // replacedResultExpressions,
       child
     )
+    logError(s"xxx agg output: ${agg1.output}")
+    val agg = CHHashAggregateExecTransformer(
+      requiredChildDistributionExpressions,
+      groupingExpressions.distinct,
+      aggregateExpressions,
+      aggregateAttributes,
+      initialInputBufferOffset,
+      // resultExpressions.distinct,
+      replacedResultExpressions,
+      child
+    )
+    agg
+  }
 
   /** Generate HashAggregateExecPullOutHelper */
   override def genHashAggregateExecPullOutHelper(
