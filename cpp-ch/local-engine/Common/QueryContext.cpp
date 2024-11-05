@@ -126,11 +126,14 @@ std::shared_ptr<DB::ThreadGroup> QueryContext::currentThreadGroup()
     throw Exception(ErrorCodes::LOGICAL_ERROR, "Thread group not found.");
 }
 
-String QueryContext::currentTaskId()
+String QueryContext::currentTaskIdOrEmpty()
 {
-    auto thread_group = currentThreadGroup();
-    const int64_t id = reinterpret_cast<int64_t>(CurrentThread::getGroup().get());
-    return query_map_.get(id)->task_id;
+    if (auto thread_group = CurrentThread::getGroup())
+    {
+        const int64_t id = reinterpret_cast<int64_t>(CurrentThread::getGroup().get());
+        return query_map_.get(id)->task_id;
+    }
+   return "";
 }
 
 void QueryContext::logCurrentPerformanceCounters(ProfileEvents::Counters & counters, String task_id) const
