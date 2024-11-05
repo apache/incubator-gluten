@@ -23,6 +23,7 @@ string(REGEX REPLACE ".*CH_ORG=([^\n]+).*" "\\1" CH_ORG "${CH_VERSION}")
 string(REGEX REPLACE ".*CH_BRANCH=([^\n]+).*" "\\1" CH_BRANCH "${CH_VERSION}")
 string(REGEX REPLACE ".*CH_COMMIT=([^\n]+).*" "\\1" CH_COMMIT "${CH_VERSION}")
 
+
 message("CH_ORG=${CH_ORG}")
 message("CH_BRANCH=${CH_BRANCH}")
 message("CH_COMMIT=${CH_COMMIT}")
