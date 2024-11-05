@@ -284,6 +284,7 @@ case class CHHashAggregateExecTransformer(
                 "PartialMerge's child not being HashAggregateExecBaseTransformer" +
                   " is unsupported yet")
             }
+            val hashAggregateChild = child.asInstanceOf[BaseAggregateExec]
             val aggTypesExpr = ExpressionConverter
               .replaceWithExpressionTransformer(
                 aggExpr.resultAttribute,

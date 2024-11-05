@@ -177,10 +177,13 @@ class CHTransformerApi extends TransformerApi with Logging {
         // output name will be different from grouping expressions,
         // so using output attribute instead of grouping expression
         val groupingExpressions = hash.output.splitAt(hash.groupingExpressions.size)._1
-        val aggResultAttributes = CHHashAggregateExecTransformer.getAggregateResultAttributes(
-          groupingExpressions,
-          hash.aggregateExpressions
-        )
+        val aggResultAttributes = CHHashAggregateExecTransformer
+          .getCHAggregateResultExpressions(
+            groupingExpressions,
+            hash.aggregateExpressions,
+            hash.resultExpressions
+          )
+          .map(_.toAttribute)
         if (aggResultAttributes.size == hash.output.size) {
           aggResultAttributes
         } else {

@@ -117,7 +117,6 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
                 "Missmatch result columns size. plan column size {}, subtrait plan name size {}.",
                 cols.getNames().size(),
                 root_rel.root().names_size());
-        }
         for (int i = 0; i < static_cast<int>(cols.getNames().size()); i++)
             aliases.emplace_back(NameWithAlias(cols.getNames()[i], root_rel.root().names(i)));
         actions_dag.project(aliases);
