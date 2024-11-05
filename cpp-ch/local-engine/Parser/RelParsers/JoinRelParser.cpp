@@ -45,6 +45,7 @@ namespace DB
 namespace Setting
 {
 extern const SettingsJoinAlgorithm join_algorithm;
+extern const SettingsUInt64 max_block_size;
 }
 namespace ErrorCodes
 {
@@ -313,8 +314,15 @@ DB::QueryPlanPtr JoinRelParser::parseJoin(const substrait::JoinRel & join, DB::Q
 
         JoinPtr smj_join = std::make_shared<FullSortingMergeJoin>(table_join, right->getCurrentHeader().cloneEmpty(), -1);
         MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef()[Setting::join_algorithm];
-        QueryPlanStepPtr join_step
-            = std::make_unique<DB::JoinStep>(left->getCurrentHeader(), right->getCurrentHeader(), smj_join, 8192, 1, false);
+        QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
+            left->getCurrentHeader(),
+            right->getCurrentHeader(),
+            smj_join,
+            context->getSettingsRef()[Setting::max_block_size],
+            1,
+            /* required_output_ = */ NameSet{},
+            false,
+            /* use_new_analyzer_ = */ false);
 
         join_step->setStepDescription("SORT_MERGE_JOIN");
         steps.emplace_back(join_step.get());
@@ -382,7 +390,11 @@ void JoinRelParser::addConvertStep(TableJoin & table_join, DB::QueryPlan & left,
     NameSet left_columns_set;
     for (const auto & col : left.getCurrentHeader().getNames())
         left_columns_set.emplace(col);
-    table_join.setColumnsFromJoinedTable(right.getCurrentHeader().getNamesAndTypesList(), left_columns_set, getUniqueName("right") + ".");
+    table_join.setColumnsFromJoinedTable(
+        right.getCurrentHeader().getNamesAndTypesList(),
+        left_columns_set,
+        getUniqueName("right") + ".",
+        left.getCurrentHeader().getNamesAndTypesList());
 
     // fix right table key duplicate
     NamesWithAliases right_table_alias;
@@ -772,8 +784,15 @@ DB::QueryPlanPtr JoinRelParser::buildMultiOnClauseHashJoin(
     LOG_INFO(getLogger("JoinRelParser"), "multi join on clauses:\n{}", DB::TableJoin::formatClauses(table_join->getClauses()));
 
     JoinPtr hash_join = std::make_shared<HashJoin>(table_join, right_plan->getCurrentHeader());
-    QueryPlanStepPtr join_step
-        = std::make_unique<DB::JoinStep>(left_plan->getCurrentHeader(), right_plan->getCurrentHeader(), hash_join, 8192, 1, false);
+    QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
+        left_plan->getCurrentHeader(),
+        right_plan->getCurrentHeader(),
+        hash_join,
+        context->getSettingsRef()[Setting::max_block_size],
+        1,
+        /* required_output_ = */ NameSet{},
+        false,
+        /* use_new_analyzer_ = */ false);
     join_step->setStepDescription("Multi join on clause hash join");
     steps.emplace_back(join_step.get());
     std::vector<QueryPlanPtr> plans;
@@ -806,8 +825,15 @@ DB::QueryPlanPtr JoinRelParser::buildSingleOnClauseHashJoin(
     {
         hash_join = std::make_shared<HashJoin>(table_join, right_plan->getCurrentHeader().cloneEmpty());
     }
-    QueryPlanStepPtr join_step
-        = std::make_unique<DB::JoinStep>(left_plan->getCurrentHeader(), right_plan->getCurrentHeader(), hash_join, 8192, 1, false);
+    QueryPlanStepPtr join_step = std::make_unique<DB::JoinStep>(
+        left_plan->getCurrentHeader(),
+        right_plan->getCurrentHeader(),
+        hash_join,
+        context->getSettingsRef()[Setting::max_block_size],
+        1,
+        /* required_output_ = */ NameSet{},
+        false,
+        /* use_new_analyzer_ = */ false);
 
     join_step->setStepDescription("HASH_JOIN");
     steps.emplace_back(join_step.get());
