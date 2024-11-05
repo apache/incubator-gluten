@@ -28,10 +28,10 @@
 #include <IO/ReadBufferFromFile.h>
 #include <IO/ReadBufferFromS3.h>
 #include <IO/ReadSettings.h>
-#include <IO/SplittableBzip2ReadBuffer.h>
 #include <IO/S3/getObjectInfo.h>
 #include <IO/S3Common.h>
 #include <IO/SeekableReadBuffer.h>
+#include <IO/SplittableBzip2ReadBuffer.h>
 #include <Interpreters/Cache/FileCache.h>
 #include <Interpreters/Cache/FileCacheFactory.h>
 #include <Interpreters/Cache/FileCacheSettings.h>
@@ -321,8 +321,11 @@ public:
             DB::StoredObjects stored_objects{DB::StoredObject{remote_path, "", *file_size}};
             auto cache_creator = wrapWithCache(
                 read_buffer_creator, read_settings, remote_path, *modified_time, *file_size);
+            size_t buffer_size = std::max<size_t>(read_settings.remote_fs_buffer_size, DBMS_DEFAULT_BUFFER_SIZE);
+            if (*file_size > 0)
+                buffer_size = std::min(*file_size, buffer_size);
             auto cache_hdfs_read = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-                std::move(cache_creator), stored_objects, read_settings, nullptr, /* use_external_buffer */ false);
+                std::move(cache_creator), stored_objects, read_settings, nullptr, /* use_external_buffer */ false, buffer_size);
             read_buffer = std::move(cache_hdfs_read);
         }
 
@@ -406,11 +409,14 @@ public:
 
         DB::StoredObjects stored_objects{DB::StoredObject{pathKey, "", object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-            std::move(cache_creator), stored_objects, read_settings, /* cache_log */ nullptr, /* use_external_buffer */ true);
+            std::move(cache_creator), stored_objects, read_settings, /* cache_log */ nullptr, /* use_external_buffer */ true, 0);
 
         auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
+        size_t buffer_size = std::max<size_t>(read_settings.remote_fs_buffer_size, DBMS_DEFAULT_BUFFER_SIZE);
+        if (object_size > 0)
+            buffer_size = std::min(object_size, buffer_size);
         auto async_reader
-            = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, read_settings);
+            = std::make_unique<DB::AsynchronousBoundedReadBuffer>(std::move(s3_impl), pool_reader, read_settings, buffer_size);
 
         if (read_settings.remote_fs_prefetch)
             async_reader->prefetch(Priority{});
