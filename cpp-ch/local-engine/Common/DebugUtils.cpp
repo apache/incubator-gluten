@@ -37,12 +37,12 @@ namespace pb_util = google::protobuf::util;
 namespace debug
 {
 
-void dumpPlan(DB::QueryPlan & plan, Poco::Logger * logger, bool force)
+void dumpPlan(DB::QueryPlan & plan, bool force, LoggerPtr logger)
 {
-    if (logger == nullptr)
+    if (!logger)
     {
-        logger = &Poco::Logger::get("SubstraitPlan");
-        if (logger == nullptr)
+        logger = getLogger("SerializedPlanParser");
+        if (!logger)
             return;
     }
 
@@ -56,12 +56,12 @@ void dumpPlan(DB::QueryPlan & plan, Poco::Logger * logger, bool force)
         LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
 }
 
-void dumpMessage(const google::protobuf::Message & message, const char * type, Poco::Logger * logger, bool force)
+void dumpMessage(const google::protobuf::Message & message, const char * type, bool force, LoggerPtr logger)
 {
-    if (logger == nullptr)
+    if (!logger)
     {
-        logger = &Poco::Logger::get("SubstraitPlan");
-        if (logger == nullptr)
+        logger = getLogger("SubstraitPlan");
+        if (!logger)
             return;
     }
 

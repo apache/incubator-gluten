@@ -110,9 +110,8 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         const auto cols = query_plan->getCurrentHeader().getNamesAndTypesList();
         if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
         {
-            auto * logger = &Poco::Logger::get("SerializedPlanParser");
-            debug::dumpPlan(*query_plan, logger, true);
-            debug::dumpMessage(root_rel, "substrait::PlanRel", logger, true);
+            debug::dumpPlan(*query_plan, true);
+            debug::dumpMessage(root_rel, "substrait::PlanRel", true);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
                 "Missmatch result columns size. plan column size {}, subtrait plan name size {}.",
@@ -135,9 +134,8 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         const auto & original_cols = original_header.getColumnsWithTypeAndName();
         if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
         {
-            auto * logger = &Poco::Logger::get("SerializedPlanParser");
-            debug::dumpPlan(*query_plan, logger, true);
-            debug::dumpMessage(root_rel, "substrait::PlanRel", logger, true);
+            debug::dumpPlan(*query_plan, true);
+            debug::dumpMessage(root_rel, "substrait::PlanRel", true);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
                 "Missmatch result columns size. plan column size {}, subtrait plan output schema size {}, subtrait plan name size {}.",
