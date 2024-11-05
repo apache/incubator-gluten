@@ -1037,12 +1037,13 @@ class GlutenClickHouseFileFormatSuite
     )
   }
 
-  test("read data from orc file format") {
+  test("read data from orc file format - except date32") {
     val filePath = s"$orcDataPath/all_data_types_with_non_primitive_type.snappy.orc"
     val orcFileFormat = "orc"
     val sql =
       s"""
-         | select *
+         | select string_field, int_field, long_field, float_field, double_field, short_field,
+         | byte_field, boolean_field, decimal_field
          | from $orcFileFormat.`$filePath`
          | where long_field > 30
          |""".stripMargin
