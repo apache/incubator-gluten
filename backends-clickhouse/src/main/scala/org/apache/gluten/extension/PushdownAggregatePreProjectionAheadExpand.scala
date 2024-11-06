@@ -96,11 +96,7 @@ case class PushdownAggregatePreProjectionAheadExpand(session: SparkSession)
         def projectInputExists(expr: Expression, inputs: Seq[Attribute]): Boolean = {
           expr.children.foreach {
             case a: Attribute =>
-              var exist = false
-              for (input <- inputs if input.name.equals(a.name) && input.exprId.equals(a.exprId)) {
-                exist = true
-              }
-              return exist
+              return inputs.indexOf(a) != -1
             case p: Expression =>
               return projectInputExists(p, inputs)
             case _ =>
@@ -109,12 +105,14 @@ case class PushdownAggregatePreProjectionAheadExpand(session: SparkSession)
           true
         }
 
-        preProjectExprs.foreach(
-          p => {
-            if (!projectInputExists(p, rootChild.output)) {
-              return hashAggregate
-            }
-          })
+        val couldPushDown = preProjectExprs.forall {
+          case p: Expression => projectInputExists(p, rootChild.output)
+          case _ => true
+        }
+
+        if (!couldPushDown) {
+          return hashAggregate;
+        }
 
         // The new ahead project node will take rootChild's output and preProjectExprs as the
         // the projection expressions.
