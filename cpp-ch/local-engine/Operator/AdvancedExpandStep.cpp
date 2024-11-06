@@ -292,7 +292,7 @@ void AdvancedExpandTransform::detectCardinality()
 
     for (size_t i = 0; i < project_set_exprs.getExpandRows(); ++i)
     {
-        const auto & kinds = project_set_exprs.getKinds()[expand_expr_iterator];
+        const auto & kinds = project_set_exprs.getKinds()[i];
         for (size_t k = 0; k < grouping_keys; ++k)
         {
             const auto & kind = kinds[k];
@@ -303,6 +303,7 @@ void AdvancedExpandTransform::detectCardinality()
             }
         }
     }
+    LOG_DEBUG(getLogger("AdvancedExpandTransform"), "Low cardinality expand: {}", fmt::join(is_low_cardinality_expand, ","));
 
     input_chunk = DB::Chunk(block.getColumns(), block.rows());
     cardinality_detect_blocks.clear();
