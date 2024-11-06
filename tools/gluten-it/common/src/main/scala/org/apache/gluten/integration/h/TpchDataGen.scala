@@ -83,22 +83,22 @@ class TpchDataGen(
   private def lineItemParser: LineItem => Row =
     lineItem =>
       Row(
-        lineItem.getOrderKey,
-        lineItem.getPartKey,
-        lineItem.getSupplierKey,
-        lineItem.getLineNumber,
-        BigDecimal.valueOf(lineItem.getQuantity),
-        BigDecimal.valueOf(lineItem.getExtendedPrice),
-        BigDecimal.valueOf(lineItem.getDiscount),
-        BigDecimal.valueOf(lineItem.getTax),
-        lineItem.getReturnFlag,
-        lineItem.getStatus,
-        Date.valueOf(GenerateUtils.formatDate(lineItem.getCommitDate)),
-        Date.valueOf(GenerateUtils.formatDate(lineItem.getReceiptDate)),
-        lineItem.getShipInstructions,
-        lineItem.getShipMode,
-        lineItem.getComment,
-        Date.valueOf(GenerateUtils.formatDate(lineItem.getShipDate)))
+        lineItem.orderKey(),
+        lineItem.partKey(),
+        lineItem.supplierKey(),
+        lineItem.lineNumber(),
+        BigDecimal.valueOf(lineItem.quantity()),
+        BigDecimal.valueOf(lineItem.extendedPrice()),
+        BigDecimal.valueOf(lineItem.discount()),
+        BigDecimal.valueOf(lineItem.tax()),
+        lineItem.returnFlag(),
+        lineItem.status(),
+        Date.valueOf(GenerateUtils.formatDate(lineItem.commitDate())),
+        Date.valueOf(GenerateUtils.formatDate(lineItem.receiptDate())),
+        lineItem.shipInstructions(),
+        lineItem.shipMode(),
+        lineItem.comment(),
+        Date.valueOf(GenerateUtils.formatDate(lineItem.shipDate())))
 
   // customer
   private def customerGenerator = { (part: Int, partCount: Int) =>
@@ -121,14 +121,14 @@ class TpchDataGen(
   private def customerParser: Customer => Row =
     customer =>
       Row(
-        customer.getCustomerKey,
-        customer.getName,
-        customer.getAddress,
-        customer.getNationKey,
-        customer.getPhone,
-        BigDecimal.valueOf(customer.getAccountBalance),
-        customer.getComment,
-        customer.getMarketSegment)
+        customer.customerKey(),
+        customer.name(),
+        customer.address(),
+        customer.nationKey(),
+        customer.phone(),
+        BigDecimal.valueOf(customer.accountBalance()),
+        customer.comment(),
+        customer.marketSegment())
 
   // orders
   private def orderGenerator = { (part: Int, partCount: Int) =>
@@ -152,15 +152,15 @@ class TpchDataGen(
   private def orderParser: Order => Row =
     order =>
       Row(
-        order.getOrderKey,
-        order.getCustomerKey,
-        String.valueOf(order.getOrderStatus),
-        BigDecimal.valueOf(order.getTotalPrice),
-        order.getOrderPriority,
-        order.getClerk,
-        order.getShipPriority,
-        order.getComment,
-        Date.valueOf(GenerateUtils.formatDate(order.getOrderDate)))
+        order.orderKey(),
+        order.customerKey(),
+        String.valueOf(order.orderStatus()),
+        BigDecimal.valueOf(order.totalPrice()),
+        order.orderPriority(),
+        order.clerk(),
+        order.shipPriority(),
+        order.comment(),
+        Date.valueOf(GenerateUtils.formatDate(order.orderDate())))
 
   // partsupp
   private def partSupplierGenerator = { (part: Int, partCount: Int) =>
@@ -180,11 +180,11 @@ class TpchDataGen(
   private def partSupplierParser: PartSupplier => Row =
     ps =>
       Row(
-        ps.getPartKey,
-        ps.getSupplierKey,
-        ps.getAvailableQuantity,
+        ps.partKey(),
+        ps.supplierKey(),
+        ps.availableQuantity(),
         BigDecimal.valueOf(ps.getSupplyCost),
-        ps.getComment)
+        ps.comment())
 
   // supplier
   private def supplierGenerator = { (part: Int, partCount: Int) =>
@@ -206,13 +206,13 @@ class TpchDataGen(
   private def supplierParser: Supplier => Row =
     s =>
       Row(
-        s.getSupplierKey,
-        s.getName,
-        s.getAddress,
-        s.getNationKey,
-        s.getPhone,
+        s.supplierKey(),
+        s.name(),
+        s.address(),
+        s.nationKey(),
+        s.phone(),
         BigDecimal.valueOf(s.getAccountBalance),
-        s.getComment)
+        s.comment())
 
   // nation
   private def nationGenerator = { () =>
@@ -229,7 +229,7 @@ class TpchDataGen(
   }
 
   private def nationParser: Nation => Row =
-    nation => Row(nation.getNationKey, nation.getName, nation.getRegionKey, nation.getComment)
+    nation => Row(nation.nationKey(), nation.name(), nation.regionKey(), nation.comment())
 
   // part
   private def partGenerator = { (part: Int, partCount: Int) =>
@@ -253,15 +253,15 @@ class TpchDataGen(
   private def partParser: Part => Row =
     part =>
       Row(
-        part.getPartKey,
-        part.getName,
-        part.getManufacturer,
-        part.getType,
-        part.getSize,
-        part.getContainer,
-        BigDecimal.valueOf(part.getRetailPrice),
-        part.getComment,
-        part.getBrand)
+        part.partKey(),
+        part.name(),
+        part.manufacturer(),
+        part.`type`(),
+        part.size(),
+        part.container(),
+        BigDecimal.valueOf(part.retailPrice()),
+        part.comment(),
+        part.brand())
 
   // region
   private def regionGenerator = { () =>
@@ -277,7 +277,7 @@ class TpchDataGen(
   }
 
   private def regionParser: Region => Row =
-    region => Row(region.getRegionKey, region.getName, region.getComment)
+    region => Row(region.regionKey(), region.name(), region.comment())
 
   // gen tpc-h data
   private def generate[U](
