@@ -525,8 +525,7 @@ void AggregateRelParser::addAggregatingStep()
             /// We cannot use streaming aggregating strategy in step3. Otherwise it will generate multiple blocks with same n_name in them. This
             /// will make the result for count(distinct(n_name)) wrong. step3 must finish all inputs before it puts any block into step4.
             /// So we introduce GraceAggregatingStep here, it can handle mass data with high cardinality.
-            auto aggregating_step
-                = std::make_unique<GraceAggregatingStep>(getContext(), plan->getCurrentHeader(), params, has_first_stage);
+            auto aggregating_step = std::make_unique<GraceAggregatingStep>(getContext(), plan->getCurrentHeader(), params, has_first_stage);
             steps.emplace_back(aggregating_step.get());
             plan->addStep(std::move(aggregating_step));
         }

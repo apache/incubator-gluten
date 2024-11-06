@@ -353,6 +353,18 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  // It try to move the expand node after the pre-aggregate node. That is to make the plan from
+  //  expand -> pre-aggregate -> shuffle -> final-aggregate
+  // to
+  //  pre-aggregate -> expand -> shuffle -> final-aggregate
+  // It could reduce the overhead of pre-aggregate node.
+  def enableLazyAggregateExpand(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConf.runtimeConfig("enable_lazy_aggregate_expand"),
+      defaultValue = true
+    )
+  }
+
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
   }
