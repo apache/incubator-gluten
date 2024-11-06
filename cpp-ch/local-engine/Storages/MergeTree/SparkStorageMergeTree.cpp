@@ -224,7 +224,10 @@ MergeTreeData::LoadPartResult SparkStorageMergeTree::loadDataPart(
 
     try
     {
-        res.part = getDataPartBuilder(part_name, single_disk_volume, part_name).withPartInfo(part_info).withPartFormatFromDisk().build();
+        res.part = getDataPartBuilder(part_name, single_disk_volume, part_name, getContext()->getReadSettings())
+                       .withPartInfo(part_info)
+                       .withPartFormatFromDisk()
+                       .build();
     }
     catch (...)
     {
@@ -439,7 +442,7 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
 
     VolumePtr volume = data.getStoragePolicy()->getVolume(0);
     VolumePtr data_part_volume = std::make_shared<SingleDiskVolume>(volume->getName(), volume->getDisk(), volume->max_data_part_size);
-    auto new_data_part = data.getDataPartBuilder(part_dir, data_part_volume, part_dir)
+    auto new_data_part = data.getDataPartBuilder(part_dir, data_part_volume, part_dir, context->getReadSettings())
                              .withPartFormat(data.choosePartFormat(expected_size, block.rows()))
                              .withPartInfo(new_part_info)
                              .build();

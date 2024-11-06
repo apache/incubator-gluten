@@ -83,6 +83,7 @@ class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSu
       .set("spark.sql.warehouse.dir", warehouse)
       .setCHConfig("user_defined_path", "/tmp/user_defined")
       .setCHConfig("path", UTSystemParameters.diskOutputDataPath)
+      .setCHConfig("tmp_path", s"/tmp/libch/$SPARK_DIR_NAME")
     if (UTSystemParameters.testMergeTreeOnObjectStorage) {
       conf
         .set("spark.hadoop.fs.s3a.access.key", S3_ACCESS_KEY)
