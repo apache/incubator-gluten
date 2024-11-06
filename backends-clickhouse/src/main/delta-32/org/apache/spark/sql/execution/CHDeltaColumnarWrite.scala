@@ -21,6 +21,7 @@ import org.apache.gluten.exception.GlutenNotSupportException
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.FileCommitProtocol
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.delta.files.DelayedCommitProtocol
 import org.apache.spark.sql.execution.datasources.{ExecutedWriteSummary, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -28,7 +29,6 @@ import org.apache.spark.util.Utils
 
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /** A Wrapper of [[DelayedCommitProtocol]] for accessing protected methods and fields. */
@@ -73,39 +73,41 @@ case class CHDelayedCommitProtocolWrite(
 
   private def doCollectNativeResult(
       cb: ColumnarBatch): Option[(Seq[(Map[String, String], String)], ExecutedWriteSummary)] = {
-    val numFiles = cb.numRows()
+    val basicNativeStats = BasicNativeStats(cb)
+
+    // TODO: we need close iterator here before processing the result.
+
     // Write an empty iterator
-    if (numFiles == 0) {
+    if (basicNativeStats.isEmpty) {
       None
     } else {
-      val file_col = cb.column(0)
-      val partition_col = cb.column(1)
-      val count_col = cb.column(2)
-
-      val partitions: mutable.Set[String] = mutable.Set[String]()
+      // process stats
       val addedFiles: ArrayBuffer[(Map[String, String], String)] =
         new ArrayBuffer[(Map[String, String], String)]
-
       var numWrittenRows: Long = 0
-      Range(0, cb.numRows()).foreach {
-        i =>
-          val fileName = file_col.getUTF8String(i).toString
-          val partition = partition_col.getUTF8String(i).toString
-          if (partition == "__NO_PARTITION_ID__") {
-            addedFiles.append((Map.empty[String, String], fileName))
+
+      basicNativeStats.foreach {
+        stat =>
+          val absolutePath = s"${description.path}/${stat.relativePath}"
+          if (stat.partition_id == "__NO_PARTITION_ID__") {
+            addedFiles.append((Map.empty[String, String], stat.filename))
           } else {
-            val partitionValues = committer.parsePartitions(partition)
-            addedFiles.append((partitionValues, s"$partition/$fileName"))
+            val partitionValues = committer.parsePartitions(stat.partition_id)
+            addedFiles.append((partitionValues, stat.relativePath))
+            basicWriteJobStatsTracker.newPartition(
+              new GenericInternalRow(Array[Any](stat.partition_id)))
           }
-          numWrittenRows += count_col.getLong(i)
+          basicWriteJobStatsTracker.newFile(absolutePath)
+          basicWriteJobStatsTracker.closeFile(absolutePath)
+          numWrittenRows += stat.record_count
       }
-      val updatedPartitions = partitions.toSet
+
       Some(
         (
           addedFiles.toSeq,
           ExecutedWriteSummary(
-            updatedPartitions = updatedPartitions,
-            stats = Seq(CreateBasicWriteTaskStats(numFiles, updatedPartitions, numWrittenRows)))))
+            updatedPartitions = Set.empty,
+            stats = Seq(finalStats(numWrittenRows)))))
     }
   }
 

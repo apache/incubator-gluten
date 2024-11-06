@@ -23,7 +23,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.{FileCommitProtocol, FileNameSpec, HadoopMapReduceCommitProtocol}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
-import org.apache.spark.sql.execution.datasources.{BasicWriteTaskStats, ExecutedWriteSummary, PartitioningUtils, WriteJobDescription, WriteTaskResult}
+import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, BasicWriteTaskStats, ExecutedWriteSummary, PartitioningUtils, WriteJobDescription, WriteTaskResult, WriteTaskStatsTracker}
+import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
@@ -52,6 +53,17 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
     committer.abortTask(taskAttemptContext)
   }
   def commitTask(batch: ColumnarBatch): Option[WriteTaskResult]
+
+  lazy val basicWriteJobStatsTracker: WriteTaskStatsTracker = description.statsTrackers
+    .find(_.isInstanceOf[BasicWriteJobStatsTracker])
+    .map(_.newTaskInstance())
+    .get
+
+  // TODO: task commit time
+  def finalStats(numWrittenRows: Long): BasicWriteTaskStats = basicWriteJobStatsTracker
+    .getFinalStats(0)
+    .asInstanceOf[BasicWriteTaskStats]
+    .copy(numRows = numWrittenRows)
 
   lazy val (taskAttemptContext: TaskAttemptContext, jobId: String) = {
     // Copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version
@@ -87,25 +99,6 @@ object CreateFileNameSpec {
     val suffix = f".c$fileCounter%03d" +
       description.outputWriterFactory.getFileExtension(taskContext)
     FileNameSpec("", suffix)
-  }
-}
-
-object CreateBasicWriteTaskStats {
-  def apply(
-      numFiles: Int,
-      updatedPartitions: Set[String],
-      numWrittenRows: Long): BasicWriteTaskStats = {
-    val partitionsInternalRows = updatedPartitions.map {
-      part =>
-        val parts = new Array[Any](1)
-        parts(0) = part
-        new GenericInternalRow(parts)
-    }.toSeq
-    BasicWriteTaskStats(
-      partitions = partitionsInternalRows,
-      numFiles = numFiles,
-      numBytes = 101,
-      numRows = numWrittenRows)
   }
 }
 
@@ -148,6 +141,42 @@ case class HadoopMapReduceAdapter(sparkCommitter: HadoopMapReduceCommitProtocol)
   }
 }
 
+/**
+ * {{{
+ * val schema =
+ *   StructType(
+ *     StructField("filename", StringType, false) ::
+ *     StructField("partition_id", StringType, false) ::
+ *     StructField("record_count", LongType, false) :: Nil)
+ * }}}
+ */
+case class BasicNativeStat(filename: String, partition_id: String, record_count: Long) {
+
+  lazy val relativePath: String = if (partition_id == "__NO_PARTITION_ID__") {
+    filename
+  } else {
+    s"$partition_id/$filename"
+  }
+}
+object BasicNativeStats {
+
+  /**
+   * we assume the number of records is less than 10,000.So the memory overhead is acceptable.
+   * otherwise, we need to access ColumnarBatch row by row, which is not efficient.
+   */
+  def apply(cb: ColumnarBatch): Seq[BasicNativeStat] =
+    CHExecUtil
+      .c2r(cb)
+      .map(
+        row =>
+          BasicNativeStat(
+            row.getUTF8String(0).toString,
+            row.getUTF8String(1).toString,
+            row.getLong(2)
+          ))
+      .toSeq
+}
+
 case class HadoopMapReduceCommitProtocolWrite(
     override val jobTrackerID: String,
     override val description: WriteJobDescription,
@@ -169,46 +198,44 @@ case class HadoopMapReduceCommitProtocolWrite(
   }
 
   def doCollectNativeResult(cb: ColumnarBatch): Option[WriteTaskResult] = {
-    val numFiles = cb.numRows()
+    val basicNativeStats = BasicNativeStats(cb)
+
+    // TODO: we need close iterator here before processing the result.
     // Write an empty iterator
-    if (numFiles == 0) {
+    if (basicNativeStats.isEmpty) {
       None
     } else {
-      val file_col = cb.column(0)
-      val partition_col = cb.column(1)
-      val count_col = cb.column(2)
-
-      val outputPath = description.path
       val partitions: mutable.Set[String] = mutable.Set[String]()
       val addedAbsPathFiles: mutable.Map[String, String] = mutable.Map[String, String]()
 
       var numWrittenRows: Long = 0
-      Range(0, cb.numRows()).foreach {
-        i =>
-          val targetFileName = file_col.getUTF8String(i).toString
-          val partition = partition_col.getUTF8String(i).toString
-          if (partition != "__NO_PARTITION_ID__") {
-            partitions += partition
-            val tmpOutputPath = outputPath + "/" + partition + "/" + targetFileName
+      basicNativeStats.foreach {
+        stat =>
+          val tmpAbsolutePath = s"${description.path}/${stat.relativePath}"
+          if (stat.partition_id != "__NO_PARTITION_ID__") {
+            partitions += stat.partition_id
             val customOutputPath =
               description.customPartitionLocations.get(
-                PartitioningUtils.parsePathFragment(partition))
+                PartitioningUtils.parsePathFragment(stat.partition_id))
             if (customOutputPath.isDefined) {
-              addedAbsPathFiles(tmpOutputPath) = customOutputPath.get + "/" + targetFileName
+              addedAbsPathFiles(tmpAbsolutePath) = customOutputPath.get + "/" + stat.filename
             }
+            basicWriteJobStatsTracker.newPartition(
+              new GenericInternalRow(Array[Any](stat.partition_id)))
           }
-          numWrittenRows += count_col.getLong(i)
+          basicWriteJobStatsTracker.newFile(tmpAbsolutePath)
+          basicWriteJobStatsTracker.closeFile(tmpAbsolutePath)
+          numWrittenRows += stat.record_count
       }
 
       val updatedPartitions = partitions.toSet
-      val summary =
-        ExecutedWriteSummary(
-          updatedPartitions = updatedPartitions,
-          stats = Seq(CreateBasicWriteTaskStats(numFiles, updatedPartitions, numWrittenRows)))
       Some(
         WriteTaskResult(
           new TaskCommitMessage(addedAbsPathFiles.toMap -> updatedPartitions),
-          summary))
+          ExecutedWriteSummary(
+            updatedPartitions = updatedPartitions,
+            stats = Seq(finalStats(numWrittenRows)))
+        ))
     }
   }
 

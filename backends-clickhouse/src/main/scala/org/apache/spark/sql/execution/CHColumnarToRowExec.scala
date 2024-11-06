@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution
 import org.apache.gluten.execution.ColumnarToRowExecBase
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.metrics.GlutenTimeMetric
-import org.apache.gluten.vectorized.CHNativeBlock
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
@@ -103,10 +102,7 @@ class CHColumnarToRowRDD(
             logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
             Iterator.empty
           } else {
-            val blockAddress = GlutenTimeMetric.millis(convertTime) {
-              _ => CHNativeBlock.fromColumnarBatch(batch).blockAddress()
-            }
-            CHExecUtil.getRowIterFromSparkRowInfo(blockAddress, batch.numCols(), batch.numRows())
+            GlutenTimeMetric.millis(convertTime)(_ => CHExecUtil.c2r(batch))
           }
       }
   }
