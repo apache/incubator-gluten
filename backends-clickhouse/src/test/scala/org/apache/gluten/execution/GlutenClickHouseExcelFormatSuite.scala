@@ -46,7 +46,7 @@ case class AllDataTypesWithNonPrimitiveType(
     // data: (Seq[Int], (Int, String))
 )
 
-class GlutenClickHouseFileFormatSuite
+class GlutenClickHouseExcelFormatSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
   import testImplicits._
@@ -273,7 +273,8 @@ class GlutenClickHouseFileFormatSuite
         StructField.apply("boolean_field", BooleanType, nullable = true),
         StructField.apply("decimal_field", DecimalType.apply(10, 2), nullable = true),
         StructField.apply("date_field", DateType, nullable = true),
-        StructField.apply("timestamp_field", TimestampType, nullable = true)
+        StructField.apply("timestamp_field", TimestampType, nullable = true),
+        StructField.apply("boolean_field2", BooleanType, nullable = true)
       ))
 
     val options = new util.HashMap[String, String]()
