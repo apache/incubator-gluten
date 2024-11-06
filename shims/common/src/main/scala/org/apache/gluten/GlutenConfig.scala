@@ -40,7 +40,7 @@ class GlutenConfig(sessionOpt: Option[SparkSession] = None) extends Logging {
 
   def this(spark: SparkSession) = this(Some(spark))
 
-  def conf: SQLConf = sessionOpt.map(_.sessionState.conf).getOrElse(SQLConf.get)
+  def conf: SQLConf = SQLConf.get
 
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
