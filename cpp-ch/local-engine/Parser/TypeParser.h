@@ -24,37 +24,36 @@
 
 namespace local_engine
 {
-class TypeParser
-{
-public:
-    TypeParser() = default;
-    ~TypeParser() = default;
+    class TypeParser
+    {
+    public:
+        TypeParser() = default;
+        ~TypeParser() = default;
 
-    static String getCHTypeName(const String & spark_type_name);
+        static String getCHTypeName(const String& spark_type_name);
 
-    static DB::DataTypePtr getCHTypeByName(const String & spark_type_name);
+        static DB::DataTypePtr getCHTypeByName(const String& spark_type_name);
 
-    /// When parsing named structure, we need the field names.
-    static DB::DataTypePtr parseType(const substrait::Type & substrait_type, std::list<String> * field_names);
+        /// When parsing named structure, we need the field names.
+        static DB::DataTypePtr parseType(const substrait::Type& substrait_type, std::list<String>* field_names);
 
-    inline static DB::DataTypePtr parseType(const substrait::Type & substrait_type) { return parseType(substrait_type, nullptr); }
+        inline static DB::DataTypePtr parseType(const substrait::Type& substrait_type)
+        {
+            return parseType(substrait_type, nullptr);
+        }
 
-    // low_card_cols is in format of "cola,colb". Currently does not nested column to be LowCardinality.
-    static DB::Block buildBlockFromNamedStruct(const substrait::NamedStruct & struct_, const std::string & low_card_cols = "");
+        // low_card_cols is in format of "cola,colb". Currently does not nested column to be LowCardinality.
+        static DB::Block buildBlockFromNamedStruct(const substrait::NamedStruct& struct_, const std::string& low_card_cols = "");
 
-    /// Build block from substrait NamedStruct without DFS rules, different from buildBlockFromNamedStruct
-    static DB::Block buildBlockFromNamedStructWithoutDFS(const substrait::NamedStruct & struct_);
+        /// Build block from substrait NamedStruct without DFS rules, different from buildBlockFromNamedStruct
+        static DB::Block buildBlockFromNamedStructWithoutDFS(const substrait::NamedStruct& struct_);
 
-    /// Whether the substrait type and CH type are matched.
-    static bool isTypeMatched(const substrait::Type & substrait_type, const DB::DataTypePtr & ch_type, bool ignore_nullability = true);
+        static bool isTypeMatched(const substrait::Type & substrait_type, const DB::DataTypePtr & ch_type, bool ignore_nullability = true);
 
-    /// Whether the two CH types are equal. They must have the same nullability/type index/name. Notice that "Bool" and "UInt8" is not equivalent.
-    static bool isEquivalentTypes(const DB::DataTypePtr & lhs, const DB::DataTypePtr & rhs);
+    private:
+        /// Mapping spark type names to CH type names.
+        static std::unordered_map<String, String> type_names_mapping;
 
-private:
-    /// Mapping spark type names to CH type names.
-    static std::unordered_map<String, String> type_names_mapping;
-
-    static DB::DataTypePtr tryWrapNullable(substrait::Type_Nullability nullable, DB::DataTypePtr nested_type);
-};
+        static DB::DataTypePtr tryWrapNullable(substrait::Type_Nullability nullable, DB::DataTypePtr nested_type);
+    };
 }

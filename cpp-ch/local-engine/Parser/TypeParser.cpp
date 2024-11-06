@@ -322,41 +322,12 @@ bool TypeParser::isTypeMatched(const substrait::Type & substrait_type, const Dat
         // if it's only different in nullability, we consider them same.
         // this will be problematic for some functions being not-null in spark but nullable in clickhouse.
         // e.g. murmur3hash
-        auto a = removeNullable(parsed_ch_type);
-        auto b = removeNullable(ch_type);
-        return isEquivalentTypes(a, b);
+        const auto a = removeNullable(parsed_ch_type);
+        const auto b = removeNullable(ch_type);
+        return a->equals(*b);
     }
     else
-        return isEquivalentTypes(parsed_ch_type, ch_type);
-}
-
-bool TypeParser::isEquivalentTypes(const DB::DataTypePtr & lhs, const DB::DataTypePtr & rhs)
-{
-    if (lhs->equals(*rhs))
-    {
-        auto denull_lhs = removeNullable(lhs);
-        auto denull_rhs = removeNullable(rhs);
-
-        /// UInt8 and Bool are not equivalent because they have different deser
-        if ((isBool(denull_lhs) && isUInt8(denull_rhs)) || (isUInt8(denull_lhs) && isBool(denull_rhs)))
-            return false;
-
-        return true;
-    }
-    else
-        return false;
-
-    /*
-    bool is_left_custom = lhs->hasCustomName();
-    bool is_right_custom = rhs->hasCustomName();
-
-    if (is_left_custom ^ is_right_custom)
-        return false;
-    else if (!is_left_custom)
-        return lhs->equals(*rhs);
-    else
-        return lhs->getCustomName() == rhs->getCustomName() && lhs->equals(*rhs);
-    */
+        return parsed_ch_type->equals(*ch_type);
 }
 
 DB::DataTypePtr TypeParser::tryWrapNullable(substrait::Type_Nullability nullable, DB::DataTypePtr nested_type)
