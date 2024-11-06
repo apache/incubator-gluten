@@ -31,8 +31,8 @@ bool isMetaDataFile(const std::string & path)
 void CompactObjectStorageDiskTransaction::commit()
 {
     auto metadata_tx = disk.getMetadataStorage()->createTransaction();
-    std::filesystem::path data_path = std::filesystem::path(prefix_path) / "data.bin";
-    std::filesystem::path meta_path = std::filesystem::path(prefix_path) / "meta.bin";
+    std::filesystem::path data_path = std::filesystem::path(prefix_path) / PART_DATA_FILE_NAME;
+    std::filesystem::path meta_path = std::filesystem::path(prefix_path) / PART_META_FILE_NAME;
 
     auto object_storage = disk.getObjectStorage();
     auto data_key = object_storage->generateObjectKeyForPath(data_path, std::nullopt);
