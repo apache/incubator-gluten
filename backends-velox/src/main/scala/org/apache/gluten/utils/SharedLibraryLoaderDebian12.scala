@@ -50,6 +50,5 @@ class SharedLibraryLoaderDebian12 extends SharedLibraryLoader {
     loader.loadAndCreateLink("libevent-2.1.so.7", "libevent-2.1.so", false)
     loader.loadAndCreateLink("libcurl.so.4", "libcurl.so", false)
     loader.loadAndCreateLink("libprotobuf.so.32", "libprotobuf.so", false)
-    loader.loadAndCreateLink("libhdfs.so.0.0.0", "libhdfs.so", false)
   }
 }
