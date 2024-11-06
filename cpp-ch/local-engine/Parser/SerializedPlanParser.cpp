@@ -62,6 +62,7 @@
 #include <Common/Exception.h>
 #include <Common/GlutenConfig.h>
 #include <Common/JNIUtils.h>
+#include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
 
@@ -101,7 +102,7 @@ std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
     return res;
 }
 
-void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel & root_rel)
+void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel & root_rel) const
 {
     if (root_rel.root().names_size())
     {
@@ -110,8 +111,8 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         const auto cols = query_plan->getCurrentHeader().getNamesAndTypesList();
         if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
         {
-            debug::dumpPlan(*query_plan, true);
-            debug::dumpMessage(root_rel, "substrait::PlanRel", true);
+            debug::dumpPlan(*query_plan, true, log);
+            debug::dumpMessage(root_rel, "substrait::PlanRel", true, log);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
                 "Missmatch result columns size. plan column size {}, subtrait plan name size {}.",
@@ -134,8 +135,8 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         const auto & original_cols = original_header.getColumnsWithTypeAndName();
         if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
         {
-            debug::dumpPlan(*query_plan, true);
-            debug::dumpMessage(root_rel, "substrait::PlanRel", true);
+            debug::dumpPlan(*query_plan, true, log);
+            debug::dumpMessage(root_rel, "substrait::PlanRel", true, log);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
                 "Missmatch result columns size. plan column size {}, subtrait plan output schema size {}, subtrait plan name size {}.",
@@ -183,7 +184,7 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
 
 QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
 {
-    debug::dumpMessage(plan, "substrait::Plan");
+    debug::dumpMessage(plan, "substrait::Plan", false, log);
     //parseExtensions(plan.extensions());
     if (plan.relations_size() != 1)
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "too many relations found");
@@ -204,7 +205,7 @@ QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
     PlanUtil::checkOuputType(*query_plan);
 #endif
 
-    debug::dumpPlan(*query_plan);
+    debug::dumpPlan(*query_plan, false, log);
     return query_plan;
 }
 
@@ -323,7 +324,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     }
     catch (...)
     {
-        LOG_ERROR(getLogger("SerializedPlanParser"), "Invalid plan:\n{}", PlanUtil::explainPlan(*query_plan));
+        LOG_ERROR(log, "Invalid plan:\n{}", PlanUtil::explainPlan(*query_plan));
         throw;
     }
 
@@ -332,10 +333,9 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
     assert(root_rel.has_root());
     if (root_rel.root().input().has_write())
         addSinkTransform(parser_context->queryContext(), root_rel.root().input().write(), builder);
-    auto * logger = &Poco::Logger::get("SerializedPlanParser");
-    LOG_INFO(logger, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
+    LOG_INFO(log, "build pipeline {} ms", stopwatch.elapsedMicroseconds() / 1000.0);
     LOG_DEBUG(
-        logger,
+        log,
         "clickhouse plan [optimization={}]:\n{}",
         settings[Setting::query_plan_enable_optimizations],
         PlanUtil::explainPlan(*query_plan));
@@ -347,6 +347,7 @@ std::unique_ptr<LocalExecutor> SerializedPlanParser::createExecutor(DB::QueryPla
 SerializedPlanParser::SerializedPlanParser(ParserContextPtr parser_context_) : parser_context(parser_context_)
 {
     context = parser_context->queryContext();
+    log = getLogger("SerializedPlanParser(" + QueryContext::instance().currentTaskIdOrEmpty() + ")");
 }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(
