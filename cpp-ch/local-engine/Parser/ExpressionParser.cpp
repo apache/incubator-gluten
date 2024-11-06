@@ -352,9 +352,6 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
             }
             else
             {
-                std::cout << "denull_input_type:" << denull_input_type->getName() << std::endl;
-                std::cout << "denull_output_type:" << denull_output_type->getName() << std::endl;
-                std::cout << "input:" << input.DebugString() << std::endl;
                 /// Common process: CAST(input, type)
                 args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
                 result_node = toFunctionNode(actions_dag, "CAST", args);
