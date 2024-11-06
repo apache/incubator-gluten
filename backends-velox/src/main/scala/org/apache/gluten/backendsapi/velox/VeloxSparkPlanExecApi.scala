@@ -724,7 +724,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
     // Needs to be trimmed for casting to float/double/decimal
     val trimSpaceStr = ('\u0000' to '\u0020').toList.mkString
     // ISOControl characters, refer java.lang.Character.isISOControl(int)
-    val isoControlControlStr = (('\u0000' to '\u001F') ++ ('\u007F' to '\u009F')).toList.mkString
+    val isoControlStr = (('\u0000' to '\u001F') ++ ('\u007F' to '\u009F')).toList.mkString
     // scalastyle:on nonascii
     if (GlutenConfig.getConf.castFromVarcharAddTrimNode && c.child.dataType == StringType) {
       val trimStr = c.dataType match {
@@ -735,7 +735,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
         case _ =>
           Some(
             (trimWhitespaceStr + trimSpaceSepStr + trimLineSepStr
-              + trimParaSepStr + isoControlControlStr).toSet.mkString
+              + trimParaSepStr + isoControlStr).toSet.mkString
           )
       }
       trimStr
