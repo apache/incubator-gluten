@@ -118,6 +118,7 @@ public:
 
 private:
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
+    void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel & root_rel) const;
 
     LoggerPtr log;
     std::vector<jobject> input_iters;

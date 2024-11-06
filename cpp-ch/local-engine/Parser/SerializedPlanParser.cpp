@@ -102,7 +102,7 @@ std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
     return res;
 }
 
-void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel & root_rel)
+void SerializedPlanParser::adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel & root_rel) const
 {
     if (root_rel.root().names_size())
     {
@@ -111,8 +111,8 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         const auto cols = query_plan->getCurrentHeader().getNamesAndTypesList();
         if (cols.getNames().size() != static_cast<size_t>(root_rel.root().names_size()))
         {
-            debug::dumpPlan(*query_plan, true);
-            debug::dumpMessage(root_rel, "substrait::PlanRel", true);
+            debug::dumpPlan(*query_plan, true, log);
+            debug::dumpMessage(root_rel, "substrait::PlanRel", true, log);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
                 "Missmatch result columns size. plan column size {}, subtrait plan name size {}.",
@@ -135,8 +135,8 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
         const auto & original_cols = original_header.getColumnsWithTypeAndName();
         if (static_cast<size_t>(output_schema.types_size()) != original_cols.size())
         {
-            debug::dumpPlan(*query_plan, true);
-            debug::dumpMessage(root_rel, "substrait::PlanRel", true);
+            debug::dumpPlan(*query_plan, true, log);
+            debug::dumpMessage(root_rel, "substrait::PlanRel", true, log);
             throw Exception(
                 ErrorCodes::LOGICAL_ERROR,
                 "Missmatch result columns size. plan column size {}, subtrait plan output schema size {}, subtrait plan name size {}.",
@@ -184,7 +184,7 @@ void adjustOutput(const DB::QueryPlanPtr & query_plan, const substrait::PlanRel 
 
 QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
 {
-    debug::dumpMessage(plan, "substrait::Plan");
+    debug::dumpMessage(plan, "substrait::Plan", false, log);
     //parseExtensions(plan.extensions());
     if (plan.relations_size() != 1)
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "too many relations found");
@@ -205,7 +205,7 @@ QueryPlanPtr SerializedPlanParser::parse(const substrait::Plan & plan)
     PlanUtil::checkOuputType(*query_plan);
 #endif
 
-    debug::dumpPlan(*query_plan);
+    debug::dumpPlan(*query_plan, false, log);
     return query_plan;
 }
 
