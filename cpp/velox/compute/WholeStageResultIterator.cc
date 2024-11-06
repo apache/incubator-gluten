@@ -91,7 +91,7 @@ WholeStageResultIterator::WholeStageResultIterator(
       std::move(queryCtx),
       velox::exec::Task::ExecutionMode::kSerial);
   if (!task_->supportSerialExecutionMode()) {
-    throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
+    throw std::runtime_error("Task doesn't support single threaded execution: " + planNode->toString());
   }
   auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
   GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");

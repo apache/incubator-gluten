@@ -254,7 +254,7 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
                          |""".stripMargin) {
       df =>
         {
-          assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[ColumnarUnionExec]))
+          assert(getExecutedPlan(df).exists(plan => plan.isInstanceOf[UnionExecTransformer]))
         }
     }
 

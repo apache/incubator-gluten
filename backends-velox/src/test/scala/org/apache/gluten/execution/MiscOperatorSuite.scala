@@ -537,7 +537,9 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
                          |""".stripMargin) {
       df =>
         {
-          getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[ColumnarUnionExec]).isDefined)
+          assert(
+            getExecutedPlan(df).exists(
+              plan => plan.find(_.isInstanceOf[UnionExecTransformer]).isDefined))
         }
     }
   }

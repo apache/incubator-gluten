@@ -268,7 +268,11 @@ object Validators {
         val transformer = HashAggregateExecBaseTransformer.from(plan)
         transformer.doValidate().toValidatorOutcome()
       case plan: UnionExec =>
-        val transformer = ColumnarUnionExec(plan.children)
+        val transformer = if (BackendsApiManager.getSettings.supportNativeUnionExec()) {
+          UnionExecTransformer(plan.children)
+        } else {
+          ColumnarUnionExec(plan.children)
+        }
         transformer.doValidate().toValidatorOutcome()
       case plan: ExpandExec =>
         val transformer = ExpandExecTransformer(plan.projections, plan.output, plan.child)

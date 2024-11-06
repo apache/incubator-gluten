@@ -61,6 +61,9 @@ class SubstraitToVeloxPlanValidator {
   /// Used to validate whether the computing of this WindowGroupLimit is supported.
   bool validate(const ::substrait::WindowGroupLimitRel& windowGroupLimitRel);
 
+  /// Used to validate whether the computing of this Set is supported.
+  bool validate(const ::substrait::SetRel& setRel);
+
   /// Used to validate whether the computing of this Aggregation is supported.
   bool validate(const ::substrait::AggregateRel& aggRel);
 
@@ -104,7 +107,17 @@ class SubstraitToVeloxPlanValidator {
   std::vector<std::string> validateLog_;
 
   /// Used to get types from advanced extension and validate them.
-  bool validateInputTypes(const ::substrait::extensions::AdvancedExtension& extension, std::vector<TypePtr>& types);
+  bool validateInputType(const ::substrait::extensions::AdvancedExtension& extension, ::substrait::Type& out);
+
+  /// Used to get types from advanced extension and validate them. The input type should have single level
+  /// of nesting.
+  bool validateInputStructType1(const ::substrait::extensions::AdvancedExtension& extension, std::vector<TypePtr>& out);
+
+  /// Used to get types from advanced extension and validate them. The input type should have 2 levels
+  /// of nesting.
+  bool validateInputStructType2(
+      const ::substrait::extensions::AdvancedExtension& extension,
+      std::vector<std::vector<TypePtr>>& out);
 
   bool validateAggRelFunctionType(const ::substrait::AggregateRel& substraitAgg);
 
@@ -140,6 +153,14 @@ class SubstraitToVeloxPlanValidator {
   bool validateSingularOrList(
       const ::substrait::Expression::SingularOrList& singularOrList,
       const RowTypePtr& inputType);
+
+  /// Parse a Substrait struct type into a flattern Velox type vector. The input Subtrait type should have single level
+  /// of nesting.
+  bool parseStructType1(const ::substrait::Type& type, std::vector<TypePtr>& out);
+
+  /// Parse a Substrait struct type into a flattern Velox type vector. The input Subtrait type should have 2 levels
+  /// of nesting.
+  bool parseStructType2(const ::substrait::Type& type, std::vector<std::vector<TypePtr>>& out);
 
   /// Add necessary log for fallback
   void logValidateMsg(const std::string& log) {
