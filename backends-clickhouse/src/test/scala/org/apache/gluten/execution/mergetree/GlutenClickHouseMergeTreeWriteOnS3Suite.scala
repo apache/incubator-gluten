@@ -196,9 +196,9 @@ class GlutenClickHouseMergeTreeWriteOnS3Suite
           val objectName = obj.get().objectName()
           if (objectName.contains("metadata.gluten")) {
             metadataGlutenExist = true
-          } else if (objectName.contains("meta.bin")) {
+          } else if (objectName.contains("part_meta.gluten")) {
             metadataBinExist = true
-          } else if (objectName.contains("data.bin")) {
+          } else if (objectName.contains("part_data.gluten")) {
             dataBinExist = true
           } else if (objectName.contains("_commits")) {
             // Spark 35 has _commits directory
