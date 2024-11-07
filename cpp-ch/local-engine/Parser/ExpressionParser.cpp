@@ -93,7 +93,7 @@ std::pair<DB::DataTypePtr, DB::Field> LiteralParser::parse(const substrait::Expr
             break;
         }
         case substrait::Expression_Literal::kBoolean: {
-            type = std::make_shared<DB::DataTypeUInt8>();
+            type = DB::DataTypeFactory::instance().get("Bool");
             field = literal.boolean() ? UInt8(1) : UInt8(0);
             break;
         }
@@ -288,77 +288,77 @@ const ActionsDAG::Node * ExpressionParser::parseExpression(ActionsDAG & actions_
 
         case substrait::Expression::RexTypeCase::kCast: {
             if (!rel.cast().has_type() || !rel.cast().has_input())
-                throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
-            DB::ActionsDAG::NodeRawConstPtrs args;
+                throw Exception(ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
+            ActionsDAG::NodeRawConstPtrs args;
 
-            String cast_function = "CAST";
             const auto & input = rel.cast().input();
             args.emplace_back(parseExpression(actions_dag, input));
 
             const auto & substrait_type = rel.cast().type();
             const auto & input_type = args[0]->result_type;
-            DB::DataTypePtr non_nullable_input_type = DB::removeNullable(input_type);
-            DB::DataTypePtr output_type = TypeParser::parseType(substrait_type);
-            DB::DataTypePtr non_nullable_output_type = DB::removeNullable(output_type);
+            DataTypePtr denull_input_type = removeNullable(input_type);
+            DataTypePtr output_type = TypeParser::parseType(substrait_type);
+            DataTypePtr denull_output_type = removeNullable(output_type);
 
-            const DB::ActionsDAG::Node * function_node = nullptr;
+            const ActionsDAG::Node * result_node = nullptr;
             if (substrait_type.has_binary())
             {
                 /// Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
-                function_node = toFunctionNode(actions_dag, "reinterpretAsStringSpark", args);
+                result_node = toFunctionNode(actions_dag, "reinterpretAsStringSpark", args);
             }
-            else if (DB::isString(non_nullable_input_type) && DB::isDate32(non_nullable_output_type))
-                function_node = toFunctionNode(actions_dag, "sparkToDate", args);
-            else if (DB::isString(non_nullable_input_type) && DB::isDateTime64(non_nullable_output_type))
-                function_node = toFunctionNode(actions_dag, "sparkToDateTime", args);
-            else if (DB::isDecimal(non_nullable_input_type) && DB::isString(non_nullable_output_type))
+            else if (isString(denull_input_type) && isDate32(denull_output_type))
+                result_node = toFunctionNode(actions_dag, "sparkToDate", args);
+            else if (isString(denull_input_type) && isDateTime64(denull_output_type))
+                result_node = toFunctionNode(actions_dag, "sparkToDateTime", args);
+            else if (isDecimal(denull_input_type) && isString(denull_output_type))
             {
                 /// Spark cast(x as STRING) if x is Decimal -> CH toDecimalString(x, scale)
-                UInt8 scale = DB::getDecimalScale(*non_nullable_input_type);
-                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DB::DataTypeUInt8>(), DB::Field(scale)));
-                function_node = toFunctionNode(actions_dag, "toDecimalString", args);
+                UInt8 scale = getDecimalScale(*denull_input_type);
+                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeUInt8>(), Field(scale)));
+                result_node = toFunctionNode(actions_dag, "toDecimalString", args);
             }
-            else if (DB::isFloat(non_nullable_input_type) && DB::isInt(non_nullable_output_type))
+            else if (isFloat(denull_input_type) && isInt(denull_output_type))
             {
-                String function_name = "sparkCastFloatTo" + non_nullable_output_type->getName();
-                function_node = toFunctionNode(actions_dag, function_name, args);
+                String function_name = "sparkCastFloatTo" + denull_output_type->getName();
+                result_node = toFunctionNode(actions_dag, function_name, args);
             }
-            else if ((isDecimal(non_nullable_input_type) && substrait_type.has_decimal()))
+            else if ((isDecimal(denull_input_type) && substrait_type.has_decimal()))
             {
                 args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), substrait_type.decimal().precision()));
                 args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeInt32>(), substrait_type.decimal().scale()));
-
-                function_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
+                result_node = toFunctionNode(actions_dag, "checkDecimalOverflowSparkOrNull", args);
             }
-            else if (isMap(non_nullable_input_type) && isString(non_nullable_output_type))
+            else if (isMap(denull_input_type) && isString(denull_output_type))
             {
                 // ISSUE-7389: spark cast(map to string) has different behavior with CH cast(map to string)
-                auto map_input_type = std::static_pointer_cast<const DataTypeMap>(non_nullable_input_type);
+                auto map_input_type = std::static_pointer_cast<const DataTypeMap>(denull_input_type);
                 args.emplace_back(addConstColumn(actions_dag, map_input_type->getKeyType(), map_input_type->getKeyType()->getDefault()));
                 args.emplace_back(addConstColumn(actions_dag, map_input_type->getValueType(), map_input_type->getValueType()->getDefault()));
-                function_node = toFunctionNode(actions_dag, "sparkCastMapToString", args);
+                result_node = toFunctionNode(actions_dag, "sparkCastMapToString", args);
+            }
+            else if (isString(denull_input_type) && substrait_type.has_bool_())
+            {
+                /// cast(string to boolean)
+                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
+                result_node = toFunctionNode(actions_dag, "accurateCastOrNull", args);
+            }
+            else if (isString(denull_input_type) && isInt(denull_output_type))
+            {
+                /// Spark cast(x as INT) if x is String -> CH cast(trim(x) as INT)
+                /// Refer to https://github.com/apache/incubator-gluten/issues/4956
+                args[0] = toFunctionNode(actions_dag, "trim", {args[0]});
+                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
+                result_node = toFunctionNode(actions_dag, "CAST", args);
             }
             else
             {
-                if (DB::isString(non_nullable_input_type) && DB::isInt(non_nullable_output_type))
-                {
-                    /// Spark cast(x as INT) if x is String -> CH cast(trim(x) as INT)
-                    /// Refer to https://github.com/apache/incubator-gluten/issues/4956
-                    args[0] = toFunctionNode(actions_dag, "trim", {args[0]});
-                }
-                else if (DB::isString(non_nullable_input_type) && substrait_type.has_bool_())
-                {
-                    /// cast(string to boolean)
-                    cast_function = "accurateCastOrNull";
-                }
-
-                /// Common process
-                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DB::DataTypeString>(), output_type->getName()));
-                function_node = toFunctionNode(actions_dag, cast_function, args);
+                /// Common process: CAST(input, type)
+                args.emplace_back(addConstColumn(actions_dag, std::make_shared<DataTypeString>(), output_type->getName()));
+                result_node = toFunctionNode(actions_dag, "CAST", args);
             }
 
-            actions_dag.addOrReplaceInOutputs(*function_node);
-            return function_node;
+            actions_dag.addOrReplaceInOutputs(*result_node);
+            return result_node;
         }
 
         case substrait::Expression::RexTypeCase::kIfThen: {

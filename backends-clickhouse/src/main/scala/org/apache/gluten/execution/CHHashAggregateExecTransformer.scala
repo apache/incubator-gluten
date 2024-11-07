@@ -43,6 +43,45 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 object CHHashAggregateExecTransformer {
+  // The result attributes of aggregate expressions from vanilla may be different from CH native.
+  // For example, the result attributes of `avg(x)` are `sum(x)` and `count(x)`. This could bring
+  // some unexpected issues. So we need to make the result attributes consistent with CH native.
+  def getCHAggregateResultExpressions(
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression],
+      resultExpressions: Seq[NamedExpression]): Seq[NamedExpression] = {
+    var adjustedResultExpressions = resultExpressions.slice(0, groupingExpressions.length)
+    var resultExpressionIndex = groupingExpressions.length
+    adjustedResultExpressions ++ aggregateExpressions.flatMap {
+      aggExpr =>
+        aggExpr.mode match {
+          case Partial | PartialMerge =>
+            // For partial aggregate, the size of the result expressions of an aggregate expression
+            // is the same as aggBufferAttributes' length
+            val aggBufferAttributesCount = aggExpr.aggregateFunction.aggBufferAttributes.length
+            aggExpr.aggregateFunction match {
+              case avg: Average =>
+                val res = Seq(aggExpr.resultAttribute)
+                resultExpressionIndex += aggBufferAttributesCount
+                res
+              case sum: Sum if (sum.dataType.isInstanceOf[DecimalType]) =>
+                val res = Seq(resultExpressions(resultExpressionIndex))
+                resultExpressionIndex += aggBufferAttributesCount
+                res
+              case _ =>
+                val res = resultExpressions
+                  .slice(resultExpressionIndex, resultExpressionIndex + aggBufferAttributesCount)
+                resultExpressionIndex += aggBufferAttributesCount
+                res
+            }
+          case _ =>
+            val res = Seq(resultExpressions(resultExpressionIndex))
+            resultExpressionIndex += 1
+            res
+        }
+    }
+  }
+
   def getAggregateResultAttributes(
       groupingExpressions: Seq[NamedExpression],
       aggregateExpressions: Seq[AggregateExpression]): Seq[Attribute] = {
