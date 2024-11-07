@@ -17,6 +17,7 @@
 package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.exception.GlutenException
+import org.apache.gluten.execution.ColumnarToColumnarExec
 import org.apache.gluten.extension.GlutenPlan
 
 import org.apache.spark.rdd.RDD
@@ -24,6 +25,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.test.SharedSparkSession
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class TransitionSuite extends SharedSparkSession {
   import TransitionSuite._
@@ -85,59 +87,20 @@ class TransitionSuite extends SharedSparkSession {
 
 object TransitionSuite extends TransitionSuiteBase {
   object TypeA extends Convention.BatchType {
-    fromRow(
-      () =>
-        (plan: SparkPlan) => {
-          RowToBatch(this, plan)
-        })
-
-    toRow(
-      () =>
-        (plan: SparkPlan) => {
-          BatchToRow(this, plan)
-        })
+    fromRow(RowToBatch(this, _))
+    toRow(BatchToRow(this, _))
   }
 
   object TypeB extends Convention.BatchType {
-    fromRow(
-      () =>
-        (plan: SparkPlan) => {
-          RowToBatch(this, plan)
-        })
-
-    toRow(
-      () =>
-        (plan: SparkPlan) => {
-          BatchToRow(this, plan)
-        })
+    fromRow(RowToBatch(this, _))
+    toRow(BatchToRow(this, _))
   }
 
   object TypeC extends Convention.BatchType {
-    fromRow(
-      () =>
-        (plan: SparkPlan) => {
-          RowToBatch(this, plan)
-        })
-
-    toRow(
-      () =>
-        (plan: SparkPlan) => {
-          BatchToRow(this, plan)
-        })
-
-    fromBatch(
-      TypeA,
-      () =>
-        (plan: SparkPlan) => {
-          BatchToBatch(TypeA, this, plan)
-        })
-
-    toBatch(
-      TypeA,
-      () =>
-        (plan: SparkPlan) => {
-          BatchToBatch(this, TypeA, plan)
-        })
+    fromRow(RowToBatch(this, _))
+    toRow(BatchToRow(this, _))
+    fromBatch(TypeA, BatchToBatch(TypeA, this, _))
+    toBatch(TypeA, BatchToBatch(this, TypeA, _))
   }
 
   object TypeD extends Convention.BatchType {}
@@ -167,14 +130,12 @@ object TransitionSuite extends TransitionSuiteBase {
       from: Convention.BatchType,
       to: Convention.BatchType,
       override val child: SparkPlan)
-    extends UnaryExecNode
-    with GlutenPlan {
-    override def supportsColumnar: Boolean = true
-    override protected def batchType0(): Convention.BatchType = to
+    extends ColumnarToColumnarExec(from, to) {
     override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan =
       copy(child = newChild)
     override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-    override def output: Seq[Attribute] = child.output
+    override protected def mapIterator(in: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] =
+      throw new UnsupportedOperationException()
   }
 
 }

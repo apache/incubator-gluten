@@ -24,7 +24,7 @@ namespace local_engine
     class ScalarFunctionParser##cls_name : public FunctionParser \
     { \
     public: \
-        ScalarFunctionParser##cls_name(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) \
+        ScalarFunctionParser##cls_name(ParserContextPtr parser_context_) : FunctionParser(parser_context_) \
         { \
         } \
         ~ScalarFunctionParser##cls_name() override = default; \
@@ -57,9 +57,8 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Not, not, not );
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Xor, xor, xor);
 
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Cast, cast, CAST);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(GetTimestamp, get_timestamp, parseDateTimeInJodaSyntaxOrNull);
+REGISTER_COMMON_SCALAR_FUNCTION_PARSER(GetTimestamp, get_timestamp, parseDateTime64InJodaSyntaxOrNull);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Quarter, quarter, toQuarter);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ToUnixTimestamp, to_unix_timestamp, parseDateTimeInJodaSyntaxOrNull);
 
 // math functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Position, positive, identity);
@@ -166,11 +165,12 @@ REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Shuffle, shuffle, arrayShuffle);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Range, range, range);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Flatten, flatten, sparkArrayFlatten);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ArrayJoin, array_join, sparkArrayJoin);
+REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ArraysOverlap, arrays_overlap, sparkArraysOverlap);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(ArraysZip, arrays_zip, arrayZipUnaligned);
 
 // map functions
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(Map, map, map);
-REGISTER_COMMON_SCALAR_FUNCTION_PARSER(GetMapValue, get_map_value, arrayElement);
+REGISTER_COMMON_SCALAR_FUNCTION_PARSER(GetMapValue, get_map_value, arrayElementOrNull);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MapKeys, map_keys, mapKeys);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MapValues, map_values, mapValues);
 REGISTER_COMMON_SCALAR_FUNCTION_PARSER(MapFromArrays, map_from_arrays, mapFromArrays);

@@ -22,10 +22,6 @@
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
 
-#ifdef ENABLE_HDFS
-#include "utils/HdfsUtils.h"
-#endif
-
 using namespace facebook;
 
 namespace gluten {
@@ -37,6 +33,7 @@ const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
 const std::string kReplacedWithDynamicFilterRows = "replacedWithDynamicFilterRows";
 const std::string kFlushRowCount = "flushRowCount";
+const std::string kLoadedToValueHook = "loadedToValueHook";
 const std::string kTotalScanTime = "totalScanTime";
 const std::string kSkippedSplits = "skippedSplits";
 const std::string kProcessedSplits = "processedSplits";
@@ -70,9 +67,6 @@ WholeStageResultIterator::WholeStageResultIterator(
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
       streamIds_(streamIds) {
-#ifdef ENABLE_HDFS
-  gluten::updateHdfsTokens(veloxCfg_.get());
-#endif
   spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
   auto spillThreadNum = veloxCfg_->get<uint32_t>(kSpillThreadNum, kSpillThreadNumDefaultValue);
   if (spillThreadNum > 0) {
@@ -232,18 +226,6 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
   std::string logPrefix{"Spill[" + poolName + "]: "};
   int64_t shrunken = memoryManager_->shrink(size);
   if (spillStrategy_ == "auto") {
-    if (task_->numThreads() != 0) {
-      // Task should have zero running threads, otherwise there's
-      // possibility that this spill call hangs. See https://github.com/apache/incubator-gluten/issues/7243.
-      // As of now, non-zero running threads usually happens when:
-      // 1. Task A spills task B;
-      // 2. Task A trys to grow buffers created by task B, during which spill is requested on task A again;
-      LOG(INFO) << fmt::format(
-          "{} spill is requested on a task {} that has non-zero running threads, which is not currently supported. Skipping.",
-          logPrefix,
-          task_->taskId());
-      return shrunken;
-    }
     int64_t remaining = size - shrunken;
     LOG(INFO) << fmt::format("{} trying to request spill for {}.", logPrefix, velox::succinctBytes(remaining));
     auto mm = memoryManager_->getMemoryManager();
@@ -396,6 +378,8 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kNumReplacedWithDynamicFilterRows)[metricIndex] =
           runtimeMetric("sum", second->customStats, kReplacedWithDynamicFilterRows);
       metrics_->get(Metrics::kFlushRowCount)[metricIndex] = runtimeMetric("sum", second->customStats, kFlushRowCount);
+      metrics_->get(Metrics::kLoadedToValueHook)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kLoadedToValueHook);
       metrics_->get(Metrics::kScanTime)[metricIndex] = runtimeMetric("sum", second->customStats, kTotalScanTime);
       metrics_->get(Metrics::kSkippedSplits)[metricIndex] = runtimeMetric("sum", second->customStats, kSkippedSplits);
       metrics_->get(Metrics::kProcessedSplits)[metricIndex] =
@@ -446,8 +430,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
       std::to_string(veloxCfg_->get<uint32_t>(kSparkBatchSize, 4096));
   configs[velox::core::QueryConfig::kMaxOutputBatchRows] =
       std::to_string(veloxCfg_->get<uint32_t>(kSparkBatchSize, 4096));
-  // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
-  // FIXME this uses process-wise off-heap memory which is not for task
   try {
     if (veloxCfg_->valueExists(kDefaultSessionTimezone)) {
       configs[velox::core::QueryConfig::kSessionTimezone] = veloxCfg_->get<std::string>(kDefaultSessionTimezone, "");
@@ -459,6 +441,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = "true";
 
     {
+      // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
+      // FIXME this uses process-wise off-heap memory which is not for task
       // partial aggregation memory config
       auto offHeapMemory = veloxCfg_->get<int64_t>(kSparkTaskOffHeapMemory, facebook::velox::memory::kMaxMemory);
       auto maxPartialAggregationMemory =
@@ -472,8 +456,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
           std::to_string(veloxCfg_->get<int32_t>(kAbandonPartialAggregationMinPct, 90));
       configs[velox::core::QueryConfig::kAbandonPartialAggregationMinRows] =
           std::to_string(veloxCfg_->get<int32_t>(kAbandonPartialAggregationMinRows, 100000));
-      // Spark's collect_set ignore nulls.
-      configs[velox::core::QueryConfig::kPrestoArrayAggIgnoreNulls] = "true";
     }
     // Spill configs
     if (spillStrategy_ == "none") {
@@ -491,15 +473,15 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kMaxSpillFileSize] =
         std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillFileSize, 1L * 1024 * 1024 * 1024));
     configs[velox::core::QueryConfig::kMaxSpillRunRows] =
-        std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillRunRows, 12L * 1024 * 1024));
+        std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillRunRows, 3L * 1024 * 1024));
     configs[velox::core::QueryConfig::kMaxSpillBytes] =
         std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillBytes, 107374182400LL));
     configs[velox::core::QueryConfig::kSpillWriteBufferSize] =
         std::to_string(veloxCfg_->get<uint64_t>(kSpillWriteBufferSize, 4L * 1024 * 1024));
     configs[velox::core::QueryConfig::kSpillStartPartitionBit] =
         std::to_string(veloxCfg_->get<uint8_t>(kSpillStartPartitionBit, 29));
-    configs[velox::core::QueryConfig::kJoinSpillPartitionBits] =
-        std::to_string(veloxCfg_->get<uint8_t>(kSpillPartitionBits, 2));
+    configs[velox::core::QueryConfig::kSpillNumPartitionBits] =
+        std::to_string(veloxCfg_->get<uint8_t>(kSpillPartitionBits, 3));
     configs[velox::core::QueryConfig::kSpillableReservationGrowthPct] =
         std::to_string(veloxCfg_->get<uint8_t>(kSpillableReservationGrowthPct, 25));
     configs[velox::core::QueryConfig::kSpillCompressionKind] =
@@ -519,6 +501,13 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kDriverCpuTimeSliceLimitMs] = "0";
 
     configs[velox::core::QueryConfig::kSparkPartitionId] = std::to_string(taskInfo_.partitionId);
+
+    // Enable Spark legacy date formatter if spark.sql.legacy.timeParserPolicy is set to 'LEGACY'.
+    if (veloxCfg_->get<std::string>(kSparkLegacyTimeParserPolicy, "") == "LEGACY") {
+      configs[velox::core::QueryConfig::kSparkLegacyDateFormatter] = "true";
+    } else {
+      configs[velox::core::QueryConfig::kSparkLegacyDateFormatter] = "false";
+    }
 
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();

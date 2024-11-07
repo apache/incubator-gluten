@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (60)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (40)
+   VeloxColumnarToRow (40)
    +- ^ SortExecTransformer (38)
       +- ^ InputIteratorTransformer (37)
          +- ShuffleQueryStage (35), Statistics(X)
@@ -221,7 +221,7 @@ Arguments: [value#X DESC NULLS LAST], true, 0
 Input [2]: [ps_partkey#X, value#X]
 Arguments: false
 
-(40) VeloxColumnarToRowExec
+(40) VeloxColumnarToRow
 Input [2]: [ps_partkey#X, value#X]
 
 (41) Scan parquet
@@ -328,7 +328,7 @@ Arguments: isFinalPlan=true
 Subquery:1 Hosting operator id = 31 Hosting Expression = Subquery subquery#X, [id=#X]
 AdaptiveSparkPlan (102)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (85)
+   VeloxColumnarToRow (85)
    +- ^ ProjectExecTransformer (83)
       +- ^ RegularHashAggregateExecTransformer (82)
          +- ^ InputIteratorTransformer (81)
@@ -468,7 +468,7 @@ Input [1]: [sum((ps_supplycost#X * cast(ps_availqty#X as decimal(10,0))))#X]
 Input [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 Arguments: false
 
-(85) VeloxColumnarToRowExec
+(85) VeloxColumnarToRow
 Input [1]: [(sum((ps_supplycost * ps_availqty)) * 0.0001000000)#X]
 
 (86) Scan parquet

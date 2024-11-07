@@ -22,7 +22,6 @@
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "velox/common/base/tests/GTestUtils.h"
 #include "velox/dwio/common/tests/utils/DataFiles.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/exec/tests/utils/AssertQueryBuilder.h"
 #include "velox/exec/tests/utils/HiveConnectorTestBase.h"
 #include "velox/exec/tests/utils/TempDirectoryPath.h"

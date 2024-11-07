@@ -21,8 +21,7 @@ BUILD_VELOX_BACKEND=OFF
 BUILD_TESTS=OFF
 BUILD_EXAMPLES=OFF
 BUILD_BENCHMARKS=OFF
-BUILD_JEMALLOC=OFF
-BUILD_PROTOBUF=OFF
+ENABLE_JEMALLOC_STATS=OFF
 ENABLE_QAT=OFF
 ENABLE_HBM=OFF
 ENABLE_GCS=OFF
@@ -70,8 +69,8 @@ for arg in "$@"; do
     BUILD_BENCHMARKS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
-  --build_jemalloc=*)
-    BUILD_JEMALLOC=("${arg#*=}")
+  --enable_jemalloc_stats=*)
+    ENABLE_JEMALLOC_STATS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_qat=*)
@@ -80,10 +79,6 @@ for arg in "$@"; do
     ;;
   --enable_hbm=*)
     ENABLE_HBM=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  --build_protobuf=*)
-    BUILD_PROTOBUF=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_gcs=*)
@@ -127,9 +122,8 @@ echo "BUILD_VELOX_BACKEND=${BUILD_VELOX_BACKEND}"
 echo "BUILD_TESTS=${BUILD_TESTS}"
 echo "BUILD_EXAMPLES=${BUILD_EXAMPLES}"
 echo "BUILD_BENCHMARKS=${BUILD_BENCHMARKS}"
-echo "BUILD_JEMALLOC=${BUILD_JEMALLOC}"
+echo "ENABLE_JEMALLOC_STATS=${ENABLE_JEMALLOC_STATS}"
 echo "ENABLE_HBM=${ENABLE_HBM}"
-echo "BUILD_PROTOBUF=${BUILD_PROTOBUF}"
 echo "ENABLE_GCS=${ENABLE_GCS}"
 echo "ENABLE_S3=${ENABLE_S3}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
@@ -143,12 +137,11 @@ cd build
 cmake .. \
   -DBUILD_TESTS=${BUILD_TESTS} \
   -DBUILD_EXAMPLES=${BUILD_EXAMPLES} \
-  -DBUILD_JEMALLOC=${BUILD_JEMALLOC} \
+  -DENABLE_JEMALLOC_STATS=${ENABLE_JEMALLOC_STATS} \
   -DBUILD_VELOX_BACKEND=${BUILD_VELOX_BACKEND} \
   -DVELOX_HOME=${VELOX_HOME} \
   -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
   -DBUILD_BENCHMARKS=${BUILD_BENCHMARKS} \
-  -DBUILD_PROTOBUF=${BUILD_PROTOBUF} \
   -DENABLE_QAT=${ENABLE_QAT} \
   -DENABLE_HBM=${ENABLE_HBM} \
   -DENABLE_GCS=${ENABLE_GCS} \

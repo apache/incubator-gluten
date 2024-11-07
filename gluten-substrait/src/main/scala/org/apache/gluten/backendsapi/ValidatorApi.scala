@@ -19,7 +19,7 @@ package org.apache.gluten.backendsapi
 import org.apache.gluten.extension.ValidationResult
 import org.apache.gluten.substrait.plan.PlanNode
 
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.DataType
@@ -40,9 +40,6 @@ trait ValidatorApi {
    */
   def doExprValidate(substraitExprName: String, expr: Expression): Boolean = true
 
-  /** Validate against a whole Spark plan, before being interpreted by Gluten. */
-  def doSparkPlanValidate(plan: SparkPlan): Boolean
-
   /** Validate against Substrait plan node in native backend. */
   def doNativeValidateWithFailureReason(plan: PlanNode): ValidationResult
 
@@ -61,6 +58,7 @@ trait ValidatorApi {
 
   /** Validate against ColumnarShuffleExchangeExec. */
   def doColumnarShuffleExchangeExecValidate(
+      outputAttributes: Seq[Attribute],
       outputPartitioning: Partitioning,
       child: SparkPlan): Option[String]
 }

@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_09_27
+VELOX_BRANCH=2024_11_06
 VELOX_HOME=""
 
 OS=`uname -s`
@@ -69,6 +69,17 @@ function process_setup_ubuntu {
   # Do not install libunwind which can cause interruption when catching native exception.
   ensure_pattern_matched '\${SUDO} apt install -y libunwind-dev' scripts/setup-ubuntu.sh
   sed -i 's/${SUDO} apt install -y libunwind-dev//' scripts/setup-ubuntu.sh
+  # Overwrite gcc installed by build-essential.
+  ensure_pattern_matched '\${SUDO} pip3 install cmake==3.28.3' scripts/setup-ubuntu.sh
+  sed -i '/^  ${SUDO} pip3 install cmake==3.28.3/a\
+  \VERSION=`cat /etc/os-release | grep VERSION_ID`\
+  if [[ $VERSION =~ "20.04" ]]; then\
+    sudo apt install -y software-properties-common\
+    sudo add-apt-repository ppa:ubuntu-toolchain-r/test\
+    sudo apt update && sudo apt install -y gcc-11 g++-11\
+    sudo ln -sf /usr/bin/gcc-11 /usr/bin/gcc\
+    sudo ln -sf /usr/bin/g++-11 /usr/bin/g++\
+  fi' scripts/setup-ubuntu.sh
   ensure_pattern_matched 'ccache' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\    *thrift* \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\    libiberty-dev \\' scripts/setup-ubuntu.sh
@@ -79,10 +90,6 @@ function process_setup_ubuntu {
   sed -i '/ccache/a\    uuid-dev \\' scripts/setup-ubuntu.sh
   ensure_pattern_matched 'libgmock-dev' scripts/setup-ubuntu.sh
   sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
-  ensure_pattern_matched 'function install_folly' scripts/setup-ubuntu.sh
-  sed -i '/^function install_folly.*/i function install_protobuf {\n  wget_and_untar https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz protobuf\n  (\n    cd protobuf\n    ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n    make "-j$(nproc)"\n    sudo make install\n    sudo ldconfig\n  )\n}\n' scripts/setup-ubuntu.sh
-  ensure_pattern_matched '  run_and_time install_folly' scripts/setup-ubuntu.sh
-  sed -i '/^  run_and_time install_folly/a \ \ run_and_time install_protobuf' scripts/setup-ubuntu.sh
   # Required by lib hdfs.
   ensure_pattern_matched 'ccache ' scripts/setup-ubuntu.sh
   sed -i '/ccache /a\    yasm \\' scripts/setup-ubuntu.sh
@@ -107,11 +114,10 @@ function process_setup_centos9 {
   sed -i '/^.*dnf_install autoconf/a\  dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos9.sh
   
   ensure_pattern_matched 'install_gflags' scripts/setup-centos9.sh
-  sed -i '/^function install_gflags.*/i function install_openssl {\n  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl \n  cd openssl \n  ./config no-shared && make depend && make && sudo make install \n  cd ..\n}\n'     scripts/setup-centos9.sh
+  sed -i '/^function install_gflags.*/i function install_openssl {\n  wget_and_untar https://github.com/openssl/openssl/releases/download/openssl-3.2.2/openssl-3.2.2.tar.gz openssl \n ( cd ${DEPENDENCY_DIR}/openssl \n  ./config no-shared && make depend && make && sudo make install ) \n}\n'     scripts/setup-centos9.sh
 
   ensure_pattern_matched 'install_fbthrift' scripts/setup-centos9.sh
   sed -i '/^  run_and_time install_fbthrift/a \  run_and_time install_openssl' scripts/setup-centos9.sh
-  sed -i '/cd protobuf/{n;s/\.\/configure --prefix=\/usr/\.\/configure CXXFLAGS="-fPIC" --prefix=\/usr\/local/;}' scripts/setup-centos9.sh
 
   # Required by lib hdfs.
   ensure_pattern_matched 'dnf_install ninja-build' scripts/setup-centos9.sh
@@ -126,10 +132,10 @@ function process_setup_alinux3 {
   sed -i "s/.*dnf_install epel-release/#&/" ${CURRENT_DIR}/setup-centos8.sh
   sed -i "s/.*run_and_time install_conda/#&/" ${CURRENT_DIR}/setup-centos8.sh
   sed -i "s/.*dnf config-manager --set-enabled powertools/#&/" ${CURRENT_DIR}/setup-centos8.sh
-  sed -i "s/gcc-toolset-9 //" ${CURRENT_DIR}/setup-centos8.sh
-  sed -i "s/.*source \/opt\/rh\/gcc-toolset-9\/enable/#&/" ${CURRENT_DIR}/setup-centos8.sh
-  sed -i 's|^export CC=/opt/rh/gcc-toolset-9/root/bin/gcc|# &|' ${CURRENT_DIR}/setup-centos8.sh
-  sed -i 's|^export CXX=/opt/rh/gcc-toolset-9/root/bin/g++|# &|' ${CURRENT_DIR}/setup-centos8.sh
+  sed -i "s/gcc-toolset-11 //" ${CURRENT_DIR}/setup-centos8.sh
+  sed -i "s/.*source \/opt\/rh\/gcc-toolset-11\/enable/#&/" ${CURRENT_DIR}/setup-centos8.sh
+  sed -i 's|^export CC=/opt/rh/gcc-toolset-11/root/bin/gcc|# &|' ${CURRENT_DIR}/setup-centos8.sh
+  sed -i 's|^export CXX=/opt/rh/gcc-toolset-11/root/bin/g++|# &|' ${CURRENT_DIR}/setup-centos8.sh
   sed -i 's/python39 python39-devel python39-pip //g' ${CURRENT_DIR}/setup-centos8.sh
   sed -i "s/.*pip.* install/#&/" ${CURRENT_DIR}/setup-centos8.sh
 }

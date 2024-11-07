@@ -25,12 +25,12 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog.V1Table
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.delta.{ClickhouseSnapshot, DeltaErrors, DeltaLog, DeltaTableUtils, DeltaTimeTravelSpec, Snapshot, UnresolvedPathBasedDeltaTable}
 import org.apache.spark.sql.delta.actions.{Metadata, Protocol}
 import org.apache.spark.sql.delta.sources.DeltaDataSource
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.execution.datasources.utils.MergeTreePartsPartitionsUtil
+import org.apache.spark.sql.execution.datasources.clickhouse.utils.MergeTreePartsPartitionsUtil
+import org.apache.spark.sql.execution.datasources.mergetree.StorageMeta
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.DeltaMergeTreeFileFormat
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.utils.CHDataSourceUtils
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -88,38 +88,23 @@ class ClickHouseTableV2(
     ret
   }
 
-  override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder = {
-    new WriteIntoDeltaBuilder(
-      this,
-      info.options,
-      spark.sessionState.conf.useNullsForMissingDefaultColumnValues)
-  }
-
   def getFileFormat(protocol: Protocol, meta: Metadata): DeltaMergeTreeFileFormat = {
     new DeltaMergeTreeFileFormat(
       protocol,
-      meta,
-      dataBaseName,
-      tableName,
-      ClickhouseSnapshot.genSnapshotId(initialSnapshot),
-      orderByKeyOption,
-      lowCardKeyOption,
-      minmaxIndexKeyOption,
-      bfIndexKeyOption,
-      setIndexKeyOption,
-      primaryKeyOption,
-      clickhouseTableConfigs,
-      partitionColumns
-    )
+      StorageMeta.withStorageID(
+        meta,
+        dataBaseName,
+        tableName,
+        ClickhouseSnapshot.genSnapshotId(initialSnapshot)))
   }
 
-  override def deltaProperties(): ju.Map[String, String] = properties()
+  override def deltaProperties: Map[String, String] = properties().asScala.toMap
 
-  override def deltaCatalog(): Option[CatalogTable] = catalogTable
+  override def deltaCatalog: Option[CatalogTable] = catalogTable
 
-  override def deltaPath(): Path = path
+  override def deltaPath: Path = path
 
-  override def deltaSnapshot(): Snapshot = initialSnapshot
+  override def deltaSnapshot: Snapshot = initialSnapshot
 
   def cacheThis(): Unit = {
     ClickHouseTableV2.deltaLog2Table.put(deltaLog, this)
@@ -133,7 +118,6 @@ class TempClickHouseTableV2(
     override val spark: SparkSession,
     override val catalogTable: Option[CatalogTable] = None)
   extends ClickHouseTableV2(spark, null, catalogTable) {
-  import collection.JavaConverters._
   override def properties(): ju.Map[String, String] = catalogTable.get.properties.asJava
   override lazy val partitionColumns: Seq[String] = catalogTable.get.partitionColumnNames
   override def cacheThis(): Unit = {}

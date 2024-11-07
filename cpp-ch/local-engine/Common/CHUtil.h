@@ -23,6 +23,7 @@
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context.h>
 #include <Processors/Chunk.h>
+#include <Processors/QueryPlan/IQueryPlanStep.h>
 #include <base/types.h>
 #include <substrait/algebra.pb.h>
 #include <Common/CurrentThread.h>
@@ -116,6 +117,8 @@ namespace PlanUtil
 {
 std::string explainPlan(DB::QueryPlan & plan);
 void checkOuputType(const DB::QueryPlan & plan);
+DB::IQueryPlanStep * adjustQueryPlanHeader(DB::QueryPlan & plan, const DB::Block & to_header, const String & step_desc = "");
+DB::IQueryPlanStep * addRemoveNullableStep(DB::ContextPtr context, DB::QueryPlan & plan, const std::set<String> & columns);
 };
 
 class ActionsDAGUtil

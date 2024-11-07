@@ -25,7 +25,7 @@ import org.apache.gluten.utils.ArrowAbiUtil
 import org.apache.gluten.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BoundReference, Expression, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.utils.SparkArrowUtil
@@ -103,6 +103,18 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
 
     var closed = false
 
+    val exprIds = output.map(_.exprId)
+    val projExpr = key.transformDown {
+      case attr: AttributeReference if !exprIds.contains(attr.exprId) =>
+        val i = output.count(_.name == attr.name)
+        if (i != 1) {
+          throw new IllegalArgumentException(s"Only one attr with the same name is supported: $key")
+        } else {
+          output.find(_.name == attr.name).get
+        }
+    }
+    val proj = UnsafeProjection.create(Seq(projExpr), output)
+
     // Convert columnar to Row.
     val jniWrapper = NativeColumnarToRowJniWrapper.create(runtime)
     val c2rId = jniWrapper.nativeColumnarToRowInit()
@@ -141,48 +153,6 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
                 ColumnarBatches.getNativeHandle(batch),
                 0)
             batch.close()
-            val columnNames = key.flatMap {
-              case expression: AttributeReference =>
-                Some(expression)
-              case _ =>
-                None
-            }
-            if (columnNames.isEmpty) {
-              throw new IllegalArgumentException(s"Key column not found in expression: $key")
-            }
-            if (columnNames.size != 1) {
-              throw new IllegalArgumentException(s"Multiple key columns found in expression: $key")
-            }
-            val columnExpr = columnNames.head
-            val oneColumnWithSameName = output.count(_.name == columnExpr.name) == 1
-            val columnInOutput = output.zipWithIndex.filter {
-              p: (Attribute, Int) =>
-                if (oneColumnWithSameName) {
-                  // The comparison of exprId can be ignored when
-                  // only one attribute name match is found.
-                  p._1.name == columnExpr.name
-                } else {
-                  // A case where output has multiple columns with same name
-                  p._1.name == columnExpr.name && p._1.exprId == columnExpr.exprId
-                }
-            }
-            if (columnInOutput.isEmpty) {
-              throw new IllegalStateException(
-                s"Key $key not found from build side relation output: $output")
-            }
-            if (columnInOutput.size != 1) {
-              throw new IllegalStateException(
-                s"More than one key $key found from build side relation output: $output")
-            }
-            val replacement =
-              BoundReference(columnInOutput.head._2, columnExpr.dataType, columnExpr.nullable)
-
-            val projExpr = key.transformDown {
-              case _: AttributeReference =>
-                replacement
-            }
-
-            val proj = UnsafeProjection.create(projExpr)
 
             new Iterator[InternalRow] {
               var rowId = 0

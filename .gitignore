@@ -5,6 +5,7 @@
 
 # logs
 *.log
+**/core$
 
 # cache files
 *.cache
@@ -51,7 +52,6 @@ thirdparty/*.tar*
 CMakeFiles/
 CMakeCache.txt
 CTestTestfile.cmake
-Makefile
 cmake_install.cmake
 build/
 *-build/

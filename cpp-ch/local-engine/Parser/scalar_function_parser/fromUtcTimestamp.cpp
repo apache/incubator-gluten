@@ -23,7 +23,7 @@ namespace local_engine
 class FunctionParserFromUtcTimestamp : public FunctionParserUtcTimestampTransform
 {
 public:
-    explicit FunctionParserFromUtcTimestamp(SerializedPlanParser * plan_parser_) : FunctionParserUtcTimestampTransform(plan_parser_) { }
+    explicit FunctionParserFromUtcTimestamp(ParserContextPtr parser_context_) : FunctionParserUtcTimestampTransform(parser_context_) { }
     ~FunctionParserFromUtcTimestamp() override = default;
 
     static constexpr auto name = "from_utc_timestamp";

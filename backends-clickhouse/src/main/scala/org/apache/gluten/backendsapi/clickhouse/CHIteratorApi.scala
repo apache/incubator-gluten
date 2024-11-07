@@ -34,16 +34,22 @@ import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.executor.InputMetrics
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle.CHColumnarShuffleWriter
+import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
+import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.datasources.clickhouse.{ExtensionTableBuilder, ExtensionTableNode}
+import org.apache.spark.sql.execution.datasources.mergetree.PartSerializer
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.util.SerializableConfiguration
 
 import java.lang.{Long => JLong}
 import java.net.URI
+import java.nio.charset.StandardCharsets
+import java.time.ZoneOffset
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
 
 import scala.collection.JavaConverters._
@@ -128,23 +134,12 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       partitionSchema: StructType,
       fileFormat: ReadFileFormat,
       metadataColumnNames: Seq[String],
-      properties: Map[String, String]): SplitInfo = {
+      properties: Map[String, String],
+      serializableHadoopConf: SerializableConfiguration): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>
-        val partLists = new JArrayList[String]()
-        val starts = new JArrayList[JLong]()
-        val lengths = new JArrayList[JLong]()
-        p.partList
-          .foreach(
-            parts => {
-              partLists.add(parts.name)
-              starts.add(parts.start)
-              lengths.add(parts.length)
-            })
         ExtensionTableBuilder
           .makeExtensionTable(
-            -1L,
-            -1L,
             p.database,
             p.table,
             p.snapshotId,
@@ -156,9 +151,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             p.bfIndexKey,
             p.setIndexKey,
             p.primaryKey,
-            partLists,
-            starts,
-            lengths,
+            PartSerializer.fromMergeTreePartSplits(p.partList.toSeq),
             p.tableSchemaJson,
             p.clickhouseTableConfigs.asJava,
             CHAffinity.getNativeMergeTreePartitionLocations(p).toList.asJava
@@ -170,14 +163,41 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         val fileSizes = new JArrayList[JLong]()
         val modificationTimes = new JArrayList[JLong]()
         val partitionColumns = new JArrayList[JMap[String, String]]
+        val metadataColumns = new JArrayList[JMap[String, String]]
         f.files.foreach {
           file =>
             paths.add(new URI(file.filePath.toString()).toASCIIString)
             starts.add(JLong.valueOf(file.start))
             lengths.add(JLong.valueOf(file.length))
-            // TODO: Support custom partition location
+            val metadataColumn =
+              SparkShimLoader.getSparkShims.generateMetadataColumns(file, metadataColumnNames)
+            metadataColumns.add(metadataColumn)
             val partitionColumn = new JHashMap[String, String]()
+            for (i <- 0 until file.partitionValues.numFields) {
+              val partitionColumnValue = if (file.partitionValues.isNullAt(i)) {
+                ExternalCatalogUtils.DEFAULT_PARTITION_NAME
+              } else {
+                val pn = file.partitionValues.get(i, partitionSchema.fields(i).dataType)
+                partitionSchema.fields(i).dataType match {
+                  case _: BinaryType =>
+                    new String(pn.asInstanceOf[Array[Byte]], StandardCharsets.UTF_8)
+                  case _: DateType =>
+                    DateFormatter.apply().format(pn.asInstanceOf[Integer])
+                  case _: DecimalType =>
+                    pn.asInstanceOf[Decimal].toJavaBigInteger.toString
+                  case _: TimestampType =>
+                    TimestampFormatter
+                      .getFractionFormatter(ZoneOffset.UTC)
+                      .format(pn.asInstanceOf[java.lang.Long])
+                  case _ => pn.toString
+                }
+              }
+              partitionColumn.put(
+                ConverterUtils.normalizeColName(partitionSchema.names(i)),
+                partitionColumnValue)
+            }
             partitionColumns.add(partitionColumn)
+
             val (fileSize, modificationTime) =
               SparkShimLoader.getSparkShims.getFileSizeAndModificationTime(file)
             (fileSize, modificationTime) match {
@@ -199,7 +219,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           fileSizes,
           modificationTimes,
           partitionColumns,
-          new JArrayList[JMap[String, String]](),
+          metadataColumns,
           fileFormat,
           preferredLocations.toList.asJava,
           mapAsJavaMap(properties)
@@ -222,27 +242,23 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val planByteArray = wsCtx.root.toProtobuf.toByteArray
     splitInfos.zipWithIndex.map {
       case (splits, index) =>
-        val files = ArrayBuffer[String]()
-        val splitInfosByteArray = splits.zipWithIndex.map {
+        val (splitInfosByteArray, files) = splits.zipWithIndex.map {
           case (split, i) =>
             split match {
               case filesNode: LocalFilesNode =>
                 setFileSchemaForLocalFiles(filesNode, scans(i))
-                filesNode.getPaths.forEach(f => files += f)
-                filesNode.toProtobuf.toByteArray
+                (filesNode.toProtobuf.toByteArray, filesNode.getPaths.asScala.toSeq)
               case extensionTableNode: ExtensionTableNode =>
-                extensionTableNode.getPartList.forEach(
-                  name => files += extensionTableNode.getAbsolutePath + "/" + name)
-                extensionTableNode.toProtobuf.toByteArray
+                (extensionTableNode.toProtobuf.toByteArray, extensionTableNode.getPartList)
             }
-        }
+        }.unzip
 
         GlutenPartition(
           index,
           planByteArray,
           splitInfosByteArray.toArray,
           locations = splits.flatMap(_.preferredLocations().asScala).toArray,
-          files.toArray
+          files.flatten.toArray
         )
     }
   }

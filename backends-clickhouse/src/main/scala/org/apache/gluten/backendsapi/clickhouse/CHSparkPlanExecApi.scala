@@ -21,6 +21,7 @@ import org.apache.gluten.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import org.apache.gluten.exception.{GlutenException, GlutenNotSupportException}
 import org.apache.gluten.execution._
 import org.apache.gluten.expression._
+import org.apache.gluten.expression.ExpressionNames.MONOTONICALLY_INCREASING_ID
 import org.apache.gluten.extension.ExpressionExtensionTrait
 import org.apache.gluten.extension.columnar.AddFallbackTagRule
 import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
@@ -579,7 +580,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
   override def extraExpressionMappings: Seq[Sig] = {
     List(
       Sig[CollectList](ExpressionNames.COLLECT_LIST),
-      Sig[CollectSet](ExpressionNames.COLLECT_SET)
+      Sig[CollectSet](ExpressionNames.COLLECT_SET),
+      Sig[MonotonicallyIncreasingID](MONOTONICALLY_INCREASING_ID)
     ) ++
       ExpressionExtensionTrait.expressionExtensionTransformer.expressionSigList ++
       SparkShimLoader.getSparkShims.bloomFilterExpressionMappings()

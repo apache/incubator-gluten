@@ -22,19 +22,17 @@
 #include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
-#include "operators/writer/VeloxParquetDatasource.h"
+#include "operators/writer/VeloxParquetDataSource.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 
 namespace gluten {
 
-// This kind string must be same with VeloxBackend#name in java side.
-inline static const std::string kVeloxRuntimeKind{"velox"};
-
 class VeloxRuntime final : public Runtime {
  public:
   explicit VeloxRuntime(
-      std::unique_ptr<AllocationListener> listener,
+      const std::string& kind,
+      VeloxMemoryManager* vmm,
       const std::unordered_map<std::string, std::string>& confMap);
 
   void parsePlan(const uint8_t* data, int32_t size, std::optional<std::string> dumpFile) override;
@@ -53,7 +51,7 @@ class VeloxRuntime final : public Runtime {
 
   std::shared_ptr<ColumnarBatch> createOrGetEmptySchemaBatch(int32_t numRows) override;
 
-  std::shared_ptr<ColumnarBatch> select(std::shared_ptr<ColumnarBatch> batch, std::vector<int32_t> columnIndices)
+  std::shared_ptr<ColumnarBatch> select(std::shared_ptr<ColumnarBatch> batch, const std::vector<int32_t>& columnIndices)
       override;
 
   std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(struct ArrowSchema* cSchema) override;
@@ -68,9 +66,6 @@ class VeloxRuntime final : public Runtime {
     return iter->getMetrics(exportNanos);
   }
 
-  std::shared_ptr<Datasource> createDatasource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema)
-      override;
-
   std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ShuffleReaderOptions options) override;
@@ -79,9 +74,9 @@ class VeloxRuntime final : public Runtime {
 
   std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) override;
 
-  void injectWriteFilesTempPath(const std::string& path) override;
-
   void dumpConf(const std::string& path) override;
+
+  std::shared_ptr<VeloxDataSource> createDataSource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema);
 
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
     return veloxPlan_;
@@ -99,12 +94,11 @@ class VeloxRuntime final : public Runtime {
       std::vector<facebook::velox::core::PlanNodeId>& streamIds);
 
  private:
-  VeloxMemoryManager* vmm_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
   std::shared_ptr<facebook::velox::config::ConfigBase> veloxCfg_;
   bool debugModeEnabled_{false};
 
-  std::unordered_map<int32_t, std::shared_ptr<ColumnarBatch>> emptySchemaBatchLoopUp_;
+  std::unordered_map<int32_t, std::shared_ptr<VeloxColumnarBatch>> emptySchemaBatchLoopUp_;
 };
 
 } // namespace gluten

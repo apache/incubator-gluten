@@ -74,22 +74,22 @@ object Convention {
   trait BatchType extends TransitionGraph.Vertex with Serializable {
     Transition.graph.addVertex(this)
 
-    final protected def fromRow(transitionDef: TransitionDef): Unit = {
-      Transition.graph.addEdge(RowType.VanillaRow, this, transitionDef.create())
+    final protected def fromRow(transition: Transition): Unit = {
+      Transition.graph.addEdge(RowType.VanillaRow, this, transition)
     }
 
-    final protected def toRow(transitionDef: TransitionDef): Unit = {
-      Transition.graph.addEdge(this, RowType.VanillaRow, transitionDef.create())
+    final protected def toRow(transition: Transition): Unit = {
+      Transition.graph.addEdge(this, RowType.VanillaRow, transition)
     }
 
-    final protected def fromBatch(from: BatchType, transitionDef: TransitionDef): Unit = {
+    final protected def fromBatch(from: BatchType, transition: Transition): Unit = {
       assert(from != this)
-      Transition.graph.addEdge(from, this, transitionDef.create())
+      Transition.graph.addEdge(from, this, transition)
     }
 
-    final protected def toBatch(to: BatchType, transitionDef: TransitionDef): Unit = {
+    final protected def toBatch(to: BatchType, transition: Transition): Unit = {
       assert(to != this)
-      Transition.graph.addEdge(this, to, transitionDef.create())
+      Transition.graph.addEdge(this, to, transition)
     }
   }
 
@@ -97,17 +97,8 @@ object Convention {
     // None indicates that the plan doesn't support batch-based processing.
     final case object None extends BatchType
     final case object VanillaBatch extends BatchType {
-      fromRow(
-        () =>
-          (plan: SparkPlan) => {
-            RowToColumnarExec(plan)
-          })
-
-      toRow(
-        () =>
-          (plan: SparkPlan) => {
-            ColumnarToRowExec(plan)
-          })
+      fromRow(RowToColumnarExec.apply)
+      toRow(ColumnarToRowExec.apply)
     }
   }
 

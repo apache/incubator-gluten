@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (38)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (24)
+   VeloxColumnarToRow (24)
    +- ^ RegularHashAggregateExecTransformer (22)
       +- ^ RegularHashAggregateExecTransformer (21)
          +- ^ ProjectExecTransformer (20)
@@ -137,7 +137,7 @@ Results [1]: [sum(CheckOverflow((promote_precision(cast(l_extendedprice#X as dec
 Input [1]: [revenue#X]
 Arguments: false
 
-(24) VeloxColumnarToRowExec
+(24) VeloxColumnarToRow
 Input [1]: [revenue#X]
 
 (25) Scan parquet

@@ -671,7 +671,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               dwio::common::FileFormat::PARQUET, // Currently only support parquet format.
               compressionCodec)),
       (!partitionedKey.empty()),
-      false, /*hasBucketProperty_*/
       exec::TableWriteTraits::outputType(nullptr),
       connector::CommitStrategy::kNoCommit,
       childNode);
@@ -1130,8 +1129,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
     VELOX_CHECK_LT(streamIdx, inputIters_.size(), "Could not find stream index {} in input iterator list.", streamIdx);
     iterator = inputIters_[streamIdx];
   }
-  auto valueStream = std::make_unique<RowVectorStream>(pool_, iterator, outputType);
-  auto node = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(valueStream));
+  auto node = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(iterator));
 
   auto splitInfo = std::make_shared<SplitInfo>();
   splitInfo->isStream = true;

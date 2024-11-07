@@ -69,6 +69,12 @@ class GlutenClickhouseCountDistinctSuite extends GlutenClickHouseWholeStageTrans
     }
   }
 
+  test("test distinct with not-distinct") {
+    val sql = "select a,  count(distinct(b)), sum(c)  from " +
+      "values (0, null,1), (0,null,1), (1, 1,1), (2, 2, 1) ,(2,2,2) as data(a,b,c) group by a"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("check all data types") {
     spark.createDataFrame(genTestData()).createOrReplaceTempView("all_data_types")
 

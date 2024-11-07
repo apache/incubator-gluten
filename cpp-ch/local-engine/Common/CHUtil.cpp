@@ -49,7 +49,6 @@
 #include <IO/SharedThreadPools.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
 #include <Parser/RelParsers/RelParser.h>
-#include <Parser/SerializedPlanParser.h>
 #include <Planner/PlannerActionsVisitor.h>
 #include <Processors/Chunk.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
@@ -62,7 +61,6 @@
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
-#include <google/protobuf/util/json_util.h>
 #include <sys/resource.h>
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
@@ -355,11 +353,10 @@ void PlanUtil::checkOuputType(const DB::QueryPlan & plan)
     // QueryPlan::checkInitialized is a private method, so we assume plan is initialized, otherwise there is a core dump here.
     // It's okay, because it's impossible for us not to initialize where we call this method.
     const auto & step = *plan.getRootNode()->step;
-    if (!step.hasOutputStream())
+
+    if (!step.hasOutputHeader())
         return;
-    if (!step.getOutputStream().header)
-        return;
-    for (const auto & elem : step.getOutputStream().header)
+    for (const auto & elem : step.getOutputHeader())
     {
         const DB::DataTypePtr & ch_type = elem.type;
         const auto ch_type_without_nullable = DB::removeNullable(ch_type);
@@ -381,6 +378,41 @@ void PlanUtil::checkOuputType(const DB::QueryPlan & plan)
                 throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
         }
     }
+}
+
+DB::IQueryPlanStep * PlanUtil::adjustQueryPlanHeader(DB::QueryPlan & plan, const DB::Block & to_header, const String & step_desc)
+{
+    auto convert_actions_dag = DB::ActionsDAG::makeConvertingActions(
+        plan.getCurrentHeader().getColumnsWithTypeAndName(),
+        to_header.getColumnsWithTypeAndName(),
+        ActionsDAG::MatchColumnsMode::Name);
+    auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(convert_actions_dag));
+    expression_step->setStepDescription(step_desc);
+    auto * step_ptr = expression_step.get();
+    plan.addStep(std::move(expression_step));
+    return step_ptr;
+}
+
+DB::IQueryPlanStep * PlanUtil::addRemoveNullableStep(DB::ContextPtr context, DB::QueryPlan & plan, const std::set<String> & columns)
+{
+    if (columns.empty())
+        return nullptr;
+    DB::ActionsDAG remove_nullable_actions_dag{plan.getCurrentHeader().getColumnsWithTypeAndName()};
+    for (const auto & col_name : columns)
+    {
+        if (const auto * required_node = remove_nullable_actions_dag.tryFindInOutputs(col_name))
+        {
+            auto function_builder = DB::FunctionFactory::instance().get("assumeNotNull", context);
+            DB::ActionsDAG::NodeRawConstPtrs args = {required_node};
+            const auto & node = remove_nullable_actions_dag.addFunction(function_builder, args, col_name);
+            remove_nullable_actions_dag.addOrReplaceInOutputs(node);
+        }
+    }
+    auto expression_step = std::make_unique<DB::ExpressionStep>(plan.getCurrentHeader(), std::move(remove_nullable_actions_dag));
+    expression_step->setStepDescription("Remove nullable properties");
+    auto * step_ptr = expression_step.get();
+    plan.addStep(std::move(expression_step));
+    return step_ptr;
 }
 
 NestedColumnExtractHelper::NestedColumnExtractHelper(const DB::Block & block_, bool case_insentive_)
@@ -677,6 +709,9 @@ void BackendInitializerUtil::initSettings(const std::map<std::string, std::strin
     settings.set(MERGETREE_INSERT_WITHOUT_LOCAL_STORAGE, false);
     settings.set(DECIMAL_OPERATIONS_ALLOW_PREC_LOSS, true);
     settings.set("remote_filesystem_read_prefetch", false);
+    settings.set("max_parsing_threads", 1);
+    settings.set("max_download_threads", 1);
+    settings.set("input_format_parquet_enable_row_group_prefetch", false);
 
     for (const auto & [key, value] : spark_conf_map)
     {
@@ -748,7 +783,8 @@ void BackendInitializerUtil::initSettings(const std::map<std::string, std::strin
     settings.set("function_json_value_return_type_allow_nullable", true);
     settings.set("precise_float_parsing", true);
     settings.set("enable_named_columns_in_function_tuple", false);
-    settings.set("datetime64_trim_suffix_zeros", true);
+    settings.set("date_time_64_output_format_cut_trailing_zeros_align_to_groups_of_thousands", true);
+    settings.set("input_format_orc_dictionary_as_low_cardinality", false); //after https://github.com/ClickHouse/ClickHouse/pull/69481
 
     if (spark_conf_map.contains(GLUTEN_TASK_OFFHEAP))
     {
@@ -1011,14 +1047,14 @@ UInt64 MemoryUtil::getMemoryRSS()
 
 void JoinUtil::reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
 {
-    ActionsDAG project{plan.getCurrentDataStream().header.getNamesAndTypesList()};
+    ActionsDAG project{plan.getCurrentHeader().getNamesAndTypesList()};
     NamesWithAliases project_cols;
     for (const auto & col : cols)
     {
         project_cols.emplace_back(NameWithAlias(col, col));
     }
     project.project(project_cols);
-    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), std::move(project));
+    QueryPlanStepPtr project_step = std::make_unique<ExpressionStep>(plan.getCurrentHeader(), std::move(project));
     project_step->setStepDescription("Reorder Join Output");
     plan.addStep(std::move(project_step));
 }

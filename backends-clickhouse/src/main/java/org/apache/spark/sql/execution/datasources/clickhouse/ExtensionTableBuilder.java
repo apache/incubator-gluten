@@ -16,7 +16,8 @@
  */
 package org.apache.spark.sql.execution.datasources.clickhouse;
 
-import org.apache.gluten.expression.ConverterUtils;
+import org.apache.spark.sql.execution.datasources.mergetree.MetaSerializer;
+import org.apache.spark.sql.execution.datasources.mergetree.PartSerializer;
 
 import java.util.List;
 import java.util.Map;
@@ -25,8 +26,6 @@ public class ExtensionTableBuilder {
   private ExtensionTableBuilder() {}
 
   public static ExtensionTableNode makeExtensionTable(
-      Long minPartsNum,
-      Long maxPartsNum,
       String database,
       String tableName,
       String snapshotId,
@@ -38,31 +37,28 @@ public class ExtensionTableBuilder {
       String bfIndexKey,
       String setIndexKey,
       String primaryKey,
-      List<String> partList,
-      List<Long> starts,
-      List<Long> lengths,
+      PartSerializer partSerializer,
       String tableSchemaJson,
       Map<String, String> clickhouseTableConfigs,
       List<String> preferredLocations) {
+
+    String result =
+        MetaSerializer.apply(
+            database,
+            tableName,
+            snapshotId,
+            relativeTablePath,
+            absoluteTablePath,
+            orderByKey,
+            lowCardKey,
+            minmaxIndexKey,
+            bfIndexKey,
+            setIndexKey,
+            primaryKey,
+            partSerializer,
+            tableSchemaJson,
+            clickhouseTableConfigs);
     return new ExtensionTableNode(
-        minPartsNum,
-        maxPartsNum,
-        database,
-        tableName,
-        snapshotId,
-        relativeTablePath,
-        absoluteTablePath,
-        ConverterUtils.normalizeColName(orderByKey),
-        ConverterUtils.normalizeColName(lowCardKey),
-        ConverterUtils.normalizeColName(minmaxIndexKey),
-        ConverterUtils.normalizeColName(bfIndexKey),
-        ConverterUtils.normalizeColName(setIndexKey),
-        ConverterUtils.normalizeColName(primaryKey),
-        partList,
-        starts,
-        lengths,
-        tableSchemaJson,
-        clickhouseTableConfigs,
-        preferredLocations);
+        preferredLocations, result, partSerializer.pathList(absoluteTablePath));
   }
 }

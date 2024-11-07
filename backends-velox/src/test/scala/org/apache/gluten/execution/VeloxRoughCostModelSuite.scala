@@ -22,7 +22,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.ProjectExec
 
 class VeloxRoughCostModelSuite extends VeloxWholeStageTransformerSuite {
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
   override def beforeAll(): Unit = {

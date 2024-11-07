@@ -195,6 +195,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("test with tab delimiter and double quote")
     // Arrow not support corrupt record
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
+    // varchar
+    .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
   enableSuite[GlutenCSVv2Suite]
     .exclude("Gluten - test for FAILFAST parsing mode")
     // Rule org.apache.spark.sql.execution.datasources.v2.V2ScanRelationPushDown in batch
@@ -213,6 +215,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("test with tab delimiter and double quote")
     // Arrow not support corrupt record
     .exclude("SPARK-27873: disabling enforceSchema should not fail columnNameOfCorruptRecord")
+    // varchar
+    .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
     // file cars.csv include null string, Arrow not support to read
     .exclude("DDL test with schema")
@@ -226,6 +230,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("DDL test with tab separated file")
     .exclude("DDL test parsing decimal type")
     .exclude("test with tab delimiter and double quote")
+    // varchar
+    .exclude("SPARK-48241: CSV parsing failure with char/varchar type columns")
   enableSuite[GlutenJsonV1Suite]
     // FIXME: Array direct selection fails
     .exclude("Complex field and type inferring")
@@ -649,7 +655,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetFileFormatV2Suite]
   enableSuite[GlutenParquetV1FilterSuite]
     // Rewrite.
-    .exclude("Filter applied on merged Parquet schema with new column should work")
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
     // Rewrite for supported INT96 - timestamp.
     .exclude("filter pushdown - timestamp")
@@ -665,11 +670,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
-    // https://github.com/apache/incubator-gluten/issues/7174
-    .excludeGlutenTest("Filter applied on merged Parquet schema with new column should work")
   enableSuite[GlutenParquetV2FilterSuite]
     // Rewrite.
-    .exclude("Filter applied on merged Parquet schema with new column should work")
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
     // Rewrite for supported INT96 - timestamp.
     .exclude("filter pushdown - timestamp")
@@ -685,8 +687,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-34562: Bloom filter push down")
     .exclude("SPARK-16371 Do not push down filters when inner name and outer name are the same")
     .exclude("filter pushdown - StringPredicate")
-    // https://github.com/apache/incubator-gluten/issues/7174
-    .excludeGlutenTest("Filter applied on merged Parquet schema with new column should work")
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
@@ -905,7 +905,11 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSortSuite]
   enableSuite[GlutenSQLAggregateFunctionSuite]
   // spill not supported yet.
-  enableSuite[GlutenSQLWindowFunctionSuite].exclude("test with low buffer spill threshold")
+  enableSuite[GlutenSQLWindowFunctionSuite]
+    .exclude("test with low buffer spill threshold")
+    // https://github.com/apache/incubator-gluten/issues/7631
+    .exclude(
+      "SPARK-16633: lead/lag should return the default value if the offset row does not exist")
   enableSuite[GlutenTakeOrderedAndProjectSuite]
   enableSuite[GlutenSessionExtensionSuite]
   enableSuite[TestFileSourceScanExecTransformer]

@@ -16,6 +16,9 @@
  */
 package org.apache.spark.sql.delta
 
+import org.apache.gluten.backendsapi.clickhouse.CHBackendSettings
+
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, BindReferences, Expression, Predicate}
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.stats.DeltaScan
@@ -82,14 +85,20 @@ case class FilterExprsAsKey(
 
 object ClickhouseSnapshot {
   val deltaScanCache: Cache[FilterExprsAsKey, DeltaScan] = CacheBuilder.newBuilder
-    .maximumSize(100)
-    .expireAfterAccess(3600L, TimeUnit.SECONDS)
+    .maximumSize(
+      SparkSession.getActiveSession.get.conf
+        .get(CHBackendSettings.GLUTEN_CLICKHOUSE_DELTA_SCAN_CACHE_SIZE, "10000")
+        .toLong)
+    .expireAfterAccess(7200L, TimeUnit.SECONDS)
     .recordStats()
     .build()
 
   val addFileToAddMTPCache: LoadingCache[AddFileAsKey, AddMergeTreeParts] = CacheBuilder.newBuilder
-    .maximumSize(1000000)
-    .expireAfterAccess(3600L, TimeUnit.SECONDS)
+    .maximumSize(
+      SparkSession.getActiveSession.get.conf
+        .get(CHBackendSettings.GLUTEN_CLICKHOUSE_ADDFILES_TO_MTPS_CACHE_SIZE, "1000000")
+        .toLong)
+    .expireAfterAccess(7200L, TimeUnit.SECONDS)
     .recordStats
     .build[AddFileAsKey, AddMergeTreeParts](new CacheLoader[AddFileAsKey, AddMergeTreeParts]() {
       @throws[Exception]
@@ -99,8 +108,11 @@ object ClickhouseSnapshot {
     })
 
   val pathToAddMTPCache: Cache[String, AddMergeTreeParts] = CacheBuilder.newBuilder
-    .maximumSize(1000000)
-    .expireAfterAccess(3600L, TimeUnit.SECONDS)
+    .maximumSize(
+      SparkSession.getActiveSession.get.conf
+        .get(CHBackendSettings.GLUTEN_CLICKHOUSE_TABLE_PATH_TO_MTPS_CACHE_SIZE, "1000000")
+        .toLong)
+    .expireAfterAccess(7200L, TimeUnit.SECONDS)
     .recordStats()
     .build()
 
@@ -113,11 +125,6 @@ object ClickhouseSnapshot {
   // use timestamp + version as the snapshot id for ch backend
   def genSnapshotId(snapshot: Snapshot): String = {
     // When CTAS, there is no latest timestamp in the Snapshot
-    val ts = if (snapshot.metadata.createdTime.isDefined) {
-      snapshot.metadata.createdTime.get
-    } else {
-      System.currentTimeMillis()
-    }
-    ts.toString + "_" + snapshot.version.toString
+    s"${snapshot.metadata.createdTime.getOrElse(System.currentTimeMillis())}_${snapshot.version}"
   }
 }

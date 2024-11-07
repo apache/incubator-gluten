@@ -35,7 +35,7 @@ namespace local_engine
 class FunctionParserArrayContains : public FunctionParser
 {
 public:
-    explicit FunctionParserArrayContains(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserArrayContains(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserArrayContains() override = default;
 
     static constexpr auto name = "array_contains";

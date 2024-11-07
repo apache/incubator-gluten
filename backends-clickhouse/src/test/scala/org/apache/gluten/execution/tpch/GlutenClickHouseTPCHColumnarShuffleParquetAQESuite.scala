@@ -19,11 +19,16 @@ package org.apache.gluten.execution.tpch
 import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution._
 import org.apache.gluten.extension.GlutenPlan
+import org.apache.gluten.utils.Arm
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
 import org.apache.spark.sql.execution.InputIteratorTransformer
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper}
+
+import java.io.File
+
+import scala.io.Source
 
 class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -32,8 +37,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   override protected val needCopyParquetToTablePath = true
 
   override protected val tablesPath: String = basePath + "/tpch-data"
-  override protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+  override protected val tpchQueries: String = s"$queryPath/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "queries-output"
 
   /** Run Gluten + ClickHouse Backend with SortShuffleManager */
@@ -348,6 +352,13 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
           |    l_linestatus
           |""".stripMargin
       runQueryAndCompare(sql) { df => }
+    }
+  }
+
+  ignore("https://github.com/apache/incubator-gluten/issues/7726") {
+    runQueryAndCompare(Arm.withResource(
+      Source.fromFile(new File(s"$queryPath/tpch-schema-related/7726.sql"), "UTF-8"))(_.mkString)) {
+      df =>
     }
   }
 }

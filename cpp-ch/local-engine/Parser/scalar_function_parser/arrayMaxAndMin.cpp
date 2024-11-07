@@ -35,7 +35,7 @@ namespace local_engine
 class BaseFunctionParserArrayMaxAndMin : public FunctionParser
 {
 public:
-    explicit BaseFunctionParserArrayMaxAndMin(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit BaseFunctionParserArrayMaxAndMin(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~BaseFunctionParserArrayMaxAndMin() override = default;
 
     const ActionsDAG::Node * parse(
@@ -68,7 +68,7 @@ public:
 class FunctionParserArrayMax : public BaseFunctionParserArrayMaxAndMin
 {
 public:
-    explicit FunctionParserArrayMax(SerializedPlanParser * plan_parser_) : BaseFunctionParserArrayMaxAndMin(plan_parser_) { }
+    explicit FunctionParserArrayMax(ParserContextPtr parser_context_) : BaseFunctionParserArrayMaxAndMin(parser_context_) { }
     ~FunctionParserArrayMax() override = default;
 
     static constexpr auto name = "array_max";
@@ -81,7 +81,7 @@ static FunctionParserRegister<FunctionParserArrayMax> register_array_max;
 class FunctionParserArrayMin : public BaseFunctionParserArrayMaxAndMin
 {
 public:
-    explicit FunctionParserArrayMin(SerializedPlanParser * plan_parser_) : BaseFunctionParserArrayMaxAndMin(plan_parser_) { }
+    explicit FunctionParserArrayMin(ParserContextPtr parser_context_) : BaseFunctionParserArrayMaxAndMin(parser_context_) { }
     ~FunctionParserArrayMin() override = default;
 
     static constexpr auto name = "array_min";

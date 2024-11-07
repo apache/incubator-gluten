@@ -60,7 +60,6 @@
     <spark.major.version>3</spark.major.version>
     <sparkbundle.version>3.4</sparkbundle.version>
     <spark.version>3.4.3</spark.version>
-    <sparkshim.module.name>spark34</sparkshim.module.name>
     <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
     <iceberg.version>1.5.0</iceberg.version>
     <delta.package.name>delta-core</delta.package.name>
@@ -126,6 +125,26 @@
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
+    <argLine/> <!-- Required since there is extensive setting of spark home through argLine-->
+    <extraJavaTestArgs>
+      -XX:+IgnoreUnrecognizedVMOptions <!-- For compatibility with java 8 and 11-->
+      --add-opens=java.base/java.lang=ALL-UNNAMED
+      --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+      --add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+      --add-opens=java.base/java.io=ALL-UNNAMED
+      --add-opens=java.base/java.net=ALL-UNNAMED
+      --add-opens=java.base/java.nio=ALL-UNNAMED
+      --add-opens=java.base/java.util=ALL-UNNAMED
+      --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+      --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED
+      --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED
+      --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+      --add-opens=java.base/sun.nio.cs=ALL-UNNAMED
+      --add-opens=java.base/sun.security.action=ALL-UNNAMED
+      --add-opens=java.base/sun.util.calendar=ALL-UNNAMED
+      -Djdk.reflect.useDirectMethodHandle=false
+      -Dio.netty.tryReflectionSetAccessible=true
+    </extraJavaTestArgs>
   </properties>
 
   <profiles>
@@ -273,7 +292,6 @@
       <id>spark-3.2</id>
       <properties>
         <sparkbundle.version>3.2</sparkbundle.version>
-        <sparkshim.module.name>spark32</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
         <spark.version>3.2.2</spark.version>
         <iceberg.version>1.3.1</iceberg.version>
@@ -288,7 +306,6 @@
       <id>spark-3.3</id>
       <properties>
         <sparkbundle.version>3.3</sparkbundle.version>
-        <sparkshim.module.name>spark33</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark33</sparkshim.artifactId>
         <spark.version>3.3.1</spark.version>
         <!-- keep using iceberg v1.3.1 for parquet compatibilty. -->
@@ -304,7 +321,6 @@
       <id>spark-3.4</id>
       <properties>
         <sparkbundle.version>3.4</sparkbundle.version>
-        <sparkshim.module.name>spark34</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
         <spark.version>3.4.3</spark.version>
         <iceberg.version>1.5.0</iceberg.version>
@@ -319,14 +335,13 @@
       <id>spark-3.5</id>
       <properties>
         <sparkbundle.version>3.5</sparkbundle.version>
-        <sparkshim.module.name>spark35</sparkshim.module.name>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark35</sparkshim.artifactId>
-        <spark.version>3.5.1</spark.version>
+        <spark.version>3.5.3</spark.version>
         <iceberg.version>1.5.0</iceberg.version>
         <delta.package.name>delta-spark</delta.package.name>
-        <delta.version>3.2.0</delta.version>
-	<delta.binary.version>32</delta.binary.version>
-	<hudi.version>0.15.0</hudi.version>
+        <delta.version>3.2.1</delta.version>
+        <delta.binary.version>32</delta.binary.version>
+	    <hudi.version>0.15.0</hudi.version>
         <fasterxml.version>2.15.1</fasterxml.version>
         <hadoop.version>3.3.4</hadoop.version>
         <antlr4.version>4.9.3</antlr4.version>
@@ -519,7 +534,7 @@
       <activation>
         <os>
           <family>mac</family>
-          <arch>x86</arch>
+          <arch>x86_64</arch>
         </os>
       </activation>
       <properties>
@@ -609,6 +624,10 @@
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
           </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -620,6 +639,10 @@
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client-runtime</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -656,6 +679,10 @@
           <exclusion>
             <groupId>org.apache.curator</groupId>
             <artifactId>curator-recipes</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -703,6 +730,10 @@
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
           </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
+          </exclusion>
         </exclusions>
       </dependency>
       <dependency>
@@ -727,7 +758,18 @@
             <groupId>org.apache.arrow</groupId>
             <artifactId>*</artifactId>
           </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
+          </exclusion>
         </exclusions>
+        <type>test-jar</type>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-hive_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
         <type>test-jar</type>
         <scope>test</scope>
       </dependency>
@@ -760,6 +802,10 @@
           <exclusion>
             <groupId>io.netty</groupId>
             <artifactId>netty</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>protobuf-java</artifactId>
+            <groupId>com.google.protobuf</groupId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -878,6 +924,7 @@
             <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
             <testFailureIgnore>false</testFailureIgnore>
             <junitxml>.</junitxml>
+            <argLine>${argLine} ${extraJavaTestArgs}</argLine>
           </configuration>
           <executions>
             <execution>

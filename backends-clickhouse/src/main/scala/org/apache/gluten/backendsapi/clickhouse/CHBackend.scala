@@ -127,6 +127,16 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   val GLUTEN_AQE_PROPAGATEEMPTY: String = CHConf.prefixOf("aqe.propagate.empty.relation")
 
+  val GLUTEN_CLICKHOUSE_DELTA_SCAN_CACHE_SIZE: String = CHConf.prefixOf("deltascan.cache.size")
+  val GLUTEN_CLICKHOUSE_ADDFILES_TO_MTPS_CACHE_SIZE: String =
+    CHConf.prefixOf("addfiles.to.mtps.cache.size")
+  val GLUTEN_CLICKHOUSE_TABLE_PATH_TO_MTPS_CACHE_SIZE: String =
+    CHConf.prefixOf("table.path.to.mtps.cache.size")
+
+  val GLUTEN_CLICKHOUSE_DELTA_METADATA_OPTIMIZE: String =
+    CHConf.prefixOf("delta.metadata.optimize")
+  val GLUTEN_CLICKHOUSE_DELTA_METADATA_OPTIMIZE_DEFAULT_VALUE: String = "true"
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(
@@ -136,21 +146,11 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       .toLowerCase(Locale.getDefault)
   }
 
-  override def validateScan(
+  override def validateScanExec(
       format: ReadFileFormat,
       fields: Array[StructField],
-      partTable: Boolean,
       rootPaths: Seq[String],
-      paths: Seq[String]): ValidationResult = {
-
-    def validateFilePath: Boolean = {
-      // Fallback to vanilla spark when the input path
-      // does not contain the partition info.
-      if (partTable && !paths.forall(_.contains("="))) {
-        return false
-      }
-      true
-    }
+      properties: Map[String, String]): ValidationResult = {
 
     // Validate if all types are supported.
     def hasComplexType: Boolean = {
@@ -170,12 +170,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       !unsupportedDataTypes.isEmpty
     }
     format match {
-      case ParquetReadFormat =>
-        if (validateFilePath) {
-          ValidationResult.succeeded
-        } else {
-          ValidationResult.failed("Validate file path failed.")
-        }
+      case ParquetReadFormat => ValidationResult.succeeded
       case OrcReadFormat => ValidationResult.succeeded
       case MergeTreeReadFormat => ValidationResult.succeeded
       case TextReadFormat =>
@@ -337,8 +332,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   override def transformCheckOverflow: Boolean = false
 
-  override def requiredInputFilePaths(): Boolean = true
-
   override def requireBloomFilterAggMightContainJointFallback(): Boolean = false
 
   def maxShuffleReadRows(): Long = {
@@ -356,6 +349,18 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   def enablePushdownPreProjectionAheadExpand(): Boolean = {
     SparkEnv.get.conf.getBoolean(
       CHConf.prefixOf("enable_pushdown_preprojection_ahead_expand"),
+      defaultValue = true
+    )
+  }
+
+  // It try to move the expand node after the pre-aggregate node. That is to make the plan from
+  //  expand -> pre-aggregate -> shuffle -> final-aggregate
+  // to
+  //  pre-aggregate -> expand -> shuffle -> final-aggregate
+  // It could reduce the overhead of pre-aggregate node.
+  def enableLazyAggregateExpand(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConf.runtimeConfig("enable_lazy_aggregate_expand"),
       defaultValue = true
     )
   }

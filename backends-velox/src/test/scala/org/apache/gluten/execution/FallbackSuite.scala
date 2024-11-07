@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, SortMergeJoi
 
 class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   protected val rootPath: String = getClass.getResource("/").getPath
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
   override protected def sparkConf: SparkConf = {
@@ -97,7 +97,9 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
   }
 
   test("fallback with collect") {
-    withSQLConf(GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1") {
+    withSQLConf(
+      GlutenConfig.RAS_ENABLED.key -> "false",
+      GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1") {
       runQueryAndCompare("SELECT count(*) FROM tmp1") {
         df =>
           val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
@@ -141,6 +143,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
 
   test("fallback final aggregate of collect_list") {
     withSQLConf(
+      GlutenConfig.RAS_ENABLED.key -> "false",
       GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1",
       GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> "false",
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "element_at"
@@ -159,6 +162,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
   // until we can exactly align with vanilla Spark.
   ignore("fallback final aggregate of collect_set") {
     withSQLConf(
+      GlutenConfig.RAS_ENABLED.key -> "false",
       GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1",
       GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> "false",
       GlutenConfig.EXPRESSION_BLACK_LIST.key -> "element_at"
@@ -191,7 +195,9 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
   }
 
   test("Do not fallback eagerly with ColumnarToRowExec") {
-    withSQLConf(GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1") {
+    withSQLConf(
+      GlutenConfig.RAS_ENABLED.key -> "false",
+      GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1") {
       runQueryAndCompare("select count(*) from tmp1") {
         df =>
           assert(
@@ -227,6 +233,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
     Seq("true", "false").foreach {
       ignoreRowToColumnar =>
         withSQLConf(
+          GlutenConfig.RAS_ENABLED.key -> "false",
           GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> ignoreRowToColumnar,
           GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_set",
           GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1"

@@ -60,7 +60,7 @@ import org.apache.spark.util._
 /**
  * Gluten overwrite Delta:
  *
- * This file is copied from Delta 3.2.0, it is modified to overcome the following issues:
+ * This file is copied from Delta 3.2.1, it is modified to overcome the following issues:
  *   1. return ClickhouseOptimisticTransaction
  *   2. return DeltaMergeTreeFileFormat
  *   3. create HadoopFsRelation with the bucket options
@@ -784,9 +784,6 @@ object DeltaLog extends DeltaLogging {
       FileSourceOptions.IGNORE_CORRUPT_FILES -> "false",
       FileSourceOptions.IGNORE_MISSING_FILES -> "false"
     )
-    // --- modified start
-    // Don't need to add the bucketOption here, it handles the delta log meta json file
-    // --- modified end
     val fsRelation = HadoopFsRelation(
       index, index.partitionSchema, schema, None, index.format, allOptions)(spark)
     LogicalRelation(fsRelation)

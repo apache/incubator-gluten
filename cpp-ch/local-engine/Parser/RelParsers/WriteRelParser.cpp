@@ -23,7 +23,7 @@
 #include <Parser/TypeParser.h>
 #include <Processors/Transforms/ExpressionTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
-#include <Storages/Output/FileWriterWrappers.h>
+#include <Storages/Output/NormalFileWriter.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <substrait/algebra.pb.h>
 #include <substrait/type.pb.h>

@@ -84,9 +84,8 @@ void BlocksBufferPoolTransform::work()
 {
 }
 
-BlocksBufferPoolStep::BlocksBufferPoolStep(const DB::DataStream & input_stream_, size_t buffer_size_)
-    : DB::ITransformingStep(input_stream_, input_stream_.header, getTraits())
-    , header(input_stream_.header)
+BlocksBufferPoolStep::BlocksBufferPoolStep(const DB::Block & input_header, size_t buffer_size_)
+    : DB::ITransformingStep(input_header, input_header, getTraits())
     , buffer_size(buffer_size_)
 {
 }
@@ -112,9 +111,9 @@ void BlocksBufferPoolStep::describePipeline(DB::IQueryPlanStep::FormatSettings &
         DB::IQueryPlanStep::describePipeline(processors, settings);
 }
 
-void BlocksBufferPoolStep::updateOutputStream()
+void BlocksBufferPoolStep::updateOutputHeader()
 {
-    createOutputStream(input_streams.front(), input_streams.front().header, getDataStreamTraits());
+    output_header = input_headers.front();
 }
 
 }

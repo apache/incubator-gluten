@@ -17,12 +17,14 @@
 
 #include <Parser/FunctionParser.h>
 #include <DataTypes/IDataType.h>
+#include <Parser/ExpressionParser.h>
 
 namespace DB
 {
 namespace ErrorCodes
 {
     extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
+    extern const int LOGICAL_ERROR;
 }
 }
 
@@ -31,7 +33,7 @@ namespace local_engine
 class FunctionParserLength : public FunctionParser
 {
 public:
-    explicit FunctionParserLength(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserLength(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserLength() override = default;
 
     static constexpr auto name = "char_length";
@@ -59,7 +61,10 @@ public:
             new_arg = toFunctionNode(actions_dag, "CAST", {arg, string_type_node});
         }
 
-        auto function_signature = plan_parser->getFunctionMapping().at(std::to_string(substrait_func.function_reference()));
+        auto optional_function_sigature = parser_context->getFunctionSignature(substrait_func);
+        if (!optional_function_sigature)
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Not found function {}", substrait_func.function_reference());
+        auto function_signature = *optional_function_sigature;
         const ActionsDAG::Node * result_node;
         if (function_signature.find("vbin") != std::string::npos)
             result_node = toFunctionNode(actions_dag, "length", {new_arg});

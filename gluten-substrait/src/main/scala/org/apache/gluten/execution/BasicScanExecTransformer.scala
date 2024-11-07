@@ -31,6 +31,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.{BooleanType, StringType, StructField, StructType}
+import org.apache.spark.util.SerializableConfiguration
 
 import com.google.protobuf.StringValue
 import io.substrait.proto.NamedStruct
@@ -50,16 +51,6 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   /** This can be used to report FileFormat for a file based scan operator. */
   val fileFormat: ReadFileFormat
 
-  // TODO: Remove this expensive call when CH support scan custom partition location.
-  def getInputFilePaths: Seq[String] = {
-    // This is a heavy operation, and only the required backend executes the corresponding logic.
-    if (BackendsApiManager.getSettings.requiredInputFilePaths()) {
-      getInputFilePathsInternal
-    } else {
-      Seq.empty
-    }
-  }
-
   def getRootFilePaths: Seq[String] = {
     if (GlutenConfig.getConf.scanFileSchemeValidationEnabled) {
       getRootPathsInternal
@@ -72,11 +63,13 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   def getProperties: Map[String, String] = Map.empty
 
   /** Returns the split infos that will be processed by the underlying native engine. */
-  def getSplitInfos: Seq[SplitInfo] = {
-    getSplitInfosFromPartitions(getPartitions)
+  def getSplitInfos(serializableHadoopConf: SerializableConfiguration): Seq[SplitInfo] = {
+    getSplitInfosFromPartitions(getPartitions, serializableHadoopConf)
   }
 
-  def getSplitInfosFromPartitions(partitions: Seq[InputPartition]): Seq[SplitInfo] = {
+  def getSplitInfosFromPartitions(
+      partitions: Seq[InputPartition],
+      serializableHadoopConf: SerializableConfiguration): Seq[SplitInfo] = {
     partitions.map(
       BackendsApiManager.getIteratorApiInstance
         .genSplitInfo(
@@ -84,7 +77,8 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
           getPartitionSchema,
           fileFormat,
           getMetadataColumns.map(_.name),
-          getProperties))
+          getProperties,
+          serializableHadoopConf))
   }
 
   override protected def doValidateInternal(): ValidationResult = {
@@ -101,12 +95,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }
 
     val validationResult = BackendsApiManager.getSettings
-      .validateScan(
-        fileFormat,
-        fields,
-        getPartitionSchema.nonEmpty,
-        getRootFilePaths,
-        getInputFilePaths)
+      .validateScanExec(fileFormat, fields, getRootFilePaths, getProperties)
     if (!validationResult.ok()) {
       return validationResult
     }

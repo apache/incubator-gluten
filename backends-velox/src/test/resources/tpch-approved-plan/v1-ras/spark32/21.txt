@@ -1,7 +1,7 @@
 == Physical Plan ==
 AdaptiveSparkPlan (138)
 +- == Final Plan ==
-   VeloxColumnarToRowExec (92)
+   VeloxColumnarToRow (92)
    +- TakeOrderedAndProjectExecTransformer (91)
       +- ^ RegularHashAggregateExecTransformer (89)
          +- ^ InputIteratorTransformer (88)
@@ -492,7 +492,7 @@ Arguments: false
 Input [2]: [s_name#X, numwait#X]
 Arguments: X, [numwait#X DESC NULLS LAST, s_name#X ASC NULLS FIRST], [s_name#X, numwait#X], 0
 
-(92) VeloxColumnarToRowExec
+(92) VeloxColumnarToRow
 Input [2]: [s_name#X, numwait#X]
 
 (93) Scan parquet

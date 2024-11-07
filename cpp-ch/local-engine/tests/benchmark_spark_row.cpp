@@ -56,7 +56,7 @@ static void readParquetFile(const Block & header, const String & file, Block & b
 {
     auto in = std::make_unique<ReadBufferFromFile>(file);
     FormatSettings format_settings;
-    auto format = std::make_shared<ParquetBlockInputFormat>(*in, header, format_settings, 1, 8192);
+    auto format = std::make_shared<ParquetBlockInputFormat>(*in, header, format_settings, 1, 1, 8192);
     auto pipeline = QueryPipeline(std::move(format));
     auto reader = std::make_unique<PullingPipelineExecutor>(pipeline);
     while (reader->pull(block))

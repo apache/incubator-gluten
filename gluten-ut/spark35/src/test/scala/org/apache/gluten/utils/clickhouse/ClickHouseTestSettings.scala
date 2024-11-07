@@ -21,6 +21,7 @@ import org.apache.gluten.utils.{BackendTestSettings, SQLQueryTestSettings}
 import org.apache.spark.sql._
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.connector._
 import org.apache.spark.sql.errors._
 import org.apache.spark.sql.execution._
@@ -179,7 +180,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
     .exclude("map with arrays")
-    .exclude("element_at function")
     .exclude("flatten function")
     .exclude("aggregate function - array for primitive type not containing null")
     .exclude("aggregate function - array for primitive type containing null")
@@ -307,11 +307,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-40660: Switch to XORShiftRandom to distribute elements")
   enableSuite[GlutenDateFunctionsSuite]
     .exclude("function to_date")
-    .exclude("from_unixtime")
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
-    .exclude("to_timestamp")
-    .excludeGlutenTest("to_timestamp")
     .exclude("to_timestamp with microseconds precision")
     .exclude("SPARK-30668: use legacy timestamp parser in to_timestamp")
     .exclude("SPARK-30766: date_trunc of old timestamps to hours and days")
@@ -572,7 +569,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCollectionExpressionsSuite]
     .exclude("ArraysZip") // wait for https://github.com/ClickHouse/ClickHouse/pull/69576
     .exclude("Sequence of numbers")
-    .exclude("elementAt")
     .exclude("Shuffle")
     .exclude("SPARK-33386: element_at ArrayIndexOutOfBoundsException")
     .exclude("SPARK-33460: element_at NoSuchElementException")
@@ -581,11 +577,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-36740: ArrayMin/ArrayMax/SortArray should handle NaN greater then non-NaN value")
     .excludeGlutenTest("Shuffle")
   enableSuite[GlutenComplexTypeSuite]
-    .exclude("SPARK-33386: GetArrayItem ArrayIndexOutOfBoundsException")
-    .exclude("SPARK-33460: GetMapValue NoSuchElementException")
-    .exclude("GetArrayStructFields")
-    .exclude("CreateMap")
-    .exclude("MapFromArrays")
   enableSuite[GlutenConditionalExpressionSuite]
     .exclude("case when")
     .exclude("if/case when - null flags of non-primitive types")
@@ -749,8 +740,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-32110: compare special double/float values in struct")
   enableSuite[GlutenRandomSuite].exclude("random").exclude("SPARK-9127 codegen with long seed")
   enableSuite[GlutenRegexpExpressionsSuite]
-    .exclude("LIKE ALL")
-    .exclude("LIKE ANY")
     .exclude("LIKE Pattern")
     .exclude("LIKE Pattern ESCAPE '/'")
     .exclude("LIKE Pattern ESCAPE '#'")
@@ -759,8 +748,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("RegexReplace")
     .exclude("RegexExtract")
     .exclude("RegexExtractAll")
-    .exclude("SPLIT")
-    .exclude("SPARK - 34814: LikeSimplification should handleNULL")
   enableSuite[GlutenSortOrderExpressionsSuite].exclude("SortPrefix")
   enableSuite[GlutenStringExpressionsSuite]
     .exclude("StringComparison")
@@ -1727,6 +1714,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[SparkFunctionStatistics]
   enableSuite[GlutenSparkSessionExtensionSuite]
   enableSuite[GlutenHiveSQLQueryCHSuite]
+  enableSuite[GlutenPercentileSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }

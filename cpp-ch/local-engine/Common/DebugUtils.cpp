@@ -16,6 +16,7 @@
  */
 #include "DebugUtils.h"
 #include <iostream>
+#include <sstream>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnString.h>
 #include <DataTypes/DataTypeDate.h>
@@ -24,9 +25,59 @@
 #include <Formats/FormatSettings.h>
 #include <Functions/FunctionHelpers.h>
 #include <IO/WriteBufferFromString.h>
+#include <Processors/QueryPlan/QueryPlan.h>
+#include <google/protobuf/json/json.h>
+#include <google/protobuf/util/json_util.h>
+#include <google/protobuf/wrappers.pb.h>
+#include <Common/CHUtil.h>
+#include <Common/logger_useful.h>
+
+namespace pb_util = google::protobuf::util;
 
 namespace debug
 {
+
+void dumpPlan(DB::QueryPlan & plan, bool force, LoggerPtr logger)
+{
+    if (!logger)
+    {
+        logger = getLogger("SerializedPlanParser");
+        if (!logger)
+            return;
+    }
+
+    if (!force && !logger->debug())
+        return;
+
+    auto out = local_engine::PlanUtil::explainPlan(plan);
+    if (force) // force
+        LOG_ERROR(logger, "clickhouse plan:\n{}", out);
+    else
+        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
+}
+
+void dumpMessage(const google::protobuf::Message & message, const char * type, bool force, LoggerPtr logger)
+{
+    if (!logger)
+    {
+        logger = getLogger("SubstraitPlan");
+        if (!logger)
+            return;
+    }
+
+    if (!force && !logger->debug())
+        return;
+    pb_util::JsonOptions options;
+    std::string json;
+    if (auto s = google::protobuf::json::MessageToJsonString(message, &json, options); !s.ok())
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Can not convert {} to Json", type);
+
+    if (force) // force
+        LOG_ERROR(logger, "{}:\n{}", type, json);
+    else
+        LOG_DEBUG(logger, "{}:\n{}", type, json);
+}
+
 void headBlock(const DB::Block & block, size_t count)
 {
     std::cout << "============Block============" << std::endl;
@@ -57,6 +108,40 @@ void headBlock(const DB::Block & block, size_t count)
         std::cout << std::endl;
     }
 }
+
+String printBlock(const DB::Block & block, size_t count)
+{
+    std::ostringstream ss;
+    ss << std::string("============Block============\n");
+    ss << block.dumpStructure() << String("\n");
+    // print header
+    for (const auto & name : block.getNames())
+        ss << name << std::string("\t");
+    ss << std::string("\n");
+
+    // print rows
+    for (size_t row = 0; row < std::min(count, block.rows()); ++row)
+    {
+        for (size_t column = 0; column < block.columns(); ++column)
+        {
+            const auto type = block.getByPosition(column).type;
+            auto col = block.getByPosition(column).column;
+
+            if (column > 0)
+                ss << std::string("\t");
+            DB::WhichDataType which(type);
+            if (which.isAggregateFunction())
+                ss << std::string("Nan");
+            else if (col->isNullAt(row))
+                ss << std::string("null");
+            else
+                ss << toString((*col)[row]);
+        }
+        ss << std::string("\n");
+    }
+    return ss.str();
+}
+
 
 void headColumn(const DB::ColumnPtr & column, size_t count)
 {

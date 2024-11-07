@@ -26,7 +26,7 @@ namespace local_engine
 class AggregateRelParser : public RelParser
 {
 public:
-    explicit AggregateRelParser(SerializedPlanParser * plan_paser_);
+    explicit AggregateRelParser(ParserContextPtr parser_context_);
     ~AggregateRelParser() override = default;
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
@@ -56,6 +56,7 @@ private:
     bool has_final_stage = false;
     bool has_complete_stage = false;
 
+    std::list<const substrait::Rel *> * rel_stack;
     DB::QueryPlanPtr plan = nullptr;
     const substrait::AggregateRel * aggregate_rel = nullptr;
     std::vector<AggregateInfo> aggregates;

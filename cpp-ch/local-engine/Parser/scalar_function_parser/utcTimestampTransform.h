@@ -38,7 +38,7 @@ namespace local_engine
 class FunctionParserUtcTimestampTransform : public FunctionParser
 {
 public:
-    explicit FunctionParserUtcTimestampTransform(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) { }
+    explicit FunctionParserUtcTimestampTransform(ParserContextPtr parser_context_) : FunctionParser(parser_context_) { }
     ~FunctionParserUtcTimestampTransform() override = default;
 
     const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAG & actions_dag) const override

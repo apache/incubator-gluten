@@ -28,7 +28,7 @@ export CFLAGS=$(get_cxx_flags $CPU_TARGET)  # Used by LZO.
 export CXXFLAGS=$CFLAGS  # Used by boost.
 export CPPFLAGS=$CFLAGS  # Used by LZO.
 export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
-FB_OS_VERSION=v2024.02.26.00
+FB_OS_VERSION="v2024.07.01.00"
 
 # shellcheck disable=SC2037
 SUDO="sudo -E"
@@ -157,7 +157,7 @@ function install_lzo {
 
 function install_boost {
   # Remove old version.
-  sudo rm -f /usr/local/lib/libboost_* /usr/lib64/libboost_* /opt/rh/devtoolset-9/root/usr/lib64/dyninst/libboost_*
+  sudo rm -f /usr/local/lib/libboost_* /usr/lib64/libboost_* /opt/rh/devtoolset-11/root/usr/lib64/dyninst/libboost_*
   sudo rm -rf /tmp/velox-deps/boost/ /usr/local/include/boost/ /usr/local/lib/cmake/Boost-1.72.0/
   cd "${DEPENDENCY_DIR}"
   wget_and_untar https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.gz boost
@@ -239,12 +239,10 @@ $SUDO dnf makecache
 
 # dnf install dependency libraries
 dnf_install epel-release dnf-plugins-core # For ccache, ninja
-# PowerTools only works on CentOS8
-# dnf config-manager --set-enabled powertools
 dnf_install ccache wget which libevent-devel \
   yasm \
   openssl-devel libzstd-devel lz4-devel double-conversion-devel \
-  curl-devel libxml2-devel libgsasl-devel libuuid-devel patch
+  curl-devel libxml2-devel libgsasl-devel libuuid-devel patch libicu-devel
 
 $SUDO dnf remove -y gflags
 
@@ -254,16 +252,10 @@ dnf_install autoconf automake libtool bison python3 python3-devel
 # Required for build flex
 dnf_install gettext-devel texinfo help2man
 
-# dnf_install conda
-
-# Activate gcc9; enable errors on unset variables afterwards.
-# GCC9 install via yum and devtoolset
-# dnf install gcc-toolset-9 only works on CentOS8
-
 $SUDO yum makecache
 yum_install centos-release-scl
-yum_install devtoolset-9
-source /opt/rh/devtoolset-9/enable || exit 1
+yum_install devtoolset-11
+source /opt/rh/devtoolset-11/enable || exit 1
 gcc --version
 set -u
 

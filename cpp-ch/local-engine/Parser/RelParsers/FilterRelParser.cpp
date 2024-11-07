@@ -18,23 +18,24 @@
 #include "FilterRelParser.h"
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Rewriter/ExpressionRewriter.h>
+#include <Common/CHUtil.h>
 
 namespace local_engine
 {
-FilterRelParser::FilterRelParser(SerializedPlanParser * plan_paser_)
-    : RelParser(plan_paser_)
+FilterRelParser::FilterRelParser(ParserContextPtr parser_context_) : RelParser(parser_context_)
 {
 }
-DB::QueryPlanPtr FilterRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & /*rel_stack_*/)
+DB::QueryPlanPtr
+FilterRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & /*rel_stack_*/)
 {
-    ExpressionsRewriter rewriter(getPlanParser());
+    ExpressionsRewriter rewriter(parser_context);
     substrait::Rel final_rel = rel;
     rewriter.rewrite(final_rel);
 
     const auto & filter_rel = final_rel.filter();
     std::string filter_name;
 
-    auto input_header = query_plan->getCurrentDataStream().header;
+    auto input_header = query_plan->getCurrentHeader();
     DB::ActionsDAG actions_dag{input_header.getColumnsWithTypeAndName()};
     const auto condition_node = parseExpression(actions_dag, filter_rel.condition());
     if (filter_rel.condition().has_scalar_function())
@@ -44,29 +45,31 @@ DB::QueryPlanPtr FilterRelParser::parse(DB::QueryPlanPtr query_plan, const subst
     filter_name = condition_node->result_name;
 
     bool remove_filter_column = true;
-    auto input_names = query_plan->getCurrentDataStream().header.getNames();
+    auto input_names = query_plan->getCurrentHeader().getNames();
     DB::NameSet input_with_condition(input_names.begin(), input_names.end());
     if (input_with_condition.contains(condition_node->result_name))
         remove_filter_column = false;
     else
         input_with_condition.insert(condition_node->result_name);
-    
+
     actions_dag.removeUnusedActions(input_with_condition);
-    NonNullableColumnsResolver non_nullable_columns_resolver(input_header, *getPlanParser(), filter_rel.condition());
+    NonNullableColumnsResolver non_nullable_columns_resolver(input_header, parser_context, filter_rel.condition());
     auto non_nullable_columns = non_nullable_columns_resolver.resolve();
 
-    auto filter_step = std::make_unique<DB::FilterStep>(query_plan->getCurrentDataStream(), std::move(actions_dag), filter_name, remove_filter_column);
+    auto filter_step
+        = std::make_unique<DB::FilterStep>(query_plan->getCurrentHeader(), std::move(actions_dag), filter_name, remove_filter_column);
     filter_step->setStepDescription("WHERE");
     steps.emplace_back(filter_step.get());
     query_plan->addStep(std::move(filter_step));
- 
+
     // header maybe changed, need to rollback it
-    if (!blocksHaveEqualStructure(input_header, query_plan->getCurrentDataStream().header)) {
-        steps.emplace_back(getPlanParser()->addRollbackFilterHeaderStep(query_plan, input_header));
+    if (!blocksHaveEqualStructure(input_header, query_plan->getCurrentHeader()))
+    {
+        steps.emplace_back(PlanUtil::adjustQueryPlanHeader(*query_plan, input_header, "Rollback filter header"));
     }
-   
+
     // remove nullable
-    auto * remove_null_step = getPlanParser()->addRemoveNullableStep(*query_plan, non_nullable_columns);
+    auto remove_null_step = PlanUtil::addRemoveNullableStep(parser_context->queryContext(), *query_plan, non_nullable_columns);
     if (remove_null_step)
     {
         steps.emplace_back(remove_null_step);
@@ -76,8 +79,7 @@ DB::QueryPlanPtr FilterRelParser::parse(DB::QueryPlanPtr query_plan, const subst
 
 void registerFilterRelParser(RelParserFactory & factory)
 {
-    auto builder
-        = [](SerializedPlanParser * plan_parser) -> std::unique_ptr<RelParser> { return std::make_unique<FilterRelParser>(plan_parser); };
+    auto builder = [](ParserContextPtr ctx) -> std::unique_ptr<RelParser> { return std::make_unique<FilterRelParser>(ctx); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kFilter, builder);
 }
 }

@@ -16,30 +16,11 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.spark.sql.catalyst.expressions.{And, Expression}
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.SparkPlan
 
 case class FilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecTransformerBase(condition, child) {
-  // FIXME: Should use field "condition" to store the actual executed filter expressions.
-  //  To make optimization easier (like to remove filter when it actually does nothing)
-  override protected def getRemainingCondition: Expression = {
-    val scanFilters = child match {
-      // Get the filters including the manually pushed down ones.
-      case basicScanExecTransformer: BasicScanExecTransformer =>
-        basicScanExecTransformer.filterExprs()
-      // For fallback scan, we need to keep original filter.
-      case _ =>
-        Seq.empty[Expression]
-    }
-    if (scanFilters.isEmpty) {
-      condition
-    } else {
-      val remainingFilters =
-        FilterHandler.getRemainingFilters(scanFilters, splitConjunctivePredicates(condition))
-      remainingFilters.reduceLeftOption(And).orNull
-    }
-  }
 
   override protected def withNewChildInternal(newChild: SparkPlan): FilterExecTransformer =
     copy(child = newChild)

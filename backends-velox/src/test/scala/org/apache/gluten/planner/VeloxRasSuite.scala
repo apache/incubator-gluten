@@ -21,7 +21,6 @@ import org.apache.gluten.extension.columnar.transition.ConventionReq
 import org.apache.gluten.planner.cost.GlutenCostModel
 import org.apache.gluten.planner.property.Conv
 import org.apache.gluten.ras.{Cost, CostModel, Ras}
-import org.apache.gluten.ras.Best.BestNotFoundException
 import org.apache.gluten.ras.RasSuiteBase._
 import org.apache.gluten.ras.path.RasPath
 import org.apache.gluten.ras.property.PropertySet
@@ -111,13 +110,10 @@ class VeloxRasSuite extends SharedSparkSession {
     val out = planner.plan()
     assert(out == RowUnary(RowLeaf(EMPTY_SCHEMA)))
 
-    assertThrows[BestNotFoundException] {
-      // Could not optimize to columnar output since R2C transitions for empty schema node
-      // is not allowed.
-      val planner2 =
-        newRas().newPlanner(in, PropertySet(List(Conv.req(ConventionReq.vanillaBatch))))
-      planner2.plan()
-    }
+    val planner2 =
+      newRas().newPlanner(in, PropertySet(List(Conv.req(ConventionReq.vanillaBatch))))
+    val out2 = planner2.plan()
+    assert(out2 == RowToColumnarExec(RowUnary(RowLeaf(EMPTY_SCHEMA))))
   }
 
   test("User cost model") {

@@ -35,7 +35,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
   protected val tablesPath: String = basePath + "/tpch-data"
   protected val tpchQueries: String =
-    rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
+    rootPath + "../../../../tools/gluten-it/common/src/main/resources/tpch-queries"
   protected val queriesResults: String = rootPath + "queries-output"
 
   private var parquetPath: String = _
@@ -800,5 +800,59 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
                 |from range(10);
                 |""".stripMargin
     runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("GLUTEN-7426 get_json_object") {
+    val sql = """
+                |select
+                |get_json_object(a, '$.a b'),
+                |get_json_object(a, '$.a b '),
+                |get_json_object(a, '$.a b c'),
+                |get_json_object(a, '$.a 1 c'),
+                |get_json_object(a, '$.1 '),
+                |get_json_object(a, '$.1 2'),
+                |get_json_object(a, '$.1 2 c')
+                |from values('{"a b":1}'), ('{"a b ":1}'), ('{"a b c":1}')
+                |, ('{"a 1 c":1}'), ('{"1 ":1}'), ('{"1 2":1}'), ('{"1 2 c":1}')
+                |as data(a)
+    """.stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("GLUTEN-7432 get_json_object returns array") {
+    val sql = """
+                |select
+                |get_json_object(a, '$.a[*].x')
+                |from values('{"a":[{"x":1}, {"x":5}]}'), ('{"a":[{"x":1}]}')
+                |as data(a)
+    """.stripMargin
+    runQueryAndCompare(sql)(checkGlutenOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("GLUTEN-7455 negative modulo") {
+    withTable("test_7455") {
+      spark.sql("create table test_7455(x bigint) using parquet")
+      val insert_sql =
+        """
+          |insert into test_7455 values
+          |(327696126396414574)
+          |,(618162455457852376)
+          |,(-1)
+          |,(-2)
+          |""".stripMargin
+      spark.sql(insert_sql)
+      val sql =
+        """
+          |select x,
+          |x % 4294967296,
+          |x % -4294967296,
+          |x % 4294967295,
+          |x % -4294967295,
+          |x % 100,
+          |x % -100
+          |from test_7455
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
   }
 }

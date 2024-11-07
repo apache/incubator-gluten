@@ -295,7 +295,7 @@ void updateBenchmarkMetrics(
 
 } // namespace
 
-using RuntimeFactory = std::function<VeloxRuntime*(std::unique_ptr<AllocationListener> listener)>;
+using RuntimeFactory = std::function<VeloxRuntime*(MemoryManager* memoryManager)>;
 
 auto BM_Generic = [](::benchmark::State& state,
                      const std::string& planFile,
@@ -307,7 +307,8 @@ auto BM_Generic = [](::benchmark::State& state,
 
   auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
   auto* listenerPtr = listener.get();
-  auto runtime = runtimeFactory(std::move(listener));
+  auto* memoryManager = MemoryManager::create(kVeloxBackendKind, std::move(listener));
+  auto runtime = runtimeFactory(memoryManager);
 
   auto plan = getPlanFromFile("Plan", planFile);
   std::vector<std::string> splits{};
@@ -337,7 +338,7 @@ auto BM_Generic = [](::benchmark::State& state,
               return static_cast<FileReaderIterator*>(iter->getInputIter());
             });
       }
-      runtime->injectWriteFilesTempPath(FLAGS_write_path);
+      *Runtime::localWriteFilesTempPath() = FLAGS_write_path;
       runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), std::nullopt);
       for (auto& split : splits) {
         runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size(), std::nullopt);
@@ -399,6 +400,7 @@ auto BM_Generic = [](::benchmark::State& state,
 
   updateBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics, readerMetrics);
   Runtime::release(runtime);
+  MemoryManager::release(memoryManager);
 };
 
 auto BM_ShuffleWriteRead = [](::benchmark::State& state,
@@ -409,7 +411,8 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
 
   auto listener = std::make_unique<BenchmarkAllocationListener>(FLAGS_memory_limit);
   auto* listenerPtr = listener.get();
-  auto runtime = runtimeFactory(std::move(listener));
+  auto* memoryManager = MemoryManager::create(kVeloxBackendKind, std::move(listener));
+  auto runtime = runtimeFactory(memoryManager);
 
   WriterMetrics writerMetrics{};
   ReaderMetrics readerMetrics{};
@@ -428,6 +431,7 @@ auto BM_ShuffleWriteRead = [](::benchmark::State& state,
 
   updateBenchmarkMetrics(state, elapsedTime, readInputTime, writerMetrics, readerMetrics);
   Runtime::release(runtime);
+  MemoryManager::release(memoryManager);
 };
 
 int main(int argc, char** argv) {
@@ -592,8 +596,8 @@ int main(int argc, char** argv) {
     }
   }
 
-  RuntimeFactory runtimeFactory = [=](std::unique_ptr<AllocationListener> listener) {
-    return dynamic_cast<VeloxRuntime*>(Runtime::create(kVeloxRuntimeKind, std::move(listener), sessionConf));
+  RuntimeFactory runtimeFactory = [=](MemoryManager* memoryManager) {
+    return dynamic_cast<VeloxRuntime*>(Runtime::create(kVeloxBackendKind, memoryManager, sessionConf));
   };
 
 #define GENERIC_BENCHMARK(READER_TYPE)                                                                             \

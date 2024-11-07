@@ -16,64 +16,13 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.source
 
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.delta.DeltaParquetFileFormat
+import org.apache.spark.sql.delta.{DeltaParquetFileFormat, MergeTreeFileFormat}
 import org.apache.spark.sql.delta.actions.{Metadata, Protocol}
-import org.apache.spark.sql.execution.datasources.{OutputWriter, OutputWriterFactory}
-import org.apache.spark.sql.execution.datasources.v1.{CHMergeTreeWriterInjects, GlutenMergeTreeWriterInjects}
-import org.apache.spark.sql.types.StructType
-
-import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 
 @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
 class DeltaMergeTreeFileFormat(protocol: Protocol, metadata: Metadata)
-  extends DeltaParquetFileFormat(protocol, metadata) {
-
-  protected var database = ""
-  protected var tableName = ""
-  protected var snapshotId = ""
-  protected var orderByKeyOption: Option[Seq[String]] = None
-  protected var lowCardKeyOption: Option[Seq[String]] = None
-  protected var minmaxIndexKeyOption: Option[Seq[String]] = None
-  protected var bfIndexKeyOption: Option[Seq[String]] = None
-  protected var setIndexKeyOption: Option[Seq[String]] = None
-  protected var primaryKeyOption: Option[Seq[String]] = None
-  protected var partitionColumns: Seq[String] = Seq.empty[String]
-  protected var clickhouseTableConfigs: Map[String, String] = Map.empty
-
-  // scalastyle:off argcount
-  def this(
-      protocol: Protocol,
-      metadata: Metadata,
-      database: String,
-      tableName: String,
-      snapshotId: String,
-      orderByKeyOption: Option[Seq[String]],
-      lowCardKeyOption: Option[Seq[String]],
-      minmaxIndexKeyOption: Option[Seq[String]],
-      bfIndexKeyOption: Option[Seq[String]],
-      setIndexKeyOption: Option[Seq[String]],
-      primaryKeyOption: Option[Seq[String]],
-      clickhouseTableConfigs: Map[String, String],
-      partitionColumns: Seq[String]) = {
-    this(protocol, metadata)
-    this.database = database
-    this.tableName = tableName
-    this.snapshotId = snapshotId
-    this.orderByKeyOption = orderByKeyOption
-    this.lowCardKeyOption = lowCardKeyOption
-    this.minmaxIndexKeyOption = minmaxIndexKeyOption
-    this.bfIndexKeyOption = bfIndexKeyOption
-    this.setIndexKeyOption = setIndexKeyOption
-    this.primaryKeyOption = primaryKeyOption
-    this.clickhouseTableConfigs = clickhouseTableConfigs
-    this.partitionColumns = partitionColumns
-  }
-  // scalastyle:on argcount
-
-  override def shortName(): String = "mergetree"
-
-  override def toString(): String = "MergeTree"
+  extends DeltaParquetFileFormat(protocol, metadata)
+  with MergeTreeFileFormat {
 
   override def equals(other: Any): Boolean = {
     other match {
@@ -86,49 +35,4 @@ class DeltaMergeTreeFileFormat(protocol: Protocol, metadata: Metadata)
   }
 
   override def hashCode(): Int = getClass.getCanonicalName.hashCode()
-
-  override def prepareWrite(
-      sparkSession: SparkSession,
-      job: Job,
-      options: Map[String, String],
-      dataSchema: StructType): OutputWriterFactory = {
-    // pass compression to job conf so that the file extension can be aware of it.
-    // val conf = ContextUtil.getConfiguration(job)
-    val nativeConf =
-      GlutenMergeTreeWriterInjects
-        .getInstance()
-        .nativeConf(options, "")
-
-    new OutputWriterFactory {
-      override def getFileExtension(context: TaskAttemptContext): String = {
-        ".mergetree"
-      }
-
-      override def newInstance(
-          path: String,
-          dataSchema: StructType,
-          context: TaskAttemptContext): OutputWriter = {
-        GlutenMergeTreeWriterInjects
-          .getInstance()
-          .asInstanceOf[CHMergeTreeWriterInjects]
-          .createOutputWriter(
-            path,
-            database,
-            tableName,
-            snapshotId,
-            orderByKeyOption,
-            lowCardKeyOption,
-            minmaxIndexKeyOption,
-            bfIndexKeyOption,
-            setIndexKeyOption,
-            primaryKeyOption,
-            partitionColumns,
-            metadata.schema,
-            clickhouseTableConfigs,
-            context,
-            nativeConf
-          )
-      }
-    }
-  }
 }

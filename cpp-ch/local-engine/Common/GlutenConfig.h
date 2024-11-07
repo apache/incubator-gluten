@@ -108,15 +108,6 @@ struct ExecutorConfig
     static ExecutorConfig loadFromContext(const DB::ContextPtr & context);
 };
 
-struct HdfsConfig
-{
-    inline static const String HDFS_ASYNC = "hdfs.enable_async_io";
-
-    bool hdfs_async;
-
-    static HdfsConfig loadFromContext(const Poco::Util::AbstractConfiguration & config, const DB::ReadSettings & read_settings);
-};
-
 struct S3Config
 {
     inline static const String S3_LOCAL_CACHE_ENABLE = "s3.local_cache.enabled";
@@ -150,5 +141,14 @@ struct GlutenJobSchedulerConfig
     size_t job_scheduler_max_threads = 10;
 
     static GlutenJobSchedulerConfig loadFromContext(const DB::ContextPtr & context);
+};
+
+struct MergeTreeCacheConfig
+{
+    inline static const String ENABLE_DATA_PREFETCH = "enable_data_prefetch";
+
+    bool enable_data_prefetch = true;
+
+    static MergeTreeCacheConfig loadFromContext(const DB::ContextPtr & context);
 };
 }

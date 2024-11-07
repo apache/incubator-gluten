@@ -16,7 +16,7 @@
  */
 package org.apache.gluten.sql.shims.spark33
 
-import org.apache.gluten.execution.datasource.GlutenParquetWriterInjects
+import org.apache.gluten.execution.datasource.GlutenFormatFactory
 import org.apache.gluten.expression.{ExpressionNames, Sig}
 import org.apache.gluten.expression.ExpressionNames.{CEIL, FLOOR, KNOWN_NULLABLE, TIMESTAMP_ADD}
 import org.apache.gluten.sql.shims.{ShimDescriptor, SparkShims}
@@ -30,6 +30,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.csv.CSVOptions
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{BloomFilterAggregate, RegrR2, TypedImperativeAggregate}
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -116,7 +117,7 @@ class Spark33Shims extends SparkShims {
       options: CaseInsensitiveStringMap,
       partitionFilters: Seq[Expression],
       dataFilters: Seq[Expression]): TextScan = {
-    new TextScan(
+    TextScan(
       sparkSession,
       fileIndex,
       dataSchema,
@@ -216,7 +217,7 @@ class Spark33Shims extends SparkShims {
       file: PartitionedFile,
       metadataColumnNames: Seq[String]): JMap[String, String] = {
     val metadataColumn = new JHashMap[String, String]()
-    val path = new Path(file.filePath.toString)
+    val path = new Path(file.filePath)
     for (columnName <- metadataColumnNames) {
       columnName match {
         case FileFormat.FILE_PATH => metadataColumn.put(FileFormat.FILE_PATH, path.toString)
@@ -245,7 +246,7 @@ class Spark33Shims extends SparkShims {
   }
 
   override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    List(session => GlutenParquetWriterInjects.getInstance().getExtendedColumnarPostRule(session))
+    List(session => GlutenFormatFactory.getExtendedColumnarPostRule(session))
   }
 
   override def createTestTaskContext(properties: Properties): TaskContext = {
@@ -363,5 +364,17 @@ class Spark33Shims extends SparkShims {
       caseSensitive.getOrElse(conf.caseSensitiveAnalysis),
       RebaseSpec(LegacyBehaviorPolicy.CORRECTED)
     )
+  }
+
+  override def getOperatorId(plan: QueryPlan[_]): Option[Int] = {
+    plan.getTagValue(QueryPlan.OP_ID_TAG)
+  }
+
+  override def setOperatorId(plan: QueryPlan[_], opId: Int): Unit = {
+    plan.setTagValue(QueryPlan.OP_ID_TAG, opId)
+  }
+
+  override def unsetOperatorId(plan: QueryPlan[_]): Unit = {
+    plan.unsetTagValue(QueryPlan.OP_ID_TAG)
   }
 }

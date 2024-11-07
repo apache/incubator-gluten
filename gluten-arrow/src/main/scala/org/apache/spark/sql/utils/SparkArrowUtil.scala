@@ -156,6 +156,17 @@ object SparkArrowUtil {
     }.asJava)
   }
 
+  // TimestampNTZ does not support
+  def checkSchema(schema: StructType): Boolean = {
+    try {
+      SparkSchemaUtil.toArrowSchema(schema)
+      true
+    } catch {
+      case _: Exception =>
+        false
+    }
+  }
+
   def fromArrowSchema(schema: Schema): StructType = {
     StructType(schema.getFields.asScala.toSeq.map {
       field =>

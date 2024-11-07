@@ -30,7 +30,7 @@ namespace local_engine
 class WindowGroupLimitRelParser : public RelParser
 {
 public:
-    explicit WindowGroupLimitRelParser(SerializedPlanParser * plan_parser_);
+    explicit WindowGroupLimitRelParser(ParserContextPtr parser_context_);
     ~WindowGroupLimitRelParser() override = default;
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;

@@ -26,7 +26,7 @@ import org.apache.spark.sql.types.StringType
 class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
-  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val resourcePath: String = "/tpch-data-parquet"
   override protected val fileFormat: String = "parquet"
 
   final val NULL_STR_COL: String = "nullStringColumn"

@@ -18,10 +18,7 @@ package org.apache.gluten.extension.columnar.transition
 
 import org.apache.gluten.exception.GlutenException
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.{LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution.SparkPlan
 
 /**
  * Transition is a simple function to convert a query plan to interested [[ConventionReq]].
@@ -30,7 +27,6 @@ import org.apache.spark.sql.execution.{LeafExecNode, SparkPlan}
  * [[org.apache.gluten.extension.columnar.transition.Convention.BatchType]]'s definition.
  */
 trait Transition {
-  import Transition._
   final def apply(plan: SparkPlan): SparkPlan = {
     val out = apply0(plan)
     out
@@ -45,14 +41,6 @@ trait Transition {
   }
 
   protected def apply0(plan: SparkPlan): SparkPlan
-}
-
-trait TransitionDef {
-  def create(): Transition
-}
-
-object TransitionDef {
-  val empty: TransitionDef = () => Transition.empty
 }
 
 object Transition {
@@ -139,11 +127,5 @@ object Transition {
         out
       }
     }
-  }
-
-  private case class DummySparkPlan() extends LeafExecNode {
-    override def supportsColumnar: Boolean = true // To bypass the assertion in ColumnarToRowExec.
-    override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
-    override def output: Seq[Attribute] = Nil
   }
 }

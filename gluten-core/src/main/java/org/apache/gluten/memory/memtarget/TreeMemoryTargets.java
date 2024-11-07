@@ -70,7 +70,7 @@ public class TreeMemoryTargets {
     long remainingBytes = bytes;
     while (q.peek() != null && remainingBytes > 0) {
       TreeMemoryTarget head = q.remove();
-      long spilled = spillTree(head, remainingBytes);
+      long spilled = spillTree(head, phase, remainingBytes);
       remainingBytes -= spilled;
     }
 
