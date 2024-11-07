@@ -16,7 +16,6 @@
  */
 package org.apache.gluten.execution
 
-import org.apache.gluten.backendsapi.BackendsApiManager
 import org.apache.gluten.extension.{GlutenPlan, ValidationResult}
 
 import org.apache.spark.rdd.RDD
@@ -24,15 +23,9 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
 import org.apache.spark.sql.catalyst.util.truncatedString
-import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarShuffleExchangeExec, SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, SparkPlan, UnaryExecNode}
 
-import java.util.concurrent.atomic.AtomicInteger
-
-// FIXME: The operator is simply a wrapper for sort + limit + project (+ exchange if needed).
-//  It's better to remove this wrapper then return the piped sub-operators to query planner
-//  directly. Otherwise optimizer may not get enough information to optimize.
+// The node is used for fallback validation, will be rewritten before execution.
 case class TakeOrderedAndProjectExecTransformer(
     limit: Long,
     sortOrder: Seq[SortOrder],
@@ -95,78 +88,5 @@ case class TakeOrderedAndProjectExecTransformer(
       tagged = projectPlan.doValidate()
     }
     tagged
-  }
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    // No real computation here
-    val childRDD = child.executeColumnar()
-    val childRDDPartsNum = childRDD.getNumPartitions
-
-    if (childRDDPartsNum == 0) {
-      sparkContext.parallelize(Seq.empty, 1)
-    } else {
-      val orderingSatisfies = SortOrder.orderingSatisfies(child.outputOrdering, sortOrder)
-      def withLocalSort(sparkPlan: SparkPlan): SparkPlan = {
-        if (orderingSatisfies) {
-          sparkPlan
-        } else {
-          SortExecTransformer(sortOrder, false, sparkPlan)
-        }
-      }
-
-      val hasShuffle = childRDDPartsNum == 1
-      val limitBeforeShuffleOffset = if (hasShuffle) {
-        // Local limit does not need offset
-        0
-      } else {
-        offset
-      }
-      // The child should have been replaced by ColumnarCollapseTransformStages.
-      val limitBeforeShuffle = child match {
-        case wholeStage: WholeStageTransformer =>
-          // remove this WholeStageTransformer, put the new sort, limit and project
-          // into a new whole stage.
-          val localSortPlan = withLocalSort(wholeStage.child)
-          LimitTransformer(localSortPlan, limitBeforeShuffleOffset, limit)
-        case other =>
-          // if the child it is not WholeStageTransformer, add the adapter first
-          // so that, later we can wrap WholeStageTransformer.
-          val localSortPlan = withLocalSort(
-            ColumnarCollapseTransformStages.wrapInputIteratorTransformer(other))
-          LimitTransformer(localSortPlan, limitBeforeShuffleOffset, limit)
-      }
-      val transformStageCounter: AtomicInteger =
-        ColumnarCollapseTransformStages.transformStageCounter
-      val finalLimitPlan = if (hasShuffle) {
-        limitBeforeShuffle
-      } else {
-        val limitStagePlan =
-          WholeStageTransformer(limitBeforeShuffle)(transformStageCounter.incrementAndGet())
-        val shuffleExec = ShuffleExchangeExec(SinglePartition, limitStagePlan)
-        val transformedShuffleExec =
-          ColumnarShuffleExchangeExec(shuffleExec, limitStagePlan, shuffleExec.child.output)
-        val localSortPlan =
-          SortExecTransformer(
-            sortOrder,
-            false,
-            ColumnarCollapseTransformStages.wrapInputIteratorTransformer(transformedShuffleExec))
-        LimitTransformer(localSortPlan, offset, limit)
-      }
-
-      val projectPlan = if (projectList != child.output) {
-        ProjectExecTransformer(projectList, finalLimitPlan)
-      } else {
-        finalLimitPlan
-      }
-
-      val collapsed =
-        BackendsApiManager.getSparkPlanExecApiInstance.maybeCollapseTakeOrderedAndProject(
-          projectPlan)
-
-      val finalPlan =
-        WholeStageTransformer(collapsed)(transformStageCounter.incrementAndGet())
-
-      finalPlan.executeColumnar()
-    }
   }
 }
