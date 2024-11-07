@@ -30,6 +30,7 @@
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <Common/CHUtil.h>
+#include <Common/QueryContext.h>
 #include <Common/logger_useful.h>
 
 namespace pb_util = google::protobuf::util;
@@ -51,9 +52,9 @@ void dumpPlan(DB::QueryPlan & plan, bool force, LoggerPtr logger)
 
     auto out = local_engine::PlanUtil::explainPlan(plan);
     if (force) // force
-        LOG_ERROR(logger, "clickhouse plan:\n{}", out);
+        LOG_ERROR(logger, "clickhouse plan({}):\n{}", local_engine::QueryContext::instance().currentTaskIdOrEmpty(), out);
     else
-        LOG_DEBUG(logger, "clickhouse plan:\n{}", out);
+        LOG_DEBUG(logger, "clickhouse plan({}):\n{}", local_engine::QueryContext::instance().currentTaskIdOrEmpty(), out);
 }
 
 void dumpMessage(const google::protobuf::Message & message, const char * type, bool force, LoggerPtr logger)
@@ -73,9 +74,9 @@ void dumpMessage(const google::protobuf::Message & message, const char * type, b
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Can not convert {} to Json", type);
 
     if (force) // force
-        LOG_ERROR(logger, "{}:\n{}", type, json);
+        LOG_ERROR(logger, "{}({}):\n{}", type, local_engine::QueryContext::instance().currentTaskIdOrEmpty(), json);
     else
-        LOG_DEBUG(logger, "{}:\n{}", type, json);
+        LOG_DEBUG(logger, "{}({}):\n{}", type, local_engine::QueryContext::instance().currentTaskIdOrEmpty(), json);
 }
 
 void headBlock(const DB::Block & block, size_t count)
