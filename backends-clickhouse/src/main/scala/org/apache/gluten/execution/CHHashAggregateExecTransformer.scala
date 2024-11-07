@@ -209,7 +209,7 @@ case class CHHashAggregateExecTransformer(
         RelBuilder.makeReadRelForInputIteratorWithoutRegister(typeList, nameList, context)
       (getAggRel(context, operatorId, aggParams, readRel), inputAttrs, outputAttrs)
     }
-    TransformContext(inputAttributes, outputAttributes, relNode)
+    TransformContext(outputAttributes, relNode)
   }
 
   override def getAggRel(

@@ -187,7 +187,7 @@ case class WindowExecTransformer(
     val currRel =
       getWindowRel(context, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Window Rel should be valid")
-    TransformContext(childCtx.outputAttributes, output, currRel)
+    TransformContext(output, currRel)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): WindowExecTransformer =

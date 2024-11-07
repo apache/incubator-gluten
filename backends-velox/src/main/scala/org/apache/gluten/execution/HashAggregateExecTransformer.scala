@@ -72,7 +72,7 @@ abstract class HashAggregateExecTransformer(
     val aggParams = new AggregationParams
     val operatorId = context.nextOperatorId(this.nodeName)
     val relNode = getAggRel(context, operatorId, aggParams, childCtx.root)
-    TransformContext(childCtx.outputAttributes, output, relNode)
+    TransformContext(output, relNode)
   }
 
   // Return whether the outputs partial aggregation should be combined for Velox computing.
