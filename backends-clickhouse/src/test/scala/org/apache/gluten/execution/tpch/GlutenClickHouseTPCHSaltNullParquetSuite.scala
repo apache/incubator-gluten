@@ -3068,6 +3068,41 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
   }
 
+  test("GLUTEN-7647 lazy expand for avg and sum") {
+    val create_table_sql =
+      """
+        |create table test_7647(x bigint, y bigint, z bigint, v decimal(10, 2)) using parquet
+        |""".stripMargin
+    spark.sql(create_table_sql)
+    val insert_data_sql =
+      """
+        |insert into test_7647 values
+        |(1, 1, 1, 1.0),
+        |(2, 2, 2, 2.0),
+        |(3, 3, 3, 3.0),
+        |(2,2,1, 4.0)
+        |""".stripMargin
+    spark.sql(insert_data_sql)
+
+    def checkLazyExpand(df: DataFrame): Unit = {
+      val expands = collectWithSubqueries(df.queryExecution.executedPlan) {
+        case e: ExpandExecTransformer if (e.child.isInstanceOf[HashAggregateExecBaseTransformer]) =>
+          e
+      }
+      assert(expands.size == 1)
+    }
+
+    var sql = "select x, y, avg(z), sum(v) from test_7647 group by x, y with cube order by x, y"
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
+    sql =
+      "select x, y, count(distinct z), avg(v) from test_7647 group by x, y with cube order by x, y"
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
+    sql =
+      "select x, y, count(distinct z), sum(v) from test_7647 group by x, y with cube order by x, y"
+    compareResultsAgainstVanillaSpark(sql, true, checkLazyExpand)
+    spark.sql("drop table if exists test_7647")
+  }
+
   test("GLUTEN-7759: Fix bug of agg pre-project push down") {
     val table_create_sql =
       "create table test_tbl_7759(id bigint, name string, day string) using parquet"

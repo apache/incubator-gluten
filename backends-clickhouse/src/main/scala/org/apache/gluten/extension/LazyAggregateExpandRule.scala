@@ -190,10 +190,12 @@ case class LazyAggregateExpandRule(session: SparkSession) extends Rule[SparkPlan
     // 2. if any aggregate function uses attributes which is not from expand's child, we don't
     // enable this
     if (
-      !aggregate.aggregateExpressions.forall(
+      !aggregate.aggregateExpressions.forall {
         e =>
           isValidAggregateFunction(e) &&
-            e.aggregateFunction.references.forall(expandOutputAttributes.contains(_)))
+          e.aggregateFunction.references.forall(
+            attr => expandOutputAttributes.find(_.semanticEquals(attr)).isDefined)
+      }
     ) {
       logDebug(s"xxx Some aggregate functions are not supported")
       return false
@@ -267,7 +269,8 @@ case class LazyAggregateExpandRule(session: SparkSession) extends Rule[SparkPlan
       case _: Count => true
       case _: Max => true
       case _: Min => true
-      case sum: Sum => !sum.dataType.isInstanceOf[DecimalType]
+      case _: Average => true
+      case _: Sum => true
       case _ => false
     }
   }
@@ -275,7 +278,11 @@ case class LazyAggregateExpandRule(session: SparkSession) extends Rule[SparkPlan
   def getReplaceAttribute(
       toReplace: Attribute,
       attributesToReplace: Map[Attribute, Attribute]): Attribute = {
-    attributesToReplace.getOrElse(toReplace, toReplace)
+    val kv = attributesToReplace.find(kv => kv._1.semanticEquals(toReplace))
+    kv match {
+      case Some((_, v)) => v
+      case None => toReplace
+    }
   }
 
   def buildReplaceAttributeMap(expand: ExpandExecTransformer): Map[Attribute, Attribute] = {
