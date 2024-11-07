@@ -158,16 +158,21 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
       aggregateAttributes: Seq[Attribute],
       initialInputBufferOffset: Int,
       resultExpressions: Seq[NamedExpression],
-      child: SparkPlan): HashAggregateExecBaseTransformer =
+      child: SparkPlan): HashAggregateExecBaseTransformer = {
+    val replacedResultExpressions = CHHashAggregateExecTransformer.getCHAggregateResultExpressions(
+      groupingExpressions,
+      aggregateExpressions,
+      resultExpressions)
     CHHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
       groupingExpressions.distinct,
       aggregateExpressions,
       aggregateAttributes,
       initialInputBufferOffset,
-      resultExpressions.distinct,
+      replacedResultExpressions.distinct,
       child
     )
+  }
 
   /** Generate HashAggregateExecPullOutHelper */
   override def genHashAggregateExecPullOutHelper(
