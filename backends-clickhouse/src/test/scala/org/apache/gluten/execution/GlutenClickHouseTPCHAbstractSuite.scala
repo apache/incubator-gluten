@@ -580,20 +580,23 @@ abstract class GlutenClickHouseTPCHAbstractSuite
   }
 
   override protected def afterAll(): Unit = {
-    // guava cache invalidate event trigger remove operation may in seconds delay, so wait a bit
-    // normally this doesn't take more than 1s
-    eventually(timeout(60.seconds), interval(1.seconds)) {
-      // Spark listener message was not sent in time with ci env.
-      // In tpch case, there are more then 10 hbj data has build.
-      // Let's just verify it was cleaned ever.
-      assert(CHBroadcastBuildSideCache.size() <= 10)
-    }
+    try {
+      // guava cache invalidate event trigger remove operation may in seconds delay, so wait a bit
+      // normally this doesn't take more than 1s
+      eventually(timeout(60.seconds), interval(1.seconds)) {
+        // Spark listener message was not sent in time with ci env.
+        // In tpch case, there are more then 10 hbj data has build.
+        // Let's just verify it was cleaned ever.
+        assert(CHBroadcastBuildSideCache.size() <= 10)
+      }
 
-    ClickhouseSnapshot.clearAllFileStatusCache()
-    DeltaLog.clearCache()
-    super.afterAll()
-    // init GlutenConfig in the next beforeAll
-    GlutenConfig.ins = null
+      ClickhouseSnapshot.clearAllFileStatusCache()
+      DeltaLog.clearCache()
+      // init GlutenConfig in the next beforeAll
+      GlutenConfig.ins = null
+    } finally {
+      super.afterAll()
+    }
   }
 
   override protected def runTPCHQuery(
