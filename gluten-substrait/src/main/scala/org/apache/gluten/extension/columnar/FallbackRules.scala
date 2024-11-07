@@ -405,10 +405,10 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
         case plan: GlobalLimitExec =>
           val (limit, offset) =
             SparkShimLoader.getSparkShims.getLimitAndOffsetFromGlobalLimit(plan)
-          val transformer = LimitTransformer(plan.child, offset, limit)
+          val transformer = LimitExecTransformer(plan.child, offset, limit)
           transformer.doValidate().tagOnFallback(plan)
         case plan: LocalLimitExec =>
-          val transformer = LimitTransformer(plan.child, 0L, plan.limit)
+          val transformer = LimitExecTransformer(plan.child, 0L, plan.limit)
           transformer.doValidate().tagOnFallback(plan)
         case plan: GenerateExec =>
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genGenerateTransformer(

@@ -566,7 +566,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
                          | select * from lineitem limit 10
                          |) where l_suppkey != 0 limit 100;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[LimitTransformer]
+      checkGlutenOperatorMatch[LimitExecTransformer]
     }
   }
 
