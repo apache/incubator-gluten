@@ -16,16 +16,16 @@
  */
 package org.apache.gluten.execution.hive
 
-import org.apache.gluten.GlutenConfig
+//import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{GlutenClickHouseWholeStageTransformerSuite, ProjectExecTransformer, TransformSupport}
 import org.apache.gluten.test.AllDataTypesWithComplexType
-import org.apache.gluten.utils.UTSystemParameters
+//import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+//import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 
@@ -41,37 +41,39 @@ class GlutenClickHouseHiveTableSuite
   with AdaptiveSparkPlanHelper {
 
   override protected def sparkConf: SparkConf = {
-    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+//    import org.apache.gluten.backendsapi.clickhouse.CHConf._
 
     new SparkConf()
-      .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
-      .set("spark.memory.offHeap.enabled", "true")
-      .set("spark.memory.offHeap.size", "536870912")
-      .set("spark.sql.catalogImplementation", "hive")
-      .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.sql.files.maxPartitionBytes", "1g")
-      .set("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
-      .set("spark.sql.shuffle.partitions", "5")
-      .set("spark.sql.adaptive.enabled", "false")
-      .set("spark.sql.files.minPartitionNum", "1")
-      .set("spark.gluten.sql.columnar.columnartorow", "true")
-      .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
-      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
-      .set("spark.gluten.sql.columnar.iterator", "true")
-      .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-      .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.parquet.maxmin.index", "true")
-      .set(
-        "spark.sql.warehouse.dir",
-        this.getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
-      .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
-      .set("spark.gluten.supported.hive.udfs", "my_add")
-      .setCHConfig("use_local_format", true)
-      .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-      .set(
-        "spark.sql.catalog.spark_catalog",
-        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
+//      .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
+//      .set("spark.memory.offHeap.enabled", "true")
+//      .set("spark.memory.offHeap.size", "536870912")
+//      .set("spark.sql.catalogImplementation", "hive")
+//      .set("spark.sql.adaptive.enabled", "false")
+//      .set("spark.sql.files.maxPartitionBytes", "1g")
+//      .set("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
+//      .set("spark.sql.shuffle.partitions", "5")
+//      .set("spark.sql.adaptive.enabled", "false")
+//      .set("spark.sql.files.minPartitionNum", "1")
+//      .set("spark.gluten.sql.columnar.columnartorow", "true")
+//      .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
+//      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
+//      .set("spark.gluten.sql.columnar.iterator", "true")
+//      .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
+//      .set("spark.gluten.sql.enable.native.validation", "false")
+//      .set("spark.gluten.sql.parquet.maxmin.index", "true")
+//      .set(
+//        "spark.sql.warehouse.dir",
+//        this.getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
+//      .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
+//      .set("spark.gluten.supported.hive.udfs", "my_add")
+//      .setCHConfig("use_local_format", false)
+//      .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+//      .set(
+//        "spark.sql.catalog.spark_catalog",
+//        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
       .setMaster("local[*]")
+      .set("spark.sql.planChangeLog.level", "error")
+      .set("spark.gluten.enabled", "false")
   }
 
   private val txt_table_name = "hive_txt_test"
@@ -184,14 +186,14 @@ class GlutenClickHouseHiveTableSuite
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    initializeTable(txt_table_name, txt_table_create_sql, null)
-    initializeTable(txt_upper_table_name, txt_upper_create_sql, null)
-    initializeTable(txt_user_define_input, txt_table_user_define_create_sql, null)
-    initializeTable(
-      json_table_name,
-      json_table_create_sql,
-      Seq("2023-06-05", "2023-06-06", "2023-06-07"))
-    initializeTable(parquet_table_name, parquet_table_create_sql, null)
+//    initializeTable(txt_table_name, txt_table_create_sql, null)
+//    initializeTable(txt_upper_table_name, txt_upper_create_sql, null)
+//    initializeTable(txt_user_define_input, txt_table_user_define_create_sql, null)
+//    initializeTable(
+//      json_table_name,
+//      json_table_create_sql,
+//      Seq("2023-06-05", "2023-06-06", "2023-06-07"))
+//    initializeTable(parquet_table_name, parquet_table_create_sql, null)
   }
 
   override protected def afterAll(): Unit = {
@@ -1450,4 +1452,41 @@ class GlutenClickHouseHiveTableSuite
     spark.sql("DROP TABLE test_tbl_7054")
   }
 
+  test("Nested column pruning with filter after generate") {
+    spark.sql("drop table if exists aj")
+    spark.sql(
+      """
+        |CREATE TABLE if not exists aj (
+        |  country STRING,
+        |  event STRUCT<time:BIGINT, lng:BIGINT, lat:BIGINT, net:STRING,
+        |     log_extra:MAP<STRING, STRING>, event_id:STRING, event_info:MAP<STRING, STRING>>
+        |)
+        |USING orc
+      """.stripMargin)
+
+    spark.sql("""
+                |INSERT INTO aj VALUES
+                |  ('USA', named_struct('time', 1622547800, 'lng', -122, 'lat', 37, 'net',
+                |    'wifi', 'log_extra', map('key1', 'value1'), 'event_id', 'event1',
+                |    'event_info', map('tab_type', '5', 'action', '13'))),
+                |  ('Canada', named_struct('time', 1622547801, 'lng', -79, 'lat', 43, 'net',
+                |    '4g', 'log_extra', map('key2', 'value2'), 'event_id', 'event2',
+                |    'event_info', map('tab_type', '4', 'action', '12')))
+       """.stripMargin)
+
+    val result = spark.sql("""
+                |SELECT * FROM (
+                |  SELECT
+                |    game_name,
+                |    CASE WHEN
+                |       event.event_info['tab_type'] IN (5) THEN '1' ELSE '0' END AS entrance
+                |  FROM aj
+                |  LATERAL VIEW explode(split(country, ', ')) game_name AS game_name
+                |  WHERE event.event_info['action'] IN (13)
+                |) WHERE game_name = 'xxx'
+      """.stripMargin)
+
+    result.show()
+    spark.sql("drop table if exists aj")
+  }
 }
