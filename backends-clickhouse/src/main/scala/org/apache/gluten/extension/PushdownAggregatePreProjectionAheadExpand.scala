@@ -96,7 +96,7 @@ case class PushdownAggregatePreProjectionAheadExpand(session: SparkSession)
         def projectInputExists(expr: Expression, inputs: Seq[Attribute]): Boolean = {
           expr.children.foreach {
             case a: Attribute =>
-              return inputs.indexOf(a) != -1
+              return inputs.exists(i => i.name.equals(a.name) && i.exprId.equals(a.exprId))
             case p: Expression =>
               return projectInputExists(p, inputs)
             case _ =>
