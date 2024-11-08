@@ -9,6 +9,6 @@
     JNI_OnLoad;
     JNI_OnUnload;
   local:
-    # Hide symbols from glog and gflags.
-    *google::*;
+    # Hide all other symbols except the above global symbols.
+    *;
 };
