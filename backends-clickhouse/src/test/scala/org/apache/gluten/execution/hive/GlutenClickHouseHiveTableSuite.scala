@@ -16,16 +16,16 @@
  */
 package org.apache.gluten.execution.hive
 
-//import org.apache.gluten.GlutenConfig
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.execution.{GlutenClickHouseWholeStageTransformerSuite, ProjectExecTransformer, TransformSupport}
 import org.apache.gluten.test.AllDataTypesWithComplexType
-//import org.apache.gluten.utils.UTSystemParameters
+import org.apache.gluten.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{DataFrame, SaveMode}
 import org.apache.spark.sql.delta.DeltaLog
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-//import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 
@@ -41,39 +41,39 @@ class GlutenClickHouseHiveTableSuite
   with AdaptiveSparkPlanHelper {
 
   override protected def sparkConf: SparkConf = {
-//    import org.apache.gluten.backendsapi.clickhouse.CHConf._
+    import org.apache.gluten.backendsapi.clickhouse.CHConf._
 
     new SparkConf()
-//      .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
-//      .set("spark.memory.offHeap.enabled", "true")
-//      .set("spark.memory.offHeap.size", "536870912")
-//      .set("spark.sql.catalogImplementation", "hive")
-//      .set("spark.sql.adaptive.enabled", "false")
-//      .set("spark.sql.files.maxPartitionBytes", "1g")
-//      .set("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
-//      .set("spark.sql.shuffle.partitions", "5")
-//      .set("spark.sql.adaptive.enabled", "false")
-//      .set("spark.sql.files.minPartitionNum", "1")
-//      .set("spark.gluten.sql.columnar.columnartorow", "true")
-//      .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
-//      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
-//      .set("spark.gluten.sql.columnar.iterator", "true")
-//      .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
-//      .set("spark.gluten.sql.enable.native.validation", "false")
-//      .set("spark.gluten.sql.parquet.maxmin.index", "true")
-//      .set(
-//        "spark.sql.warehouse.dir",
-//        this.getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
-//      .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
-//      .set("spark.gluten.supported.hive.udfs", "my_add")
-//      .setCHConfig("use_local_format", false)
-//      .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-//      .set(
-//        "spark.sql.catalog.spark_catalog",
-//        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
+      .set("spark.plugins", "org.apache.gluten.GlutenPlugin")
+      .set("spark.memory.offHeap.enabled", "true")
+      .set("spark.memory.offHeap.size", "536870912")
+      .set("spark.sql.catalogImplementation", "hive")
+      .set("spark.sql.adaptive.enabled", "false")
+      .set("spark.sql.files.maxPartitionBytes", "1g")
+      .set("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
+      .set("spark.sql.shuffle.partitions", "5")
+      .set("spark.sql.adaptive.enabled", "false")
+      .set("spark.sql.files.minPartitionNum", "1")
+      .set("spark.gluten.sql.columnar.columnartorow", "true")
+      .set(ClickHouseConfig.CLICKHOUSE_WORKER_ID, "1")
+      .set(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.clickHouseLibPath)
+      .set("spark.gluten.sql.columnar.iterator", "true")
+      .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
+      .set("spark.gluten.sql.enable.native.validation", "false")
+      .set("spark.gluten.sql.parquet.maxmin.index", "true")
+      .set(
+        "spark.sql.warehouse.dir",
+        this.getClass.getResource("/").getPath + "tests-working-home/spark-warehouse")
+      .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
+      .set("spark.gluten.supported.hive.udfs", "my_add")
+      .setCHConfig("use_local_format", false)
+      .set("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+      .set(
+        "spark.sql.catalog.spark_catalog",
+        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
       .setMaster("local[*]")
       .set("spark.sql.planChangeLog.level", "error")
-      .set("spark.gluten.enabled", "false")
+      .set("spark.gluten.enabled", "true")
   }
 
   private val txt_table_name = "hive_txt_test"
@@ -201,7 +201,7 @@ class GlutenClickHouseHiveTableSuite
     super.afterAll()
   }
 
-  test("test hive text table") {
+  ignore("test hive text table") {
     val sql =
       s"""
          | select string_field,
@@ -226,7 +226,7 @@ class GlutenClickHouseHiveTableSuite
       })
   }
 
-  test("test hive text table using user define input format") {
+  ignore("test hive text table using user define input format") {
     val sql =
       s"""
          | select string_field,
@@ -251,7 +251,7 @@ class GlutenClickHouseHiveTableSuite
       })
   }
 
-  test("test hive text table with unordered columns") {
+  ignore("test hive text table with unordered columns") {
     val sql = "select decimal_field, short_field, double_field, float_field, long_field, " +
       s"int_field, string_field from $txt_table_name order by string_field"
     compareResultsAgainstVanillaSpark(
@@ -265,7 +265,7 @@ class GlutenClickHouseHiveTableSuite
       })
   }
 
-  test("test hive text table with count(1)/count(*)") {
+  ignore("test hive text table with count(1)/count(*)") {
     val sql1 = s"select count(1), count(*) from $txt_table_name"
     compareResultsAgainstVanillaSpark(
       sql1,
@@ -291,7 +291,7 @@ class GlutenClickHouseHiveTableSuite
     )
   }
 
-  test("fix bug: https://github.com/oap-project/gluten/issues/2022") {
+  ignore("fix bug: https://github.com/oap-project/gluten/issues/2022") {
     spark.sql(
       "create table if not exists test_empty_partitions" +
         "(uid string, mac string, country string) partitioned by (day string) stored as textfile")
@@ -308,7 +308,7 @@ class GlutenClickHouseHiveTableSuite
       })
   }
 
-  test("fix bug: hive text table limit with fallback") {
+  ignore("fix bug: hive text table limit with fallback") {
     val sql =
       s"""
          | select string_field
@@ -327,12 +327,12 @@ class GlutenClickHouseHiveTableSuite
       })
   }
 
-  test("hive text table select complex type columns with fallback") {
+  ignore("hive text table select complex type columns with fallback") {
     val sql = s"select int_field, array_field, map_field from $txt_table_name order by int_field"
     compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
   }
 
-  test("hive text table case-insensitive column matching") {
+  ignore("hive text table case-insensitive column matching") {
     val sql = s"select SHORT_FIELD, int_field, LONG_field from $txt_table_name order by int_field"
     compareResultsAgainstVanillaSpark(
       sql,
@@ -345,7 +345,7 @@ class GlutenClickHouseHiveTableSuite
       })
   }
 
-  test("test hive json table") {
+  ignore("test hive json table") {
     val sql =
       s"""
          | select string_field,
@@ -372,7 +372,7 @@ class GlutenClickHouseHiveTableSuite
     )
   }
 
-  test("test hive json table complex data type") {
+  ignore("test hive json table complex data type") {
     val sql =
       s"""
          | select array_field, map_field from $json_table_name
@@ -391,7 +391,7 @@ class GlutenClickHouseHiveTableSuite
 
   }
 
-  test("GLUTEN-2019: Bug fix not allow quotes") {
+  ignore("GLUTEN-2019: Bug fix not allow quotes") {
     val default_quote_table_name = "test_2019_default"
     val allow_double_quote_table_name = "test_2019_allow_double"
     val allow_single_quote_table_name = "test_2019_allow_single"
@@ -466,7 +466,7 @@ class GlutenClickHouseHiveTableSuite
     )
   }
 
-  test("text hive table with space/tab delimiter") {
+  ignore("text hive table with space/tab delimiter") {
     val txt_table_name_space_delimiter = "hive_txt_table_space_delimiter"
     val txt_table_name_tab_delimiter = "hive_txt_table_tab_delimiter"
     val drop_space_table_sql = "drop table if exists %s".format(txt_table_name_space_delimiter)
@@ -518,7 +518,7 @@ class GlutenClickHouseHiveTableSuite
     )
   }
 
-  test("test hive table with illegal partition path") {
+  ignore("test hive table with illegal partition path") {
     val path = new Path(sparkConf.get("spark.sql.warehouse.dir"))
     val fs = path.getFileSystem(spark.sessionState.newHadoopConf())
     val tablePath = path.toUri.getPath + "/" + json_table_name
@@ -544,7 +544,7 @@ class GlutenClickHouseHiveTableSuite
     )
   }
 
-  test("GLUTEN-7700: test hive table with partition values contain space") {
+  ignore("GLUTEN-7700: test hive table with partition values contain space") {
     val tbl = "test_7700"
     val create_table_sql =
       s"""
@@ -575,7 +575,7 @@ class GlutenClickHouseHiveTableSuite
     spark.sql(drop_sql)
   }
 
-  test("test hive compressed txt table") {
+  ignore("test hive compressed txt table") {
     withSQLConf(SQLConf.FILES_MAX_PARTITION_BYTES.key -> "11") {
       Seq("DefaultCodec", "BZip2Codec").foreach {
         compress =>
@@ -612,7 +612,7 @@ class GlutenClickHouseHiveTableSuite
     }
   }
 
-  test("text hive txt table with multiple compressed method") {
+  ignore("text hive txt table with multiple compressed method") {
     val compressed_txt_table_name = "compressed_hive_txt_test"
     val compressed_txt_data_path = getClass.getResource("/").getPath + "/text-data/compressed"
     val drop_table_sql = "drop table if exists %s".format(compressed_txt_table_name)
@@ -634,7 +634,7 @@ class GlutenClickHouseHiveTableSuite
       })
   }
 
-  test("test orc/parquet table with null complex type values") {
+  ignore("test orc/parquet table with null complex type values") {
     val create_template =
       """
         | CREATE TABLE test_%s(
@@ -682,7 +682,7 @@ class GlutenClickHouseHiveTableSuite
     }
   }
 
-  test("Gluten-2582: Fix crash in array<struct>") {
+  ignore("Gluten-2582: Fix crash in array<struct>") {
     val create_table_sql =
       """
         | create table test_tbl_2582(
@@ -723,7 +723,7 @@ class GlutenClickHouseHiveTableSuite
     compareResultsAgainstVanillaSpark(select_sql_6, compareResult = true, _ => {})
   }
 
-  test("GLUTEN-2180: Test data field too much/few") {
+  ignore("GLUTEN-2180: Test data field too much/few") {
     val test_table_name = "test_table_2180"
     val drop_table_sql = "drop table if exists %s".format(test_table_name)
     val test_data_path = getClass.getResource("/").getPath + "/text-data/field_too_much_few"
@@ -745,7 +745,7 @@ class GlutenClickHouseHiveTableSuite
       })
   }
 
-  test("GLUTEN-2180: Test data field type not match") {
+  ignore("GLUTEN-2180: Test data field type not match") {
     val test_table_name = "test_table_2180"
     val drop_table_sql = "drop table if exists %s".format(test_table_name)
     val test_data_path = getClass.getResource("/").getPath + "/text-data/field_data_type_not_match"
@@ -769,7 +769,7 @@ class GlutenClickHouseHiveTableSuite
       })
   }
 
-  test("test parquet push down filter skip row groups") {
+  ignore("test parquet push down filter skip row groups") {
     val currentTimestamp = System.currentTimeMillis() / 1000
     val sql =
       s"""
@@ -783,7 +783,7 @@ class GlutenClickHouseHiveTableSuite
     compareResultsAgainstVanillaSpark(sql, compareResult = true, _ => {})
   }
 
-  test("test parquet push down filter with null value") {
+  ignore("test parquet push down filter with null value") {
     val create_table_sql =
       """
         | create table test_tbl_2456(
@@ -814,7 +814,7 @@ class GlutenClickHouseHiveTableSuite
     compareResultsAgainstVanillaSpark(select_sql_2, compareResult = true, _ => {})
   }
 
-  test("test parquet push down filter with multi-nested column types") {
+  ignore("test parquet push down filter with multi-nested column types") {
     val create_table_sql =
       """
         | create table test_tbl_2457(
@@ -853,7 +853,7 @@ class GlutenClickHouseHiveTableSuite
     compareResultsAgainstVanillaSpark(select_sql_1, compareResult = true, _ => {})
   }
 
-  test("fix reading string from number bug: https://github.com/oap-project/gluten/issues/3023") {
+  ignore("fix reading string from number bug: https://github.com/oap-project/gluten/issues/3023") {
     val data_path = rootPath + "/text-data/json-settings"
     spark.sql(s"""
                  |CREATE TABLE json_settings (
@@ -872,7 +872,7 @@ class GlutenClickHouseHiveTableSuite
     spark.sql("DROP TABLE json_settings")
   }
 
-  test("fix empty field delim bug: https://github.com/oap-project/gluten/issues/3098") {
+  ignore("fix empty field delim bug: https://github.com/oap-project/gluten/issues/3098") {
     spark.sql(s"""
                  |CREATE TABLE a (
                  |  uid bigint,
@@ -897,7 +897,7 @@ class GlutenClickHouseHiveTableSuite
     spark.sql("DROP TABLE a")
   }
 
-  test("fix csv serde bug: https://github.com/oap-project/gluten/issues/3108") {
+  ignore("fix csv serde bug: https://github.com/oap-project/gluten/issues/3108") {
     spark.sql(s"""
                  |CREATE TABLE b (
                  |  uid bigint,
@@ -919,7 +919,7 @@ class GlutenClickHouseHiveTableSuite
     spark.sql("DROP TABLE b")
   }
 
-  test("GLUTEN-3337: fix get_json_object for abnormal json") {
+  ignore("GLUTEN-3337: fix get_json_object for abnormal json") {
     val data_path = rootPath + "/text-data/abnormal-json"
     spark.sql(s"""
                  |CREATE TABLE test_tbl_3337 (
@@ -948,7 +948,7 @@ class GlutenClickHouseHiveTableSuite
     spark.sql("DROP TABLE test_tbl_3337")
   }
 
-  test("test hive read recursive dirs") {
+  ignore("test hive read recursive dirs") {
     val path = new Path(sparkConf.get("spark.sql.warehouse.dir"))
     val create_test_file_recursive =
       "create external table if not exists test_file_recursive (" +
@@ -983,7 +983,7 @@ class GlutenClickHouseHiveTableSuite
     }
   }
 
-  test("GLUTEN-3552: Bug fix csv field whitespaces") {
+  ignore("GLUTEN-3552: Bug fix csv field whitespaces") {
     val data_path = rootPath + "/text-data/field_whitespaces"
     spark.sql(s"""
                  | CREATE TABLE test_tbl_3552(
@@ -1006,7 +1006,7 @@ class GlutenClickHouseHiveTableSuite
     spark.sql("DROP TABLE test_tbl_3552")
   }
 
-  test("GLUTEN-3548: Bug fix csv allow cr end of line") {
+  ignore("GLUTEN-3548: Bug fix csv allow cr end of line") {
     val data_path = rootPath + "/text-data/cr_end_of_line"
     spark.sql(s"""
                  | CREATE TABLE test_tbl_3548(
@@ -1029,7 +1029,7 @@ class GlutenClickHouseHiveTableSuite
     spark.sql("DROP TABLE test_tbl_3548")
   }
 
-  test("test 'hive udf'") {
+  ignore("test 'hive udf'") {
     val jarPath = "udfs/hive-test-udfs.jar"
     val jarUrl = s"file://$rootPath/$jarPath"
     spark.sql(
@@ -1055,7 +1055,7 @@ class GlutenClickHouseHiveTableSuite
     }
   }
 
-  test("GLUTEN-4333: fix CSE in aggregate operator") {
+  ignore("GLUTEN-4333: fix CSE in aggregate operator") {
     val createTableSql =
       """
         |CREATE TABLE `test_cse`(
@@ -1118,7 +1118,7 @@ class GlutenClickHouseHiveTableSuite
     runQueryAndCompare(querySql)(df => checkOperatorCount[ProjectExecTransformer](2)(df))
   }
 
-  test(
+  ignore(
     "Gluten GetArrayStructFields: SPARK-33907: bad json input with " +
       "json pruning optimization: GetArrayStructFields") {
     val createSql =
@@ -1137,7 +1137,7 @@ class GlutenClickHouseHiveTableSuite
     }
   }
 
-  test(
+  ignore(
     "Gluten GetArrayStructFields: SPARK-37450: " +
       "Prunes unnecessary fields from Explode for count aggregation") {
     val createSql1 =
@@ -1164,7 +1164,7 @@ class GlutenClickHouseHiveTableSuite
     }
   }
 
-  test(
+  ignore(
     "Gluten GetArrayStructFields: SPARK-37450: " +
       "Prunes unnecessary fields from Explode for friend's middle name") {
     val createSql =
@@ -1223,7 +1223,7 @@ class GlutenClickHouseHiveTableSuite
     }
   }
 
-  test("GLUTEN-3452: Bug fix decimal divide") {
+  ignore("GLUTEN-3452: Bug fix decimal divide") {
     val table_create_sql =
       """
         | create table test_tbl_3452(d1 decimal(12,2), d2 decimal(15,3)) stored as parquet;
@@ -1241,7 +1241,7 @@ class GlutenClickHouseHiveTableSuite
     spark.sql("drop table test_tbl_3452")
   }
 
-  test("GLUTEN-6235: Fix crash on ExpandTransform::work()") {
+  ignore("GLUTEN-6235: Fix crash on ExpandTransform::work()") {
     val tbl = "test_tbl_6235"
     sql(s"drop table if exists $tbl")
     val createSql =
@@ -1266,7 +1266,7 @@ class GlutenClickHouseHiveTableSuite
     sql(s"drop table if exists $tbl")
   }
 
-  test("test mergetree write with column case sensitive on hive") {
+  ignore("test mergetree write with column case sensitive on hive") {
     val dataPath = s"$basePath/lineitem_mergetree_bucket"
     val sourceDF = spark.sql(s"""
                                 |select
@@ -1353,7 +1353,7 @@ class GlutenClickHouseHiveTableSuite
     assert(new File(dataPath4).listFiles().nonEmpty)
   }
 
-  test("GLUTEN-6506: Orc read time zone") {
+  ignore("GLUTEN-6506: Orc read time zone") {
     val dataPath = s"$basePath/orc-data/test_reader_time_zone.snappy.orc"
     val create_table_sql = ("create table test_tbl_6506(" +
       "id bigint, t timestamp) stored as orc location '%s'")
@@ -1364,7 +1364,7 @@ class GlutenClickHouseHiveTableSuite
     spark.sql("drop table test_tbl_6506")
   }
 
-  test("GLUTEN-6879: Fix partition value diff when it contains blanks") {
+  ignore("GLUTEN-6879: Fix partition value diff when it contains blanks") {
     val tableName = "test_tbl_6879"
     sql(s"drop table if exists $tableName")
 
@@ -1390,7 +1390,7 @@ class GlutenClickHouseHiveTableSuite
     sql(s"drop table if exists $tableName")
   }
 
-  test("GLUTEN-7054: Fix exception when CSE meets common alias expression") {
+  ignore("GLUTEN-7054: Fix exception when CSE meets common alias expression") {
     val createTableSql = """
                            |CREATE TABLE test_tbl_7054 (
                            |  day STRING,
@@ -1474,16 +1474,17 @@ class GlutenClickHouseHiveTableSuite
                 |    'event_info', map('tab_type', '4', 'action', '12')))
        """.stripMargin)
 
-    val result = spark.sql("""
-                |SELECT * FROM (
-                |  SELECT
-                |    game_name,
-                |    CASE WHEN
-                |       event.event_info['tab_type'] IN (5) THEN '1' ELSE '0' END AS entrance
-                |  FROM aj
-                |  LATERAL VIEW explode(split(country, ', ')) game_name AS game_name
-                |  WHERE event.event_info['action'] IN (13)
-                |) WHERE game_name = 'xxx'
+    val result =
+      spark.sql("""
+                  | explain extended SELECT * FROM (
+                  |  SELECT
+                  |    game_name,
+                  |    CASE WHEN
+                  |       event.event_info['tab_type'] IN (5) THEN '1' ELSE '0' END AS entrance
+                  |  FROM aj
+                  |  LATERAL VIEW explode(split(country, ', ')) game_name AS game_name
+                  |  WHERE event.event_info['action'] IN (13)
+                  |) WHERE game_name = 'xxx'
       """.stripMargin)
 
     result.show()

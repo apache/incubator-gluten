@@ -107,6 +107,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableCountDistinctWithoutExpand: Boolean =
     conf.getConf(ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND)
 
+  def enableExtendedGeneratorNestedColumnAliasing: Boolean =
+    conf.getConf(ENABLE_EXTENDED_GENERATOR_NESTED_COLUMN_ALIASING)
+
   def veloxOrcScanEnabled: Boolean =
     conf.getConf(VELOX_ORC_SCAN_ENABLED)
 
@@ -1928,6 +1931,13 @@ object GlutenConfig {
           "When enabled, count distinct queries will fail to fallback!!!")
       .booleanConf
       .createWithDefault(false)
+
+  val ENABLE_EXTENDED_GENERATOR_NESTED_COLUMN_ALIASING =
+    buildConf("spark.gluten.sql.extendedGeneratorNestedColumnAliasing")
+      .internal()
+      .doc("Do nested column aliasing for Project(Filter(Generator))")
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
     buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")
