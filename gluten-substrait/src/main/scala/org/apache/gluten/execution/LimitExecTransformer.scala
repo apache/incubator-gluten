@@ -57,7 +57,7 @@ case class LimitExecTransformer(child: SparkPlan, offset: Long, count: Long)
     val childCtx = child.asInstanceOf[TransformSupport].transform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     val relNode = getRelNode(context, operatorId, offset, count, child.output, childCtx.root, false)
-    TransformContext(child.output, child.output, relNode)
+    TransformContext(child.output, relNode)
   }
 
   def getRelNode(
