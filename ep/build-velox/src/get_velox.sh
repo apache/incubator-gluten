@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_11_09
+VELOX_REPO=https://github.com/JkSelf/velox.git
+VELOX_BRANCH=jvm-libhdfs-perf
 VELOX_HOME=""
 
 OS=`uname -s`
