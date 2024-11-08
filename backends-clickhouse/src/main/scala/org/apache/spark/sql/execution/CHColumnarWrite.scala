@@ -60,10 +60,9 @@ trait CHColumnarWrite[T <: FileCommitProtocol] {
     .get
 
   // TODO: task commit time
-  def finalStats(numWrittenRows: Long): BasicWriteTaskStats = basicWriteJobStatsTracker
+  def finalStats: BasicWriteTaskStats = basicWriteJobStatsTracker
     .getFinalStats(0)
     .asInstanceOf[BasicWriteTaskStats]
-    .copy(numRows = numWrittenRows)
 
   lazy val (taskAttemptContext: TaskAttemptContext, jobId: String) = {
     // Copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version
@@ -234,7 +233,7 @@ case class HadoopMapReduceCommitProtocolWrite(
           new TaskCommitMessage(addedAbsPathFiles.toMap -> updatedPartitions),
           ExecutedWriteSummary(
             updatedPartitions = updatedPartitions,
-            stats = Seq(finalStats(numWrittenRows)))
+            stats = Seq(finalStats.copy(numRows = numWrittenRows)))
         ))
     }
   }

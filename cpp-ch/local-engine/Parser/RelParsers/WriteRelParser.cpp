@@ -21,14 +21,25 @@
 #include <DataTypes/DataTypeTuple.h>
 #include <Interpreters/Context.h>
 #include <Parser/TypeParser.h>
+#include <Processors/Transforms/ApplySquashingTransform.h>
 #include <Processors/Transforms/ExpressionTransform.h>
+#include <Processors/Transforms/PlanSquashingTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Storages/MergeTree/SparkMergeTreeMeta.h>
+#include <Storages/MergeTree/SparkMergeTreeSink.h>
+#include <Storages/MergeTree/SparkStorageMergeTree.h>
 #include <Storages/Output/NormalFileWriter.h>
 #include <google/protobuf/wrappers.pb.h>
 #include <substrait/algebra.pb.h>
 #include <substrait/type.pb.h>
 #include <write_optimization.pb.h>
 #include <Common/GlutenSettings.h>
+
+namespace DB::Setting
+{
+extern const SettingsUInt64 min_insert_block_size_rows;
+extern const SettingsUInt64 min_insert_block_size_bytes;
+}
 
 using namespace local_engine;
 using namespace DB;
@@ -133,11 +144,39 @@ void adjust_output(const DB::QueryPipelineBuilderPtr & builder, const DB::Block 
         });
 }
 
+void addMergeTreeSinkTransform(
+    const DB::ContextPtr & context,
+    const DB::QueryPipelineBuilderPtr & builder,
+    const MergeTreeTable & merge_tree_table,
+    const DB::Block & output,
+    const DB::Names & /*partitionCols*/)
+{
+    const DB::Settings & settings = context->getSettingsRef();
+    const auto dest_storage = merge_tree_table.getStorage(context->getGlobalContext());
+    StorageMetadataPtr metadata_snapshot = dest_storage->getInMemoryMetadataPtr();
+    ASTPtr none;
+    auto sink = dest_storage->write(none, metadata_snapshot, context, false);
+    Chain chain;
+    chain.addSink(sink);
+    const SinkHelper & sink_helper = assert_cast<const SparkMergeTreeSink &>(*sink).sinkHelper();
+    //
+    auto stats = std::make_shared<MergeTreeStats>(output, sink_helper);
+    chain.addSink(stats);
+    //
+    chain.addSource(std::make_shared<ApplySquashingTransform>(
+        output, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
+    chain.addSource(std::make_shared<PlanSquashingTransform>(
+        output, settings[Setting::min_insert_block_size_rows], settings[Setting::min_insert_block_size_bytes]));
+
+    builder->addChain(std::move(chain));
+}
+
 void addNormalFileWriterSinkTransform(
     const DB::ContextPtr & context,
-    const local_engine::Write & write,
-    const substrait::NamedStruct & table_schema,
-    const DB::QueryPipelineBuilderPtr & builder)
+    const DB::QueryPipelineBuilderPtr & builder,
+    const std::string & format_hint,
+    const DB::Block & output,
+    const DB::Names & partitionCols)
 {
     GlutenWriteSettings write_settings = GlutenWriteSettings::get(context);
 
@@ -147,24 +186,21 @@ void addNormalFileWriterSinkTransform(
     if (write_settings.task_write_filename.empty())
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Write Pipeline need inject file name.");
 
-    auto blockHeader = TypeParser::buildBlockFromNamedStruct(table_schema);
-    auto stats = std::make_shared<WriteStats>(blockHeader);
-    adjust_output(builder, blockHeader);
+    auto stats = std::make_shared<WriteStats>(output);
 
     builder->addSimpleTransform(
         [&](const Block & cur_header, QueryPipelineBuilder::StreamType stream_type) -> ProcessorPtr
         {
-            const auto partitionCols = collect_partition_cols(blockHeader, table_schema);
             if (stream_type != QueryPipelineBuilder::StreamType::Main)
                 return nullptr;
             return make_sink(
                 context,
                 partitionCols,
                 cur_header,
-                blockHeader,
+                output,
                 write_settings.task_write_tmp_dir,
                 write_settings.task_write_filename,
-                write.common().format(),
+                format_hint,
                 stats);
         });
     builder->addSimpleTransform(
@@ -192,7 +228,23 @@ void addSinkTransform(const DB::ContextPtr & context, const substrait::WriteRel 
         throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Failed to unpack write optimization with local_engine::Write.");
     assert(write.has_common());
     const substrait::NamedStruct & table_schema = write_rel.table_schema();
-    addNormalFileWriterSinkTransform(context, write, table_schema, builder);
+    auto output = TypeParser::buildBlockFromNamedStruct(table_schema);
+    adjust_output(builder, output);
+    const auto partitionCols = collect_partition_cols(output, table_schema);
+    if (write.has_mergetree())
+    {
+        local_engine::MergeTreeTable merge_tree_table(write, table_schema);
+        GlutenWriteSettings write_settings = GlutenWriteSettings::get(context);
+        if (write_settings.task_write_tmp_dir.empty())
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "MergeTree Write Pipeline need inject relative path.");
+        if (!merge_tree_table.relative_path.empty())
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Non empty relative path for MergeTree table in pipeline mode.");
+
+        merge_tree_table.relative_path = write_settings.task_write_tmp_dir;
+        addMergeTreeSinkTransform(context, builder, merge_tree_table, output, partitionCols);
+    }
+    else
+        addNormalFileWriterSinkTransform(context, builder, write.common().format(), output, partitionCols);
 }
 
 DB::Names collect_partition_cols(const DB::Block & header, const substrait::NamedStruct & struct_)

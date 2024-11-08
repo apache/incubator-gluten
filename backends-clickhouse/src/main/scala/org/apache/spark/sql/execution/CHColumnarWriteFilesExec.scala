@@ -48,14 +48,15 @@ class CHColumnarWriteFilesRDD(
   extends RDD[WriterCommitMessage](prev) {
 
   private def reportTaskMetrics(writeTaskResult: WriteTaskResult): Unit = {
-    val stats = writeTaskResult.summary.stats.head.asInstanceOf[BasicWriteTaskStats]
-    val (numBytes, numWrittenRows) = (stats.numBytes, stats.numRows)
-    // Reports bytesWritten and recordsWritten to the Spark output metrics.
-    // We should update it after calling `commitTask` to overwrite the metrics.
-    Option(TaskContext.get()).map(_.taskMetrics().outputMetrics).foreach {
-      outputMetrics =>
-        outputMetrics.setBytesWritten(numBytes)
-        outputMetrics.setRecordsWritten(numWrittenRows)
+    writeTaskResult.summary.stats.headOption.map(_.asInstanceOf[BasicWriteTaskStats]).foreach {
+      stats =>
+        // Reports bytesWritten and recordsWritten to the Spark output metrics.
+        // We should update it after calling `commitTask` to overwrite the metrics.
+        Option(TaskContext.get()).map(_.taskMetrics().outputMetrics).foreach {
+          outputMetrics =>
+            outputMetrics.setBytesWritten(stats.numBytes)
+            outputMetrics.setRecordsWritten(stats.numRows)
+        }
     }
   }
 

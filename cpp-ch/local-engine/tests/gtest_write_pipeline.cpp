@@ -67,31 +67,6 @@ Chunk testChunk()
     return {std::move(x), 3};
 }
 
-std::map<std::string, std::string> parse_write_parameter(const std::string & input)
-{
-    std::map<std::string, std::string> reuslt;
-    const std::string prefix = "WriteParameters:";
-    const size_t prefix_pos = input.find(prefix);
-    if (prefix_pos == std::string::npos)
-        return reuslt;
-
-    const size_t start_pos = prefix_pos + prefix.length();
-    const size_t end_pos = input.find('\n', start_pos);
-
-    if (end_pos == std::string::npos)
-        return reuslt;
-
-    for (const Poco::StringTokenizer tok(input.substr(start_pos, end_pos - start_pos), ";", Poco::StringTokenizer::TOK_TRIM);
-         const auto & parameter : tok)
-    {
-        const size_t pos = parameter.find('=');
-        if (pos == std::string::npos)
-            continue;
-        reuslt[parameter.substr(0, pos)] = parameter.substr(pos + 1);
-    }
-    return reuslt;
-}
-
 TEST(LocalExecutor, StorageObjectStorageSink)
 {
     /// 0. Create ObjectStorage for HDFS
@@ -231,20 +206,27 @@ TEST(WritePipeline, SubstraitPartitionedFileSink)
     // EXPECT_EQ(16, col_b.getInt(0));
 }
 
+/*DB::ASTPtr printColumn(const std::string& column)
+{
+    //  printf('%05d',col)
+    DB::ASTs arguments {std::make_shared<DB::ASTLiteral>("%05d"), std::make_shared<DB::ASTIdentifier>(column)};
+    return DB::makeASTFunction("printf", std::move(arguments));
+}*/
+
 TEST(WritePipeline, ComputePartitionedExpression)
 {
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
 
     auto partition_by = SubstraitPartitionedFileSink::make_partition_expression({"s_nationkey", "name"});
+    // auto partition_by = printColumn("s_nationkey");
 
     ASTs arguments(1, partition_by);
     ASTPtr partition_by_string = makeASTFunction("toString", std::move(arguments));
 
     Block sample_block{{STRING(), "name"}, {UINT(), "s_nationkey"}};
+
     auto syntax_result = TreeRewriter(context).analyze(partition_by_string, sample_block.getNamesAndTypesList());
     auto partition_by_expr = ExpressionAnalyzer(partition_by_string, syntax_result, context).getActions(false);
-
-
     auto partition_by_column_name = partition_by_string->getColumnName();
 
     Chunk chunk = testChunk();

@@ -137,7 +137,7 @@ void doParseMergeTreeTableString(MergeTreeTable & table, ReadBufferFromString & 
     assertChar('\n', in);
     String schema;
     readString(schema, in);
-    google::protobuf::util::JsonStringToMessage(schema, &table.schema);
+    table.schema = JsonStringToMessage<substrait::NamedStruct>(schema);
     assertChar('\n', in);
     readString(table.order_by_key, in);
     assertChar('\n', in);

@@ -67,7 +67,7 @@ class WriteStats : public DB::ISimpleTransform
     DB::Arena partition_keys_arena_;
     std::string filename_;
 
-    absl::flat_hash_map<StringRef, size_t> fiel_to_count_;
+    absl::flat_hash_map<StringRef, size_t> file_to_count_;
 
     static DB::Block statsHeader()
     {
@@ -76,18 +76,24 @@ class WriteStats : public DB::ISimpleTransform
 
     DB::Chunk final_result() const
     {
-        ///TODO: improve performance
+        const size_t size = file_to_count_.size();
+
         auto file_col = STRING()->createColumn();
+        file_col->reserve(size);
         auto partition_col = STRING()->createColumn();
+        partition_col->reserve(size);
         auto countCol = BIGINT()->createColumn();
+        countCol->reserve(size);
+        auto & countColData = static_cast<DB::ColumnVector<Int64> &>(*countCol).getData();
+
         UInt64 num_rows = 0;
-        for (const auto & [relative_path, rows] : fiel_to_count_)
+        for (const auto & [relative_path, rows] : file_to_count_)
         {
             if (rows == 0)
                 continue;
             file_col->insertData(filename_.c_str(), filename_.size());
             partition_col->insertData(relative_path.data, relative_path.size);
-            countCol->insert(rows);
+            countColData.emplace_back(rows);
             num_rows++;
         }
 
@@ -130,12 +136,12 @@ public:
 
         if (patition_id.empty())
             return;
-        fiel_to_count_.emplace(copyStringInArena(partition_keys_arena_, patition_id), 0);
+        file_to_count_.emplace(copyStringInArena(partition_keys_arena_, patition_id), 0);
     }
 
     void collectStats(const String & file_path, size_t rows)
     {
-        if (const auto it = fiel_to_count_.find(file_path); it != fiel_to_count_.end())
+        if (const auto it = file_to_count_.find(file_path); it != file_to_count_.end())
         {
             it->second += rows;
             return;

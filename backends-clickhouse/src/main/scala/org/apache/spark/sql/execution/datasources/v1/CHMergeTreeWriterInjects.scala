@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.v1
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.execution.ColumnarToRowExecBase
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
@@ -86,12 +87,24 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       context: TaskAttemptContext,
       nativeConf: ju.Map[String, String]): OutputWriter = {
 
-    val datasourceJniWrapper = new CHDatasourceJniWrapper(
-      createWriteRel(outputPath, dataSchema, context),
-      ConfigUtil.serialize(nativeConf)
-    )
+    val wrapper = if (CHConf.get.enableOnePipelineMergeTreeWrite) {
 
-    new FakeRowOutputWriter(datasourceJniWrapper, outputPath)
+      /**
+       * In pipeline mode, CHColumnarWriteFilesRDD.writeFilesForEmptyIterator will create a JNI
+       * wrapper which is not needed in this case.
+       *
+       * TODO: We should refactor the code to avoid creating the JNI wrapper in this case.
+       */
+      None
+    } else {
+      val datasourceJniWrapper = new CHDatasourceJniWrapper(
+        createWriteRel(outputPath, dataSchema, context),
+        ConfigUtil.serialize(nativeConf)
+      )
+      Some(datasourceJniWrapper)
+    }
+
+    new FakeRowOutputWriter(wrapper, outputPath)
   }
 
   override val formatName: String = "mergetree"

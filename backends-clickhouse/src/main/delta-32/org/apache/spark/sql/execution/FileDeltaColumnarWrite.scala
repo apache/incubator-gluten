@@ -22,44 +22,18 @@ import org.apache.gluten.exception.GlutenNotSupportException
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
-import org.apache.spark.sql.delta.files.DelayedCommitProtocol
+import org.apache.spark.sql.delta.files.{FileDelayedCommitProtocol, MergeTreeDelayedCommitProtocol2}
 import org.apache.spark.sql.execution.datasources.{ExecutedWriteSummary, WriteJobDescription, WriteTaskResult}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
-import org.apache.hadoop.mapreduce.TaskAttemptContext
-
 import scala.collection.mutable.ArrayBuffer
 
-/** A Wrapper of [[DelayedCommitProtocol]] for accessing protected methods and fields. */
-class CHDelayedCommitProtocol(
-    jobId: String,
-    val outputPath: String,
-    randomPrefixLength: Option[Int],
-    subdir: Option[String])
-  extends DelayedCommitProtocol(jobId, outputPath, randomPrefixLength, subdir) {
-
-  override def getFileName(
-      taskContext: TaskAttemptContext,
-      ext: String,
-      partitionValues: Map[String, String]): String = {
-    super.getFileName(taskContext, ext, partitionValues)
-  }
-
-  def updateAddedFiles(files: Seq[(Map[String, String], String)]): Unit = {
-    assert(addedFiles.isEmpty)
-    addedFiles ++= files
-  }
-
-  override def parsePartitions(dir: String): Map[String, String] =
-    super.parsePartitions(dir)
-}
-
-case class CHDelayedCommitProtocolWrite(
+case class FileDeltaColumnarWrite(
     override val jobTrackerID: String,
     override val description: WriteJobDescription,
-    override val committer: CHDelayedCommitProtocol)
-  extends CHColumnarWrite[CHDelayedCommitProtocol]
+    override val committer: FileDelayedCommitProtocol)
+  extends CHColumnarWrite[FileDelayedCommitProtocol]
   with Logging {
 
   override def doSetupNativeTask(): Unit = {
@@ -107,7 +81,7 @@ case class CHDelayedCommitProtocolWrite(
           addedFiles.toSeq,
           ExecutedWriteSummary(
             updatedPartitions = Set.empty,
-            stats = Seq(finalStats(numWrittenRows)))))
+            stats = Seq(finalStats.copy(numRows = numWrittenRows)))))
     }
   }
 
@@ -136,8 +110,11 @@ object CHDeltaColumnarWrite {
       jobTrackerID: String,
       description: WriteJobDescription,
       committer: FileCommitProtocol): CHColumnarWrite[FileCommitProtocol] = committer match {
-    case c: CHDelayedCommitProtocol =>
-      CHDelayedCommitProtocolWrite(jobTrackerID, description, c)
+    case c: FileDelayedCommitProtocol =>
+      FileDeltaColumnarWrite(jobTrackerID, description, c)
+        .asInstanceOf[CHColumnarWrite[FileCommitProtocol]]
+    case m: MergeTreeDelayedCommitProtocol2 =>
+      MergeTreeDeltaColumnarWrite(jobTrackerID, description, m)
         .asInstanceOf[CHColumnarWrite[FileCommitProtocol]]
     case _ =>
       throw new GlutenNotSupportException(

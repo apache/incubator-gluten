@@ -52,19 +52,17 @@ struct PartInfo
 class SparkMergeTreeWriter : public NativeOutputWriter
 {
 public:
-    static std::unique_ptr<SparkMergeTreeWriter> create(
-        const MergeTreeTable & merge_tree_table,
-        const DB::ContextMutablePtr & context,
-        const std::string & spark_job_id);
+    static std::unique_ptr<SparkMergeTreeWriter>
+    create(const MergeTreeTable & merge_tree_table, const DB::ContextMutablePtr & context, const std::string & spark_job_id);
 
     SparkMergeTreeWriter(
-        const DB::Block & header_,
-        const SinkHelper & sink_helper_,
-        DB::QueryPipeline && pipeline_,
-        const std::string & spark_job_id_);
+        const DB::Block & header_, const SinkHelper & sink_helper_, DB::QueryPipeline && pipeline_, const std::string & spark_job_id_);
 
     void write(DB::Block & block) override;
     void close() override;
+
+    /// visible for UTs
+    static constexpr auto CPP_UT_JOB_ID = "__UT_JOB_ID__";
 
 private:
     DB::Block header;

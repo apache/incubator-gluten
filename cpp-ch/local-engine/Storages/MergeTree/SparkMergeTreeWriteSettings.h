@@ -22,7 +22,7 @@ namespace local_engine
 {
 #define MERGE_TREE_WRITE_RELATED_SETTINGS(M, ALIAS) \
     M(String, part_name_prefix, , "The part name prefix for writing data") \
-    M(String, partition_dir, , "The parition directory for writing data") \
+    M(String, partition_dir, , "The partition directory for writing data") \
     M(String, bucket_dir, , "The bucket directory for writing data")
 
 DECLARE_GLUTEN_SETTINGS(SparkMergeTreeWritePartitionSettings, MERGE_TREE_WRITE_RELATED_SETTINGS)
