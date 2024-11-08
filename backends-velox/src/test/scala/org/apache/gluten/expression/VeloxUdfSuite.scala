@@ -16,11 +16,13 @@
  */
 package org.apache.gluten.expression
 
+import org.apache.gluten.execution.ProjectExecTransformer
 import org.apache.gluten.tags.{SkipTestTags, UDFTest}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenQueryTest, Row, SparkSession}
 import org.apache.spark.sql.catalyst.plans.SQLHelper
+import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.expression.UDFResolver
 
 import java.nio.file.Paths
@@ -158,16 +160,24 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
                       |AS 'org.apache.spark.sql.hive.execution.UDFStringString'
                       |""".stripMargin)
 
-          val nativeResultWithImplicitConversion =
-            spark.sql(s"""SELECT hive_string_string(col1, 'a') FROM $tbl""").collect()
-          val nativeResult =
-            spark.sql(s"""SELECT hive_string_string(col2, 'a') FROM $tbl""").collect()
+          val offloadWithImplicitConversionDF =
+            spark.sql(s"""SELECT hive_string_string(col1, 'a') FROM $tbl""")
+          checkGlutenOperatorMatch[ProjectExecTransformer](offloadWithImplicitConversionDF)
+          val offloadWithImplicitConversionResult = offloadWithImplicitConversionDF.collect()
+
+          val offloadDF =
+            spark.sql(s"""SELECT hive_string_string(col2, 'a') FROM $tbl""")
+          checkGlutenOperatorMatch[ProjectExecTransformer](offloadDF)
+          val offloadResult = offloadWithImplicitConversionDF.collect()
+
           // Unregister native hive udf to fallback.
           UDFResolver.UDFNames.remove("org.apache.spark.sql.hive.execution.UDFStringString")
-          val fallbackResult =
-            spark.sql(s"""SELECT hive_string_string(col2, 'a') FROM $tbl""").collect()
-          assert(nativeResultWithImplicitConversion.sameElements(fallbackResult))
-          assert(nativeResult.sameElements(fallbackResult))
+          val fallbackDF =
+            spark.sql(s"""SELECT hive_string_string(col2, 'a') FROM $tbl""")
+          checkSparkOperatorMatch[ProjectExec](fallbackDF)
+          val fallbackResult = fallbackDF.collect()
+          assert(offloadWithImplicitConversionResult.sameElements(fallbackResult))
+          assert(offloadResult.sameElements(fallbackResult))
 
           // Add an unimplemented udf to the map to test fallback of registered native hive udf.
           UDFResolver.UDFNames.add("org.apache.spark.sql.hive.execution.UDFIntegerToString")
@@ -176,6 +186,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
                       |AS 'org.apache.spark.sql.hive.execution.UDFIntegerToString'
                       |""".stripMargin)
           val df = spark.sql(s"""select hive_int_to_string(col1) from $tbl""")
+          checkSparkOperatorMatch[ProjectExec](df)
           checkAnswer(df, Seq(Row("1"), Row("2"), Row("3")))
         } finally {
           spark.sql(s"DROP TABLE IF EXISTS $tbl")

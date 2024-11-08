@@ -17,15 +17,13 @@
 package org.apache.gluten.execution
 
 import org.apache.gluten.GlutenConfig
-import org.apache.gluten.extension.GlutenPlan
 import org.apache.gluten.test.FallbackUtil
 import org.apache.gluten.utils.Arm
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, GlutenQueryTest, Row}
-import org.apache.spark.sql.execution.{CommandResultExec, SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.DoubleType
 
@@ -33,7 +31,6 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.io.Source
-import scala.reflect.ClassTag
 
 case class Table(name: String, partitionColumns: Seq[String])
 
@@ -177,109 +174,6 @@ abstract class WholeStageTransformerSuite
       val result = df.collect()
       checkDataFrame(noFallBack, customCheck, df)
       result
-  }
-
-  def checkLengthAndPlan(df: DataFrame, len: Int = 100): Unit = {
-    assert(df.collect().length == len)
-    val executedPlan = getExecutedPlan(df)
-    assert(executedPlan.exists(plan => plan.find(_.isInstanceOf[TransformSupport]).isDefined))
-  }
-
-  /**
-   * Get all the children plan of plans.
-   * @param plans:
-   *   the input plans.
-   * @return
-   */
-  def getChildrenPlan(plans: Seq[SparkPlan]): Seq[SparkPlan] = {
-    if (plans.isEmpty) {
-      return Seq()
-    }
-
-    val inputPlans: Seq[SparkPlan] = plans.map {
-      case stage: ShuffleQueryStageExec => stage.plan
-      case plan => plan
-    }
-
-    var newChildren: Seq[SparkPlan] = Seq()
-    inputPlans.foreach {
-      plan =>
-        newChildren = newChildren ++ getChildrenPlan(plan.children)
-        // To avoid duplication of WholeStageCodegenXXX and its children.
-        if (!plan.nodeName.startsWith("WholeStageCodegen")) {
-          newChildren = newChildren :+ plan
-        }
-    }
-    newChildren
-  }
-
-  /**
-   * Get the executed plan of a data frame.
-   * @param df:
-   *   dataframe.
-   * @return
-   *   A sequence of executed plans.
-   */
-  def getExecutedPlan(df: DataFrame): Seq[SparkPlan] = {
-    df.queryExecution.executedPlan match {
-      case exec: AdaptiveSparkPlanExec =>
-        getChildrenPlan(Seq(exec.executedPlan))
-      case cmd: CommandResultExec =>
-        getChildrenPlan(Seq(cmd.commandPhysicalPlan))
-      case plan =>
-        getChildrenPlan(Seq(plan))
-    }
-  }
-
-  /**
-   * Check whether the executed plan of a dataframe contains the expected plan.
-   * @param df:
-   *   the input dataframe.
-   * @param tag:
-   *   class of the expected plan.
-   * @tparam T:
-   *   type of the expected plan.
-   */
-  def checkGlutenOperatorMatch[T <: GlutenPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
-    val executedPlan = getExecutedPlan(df)
-    assert(
-      executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)),
-      s"Expect ${tag.runtimeClass.getSimpleName} exists " +
-        s"in executedPlan:\n ${executedPlan.last}"
-    )
-  }
-
-  def checkSparkOperatorMatch[T <: SparkPlan](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
-    val executedPlan = getExecutedPlan(df)
-    assert(executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)))
-  }
-
-  /**
-   * Check whether the executed plan of a dataframe contains the expected plan chain.
-   *
-   * @param df
-   *   : the input dataframe.
-   * @param tag
-   *   : class of the expected plan.
-   * @param childTag
-   *   : class of the expected plan's child.
-   * @tparam T
-   *   : type of the expected plan.
-   * @tparam PT
-   *   : type of the expected plan's child.
-   */
-  def checkSparkOperatorChainMatch[T <: UnaryExecNode, PT <: UnaryExecNode](
-      df: DataFrame)(implicit tag: ClassTag[T], childTag: ClassTag[PT]): Unit = {
-    val executedPlan = getExecutedPlan(df)
-    assert(
-      executedPlan.exists(
-        plan =>
-          tag.runtimeClass.isInstance(plan)
-            && childTag.runtimeClass.isInstance(plan.children.head)),
-      s"Expect an operator chain of [${tag.runtimeClass.getSimpleName} ->"
-        + s"${childTag.runtimeClass.getSimpleName}] exists in executedPlan: \n"
-        + s"${executedPlan.last}"
-    )
   }
 
   /**
