@@ -249,48 +249,6 @@ jobs:
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
             --extra-conf=spark.gluten.ras.enabled=true 
 
-  run-tpc-test-ubuntu-iothreads:
-    needs: build-native-lib-centos-7
-    strategy:
-      fail-fast: false
-      matrix:
-        spark: [ "spark-3.5" ]
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - name: Download All Native Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases/
-      - name: Download All Arrow Jar Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /home/runner/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk maven
-      - name: Set environment variables
-        run: |
-          echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
-      - name: Build for Spark ${{ matrix.spark }}
-        run: |
-          cd $GITHUB_WORKSPACE/ 
-          $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
-          cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }}
-      - name: Build and run TPC-H / TPC-DS
-        run: |
-          cd $GITHUB_WORKSPACE/tools/gluten-it
-          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.sql.columnar.backend.velox.IOThreads=16
-          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.sql.columnar.backend.velox.IOThreads=16
-
   run-tpc-test-ubuntu-oom:
     needs: build-native-lib-centos-7
     strategy:
