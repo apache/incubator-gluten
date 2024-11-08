@@ -298,11 +298,11 @@ object OffloadOthers {
           val child = plan.child
           val (limit, offset) =
             SparkShimLoader.getSparkShims.getLimitAndOffsetFromGlobalLimit(plan)
-          LimitTransformer(child, offset, limit)
+          LimitExecTransformer(child, offset, limit)
         case plan: LocalLimitExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val child = plan.child
-          LimitTransformer(child, 0L, plan.limit)
+          LimitExecTransformer(child, 0L, plan.limit)
         case plan: GenerateExec =>
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           val child = plan.child

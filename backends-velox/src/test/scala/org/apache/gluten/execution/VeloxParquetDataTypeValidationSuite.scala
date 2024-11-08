@@ -264,7 +264,7 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
                          | select date, int from type1 limit 100
                          |) where int != 0 limit 10;
                          |""".stripMargin) {
-      checkGlutenOperatorMatch[LimitTransformer]
+      checkGlutenOperatorMatch[LimitExecTransformer]
     }
 
     // Validation: Window.

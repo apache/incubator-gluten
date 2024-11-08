@@ -30,7 +30,7 @@ import org.apache.spark.sql.execution.SparkPlan
 
 import scala.collection.JavaConverters._
 
-case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
+case class LimitExecTransformer(child: SparkPlan, offset: Long, count: Long)
   extends UnaryTransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -39,7 +39,7 @@ case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
 
   override def output: Seq[Attribute] = child.output
 
-  override protected def withNewChildInternal(newChild: SparkPlan): LimitTransformer =
+  override protected def withNewChildInternal(newChild: SparkPlan): LimitExecTransformer =
     copy(child = newChild)
 
   override def metricsUpdater(): MetricsUpdater =
