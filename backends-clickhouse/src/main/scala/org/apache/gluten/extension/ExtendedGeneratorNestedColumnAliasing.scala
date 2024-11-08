@@ -93,34 +93,38 @@ class ExtendedGeneratorNestedColumnAliasing(spark: SparkSession)
       AttributeMap(attributeToExtractValuesAndAliases.mapValues(_.map(_._2)).toSeq)
 
     plan match {
-      case Project(projectList, child) =>
-        child match {
-          case Filter(condition, grandchild) =>
-            Project(
-              NestedColumnAliasing.getNewProjectList(projectList, nestedFieldToAlias),
-              Filter(
-                getNewFilterCondition(condition, nestedFieldToAlias),
-                NestedColumnAliasing.replaceWithAliases(
-                  grandchild,
-                  nestedFieldToAlias,
-                  attrToAliases))
-            )
-          case other =>
-            Project(
-              NestedColumnAliasing.getNewProjectList(projectList, nestedFieldToAlias),
-              NestedColumnAliasing.replaceWithAliases(child, nestedFieldToAlias, attrToAliases)
-            )
-        }
+      // Project(Filter(Generate))
+      case p @ Project(projectList, child)
+          if child
+            .isInstanceOf[Filter] && child.asInstanceOf[Filter].child.isInstanceOf[Generate] =>
+        val f = child.asInstanceOf[Filter]
+        val g = f.child.asInstanceOf[Generate]
 
-      case other =>
-        NestedColumnAliasing.replaceWithAliases(other, nestedFieldToAlias, attrToAliases)
+        val newProjectList = NestedColumnAliasing.getNewProjectList(projectList, nestedFieldToAlias)
+        val newCondition = getNewExpression(f.condition, nestedFieldToAlias)
+        val newGenerator = getNewExpression(g.generator, nestedFieldToAlias).asInstanceOf[Generator]
+
+        val tmpG = NestedColumnAliasing
+          .replaceWithAliases(g, nestedFieldToAlias, attrToAliases)
+          .asInstanceOf[Generate]
+        val newG = Generate(
+          newGenerator,
+          tmpG.unrequiredChildIndex,
+          tmpG.outer,
+          tmpG.qualifier,
+          tmpG.generatorOutput,
+          tmpG.children.head)
+        val newF = Filter(newCondition, newG)
+        val newP = Project(newProjectList, newF)
+        newP
+      case _ => plan
     }
   }
 
-  private def getNewFilterCondition(
-      condition: Expression,
+  private def getNewExpression(
+      expr: Expression,
       nestedFieldToAlias: Map[Expression, Alias]): Expression = {
-    condition.transform {
+    expr.transform {
       case f: ExtractValue if nestedFieldToAlias.contains(f.canonicalized) =>
         nestedFieldToAlias(f.canonicalized).toAttribute
     }
