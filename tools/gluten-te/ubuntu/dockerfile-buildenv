@@ -108,8 +108,17 @@ RUN cd /opt && wget https://github.com/Kitware/CMake/releases/download/v3.28.3/c
     && mkdir cmake \
     && bash cmake-3.28.3-linux-x86_64.sh --skip-license --prefix=/opt/cmake \
     && ln -s /opt/cmake/bin/cmake /usr/bin/cmake
-
 RUN cmake --version
+
+# Install GCC 11
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common
+RUN add-apt-repository ppa:ubuntu-toolchain-r/test
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gcc-11 g++-11
+RUN rm -f /usr/bin/gcc /usr/bin/g++
+RUN ln -s /usr/bin/gcc-11 /usr/bin/gcc
+RUN ln -s /usr/bin/g++-11 /usr/bin/g++
+RUN cc --version
+RUN c++ --version
 
 # Spark binaries
 WORKDIR /opt
