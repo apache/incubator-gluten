@@ -3,7 +3,7 @@ FROM centos:7
 RUN sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
 RUN sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
 
-RUN yum install -y centos-release-scl
+RUN yum install -y epel-release centos-release-scl
 RUN rm /etc/yum.repos.d/CentOS-SCLo-scl.repo -f
 RUN sed -i \
        -e 's/^mirrorlist/#mirrorlist/' \
@@ -11,7 +11,7 @@ RUN sed -i \
        -e 's/mirror\.centos\.org/vault.centos.org/' \
        /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
 
-RUN yum install -y git patch wget sudo java-1.8.0-openjdk-devel epel-release ccache
+RUN yum install -y git patch wget sudo java-1.8.0-openjdk-devel ccache
 
 RUN git clone --depth=1 https://github.com/apache/incubator-gluten /opt/gluten
 
