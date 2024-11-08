@@ -15,7 +15,7 @@ Please install build depends on your system to compile all libraries:
 sudo $GLUTEN_REPO/dev/vcpkg/setup-build-depends.sh
 ```
 
-For CentOS user, gcc 11 needs to be enabled manually before next step:
+GCC-11 is the minimum required compiler. You need to enable it before build. Take Centos-7/8 as example:
 
 ``` sh
 # CentOS 8

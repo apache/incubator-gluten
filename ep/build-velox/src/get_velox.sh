@@ -69,17 +69,6 @@ function process_setup_ubuntu {
   # Do not install libunwind which can cause interruption when catching native exception.
   ensure_pattern_matched '\${SUDO} apt install -y libunwind-dev' scripts/setup-ubuntu.sh
   sed -i 's/${SUDO} apt install -y libunwind-dev//' scripts/setup-ubuntu.sh
-  # Overwrite gcc installed by build-essential.
-  ensure_pattern_matched '\${SUDO} pip3 install cmake==3.28.3' scripts/setup-ubuntu.sh
-  sed -i '/^  ${SUDO} pip3 install cmake==3.28.3/a\
-  \VERSION=`cat /etc/os-release | grep VERSION_ID`\
-  if [[ $VERSION =~ "20.04" ]]; then\
-    sudo apt install -y software-properties-common\
-    sudo add-apt-repository ppa:ubuntu-toolchain-r/test\
-    sudo apt update && sudo apt install -y gcc-11 g++-11\
-    sudo ln -sf /usr/bin/gcc-11 /usr/bin/gcc\
-    sudo ln -sf /usr/bin/g++-11 /usr/bin/g++\
-  fi' scripts/setup-ubuntu.sh
   ensure_pattern_matched 'ccache' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\    *thrift* \\' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\    libiberty-dev \\' scripts/setup-ubuntu.sh

@@ -69,7 +69,6 @@ jobs:
       - name: Build Gluten native libraries
         run: |
           df -a
-          yum install ccache -y
           cd $GITHUB_WORKSPACE/
           bash dev/ci-velox-buildstatic-centos-7.sh
       - name: "Save ccache"

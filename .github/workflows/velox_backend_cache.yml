@@ -44,7 +44,6 @@ jobs:
       - name: Build Gluten native libraries
         run: |
           df -a
-          yum install ccache -y
           bash dev/ci-velox-buildstatic-centos-7.sh
       - name: Save Ccache
         uses: actions/cache/save@v3
