@@ -51,7 +51,7 @@ class VeloxTPCDSSuite extends VeloxWholeStageTransformerSuite {
       .set("spark.sql.shuffle.partitions", "256")
       .set("spark.memory.offHeap.size", "200g")
       .set("spark.unsafe.exceptionOnMemoryLeak", "true")
-      .set("spark.sql.autoBroadcastJoinThreshold", "10M")
+      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
       .set("spark.driver.maxResultSize", "4g")
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.adaptive.enabled", "true")
@@ -99,14 +99,19 @@ class VeloxTPCDSSuite extends VeloxWholeStageTransformerSuite {
     }.toMap
   }
 
-  ignore("q7") {
-    val source = Source.fromFile(queryPath + "q7.sql")
+  test("q97") {
+    val source = Source.fromFile(queryPath + "q10.sql")
     val sql = source.mkString
     source.close()
     runQueryAndCompare(sql)(_ => {})
   }
 
-  ignore("all query") {
+  test("all query") {
+    // All failed queries
+    // Q 14a, 14b, 17 no plan
+    // [ q50.sql, q58.sql,
+    // q78.sql, q87.sql, q57.sql, q64.sql,
+    // q47.sql, q67.sql, q75.sql]
     val s = new util.ArrayList[String]()
     new File(queryPath)
       .listFiles()
