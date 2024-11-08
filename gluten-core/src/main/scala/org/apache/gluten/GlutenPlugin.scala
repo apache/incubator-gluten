@@ -65,7 +65,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
 
     postBuildInfoEvent(sc)
 
-    setPredefinedConfigs(sc, conf)
+    setPredefinedConfigs(conf)
 
     // Initialize Backend.
     Backend.get().onDriverStart(sc, pluginContext)
@@ -123,7 +123,7 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     GlutenEventUtils.post(sc, event)
   }
 
-  private def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
+  private def setPredefinedConfigs(conf: SparkConf): Unit = {
     // Spark SQL extensions
     val extensions = if (conf.contains(SPARK_SESSION_EXTENSIONS.key)) {
       s"${conf.get(SPARK_SESSION_EXTENSIONS.key)}," +
@@ -134,7 +134,11 @@ private[gluten] class GlutenDriverPlugin extends DriverPlugin with Logging {
     conf.set(SPARK_SESSION_EXTENSIONS.key, extensions)
 
     // adaptive custom cost evaluator class
-    if (GlutenConfig.getConf.enableGluten && GlutenConfig.getConf.enableGlutenCostEvaluator) {
+    val glutenEnabled = conf.getBoolean(GlutenConfig.GLUTEN_ENABLED_KEY, GLUTEN_ENABLED_BY_DEFAULT)
+    lazy val enableGlutenCostEvaluator = conf.getBoolean(
+      GlutenConfig.GLUTEN_COST_EVALUATOR_ENABLED,
+      GLUTEN_COST_EVALUATOR_DEFAULT_VALUE)
+    if (glutenEnabled && enableGlutenCostEvaluator) {
       val costEvaluator = "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator"
       conf.set(SQLConf.ADAPTIVE_CUSTOM_COST_EVALUATOR_CLASS.key, costEvaluator)
     }
