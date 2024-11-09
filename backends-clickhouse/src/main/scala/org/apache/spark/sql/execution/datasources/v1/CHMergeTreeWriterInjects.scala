@@ -26,6 +26,7 @@ import org.apache.gluten.substrait.rel.RelBuilder
 import org.apache.gluten.utils.ConfigUtil
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.delta.MergeTreeFileFormat
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeRowAdaptor, OutputWriter}
@@ -75,22 +76,7 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
           .setFormat(formatName)
           .setJobTaskAttemptId(s"$jobID/$taskAttemptID")
           .build())
-      .setMergetree(
-        Write.MergeTreeWrite
-          .newBuilder()
-          .setDatabase(conf(StorageMeta.DB))
-          .setTable(conf(StorageMeta.TABLE))
-          .setSnapshotId(conf(StorageMeta.SNAPSHOT_ID))
-          .setOrderByKey(conf(StorageMeta.ORDER_BY_KEY))
-          .setLowCardKey(conf(StorageMeta.LOW_CARD_KEY))
-          .setMinmaxIndexKey(conf(StorageMeta.MINMAX_INDEX_KEY))
-          .setBfIndexKey(conf(StorageMeta.BF_INDEX_KEY))
-          .setSetIndexKey(conf(StorageMeta.SET_INDEX_KEY))
-          .setPrimaryKey(conf(StorageMeta.PRIMARY_KEY))
-          .setRelativePath(StorageMeta.normalizeRelativePath(outputPath))
-          .setAbsolutePath("")
-          .setStoragePolicy(conf(StorageMeta.POLICY))
-          .build())
+      .setMergetree(MergeTreeFileFormat.createWrite(Some(outputPath), conf))
       .build()
   }
 

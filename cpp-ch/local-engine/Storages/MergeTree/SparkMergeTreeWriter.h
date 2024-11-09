@@ -54,7 +54,6 @@ class SparkMergeTreeWriter : public NativeOutputWriter
 public:
     static std::unique_ptr<SparkMergeTreeWriter> create(
         const MergeTreeTable & merge_tree_table,
-        const SparkMergeTreeWritePartitionSettings & write_settings_,
         const DB::ContextMutablePtr & context,
         const std::string & spark_job_id);
 

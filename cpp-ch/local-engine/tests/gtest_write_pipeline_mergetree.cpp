@@ -226,7 +226,7 @@ TEST(MergeTree, SparkMergeTree)
     };
     gm_write_settings.set(context);
 
-    auto writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, gm_write_settings, context, "no job id");
+    auto writer = local_engine::SparkMergeTreeWriter::create(merge_tree_table, context, "no job id");
     SparkMergeTreeWriter & spark_merge_tree_writer = *writer;
 
     auto [_, local_executor] = test::create_plan_and_executor(EMBEDDED_PLAN(_1_read_), split_template, file);

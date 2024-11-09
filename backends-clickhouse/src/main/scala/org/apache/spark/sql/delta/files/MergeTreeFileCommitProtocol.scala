@@ -87,4 +87,8 @@ trait MergeTreeFileCommitProtocol extends FileCommitProtocol {
     )
     new TaskCommitMessage(statuses)
   }
+
+  override def abortTask(taskContext: TaskAttemptContext): Unit = {
+    MergeTreeCommiterHelper.resetCurrentTaskWriteInfo()
+  }
 }

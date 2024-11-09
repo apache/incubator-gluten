@@ -112,7 +112,6 @@ std::string PartInfo::toJson(const std::vector<PartInfo> & part_infos)
 
 std::unique_ptr<SparkMergeTreeWriter> SparkMergeTreeWriter::create(
     const MergeTreeTable & merge_tree_table,
-    const SparkMergeTreeWritePartitionSettings & write_settings_,
     const DB::ContextMutablePtr & context,
     const std::string & spark_job_id)
 {

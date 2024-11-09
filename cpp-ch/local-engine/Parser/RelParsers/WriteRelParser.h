@@ -40,8 +40,6 @@ namespace local_engine
 
 void addSinkTransform(const DB::ContextPtr & context, const substrait::WriteRel & write_rel, const DB::QueryPipelineBuilderPtr & builder);
 
-/// Visible for UTs
-std::map<std::string, std::string> parse_write_parameter(const std::string & input);
 DB::Names collect_partition_cols(const DB::Block & header, const substrait::NamedStruct & struct_);
 
 #define WRITE_RELATED_SETTINGS(M, ALIAS, UNIQ) \
