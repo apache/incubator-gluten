@@ -57,9 +57,8 @@ class Spill final {
   };
 
   SpillType type_;
-  std::shared_ptr<arrow::io::MemoryMappedFile> is_;
+  std::shared_ptr<gluten::MmapFileStream> is_;
   std::list<PartitionPayload> partitionPayloads_{};
-  std::shared_ptr<arrow::io::MemoryMappedFile> inputStream_{};
   std::string spillFile_;
 
   arrow::io::InputStream* rawIs_;

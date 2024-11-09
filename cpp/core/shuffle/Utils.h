@@ -72,4 +72,36 @@ arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeUncompressedRecordBatch(
 
 std::shared_ptr<arrow::Buffer> zeroLengthNullBuffer();
 
+// MmapFileStream is used to optimize sequential file reading. It uses madvise
+// to prefetch and release memory timely.
+class MmapFileStream : public arrow::io::InputStream {
+ public:
+  MmapFileStream(arrow::internal::FileDescriptor fd, uint8_t* data, int64_t size);
+
+  static arrow::Result<std::shared_ptr<MmapFileStream>> open(const std::string& path);
+
+  arrow::Result<int64_t> Tell() const override;
+
+  arrow::Status Close() override;
+
+  arrow::Result<int64_t> Read(int64_t nbytes, void* out) override;
+
+  arrow::Result<std::shared_ptr<arrow::Buffer>> Read(int64_t nbytes) override;
+
+  bool closed() const override;
+
+ private:
+  arrow::Result<int64_t> actualReadSize(int64_t nbytes);
+
+  void advance(int64_t length);
+
+  void willNeed(int64_t length);
+
+  arrow::internal::FileDescriptor fd_;
+  uint8_t* data_ = nullptr;
+  int64_t size_;
+  int64_t pos_ = 0;
+  int64_t posRetain_ = 0;
+};
+
 } // namespace gluten

@@ -74,7 +74,7 @@ void Spill::insertPayload(
 
 void Spill::openSpillFile() {
   if (!is_) {
-    GLUTEN_ASSIGN_OR_THROW(is_, arrow::io::MemoryMappedFile::Open(spillFile_, arrow::io::FileMode::READ));
+    GLUTEN_ASSIGN_OR_THROW(is_, MmapFileStream::open(spillFile_));
     rawIs_ = is_.get();
   }
 }
