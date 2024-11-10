@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.delta
 
+import org.apache.gluten.GlutenConfig
 import org.apache.gluten.backendsapi.clickhouse.CHConf
 
 import org.apache.spark.SparkException
@@ -24,12 +25,12 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTable
 import org.apache.spark.sql.delta.actions._
 import org.apache.spark.sql.delta.catalog.ClickHouseTableV2
 import org.apache.spark.sql.delta.constraints.{Constraint, Constraints}
-import org.apache.spark.sql.delta.files.{DelayedCommitProtocol, DeltaFileFormatWriter, MergeTreeDelayedCommitProtocol, TransactionalWrite}
+import org.apache.spark.sql.delta.files._
 import org.apache.spark.sql.delta.hooks.AutoCompact
 import org.apache.spark.sql.delta.schema.{InnerInvariantViolationException, InvariantViolationException}
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.delta.stats.DeltaJobStatisticsTracker
-import org.apache.spark.sql.execution.{CHDelayedCommitProtocol, QueryExecution, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.{QueryExecution, SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FileFormatWriter, GlutenWriterColumnarRules, WriteFiles, WriteJobStatsTracker}
 import org.apache.spark.sql.execution.datasources.v1.MergeTreeWriterInjects
@@ -42,8 +43,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.hadoop.fs.Path
 
 import scala.collection.mutable.ListBuffer
-
-object ClickhouseOptimisticTransaction {}
 
 class ClickhouseOptimisticTransaction(
     override val deltaLog: DeltaLog,
@@ -66,7 +65,12 @@ class ClickhouseOptimisticTransaction(
       inputData: Dataset[_],
       writeOptions: Option[DeltaOptions],
       additionalConstraints: Seq[Constraint]): Seq[FileAction] = {
-    if (ClickHouseConfig.isMergeTreeFormatEngine(metadata.configuration)) {
+
+    // TODO: update FallbackByBackendSettings for mergetree always return true
+    val onePipeline = GlutenConfig.getConf.enableNativeWriter.getOrElse(
+      false) && CHConf.get.enableOnePipelineMergeTreeWrite
+
+    if (!onePipeline && ClickHouseConfig.isMergeTreeFormatEngine(metadata.configuration)) {
       hasWritten = true
 
       val spark = inputData.sparkSession
@@ -169,12 +173,6 @@ class ClickhouseOptimisticTransaction(
       }
       committer.addedStatuses.toSeq ++ committer.changeFiles
     } else {
-      // TODO: support native delta parquet write
-      // 1. insert FakeRowAdaptor
-      // 2. DeltaInvariantCheckerExec transform
-      // 3. DeltaTaskStatisticsTracker collect null count / min values / max values
-      // 4. set the parameters 'staticPartitionWriteOnly', 'isNativeApplicable',
-      //    'nativeFormat' in the LocalProperty of the sparkcontext
       super.writeFiles(inputData, writeOptions, additionalConstraints)
     }
   }
@@ -188,7 +186,7 @@ class ClickhouseOptimisticTransaction(
   }
 
   override protected def getCommitter(outputPath: Path): DelayedCommitProtocol =
-    new CHDelayedCommitProtocol("delta", outputPath.toString, None, deltaDataSubdir)
+    new FileDelayedCommitProtocol("delta", outputPath.toString, None, deltaDataSubdir)
 
   override def writeFiles(
       inputData: Dataset[_],
@@ -231,7 +229,17 @@ class ClickhouseOptimisticTransaction(
       WriteFiles(logicalPlan, fileFormat, partitioningColumns, None, options, Map.empty)
 
     val queryExecution = new QueryExecution(spark, write)
-    val committer = getCommitter(outputPath)
+    val committer = fileFormat.toString match {
+      case "MergeTree" =>
+        val tableV2 = ClickHouseTableV2.getTable(deltaLog)
+        new MergeTreeDelayedCommitProtocol2(
+          outputPath.toString,
+          None,
+          deltaDataSubdir,
+          tableV2.dataBaseName,
+          tableV2.tableName)
+      case _ => getCommitter(outputPath)
+    }
 
     // If Statistics Collection is enabled, then create a stats tracker that will be injected during
     // the FileFormatWriter.write call below and will collect per-file stats using
