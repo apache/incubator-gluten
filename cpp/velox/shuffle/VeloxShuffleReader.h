@@ -94,6 +94,7 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
   facebook::velox::memory::MemoryPool* veloxPool_;
   int64_t& deserializeTime_;
   int64_t& decompressTime_;
+  VectorSerde* const serde_;
 
   std::list<std::pair<uint32_t, facebook::velox::BufferPtr>> cachedInputs_;
   uint32_t cachedRows_{0};

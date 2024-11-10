@@ -538,6 +538,7 @@ VeloxRssSortShuffleReaderDeserializer::VeloxRssSortShuffleReaderDeserializer(
       rowType_(rowType),
       batchSize_(batchSize),
       veloxCompressionType_(veloxCompressionType),
+      serde_(getNamedVectorSerde(VectorSerde::Kind::kCompactRow)),
       deserializeTime_(deserializeTime) {
   constexpr uint64_t kMaxReadBufferSize = (1 << 20) - AlignedBuffer::kPaddedSize;
   auto buffer = AlignedBuffer::allocate<char>(kMaxReadBufferSize, veloxPool_.get());
@@ -553,7 +554,7 @@ std::shared_ptr<ColumnarBatch> VeloxRssSortShuffleReaderDeserializer::next() {
   ScopedTimer timer(&deserializeTime_);
 
   RowVectorPtr rowVector;
-  VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, &rowVector, &serdeOptions_);
+  VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, serde_, &rowVector, &serdeOptions_);
 
   if (rowVector->size() >= batchSize_) {
     return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
@@ -561,7 +562,7 @@ std::shared_ptr<ColumnarBatch> VeloxRssSortShuffleReaderDeserializer::next() {
 
   while (rowVector->size() < batchSize_ && in_->hasNext()) {
     RowVectorPtr rowVectorTemp;
-    VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, &rowVectorTemp, &serdeOptions_);
+    VectorStreamGroup::read(in_.get(), veloxPool_.get(), rowType_, serde_, &rowVectorTemp, &serdeOptions_);
     rowVector->append(rowVectorTemp.get());
   }
 
