@@ -564,12 +564,6 @@ jobs:
         with:
           name: test-report-spark32
           path: '**/surefire-reports/TEST-*.xml'
-      - name: Upload golden files
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: golden-files-spark32
-          path: /tmp/tpch-approved-plan/**
 
   run-spark-test-spark32-slow:
     needs: build-native-lib-centos-7
@@ -639,12 +633,6 @@ jobs:
         with:
           name: test-report-spark33
           path: '**/surefire-reports/TEST-*.xml'
-      - name: Upload golden files
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: golden-files-spark33
-          path: /tmp/tpch-approved-plan/**
 
 
   run-spark-test-spark33-slow:
@@ -716,12 +704,6 @@ jobs:
         with:
           name: test-report-spark34
           path: '**/surefire-reports/TEST-*.xml'
-      - name: Upload golden files
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: golden-files-spark34
-          path: /tmp/tpch-approved-plan/**
 
 
   run-spark-test-spark34-slow:
@@ -793,12 +775,6 @@ jobs:
         with:
           name: test-report-spark35
           path: '**/surefire-reports/TEST-*.xml'
-      - name: Upload golden files
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: golden-files-spark35
-          path: /tmp/tpch-approved-plan/**
 
   run-spark-test-spark35-scala213:
     needs: build-native-lib-centos-7
