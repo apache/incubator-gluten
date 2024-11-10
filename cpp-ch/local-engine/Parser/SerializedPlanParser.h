@@ -48,7 +48,7 @@ class NonNullableColumnsResolver
 public:
     explicit NonNullableColumnsResolver(
         const DB::Block & header_, std::shared_ptr<const ParserContext> parser_context_, const substrait::Expression & cond_rel_);
-    ~NonNullableColumnsResolver();
+    ~NonNullableColumnsResolver() = default;
 
     // return column names
     std::set<String> resolve();
@@ -76,7 +76,7 @@ public:
     /// visible for UT
     DB::QueryPlanPtr parse(const substrait::Plan & plan);
     std::unique_ptr<LocalExecutor> createExecutor(const substrait::Plan & plan);
-    DB::QueryPipelineBuilderPtr buildQueryPipeline(DB::QueryPlan & query_plan);
+    DB::QueryPipelineBuilderPtr buildQueryPipeline(DB::QueryPlan & query_plan) const;
     ///
     std::unique_ptr<LocalExecutor> createExecutor(const std::string_view plan);
 
