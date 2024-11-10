@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import org.apache.gluten.memory.CHThreadGroup
+
 import org.apache.spark.{Partition, SparkException, TaskContext, TaskOutputFileAlreadyExistException}
 import org.apache.spark.internal.io.{FileCommitProtocol, SparkHadoopWriterUtils}
 import org.apache.spark.rdd.RDD
@@ -46,14 +48,15 @@ class CHColumnarWriteFilesRDD(
   extends RDD[WriterCommitMessage](prev) {
 
   private def reportTaskMetrics(writeTaskResult: WriteTaskResult): Unit = {
-    val stats = writeTaskResult.summary.stats.head.asInstanceOf[BasicWriteTaskStats]
-    val (numBytes, numWrittenRows) = (stats.numBytes, stats.numRows)
-    // Reports bytesWritten and recordsWritten to the Spark output metrics.
-    // We should update it after calling `commitTask` to overwrite the metrics.
-    Option(TaskContext.get()).map(_.taskMetrics().outputMetrics).foreach {
-      outputMetrics =>
-        outputMetrics.setBytesWritten(numBytes)
-        outputMetrics.setRecordsWritten(numWrittenRows)
+    writeTaskResult.summary.stats.headOption.map(_.asInstanceOf[BasicWriteTaskStats]).foreach {
+      stats =>
+        // Reports bytesWritten and recordsWritten to the Spark output metrics.
+        // We should update it after calling `commitTask` to overwrite the metrics.
+        Option(TaskContext.get()).map(_.taskMetrics().outputMetrics).foreach {
+          outputMetrics =>
+            outputMetrics.setBytesWritten(stats.numBytes)
+            outputMetrics.setRecordsWritten(stats.numRows)
+        }
     }
   }
 
@@ -78,6 +81,7 @@ class CHColumnarWriteFilesRDD(
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[WriterCommitMessage] = {
+    CHThreadGroup.registerNewThreadGroup()
 
     val commitProtocol = CHColumnarWrite(jobTrackerID, description, committer)
     commitProtocol.setupTask()

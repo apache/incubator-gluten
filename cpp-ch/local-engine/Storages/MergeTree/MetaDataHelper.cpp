@@ -253,7 +253,6 @@ void saveFileStatus(
 
 std::vector<MergeTreeDataPartPtr> mergeParts(
     std::vector<DB::DataPartPtr> selected_parts,
-    std::unordered_map<String, String> & partition_values,
     const String & new_part_uuid,
     SparkStorageMergeTree & storage,
     const String  & partition_dir,
@@ -264,13 +263,8 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
 
     future_part->assign(std::move(selected_parts));
     future_part->part_info = MergeListElement::FAKE_RESULT_PART_FOR_PROJECTION;
+    future_part->name = partition_dir.empty() ? "" : partition_dir + "/";
 
-    future_part->name = "";
-    if(!partition_dir.empty())
-    {
-        future_part->name =  partition_dir + "/";
-        extractPartitionValues(partition_dir, partition_values);
-    }
     if(!bucket_dir.empty())
     {
         future_part->name = future_part->name + bucket_dir + "/";
@@ -294,6 +288,8 @@ std::vector<MergeTreeDataPartPtr> mergeParts(
     return merged;
 }
 
+/** TODO: Remove it.
+ * Extract partition values from partition directory, we implement it in the java */
 void extractPartitionValues(const String & partition_dir, std::unordered_map<String, String> & partition_values)
 {
     Poco::StringTokenizer partitions(partition_dir, "/");

@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata
 
 import org.apache.spark.sql.delta.actions.AddFile
+import org.apache.spark.sql.delta.util.MergeTreePartitionUtils
 import org.apache.spark.sql.execution.datasources.clickhouse.WriteReturnedMetric
 
 import com.fasterxml.jackson.core.`type`.TypeReference
@@ -26,7 +27,6 @@ import org.apache.hadoop.fs.Path
 import java.util.{List => JList}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 
 @SuppressWarnings(Array("io.github.zhztheplayer.scalawarts.InheritFromCaseClass"))
 class AddMergeTreeParts(
@@ -192,46 +192,47 @@ object AddFileTags {
       tableName: String,
       originPathStr: String,
       returnedMetrics: String,
-      hostName: Seq[String]): ArrayBuffer[AddFile] = {
+      hostName: Seq[String]): Seq[AddFile] = {
+
     val mapper: ObjectMapper = new ObjectMapper()
-    try {
-      val values: JList[WriteReturnedMetric] =
-        mapper.readValue(returnedMetrics, new TypeReference[JList[WriteReturnedMetric]]() {})
-      var addFiles = new ArrayBuffer[AddFile]()
-      val path = new Path(originPathStr)
-      val modificationTime = System.currentTimeMillis()
-      addFiles.appendAll(values.asScala.map {
-        value =>
-          AddFileTags.partsInfoToAddFile(
-            database,
-            tableName,
-            "MergeTree",
-            path.toUri.getPath,
-            hostName.map(_.trim).mkString(","),
-            value.getPartName,
-            "",
-            value.getRowCount,
-            value.getDiskSize,
-            -1L,
-            -1L,
-            modificationTime,
-            "",
-            -1L,
-            -1L,
-            -1,
-            -1L,
-            value.getBucketId,
-            path.toString,
-            dataChange = true,
-            "",
-            partitionValues = value.getPartitionValues.asScala.toMap,
-            marks = value.getMarkCount
-          )
-      })
-      addFiles
-    } catch {
-      case e: Exception =>
-        ArrayBuffer.empty[AddFile]
-    }
+    val values: JList[WriteReturnedMetric] =
+      mapper.readValue(returnedMetrics, new TypeReference[JList[WriteReturnedMetric]]() {})
+    val path = new Path(originPathStr)
+    val modificationTime = System.currentTimeMillis()
+
+    values.asScala.map {
+      value =>
+        val partitionValues = if (value.getPartitionValues.isEmpty) {
+          Map.empty[String, String]
+        } else {
+          MergeTreePartitionUtils.parsePartitions(value.getPartitionValues)
+        }
+
+        AddFileTags.partsInfoToAddFile(
+          database,
+          tableName,
+          "MergeTree",
+          path.toUri.getPath,
+          hostName.map(_.trim).mkString(","),
+          value.getPartName,
+          "",
+          value.getRowCount,
+          value.getDiskSize,
+          -1L,
+          -1L,
+          modificationTime,
+          "",
+          -1L,
+          -1L,
+          -1,
+          -1L,
+          value.getBucketId,
+          path.toString,
+          dataChange = true,
+          "",
+          partitionValues = partitionValues,
+          marks = value.getMarkCount
+        )
+    }.toSeq
   }
 }

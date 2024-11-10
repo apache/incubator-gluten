@@ -36,7 +36,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.collection.mutable.ListBuffer
 
-object ClickhouseOptimisticTransaction {}
 class ClickhouseOptimisticTransaction(
     override val deltaLog: DeltaLog,
     override val snapshot: Snapshot)(implicit override val clock: Clock)

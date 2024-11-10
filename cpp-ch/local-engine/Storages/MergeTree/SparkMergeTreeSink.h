@@ -16,10 +16,12 @@
  */
 #pragma once
 
+#include <Processors/ISimpleTransform.h>
 #include <Processors/Sinks/SinkToStorage.h>
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/SparkMergeTreeWriteSettings.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
+#include <Common/BlockTypeUtils.h>
 
 namespace local_engine
 {
@@ -178,4 +180,85 @@ private:
     int part_num = 1;
 };
 
+
+class MergeTreeStats : public DB::ISimpleTransform
+{
+    bool all_chunks_processed_ = false; /// flag to determine if we have already processed all chunks
+    const SinkHelper & sink_helper;
+
+    static DB::Block statsHeader()
+    {
+        return makeBlockHeader(
+            {{STRING(), "part_name"},
+             {STRING(), "partition_id"},
+             {BIGINT(), "record_count"},
+             {BIGINT(), "marks_count"},
+             {BIGINT(), "size_in_bytes"}});
+    }
+
+    DB::Chunk final_result() const
+    {
+        // TODO: remove it
+        const std::string NO_PARTITION_ID{"__NO_PARTITION_ID__"};
+
+        auto parts = sink_helper.unsafeGet();
+
+        const size_t size = parts.size();
+        auto file_col = STRING()->createColumn();
+        file_col->reserve(size);
+
+        auto partition_col = STRING()->createColumn();
+        partition_col->reserve(size);
+
+        auto countCol = BIGINT()->createColumn();
+        countCol->reserve(size);
+        auto & countColData = static_cast<DB::ColumnVector<Int64> &>(*countCol).getData();
+
+        auto marksCol = BIGINT()->createColumn();
+        marksCol->reserve(size);
+        auto & marksColData = static_cast<DB::ColumnVector<Int64> &>(*marksCol).getData();
+
+        auto bytesCol = BIGINT()->createColumn();
+        bytesCol->reserve(size);
+        auto & bytesColData = static_cast<DB::ColumnVector<Int64> &>(*bytesCol).getData();
+
+        for (const auto & part : parts)
+        {
+            file_col->insertData(part->name.c_str(), part->name.size());
+            partition_col->insertData(NO_PARTITION_ID.c_str(), NO_PARTITION_ID.size());
+            countColData.emplace_back(part->rows_count);
+            marksColData.emplace_back(part->getMarksCount());
+            bytesColData.emplace_back(part->getBytesOnDisk());
+        }
+        const DB::Columns res_columns{
+            std::move(file_col), std::move(partition_col), std::move(countCol), std::move(marksCol), std::move(bytesCol)};
+        return DB::Chunk(res_columns, size);
+    }
+
+public:
+    explicit MergeTreeStats(const DB::Block & input_header_, const SinkHelper & sink_helper_)
+        : ISimpleTransform(input_header_, statsHeader(), true), sink_helper(sink_helper_)
+    {
+    }
+    Status prepare() override
+    {
+        if (input.isFinished() && !output.isFinished() && !has_input && !all_chunks_processed_)
+        {
+            all_chunks_processed_ = true;
+            /// return Ready to call transform() for generating filling rows after latest chunk was processed
+            return Status::Ready;
+        }
+
+        return ISimpleTransform::prepare();
+    }
+
+    String getName() const override { return "MergeTreeStats"; }
+    void transform(DB::Chunk & chunk) override
+    {
+        if (all_chunks_processed_)
+            chunk = final_result();
+        else
+            chunk = {};
+    }
+};
 }
