@@ -26,7 +26,6 @@ import org.apache.spark.sql.catalyst.optimizer.NestedColumnAliasing
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.{Rule, RuleId, UnknownRuleId}
 import org.apache.spark.sql.catalyst.trees.AlwaysProcess
-//import org.apache.spark.sql.catalyst.rules.RuleIdCollection
 import org.apache.spark.sql.internal.SQLConf
 
 // ExtendedGeneratorNestedColumnAliasing process Project(Filter(Generate)),
