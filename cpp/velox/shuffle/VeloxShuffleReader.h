@@ -21,6 +21,7 @@
 #include "shuffle/Payload.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/VeloxSortShuffleWriter.h"
+#include "utils/Timer.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
 
@@ -85,7 +86,50 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
 
   void readLargeRow(std::vector<std::shared_ptr<arrow::Buffer>>& arrowBuffers);
 
-  std::shared_ptr<arrow::io::InputStream> in_;
+  void reachEos();
+
+  class TimedInputStream final : public arrow::io::InputStream {
+   public:
+    TimedInputStream(std::shared_ptr<arrow::io::InputStream> in) : in_(std::move(in)) {}
+
+    arrow::Status Close() override {
+      if (closed_) {
+        return arrow::Status::OK();
+      }
+      RETURN_NOT_OK(in_->Close());
+      closed_ = true;
+      return arrow::Status::OK();
+    }
+
+    arrow::Result<int64_t> Tell() const override {
+      return in_->Tell();
+    }
+
+    bool closed() const override {
+      return closed_;
+    }
+
+    arrow::Result<int64_t> Read(int64_t nbytes, void* out) override {
+      ScopedTimer timer(&readStreamTime_);
+      return in_->Read(nbytes, out);
+    }
+
+    arrow::Result<std::shared_ptr<arrow::Buffer>> Read(int64_t nbytes) override {
+      ScopedTimer timer(&readStreamTime_);
+      return in_->Read(nbytes);
+    }
+
+    int64_t readStreamTime() const {
+      return readStreamTime_;
+    }
+
+   private:
+    std::shared_ptr<arrow::io::InputStream> in_;
+    int64_t readStreamTime_{0};
+    bool closed_{false};
+  };
+
+  std::shared_ptr<TimedInputStream> in_;
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
@@ -97,7 +141,7 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
 
   std::list<std::pair<uint32_t, facebook::velox::BufferPtr>> cachedInputs_;
   uint32_t cachedRows_{0};
-  bool reachEos_{false};
+  bool reachedEos_{false};
 
   uint32_t rowOffset_{0};
   size_t byteOffset_{0};

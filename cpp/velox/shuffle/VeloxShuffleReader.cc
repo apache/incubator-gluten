@@ -376,21 +376,25 @@ VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
     facebook::velox::memory::MemoryPool* veloxPool,
     int64_t& deserializeTime,
     int64_t& decompressTime)
-    : in_(std::move(in)),
-      schema_(schema),
+    : schema_(schema),
       codec_(codec),
       rowType_(rowType),
       batchSize_(batchSize),
       arrowPool_(memoryPool),
       veloxPool_(veloxPool),
       deserializeTime_(deserializeTime),
-      decompressTime_(decompressTime) {}
+      decompressTime_(decompressTime) {
+  //  GLUTEN_ASSIGN_OR_THROW(auto bufferedIn, arrow::io::BufferedInputStream::Create(16384, memoryPool, std::move(in)));
+  //  in_ = std::make_shared<TimedInputStream>(std::move(bufferedIn));
+  in_ = std::make_shared<TimedInputStream>(std::move(in));
+}
 
 std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
-  if (reachEos_) {
+  if (reachedEos_) {
     if (cachedRows_ > 0) {
       return deserializeToBatch();
     }
+    reachEos();
     return nullptr;
   }
 
@@ -404,10 +408,11 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
         auto arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, arrowPool_, numRows, decompressTime_));
 
     if (arrowBuffers.empty()) {
-      reachEos_ = true;
+      reachedEos_ = true;
       if (cachedRows_ > 0) {
         return deserializeToBatch();
       }
+      reachEos();
       return nullptr;
     }
 
@@ -484,6 +489,10 @@ void VeloxSortShuffleReaderDeserializer::readLargeRow(std::vector<std::shared_pt
   }
   cachedInputs_.emplace_back(1, wrapInBufferViewAsOwner(rowBuffer->data(), rowSize, rowBuffer));
   cachedRows_++;
+}
+
+void VeloxSortShuffleReaderDeserializer::reachEos() {
+  deserializeTime_ += in_->readStreamTime();
 }
 
 class VeloxRssSortShuffleReaderDeserializer::VeloxInputStream : public facebook::velox::GlutenByteInputStream {
