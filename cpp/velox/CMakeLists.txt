@@ -225,14 +225,16 @@ set_target_properties(velox PROPERTIES LIBRARY_OUTPUT_DIRECTORY
 # applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
 
-if(ENABLE_JEMALLOC_STATS)
+if(ENABLE_JEMALLOC OR ENABLE_JEMALLOC_STATS)
   include(Findjemalloc_pic)
   find_jemalloc()
   if(JEMALLOC_NOT_FOUND)
     include(Buildjemalloc_pic)
     build_jemalloc()
   endif()
-  add_definitions(-DENABLE_JEMALLOC_STATS)
+  if(ENABLE_JEMALLOC_STATS)
+    add_definitions(-DENABLE_JEMALLOC_STATS)
+  endif()
   target_link_libraries(velox PUBLIC jemalloc::jemalloc)
 endif()
 

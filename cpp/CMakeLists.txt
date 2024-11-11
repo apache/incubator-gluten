@@ -46,6 +46,10 @@ option(BUILD_VELOX_BACKEND "Build Velox backend" ON)
 option(BUILD_TESTS "Build Tests" OFF)
 option(BUILD_EXAMPLES "Build Examples" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
+option(
+  ENABLE_JEMALLOC
+  "Link lib Jemalloc to libvelox.so, which makes Jemalloc overriding standard
+   memory allocation/free functions." OFF)
 option(ENABLE_JEMALLOC_STATS "Prints Jemalloc stats for debugging" OFF)
 option(BUILD_GLOG "Build Glog from Source" OFF)
 option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
