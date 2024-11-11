@@ -58,8 +58,8 @@ class ExtendedGeneratorNestedColumnAliasing(spark: SparkSession)
 
             val pushedThrough = rewritePlanWithAliases(pj, attrToExtractValuesNotOnGenerator)
             pushedThrough
-          case p =>
-            p
+          case _ =>
+            pj
         }
       case p =>
         p
