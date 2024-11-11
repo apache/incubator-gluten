@@ -642,6 +642,9 @@ object GlutenConfig {
   val GLUTEN_DYNAMIC_OFFHEAP_SIZING_MEMORY_FRACTION =
     "spark.gluten.memory.dynamic.offHeap.sizing.memory.fraction"
 
+  val GLUTEN_COST_EVALUATOR_ENABLED = "spark.gluten.sql.adaptive.costEvaluator.enabled"
+  val GLUTEN_COST_EVALUATOR_DEFAULT_VALUE = true
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {
@@ -2102,6 +2105,17 @@ object GlutenConfig {
       .internal()
       .booleanConf
       .createWithDefault(true)
+
+  val COST_EVALUATOR_ENABLED =
+    buildStaticConf(GlutenConfig.GLUTEN_COST_EVALUATOR_ENABLED)
+      .internal()
+      .doc(
+        "If true and gluten enabled, use " +
+          "org.apache.spark.sql.execution.adaptive.GlutenCostEvaluator as custom cost " +
+          "evaluator class, else follow the configuration " +
+          "spark.sql.adaptive.customCostEvaluatorClass.")
+      .booleanConf
+      .createWithDefault(GLUTEN_COST_EVALUATOR_DEFAULT_VALUE)
 
   val DYNAMIC_OFFHEAP_SIZING_ENABLED =
     buildConf(GlutenConfig.GLUTEN_DYNAMIC_OFFHEAP_SIZING_ENABLED)
