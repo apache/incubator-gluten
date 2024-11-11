@@ -81,7 +81,8 @@ public:
             captured_column_names,
             lambda_arguments_names_and_types,
             lambda_output->result_type,
-            lambda_output->result_name);
+            lambda_output->result_name,
+            false);
         const auto * lambda_function = &actions_dag.addFunction(function_capture, {arr2_not_null}, lambda_output->result_name);
 
         // Apply arrayFilter with the lambda function
