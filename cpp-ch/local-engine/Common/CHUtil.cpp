@@ -756,6 +756,11 @@ void BackendInitializerUtil::initSettings(const std::map<std::string, std::strin
             settings.set(key, toField(key, value));
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
+        else if (key == TIMER_PARSER_POLICY)
+        {
+            settings.set(key, value);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
+        }
     }
     /// Finally apply some fixed kvs to settings.
     settings.set("join_use_nulls", true);
