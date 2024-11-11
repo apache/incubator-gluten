@@ -538,7 +538,7 @@ VeloxRssSortShuffleReaderDeserializer::VeloxRssSortShuffleReaderDeserializer(
       rowType_(rowType),
       batchSize_(batchSize),
       veloxCompressionType_(veloxCompressionType),
-      serde_(getNamedVectorSerde(facebook::velox::VectorSerde::Kind::kCompactRow)),
+      serde_(getNamedVectorSerde(facebook::velox::VectorSerde::Kind::kPresto)),
       deserializeTime_(deserializeTime) {
   constexpr uint64_t kMaxReadBufferSize = (1 << 20) - AlignedBuffer::kPaddedSize;
   auto buffer = AlignedBuffer::allocate<char>(kMaxReadBufferSize, veloxPool_.get());
