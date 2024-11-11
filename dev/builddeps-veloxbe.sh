@@ -239,9 +239,6 @@ if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
   pushd $VELOX_HOME
   if [ $OS == 'Linux' ]; then
     setup_linux
-    echo "CC: $CC"
-    echo "CXX: $CXX"
-    exit 0
   elif [ $OS == 'Darwin' ]; then
     setup_macos
   else
