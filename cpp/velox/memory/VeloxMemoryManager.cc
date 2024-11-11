@@ -380,7 +380,7 @@ VeloxMemoryManager::~VeloxMemoryManager() {
                << "ms as there are still outstanding memory resources. ";
   }
 #ifdef ENABLE_JEMALLOC_STATS
-  je_gluten_malloc_stats_print(NULL, NULL, NULL);
+  malloc_stats_print(NULL, NULL, NULL);
 #endif
 }
 
