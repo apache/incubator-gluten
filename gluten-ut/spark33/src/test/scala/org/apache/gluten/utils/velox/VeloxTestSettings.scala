@@ -704,13 +704,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
     // Velox only support read Timestamp with INT96 for now.
     .exclude("read dictionary and plain encoded timestamp_millis written as INT64")
-    // TODO: Unsupported Array schema in Parquet.
-    .exclude("vectorized reader: optional array with required elements")
-    .exclude("vectorized reader: required array with required elements")
-    .exclude("vectorized reader: required array with optional elements")
-    .exclude("vectorized reader: required array with legacy format")
-    // add support in native reader
-    .exclude("SPARK-41096: FIXED_LEN_BYTE_ARRAY support")
     .exclude("SPARK-40128 read DELTA_LENGTH_BYTE_ARRAY encoded strings")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]

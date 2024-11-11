@@ -125,6 +125,7 @@ class VeloxRssSortShuffleReaderDeserializer : public ColumnarBatchIterator {
   int32_t rowCount_;
   int32_t batchSize_;
   facebook::velox::common::CompressionKind veloxCompressionType_;
+  facebook::velox::VectorSerde* const serde_;
   facebook::velox::serializer::presto::PrestoVectorSerde::PrestoOptions serdeOptions_;
   int64_t& deserializeTime_;
   std::shared_ptr<VeloxInputStream> in_;

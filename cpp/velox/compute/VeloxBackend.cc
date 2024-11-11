@@ -162,6 +162,10 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
     // serde, for spill
     facebook::velox::serializer::presto::PrestoVectorSerde::registerVectorSerde();
   }
+  if (!isRegisteredNamedVectorSerde(facebook::velox::VectorSerde::Kind::kPresto)) {
+    // RSS shuffle serde.
+    facebook::velox::serializer::presto::PrestoVectorSerde::registerNamedVectorSerde();
+  }
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 
   initUdf();
