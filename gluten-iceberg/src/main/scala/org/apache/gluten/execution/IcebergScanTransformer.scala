@@ -27,7 +27,6 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.util.SerializableConfiguration
 
 import org.apache.iceberg.spark.source.GlutenIcebergSourceUtil
 
@@ -60,8 +59,7 @@ case class IcebergScanTransformer(
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
   override def getSplitInfosFromPartitions(
-      partitions: Seq[InputPartition],
-      serializableHadoopConf: SerializableConfiguration): Seq[SplitInfo] = {
+      partitions: Seq[InputPartition]): Seq[SplitInfo] = {
     val groupedPartitions = SparkShimLoader.getSparkShims.orderPartitions(
       scan,
       keyGroupedPartitioning,

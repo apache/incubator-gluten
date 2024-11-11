@@ -40,7 +40,6 @@ import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.SparkInputMetricsUtil.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.SerializableConfiguration
 
 import com.google.common.collect.Lists
 
@@ -127,8 +126,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     BackendsApiManager.getMetricsApiInstance.genWholeStageTransformerMetrics(sparkContext)
 
   val sparkConf: SparkConf = sparkContext.getConf
-  val serializableHadoopConf: SerializableConfiguration = new SerializableConfiguration(
-    sparkContext.hadoopConfiguration)
   val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 
   @transient
@@ -289,10 +286,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
        */
       val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
       val allScanSplitInfos =
-        getSplitInfosFromPartitions(
-          basicScanExecTransformers,
-          allScanPartitions,
-          serializableHadoopConf)
+        getSplitInfosFromPartitions(basicScanExecTransformers, allScanPartitions)
       val inputPartitions =
         BackendsApiManager.getIteratorApiInstance.genPartitions(
           wsCtx,
@@ -384,8 +378,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   private def getSplitInfosFromPartitions(
       basicScanExecTransformers: Seq[BasicScanExecTransformer],
-      allScanPartitions: Seq[Seq[InputPartition]],
-      serializableHadoopConf: SerializableConfiguration): Seq[Seq[SplitInfo]] = {
+      allScanPartitions: Seq[Seq[InputPartition]]): Seq[Seq[SplitInfo]] = {
     // If these are two scan transformers, they must have same partitions,
     // otherwise, exchange will be inserted. We should combine the two scan
     // transformers' partitions with same index, and set them together in
@@ -404,7 +397,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     val allScanSplitInfos =
       allScanPartitions.zip(basicScanExecTransformers).map {
         case (partition, transformer) =>
-          transformer.getSplitInfosFromPartitions(partition, serializableHadoopConf)
+          transformer.getSplitInfosFromPartitions(partition)
       }
     val partitionLength = allScanSplitInfos.head.size
     if (allScanSplitInfos.exists(_.size != partitionLength)) {
