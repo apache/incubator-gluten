@@ -384,9 +384,9 @@ VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
       veloxPool_(veloxPool),
       deserializeTime_(deserializeTime),
       decompressTime_(decompressTime) {
-  //  GLUTEN_ASSIGN_OR_THROW(auto bufferedIn, arrow::io::BufferedInputStream::Create(16384, memoryPool, std::move(in)));
-  //  in_ = std::make_shared<TimedInputStream>(std::move(bufferedIn));
-  in_ = std::make_shared<TimedInputStream>(std::move(in));
+  GLUTEN_ASSIGN_OR_THROW(auto bufferedIn, arrow::io::BufferedInputStream::Create(16384, memoryPool, std::move(in)));
+  in_ = std::make_shared<TimedInputStream>(std::move(bufferedIn));
+  //  in_ = std::make_shared<TimedInputStream>(std::move(in));
 }
 
 std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
