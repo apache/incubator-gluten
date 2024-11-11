@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.GeneratorNestedColumnAliasing.canPruneGenerator
 import org.apache.spark.sql.catalyst.optimizer.NestedColumnAliasing
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.catalyst.rules.{Rule, RuleId, UnknownRuleId}
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.AlwaysProcess
 import org.apache.spark.sql.internal.SQLConf
 
@@ -34,10 +34,8 @@ class ExtendedGeneratorNestedColumnAliasing(spark: SparkSession)
   extends Rule[LogicalPlan]
   with Logging {
 
-  override protected lazy val ruleId: RuleId = UnknownRuleId
-
   override def apply(plan: LogicalPlan): LogicalPlan =
-    plan.transformWithPruning(AlwaysProcess.fn, ruleId) {
+    plan.transformWithPruning(AlwaysProcess.fn) {
       case pj @ Project(projectList, f: Filter)
           if GlutenConfig.getConf.enableExtendedGeneratorNestedColumnAliasing &&
             (SQLConf.get.nestedPruningOnExpressions || SQLConf.get.nestedSchemaPruningEnabled) =>
@@ -47,17 +45,18 @@ class ExtendedGeneratorNestedColumnAliasing(spark: SparkSession)
               projectList ++ g.generator.children :+ f.condition,
               Seq.empty)
             if (attrToExtractValues.isEmpty) {
-              return pj
-            }
-            val generatorOutputSet = AttributeSet(g.qualifiedGeneratorOutput)
-            var (_, attrToExtractValuesNotOnGenerator) =
-              attrToExtractValues.partition {
-                case (attr, _) =>
-                  attr.references.subsetOf(generatorOutputSet)
-              }
+              pj
+            } else {
+              val generatorOutputSet = AttributeSet(g.qualifiedGeneratorOutput)
+              val (_, attrToExtractValuesNotOnGenerator) =
+                attrToExtractValues.partition {
+                  case (attr, _) =>
+                    attr.references.subsetOf(generatorOutputSet)
+                }
 
-            val pushedThrough = rewritePlanWithAliases(pj, attrToExtractValuesNotOnGenerator)
-            pushedThrough
+              val pushedThrough = rewritePlanWithAliases(pj, attrToExtractValuesNotOnGenerator)
+              pushedThrough
+            }
           case _ =>
             pj
         }
