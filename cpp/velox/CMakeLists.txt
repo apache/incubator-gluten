@@ -233,7 +233,7 @@ if(ENABLE_JEMALLOC_STATS)
     build_jemalloc()
   endif()
   add_definitions(-DENABLE_JEMALLOC_STATS)
-  target_link_libraries(velox PUBLIC jemalloc::libjemalloc)
+  target_link_libraries(velox PUBLIC jemalloc::jemalloc)
 endif()
 
 target_link_libraries(velox PUBLIC gluten)

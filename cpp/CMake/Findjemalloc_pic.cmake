@@ -17,24 +17,23 @@
 
 # Find Jemalloc
 macro(find_jemalloc)
-  # Find the existing jemalloc
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-  # Find from vcpkg-installed lib path.
+  set(STATIC_LIBRARY_SUFFIX ".a")
+  set(LIB_NAME "jemalloc_pic")
+  set(LIB_FULL_NAME
+        ${CMAKE_STATIC_LIBRARY_PREFIX}${LIB_NAME}${STATIC_LIBRARY_SUFFIX})
   find_library(
     JEMALLOC_LIBRARY
-    NAMES jemalloc_pic
-    PATHS
-      ${CMAKE_CURRENT_BINARY_DIR}/../../../dev/vcpkg/vcpkg_installed/x64-linux-avx/lib/
-    NO_DEFAULT_PATH)
+    NAMES ${LIB_FULL_NAME}
+    )
   if("${JEMALLOC_LIBRARY}" STREQUAL "JEMALLOC_LIBRARY-NOTFOUND")
     message(STATUS "Jemalloc Library Not Found.")
     set(JEMALLOC_NOT_FOUND TRUE)
   else()
     message(STATUS "Found jemalloc: ${JEMALLOC_LIBRARY}")
     find_path(JEMALLOC_INCLUDE_DIR jemalloc/jemalloc.h)
-    add_library(jemalloc::libjemalloc STATIC IMPORTED)
+    add_library(jemalloc::jemalloc STATIC IMPORTED)
     set_target_properties(
-      jemalloc::libjemalloc
+      jemalloc::jemalloc
       PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${JEMALLOC_INCLUDE_DIR}"
                  IMPORTED_LOCATION "${JEMALLOC_LIBRARY}")
   endif()

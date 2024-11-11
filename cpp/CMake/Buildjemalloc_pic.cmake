@@ -29,7 +29,7 @@ macro(build_jemalloc)
     )
   endif()
 
-  set(JEMALLOC_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/jemalloc_ep-install")
+  set(JEMALLOC_PREFIX "/usr/local")
   set(JEMALLOC_LIB_DIR "${JEMALLOC_PREFIX}/lib")
   set(JEMALLOC_INCLUDE_DIR "${JEMALLOC_PREFIX}/include")
   set(JEMALLOC_STATIC_LIB
@@ -64,11 +64,11 @@ macro(build_jemalloc)
     INSTALL_COMMAND make install)
 
   file(MAKE_DIRECTORY "${JEMALLOC_INCLUDE_DIR}")
-  add_library(jemalloc::libjemalloc STATIC IMPORTED)
+  add_library(jemalloc::jemalloc STATIC IMPORTED)
   set_target_properties(
-    jemalloc::libjemalloc
+    jemalloc::jemalloc
     PROPERTIES INTERFACE_LINK_LIBRARIES Threads::Threads
                IMPORTED_LOCATION "${JEMALLOC_STATIC_LIB}"
                INTERFACE_INCLUDE_DIRECTORIES "${JEMALLOC_INCLUDE_DIR}")
-  add_dependencies(jemalloc::libjemalloc jemalloc_ep)
+  add_dependencies(jemalloc::jemalloc jemalloc_ep)
 endmacro()
