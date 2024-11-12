@@ -58,15 +58,11 @@ DB::ProcessorPtr make_sink(
 {
     if (partition_by.empty())
     {
-        auto file_sink = std::make_shared<SubstraitFileSink>(context, base_path, "", filename, format_hint, input_header);
-        file_sink->setStats(stats);
-        return file_sink;
+        return std::make_shared<SubstraitFileSink>(context, base_path, "", filename, format_hint, input_header, stats);
     }
 
-    auto file_sink = std::make_shared<SubstraitPartitionedFileSink>(
-        context, partition_by, input_header, output_header, base_path, filename, format_hint);
-    file_sink->setStats(stats);
-    return file_sink;
+    return std::make_shared<SubstraitPartitionedFileSink>(
+        context, partition_by, input_header, output_header, base_path, filename, format_hint, stats);
 }
 
 DB::ExpressionActionsPtr create_rename_action(const DB::Block & input, const DB::Block & output)

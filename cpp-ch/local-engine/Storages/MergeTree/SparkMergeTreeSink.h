@@ -21,6 +21,7 @@
 #include <Storages/MergeTree/SparkMergeTreeMeta.h>
 #include <Storages/MergeTree/SparkMergeTreeWriteSettings.h>
 #include <Storages/MergeTree/SparkStorageMergeTree.h>
+#include <Storages/Output/NormalFileWriter.h>
 #include <Common/BlockTypeUtils.h>
 
 namespace local_engine
@@ -181,9 +182,8 @@ private:
 };
 
 
-class MergeTreeStats : public DB::ISimpleTransform
+class MergeTreeStats : public WriteStatsBase
 {
-    bool all_chunks_processed_ = false; /// flag to determine if we have already processed all chunks
     const SinkHelper & sink_helper;
 
     static DB::Block statsHeader()
@@ -196,7 +196,7 @@ class MergeTreeStats : public DB::ISimpleTransform
              {BIGINT(), "size_in_bytes"}});
     }
 
-    DB::Chunk final_result() const
+    DB::Chunk final_result() const override
     {
         // TODO: remove it
         const std::string NO_PARTITION_ID{"__NO_PARTITION_ID__"};
@@ -237,28 +237,9 @@ class MergeTreeStats : public DB::ISimpleTransform
 
 public:
     explicit MergeTreeStats(const DB::Block & input_header_, const SinkHelper & sink_helper_)
-        : ISimpleTransform(input_header_, statsHeader(), true), sink_helper(sink_helper_)
+        : WriteStatsBase(input_header_, statsHeader()), sink_helper(sink_helper_)
     {
     }
-    Status prepare() override
-    {
-        if (input.isFinished() && !output.isFinished() && !has_input && !all_chunks_processed_)
-        {
-            all_chunks_processed_ = true;
-            /// return Ready to call transform() for generating filling rows after latest chunk was processed
-            return Status::Ready;
-        }
-
-        return ISimpleTransform::prepare();
-    }
-
     String getName() const override { return "MergeTreeStats"; }
-    void transform(DB::Chunk & chunk) override
-    {
-        if (all_chunks_processed_)
-            chunk = final_result();
-        else
-            chunk = {};
-    }
 };
 }
