@@ -36,29 +36,25 @@ class ExtendedGeneratorNestedColumnAliasing(spark: SparkSession)
 
   override def apply(plan: LogicalPlan): LogicalPlan =
     plan.transformWithPruning(AlwaysProcess.fn) {
-      case pj @ Project(projectList, f: Filter)
-          if GlutenConfig.getConf.enableExtendedGeneratorNestedColumnAliasing &&
+      case pj @ Project(projectList, f @ Filter(condition, g: Generate))
+          if canPruneGenerator(g.generator) &&
+            GlutenConfig.getConf.enableExtendedGeneratorNestedColumnAliasing &&
             (SQLConf.get.nestedPruningOnExpressions || SQLConf.get.nestedSchemaPruningEnabled) =>
-        f.child match {
-          case g: Generate if canPruneGenerator(g.generator) =>
-            val attrToExtractValues = NestedColumnAliasing.getAttributeToExtractValues(
-              projectList ++ g.generator.children :+ f.condition,
-              Seq.empty)
-            if (attrToExtractValues.isEmpty) {
-              pj
-            } else {
-              val generatorOutputSet = AttributeSet(g.qualifiedGeneratorOutput)
-              val (_, attrToExtractValuesNotOnGenerator) =
-                attrToExtractValues.partition {
-                  case (attr, _) =>
-                    attr.references.subsetOf(generatorOutputSet)
-                }
-
-              val pushedThrough = rewritePlanWithAliases(pj, attrToExtractValuesNotOnGenerator)
-              pushedThrough
+        val attrToExtractValues = NestedColumnAliasing.getAttributeToExtractValues(
+          projectList ++ g.generator.children :+ condition,
+          Seq.empty)
+        if (attrToExtractValues.isEmpty) {
+          pj
+        } else {
+          val generatorOutputSet = AttributeSet(g.qualifiedGeneratorOutput)
+          val (_, attrToExtractValuesNotOnGenerator) =
+            attrToExtractValues.partition {
+              case (attr, _) =>
+                attr.references.subsetOf(generatorOutputSet)
             }
-          case _ =>
-            pj
+
+          val pushedThrough = rewritePlanWithAliases(pj, attrToExtractValuesNotOnGenerator)
+          pushedThrough
         }
       case p =>
         p
