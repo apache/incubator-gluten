@@ -313,7 +313,8 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
   if (hasComplexType_) {
     uint32_t numRows = 0;
     GLUTEN_ASSIGN_OR_THROW(
-        auto arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, decompressTime_));
+        auto arrowBuffers,
+        BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, deserializeTime_, decompressTime_));
     if (arrowBuffers.empty()) {
       // Reach EOS.
       return nullptr;
@@ -332,7 +333,8 @@ std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
   uint32_t numRows = 0;
   while (!merged_ || merged_->numRows() < batchSize_) {
     GLUTEN_ASSIGN_OR_THROW(
-        arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, decompressTime_));
+        arrowBuffers,
+        BlockPayload::deserialize(in_.get(), codec_, memoryPool_, numRows, deserializeTime_, decompressTime_));
     if (arrowBuffers.empty()) {
       reachEos_ = true;
       break;
@@ -384,9 +386,12 @@ VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
       veloxPool_(veloxPool),
       deserializeTime_(deserializeTime),
       decompressTime_(decompressTime) {
-  GLUTEN_ASSIGN_OR_THROW(auto bufferedIn, arrow::io::BufferedInputStream::Create(1 << 20, memoryPool, std::move(in)));
-  in_ = std::make_shared<TimedInputStream>(std::move(bufferedIn));
-  //  in_ = std::make_shared<TimedInputStream>(std::move(in));
+  // GLUTEN_ASSIGN_OR_THROW(auto bufferedIn, arrow::io::BufferedInputStream::Create(1 << 20, memoryPool,
+  // std::move(in)));
+
+  // in_ = std::make_shared<TimedInputStream>(std::move(bufferedIn));
+  // in_ = std::make_shared<TimedInputStream>(std::move(in));
+  GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(1 << 20, memoryPool, std::move(in)));
 }
 
 std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
@@ -405,7 +410,8 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
   while (cachedRows_ < batchSize_) {
     uint32_t numRows = 0;
     GLUTEN_ASSIGN_OR_THROW(
-        auto arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, arrowPool_, numRows, decompressTime_));
+        auto arrowBuffers,
+        BlockPayload::deserialize(in_.get(), codec_, arrowPool_, numRows, deserializeTime_, decompressTime_));
 
     if (arrowBuffers.empty()) {
       reachedEos_ = true;
@@ -472,7 +478,8 @@ void VeloxSortShuffleReaderDeserializer::readLargeRow(std::vector<std::shared_pt
   uint32_t numRows;
   while (bufferSize < rowSize) {
     GLUTEN_ASSIGN_OR_THROW(
-        arrowBuffers, BlockPayload::deserialize(in_.get(), codec_, arrowPool_, numRows, decompressTime_));
+        arrowBuffers,
+        BlockPayload::deserialize(in_.get(), codec_, arrowPool_, numRows, deserializeTime_, decompressTime_));
     VELOX_DCHECK_EQ(numRows, 0);
     bufferSize += arrowBuffers[0]->size();
     buffers.emplace_back(std::move(arrowBuffers[0]));
@@ -491,9 +498,7 @@ void VeloxSortShuffleReaderDeserializer::readLargeRow(std::vector<std::shared_pt
   cachedRows_++;
 }
 
-void VeloxSortShuffleReaderDeserializer::reachEos() {
-  deserializeTime_ += in_->readStreamTime();
-}
+void VeloxSortShuffleReaderDeserializer::reachEos() {}
 
 class VeloxRssSortShuffleReaderDeserializer::VeloxInputStream : public facebook::velox::GlutenByteInputStream {
  public:

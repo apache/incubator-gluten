@@ -129,7 +129,7 @@ class VeloxSortShuffleReaderDeserializer final : public ColumnarBatchIterator {
     bool closed_{false};
   };
 
-  std::shared_ptr<TimedInputStream> in_;
+  std::shared_ptr<arrow::io::InputStream> in_;
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
