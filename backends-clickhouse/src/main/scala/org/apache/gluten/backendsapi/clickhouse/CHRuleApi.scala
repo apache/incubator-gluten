@@ -57,6 +57,7 @@ private object CHRuleApi {
     injector.injectResolutionRule(spark => new RewriteToDateExpresstionRule(spark))
     injector.injectResolutionRule(spark => new RewriteDateTimestampComparisonRule(spark))
     injector.injectOptimizerRule(spark => new CommonSubexpressionEliminateRule(spark))
+    injector.injectOptimizerRule(spark => new ExtendedGeneratorNestedColumnAliasing(spark))
     injector.injectOptimizerRule(spark => CHAggregateFunctionRewriteRule(spark))
     injector.injectOptimizerRule(_ => CountDistinctWithoutExpand)
     injector.injectOptimizerRule(_ => EqualToRewrite)
