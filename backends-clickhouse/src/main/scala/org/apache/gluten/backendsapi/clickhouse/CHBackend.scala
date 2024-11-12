@@ -359,6 +359,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     )
   }
 
+  def enableConvertWindowGroupLimitToAggregate(): Boolean = {
+    SparkEnv.get.conf.getBoolean(
+      CHConf.runtimeConfig("enable_window_group_limit_to_aggregate"),
+      defaultValue = true
+    )
+  }
+
   override def enableNativeWriteFiles(): Boolean = {
     GlutenConfig.getConf.enableNativeWriter.getOrElse(false)
   }

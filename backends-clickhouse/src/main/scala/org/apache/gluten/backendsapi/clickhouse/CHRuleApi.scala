@@ -110,6 +110,7 @@ object CHRuleApi {
     injector.injectPostTransform(c => RewriteSortMergeJoinToHashJoinRule.apply(c.session))
     injector.injectPostTransform(c => PushdownAggregatePreProjectionAheadExpand.apply(c.session))
     injector.injectPostTransform(c => LazyAggregateExpandRule.apply(c.session))
+    injector.injectPostTransform(c => ConverRowNumbertWindowToAggregateRule(c.session))
     injector.injectPostTransform(
       c =>
         intercept(
