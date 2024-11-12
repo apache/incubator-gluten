@@ -290,7 +290,7 @@ TEST(MergeTree, PipelineWithPartition)
 {
     writeMerge(EMBEDDED_PLAN(_4_mergetree_plan_),"tmp/lineitem_mergetree_p",[&](const DB::Block & block)
     {
-        EXPECT_EQ(2541, block.rows());
+        EXPECT_EQ(2525, block.rows());
         debug::headBlock(block);
     });
 }

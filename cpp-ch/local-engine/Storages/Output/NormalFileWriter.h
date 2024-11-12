@@ -65,7 +65,7 @@ class WriteStatsBase : public DB::ISimpleTransform
 {
 protected:
     bool all_chunks_processed_ = false; /// flag to determine if we have already processed all chunks
-    virtual DB::Chunk final_result() const = 0;
+    virtual DB::Chunk final_result() = 0;
 
 public:
     WriteStatsBase(const DB::Block & input_header_, const DB::Block & output_header_)
@@ -105,7 +105,7 @@ class WriteStats : public WriteStatsBase
     absl::flat_hash_map<StringRef, size_t> file_to_count_;
 
 protected:
-    DB::Chunk final_result() const override
+    DB::Chunk final_result() override
     {
         const size_t size = file_to_count_.size();
 
