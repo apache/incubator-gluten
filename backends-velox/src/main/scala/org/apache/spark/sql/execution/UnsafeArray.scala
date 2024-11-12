@@ -1,11 +1,11 @@
 package org.apache.spark.sql.execution
 
-import org.apache.spark.memory.{MemoryConsumer, SparkOutOfMemoryError, TaskMemoryManager}
+import org.apache.spark.memory.{MemoryConsumer, MemoryMode, SparkOutOfMemoryError, TaskMemoryManager}
 import org.apache.spark.sql.catalyst.expressions.UnsafeArrayData
 import org.apache.spark.unsafe.{Platform, UnsafeAlignedOffset}
 import org.apache.spark.unsafe.memory.MemoryBlock
 
-class UnsafeArray(taskMemoryManager: TaskMemoryManager)  extends MemoryConsumer {
+class UnsafeArray(taskMemoryManager: TaskMemoryManager)  extends MemoryConsumer(taskMemoryManager, MemoryMode.OFF_HEAP) {
 
   protected var page: MemoryBlock = null
   acquirePage(taskMemoryManager.pageSizeBytes)
