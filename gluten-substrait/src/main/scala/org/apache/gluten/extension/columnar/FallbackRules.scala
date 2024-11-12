@@ -272,21 +272,15 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
     try {
       plan match {
         case plan: BatchScanExec =>
-          // If filter expressions aren't empty, we need to transform the inner operators.
-          if (plan.runtimeFilters.isEmpty) {
-            val transformer =
-              ScanTransformerFactory
-                .createBatchScanTransformer(plan, validation = true)
-                .asInstanceOf[BasicScanExecTransformer]
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer =
+            ScanTransformerFactory
+              .createBatchScanTransformer(plan, validation = true)
+              .asInstanceOf[BasicScanExecTransformer]
+          transformer.doValidate().tagOnFallback(plan)
         case plan: FileSourceScanExec =>
-          // If filter expressions aren't empty, we need to transform the inner operators.
-          if (plan.partitionFilters.isEmpty) {
-            val transformer =
-              ScanTransformerFactory.createFileSourceScanTransformer(plan)
-            transformer.doValidate().tagOnFallback(plan)
-          }
+          val transformer =
+            ScanTransformerFactory.createFileSourceScanTransformer(plan)
+          transformer.doValidate().tagOnFallback(plan)
         case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
           HiveTableScanExecTransformer.validate(plan).tagOnFallback(plan)
         case plan: ProjectExec =>
@@ -405,10 +399,10 @@ case class AddFallbackTagRule() extends Rule[SparkPlan] {
         case plan: GlobalLimitExec =>
           val (limit, offset) =
             SparkShimLoader.getSparkShims.getLimitAndOffsetFromGlobalLimit(plan)
-          val transformer = LimitTransformer(plan.child, offset, limit)
+          val transformer = LimitExecTransformer(plan.child, offset, limit)
           transformer.doValidate().tagOnFallback(plan)
         case plan: LocalLimitExec =>
-          val transformer = LimitTransformer(plan.child, 0L, plan.limit)
+          val transformer = LimitExecTransformer(plan.child, 0L, plan.limit)
           transformer.doValidate().tagOnFallback(plan)
         case plan: GenerateExec =>
           val transformer = BackendsApiManager.getSparkPlanExecApiInstance.genGenerateTransformer(

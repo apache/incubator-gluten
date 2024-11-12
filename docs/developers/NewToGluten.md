@@ -58,7 +58,7 @@ spark.executor.extraJavaOptions=-Dio.netty.tryReflectionSetAccessible=true
 [Maven Dowload Page](https://maven.apache.org/docs/history.html)
 And then set the environment setting.
 
-## GCC 9.4 or above
+## GCC 11 or above
 
 # Compile gluten using debug mode
 

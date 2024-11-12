@@ -182,6 +182,6 @@ case class CHWindowGroupLimitExecTransformer(
     val currRel =
       getWindowGroupLimitRel(context, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Window Group Limit Rel should be valid")
-    TransformContext(childCtx.outputAttributes, output, currRel)
+    TransformContext(output, currRel)
   }
 }

@@ -19,7 +19,7 @@ AdaptiveSparkPlan (110)
                   :                 :        +- VeloxResizeBatches (5)
                   :                 :           +- ^ ProjectExecTransformer (3)
                   :                 :              +- ^ FilterExecTransformer (2)
-                  :                 :                 +- ^ Scan parquet (1)
+                  :                 :                 +- ^ ScanTransformer parquet  (1)
                   :                 +- ^ InputIteratorTransformer (38)
                   :                    +- ShuffleQueryStage (36), Statistics(X)
                   :                       +- ColumnarExchange (35)
@@ -32,7 +32,7 @@ AdaptiveSparkPlan (110)
                   :                                   :        +- VeloxResizeBatches (14)
                   :                                   :           +- ^ ProjectExecTransformer (12)
                   :                                   :              +- ^ FilterExecTransformer (11)
-                  :                                   :                 +- ^ Scan parquet (10)
+                  :                                   :                 +- ^ ScanTransformer parquet  (10)
                   :                                   +- ^ ProjectExecTransformer (30)
                   :                                      +- ^ FilterExecTransformer (29)
                   :                                         +- ^ RegularHashAggregateExecTransformer (28)
@@ -42,7 +42,7 @@ AdaptiveSparkPlan (110)
                   :                                                     +- VeloxResizeBatches (23)
                   :                                                        +- ^ ProjectExecTransformer (21)
                   :                                                           +- ^ FlushableHashAggregateExecTransformer (20)
-                  :                                                              +- ^ Scan parquet (19)
+                  :                                                              +- ^ ScanTransformer parquet  (19)
                   +- ^ ShuffledHashJoinExecTransformer LeftSemi BuildRight (63)
                      :- ^ InputIteratorTransformer (55)
                      :  +- ShuffleQueryStage (53), Statistics(X)
@@ -50,7 +50,7 @@ AdaptiveSparkPlan (110)
                      :        +- VeloxResizeBatches (51)
                      :           +- ^ ProjectExecTransformer (49)
                      :              +- ^ FilterExecTransformer (48)
-                     :                 +- ^ Scan parquet (47)
+                     :                 +- ^ ScanTransformer parquet  (47)
                      +- ^ ProjectExecTransformer (62)
                         +- ^ FilterExecTransformer (61)
                            +- ^ RegularHashAggregateExecTransformer (60)
@@ -99,7 +99,7 @@ AdaptiveSparkPlan (110)
                                     +- Scan parquet (97)
 
 
-(1) Scan parquet
+(1) ScanTransformer parquet 
 Output [2]: [c_custkey#X, c_name#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -136,7 +136,7 @@ Input [2]: [c_custkey#X, c_name#X]
 (9) InputIteratorTransformer
 Input [2]: [c_custkey#X, c_name#X]
 
-(10) Scan parquet
+(10) ScanTransformer parquet 
 Output [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -173,7 +173,7 @@ Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 (18) InputIteratorTransformer
 Input [4]: [o_orderkey#X, o_custkey#X, o_totalprice#X, o_orderdate#X]
 
-(19) Scan parquet
+(19) ScanTransformer parquet 
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -291,7 +291,7 @@ Input [5]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X]
 (46) InputIteratorTransformer
 Input [5]: [c_custkey#X, c_name#X, o_orderkey#X, o_totalprice#X, o_orderdate#X]
 
-(47) Scan parquet
+(47) ScanTransformer parquet 
 Output [2]: [l_orderkey#X, l_quantity#X]
 Batched: true
 Location: InMemoryFileIndex [*]

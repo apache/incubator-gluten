@@ -107,6 +107,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableCountDistinctWithoutExpand: Boolean =
     conf.getConf(ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND)
 
+  def enableExtendedGeneratorNestedColumnAliasing: Boolean =
+    conf.getConf(ENABLE_EXTENDED_GENERATOR_NESTED_COLUMN_ALIASING)
+
   def veloxOrcScanEnabled: Boolean =
     conf.getConf(VELOX_ORC_SCAN_ENABLED)
 
@@ -291,7 +294,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxSsdODirectEnabled: Boolean = conf.getConf(COLUMNAR_VELOX_SSD_ODIRECT_ENABLED)
 
   def veloxConnectorIOThreads: Int = {
-    conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS)
+    conf.getConf(COLUMNAR_VELOX_CONNECTOR_IO_THREADS).getOrElse(numTaskSlotsPerExecutor)
   }
 
   def veloxSplitPreloadPerDriver: Integer = conf.getConf(COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER)
@@ -759,7 +762,9 @@ object GlutenConfig {
       (AWS_S3_RETRY_MODE.key, AWS_S3_RETRY_MODE.defaultValueString),
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
-        COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
+        conf.getOrElse(
+          NUM_TASK_SLOTS_PER_EXECUTOR.key,
+          NUM_TASK_SLOTS_PER_EXECUTOR.defaultValueString)),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
@@ -1449,19 +1454,15 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
-  // FIXME: May cause issues when toggled on. Examples:
-  //  https://github.com/apache/incubator-gluten/issues/7161
-  //  https://github.com/facebookincubator/velox/issues/10173
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()
       .doc(
-        "Experimental: The Size of the IO thread pool in the Connector." +
-          " This thread pool is used for split preloading and DirectBufferedInput." +
-          " The option is experimental. Toggling on it (setting a non-zero value) may cause some" +
-          " unexpected issues when application reaches some certain conditions.")
+        "The Size of the IO thread pool in the Connector. " +
+          "This thread pool is used for split preloading and DirectBufferedInput. " +
+          "By default, the value is the same as the maximum task slots per Spark executor.")
       .intConf
-      .createWithDefault(0)
+      .createOptional
 
   val COLUMNAR_VELOX_ASYNC_TIMEOUT =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")
@@ -1930,6 +1931,13 @@ object GlutenConfig {
           "When enabled, count distinct queries will fail to fallback!!!")
       .booleanConf
       .createWithDefault(false)
+
+  val ENABLE_EXTENDED_GENERATOR_NESTED_COLUMN_ALIASING =
+    buildConf("spark.gluten.sql.extendedGeneratorNestedColumnAliasing")
+      .internal()
+      .doc("Do nested column aliasing for Project(Filter(Generator))")
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
     buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")

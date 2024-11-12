@@ -71,6 +71,7 @@ public final class MockVeloxBackend {
   private static SparkConf newSparkConf() {
     final SparkConf conf = new SparkConf();
     conf.set(GlutenConfig.SPARK_OFFHEAP_SIZE_KEY(), "1g");
+    conf.set(GlutenConfig.COLUMNAR_VELOX_CONNECTOR_IO_THREADS(), "0");
     return conf;
   }
 }

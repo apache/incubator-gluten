@@ -48,4 +48,8 @@ object MergeTreeCommiterHelper {
     require(currentTaskWriteInfo.get() == null, "currentTaskWriteInfo is not null")
     currentTaskWriteInfo.set(TaskWriteInfo(s"$jobID/$taskAttemptID"))
   }
+
+  def resetCurrentTaskWriteInfo(): Unit = {
+    currentTaskWriteInfo.remove()
+  }
 }

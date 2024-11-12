@@ -75,7 +75,7 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
   override protected def doTransform(context: SubstraitContext): TransformContext = {
     val operatorId = context.nextOperatorId(nodeName)
     val readRel = RelBuilder.makeReadRelForInputIterator(child.output.asJava, context, operatorId)
-    TransformContext(output, output, readRel)
+    TransformContext(output, readRel)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = {

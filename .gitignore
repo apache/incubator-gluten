@@ -95,3 +95,6 @@ dist/
 
 /cpp-ch/local-engine/Parser/*_udf
 !/cpp-ch/local-engine/Parser/example_udf
+
+# For Hive
+metastore_db/

@@ -121,8 +121,10 @@ object GlutenWriterColumnarRules {
         command.table.storage.outputFormat
           .flatMap(formatMapping.get)
           .filter(GlutenFormatFactory.isRegistered)
-      case _: CreateHiveTableAsSelectCommand =>
-        None
+      case command: CreateHiveTableAsSelectCommand =>
+        command.tableDesc.storage.outputFormat
+          .flatMap(formatMapping.get)
+          .filter(GlutenFormatFactory.isRegistered)
       case _ =>
         None
     }

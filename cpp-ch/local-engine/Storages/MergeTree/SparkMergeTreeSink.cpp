@@ -134,10 +134,8 @@ void SinkHelper::doMergePartsAsync(const std::vector<DB::MergeTreeDataPartPtr> &
             for (const auto & prepare_merge_part : prepare_merge_parts)
                 before_size += prepare_merge_part->getBytesOnDisk();
 
-            std::unordered_map<String, String> partition_values;
             const auto merged_parts = mergeParts(
                 prepare_merge_parts,
-                partition_values,
                 toString(UUIDHelpers::generateV4()),
                 dataRef(),
                 write_settings.partition_settings.partition_dir,

@@ -47,10 +47,7 @@ import com.google.common.collect.Lists
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-case class TransformContext(
-    inputAttributes: Seq[Attribute],
-    outputAttributes: Seq[Attribute],
-    root: RelNode)
+case class TransformContext(outputAttributes: Seq[Attribute], root: RelNode)
 
 case class WholeStageTransformContext(root: PlanNode, substraitContext: SubstraitContext = null)
 

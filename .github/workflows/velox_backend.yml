@@ -69,7 +69,6 @@ jobs:
       - name: Build Gluten native libraries
         run: |
           df -a
-          yum install ccache -y
           cd $GITHUB_WORKSPACE/
           bash dev/ci-velox-buildstatic-centos-7.sh
       - name: "Save ccache"
@@ -248,48 +247,6 @@ jobs:
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
             --extra-conf=spark.gluten.ras.enabled=true 
-
-  run-tpc-test-ubuntu-iothreads:
-    needs: build-native-lib-centos-7
-    strategy:
-      fail-fast: false
-      matrix:
-        spark: [ "spark-3.5" ]
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - name: Download All Native Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: velox-native-lib-centos-7-${{github.sha}}
-          path: ./cpp/build/releases/
-      - name: Download All Arrow Jar Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: arrow-jars-centos-7-${{github.sha}}
-          path: /home/runner/.m2/repository/org/apache/arrow/
-      - name: Setup java and maven
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openjdk-8-jdk maven
-      - name: Set environment variables
-        run: |
-          echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
-      - name: Build for Spark ${{ matrix.spark }}
-        run: |
-          cd $GITHUB_WORKSPACE/ 
-          $MVN_CMD clean install -P${{ matrix.spark }} -Pbackends-velox -DskipTests
-          cd $GITHUB_WORKSPACE/tools/gluten-it
-          $MVN_CMD clean install -P${{ matrix.spark }}
-      - name: Build and run TPC-H / TPC-DS
-        run: |
-          cd $GITHUB_WORKSPACE/tools/gluten-it
-          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.sql.columnar.backend.velox.IOThreads=16
-          GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-            --extra-conf=spark.gluten.sql.columnar.backend.velox.IOThreads=16
 
   run-tpc-test-ubuntu-oom:
     needs: build-native-lib-centos-7
@@ -586,14 +543,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.2.2 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.2
@@ -632,14 +581,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.2.2 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.2
@@ -671,14 +612,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.3.1 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.3
@@ -718,14 +651,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.3.1 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.3
@@ -758,14 +683,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.4.3 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.4
@@ -805,14 +722,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.4.3 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.4
@@ -845,14 +754,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.5.3 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
@@ -891,14 +792,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.5.3 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5-scala2.13
@@ -937,14 +830,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.5.3 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
@@ -977,14 +862,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.5.3 (other tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
@@ -1022,14 +899,6 @@ jobs:
         with:
           name: arrow-jars-centos-7-${{github.sha}}
           path: /root/.m2/repository/org/apache/arrow/
-      - name: Update mirror list
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-      - name: Setup build dependency
-        run: |
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Prepare spark.test.home for Spark 3.5.3 (slow tests)
         run: |
           bash .github/workflows/util/install_spark_resources.sh 3.5
@@ -1057,12 +926,6 @@ jobs:
           key: ccache-centos8-release-default-${{github.sha}}
           restore-keys: |
             ccache-centos8-release-default
-      - name: Setup java and maven
-        run: |
-          sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
-          sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
-          yum install sudo patch java-1.8.0-openjdk-devel wget -y
-          $SETUP install_maven
       - name: Build Gluten native libraries
         run: |
           df -a

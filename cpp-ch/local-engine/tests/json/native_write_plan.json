@@ -7,8 +7,11 @@
             "namedTable": {
               "advancedExtension": {
                 "optimization": {
-                  "@type": "type.googleapis.com/google.protobuf.StringValue",
-                  "value": "WriteParameters:isSnappy=1;format=parquet\n"
+                  "@type": "type.googleapis.com/local_engine.Write",
+                  "common": {
+                    "format": "parquet"
+                  },
+                  "parquet": {}
                 },
                 "enhancement": {
                   "@type": "type.googleapis.com/substrait.Type",

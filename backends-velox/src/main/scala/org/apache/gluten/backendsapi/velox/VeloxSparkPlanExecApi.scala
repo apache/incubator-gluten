@@ -806,7 +806,7 @@ class VeloxSparkPlanExecApi extends SparkPlanExecApi {
   override def maybeCollapseTakeOrderedAndProject(plan: SparkPlan): SparkPlan = {
     // This to-top-n optimization assumes exchange operators were already placed in input plan.
     plan.transformUp {
-      case p @ LimitTransformer(SortExecTransformer(sortOrder, _, child, _), 0, count) =>
+      case p @ LimitExecTransformer(SortExecTransformer(sortOrder, _, child, _), 0, count) =>
         val global = child.outputPartitioning.satisfies(AllTuples)
         val topN = TopNTransformer(count, sortOrder, global, child)
         if (topN.doValidate().ok()) {

@@ -7,8 +7,17 @@
             "namedTable": {
               "advancedExtension": {
                 "optimization": {
-                  "@type": "type.googleapis.com/google.protobuf.StringValue",
-                  "value": "WriteParameters:isSnappy=1;format=mergetree\n"
+                  "@type": "type.googleapis.com/local_engine.Write",
+                  "common": {
+                    "format": "mergetree"
+                  },
+                  "mergetree": {
+                    "database": "default",
+                    "table": "lineitem_mergetree",
+                    "snapshotId": "1729651573302_0",
+                    "orderByKey": "tuple()",
+                    "storagePolicy": "default"
+                  }
                 },
                 "enhancement": {
                   "@type": "type.googleapis.com/substrait.Type",
