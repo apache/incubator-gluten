@@ -1,5 +1,5 @@
 diff --git a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
-index ddf1fac71..ef48ae9d9 100644
+index ce69fdb29..d49546a67 100644
 --- a/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
 +++ b/CMake/resolve_dependency_modules/arrow/CMakeLists.txt
 @@ -14,17 +14,13 @@
@@ -60,7 +60,7 @@ index ddf1fac71..ef48ae9d9 100644
      SOURCE_SUBDIR cpp
      CMAKE_ARGS ${ARROW_CMAKE_ARGS}
 diff --git a/CMake/resolve_dependency_modules/simdjson.cmake b/CMake/resolve_dependency_modules/simdjson.cmake
-index 69e7f2044..777eb5ec1 100644
+index ddd232050..b6ed2432b 100644
 --- a/CMake/resolve_dependency_modules/simdjson.cmake
 +++ b/CMake/resolve_dependency_modules/simdjson.cmake
 @@ -29,4 +29,6 @@ FetchContent_Declare(
@@ -71,18 +71,34 @@ index 69e7f2044..777eb5ec1 100644
 +
  FetchContent_MakeAvailable(simdjson)
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 7f7cbc92f..52adb1250 100644
+index 7fd99b6dc..e7e03a800 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -386,7 +391,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+@@ -428,7 +428,7 @@ velox_resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
  # for reference. find_package(range-v3)
  
- set_source(gflags)
--resolve_dependency(gflags COMPONENTS ${VELOX_GFLAGS_TYPE})
-+resolve_dependency(gflags)
+ velox_set_source(gflags)
+-velox_resolve_dependency(gflags COMPONENTS ${VELOX_GFLAGS_TYPE})
++velox_resolve_dependency(gflags)
  if(NOT TARGET gflags::gflags)
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
+-diff --git a/CMakeLists.txt b/CMakeLists.txt
+-index 7f7cbc92f..52adb1250 100644
+---- a/CMakeLists.txt
+-+++ b/CMakeLists.txt
+-@@ -386,7 +391,7 @@ resolve_dependency(Boost 1.77.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+- # for reference. find_package(range-v3)
+- 
+- set_source(gflags)
+--resolve_dependency(gflags COMPONENTS ${VELOX_GFLAGS_TYPE})
+-+resolve_dependency(gflags)
+- if(NOT TARGET gflags::gflags)
+-   # This is a bit convoluted, but we want to be able to use gflags::gflags as a
+-   # target even when velox is built as a subproject which uses
+ diff --git a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
+ index a8b0df52a..254c56b70 100644
+ --- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 diff --git a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp b/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
 index a8b0df52a..254c56b70 100644
 --- a/velox/connectors/hive/storage_adapters/abfs/RegisterAbfsFileSystem.cpp
@@ -96,7 +112,7 @@ index a8b0df52a..254c56b70 100644
  #endif
  }
 diff --git a/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp b/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp
-index 10ee508ba..027a58ecc 100644
+index c262bad3d..f5f83ac50 100644
 --- a/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp
 +++ b/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp
 @@ -72,7 +72,7 @@ HdfsMiniCluster::HdfsMiniCluster() {
@@ -107,4 +123,4 @@ index 10ee508ba..027a58ecc 100644
 +  hadoopHomeDirectory.remove_filename().remove_filename();
    setupEnvironment(hadoopHomeDirectory.string());
  }
-
+ 
