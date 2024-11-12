@@ -14,7 +14,7 @@ AdaptiveSparkPlan (47)
                      :        +- VeloxResizeBatches (5)
                      :           +- ^ ProjectExecTransformer (3)
                      :              +- ^ FilterExecTransformer (2)
-                     :                 +- ^ Scan parquet (1)
+                     :                 +- ^ ScanTransformer parquet  (1)
                      +- ^ FilterExecTransformer (22)
                         +- ^ RegularHashAggregateExecTransformer (21)
                            +- ^ InputIteratorTransformer (20)
@@ -25,7 +25,7 @@ AdaptiveSparkPlan (47)
                                           +- ^ FlushableHashAggregateExecTransformer (13)
                                              +- ^ ProjectExecTransformer (12)
                                                 +- ^ FilterExecTransformer (11)
-                                                   +- ^ Scan parquet (10)
+                                                   +- ^ ScanTransformer parquet  (10)
 +- == Initial Plan ==
    Sort (46)
    +- Exchange (45)
@@ -45,7 +45,7 @@ AdaptiveSparkPlan (47)
                                  +- Scan parquet (35)
 
 
-(1) Scan parquet
+(1) ScanTransformer parquet 
 Output [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -82,7 +82,7 @@ Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 (9) InputIteratorTransformer
 Input [4]: [s_suppkey#X, s_name#X, s_address#X, s_phone#X]
 
-(10) Scan parquet
+(10) ScanTransformer parquet 
 Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -272,7 +272,7 @@ AdaptiveSparkPlan (73)
                               +- ^ FlushableHashAggregateExecTransformer (51)
                                  +- ^ ProjectExecTransformer (50)
                                     +- ^ FilterExecTransformer (49)
-                                       +- ^ Scan parquet (48)
+                                       +- ^ ScanTransformer parquet  (48)
 +- == Initial Plan ==
    HashAggregate (72)
    +- HashAggregate (71)
@@ -284,7 +284,7 @@ AdaptiveSparkPlan (73)
                      +- Scan parquet (65)
 
 
-(48) Scan parquet
+(48) ScanTransformer parquet 
 Output [4]: [l_suppkey#X, l_extendedprice#X, l_discount#X, l_shipdate#X]
 Batched: true
 Location: InMemoryFileIndex [*]

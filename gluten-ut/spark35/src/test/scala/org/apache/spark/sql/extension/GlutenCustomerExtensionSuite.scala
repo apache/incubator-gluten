@@ -45,7 +45,7 @@ class GlutenCustomerExtensionSuite extends GlutenSQLTestsTrait {
         case f: TestFileSourceScanExecTransformer => f
       }
       assert(!testFileSourceScanExecTransformer.isEmpty)
-      assert(testFileSourceScanExecTransformer(0).nodeNamePrefix.equals("TestNativeFile"))
+      assert(testFileSourceScanExecTransformer(0).nodeNamePrefix.equals("TestFile"))
     }
   }
 }
