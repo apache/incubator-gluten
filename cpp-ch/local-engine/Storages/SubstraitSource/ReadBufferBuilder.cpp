@@ -666,6 +666,20 @@ void registerReadBufferBuilders()
 #endif
 }
 
+DB::ReadSettings ReadBufferBuilder::getReadSettings() const
+{
+    DB::ReadSettings read_settings = context->getReadSettings();
+    const auto & config = context->getConfigRef();
+
+    /// Override enable_filesystem_cache with gluten config
+    read_settings.enable_filesystem_cache = config.getBool("gluten_cache.local.enabled", false);
+
+    /// Override remote_fs_prefetch with gluten config
+    read_settings.remote_fs_prefetch = config.getBool("hdfs.enable_async_io", false);
+
+    return read_settings;
+}
+
 ReadBufferBuilder::ReadBufferBuilder(DB::ContextPtr context_) : context(context_)
 {
 }

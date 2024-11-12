@@ -61,8 +61,8 @@ protected:
     std::unique_ptr<DB::ReadBuffer>
     wrapParallelReadBufferIfNeeded(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, std::unique_ptr<DB::ReadBuffer> in);
 
-    DB::ReadSettings
-        getReadSettings(DB::ContextPtr context) const;
+    DB::ReadSettings getReadSettings() const;
+
     DB::ContextPtr context;
 
 private:
