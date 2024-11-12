@@ -17,7 +17,7 @@
 package org.apache.gluten.backendsapi
 
 import org.apache.gluten.backend.Backend
-import org.apache.gluten.extension.injector.RuleInjector
+import org.apache.gluten.extension.injector.Injector
 
 import org.apache.spark.SparkContext
 import org.apache.spark.api.plugin.PluginContext
@@ -35,7 +35,7 @@ trait SubstraitBackend extends Backend {
   final override def onExecutorShutdown(): Unit = {
     listenerApi().onExecutorShutdown()
   }
-  final override def injectRules(injector: RuleInjector): Unit = {
+  final override def injectRules(injector: Injector): Unit = {
     ruleApi().injectRules(injector)
   }
   def iteratorApi(): IteratorApi
