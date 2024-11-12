@@ -297,8 +297,7 @@ VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
     bool hasComplexType,
     int64_t& deserializeTime,
     int64_t& decompressTime)
-    : in_(std::move(in)),
-      schema_(schema),
+    : schema_(schema),
       codec_(codec),
       rowType_(rowType),
       batchSize_(batchSize),
@@ -307,7 +306,9 @@ VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
       isValidityBuffer_(isValidityBuffer),
       hasComplexType_(hasComplexType),
       deserializeTime_(deserializeTime),
-      decompressTime_(decompressTime) {}
+      decompressTime_(decompressTime) {
+  GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(16384, memoryPool, std::move(in)));
+}
 
 std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
   if (hasComplexType_) {
