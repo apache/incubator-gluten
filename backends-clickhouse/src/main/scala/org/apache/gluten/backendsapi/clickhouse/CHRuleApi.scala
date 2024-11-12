@@ -19,8 +19,8 @@ package org.apache.gluten.backendsapi.clickhouse
 import org.apache.gluten.backendsapi.RuleApi
 import org.apache.gluten.extension._
 import org.apache.gluten.extension.columnar._
-import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast, TransformPreOverrides}
-import org.apache.gluten.extension.columnar.rewrite.RewriteSparkPlanRulesManager
+import org.apache.gluten.extension.columnar.MiscColumnarRules.{RemoveGlutenTableCacheColumnarToRow, RemoveTopmostColumnarToRow, RewriteSubqueryBroadcast}
+import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.extension.columnar.transition.{InsertTransitions, RemoveTransitions}
 import org.apache.gluten.extension.injector.{Injector, SparkInjector}
 import org.apache.gluten.extension.injector.GlutenInjector.{LegacyInjector, RasInjector}
@@ -31,7 +31,7 @@ import org.apache.spark.sql.catalyst.{CHAggregateFunctionRewriteRule, EqualToRew
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.delta.rules.CHOptimizeMetadataOnlyDeltaQuery
-import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, CommandResultExec, FileSourceScanExec, GlutenFallbackReporter, RDDScanExec, SparkPlan}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 import org.apache.spark.util.SparkPlanRules
@@ -64,8 +64,7 @@ private object CHRuleApi {
   }
 
   def injectLegacy(injector: LegacyInjector): Unit = {
-
-    // Gluten columnar: Transform rules.
+    // Legacy: Pre-transform rules.
     injector.injectTransform(_ => RemoveTransitions)
     injector.injectTransform(_ => PushDownInputFileExpression.PreOffload)
     injector.injectTransform(c => FallbackOnANSIMode.apply(c.session))
@@ -73,9 +72,11 @@ private object CHRuleApi {
     injector.injectTransform(_ => RewriteSubqueryBroadcast())
     injector.injectTransform(c => FallbackBroadcastHashJoin.apply(c.session))
     injector.injectTransform(c => MergeTwoPhasesHashBaseAggregate.apply(c.session))
-    injector.injectTransform(_ => intercept(RewriteSparkPlanRulesManager()))
-    injector.injectTransform(_ => intercept(AddFallbackTagRule()))
-    injector.injectTransform(_ => intercept(TransformPreOverrides()))
+
+    // Legacy: The Legacy transform rule.
+    injector.injectTransform(_ => intercept(HeuristicTransform()))
+
+    // Legacy: Post-transform rules.
     injector.injectTransform(_ => RemoveNativeWriteFilesSortAndProject())
     injector.injectTransform(c => intercept(RewriteTransformer.apply(c.session)))
     injector.injectTransform(_ => PushDownFilterToScan)
