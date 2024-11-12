@@ -52,7 +52,7 @@ private class GlutenSQLAppStatusListener(conf: SparkConf, kvstore: ElementTracki
         event.physicalPlanDescription,
         event.fallbackNodeToReason.toSeq.sortBy(_._1)
       )
-      kvstore.write(uiData, checkTriggers = true)
+      kvstore.write(uiData)
     } else {
       // the first stage applies rule before post `SparkListenerSQLExecutionStart`,
       // so we should wait `SparkListenerSQLExecutionStart` then write to store.
