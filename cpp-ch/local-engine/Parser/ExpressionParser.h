@@ -20,6 +20,7 @@
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context_fwd.h>
 #include <substrait/plan.pb.h>
+#include <atomic>
 #include "SerializedPlanParser.h"
 
 
@@ -74,7 +75,7 @@ public:
     String safeGetFunctionName(const substrait::Expression_ScalarFunction & func_) const;
 
 private:
-    static UInt64 unique_name_counter;
+    static std::atomic<UInt64> unique_name_counter;
     std::shared_ptr<const ParserContext> context;
 
     DB::ActionsDAG::NodeRawConstPtrs
