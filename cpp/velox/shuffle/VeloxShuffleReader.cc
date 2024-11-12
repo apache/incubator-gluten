@@ -307,7 +307,7 @@ VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
       hasComplexType_(hasComplexType),
       deserializeTime_(deserializeTime),
       decompressTime_(decompressTime) {
-  GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(16384, memoryPool, std::move(in)));
+  GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(1 << 20, memoryPool, std::move(in)));
 }
 
 std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
@@ -392,7 +392,7 @@ VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
 
   // in_ = std::make_shared<TimedInputStream>(std::move(bufferedIn));
   // in_ = std::make_shared<TimedInputStream>(std::move(in));
-  GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(16384, memoryPool, std::move(in)));
+  GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(1 << 20, memoryPool, std::move(in)));
 }
 
 std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
