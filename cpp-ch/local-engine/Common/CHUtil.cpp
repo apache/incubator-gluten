@@ -32,6 +32,7 @@
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/Defines.h>
 #include <Core/NamesAndTypes.h>
+#include <Core/ServerSettings.h>
 #include <Core/Settings.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDateTime64.h>
@@ -85,6 +86,16 @@ namespace ErrorCodes
 extern const int BAD_ARGUMENTS;
 extern const int UNKNOWN_TYPE;
 extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
+}
+
+namespace ServerSetting
+{
+extern const ServerSettingsUInt64 max_thread_pool_size;
+extern const ServerSettingsUInt64 max_thread_pool_free_size;
+extern const ServerSettingsUInt64 thread_pool_queue_size;
+extern const ServerSettingsUInt64 max_io_thread_pool_size;
+extern const ServerSettingsUInt64 max_io_thread_pool_free_size;
+extern const ServerSettingsUInt64 io_thread_pool_queue_size;
 }
 }
 
@@ -971,8 +982,12 @@ void BackendInitializerUtil::initBackend(const SparkConfigs::ConfigMap & spark_c
             initCompiledExpressionCache(config);
             LOG_INFO(logger, "Init compiled expressions cache factory.");
 
-            GlobalThreadPool::initialize();
-            getIOThreadPool().initialize(10, 0, 10);
+            ServerSettings server_settings;
+            server_settings.loadSettingsFromConfig(*config);
+            GlobalThreadPool::initialize(
+                server_settings[ServerSetting::max_thread_pool_size], 0, server_settings[ServerSetting::thread_pool_queue_size]);
+            getIOThreadPool().initialize(
+                server_settings[ServerSetting::max_io_thread_pool_size], 0, server_settings[ServerSetting::io_thread_pool_queue_size]);
 
             const size_t active_parts_loading_threads = config->getUInt("max_active_parts_loading_thread_pool_size", 64);
             DB::getActivePartsLoadingThreadPool().initialize(
