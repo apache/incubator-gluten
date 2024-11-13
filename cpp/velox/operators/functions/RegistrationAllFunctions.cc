@@ -78,10 +78,10 @@ void registerFunctionOverwrite() {
 
 void registerFunctionForConfig() {
   const std::string prefix = "not_allow_precision_loss_";
-  velox::functions::sparksql::registerDecimalAdd(prefix, false);
-  velox::functions::sparksql::registerDecimalSubtract(prefix, false);
-  velox::functions::sparksql::registerDecimalMultiply(prefix, false);
-  velox::functions::sparksql::registerDecimalDivide(prefix, false);
+  velox::functions::sparksql::registerDecimalAdd(prefix);
+  velox::functions::sparksql::registerDecimalSubtract(prefix);
+  velox::functions::sparksql::registerDecimalMultiply(prefix);
+  velox::functions::sparksql::registerDecimalDivide(prefix);
 }
 } // namespace
 
