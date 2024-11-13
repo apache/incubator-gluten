@@ -50,7 +50,7 @@ struct ShuffleReaderOptions {
   ShuffleWriterType shuffleWriterType = kHashShuffle;
   CodecBackend codecBackend = CodecBackend::NONE;
   int32_t batchSize = kDefaultBatchSize;
-  int64_t bufferSize = kDefaultReaderBufferSize;
+  int64_t bufferSize = kDefaultReadBufferSize;
 };
 
 struct ShuffleWriterOptions {
