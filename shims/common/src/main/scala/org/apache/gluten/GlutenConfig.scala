@@ -190,6 +190,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleCompressionThreshold: Int =
     conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
 
+  def columnarShuffleReaderBufferSize: Long =
+    conf.getConf(COLUMNAR_SHUFFLE_READER_BUFFER_SIZE)
+
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
   def columnarToRowMemThreshold: Long =
@@ -605,6 +608,9 @@ object GlutenConfig {
   val GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE = "spark.gluten.shuffleWriter.bufferSize"
   val GLUTEN_SHUFFLE_WRITER_MERGE_THRESHOLD = "spark.gluten.sql.columnar.shuffle.merge.threshold"
   val GLUTEN_SHUFFLE_DEFUALT_COMPRESSION_BUFFER_SIZE = 32 * 1024
+
+  // Shuffle reader buffer size.
+  val GLUTEN_SHUFFLE_READER_BUFFER_SIZE = "spark.gluten.sql.columnar.shuffle.readerBufferSize"
 
   // Controls whether to load DLL from jars. User can get dependent native libs packed into a jar
   // by executing dev/package.sh. Then, with that jar configured, Gluten can load the native libs
@@ -1152,6 +1158,13 @@ object GlutenConfig {
       .doubleConf
       .checkValue(v => v >= 0 && v <= 1, "Shuffle writer merge threshold must between [0, 1]")
       .createWithDefault(0.25)
+
+  val COLUMNAR_SHUFFLE_READER_BUFFER_SIZE =
+    buildConf(GLUTEN_SHUFFLE_READER_BUFFER_SIZE)
+      .internal()
+      .doc("Buffer size in bytes for shuffle reader reading input stream from local or remote.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("1MB")
 
   val COLUMNAR_MAX_BATCH_SIZE =
     buildConf(GLUTEN_MAX_BATCH_SIZE_KEY)

@@ -44,8 +44,6 @@ namespace gluten {
 
 namespace {
 
-constexpr int64_t kDefaultReadBufferSize = 1 << 20;
-
 struct BufferViewReleaser {
   BufferViewReleaser() : BufferViewReleaser(nullptr) {}
   BufferViewReleaser(std::shared_ptr<arrow::Buffer> arrowBuffer) : bufferReleaser_(std::move(arrowBuffer)) {}
@@ -292,6 +290,7 @@ VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
     const std::shared_ptr<arrow::util::Codec>& codec,
     const facebook::velox::RowTypePtr& rowType,
     int32_t batchSize,
+    int64_t bufferSize,
     arrow::MemoryPool* memoryPool,
     facebook::velox::memory::MemoryPool* veloxPool,
     std::vector<bool>* isValidityBuffer,
@@ -308,8 +307,7 @@ VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
       hasComplexType_(hasComplexType),
       deserializeTime_(deserializeTime),
       decompressTime_(decompressTime) {
-  GLUTEN_ASSIGN_OR_THROW(
-      in_, arrow::io::BufferedInputStream::Create(kDefaultReadBufferSize, memoryPool, std::move(in)));
+  GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(bufferSize, memoryPool, std::move(in)));
 }
 
 std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
@@ -377,6 +375,7 @@ VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
     const std::shared_ptr<arrow::util::Codec>& codec,
     const RowTypePtr& rowType,
     int32_t batchSize,
+    int64_t bufferSize,
     arrow::MemoryPool* memoryPool,
     facebook::velox::memory::MemoryPool* veloxPool,
     int64_t& deserializeTime,
@@ -389,8 +388,7 @@ VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
       veloxPool_(veloxPool),
       deserializeTime_(deserializeTime),
       decompressTime_(decompressTime) {
-  GLUTEN_ASSIGN_OR_THROW(
-      in_, arrow::io::BufferedInputStream::Create(kDefaultReadBufferSize, memoryPool, std::move(in)));
+  GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(bufferSize, memoryPool, std::move(in)));
 }
 
 std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
@@ -584,6 +582,7 @@ VeloxColumnarBatchDeserializerFactory::VeloxColumnarBatchDeserializerFactory(
     const facebook::velox::common::CompressionKind veloxCompressionType,
     const RowTypePtr& rowType,
     int32_t batchSize,
+    int64_t bufferSize,
     arrow::MemoryPool* memoryPool,
     std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
     ShuffleWriterType shuffleWriterType)
@@ -592,6 +591,7 @@ VeloxColumnarBatchDeserializerFactory::VeloxColumnarBatchDeserializerFactory(
       veloxCompressionType_(veloxCompressionType),
       rowType_(rowType),
       batchSize_(batchSize),
+      bufferSize_(bufferSize),
       memoryPool_(memoryPool),
       veloxPool_(veloxPool),
       shuffleWriterType_(shuffleWriterType) {
@@ -608,6 +608,7 @@ std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::cr
           codec_,
           rowType_,
           batchSize_,
+          bufferSize_,
           memoryPool_,
           veloxPool_.get(),
           &isValidityBuffer_,
@@ -621,6 +622,7 @@ std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::cr
           codec_,
           rowType_,
           batchSize_,
+          bufferSize_,
           memoryPool_,
           veloxPool_.get(),
           deserializeTime_,
