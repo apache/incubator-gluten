@@ -59,7 +59,7 @@ protected:
         size_t file_size);
 
     std::unique_ptr<DB::ReadBuffer>
-    wrapParallelReadBufferIfNeeded(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, std::unique_ptr<DB::ReadBuffer> in);
+    wrapWithParallelIfNeeded(std::unique_ptr<DB::ReadBuffer> in, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info);
 
     DB::ReadSettings getReadSettings() const;
 

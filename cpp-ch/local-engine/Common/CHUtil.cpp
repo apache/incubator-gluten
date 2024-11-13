@@ -757,6 +757,7 @@ void BackendInitializerUtil::initSettings(const SparkConfigs::ConfigMap & spark_
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", key, value);
         }
     }
+
     /// Finally apply some fixed kvs to settings.
     settings.set("join_use_nulls", true);
     settings.set("input_format_orc_allow_missing_columns", true);
@@ -971,6 +972,7 @@ void BackendInitializerUtil::initBackend(const SparkConfigs::ConfigMap & spark_c
             LOG_INFO(logger, "Init compiled expressions cache factory.");
 
             GlobalThreadPool::initialize();
+            getIOThreadPool().initialize(10, 0, 10);
 
             const size_t active_parts_loading_threads = config->getUInt("max_active_parts_loading_thread_pool_size", 64);
             DB::getActivePartsLoadingThreadPool().initialize(
