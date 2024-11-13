@@ -385,7 +385,6 @@ JNIEXPORT void JNICALL Java_org_apache_gluten_datasource_VeloxDataSourceJniWrapp
     jlong dsHandle,
     jlong batchHandle) {
   JNI_METHOD_START
-  auto ctx = gluten::getRuntime(env, wrapper);
   auto datasource = ObjectStore::retrieve<VeloxDataSource>(dsHandle);
   auto batch = ObjectStore::retrieve<ColumnarBatch>(batchHandle);
   datasource->write(batch);
