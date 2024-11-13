@@ -845,7 +845,7 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
 
       withSQLConf(
         GlutenConfig.COLUMNAR_PREFER_STREAMING_AGGREGATE.key -> "true",
-        GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
+        GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
         SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1"
       ) {
         val query =
