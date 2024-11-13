@@ -61,20 +61,51 @@ private:
 OutputFormatFilePtr createOutputFormatFile(
     const DB::ContextPtr & context, const std::string & file_uri, const DB::Block & preferred_schema, const std::string & format_hint);
 
-class WriteStats : public DB::ISimpleTransform
+class WriteStatsBase : public DB::ISimpleTransform
 {
+protected:
     bool all_chunks_processed_ = false; /// flag to determine if we have already processed all chunks
-    DB::Arena partition_keys_arena_;
-    std::string filename_;
+    virtual DB::Chunk final_result() = 0;
 
-    absl::flat_hash_map<StringRef, size_t> file_to_count_;
+public:
+    WriteStatsBase(const DB::Block & input_header_, const DB::Block & output_header_)
+        : ISimpleTransform(input_header_, output_header_, true)
+    {
+    }
 
+    Status prepare() override
+    {
+        if (input.isFinished() && !output.isFinished() && !has_input && !all_chunks_processed_)
+        {
+            all_chunks_processed_ = true;
+            /// return Ready to call transform() for generating filling rows after latest chunk was processed
+            return Status::Ready;
+        }
+
+        return ISimpleTransform::prepare();
+    }
+
+    void transform(DB::Chunk & chunk) override
+    {
+        if (all_chunks_processed_)
+            chunk = final_result();
+        else
+            chunk = {};
+    }
+};
+
+class WriteStats : public WriteStatsBase
+{
     static DB::Block statsHeader()
     {
         return makeBlockHeader({{STRING(), "filename"}, {STRING(), "partition_id"}, {BIGINT(), "record_count"}});
     }
+    DB::Arena partition_keys_arena_;
+    std::string filename_;
+    absl::flat_hash_map<StringRef, size_t> file_to_count_;
 
-    DB::Chunk final_result() const
+protected:
+    DB::Chunk final_result() override
     {
         const size_t size = file_to_count_.size();
 
@@ -102,30 +133,9 @@ class WriteStats : public DB::ISimpleTransform
     }
 
 public:
-    explicit WriteStats(const DB::Block & input_header_) : ISimpleTransform(input_header_, statsHeader(), true) { }
-
-    Status prepare() override
-    {
-        if (input.isFinished() && !output.isFinished() && !has_input && !all_chunks_processed_)
-        {
-            all_chunks_processed_ = true;
-            /// return Ready to call transform() for generating filling rows after latest chunk was processed
-            return Status::Ready;
-        }
-
-        return ISimpleTransform::prepare();
-    }
-
+    explicit WriteStats(const DB::Block & input_header_) : WriteStatsBase(input_header_, statsHeader()) { }
     String getName() const override { return "WriteStats"; }
-    void transform(DB::Chunk & chunk) override
-    {
-        if (all_chunks_processed_)
-            chunk = final_result();
-        else
-            chunk = {};
-    }
-
-    void addFilePath(const String & patition_id, const String & filename)
+    void addFilePath(const String & partition_id, const String & filename)
     {
         assert(!filename.empty());
 
@@ -134,9 +144,9 @@ public:
 
         assert(filename_ == filename);
 
-        if (patition_id.empty())
+        if (partition_id.empty())
             return;
-        file_to_count_.emplace(copyStringInArena(partition_keys_arena_, patition_id), 0);
+        file_to_count_.emplace(copyStringInArena(partition_keys_arena_, partition_id), 0);
     }
 
     void collectStats(const String & file_path, size_t rows)
@@ -155,7 +165,7 @@ class SubstraitFileSink final : public DB::SinkToStorage
     const std::string partition_id_;
     const std::string relative_path_;
     OutputFormatFile::OutputFormatPtr output_format_;
-    std::shared_ptr<WriteStats> stats_{nullptr};
+    std::shared_ptr<WriteStats> stats_;
 
     static std::string makeFilename(const std::string & base_path, const std::string & partition_id, const std::string & relative)
     {
@@ -174,22 +184,18 @@ public:
         const std::string & partition_id,
         const std::string & relative,
         const std::string & format_hint,
-        const DB::Block & header)
+        const DB::Block & header,
+        const std::shared_ptr<WriteStatsBase> & stats)
         : SinkToStorage(header)
         , partition_id_(partition_id.empty() ? NO_PARTITION_ID : partition_id)
         , relative_path_(relative)
         , output_format_(createOutputFormatFile(context, makeFilename(base_path, partition_id, relative), header, format_hint)
                              ->createOutputFormat(header))
+        , stats_(std::dynamic_pointer_cast<WriteStats>(stats))
     {
-    }
-    String getName() const override { return "SubstraitFileSink"; }
-
-    ///TODO: remove this function
-    void setStats(const std::shared_ptr<WriteStats> & stats)
-    {
-        stats_ = stats;
         stats_->addFilePath(partition_id_, relative_path_);
     }
+    String getName() const override { return "SubstraitFileSink"; }
 
 protected:
     void consume(DB::Chunk & chunk) override
@@ -208,7 +214,7 @@ protected:
     }
 };
 
-class SubstraitPartitionedFileSink final : public DB::PartitionedSink
+class SparkPartitionedBaseSink : public DB::PartitionedSink
 {
     static const std::string DEFAULT_PARTITION_NAME;
 
@@ -237,13 +243,27 @@ public:
         return DB::makeASTFunction("concat", std::move(arguments));
     }
 
-private:
+protected:
+    DB::ContextPtr context_;
+    std::shared_ptr<WriteStatsBase> stats_;
+
+public:
+    SparkPartitionedBaseSink(
+        const DB::ContextPtr & context,
+        const DB::Names & partition_by,
+        const DB::Block & input_header,
+        const std::shared_ptr<WriteStatsBase> & stats)
+        : PartitionedSink(make_partition_expression(partition_by), context, input_header), context_(context), stats_(stats)
+    {
+    }
+};
+
+class SubstraitPartitionedFileSink final : public SparkPartitionedBaseSink
+{
     const std::string base_path_;
     const std::string filename_;
-    DB::ContextPtr context_;
     const DB::Block sample_block_;
     const std::string format_hint_;
-    std::shared_ptr<WriteStats> stats_{nullptr};
 
 public:
     SubstraitPartitionedFileSink(
@@ -253,27 +273,23 @@ public:
         const DB::Block & sample_block,
         const std::string & base_path,
         const std::string & filename,
-        const std::string & format_hint)
-        : PartitionedSink(make_partition_expression(partition_by), context, input_header)
+        const std::string & format_hint,
+        const std::shared_ptr<WriteStatsBase> & stats)
+        : SparkPartitionedBaseSink(context, partition_by, input_header, stats)
         , base_path_(base_path)
         , filename_(filename)
-        , context_(context)
         , sample_block_(sample_block)
         , format_hint_(format_hint)
     {
     }
+
     DB::SinkPtr createSinkForPartition(const String & partition_id) override
     {
         assert(stats_);
         const auto partition_path = fmt::format("{}/{}", partition_id, filename_);
-        PartitionedSink::validatePartitionKey(partition_path, true);
-        auto file_sink = std::make_shared<SubstraitFileSink>(context_, base_path_, partition_id, filename_, format_hint_, sample_block_);
-        file_sink->setStats(stats_);
-        return file_sink;
+        validatePartitionKey(partition_path, true);
+        return std::make_shared<SubstraitFileSink>(context_, base_path_, partition_id, filename_, format_hint_, sample_block_, stats_);
     }
     String getName() const override { return "SubstraitPartitionedFileSink"; }
-
-    ///TODO: remove this function
-    void setStats(const std::shared_ptr<WriteStats> & stats) { stats_ = stats; }
 };
 }
