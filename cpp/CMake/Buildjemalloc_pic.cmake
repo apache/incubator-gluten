@@ -41,11 +41,10 @@ macro(build_jemalloc)
       "CC=${CMAKE_C_COMPILER}"
       "--prefix=${JEMALLOC_PREFIX}"
       "--libdir=${JEMALLOC_LIB_DIR}"
-      # The setting for prefix can be helpful to explicitly use jemalloc for some code,
-      # not targeting for global replacement.
+      # The setting for prefix can be helpful to explicitly use jemalloc for
+      # some code, not targeting for global replacement.
       # "--with-jemalloc-prefix=je_gluten_"
-      # "--with-private-namespace=je_gluten_private_"
-      # "--without-export"
+      # "--with-private-namespace=je_gluten_private_" "--without-export"
       # "--disable-shared"
       "--disable-cxx"
       "--disable-libdl"
