@@ -43,9 +43,20 @@ jobs:
           sleep 15
         
       - name: Add comment to PR
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          COMMENT="Run Gluten Clickhouse CI"
-          URL=$(jq -r .pull_request.comments_url "$GITHUB_EVENT_PATH")
-          curl -H "Authorization: token ${GITHUB_TOKEN}" -X POST -d "{\"body\":\"$COMMENT\"}" "${URL}"
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issueNumber = context.payload.number;
+            let body;
+            if (issueNumber % 10 === 0) {
+              body = "Run Gluten ClickHouse CI on ARM";
+            } else {
+              body = "Run Gluten Clickhouse CI on x86";
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: body
+            });
