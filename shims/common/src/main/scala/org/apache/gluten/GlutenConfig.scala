@@ -75,7 +75,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableNativeColumnarToRow: Boolean = conf.getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
 
-  def forceShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED)
+  def forceShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED)
 
   def enableColumnarSortMergeJoin: Boolean = conf.getConf(COLUMNAR_SORTMERGEJOIN_ENABLED)
 
@@ -106,6 +106,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableCountDistinctWithoutExpand: Boolean =
     conf.getConf(ENABLE_COUNT_DISTINCT_WITHOUT_EXPAND)
+
+  def enableExtendedGeneratorNestedColumnAliasing: Boolean =
+    conf.getConf(ENABLE_EXTENDED_GENERATOR_NESTED_COLUMN_ALIASING)
 
   def veloxOrcScanEnabled: Boolean =
     conf.getConf(VELOX_ORC_SCAN_ENABLED)
@@ -939,7 +942,7 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
-  val COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED =
+  val COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.forceShuffledHashJoin")
       .internal()
       .booleanConf
@@ -1928,6 +1931,13 @@ object GlutenConfig {
           "When enabled, count distinct queries will fail to fallback!!!")
       .booleanConf
       .createWithDefault(false)
+
+  val ENABLE_EXTENDED_GENERATOR_NESTED_COLUMN_ALIASING =
+    buildConf("spark.gluten.sql.extendedGeneratorNestedColumnAliasing")
+      .internal()
+      .doc("Do nested column aliasing for Project(Filter(Generator))")
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
     buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")

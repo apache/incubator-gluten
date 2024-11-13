@@ -14,23 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.joins
+package org.apache.gluten.extension.columnar.heuristic
 
-import org.apache.gluten.GlutenConfig
+import org.apache.gluten.logging.LogLevelUtil
 
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.SparkPlan
 
-class GlutenInnerJoinSuiteForceShjOn extends InnerJoinSuite with GlutenSQLTestsBaseTrait {
-  override def sparkConf: SparkConf = {
-    super.sparkConf
-      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "true")
+class LegacyOffload(topDownRules: Seq[OffloadSingleNode], bottomUpRules: Seq[OffloadSingleNode])
+  extends Rule[SparkPlan]
+  with LogLevelUtil {
+
+  def apply(plan: SparkPlan): SparkPlan = {
+    val plan0 =
+      topDownRules.foldLeft(plan)((p, rule) => p.transformDown { case p => rule.offload(p) })
+    val plan1 =
+      bottomUpRules.foldLeft(plan0)((p, rule) => p.transformUp { case p => rule.offload(p) })
+    plan1
   }
 }
 
-class GlutenInnerJoinSuiteForceShjOff extends InnerJoinSuite with GlutenSQLTestsBaseTrait {
-  override def sparkConf: SparkConf = {
-    super.sparkConf
-      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "false")
+object LegacyOffload {
+  def apply(): LegacyOffload = {
+    new LegacyOffload(
+      List(),
+      List(
+        OffloadOthers(),
+        OffloadExchange(),
+        OffloadJoin()
+      )
+    )
   }
 }

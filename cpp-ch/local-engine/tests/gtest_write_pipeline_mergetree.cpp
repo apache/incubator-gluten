@@ -255,24 +255,42 @@ TEST(MergeTree, SparkMergeTree)
     }
 }
 
-INCBIN(_3_mergetree_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/3_one_pipeline.json");
-INCBIN(_3_mergetree_plan_input_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/3_one_pipeline_input.json");
-
-TEST(MergeTree, Pipeline)
+INCBIN(_3_mergetree_plan_input_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/lineitem_parquet_input.json");
+namespace
+{
+void writeMerge(std::string_view json_plan,
+    const std::string & outputPath ,
+    const std::function<void(const DB::Block &)> & callback, std::optional<std::string> input = std::nullopt)
 {
     const auto context = DB::Context::createCopy(QueryContext::globalContext());
-    GlutenWriteSettings settings{.task_write_tmp_dir = "tmp/lineitem_mergetree"};
+    GlutenWriteSettings settings{.task_write_tmp_dir = outputPath};
     settings.set(context);
     SparkMergeTreeWritePartitionSettings partition_settings{.part_name_prefix = "pipline_prefix"};
     partition_settings.set(context);
 
-    auto [_, local_executor] = test::create_plan_and_executor(
-        EMBEDDED_PLAN(_3_mergetree_plan_), replaceLocalFilesWithTPCH(EMBEDDED_PLAN(_3_mergetree_plan_input_)), context);
-    size_t sum = 0;
+    auto input_json = input.value_or(replaceLocalFilesWithTPCH(EMBEDDED_PLAN(_3_mergetree_plan_input_)));
+    auto [_, local_executor] = test::create_plan_and_executor(json_plan, input_json, context);
+
     while (local_executor->hasNext())
+        callback(*local_executor->nextColumnar());
+}
+}
+INCBIN(_3_mergetree_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/3_one_pipeline.json");
+INCBIN(_4_mergetree_plan_, SOURCE_DIR "/utils/extern-local-engine/tests/json/mergetree/4_one_pipeline.json");
+TEST(MergeTree, Pipeline)
+{
+    writeMerge(EMBEDDED_PLAN(_3_mergetree_plan_),"tmp/lineitem_mergetree",[&](const DB::Block & block)
     {
-        const Block & x = *local_executor->nextColumnar();
-        EXPECT_EQ(1, x.rows());
-        //-debug::headBlock("pipeline write", x);
-    }
+        EXPECT_EQ(1, block.rows());
+        debug::headBlock(block);
+    });
+}
+
+TEST(MergeTree, PipelineWithPartition)
+{
+    writeMerge(EMBEDDED_PLAN(_4_mergetree_plan_),"tmp/lineitem_mergetree_p",[&](const DB::Block & block)
+    {
+        EXPECT_EQ(2525, block.rows());
+        debug::headBlock(block);
+    });
 }
