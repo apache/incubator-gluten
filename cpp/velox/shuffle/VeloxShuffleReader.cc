@@ -38,12 +38,13 @@
 #include <algorithm>
 #include <iostream>
 
-// using namespace facebook;
 using namespace facebook::velox;
 
 namespace gluten {
 
 namespace {
+
+constexpr int64_t kDefaultReadBufferSize = 1 << 20;
 
 struct BufferViewReleaser {
   BufferViewReleaser() : BufferViewReleaser(nullptr) {}
@@ -307,7 +308,8 @@ VeloxHashShuffleReaderDeserializer::VeloxHashShuffleReaderDeserializer(
       hasComplexType_(hasComplexType),
       deserializeTime_(deserializeTime),
       decompressTime_(decompressTime) {
-  GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(1 << 20, memoryPool, std::move(in)));
+  GLUTEN_ASSIGN_OR_THROW(
+      in_, arrow::io::BufferedInputStream::Create(kDefaultReadBufferSize, memoryPool, std::move(in)));
 }
 
 std::shared_ptr<ColumnarBatch> VeloxHashShuffleReaderDeserializer::next() {
@@ -387,12 +389,8 @@ VeloxSortShuffleReaderDeserializer::VeloxSortShuffleReaderDeserializer(
       veloxPool_(veloxPool),
       deserializeTime_(deserializeTime),
       decompressTime_(decompressTime) {
-  // GLUTEN_ASSIGN_OR_THROW(auto bufferedIn, arrow::io::BufferedInputStream::Create(1 << 20, memoryPool,
-  // std::move(in)));
-
-  // in_ = std::make_shared<TimedInputStream>(std::move(bufferedIn));
-  // in_ = std::make_shared<TimedInputStream>(std::move(in));
-  GLUTEN_ASSIGN_OR_THROW(in_, arrow::io::BufferedInputStream::Create(1 << 20, memoryPool, std::move(in)));
+  GLUTEN_ASSIGN_OR_THROW(
+      in_, arrow::io::BufferedInputStream::Create(kDefaultReadBufferSize, memoryPool, std::move(in)));
 }
 
 std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
@@ -400,7 +398,6 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
     if (cachedRows_ > 0) {
       return deserializeToBatch();
     }
-    reachEos();
     return nullptr;
   }
 
@@ -419,7 +416,6 @@ std::shared_ptr<ColumnarBatch> VeloxSortShuffleReaderDeserializer::next() {
       if (cachedRows_ > 0) {
         return deserializeToBatch();
       }
-      reachEos();
       return nullptr;
     }
 
@@ -498,8 +494,6 @@ void VeloxSortShuffleReaderDeserializer::readLargeRow(std::vector<std::shared_pt
   cachedInputs_.emplace_back(1, wrapInBufferViewAsOwner(rowBuffer->data(), rowSize, rowBuffer));
   cachedRows_++;
 }
-
-void VeloxSortShuffleReaderDeserializer::reachEos() {}
 
 class VeloxRssSortShuffleReaderDeserializer::VeloxInputStream : public facebook::velox::GlutenByteInputStream {
  public:
