@@ -335,7 +335,9 @@ case class LazyAggregateExpandRule(session: SparkSession) extends Rule[SparkPlan
     val groupingExpressions =
       partialAggregate.groupingExpressions
         .filter(
-          e => e.toAttribute != groupIdAttribute && attributesToReplace.contains(e.toAttribute))
+          e =>
+            !e.toAttribute.semanticEquals(groupIdAttribute) &&
+              attributesToReplace.find(kv => kv._1.semanticEquals(e.toAttribute)).isDefined)
         .map(e => getReplaceAttribute(e.toAttribute, attributesToReplace))
         .distinct
     logDebug(
@@ -344,7 +346,7 @@ case class LazyAggregateExpandRule(session: SparkSession) extends Rule[SparkPlan
 
     // Remove group id column from result expressions
     val resultExpressions = partialAggregate.resultExpressions
-      .filter(_.toAttribute != groupIdAttribute)
+      .filter(!_.toAttribute.semanticEquals(groupIdAttribute))
       .map(e => getReplaceAttribute(e.toAttribute, attributesToReplace))
     logDebug(
       s"xxx newResultExpressions: $resultExpressions\n" +
