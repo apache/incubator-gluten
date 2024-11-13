@@ -99,6 +99,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   bool growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
+    // Set arbitration context to allow memory over-use during recursive arbitration.
+    // See MemoryPoolImpl::maybeIncrementReservation.
     velox::memory::ScopedMemoryArbitrationContext ctx(pool, nullptr);
     velox::memory::MemoryPool* candidate;
     {
