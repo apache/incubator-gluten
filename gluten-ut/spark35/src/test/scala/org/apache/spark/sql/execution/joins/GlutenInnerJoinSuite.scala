@@ -24,13 +24,13 @@ import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 class GlutenInnerJoinSuiteForceShjOn extends InnerJoinSuite with GlutenSQLTestsBaseTrait {
   override def sparkConf: SparkConf = {
     super.sparkConf
-      .set(GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key, "true")
+      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "true")
   }
 }
 
 class GlutenInnerJoinSuiteForceShjOff extends InnerJoinSuite with GlutenSQLTestsBaseTrait {
   override def sparkConf: SparkConf = {
     super.sparkConf
-      .set(GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key, "false")
+      .set(GlutenConfig.COLUMNAR_FORCE_SHUFFLED_HASH_JOIN_ENABLED.key, "false")
   }
 }
