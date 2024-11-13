@@ -76,13 +76,6 @@ void registerFunctionOverwrite() {
   velox::functions::registerPrestoVectorFunctions();
 }
 
-void registerFunctionForConfig() {
-  const std::string prefix = "not_allow_precision_loss_";
-  velox::functions::sparksql::registerDecimalAdd(prefix);
-  velox::functions::sparksql::registerDecimalSubtract(prefix);
-  velox::functions::sparksql::registerDecimalMultiply(prefix);
-  velox::functions::sparksql::registerDecimalDivide(prefix);
-}
 } // namespace
 
 void registerAllFunctions() {
@@ -96,7 +89,6 @@ void registerAllFunctions() {
   // Using function overwrite to handle function names mismatch between Spark
   // and Velox.
   registerFunctionOverwrite();
-  registerFunctionForConfig();
 }
 
 } // namespace gluten
