@@ -91,10 +91,8 @@ extern const int CANNOT_PARSE_PROTOBUF_SCHEMA;
 namespace ServerSetting
 {
 extern const ServerSettingsUInt64 max_thread_pool_size;
-extern const ServerSettingsUInt64 max_thread_pool_free_size;
 extern const ServerSettingsUInt64 thread_pool_queue_size;
 extern const ServerSettingsUInt64 max_io_thread_pool_size;
-extern const ServerSettingsUInt64 max_io_thread_pool_free_size;
 extern const ServerSettingsUInt64 io_thread_pool_queue_size;
 }
 }
