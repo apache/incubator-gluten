@@ -20,9 +20,22 @@
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
+#include "Analyzer/IQueryTreeNode.h"
+#include "substrait/algebra.pb.h"
 
 namespace local_engine
 {
+
+class GroupLimitRelParser : public RelParser
+{
+public:
+    explicit GroupLimitRelParser(ParserContextPtr parser_context_);
+    ~GroupLimitRelParser() override = default;
+    DB::QueryPlanPtr
+    parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
+    std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override { return &rel.windowgrouplimit().input(); }
+};
+
 /// Similar to WindowRelParser. Some differences
 /// 1. cannot support aggregate functions. only support window functions: row_number, rank, dense_rank
 /// 2. row_number, rank and dense_rank are mapped to new variants
@@ -42,5 +55,34 @@ private:
 
     std::vector<size_t> parsePartitoinFields(const google::protobuf::RepeatedPtrField<substrait::Expression> & expressions);
     std::vector<size_t> parseSortFields(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields);
+};
+
+class AggregateGroupLimitRelParser : public RelParser
+{
+public:
+    explicit AggregateGroupLimitRelParser(ParserContextPtr parser_context_);
+    ~AggregateGroupLimitRelParser() override = default;
+    DB::QueryPlanPtr
+    parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
+    std::optional<const substrait::Rel *> getSingleInput(const substrait::Rel & rel) override { return &rel.windowgrouplimit().input(); }
+
+private:
+    DB::QueryPlanPtr current_plan;
+    const substrait::WindowGroupLimitRel * win_rel_def;
+    String aggregate_function_name;
+    size_t limit = 0;
+    DB::Block input_header;
+    DB::Block output_header;
+    DB::Names aggregate_grouping_keys;
+    String aggregate_tuple_column_name;
+    String order_tuple_column_name;
+
+    String getAggregateFunctionName(const String & window_function_name);
+
+    void prePrejectionForAggregateArguments();
+
+    void addGroupLmitAggregationStep();
+    DB::Array parseSortDirections(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields);
+    DB::AggregateDescription buildAggregateDescription();
 };
 }
