@@ -47,7 +47,7 @@ macro(build_jemalloc)
       # "--with-private-namespace=je_gluten_private_"
       # "--without-export"
       # "--disable-shared"
-      # "--disable-cxx"
+      "--disable-cxx"
       "--disable-libdl"
       # For fixing an issue when loading native lib: cannot allocate memory in
       # static TLS block.
