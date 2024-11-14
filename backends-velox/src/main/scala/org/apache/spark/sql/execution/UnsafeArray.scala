@@ -18,12 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.executor.ShuffleWriteMetrics
-import org.apache.spark.memory.{
-  MemoryConsumer,
-  MemoryMode,
-  SparkOutOfMemoryError,
-  TaskMemoryManager
-}
+import org.apache.spark.memory.{MemoryConsumer, MemoryMode, SparkOutOfMemoryError, TaskMemoryManager}
 import org.apache.spark.sql.catalyst.expressions.UnsafeArrayData
 import org.apache.spark.unsafe.{Platform, UnsafeAlignedOffset}
 import org.apache.spark.unsafe.memory.MemoryBlock
@@ -60,7 +55,7 @@ class UnsafeArray(taskMemoryManager: TaskMemoryManager)
     val offset = keyOffsets(rowId)
     val klen = UnsafeAlignedOffset.getSize(base, offset - UnsafeAlignedOffset.getUaoSize)
     val result = new UnsafeArrayData
-    result.pointTo (base, offset, klen)
+    result.pointTo(base, offset, klen)
     result
   }
 
@@ -114,6 +109,5 @@ class UnsafeArray(taskMemoryManager: TaskMemoryManager)
 
     0L // TODO return released size
   }
-
 
 }
