@@ -208,6 +208,13 @@ class MiscOperatorSuite extends VeloxWholeStageTransformerSuite with AdaptiveSpa
       "select l_orderkey from lineitem " +
         "where l_partkey in (1552, 674) or l_partkey in (1552) and l_orderkey > 1") { _ => }
     checkLengthAndPlan(df, 73)
+
+    runQueryAndCompare(
+      "select count(1) from lineitem " +
+        "where (l_shipmode in ('TRUCK', 'MAIL') or l_shipmode in ('AIR', 'FOB')) " +
+        "and l_shipmode in ('RAIL','SHIP')") {
+      checkGlutenOperatorMatch[FileSourceScanExecTransformer]
+    }
   }
 
   test("in_not") {
