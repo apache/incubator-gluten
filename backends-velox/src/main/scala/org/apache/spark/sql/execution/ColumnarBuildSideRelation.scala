@@ -36,7 +36,7 @@ import org.apache.arrow.c.ArrowSchema
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
-case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Array[Byte]])
+case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: UnsafeArray)
   extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
@@ -60,13 +60,13 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
         var batchId = 0
 
         override def hasNext: Boolean = {
-          batchId < batches.length
+          batchId < batches.getLength
         }
 
         override def next: ColumnarBatch = {
           val handle =
             jniWrapper
-              .deserialize(serializeHandle, batches(batchId))
+              .deserialize(serializeHandle, batches.get(batchId).toByteArray)
           batchId += 1
           ColumnarBatches.create(handle)
         }
@@ -107,10 +107,10 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
     val jniWrapper = NativeColumnarToRowJniWrapper.create(runtime)
     val c2rId = jniWrapper.nativeColumnarToRowInit()
     var batchId = 0
-    val iterator = if (batches.length > 0) {
+    val iterator = if (batches.getLength > 0) {
       val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
         override def hasNext: Boolean = {
-          val itHasNext = batchId < batches.length
+          val itHasNext = batchId < batches.getLength
           if (!itHasNext && !closed) {
             jniWrapper.nativeClose(c2rId)
             serializerJniWrapper.close(serializeHandle)
@@ -120,10 +120,10 @@ case class ColumnarBuildSideRelation(output: Seq[Attribute], batches: Array[Arra
         }
 
         override def next(): Iterator[InternalRow] = {
-          val batchBytes = batches(batchId)
+          val batchBytes = batches.get(batchId)
           batchId += 1
           val batchHandle =
-            serializerJniWrapper.deserialize(serializeHandle, batchBytes)
+            serializerJniWrapper.deserialize(serializeHandle, batchBytes.toByteArray)
           val batch = ColumnarBatches.create(batchHandle)
           if (batch.numRows == 0) {
             batch.close()

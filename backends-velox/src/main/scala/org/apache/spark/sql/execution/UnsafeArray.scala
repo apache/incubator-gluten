@@ -36,6 +36,10 @@ class UnsafeArray(taskMemoryManager: TaskMemoryManager)  extends MemoryConsumer(
     result
   }
 
+  def getLength(): Int = {
+    numRows
+  }
+
   def write(bytes: Array[Byte], inputOffset: Long, inputLength: Int): Unit = {
     var offset: Long = page.getBaseOffset + pageCursor
     val recordOffset = offset
