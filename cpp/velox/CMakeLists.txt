@@ -138,8 +138,8 @@ endmacro()
 
 macro(find_gcssdk)
   set(CMAKE_FIND_LIBRARY_SUFFIXES_BCK ${CMAKE_FIND_LIBRARY_SUFFIXES})
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
-  find_package(google_cloud_cpp_storage REQUIRED)
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  find_package(google_cloud_cpp_storage CONFIG 2.22.0 REQUIRED)
   set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BCK})
 endmacro()
 
