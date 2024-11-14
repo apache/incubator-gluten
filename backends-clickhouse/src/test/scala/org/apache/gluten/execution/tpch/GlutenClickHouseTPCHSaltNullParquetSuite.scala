@@ -2192,7 +2192,7 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
     }
   }
 
-  test("GLUTEN-3135: Bug fix to_date") {
+  test("GLUTEN-3135/GLUTEN-7896: Bug fix to_date") {
     val create_table_sql =
       """
         | create table test_tbl_3135(id bigint, data string) using parquet
@@ -2216,6 +2216,18 @@ class GlutenClickHouseTPCHSaltNullParquetSuite extends GlutenClickHouseTPCHAbstr
 
     val select_sql = "select id, to_date(data) from test_tbl_3135"
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    withSQLConf(("spark.sql.legacy.timeParserPolicy" -> "corrected")) {
+      compareResultsAgainstVanillaSpark(
+        "select to_date('2025-07-22 10:00:00', 'yyyy-MM-dd')",
+        true,
+        { _ => })
+    }
+    withSQLConf(("spark.sql.legacy.timeParserPolicy" -> "legacy")) {
+      compareResultsAgainstVanillaSpark(
+        "select to_date('2025-07-22 10:00:00', 'yyyy-MM-dd')",
+        true,
+        { _ => })
+    }
     spark.sql("drop table test_tbl_3135")
   }
 
