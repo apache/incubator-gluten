@@ -3,7 +3,7 @@ FROM centos:7
 RUN sed -i -e "s|mirrorlist=|#mirrorlist=|g" /etc/yum.repos.d/CentOS-* || true
 RUN sed -i -e "s|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g" /etc/yum.repos.d/CentOS-* || true
 
-RUN yum install -y centos-release-scl
+RUN yum install -y epel-release centos-release-scl
 RUN rm /etc/yum.repos.d/CentOS-SCLo-scl.repo -f
 RUN sed -i \
        -e 's/^mirrorlist/#mirrorlist/' \

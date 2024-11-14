@@ -9,6 +9,6 @@
     JNI_OnLoad;
     JNI_OnUnload;
   local:
-    # Hide symbols of static dependencies
+    # Hide all other symbols except the above global symbols.
     *;
 };

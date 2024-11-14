@@ -105,7 +105,7 @@ case class CartesianProductExecTransformer(
       context,
       operatorId
     )
-    TransformContext(inputLeftOutput ++ inputRightOutput, output, currRel)
+    TransformContext(output, currRel)
   }
 
   override protected def doValidateInternal(): ValidationResult = {

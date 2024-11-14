@@ -160,12 +160,12 @@ SparkStorageMergeTree::SparkStorageMergeTree(
 
 std::atomic<int> SparkStorageMergeTree::part_num;
 
-void SparkStorageMergeTree::prefetchPartDataFile(const std::unordered_set<std::string>& parts) const
+void SparkStorageMergeTree::prefetchPartDataFile(const std::unordered_set<std::string> & parts) const
 {
     prefetchPartFiles(parts, CompactObjectStorageDiskTransaction::PART_DATA_FILE_NAME);
 }
 
-void SparkStorageMergeTree::prefetchPartFiles(const std::unordered_set<std::string>& parts, String file_name) const
+void SparkStorageMergeTree::prefetchPartFiles(const std::unordered_set<std::string> & parts, String file_name) const
 {
     auto disk = getDisks().front();
     if (!disk->isRemote())
@@ -185,7 +185,7 @@ void SparkStorageMergeTree::prefetchPartFiles(const std::unordered_set<std::stri
     }
 }
 
-void SparkStorageMergeTree::prefetchMetaDataFile(const std::unordered_set<std::string>& parts) const
+void SparkStorageMergeTree::prefetchMetaDataFile(const std::unordered_set<std::string> & parts) const
 {
     prefetchPartFiles(parts, CompactObjectStorageDiskTransaction::PART_META_FILE_NAME);
 }
@@ -513,15 +513,11 @@ MergeTreeDataWriter::TemporaryPart SparkMergeTreeDataWriter::writeTempPart(
 SinkToStoragePtr SparkWriteStorageMergeTree::write(
     const ASTPtr &, const StorageMetadataPtr & /*storage_in_memory_metadata*/, ContextPtr context, bool /*async_insert*/)
 {
-    SparkMergeTreeWriteSettings settings{.partition_settings{SparkMergeTreeWritePartitionSettings::get(context)}};
-    settings.load(context);
-    SinkHelperPtr sink_helper = SparkMergeTreeSink::create(table, settings, getContext());
 #ifndef NDEBUG
     auto dest_storage = table.getStorage(getContext());
     assert(dest_storage.get() == this);
 #endif
-
-    return std::make_shared<SparkMergeTreeSink>(sink_helper, context);
+    return SparkMergeTreeSink::create(table, SparkMergeTreeWriteSettings{context}, getContext());
 }
 
 }

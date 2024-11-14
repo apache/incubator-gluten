@@ -94,8 +94,10 @@ void registerOutputFormatParquet(DB::FormatFactory & factory);
 
 int main(int argc, char ** argv)
 {
-    BackendInitializerUtil::initBackend(
-        SparkConfigs::load(local_engine::JsonStringToBinary<gluten::ConfigMap>(EMBEDDED_PLAN(_config_json)), true));
+    SparkConfigs::update(
+        local_engine::JsonStringToBinary<gluten::ConfigMap>(EMBEDDED_PLAN(_config_json)),
+        [&](const SparkConfigs::ConfigMap & spark_conf_map) { BackendInitializerUtil::initBackend(spark_conf_map); },
+        true);
 
     auto & factory = FormatFactory::instance();
     DB::registerOutputFormatParquet(factory);

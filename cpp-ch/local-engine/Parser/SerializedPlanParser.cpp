@@ -218,7 +218,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
     auto rel_parser = RelParserFactory::instance().getBuilder(rel.rel_type_case())(parser_context);
 
     auto all_input_rels = rel_parser->getInputs(rel);
-    assert(all_input_rels.size() == 0 || all_input_rels.size() == 1 || all_input_rels.size() == 2);
+    assert(all_input_rels.empty() || all_input_rels.size() == 1 || all_input_rels.size() == 2);
     std::vector<DB::QueryPlanPtr> input_query_plans;
     rel_stack.push_back(&rel);
     for (const auto * input_rel : all_input_rels)
@@ -283,7 +283,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
     return query_plan;
 }
 
-DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPlan & query_plan)
+DB::QueryPipelineBuilderPtr SerializedPlanParser::buildQueryPipeline(DB::QueryPlan & query_plan) const
 {
     const Settings & settings = parser_context->queryContext()->getSettingsRef();
     QueryPriorities priorities;
@@ -355,11 +355,7 @@ NonNullableColumnsResolver::NonNullableColumnsResolver(
     expression_parser = std::make_unique<ExpressionParser>(parser_context);
 }
 
-NonNullableColumnsResolver::~NonNullableColumnsResolver()
-{
-}
-
-// make it simple at present, if the condition contains or, return empty for both side.
+// make it simple at present if the condition contains or, return empty for both side.
 std::set<String> NonNullableColumnsResolver::resolve()
 {
     collected_columns.clear();

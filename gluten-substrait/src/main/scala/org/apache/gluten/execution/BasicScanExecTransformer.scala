@@ -162,6 +162,6 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       extensionNode,
       context,
       context.nextOperatorId(this.nodeName))
-    TransformContext(output, output, readNode)
+    TransformContext(output, readNode)
   }
 }

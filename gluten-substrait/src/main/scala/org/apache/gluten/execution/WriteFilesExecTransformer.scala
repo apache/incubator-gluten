@@ -185,7 +185,7 @@ case class WriteFilesExecTransformer(
     val currRel =
       getRelNode(context, getFinalChildOutput, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Write Rel should be valid")
-    TransformContext(childCtx.outputAttributes, output, currRel)
+    TransformContext(output, currRel)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): WriteFilesExecTransformer =

@@ -156,7 +156,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
       context.registerEmptyRelToOperator(operatorId)
       // Since some columns' nullability will be removed after this filter, we need to update the
       // outputAttributes of child context.
-      return TransformContext(childCtx.inputAttributes, output, childCtx.root)
+      return TransformContext(output, childCtx.root)
     }
     val currRel = getRelNode(
       context,
@@ -166,7 +166,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
       childCtx.root,
       validation = false)
     assert(currRel != null, "Filter rel should be valid.")
-    TransformContext(childCtx.outputAttributes, output, currRel)
+    TransformContext(output, currRel)
   }
 }
 
@@ -205,7 +205,7 @@ abstract class ProjectExecTransformerBase(val list: Seq[NamedExpression], val in
     val currRel =
       getRelNode(context, list, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Project Rel should be valid")
-    TransformContext(childCtx.outputAttributes, output, currRel)
+    TransformContext(output, currRel)
   }
 
   override def output: Seq[Attribute] = list.map(_.toAttribute)

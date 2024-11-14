@@ -17,7 +17,6 @@
 package org.apache.gluten.extension.columnar
 
 import org.apache.gluten.extension.columnar.transition.{ColumnarToRowLike, Transitions}
-import org.apache.gluten.logging.LogLevelUtil
 import org.apache.gluten.utils.PlanUtil
 
 import org.apache.spark.sql.SparkSession
@@ -32,34 +31,6 @@ import org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec
 import org.apache.spark.sql.internal.SQLConf
 
 object MiscColumnarRules {
-  object TransformPreOverrides {
-    def apply(): TransformPreOverrides = {
-      TransformPreOverrides(
-        List(),
-        List(
-          OffloadOthers(),
-          OffloadExchange(),
-          OffloadJoin()
-        )
-      )
-    }
-  }
-
-  // This rule will conduct the conversion from Spark plan to the plan transformer.
-  case class TransformPreOverrides(
-      topDownRules: Seq[OffloadSingleNode],
-      bottomUpRules: Seq[OffloadSingleNode])
-    extends Rule[SparkPlan]
-    with LogLevelUtil {
-
-    def apply(plan: SparkPlan): SparkPlan = {
-      val plan0 =
-        topDownRules.foldLeft(plan)((p, rule) => p.transformDown { case p => rule.offload(p) })
-      val plan1 =
-        bottomUpRules.foldLeft(plan0)((p, rule) => p.transformUp { case p => rule.offload(p) })
-      plan1
-    }
-  }
 
   // Replaces all SubqueryBroadcastExec used by sub-queries with ColumnarSubqueryBroadcastExec.
   // This prevents query execution from being failed by fallen-back SubqueryBroadcastExec with

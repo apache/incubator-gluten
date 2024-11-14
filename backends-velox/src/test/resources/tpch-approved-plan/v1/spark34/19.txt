@@ -12,14 +12,14 @@ AdaptiveSparkPlan (38)
                :        +- VeloxResizeBatches (5)
                :           +- ^ ProjectExecTransformer (3)
                :              +- ^ FilterExecTransformer (2)
-               :                 +- ^ Scan parquet (1)
+               :                 +- ^ ScanTransformer parquet  (1)
                +- ^ InputIteratorTransformer (18)
                   +- ShuffleQueryStage (16), Statistics(X)
                      +- ColumnarExchange (15)
                         +- VeloxResizeBatches (14)
                            +- ^ ProjectExecTransformer (12)
                               +- ^ FilterExecTransformer (11)
-                                 +- ^ Scan parquet (10)
+                                 +- ^ ScanTransformer parquet  (10)
 +- == Initial Plan ==
    HashAggregate (37)
    +- HashAggregate (36)
@@ -36,7 +36,7 @@ AdaptiveSparkPlan (38)
                      +- Scan parquet (30)
 
 
-(1) Scan parquet
+(1) ScanTransformer parquet 
 Output [6]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X, l_shipinstruct#X, l_shipmode#X]
 Batched: true
 Location: InMemoryFileIndex [*]
@@ -73,7 +73,7 @@ Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 (9) InputIteratorTransformer
 Input [4]: [l_partkey#X, l_quantity#X, l_extendedprice#X, l_discount#X]
 
-(10) Scan parquet
+(10) ScanTransformer parquet 
 Output [4]: [p_partkey#X, p_brand#X, p_size#X, p_container#X]
 Batched: true
 Location: InMemoryFileIndex [*]

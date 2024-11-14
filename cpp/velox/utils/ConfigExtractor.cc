@@ -22,6 +22,7 @@
 
 #include "utils/Exception.h"
 #include "velox/connectors/hive/HiveConfig.h"
+#include "velox/connectors/hive/storage_adapters/s3fs/S3Config.h"
 
 namespace {
 
@@ -98,27 +99,39 @@ std::shared_ptr<facebook::velox::config::ConfigBase> getHiveConfig(
   }
 
   if (useInstanceCredentials) {
-    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3UseInstanceCredentials] = "true";
+    hiveConfMap[facebook::velox::filesystems::S3Config::baseConfigKey(
+        facebook::velox::filesystems::S3Config::Keys::kUseInstanceCredentials)] = "true";
   } else if (!iamRole.empty()) {
-    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3IamRole] = iamRole;
+    hiveConfMap[facebook::velox::filesystems::S3Config::baseConfigKey(
+        facebook::velox::filesystems::S3Config::Keys::kIamRole)] = iamRole;
     if (!iamRoleSessionName.empty()) {
-      hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3IamRoleSessionName] = iamRoleSessionName;
+      hiveConfMap[facebook::velox::filesystems::S3Config::baseConfigKey(
+          facebook::velox::filesystems::S3Config::Keys::kIamRoleSessionName)] = iamRoleSessionName;
     }
   } else {
-    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3AwsAccessKey] = awsAccessKey;
-    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3AwsSecretKey] = awsSecretKey;
+    hiveConfMap[facebook::velox::filesystems::S3Config::baseConfigKey(
+        facebook::velox::filesystems::S3Config::Keys::kAccessKey)] = awsAccessKey;
+    hiveConfMap[facebook::velox::filesystems::S3Config::baseConfigKey(
+        facebook::velox::filesystems::S3Config::Keys::kSecretKey)] = awsSecretKey;
   }
   // Only need to set s3 endpoint when not use instance credentials.
   if (!useInstanceCredentials) {
-    hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3Endpoint] = awsEndpoint;
+    hiveConfMap[facebook::velox::filesystems::S3Config::baseConfigKey(
+        facebook::velox::filesystems::S3Config::Keys::kEndpoint)] = awsEndpoint;
   }
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3SSLEnabled] = sslEnabled ? "true" : "false";
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3PathStyleAccess] = pathStyleAccess ? "true" : "false";
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3LogLevel] = awsSdkLogLevel;
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3MaxAttempts] = retryMaxAttempts;
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3RetryMode] = retryMode;
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3MaxConnections] = maxConnections;
-  hiveConfMap[facebook::velox::connector::hive::HiveConfig::kS3ConnectTimeout] = connectTimeout;
+  hiveConfMap[facebook::velox::filesystems::S3Config::baseConfigKey(
+      facebook::velox::filesystems::S3Config::Keys::kSSLEnabled)] = sslEnabled ? "true" : "false";
+  hiveConfMap[facebook::velox::filesystems::S3Config::baseConfigKey(
+      facebook::velox::filesystems::S3Config::Keys::kPathStyleAccess)] = pathStyleAccess ? "true" : "false";
+  hiveConfMap[facebook::velox::filesystems::S3Config::kS3LogLevel] = awsSdkLogLevel;
+  hiveConfMap[facebook::velox::filesystems::S3Config::baseConfigKey(
+      facebook::velox::filesystems::S3Config::Keys::kMaxAttempts)] = retryMaxAttempts;
+  hiveConfMap[facebook::velox::filesystems::S3Config::baseConfigKey(
+      facebook::velox::filesystems::S3Config::Keys::kRetryMode)] = retryMode;
+  hiveConfMap[facebook::velox::filesystems::S3Config::baseConfigKey(
+      facebook::velox::filesystems::S3Config::Keys::kMaxConnections)] = maxConnections;
+  hiveConfMap[facebook::velox::filesystems::S3Config::baseConfigKey(
+      facebook::velox::filesystems::S3Config::Keys::kConnectTimeout)] = connectTimeout;
 #endif
 
 #ifdef ENABLE_GCS

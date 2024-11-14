@@ -14,21 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gluten.extension.injector
+package org.apache.gluten.vectorized
 
-import org.apache.spark.sql.SparkSessionExtensions
+import org.apache.gluten.backendsapi.clickhouse.CHConf
+import org.apache.gluten.utils.ConfigUtil
 
-/** Injector used to inject query planner rules into Spark and Gluten. */
-class RuleInjector(extensions: SparkSessionExtensions) {
-  val control = new InjectorControl()
-  val spark: SparkInjector = new SparkInjector(control, extensions)
-  val gluten: GlutenInjector = new GlutenInjector(control)
+import scala.collection.JavaConverters._
 
-  private[extension] def inject(): Unit = {
-    // The regular Spark rules already injected with the `injectRules` of `RuleApi` directly.
-    // Only inject the Spark columnar rule here.
-    gluten.inject(extensions)
+// TODO: move CHNativeExpressionEvaluator to NativeExpressionEvaluator
+/** Scala Wrapper for ExpressionEvaluatorJniWrapper */
+object NativeExpressionEvaluator {
+
+  def updateQueryRuntimeSettings(settings: Map[String, String]): Unit = {
+    ExpressionEvaluatorJniWrapper.updateQueryRuntimeSettings(
+      ConfigUtil.serialize(
+        settings
+          .filter(t => CHConf.startWithSettingsPrefix(t._1) && t._2.nonEmpty)
+          .map {
+            case (k, v) =>
+              (CHConf.removeSettingsPrefix(k), v)
+          }
+          .asJava))
   }
 }
-
-object RuleInjector {}

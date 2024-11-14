@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.v1
 
+import org.apache.gluten.backendsapi.clickhouse.CHConf
 import org.apache.gluten.execution.ColumnarToRowExecBase
 import org.apache.gluten.expression.ConverterUtils
 import org.apache.gluten.substrait.`type`.ColumnTypeNode
@@ -26,6 +27,7 @@ import org.apache.gluten.substrait.rel.RelBuilder
 import org.apache.gluten.utils.ConfigUtil
 
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.delta.MergeTreeFileFormat
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.datasources.{CHDatasourceJniWrapper, FakeRowAdaptor, OutputWriter}
@@ -75,22 +77,7 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
           .setFormat(formatName)
           .setJobTaskAttemptId(s"$jobID/$taskAttemptID")
           .build())
-      .setMergetree(
-        Write.MergeTreeWrite
-          .newBuilder()
-          .setDatabase(conf(StorageMeta.DB))
-          .setTable(conf(StorageMeta.TABLE))
-          .setSnapshotId(conf(StorageMeta.SNAPSHOT_ID))
-          .setOrderByKey(conf(StorageMeta.ORDER_BY_KEY))
-          .setLowCardKey(conf(StorageMeta.LOW_CARD_KEY))
-          .setMinmaxIndexKey(conf(StorageMeta.MINMAX_INDEX_KEY))
-          .setBfIndexKey(conf(StorageMeta.BF_INDEX_KEY))
-          .setSetIndexKey(conf(StorageMeta.SET_INDEX_KEY))
-          .setPrimaryKey(conf(StorageMeta.PRIMARY_KEY))
-          .setRelativePath(StorageMeta.normalizeRelativePath(outputPath))
-          .setAbsolutePath("")
-          .setStoragePolicy(conf(StorageMeta.POLICY))
-          .build())
+      .setMergetree(MergeTreeFileFormat.createWrite(Some(outputPath), conf))
       .build()
   }
 
@@ -100,14 +87,24 @@ class CHMergeTreeWriterInjects extends CHFormatWriterInjects {
       context: TaskAttemptContext,
       nativeConf: ju.Map[String, String]): OutputWriter = {
 
-    val datasourceJniWrapper = new CHDatasourceJniWrapper(
-      context.getConfiguration.get("mapreduce.task.gluten.mergetree.partPrefix"),
-      context.getConfiguration.get("mapreduce.task.gluten.mergetree.partition"),
-      context.getConfiguration.get("mapreduce.task.gluten.mergetree.bucketid"),
-      createWriteRel(outputPath, dataSchema, context),
-      ConfigUtil.serialize(nativeConf)
-    )
-    new FakeRowOutputWriter(datasourceJniWrapper, outputPath)
+    val wrapper = if (CHConf.get.enableOnePipelineMergeTreeWrite) {
+
+      /**
+       * In pipeline mode, CHColumnarWriteFilesRDD.writeFilesForEmptyIterator will create a JNI
+       * wrapper which is not needed in this case.
+       *
+       * TODO: We should refactor the code to avoid creating the JNI wrapper in this case.
+       */
+      None
+    } else {
+      val datasourceJniWrapper = new CHDatasourceJniWrapper(
+        createWriteRel(outputPath, dataSchema, context),
+        ConfigUtil.serialize(nativeConf)
+      )
+      Some(datasourceJniWrapper)
+    }
+
+    new FakeRowOutputWriter(wrapper, outputPath)
   }
 
   override val formatName: String = "mergetree"

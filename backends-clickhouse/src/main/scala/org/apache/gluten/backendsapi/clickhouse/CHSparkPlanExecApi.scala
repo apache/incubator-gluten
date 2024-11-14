@@ -23,8 +23,7 @@ import org.apache.gluten.execution._
 import org.apache.gluten.expression._
 import org.apache.gluten.expression.ExpressionNames.MONOTONICALLY_INCREASING_ID
 import org.apache.gluten.extension.ExpressionExtensionTrait
-import org.apache.gluten.extension.columnar.AddFallbackTagRule
-import org.apache.gluten.extension.columnar.MiscColumnarRules.TransformPreOverrides
+import org.apache.gluten.extension.columnar.heuristic.HeuristicTransform
 import org.apache.gluten.sql.shims.SparkShimLoader
 import org.apache.gluten.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import org.apache.gluten.utils.{CHJoinValidateUtil, UnknownJoinStrategy}
@@ -224,9 +223,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
         }
         // FIXME: The operation happens inside ReplaceSingleNode().
         //  Caller may not know it adds project on top of the shuffle.
-        val project = TransformPreOverrides().apply(
-          AddFallbackTagRule().apply(
-            ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
+        // FIXME: HeuristicTransform is costly. Re-applying it may cause performance issues.
+        val project =
+          HeuristicTransform()(ProjectExec(plan.child.output ++ projectExpressions, plan.child))
         var newExprs = Seq[Expression]()
         for (i <- exprs.indices) {
           val pos = newExpressionsPosition(i)
@@ -249,9 +248,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi with Logging {
         }
         // FIXME: The operation happens inside ReplaceSingleNode().
         //  Caller may not know it adds project on top of the shuffle.
-        val project = TransformPreOverrides().apply(
-          AddFallbackTagRule().apply(
-            ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
+        // FIXME: HeuristicTransform is costly. Re-applying it may cause performance issues.
+        val project =
+          HeuristicTransform()(ProjectExec(plan.child.output ++ projectExpressions, plan.child))
         var newOrderings = Seq[SortOrder]()
         for (i <- orderings.indices) {
           val oldOrdering = orderings(i)

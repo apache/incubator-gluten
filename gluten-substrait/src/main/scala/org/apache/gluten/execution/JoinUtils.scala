@@ -312,7 +312,7 @@ object JoinUtils {
     } else {
       inputStreamedOutput ++ inputBuildOutput
     }
-    TransformContext(inputAttributes, output, rel)
+    TransformContext(output, rel)
   }
 
   def createCrossRel(
